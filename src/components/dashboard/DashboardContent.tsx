@@ -13,10 +13,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const userName = userEmail.split("@")[0];
 
   const stats = [
-    { label: "Exams Taken", value: "0", icon: FileText, color: "text-primary" },
-    { label: "Average Score", value: "-", icon: TrendingUp, color: "text-success" },
-    { label: "Study Hours", value: "0h", icon: Clock, color: "text-secondary" },
-    { label: "Day Streak", value: "0", icon: Flame, color: "text-destructive" },
+    { label: "Exams Taken", value: "0", emoji: "📄" },
+    { label: "Average Score", value: "-", emoji: "📊" },
+    { label: "Study Hours", value: "0h", emoji: "⏰" },
+    { label: "Day Streak", value: "0", emoji: "🔥" },
   ];
 
   const revisionGoals = [
@@ -61,28 +61,21 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             </Button>
           </div>
 
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Stats as floating badges */}
+          <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
             {stats.map((stat, index) => (
-              <Card 
+              <div 
                 key={index} 
-                className="border-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-card to-card/50"
+                className="group relative bg-gradient-to-br from-[hsl(222,47%,15%)] to-[hsl(222,47%,11%)] border border-primary/20 rounded-2xl px-6 py-4 hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 hover:scale-105"
               >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-lg bg-gradient-to-br ${
-                      index === 0 ? "from-primary/10 to-primary/5" :
-                      index === 1 ? "from-success/10 to-success/5" :
-                      index === 2 ? "from-secondary/10 to-secondary/5" :
-                      "from-destructive/10 to-destructive/5"
-                    }`}>
-                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{stat.emoji}</span>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{stat.value}</div>
+                    <div className="text-xs text-gray-400 font-medium">{stat.label}</div>
                   </div>
-                  <div className="text-3xl font-bold mb-1">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -101,10 +94,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             </CardHeader>
             <CardContent className="p-8">
               <div className="text-center py-12">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">No exams yet</h3>
+                <div className="text-6xl mb-4">🎯</div>
+                <h3 className="text-xl font-semibold mb-2">No exams yet! Let's get started.</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                   Start your first mock exam to track your progress and identify areas for improvement
                 </p>
@@ -170,7 +161,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 <div className="p-2 rounded-lg bg-destructive/10">
                   <RotateCcw className="w-5 h-5 text-destructive" />
                 </div>
-                <span className="font-medium flex-1 text-left">Retry Weak Topics</span>
+                <span className="font-medium flex-1 text-left">Review Weak Topics</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -180,7 +171,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 <div className="p-2 rounded-lg bg-secondary/10">
                   <Calendar className="w-5 h-5 text-secondary-foreground" />
                 </div>
-                <span className="font-medium flex-1 text-left">View Study Calendar</span>
+                <span className="font-medium flex-1 text-left">View Revision Plan</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -190,7 +181,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <MessageSquare className="w-5 h-5 text-primary" />
                 </div>
-                <span className="font-medium flex-1 text-left">Ask Exam Coach</span>
+                <span className="font-medium flex-1 text-left">Ask Examly</span>
               </Button>
             </CardContent>
           </Card>

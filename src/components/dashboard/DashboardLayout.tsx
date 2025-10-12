@@ -64,8 +64,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         } lg:translate-x-0`}
       >
         <div className="flex flex-col h-full">
-          {/* Logo & Hamburger */}
-          <div className="h-16 border-b border-border/50 flex items-center justify-between px-4">
+          {/* Hamburger Menu */}
+          <div className="h-16 border-b border-border/50 flex items-center px-4">
             <Button
               variant="ghost"
               size="icon"
@@ -74,19 +74,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             >
               <Menu className="w-5 h-5 text-white" />
             </Button>
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                  <Brain className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-lg font-bold text-white">ExamAI</span>
-              </div>
-            )}
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 p-3 overflow-y-auto">
-            <div className="space-y-1 mb-3">
+            <div className="space-y-1">
               {navItems.slice(0, 3).map((item) => (
                 <Button
                   key={item.path}
@@ -108,9 +100,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               ))}
             </div>
             
-            <Separator className="my-3 bg-border/30" />
+            <Separator className="my-3 bg-border/20" />
             
-            <div className="space-y-1 mb-3">
+            <div className="space-y-1">
               {navItems.slice(3).map((item) => (
                 <Button
                   key={item.path}
@@ -132,7 +124,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               ))}
             </div>
             
-            <Separator className="my-3 bg-border/30" />
+            <Separator className="my-3 bg-border/20" />
           </nav>
 
           {/* Bottom section */}
@@ -169,7 +161,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <header className="sticky top-0 z-30 h-16 bg-[hsl(222,47%,11%)] border-b border-border/50 shadow-lg">
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
             {/* Left: Mobile menu + Logo + Search */}
-            <div className="flex items-center gap-3 flex-1">
+            <div className="flex items-center gap-6 flex-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -179,11 +171,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <Menu className="w-5 h-5 text-white" />
               </Button>
               
-              <div className="hidden lg:flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                  <Brain className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-lg font-bold text-white">ExamAI</span>
+              <div className="hidden lg:flex items-center">
+                <span className="text-xl font-bold text-white">Examly</span>
               </div>
 
               <div className="relative flex-1 max-w-md hidden md:block">
