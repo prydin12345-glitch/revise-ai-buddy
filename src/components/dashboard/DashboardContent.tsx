@@ -32,10 +32,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         <div className="space-y-8">
           {/* Welcome header */}
           <div className="space-y-3">
-            <h1 className="text-5xl font-bold tracking-tight text-white">
+            <h1 className="text-5xl font-bold tracking-tight text-foreground">
               Welcome back, {userName}
             </h1>
-            <p className="text-xl text-gray-400">
+            <p className="text-xl text-muted-foreground">
               Ready to ace your exams? Let's make today count!
             </p>
           </div>
@@ -44,7 +44,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
               size="lg" 
-              className="flex-1 h-16 text-lg font-semibold bg-transparent border-2 border-primary/40 hover:border-primary text-white hover:bg-primary/10 transition-all duration-300 rounded-xl"
+              variant="outline"
+              className="flex-1 h-16 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
               onClick={() => navigate("/files")}
             >
               <Upload className="w-5 h-5 mr-3" />
@@ -52,7 +53,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             </Button>
             <Button 
               size="lg" 
-              className="flex-1 h-16 text-lg font-semibold bg-transparent border-2 border-primary/40 hover:border-primary text-white hover:bg-primary/10 transition-all duration-300 rounded-xl"
+              variant="outline"
+              className="flex-1 h-16 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
               onClick={() => navigate("/exams/new")}
             >
               <FileText className="w-5 h-5 mr-3" />
@@ -61,18 +63,18 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           </div>
 
           {/* Recent exams section */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl">
-            <CardHeader className="border-b border-white/10">
-              <CardTitle className="flex items-center justify-between text-2xl text-white font-bold">
+          <Card className="shadow-lg rounded-2xl">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="flex items-center justify-between text-2xl font-bold">
                 <span>Recents</span>
-                <button className="text-gray-400 hover:text-white text-xl">•••</button>
+                <button className="text-muted-foreground hover:text-foreground text-xl transition-colors">•••</button>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
               <div className="text-center py-16">
                 <div className="text-6xl mb-4">🎯</div>
-                <h3 className="text-xl font-semibold mb-2 text-white">No exams yet! Let's get started.</h3>
-                <p className="text-gray-400 mb-6 max-w-sm mx-auto">
+                <h3 className="text-xl font-semibold mb-2 text-foreground">No exams yet! Let's get started.</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                   Start your first mock exam to track your progress and identify areas for improvement
                 </p>
               </div>
@@ -84,7 +86,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         <div className="space-y-6">
           {/* Floating Stats Badges */}
           <div className="flex flex-wrap items-center gap-4 justify-end">
-            <div className="flex items-center gap-2 text-white">
+            <div className="flex items-center gap-2 text-foreground">
               <span className="text-3xl">💧</span>
               <span className="text-3xl font-bold">{stats[3].value}</span>
             </div>
@@ -96,9 +98,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           </div>
 
           {/* Revision goals panel */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl sticky top-24">
-            <CardHeader className="border-b border-white/10">
-              <CardTitle className="flex items-center gap-2 text-2xl text-white font-bold">
+          <Card className="shadow-lg rounded-2xl sticky top-24">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                 <Trophy className="w-6 h-6 text-primary" />
                 Revision Goals
               </CardTitle>
@@ -107,9 +109,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               {revisionGoals.map((goal, index) => (
                 <div key={index} className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-medium text-lg">{goal.subject}</span>
+                    <span className="text-foreground font-medium text-lg">{goal.subject}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-400 font-medium">
+                      <span className="text-muted-foreground font-medium">
                         {goal.progress} / {goal.target}
                       </span>
                       <span className="text-4xl">
@@ -117,12 +119,12 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                       </span>
                     </div>
                   </div>
-                  <div className="relative h-3 bg-white/10 rounded-full overflow-hidden">
+                  <div className="relative h-3 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={`h-full rounded-full transition-all duration-500 ${
                         goal.progress >= goal.target 
-                          ? "bg-gradient-to-r from-yellow-400 to-yellow-500" 
-                          : "bg-primary/50"
+                          ? "bg-secondary" 
+                          : "bg-primary"
                       }`}
                       style={{ width: `${(goal.progress / goal.target) * 100}%` }}
                     />
@@ -131,7 +133,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               ))}
               <Button 
                 variant="outline" 
-                className="w-full mt-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl h-12"
+                className="w-full mt-4 border-2 hover:bg-accent transition-all rounded-xl h-12"
                 onClick={() => navigate("/goals")}
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -141,27 +143,27 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           </Card>
 
           {/* Quick actions panel */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl">
-            <CardHeader className="border-b border-white/10">
-              <CardTitle className="text-2xl text-white font-bold">Quick Actions</CardTitle>
+          <Card className="shadow-lg rounded-2xl">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-2xl font-bold">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <Button 
                 variant="outline" 
-                className="w-full h-auto py-5 flex items-center gap-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl justify-start"
+                className="w-full h-auto py-5 flex items-center gap-4 border-2 hover:bg-accent transition-all rounded-xl justify-start"
                 onClick={() => navigate("/coach")}
               >
-                <div className="w-10 h-10 rounded-full bg-red-500/30 flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-red-400" />
+                <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-destructive" />
                 </div>
                 <span className="font-medium text-lg">Review Weak Topics</span>
               </Button>
               <Button 
                 variant="outline" 
-                className="w-full h-auto py-5 flex items-center gap-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl justify-start"
+                className="w-full h-auto py-5 flex items-center gap-4 border-2 hover:bg-accent transition-all rounded-xl justify-start"
                 onClick={() => navigate("/goals")}
               >
-                <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <span className="font-medium text-lg">View Revision Plan</span>
