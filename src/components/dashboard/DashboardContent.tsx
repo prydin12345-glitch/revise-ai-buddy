@@ -85,20 +85,25 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         {/* Right: Sidebar Panels */}
         <div className="space-y-6">
           {/* Floating Stats Badges */}
-          <div className="flex flex-wrap items-center gap-4 justify-end">
-            <div className="flex items-center gap-2 text-foreground">
-              <span className="text-3xl">💧</span>
-              <span className="text-3xl font-bold">{stats[3].value}</span>
-            </div>
-            {[stats[0], stats[1], stats[2], stats[3]].map((stat, index) => (
-              <div key={index} className="text-3xl">
-                {stat.emoji}
+          <div className="flex flex-wrap items-center gap-3 justify-end">
+            {stats.map((stat, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-3xl">{stat.emoji}</span>
+                <span className="text-2xl font-bold text-foreground">{stat.value}</span>
               </div>
             ))}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent transition-all text-sm"
+              onClick={() => navigate("/stats")}
+            >
+              View More Stats
+            </Button>
           </div>
 
           {/* Revision goals panel */}
-          <Card className="shadow-lg rounded-2xl sticky top-24">
+          <Card className="shadow-lg rounded-2xl">
             <CardHeader className="border-b border-border">
               <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                 <Trophy className="w-6 h-6 text-primary" />

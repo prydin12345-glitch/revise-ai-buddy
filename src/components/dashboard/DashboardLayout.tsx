@@ -46,7 +46,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-muted/30">
+    <div className="min-h-screen flex w-full bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -57,7 +57,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-[hsl(222,47%,11%)] border-r border-border/50 z-50 transition-all duration-300 shadow-xl ${
+        className={`fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
           sidebarCollapsed ? "w-16" : "w-64"
         } ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -158,7 +158,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-[hsl(222,47%,11%)] border-b border-border/50 shadow-lg">
+        <header className="sticky top-0 z-30 h-16 bg-sidebar-background border-b border-sidebar-border shadow-lg">
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
             {/* Left: Mobile menu + Logo + Search */}
             <div className="flex items-center gap-6 flex-1">
