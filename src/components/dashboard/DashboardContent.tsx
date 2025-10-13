@@ -27,15 +27,15 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
   return (
     <div className="max-w-[1600px] mx-auto">
-      <div className="grid lg:grid-cols-[1fr_380px] gap-6">
+      <div className="grid lg:grid-cols-[1fr_380px] gap-8">
         {/* Left: Main Content */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Welcome header */}
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight text-white">
-              Welcome back, {userName}! 👋
+          <div className="space-y-3">
+            <h1 className="text-5xl font-bold tracking-tight text-white">
+              Welcome back, {userName}
             </h1>
-            <p className="text-lg text-gray-300">
+            <p className="text-xl text-gray-400">
               Ready to ace your exams? Let's make today count!
             </p>
           </div>
@@ -44,55 +44,37 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
               size="lg" 
-              className="flex-1 h-14 text-base bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="flex-1 h-16 text-lg font-semibold bg-transparent border-2 border-primary/40 hover:border-primary text-white hover:bg-primary/10 transition-all duration-300 rounded-xl"
               onClick={() => navigate("/files")}
             >
-              <Upload className="w-5 h-5 mr-2" />
-              Upload Exam Paper
+              <Upload className="w-5 h-5 mr-3" />
+              UPLOAD
             </Button>
             <Button 
               size="lg" 
-              variant="outline"
-              className="flex-1 h-14 text-base border-2 border-white/20 hover:border-primary bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105"
+              className="flex-1 h-16 text-lg font-semibold bg-transparent border-2 border-primary/40 hover:border-primary text-white hover:bg-primary/10 transition-all duration-300 rounded-xl"
               onClick={() => navigate("/exams/new")}
             >
-              <FileText className="w-5 h-5 mr-2" />
+              <FileText className="w-5 h-5 mr-3" />
               Start Blank Mock Exam
             </Button>
           </div>
 
           {/* Recent exams section */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl">
-            <CardHeader className="border-b border-white/10 bg-gradient-to-br from-primary/10 to-transparent">
-              <CardTitle className="flex items-center justify-between text-xl text-white">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Recent Exams
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => navigate("/exams")} 
-                  className="text-gray-300 hover:text-white hover:bg-white/10 hover:scale-105 transition-all"
-                >
-                  View All
-                </Button>
+          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="flex items-center justify-between text-2xl text-white font-bold">
+                <span>Recents</span>
+                <button className="text-gray-400 hover:text-white text-xl">•••</button>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
-              <div className="text-center py-12">
+              <div className="text-center py-16">
                 <div className="text-6xl mb-4">🎯</div>
                 <h3 className="text-xl font-semibold mb-2 text-white">No exams yet! Let's get started.</h3>
-                <p className="text-gray-300 mb-6 max-w-sm mx-auto">
+                <p className="text-gray-400 mb-6 max-w-sm mx-auto">
                   Start your first mock exam to track your progress and identify areas for improvement
                 </p>
-                <Button 
-                  onClick={() => navigate("/exams/new")}
-                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Exam
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -101,103 +83,88 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         {/* Right: Sidebar Panels */}
         <div className="space-y-6">
           {/* Floating Stats Badges */}
-          <div className="flex flex-wrap gap-3 lg:justify-end">
-            {stats.map((stat, index) => (
-              <div 
-                key={index} 
-                className="bg-gradient-to-br from-[hsl(222,47%,15%)] to-[hsl(222,47%,11%)] border border-primary/20 rounded-2xl px-5 py-3 hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{stat.emoji}</span>
-                  <div className="text-xl font-bold text-white">{stat.value}</div>
-                </div>
+          <div className="flex flex-wrap items-center gap-4 justify-end">
+            <div className="flex items-center gap-2 text-white">
+              <span className="text-3xl">💧</span>
+              <span className="text-3xl font-bold">{stats[3].value}</span>
+            </div>
+            {[stats[0], stats[1], stats[2], stats[3]].map((stat, index) => (
+              <div key={index} className="text-3xl">
+                {stat.emoji}
               </div>
             ))}
           </div>
-          
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="w-full border border-white/20 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all"
-            onClick={() => navigate("/stats")}
-          >
-            View More Stats
-          </Button>
 
           {/* Revision goals panel */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl sticky top-24">
-            <CardHeader className="border-b border-white/10 bg-gradient-to-br from-primary/10 to-transparent">
-              <CardTitle className="flex items-center gap-2 text-xl text-white">
-                <Trophy className="w-5 h-5 text-primary" />
+          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl sticky top-24">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="flex items-center gap-2 text-2xl text-white font-bold">
+                <Trophy className="w-6 h-6 text-primary" />
                 Revision Goals
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-5">
+            <CardContent className="p-6 space-y-6">
               {revisionGoals.map((goal, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">
+                <div key={index} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-medium text-lg">{goal.subject}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-400 font-medium">
+                        {goal.progress} / {goal.target}
+                      </span>
+                      <span className="text-4xl">
                         {goal.progress >= goal.target ? "🏆" : "📦"}
                       </span>
-                      <span className="font-semibold text-white">{goal.subject}</span>
                     </div>
-                    <span className="text-gray-400 font-medium">
-                      {goal.progress}/{goal.target}
-                    </span>
                   </div>
-                  <Progress 
-                    value={(goal.progress / goal.target) * 100} 
-                    className="h-2.5 bg-white/10"
-                  />
+                  <div className="relative h-3 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        goal.progress >= goal.target 
+                          ? "bg-gradient-to-r from-yellow-400 to-yellow-500" 
+                          : "bg-primary/50"
+                      }`}
+                      style={{ width: `${(goal.progress / goal.target) * 100}%` }}
+                    />
+                  </div>
                 </div>
               ))}
               <Button 
                 variant="outline" 
-                className="w-full mt-4 border-2 border-white/20 hover:border-primary bg-white/5 hover:bg-white/10 hover:scale-105 transition-all text-white"
+                className="w-full mt-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl h-12"
                 onClick={() => navigate("/goals")}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-5 h-5 mr-2" />
                 Add Goal
               </Button>
             </CardContent>
           </Card>
 
           {/* Quick actions panel */}
-          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl">
-            <CardHeader className="border-b border-white/10 bg-gradient-to-br from-secondary/10 to-transparent">
-              <CardTitle className="text-xl text-white">Quick Actions</CardTitle>
+          <Card className="border border-white/10 bg-[hsl(222,47%,11%)] shadow-xl rounded-2xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-2xl text-white font-bold">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-3">
+            <CardContent className="p-6 space-y-4">
               <Button 
                 variant="outline" 
-                className="w-full h-auto py-4 flex items-center gap-3 border-2 border-white/20 hover:border-primary bg-white/5 hover:bg-white/10 hover:scale-105 transition-all text-white"
+                className="w-full h-auto py-5 flex items-center gap-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl justify-start"
                 onClick={() => navigate("/coach")}
               >
-                <div className="p-2 rounded-lg bg-red-500/20">
+                <div className="w-10 h-10 rounded-full bg-red-500/30 flex items-center justify-center">
                   <Heart className="w-5 h-5 text-red-400" />
                 </div>
-                <span className="font-medium flex-1 text-left">Review Weak Topics</span>
+                <span className="font-medium text-lg">Review Weak Topics</span>
               </Button>
               <Button 
                 variant="outline" 
-                className="w-full h-auto py-4 flex items-center gap-3 border-2 border-white/20 hover:border-primary bg-white/5 hover:bg-white/10 hover:scale-105 transition-all text-white"
+                className="w-full h-auto py-5 flex items-center gap-4 border-2 border-white/20 hover:border-primary bg-transparent hover:bg-white/5 transition-all text-white rounded-xl justify-start"
                 onClick={() => navigate("/goals")}
               >
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <ClipboardList className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-primary" />
                 </div>
-                <span className="font-medium flex-1 text-left">View Revision Plan</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full h-auto py-4 flex items-center gap-3 border-2 border-white/20 hover:border-primary bg-white/5 hover:bg-white/10 hover:scale-105 transition-all text-white"
-                onClick={() => navigate("/coach")}
-              >
-                <div className="p-2 rounded-lg bg-primary/20">
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                </div>
-                <span className="font-medium flex-1 text-left">Ask Examly</span>
+                <span className="font-medium text-lg">View Revision Plan</span>
               </Button>
             </CardContent>
           </Card>
