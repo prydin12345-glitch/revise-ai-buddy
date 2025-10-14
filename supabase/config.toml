@@ -1,1 +1,16 @@
 project_id = "ynhevbrihlnwzehrfoft"
+
+[functions.upload-exam]
+verify_jwt = true
+
+[functions.analyze-exam]
+verify_jwt = true
+
+[functions.save-exam-format]
+verify_jwt = true
+
+[functions.save-exam-timer]
+verify_jwt = true
+
+[functions.publish-exam]
+verify_jwt = true
