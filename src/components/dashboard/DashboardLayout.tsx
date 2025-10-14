@@ -21,7 +21,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: FileText, label: "My Exams", path: "/exams" },
+    { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
     { icon: Target, label: "Revision Goals", path: "/goals" },
     { icon: FolderOpen, label: "My Files", path: "/files" },
