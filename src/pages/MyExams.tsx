@@ -1,220 +1,176 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Upload, Settings, Search, FileText, Brain, Calendar, File } from "lucide-react";
+import { Upload, Settings, FileText, Brain, Calendar } from "lucide-react";
 
 const MyExams = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("All Subjects");
 
   // Mock data - will be replaced with real data later
-  const uploadedExams = [];
-  const generatedExams = [];
+  const allExams = [
+    {
+      id: 1,
+      name: "Calculus Final 2024",
+      subject: "Mathematics",
+      date: "Jan 15, 2024",
+      type: "uploaded",
+      icon: "📄"
+    },
+    {
+      id: 2,
+      name: "AI-Generated Mock",
+      subject: "Science",
+      date: "Jan 20, 2024",
+      score: "85%",
+      type: "generated",
+      icon: "🤖"
+    },
+    {
+      id: 3,
+      name: "Literature Essay Practice",
+      subject: "English",
+      date: "Jan 18, 2024",
+      type: "uploaded",
+      icon: "📄"
+    },
+  ];
+
+  const filters = ["All Subjects", "Mathematics", "English", "Science"];
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1600px] mx-auto space-y-8">
+      <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header Section */}
-        <div className="space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-            <div className="space-y-3">
-              <h1 className="text-5xl font-bold tracking-tight text-foreground">
-                My Exams
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                View, manage, and generate exams from past papers or AI.
-              </p>
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative w-full lg:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search exams…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 bg-card border-border text-foreground rounded-xl"
-              />
-            </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight text-foreground">
+              My Exams
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              View, manage, and generate exams from past papers or AI.
+            </p>
           </div>
 
           {/* Primary CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button 
               size="lg" 
               variant="outline"
-              className="flex-1 h-14 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
+              className="flex-1 h-12 font-semibold border-2 hover:bg-accent hover:scale-[1.02] transition-all duration-200 rounded-xl"
               onClick={() => navigate("/upload")}
             >
-              <Upload className="w-5 h-5 mr-3" />
+              <Upload className="w-5 h-5 mr-2" />
               Upload New Exam
             </Button>
             <Button 
               size="lg" 
               variant="outline"
-              className="flex-1 h-14 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
+              className="flex-1 h-12 font-semibold border-2 hover:bg-accent hover:scale-[1.02] transition-all duration-200 rounded-xl"
               onClick={() => navigate("/generate")}
             >
-              <Settings className="w-5 h-5 mr-3" />
+              <Settings className="w-5 h-5 mr-2" />
               Generate New Exam
             </Button>
           </div>
+        </div>
 
-          {/* Filters/Sorting (Visual Only) */}
-          <div className="flex flex-wrap gap-3">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              className="rounded-full px-4 py-2 text-sm font-medium"
+        {/* Subject Filter Tabs */}
+        <div className="flex flex-wrap gap-2 p-6 bg-card/30 rounded-xl border border-border/50">
+          {filters.map((filter) => (
+            <Button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`
+                rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
+                ${activeFilter === filter 
+                  ? "bg-[#1e40af] text-white hover:bg-[#1e3a8a] shadow-lg" 
+                  : "bg-[#374151] text-muted-foreground hover:bg-[#4b5563]"
+                }
+              `}
             >
-              All Subjects
+              {filter}
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="rounded-full px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              Mathematics
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="rounded-full px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              English
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="rounded-full px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              Science
-            </Button>
-            <div className="ml-auto">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="rounded-full px-4 py-2 text-sm font-medium hover:bg-accent"
+          ))}
+        </div>
+
+        {/* Unified Exams Grid */}
+        {allExams.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-7xl mb-4">📚</div>
+            <h3 className="text-2xl font-semibold mb-2 text-foreground">
+              No exams yet
+            </h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              Start by uploading a past paper or generating an AI-powered mock exam.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                variant="outline"
+                className="border-2 hover:bg-accent transition-all rounded-xl"
+                onClick={() => navigate("/upload")}
               >
-                Sort: Date ↓
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Exam
+              </Button>
+              <Button
+                variant="outline"
+                className="border-2 hover:bg-accent transition-all rounded-xl"
+                onClick={() => navigate("/generate")}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Generate Exam
               </Button>
             </div>
           </div>
-        </div>
-
-        {/* Two Column Layout */}
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left Column - Uploaded Exams */}
-          <Card className="shadow-lg rounded-2xl">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <FileText className="w-6 h-6 text-primary" />
-                Uploaded Exams
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              {uploadedExams.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="text-6xl mb-4">📄</div>
-                  <h3 className="text-xl font-semibold mb-2 text-foreground">
-                    No uploaded exams yet
-                  </h3>
-                  <p className="text-muted-foreground max-w-sm mx-auto">
-                    Start by uploading a past paper to practice with real exam questions.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-6 border-2 hover:bg-accent transition-all rounded-xl"
-                    onClick={() => navigate("/upload")}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Exam
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {uploadedExams.map((exam: any, index: number) => (
-                    <Card key={index} className="hover:bg-accent transition-all cursor-pointer">
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                          <File className="w-6 h-6 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-foreground">{exam.name}</h4>
-                          <p className="text-sm text-muted-foreground">{exam.subject}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {exam.date}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Right Column - AI-Generated Exams */}
-          <Card className="shadow-lg rounded-2xl">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <Brain className="w-6 h-6 text-secondary" />
-                Generated Exams
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              {generatedExams.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="text-6xl mb-4">🤖</div>
-                  <h3 className="text-xl font-semibold mb-2 text-foreground">
-                    No generated exams yet
-                  </h3>
-                  <p className="text-muted-foreground max-w-sm mx-auto">
-                    Use the AI to create your first mock exam tailored to your needs.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-6 border-2 hover:bg-accent transition-all rounded-xl"
-                    onClick={() => navigate("/generate")}
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Generate Exam
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {generatedExams.map((exam: any, index: number) => (
-                    <Card key={index} className="hover:bg-accent transition-all cursor-pointer">
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
-                          <Brain className="w-6 h-6 text-secondary" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-foreground">{exam.name}</h4>
-                          <p className="text-sm text-muted-foreground">{exam.subject}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-foreground">{exam.score}</p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {exam.date}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {allExams.map((exam) => (
+              <Card 
+                key={exam.id}
+                className="group cursor-pointer bg-card/50 backdrop-blur border-border/50 hover:border-primary/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 rounded-xl"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="text-3xl">{exam.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-foreground text-lg mb-1 truncate">
+                        {exam.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {exam.subject}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-3 border-t border-border/30">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      {exam.date}
+                    </div>
+                    {exam.score && (
+                      <div className="text-sm font-semibold text-[#1e40af] bg-[#1e40af]/10 px-3 py-1 rounded-full">
+                        {exam.score}
+                      </div>
+                    )}
+                    {exam.type === "uploaded" && !exam.score && (
+                      <div className="flex items-center gap-1">
+                        <FileText className="w-4 h-4 text-primary" />
+                      </div>
+                    )}
+                    {exam.type === "generated" && !exam.score && (
+                      <div className="flex items-center gap-1">
+                        <Brain className="w-4 h-4 text-secondary" />
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
