@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.publish-exam]
 verify_jwt = true
+
+[functions.get-exam-questions]
+verify_jwt = true
+
+[functions.submit-student-answer]
+verify_jwt = true
