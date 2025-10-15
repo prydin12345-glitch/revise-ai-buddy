@@ -32,24 +32,25 @@ serve(async (req) => {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const subjectId = formData.get('subjectId') as string;
+    const examTitle = formData.get('fileName') as string;
 
-    if (!file || !subjectId) {
-      return new Response(JSON.stringify({ error: 'File and subject required' }), {
+    if (!file || !subjectId || !examTitle) {
+      return new Response(JSON.stringify({ error: 'File, subject, and file name required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Uploading file:', file.name, 'for subject:', subjectId);
+    console.log('Uploading file:', file.name, 'for subject:', subjectId, 'with name:', examTitle);
 
     // Upload file to storage
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+    const storagePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
     const fileBuffer = await file.arrayBuffer();
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('exam-files')
-      .upload(fileName, fileBuffer, {
+      .upload(storagePath, fileBuffer, {
         contentType: file.type,
         upsert: false,
       });
@@ -70,7 +71,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         subject_id: subjectId,
-        title: file.name.replace(/\.[^/.]+$/, ''),
+        title: examTitle,
         type: 'uploaded',
         status: 'draft',
         file_url: uploadData.path,
