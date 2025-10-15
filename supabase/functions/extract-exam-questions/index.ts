@@ -79,18 +79,43 @@ serve(async (req) => {
       });
     }
 
-    // Convert PDF to base64
+    // Extract text from PDF using simple text extraction
     const arrayBuffer = await pdfData.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Convert to string and extract visible text (basic PDF text extraction)
+    let pdfText = '';
+    try {
+      const decoder = new TextDecoder('utf-8');
+      const rawText = decoder.decode(uint8Array);
+      
+      // Extract text between stream markers and clean up PDF formatting
+      const textMatches = rawText.match(/\(([^)]+)\)/g);
+      if (textMatches) {
+        pdfText = textMatches
+          .map(match => match.slice(1, -1)) // Remove parentheses
+          .join(' ')
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '')
+          .replace(/\\/g, '');
+      }
+      
+      // Fallback: try to extract any readable text
+      if (!pdfText || pdfText.length < 50) {
+        pdfText = rawText.replace(/[^\x20-\x7E\n]/g, ' ').trim();
+      }
+    } catch (error) {
+      console.error('PDF text extraction error:', error);
+      pdfText = 'Unable to extract text from PDF';
     }
-    const base64Pdf = btoa(binary);
 
     console.log('Calling Lovable AI for question extraction...');
+    console.log('Extracted text length:', pdfText.length);
 
     const extractionPrompt = `You are an expert exam document parser. Extract ALL questions from this exam paper with extreme precision.
+
+EXAM CONTENT:
+${pdfText}
 
 CRITICAL REQUIREMENTS:
 1. Preserve EXACT original wording - do not paraphrase or rewrite
@@ -100,8 +125,8 @@ CRITICAL REQUIREMENTS:
    - "mcq": Multiple choice with lettered options (a, b, c, d)
    - "short_answer": Questions expecting 1-3 sentence answers
    - "long_form": Essay questions or detailed explanations
-5. For figures/diagrams: Set has_figures=true and note page location
-6. For tables: Set has_tables=true
+5. For figures/diagrams: Set has_figures=true if diagram is mentioned
+6. For tables: Set has_tables=true if table is mentioned
 7. Extract topic from question context (e.g., "Algebra - Linear Equations")
 8. Rate extraction confidence (0.0-1.0) based on text clarity
 9. For MCQs, identify correct answer if present (from answer key section or marked in question)
@@ -111,6 +136,7 @@ FORMAT REQUIREMENTS:
 - Include sub-questions as separate entries (1a, 1b become separate questions)
 - Capture option text exactly as shown
 - Default marks to 1 if not found
+- If you can't find proper questions, extract any numbered items as questions
 
 RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
 [
@@ -130,7 +156,7 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
   }
 ]`;
 
-    // Call Gemini 2.5 Pro with vision
+    // Call Gemini 2.5 Flash (faster and better for text processing)
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -138,7 +164,7 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
@@ -146,15 +172,7 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
           },
           {
             role: 'user',
-            content: [
-              { type: 'text', text: extractionPrompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64Pdf}`
-                }
-              }
-            ]
+            content: extractionPrompt
           }
         ],
         temperature: 0.1,
