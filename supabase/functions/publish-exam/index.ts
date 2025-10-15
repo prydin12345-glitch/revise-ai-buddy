@@ -54,109 +54,62 @@ serve(async (req) => {
       });
     }
 
-    // Fetch exam format
-    const { data: format } = await supabase
-      .from('exam_format')
+    // Fetch verified question drafts
+    const { data: drafts, error: draftError } = await supabase
+      .from('exam_question_drafts')
       .select('*')
       .eq('exam_id', draftId)
-      .single();
+      .order('question_number');
 
-    // Fetch topics
-    const { data: topics } = await supabase
-      .from('exam_topics')
-      .select('topic_name')
-      .eq('exam_id', draftId);
-
-    const topicNames = topics?.map(t => t.topic_name).join(', ') || 'General';
-
-    // Generate questions using Lovable AI
-    let questionsData = [];
-    
-    if (format) {
-      const prompt = `You are an expert exam creator. Create exam questions based on the following requirements:
-
-${format.use_original_structure ? 'Use the original exam structure from the document.' : `Custom format:
-- Multiple Choice Questions: ${format.mcq_count || 0} questions, ${format.mcq_marks_each || 0} marks each
-- Short Answer Questions: ${format.short_answer_count || 0} questions, ${format.short_answer_marks_each || 0} marks each
-- Long Form Questions: ${format.long_form_count || 0} questions, ${format.long_form_marks_each || 0} marks each`}
-
-Topics to cover: ${topicNames}
-
-For each question, provide:
-1. Question type (mcq/short_answer/long_form)
-2. Question text
-3. Marks allocation
-4. For MCQs: Provide 4 options as {a: "text", b: "text", c: "text", d: "text"} and the correct answer (a/b/c/d)
-5. For other types: A suggested answer key
-
-Return ONLY a valid JSON array with this exact structure:
-[
-  {
-    "type": "mcq",
-    "text": "Question text here?",
-    "marks": 2,
-    "options": {"a": "Option A", "b": "Option B", "c": "Option C", "d": "Option D"},
-    "correctAnswer": "a"
-  }
-]`;
-
-      console.log('Calling Lovable AI for question generation...');
-      
-      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
-          messages: [
-            { role: 'system', content: 'You are an expert exam creator. Return only valid JSON arrays.' },
-            { role: 'user', content: prompt }
-          ],
-        }),
+    if (draftError) {
+      console.error('Fetch drafts error:', draftError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch question drafts' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-      if (!aiResponse.ok) {
-        console.error('AI API error:', aiResponse.status, await aiResponse.text());
-        throw new Error('Failed to generate questions');
-      }
-
-      const aiData = await aiResponse.json();
-      const content = aiData.choices?.[0]?.message?.content || '[]';
-      
-      // Parse AI response
-      try {
-        questionsData = JSON.parse(content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-      } catch (e) {
-        console.error('Failed to parse AI response:', content);
-        questionsData = [];
-      }
     }
 
-    // Insert questions into database
-    if (questionsData.length > 0) {
-      const questionInserts = questionsData.map((q: any, index: number) => ({
-        exam_id: draftId,
-        question_number: index + 1,
-        question_type: q.type,
-        question_text: q.text,
-        marks: q.marks,
-        options: q.options || null,
-        correct_answer: q.correctAnswer || null,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('exam_questions')
-        .insert(questionInserts);
-
-      if (insertError) {
-        console.error('Insert questions error:', insertError);
-        throw new Error('Failed to save questions');
-      }
-
-      console.log(`Generated and saved ${questionsData.length} questions`);
+    if (!drafts || drafts.length === 0) {
+      return new Response(JSON.stringify({ error: 'No questions found. Please extract questions first.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    console.log(`Publishing ${drafts.length} extracted questions`);
+
+    // Insert questions from drafts into exam_questions table
+    const questionInserts = drafts.map((draft: any) => ({
+      exam_id: draft.exam_id,
+      question_number: draft.question_number,
+      question_type: draft.question_type,
+      question_text: draft.question_text,
+      marks: draft.marks,
+      options: draft.options,
+      correct_answer: draft.correct_answer,
+      original_page_number: draft.original_page_number,
+      has_figures: draft.has_figures,
+      has_tables: draft.has_tables,
+      figure_urls: draft.figure_urls,
+      topic_tag: draft.topic_tag,
+      difficulty_level: draft.difficulty_level,
+      extraction_confidence: draft.extraction_confidence,
+      is_verified: true,
+    }));
+
+    const { error: insertError } = await supabase
+      .from('exam_questions')
+      .insert(questionInserts);
+
+    if (insertError) {
+      console.error('Insert questions error:', insertError);
+      return new Response(JSON.stringify({ error: 'Failed to publish questions' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Published ${drafts.length} questions`);
 
     // Update status to published
     const { error: updateError } = await supabase
@@ -174,7 +127,7 @@ Return ONLY a valid JSON array with this exact structure:
 
     return new Response(JSON.stringify({ 
       examId: draftId,
-      questionsGenerated: questionsData.length 
+      questionsPublished: drafts.length 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

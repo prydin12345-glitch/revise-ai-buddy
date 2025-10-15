@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Clock, Layout, Tag, Loader2 } from "lucide-react";
+import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
 
 interface ExamSummary {
   exam: any;
@@ -18,7 +19,10 @@ export default function PreviewExam() {
   const navigate = useNavigate();
   const [examSummary, setExamSummary] = useState<ExamSummary | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [draftCount, setDraftCount] = useState(0);
+  const [extractionStatus, setExtractionStatus] = useState<string>('pending');
 
   useEffect(() => {
     if (!draftId) return;
@@ -51,6 +55,15 @@ export default function PreviewExam() {
           .single();
 
         setExamSummary({ exam, topics: topics || [], format, timer });
+        setExtractionStatus(exam.extraction_status || 'pending');
+
+        // Check if questions have been extracted
+        const { count } = await supabase
+          .from('exam_question_drafts')
+          .select('id', { count: 'exact', head: true })
+          .eq('exam_id', draftId);
+
+        setDraftCount(count || 0);
       } catch (error: any) {
         console.error('Load summary error:', error);
         toast({
@@ -66,7 +79,53 @@ export default function PreviewExam() {
     loadExamSummary();
   }, [draftId]);
 
+  const handleExtractQuestions = async () => {
+    setExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-exam-questions', {
+        body: { draftId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Questions Extracted",
+        description: `Successfully extracted ${data.totalQuestions} questions from PDF`,
+      });
+
+      // Reload data
+      const { data: exam } = await supabase
+        .from('exams')
+        .select('extraction_status, total_questions_extracted')
+        .eq('id', draftId)
+        .single();
+
+      if (exam) {
+        setExtractionStatus(exam.extraction_status);
+        setDraftCount(exam.total_questions_extracted || 0);
+      }
+    } catch (error: any) {
+      console.error('Extraction error:', error);
+      toast({
+        title: "Extraction Failed",
+        description: error.message || "Failed to extract questions",
+        variant: "destructive",
+      });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const handlePublish = async () => {
+    if (draftCount === 0) {
+      toast({
+        title: "Cannot Publish",
+        description: "Please extract and review questions before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setPublishing(true);
 
     try {
@@ -184,12 +243,79 @@ export default function PreviewExam() {
               </p>
             </div>
 
+            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+              <div className="flex items-center gap-3 mb-4">
+                <FileText className="h-5 w-5 text-[#1e40af]" />
+                <h3 className="text-lg font-semibold text-white">Question Extraction</h3>
+              </div>
+              
+              {extractionStatus === 'pending' && (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground">Extract questions from your PDF before publishing</p>
+                  <Button 
+                    onClick={handleExtractQuestions}
+                    disabled={extracting}
+                    className="w-full bg-[#1e40af] hover:bg-[#1e40af]/90"
+                  >
+                    {extracting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Extracting Questions...
+                      </>
+                    ) : (
+                      "Extract Questions from PDF"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {extractionStatus === 'extracting' && (
+                <div className="flex items-center gap-2 text-yellow-500">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Extracting questions...</span>
+                </div>
+              )}
+
+              {extractionStatus === 'completed' && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-green-500">
+                    <CheckCircle className="h-5 w-5" />
+                    <span>{draftCount} questions extracted</span>
+                  </div>
+                  <Button 
+                    onClick={() => navigate(`/upload/${draftId}/review-questions`)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Review & Edit Questions
+                  </Button>
+                </div>
+              )}
+
+              {extractionStatus === 'failed' && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-red-500">
+                    <AlertCircle className="h-5 w-5" />
+                    <span>Extraction failed</span>
+                  </div>
+                  <Button 
+                    onClick={handleExtractQuestions}
+                    disabled={extracting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Retry Extraction
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <Button
               onClick={handlePublish}
-              disabled={publishing}
+              disabled={publishing || draftCount === 0}
               className="w-full bg-[#1e40af] hover:bg-[#1e40af]/90 text-white py-6 text-lg"
             >
-              {publishing ? "Publishing..." : "Begin Exam Now"}
+              {publishing ? "Publishing..." : draftCount === 0 ? "Extract Questions First" : "Publish Exam"}
             </Button>
           </div>
         </div>

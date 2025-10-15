@@ -13,6 +13,7 @@ import AnalyzeExam from "./pages/AnalyzeExam";
 import FormatExam from "./pages/FormatExam";
 import TimerSetup from "./pages/TimerSetup";
 import PreviewExam from "./pages/PreviewExam";
+import ReviewQuestions from "./pages/ReviewQuestions";
 import ExamInProgress from "./pages/ExamInProgress";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +39,7 @@ const App = () => {
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/upload" element={<UploadExam />} />
             <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
+            <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
             <Route path="/upload/:draftId/format" element={<FormatExam />} />
             <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
             <Route path="/upload/:draftId/preview" element={<PreviewExam />} />

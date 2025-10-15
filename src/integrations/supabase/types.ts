@@ -58,39 +58,128 @@ export type Database = {
           },
         ]
       }
+      exam_question_drafts: {
+        Row: {
+          correct_answer: string | null
+          created_at: string | null
+          difficulty_level: string | null
+          exam_id: string
+          extraction_confidence: number | null
+          figure_urls: string[] | null
+          has_figures: boolean | null
+          has_tables: boolean | null
+          id: string
+          marks: number
+          options: Json | null
+          original_page_number: number | null
+          question_number: number
+          question_text: string
+          question_type: string
+          topic_tag: string | null
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          exam_id: string
+          extraction_confidence?: number | null
+          figure_urls?: string[] | null
+          has_figures?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          marks: number
+          options?: Json | null
+          original_page_number?: number | null
+          question_number: number
+          question_text: string
+          question_type: string
+          topic_tag?: string | null
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          exam_id?: string
+          extraction_confidence?: number | null
+          figure_urls?: string[] | null
+          has_figures?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          marks?: number
+          options?: Json | null
+          original_page_number?: number | null
+          question_number?: number
+          question_text?: string
+          question_type?: string
+          topic_tag?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_question_drafts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_questions: {
         Row: {
           correct_answer: string | null
           created_at: string
+          difficulty_level: string | null
           exam_id: string
+          extraction_confidence: number | null
+          figure_urls: string[] | null
+          has_figures: boolean | null
+          has_tables: boolean | null
           id: string
+          is_verified: boolean | null
           marks: number
           options: Json | null
+          original_page_number: number | null
           question_number: number
           question_text: string
           question_type: string
+          topic_tag: string | null
         }
         Insert: {
           correct_answer?: string | null
           created_at?: string
+          difficulty_level?: string | null
           exam_id: string
+          extraction_confidence?: number | null
+          figure_urls?: string[] | null
+          has_figures?: boolean | null
+          has_tables?: boolean | null
           id?: string
+          is_verified?: boolean | null
           marks: number
           options?: Json | null
+          original_page_number?: number | null
           question_number: number
           question_text: string
           question_type: string
+          topic_tag?: string | null
         }
         Update: {
           correct_answer?: string | null
           created_at?: string
+          difficulty_level?: string | null
           exam_id?: string
+          extraction_confidence?: number | null
+          figure_urls?: string[] | null
+          has_figures?: boolean | null
+          has_tables?: boolean | null
           id?: string
+          is_verified?: boolean | null
           marks?: number
           options?: Json | null
+          original_page_number?: number | null
           question_number?: number
           question_text?: string
           question_type?: string
+          topic_tag?: string | null
         }
         Relationships: [
           {
@@ -163,33 +252,42 @@ export type Database = {
       exams: {
         Row: {
           created_at: string
+          extraction_error: string | null
+          extraction_status: string | null
           file_url: string | null
           id: string
           status: Database["public"]["Enums"]["exam_status"]
           subject_id: string
           title: string
+          total_questions_extracted: number | null
           type: Database["public"]["Enums"]["exam_type"]
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          extraction_error?: string | null
+          extraction_status?: string | null
           file_url?: string | null
           id?: string
           status?: Database["public"]["Enums"]["exam_status"]
           subject_id: string
           title: string
+          total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          extraction_error?: string | null
+          extraction_status?: string | null
           file_url?: string | null
           id?: string
           status?: Database["public"]["Enums"]["exam_status"]
           subject_id?: string
           title?: string
+          total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]
           updated_at?: string
           user_id?: string

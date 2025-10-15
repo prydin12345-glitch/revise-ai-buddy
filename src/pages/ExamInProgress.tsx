@@ -19,6 +19,9 @@ interface Question {
   marks: number;
   options?: any;
   correct_answer?: string;
+  has_figures?: boolean;
+  has_tables?: boolean;
+  figure_urls?: string[];
 }
 
 export default function ExamInProgress() {
@@ -118,9 +121,23 @@ export default function ExamInProgress() {
                   </Badge>
                 </div>
 
-                <p className="text-foreground text-lg mb-4 font-medium">
+                <p className="text-foreground text-lg mb-4 font-medium whitespace-pre-wrap">
                   {question.question_text}
                 </p>
+
+                {question.has_figures && question.figure_urls && question.figure_urls.length > 0 && (
+                  <div className="my-4 space-y-2">
+                    {question.figure_urls.map((url, idx) => (
+                      <div key={idx} className="border rounded-lg p-4 bg-muted">
+                        <img 
+                          src={`${supabase.storage.from('exam-files').getPublicUrl(url).data.publicUrl}`}
+                          alt={`Figure ${idx + 1} for Question ${question.question_number}`}
+                          className="max-w-full h-auto rounded"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {question.question_type === 'mcq' && question.options && (
                   <div className="space-y-3">
