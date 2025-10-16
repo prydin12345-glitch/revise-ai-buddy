@@ -59,12 +59,22 @@ export default function UploadExam() {
 
       if (error) throw error;
 
-      toast({
-        title: "Upload Successful",
-        description: "Analyzing your exam...",
+      // Trigger analysis in background (topics extraction)
+      supabase.functions.invoke('analyze-exam', {
+        body: { draftId: data.draftId }
+      }).then(() => {
+        console.log('Topics extracted in background');
+      }).catch((err) => {
+        console.error('Background analysis error:', err);
       });
 
-      navigate(`/upload/${data.draftId}/analyze`);
+      toast({
+        title: "Upload Successful",
+        description: "Setting up your exam...",
+      });
+
+      // Skip analysis screen, go directly to format setup
+      navigate(`/upload/${data.draftId}/format`);
     } catch (error: any) {
       console.error('Upload error:', error);
       toast({

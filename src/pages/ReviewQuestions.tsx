@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface QuestionDraft {
   id: string;
-  question_number: number;
+  question_number: string; // Changed to string to support sub-numbering (1.1, 2a, etc.)
   question_type: string;
   question_text: string;
   marks: number;

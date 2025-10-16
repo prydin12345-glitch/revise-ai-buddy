@@ -244,10 +244,11 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
       .delete()
       .eq('exam_id', draftId);
 
-    // Save to drafts table
-    const draftsToInsert = extractedQuestions.map((q: any) => ({
+    // Clean and save to drafts table - force sequential numbering to avoid TEXT type issues
+    const draftsToInsert = extractedQuestions.map((q: any, index: number) => ({
       exam_id: draftId,
-      question_number: q.question_number || 0,
+      // Convert question_number to string and preserve original if provided
+      question_number: String(q.question_number || (index + 1)),
       question_type: q.question_type || 'short_answer',
       question_text: q.question_text || '',
       marks: q.marks || 1,
@@ -268,14 +269,18 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
 
     if (draftError) {
       console.error('Draft insertion error:', draftError);
+      const errorMessage = `Database error: ${draftError.message || 'Failed to save questions'}`;
       await supabase
         .from('exams')
         .update({ 
           extraction_status: 'failed',
-          extraction_error: 'Failed to save extracted questions'
+          extraction_error: errorMessage
         })
         .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'Failed to save extracted questions' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Failed to save extracted questions',
+        details: errorMessage 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -38,6 +38,16 @@ const App = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/upload" element={<UploadExam />} />
+            
+            {/* Exam Upload Flow (Oct 2024):
+                1. /upload → Upload PDF (upload-exam edge function)
+                2. Background: analyze-exam extracts topics
+                3. /upload/:id/format → Set exam format
+                4. /upload/:id/timer → Configure timer
+                5. /upload/:id/preview → Preview & extract questions
+                6. /upload/:id/review-questions → Edit extracted questions
+                7. Publish exam → /exam/:id/in-progress
+            */}
             <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
             <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
             <Route path="/upload/:draftId/format" element={<FormatExam />} />

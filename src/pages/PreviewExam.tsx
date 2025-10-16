@@ -298,6 +298,11 @@ export default function PreviewExam() {
                     <AlertCircle className="h-5 w-5" />
                     <span>Extraction failed</span>
                   </div>
+                  {exam.extraction_error && (
+                    <p className="text-sm text-muted-foreground bg-destructive/10 border border-destructive/20 rounded p-3">
+                      {exam.extraction_error}
+                    </p>
+                  )}
                   <Button 
                     onClick={handleExtractQuestions}
                     disabled={extracting}
@@ -306,6 +311,18 @@ export default function PreviewExam() {
                   >
                     Retry Extraction
                   </Button>
+                </div>
+              )}
+              
+              {extracting && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-500">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Analyzing PDF with AI...</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    This may take 30-60 seconds depending on document size
+                  </p>
                 </div>
               )}
             </div>

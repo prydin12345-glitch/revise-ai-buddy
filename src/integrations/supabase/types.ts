@@ -72,7 +72,7 @@ export type Database = {
           marks: number
           options: Json | null
           original_page_number: number | null
-          question_number: number
+          question_number: string
           question_text: string
           question_type: string
           topic_tag: string | null
@@ -90,7 +90,7 @@ export type Database = {
           marks: number
           options?: Json | null
           original_page_number?: number | null
-          question_number: number
+          question_number: string
           question_text: string
           question_type: string
           topic_tag?: string | null
@@ -108,7 +108,7 @@ export type Database = {
           marks?: number
           options?: Json | null
           original_page_number?: number | null
-          question_number?: number
+          question_number?: string
           question_text?: string
           question_type?: string
           topic_tag?: string | null
@@ -138,7 +138,7 @@ export type Database = {
           marks: number
           options: Json | null
           original_page_number: number | null
-          question_number: number
+          question_number: string
           question_text: string
           question_type: string
           topic_tag: string | null
@@ -157,7 +157,7 @@ export type Database = {
           marks: number
           options?: Json | null
           original_page_number?: number | null
-          question_number: number
+          question_number: string
           question_text: string
           question_type: string
           topic_tag?: string | null
@@ -176,7 +176,7 @@ export type Database = {
           marks?: number
           options?: Json | null
           original_page_number?: number | null
-          question_number?: number
+          question_number?: string
           question_text?: string
           question_type?: string
           topic_tag?: string | null
