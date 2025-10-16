@@ -396,8 +396,13 @@ export default function PreviewExam() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-5 w-5" />
                   <AlertTitle>Extraction Failed</AlertTitle>
-                  <AlertDescription>
-                    {exam.extraction_error || "An error occurred while extracting questions"}
+                  <AlertDescription className="space-y-2">
+                    <p>{exam.extraction_error || "An error occurred while extracting questions"}</p>
+                    {exam.extraction_error?.includes('scanned') && (
+                      <p className="text-sm mt-2">
+                        💡 Tip: Make sure your PDF is text-based (not a scanned image). You can test this by trying to select text in the PDF.
+                      </p>
+                    )}
                   </AlertDescription>
                 </Alert>
                 <Button 
@@ -406,8 +411,14 @@ export default function PreviewExam() {
                   variant="outline"
                   className="w-full h-11"
                 >
-                  <Loader2 className={`h-4 w-4 mr-2 ${extracting ? 'animate-spin' : ''}`} />
-                  Retry Extraction
+                  {extracting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    'Retry Extraction'
+                  )}
                 </Button>
               </div>
             )}

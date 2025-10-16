@@ -79,34 +79,77 @@ serve(async (req) => {
       });
     }
 
-    // Extract text from PDF using simple text extraction
+    // Extract text from PDF with improved cleaning
     const arrayBuffer = await pdfData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Convert to string and extract visible text (basic PDF text extraction)
     let pdfText = '';
     try {
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder('utf-8', { fatal: false });
       const rawText = decoder.decode(uint8Array);
       
-      // Extract text between stream markers and clean up PDF formatting
+      // Method 1: Extract text between parentheses (PDF text objects)
       const textMatches = rawText.match(/\(([^)]+)\)/g);
-      if (textMatches) {
+      if (textMatches && textMatches.length > 10) {
         pdfText = textMatches
-          .map(match => match.slice(1, -1)) // Remove parentheses
+          .map(match => match.slice(1, -1))
           .join(' ')
           .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '')
-          .replace(/\\/g, '');
+          .replace(/\\r/g, '\n')
+          .replace(/\\t/g, ' ')
+          .replace(/\\(.)/g, '$1'); // Unescape characters
       }
       
-      // Fallback: try to extract any readable text
-      if (!pdfText || pdfText.length < 50) {
-        pdfText = rawText.replace(/[^\x20-\x7E\n]/g, ' ').trim();
+      // Method 2: Extract readable ASCII text if method 1 failed
+      if (!pdfText || pdfText.length < 100) {
+        // More aggressive cleaning - only keep printable ASCII and newlines
+        const cleanedText = rawText
+          .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .split(/[\/\[\]<>{}]/g)
+          .filter(part => {
+            // Keep parts that look like actual text (have multiple letters)
+            const letters = part.match(/[a-zA-Z]/g);
+            return letters && letters.length > 3;
+          })
+          .join(' ');
+        
+        if (cleanedText.length > pdfText.length) {
+          pdfText = cleanedText;
+        }
       }
+      
+      // Final cleanup
+      pdfText = pdfText
+        .replace(/\s+/g, ' ')
+        .replace(/\n\s+/g, '\n')
+        .trim();
+      
+      // Validate extracted text
+      const readableChars = pdfText.match(/[a-zA-Z0-9]/g);
+      const readableRatio = readableChars ? readableChars.length / pdfText.length : 0;
+      
+      if (readableRatio < 0.5 || pdfText.length < 100) {
+        throw new Error('Extracted text appears corrupted or too short');
+      }
+      
+      console.log(`Extracted ${pdfText.length} chars with ${(readableRatio * 100).toFixed(1)}% readability`);
     } catch (error) {
       console.error('PDF text extraction error:', error);
-      pdfText = 'Unable to extract text from PDF';
+      await supabase
+        .from('exams')
+        .update({ 
+          extraction_status: 'failed',
+          extraction_error: 'PDF text extraction failed - document may be scanned or corrupted'
+        })
+        .eq('id', draftId);
+      return new Response(JSON.stringify({ 
+        error: 'PDF text extraction failed',
+        details: 'This PDF may be a scanned image or have an unsupported format. Please try uploading a text-based PDF.'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Calling Lovable AI for question extraction...');
@@ -186,13 +229,14 @@ RETURN ONLY VALID JSON OBJECT (no markdown, no explanation):
         messages: [
           {
             role: 'system',
-            content: 'You are an expert exam document parser. Return ONLY valid JSON arrays without markdown formatting.'
+            content: 'You are an expert exam document parser. You MUST return ONLY valid JSON in the exact format specified, with no markdown formatting, no explanations, and no apologies. If the content is unclear, do your best to extract what you can.'
           },
           {
             role: 'user',
             content: extractionPrompt
           }
         ],
+        response_format: { type: 'json_object' },
         temperature: 0.1,
       }),
     });
@@ -230,11 +274,31 @@ RETURN ONLY VALID JSON OBJECT (no markdown, no explanation):
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
+      console.error('Response content:', extractedContent);
+      
+      // Check if AI returned an error message instead of JSON
+      if (extractedContent.includes('sorry') || extractedContent.includes('cannot')) {
+        await supabase
+          .from('exams')
+          .update({ 
+            extraction_status: 'failed',
+            extraction_error: 'Unable to extract questions - PDF may be scanned or have poor text quality'
+          })
+          .eq('id', draftId);
+        return new Response(JSON.stringify({ 
+          error: 'PDF content extraction failed',
+          details: 'The PDF text quality is too poor for automatic extraction. Try a text-based PDF instead of a scanned image.'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       await supabase
         .from('exams')
         .update({ 
           extraction_status: 'failed',
-          extraction_error: 'Failed to parse extracted questions'
+          extraction_error: 'Failed to parse AI response'
         })
         .eq('id', draftId);
       return new Response(JSON.stringify({ error: 'Failed to parse extracted questions' }), {
