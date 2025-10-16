@@ -252,6 +252,7 @@ export type Database = {
       exams: {
         Row: {
           created_at: string
+          display_order: number | null
           extraction_error: string | null
           extraction_status: string | null
           file_url: string | null
@@ -266,6 +267,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_order?: number | null
           extraction_error?: string | null
           extraction_status?: string | null
           file_url?: string | null
@@ -280,6 +282,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_order?: number | null
           extraction_error?: string | null
           extraction_status?: string | null
           file_url?: string | null
