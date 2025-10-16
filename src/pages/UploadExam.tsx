@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Upload, FileText } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -73,8 +76,8 @@ export default function UploadExam() {
         description: "Setting up your exam...",
       });
 
-      // Skip analysis screen, go directly to format setup
-      navigate(`/upload/${data.draftId}/format`);
+      // Skip analysis screen, go directly to settings (merged format + timer)
+      navigate(`/upload/${data.draftId}/settings`);
     } catch (error: any) {
       console.error('Upload error:', error);
       toast({
@@ -89,23 +92,23 @@ export default function UploadExam() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Upload Exam</h1>
-            <p className="text-muted-foreground">
-              Upload your exam document to get started
-            </p>
-          </div>
+      <PageContainer maxWidth="sm">
+        <PageHeader
+          title="Upload Exam"
+          subtitle="Upload your exam document to get started"
+          step="Step 1 of 4"
+          showBack={false}
+        />
 
-          <div className="bg-card rounded-xl p-8 border border-border shadow-lg space-y-6">
-            <div>
-              <Label htmlFor="subject" className="text-foreground">Subject</Label>
+        <Card className="p-8 shadow-[var(--shadow-card)] space-y-6">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="subject" className="text-base font-medium">Subject</Label>
               <Select value={subjectId} onValueChange={(value) => {
                 setSubjectId(value);
                 setErrors({ ...errors, subject: "" });
               }}>
-                <SelectTrigger className="mt-2 bg-background border-border text-foreground">
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select a subject" />
                 </SelectTrigger>
                 <SelectContent>
@@ -119,9 +122,9 @@ export default function UploadExam() {
               {errors.subject && <p className="text-destructive text-sm mt-1">{errors.subject}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="file" className="text-foreground">Exam Document</Label>
-              <div className="mt-2">
+            <div className="space-y-2">
+              <Label htmlFor="file" className="text-base font-medium">Exam Document</Label>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
                 <Input
                   id="file"
                   type="file"
@@ -130,20 +133,23 @@ export default function UploadExam() {
                     handleFileChange(e);
                     setErrors({ ...errors, file: "" });
                   }}
-                  className="bg-background border-border text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
                 />
                 {file && (
-                  <div className="mt-4 flex items-center gap-2 text-foreground bg-muted p-3 rounded-md">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <span className="text-sm">{file.name}</span>
+                  <div className="mt-4 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md">
+                    <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                   </div>
                 )}
               </div>
               {errors.file && <p className="text-destructive text-sm mt-1">{errors.file}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="fileName" className="text-foreground">Name this exam</Label>
+            <div className="space-y-2">
+              <Label htmlFor="fileName" className="text-base font-medium">Name this exam</Label>
               <Input
                 id="fileName"
                 type="text"
@@ -153,28 +159,31 @@ export default function UploadExam() {
                   setFileName(e.target.value);
                   setErrors({ ...errors, fileName: "" });
                 }}
-                className="mt-2 bg-background border-border text-foreground"
+                className="h-11"
               />
               {errors.fileName && <p className="text-destructive text-sm mt-1">{errors.fileName}</p>}
             </div>
-
-            <Button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              {uploading ? (
-                <>Uploading...</>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload and Continue
-                </>
-              )}
-            </Button>
           </div>
-        </div>
-      </div>
+
+          <Button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="w-full h-12 text-base font-medium button-glow mt-8"
+          >
+            {uploading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-5 w-5" />
+                Upload and Continue
+              </>
+            )}
+          </Button>
+        </Card>
+      </PageContainer>
     </DashboardLayout>
   );
 }

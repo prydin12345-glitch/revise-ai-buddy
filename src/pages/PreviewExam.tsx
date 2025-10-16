@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle, Edit2 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { Badge } from "@/components/ui/badge";
 
 interface ExamSummary {
@@ -156,9 +161,11 @@ export default function PreviewExam() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#0f1727] p-6 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#1e40af]" />
-        </div>
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     );
   }
@@ -166,9 +173,13 @@ export default function PreviewExam() {
   if (!examSummary) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#0f1727] p-6">
-          <p className="text-white text-center">Exam not found</p>
-        </div>
+        <PageContainer>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Not Found</AlertTitle>
+            <AlertDescription>Exam not found</AlertDescription>
+          </Alert>
+        </PageContainer>
       </DashboardLayout>
     );
   }
@@ -177,166 +188,227 @@ export default function PreviewExam() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#0f1727] p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Review & Publish</h1>
-            <p className="text-muted-foreground">
-              Review your exam before publishing
-            </p>
-          </div>
+      <PageContainer maxWidth="lg">
+        <PageHeader
+          title="Review & Publish"
+          subtitle="Review your exam configuration and extract questions"
+          step="Step 3 of 4"
+        />
 
-          <div className="space-y-4">
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <FileText className="h-5 w-5 text-[#1e40af]" />
-                <h3 className="text-lg font-semibold text-white">Exam Details</h3>
+        <div className="space-y-6">
+          {/* Exam Configuration Summary */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Exam Details</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/upload/${draftId}/format`)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="space-y-2">
-                <p className="text-white"><span className="text-muted-foreground">Title:</span> {exam.title}</p>
-                <p className="text-white"><span className="text-muted-foreground">Subject:</span> {exam.subject_id}</p>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Title</p>
+                  <p className="font-medium">{exam.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Subject</p>
+                  <p className="font-medium capitalize">{exam.subject_id}</p>
+                </div>
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <Tag className="h-5 w-5 text-[#1e40af]" />
-                <h3 className="text-lg font-semibold text-white">Topics</h3>
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Tag className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Topics</h3>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {topics.map((topic) => (
-                  <span
-                    key={topic.id}
-                    className="px-3 py-1 bg-[#1e40af]/20 text-[#1e40af] rounded-full text-sm"
-                  >
-                    {topic.topic_name}
-                  </span>
-                ))}
+                {topics.length > 0 ? (
+                  topics.map((topic) => (
+                    <Badge key={topic.id} variant="secondary" className="text-sm">
+                      {topic.topic_name}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">Topics will be extracted automatically</p>
+                )}
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <Layout className="h-5 w-5 text-[#1e40af]" />
-                <h3 className="text-lg font-semibold text-white">Format</h3>
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Layout className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Format</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/upload/${draftId}/format`)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
               </div>
               {format?.use_original_structure ? (
-                <p className="text-white">Original exam structure</p>
+                <p className="text-sm">Original exam structure</p>
               ) : (
-                <div className="space-y-2 text-white">
-                  <p>MCQ: {format?.mcq_count} × {format?.mcq_marks_each} marks</p>
-                  <p>Short Answer: {format?.short_answer_count} × {format?.short_answer_marks_each} marks</p>
-                  <p>Long Form: {format?.long_form_count} × {format?.long_form_marks_each} marks</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">MCQ</span>
+                    <span>{format?.mcq_count} × {format?.mcq_marks_each}m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Short Answer</span>
+                    <span>{format?.short_answer_count} × {format?.short_answer_marks_each}m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Long Form</span>
+                    <span>{format?.long_form_count} × {format?.long_form_marks_each}m</span>
+                  </div>
                 </div>
               )}
-            </div>
+            </Card>
 
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <Clock className="h-5 w-5 text-[#1e40af]" />
-                <h3 className="text-lg font-semibold text-white">Timer</h3>
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Timer</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/upload/${draftId}/timer`)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-white">
-                {timer?.enabled
+              <p className="text-sm">
+                {timer?.enabled && timer?.duration_minutes
                   ? `${timer.duration_minutes} minutes`
                   : "No time limit"}
               </p>
-            </div>
-
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <FileText className="h-5 w-5 text-[#1e40af]" />
-                <h3 className="text-lg font-semibold text-white">Question Extraction</h3>
-              </div>
-              
-              {extractionStatus === 'pending' && (
-                <div className="space-y-3">
-                  <p className="text-muted-foreground">Extract questions from your PDF before publishing</p>
-                  <Button 
-                    onClick={handleExtractQuestions}
-                    disabled={extracting}
-                    className="w-full bg-[#1e40af] hover:bg-[#1e40af]/90"
-                  >
-                    {extracting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Extracting Questions...
-                      </>
-                    ) : (
-                      "Extract Questions from PDF"
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {extractionStatus === 'extracting' && (
-                <div className="flex items-center gap-2 text-yellow-500">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Extracting questions...</span>
-                </div>
-              )}
-
-              {extractionStatus === 'completed' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-green-500">
-                    <CheckCircle className="h-5 w-5" />
-                    <span>{draftCount} questions extracted</span>
-                  </div>
-                  <Button 
-                    onClick={() => navigate(`/upload/${draftId}/review-questions`)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Review & Edit Questions
-                  </Button>
-                </div>
-              )}
-
-              {extractionStatus === 'failed' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-red-500">
-                    <AlertCircle className="h-5 w-5" />
-                    <span>Extraction failed</span>
-                  </div>
-                  {exam.extraction_error && (
-                    <p className="text-sm text-muted-foreground bg-destructive/10 border border-destructive/20 rounded p-3">
-                      {exam.extraction_error}
-                    </p>
-                  )}
-                  <Button 
-                    onClick={handleExtractQuestions}
-                    disabled={extracting}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Retry Extraction
-                  </Button>
-                </div>
-              )}
-              
-              {extracting && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-yellow-500">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Analyzing PDF with AI...</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    This may take 30-60 seconds depending on document size
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <Button
-              onClick={handlePublish}
-              disabled={publishing || draftCount === 0}
-              className="w-full bg-[#1e40af] hover:bg-[#1e40af]/90 text-white py-6 text-lg"
-            >
-              {publishing ? "Publishing..." : draftCount === 0 ? "Extract Questions First" : "Publish Exam"}
-            </Button>
+            </Card>
           </div>
+
+          {/* Question Extraction Section */}
+          <Card className="p-6 shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-3 mb-6">
+              <FileText className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-semibold">Question Extraction</h3>
+            </div>
+            
+            {extractionStatus === 'pending' && (
+              <div className="space-y-4">
+                <p className="text-muted-foreground">Extract questions from your PDF to continue</p>
+                <Button 
+                  onClick={handleExtractQuestions}
+                  disabled={extracting}
+                  className="w-full button-glow h-12"
+                  size="lg"
+                >
+                  {extracting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      Extracting Questions...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-5 w-5 mr-2" />
+                      Extract Questions from PDF
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {extractionStatus === 'extracting' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-primary">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <div>
+                    <p className="font-medium">Analyzing PDF with AI...</p>
+                    <p className="text-sm text-muted-foreground">This may take 30-60 seconds</p>
+                  </div>
+                </div>
+                <Progress value={33} className="w-full" />
+              </div>
+            )}
+
+            {extractionStatus === 'completed' && (
+              <div className="space-y-4">
+                <Alert className="border-success/50 bg-success/5">
+                  <CheckCircle className="h-5 w-5 text-success" />
+                  <AlertTitle>Success!</AlertTitle>
+                  <AlertDescription>
+                    {draftCount} questions extracted successfully
+                  </AlertDescription>
+                </Alert>
+                <Button 
+                  onClick={() => navigate(`/upload/${draftId}/review-questions`)}
+                  variant="outline"
+                  className="w-full h-11"
+                >
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Review & Edit Questions
+                </Button>
+              </div>
+            )}
+
+            {extractionStatus === 'failed' && (
+              <div className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <AlertTitle>Extraction Failed</AlertTitle>
+                  <AlertDescription>
+                    {exam.extraction_error || "An error occurred while extracting questions"}
+                  </AlertDescription>
+                </Alert>
+                <Button 
+                  onClick={handleExtractQuestions}
+                  disabled={extracting}
+                  variant="outline"
+                  className="w-full h-11"
+                >
+                  <Loader2 className={`h-4 w-4 mr-2 ${extracting ? 'animate-spin' : ''}`} />
+                  Retry Extraction
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {/* Publish Button */}
+          <Button
+            onClick={handlePublish}
+            disabled={publishing || draftCount === 0}
+            size="lg"
+            className="w-full h-14 text-lg font-medium button-glow"
+          >
+            {publishing ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Publishing Exam...
+              </>
+            ) : draftCount === 0 ? (
+              "Extract Questions to Continue"
+            ) : (
+              <>
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Publish Exam
+              </>
+            )}
+          </Button>
         </div>
-      </div>
+      </PageContainer>
     </DashboardLayout>
   );
 }

@@ -3,13 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, Edit2, Save, Trash2 } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Loader2, Save, X, Edit2, Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -123,15 +124,17 @@ export default function ReviewQuestions() {
   };
 
   const proceedToFormat = () => {
-    navigate(`/upload/${draftId}/format`);
+    navigate(`/upload/${draftId}/preview`);
   };
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     );
   }
@@ -140,22 +143,21 @@ export default function ReviewQuestions() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Review Extracted Questions</h1>
-            <p className="text-muted-foreground mt-2">
-              Review and edit the {drafts.length} questions extracted from your PDF
-            </p>
-          </div>
-          <Button onClick={proceedToFormat}>
-            Proceed to Format Setup
+      <PageContainer maxWidth="lg">
+        <div className="flex items-center justify-between mb-8">
+          <PageHeader
+            title="Review Extracted Questions"
+            subtitle={`Review and edit ${drafts.length} questions extracted from your PDF`}
+            step="Step 4 of 4"
+          />
+          <Button onClick={proceedToFormat} size="lg">
+            Proceed to Publish
           </Button>
         </div>
 
         {lowConfidenceCount > 0 && (
-          <Card className="p-4 bg-yellow-50 border-yellow-200">
-            <p className="text-yellow-800">
+          <Card className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800 mb-6">
+            <p className="text-yellow-800 dark:text-yellow-200">
               ⚠️ {lowConfidenceCount} question(s) have low extraction confidence. Please review carefully.
             </p>
           </Card>
@@ -163,7 +165,7 @@ export default function ReviewQuestions() {
 
         <div className="space-y-4">
           {drafts.map((draft) => (
-            <Card key={draft.id} className="p-6">
+            <Card key={draft.id} className="p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline">Q{draft.question_number}</Badge>
@@ -317,7 +319,7 @@ export default function ReviewQuestions() {
             </Card>
           ))}
         </div>
-      </div>
+      </PageContainer>
     </DashboardLayout>
   );
 }

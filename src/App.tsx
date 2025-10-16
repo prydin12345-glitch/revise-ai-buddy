@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import MyExams from "./pages/MyExams";
 import UploadExam from "./pages/UploadExam";
 import AnalyzeExam from "./pages/AnalyzeExam";
+import ExamSettings from "./pages/ExamSettings";
 import FormatExam from "./pages/FormatExam";
 import TimerSetup from "./pages/TimerSetup";
 import PreviewExam from "./pages/PreviewExam";
@@ -42,14 +43,14 @@ const App = () => {
             {/* Exam Upload Flow (Oct 2024):
                 1. /upload → Upload PDF (upload-exam edge function)
                 2. Background: analyze-exam extracts topics
-                3. /upload/:id/format → Set exam format
-                4. /upload/:id/timer → Configure timer
-                5. /upload/:id/preview → Preview & extract questions
-                6. /upload/:id/review-questions → Edit extracted questions
-                7. Publish exam → /exam/:id/in-progress
+                3. /upload/:id/settings → Merged format + timer setup
+                4. /upload/:id/preview → Preview & extract questions
+                5. /upload/:id/review-questions → Edit extracted questions
+                6. Publish exam → /exam/:id/in-progress
             */}
             <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
             <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
+            <Route path="/upload/:draftId/settings" element={<ExamSettings />} />
             <Route path="/upload/:draftId/format" element={<FormatExam />} />
             <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
             <Route path="/upload/:draftId/preview" element={<PreviewExam />} />
