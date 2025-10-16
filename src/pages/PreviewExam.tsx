@@ -93,21 +93,32 @@ export default function PreviewExam() {
 
       if (error) throw error;
 
+      const topicsMsg = data.topics > 0 ? ` and ${data.topics} topics` : '';
       toast({
-        title: "Questions Extracted",
-        description: `Successfully extracted ${data.totalQuestions} questions from PDF`,
+        title: "Extraction Complete",
+        description: `Successfully extracted ${data.totalQuestions} questions${topicsMsg}`,
       });
 
-      // Reload data
-      const { data: exam } = await supabase
-        .from('exams')
-        .select('extraction_status, total_questions_extracted')
-        .eq('id', draftId)
-        .single();
+      // Reload all data including topics
+      const [examResult, topicsResult] = await Promise.all([
+        supabase
+          .from('exams')
+          .select('extraction_status, total_questions_extracted')
+          .eq('id', draftId)
+          .single(),
+        supabase
+          .from('exam_topics')
+          .select('*')
+          .eq('exam_id', draftId)
+      ]);
 
-      if (exam) {
-        setExtractionStatus(exam.extraction_status);
-        setDraftCount(exam.total_questions_extracted || 0);
+      if (examResult.data) {
+        setExtractionStatus(examResult.data.extraction_status);
+        setDraftCount(examResult.data.total_questions_extracted || 0);
+      }
+
+      if (topicsResult.data) {
+        setExamSummary(prev => prev ? { ...prev, topics: topicsResult.data } : prev);
       }
     } catch (error: any) {
       console.error('Extraction error:', error);
@@ -228,18 +239,34 @@ export default function PreviewExam() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Tag className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Topics</h3>
+                  <h3 className="text-lg font-semibold">Key Topics Identified</h3>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {topics.length > 0 ? (
-                  topics.map((topic) => (
-                    <Badge key={topic.id} variant="secondary" className="text-sm">
+                {extractionStatus === 'completed' && topics.length > 0 ? (
+                  topics.map((topic, index) => (
+                    <Badge 
+                      key={topic.id} 
+                      variant="secondary" 
+                      className="text-sm animate-fade-in"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
                       {topic.topic_name}
                     </Badge>
                   ))
+                ) : extractionStatus === 'pending' ? (
+                  <p className="text-sm text-muted-foreground">
+                    Topics will be identified when you extract questions
+                  </p>
+                ) : extractionStatus === 'extracting' ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analyzing topics...
+                  </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Topics will be extracted automatically</p>
+                  <p className="text-sm text-muted-foreground">
+                    No topics identified — they'll be extracted with questions
+                  </p>
                 )}
               </div>
             </Card>

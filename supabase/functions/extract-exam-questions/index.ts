@@ -112,12 +112,12 @@ serve(async (req) => {
     console.log('Calling Lovable AI for question extraction...');
     console.log('Extracted text length:', pdfText.length);
 
-    const extractionPrompt = `You are an expert exam document parser. Extract ALL questions from this exam paper with extreme precision.
+    const extractionPrompt = `You are an expert exam document parser. Extract ALL questions AND identify key educational topics from this exam paper.
 
 EXAM CONTENT:
 ${pdfText}
 
-CRITICAL REQUIREMENTS:
+CRITICAL REQUIREMENTS FOR QUESTIONS:
 1. Preserve EXACT original wording - do not paraphrase or rewrite
 2. Maintain original question numbering (e.g., 1, 2, 3 OR 1a, 1b, 2a)
 3. Detect mark values from text like "[5 marks]" or "(10)" or "5 marks" - extract the number
@@ -131,6 +131,12 @@ CRITICAL REQUIREMENTS:
 8. Rate extraction confidence (0.0-1.0) based on text clarity
 9. For MCQs, identify correct answer if present (from answer key section or marked in question)
 
+CRITICAL REQUIREMENTS FOR TOPICS:
+1. Identify 3-7 main EDUCATIONAL topics covered in this exam
+2. Use SPECIFIC subject-matter topics (e.g., "Cell Biology", "Enzymes", "Photosynthesis", "Shakespearean Literature")
+3. DO NOT use generic document structure terms (e.g., NOT "PDF Structure", "Data Compression")
+4. Rate confidence 0.0-1.0 for each topic based on prominence in exam
+
 FORMAT REQUIREMENTS:
 - Extract multi-page questions as single entries
 - Include sub-questions as separate entries (1a, 1b become separate questions)
@@ -138,23 +144,35 @@ FORMAT REQUIREMENTS:
 - Default marks to 1 if not found
 - If you can't find proper questions, extract any numbered items as questions
 
-RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
-[
-  {
-    "question_number": 1,
-    "question_type": "mcq",
-    "question_text": "Exact question text preserved",
-    "marks": 5,
-    "options": {"a": "Option A text", "b": "Option B text", "c": "Option C text", "d": "Option D text"},
-    "correct_answer": "b",
-    "original_page_number": 1,
-    "has_figures": false,
-    "has_tables": false,
-    "topic_tag": "Subject - Topic",
-    "difficulty_level": "medium",
-    "extraction_confidence": 0.95
-  }
-]`;
+RETURN ONLY VALID JSON OBJECT (no markdown, no explanation):
+{
+  "questions": [
+    {
+      "question_number": 1,
+      "question_type": "mcq",
+      "question_text": "Exact question text preserved",
+      "marks": 5,
+      "options": {"a": "Option A text", "b": "Option B text", "c": "Option C text", "d": "Option D text"},
+      "correct_answer": "b",
+      "original_page_number": 1,
+      "has_figures": false,
+      "has_tables": false,
+      "topic_tag": "Subject - Topic",
+      "difficulty_level": "medium",
+      "extraction_confidence": 0.95
+    }
+  ],
+  "topics": [
+    {
+      "name": "Cell Biology",
+      "confidence": 0.9
+    },
+    {
+      "name": "Enzymes and Catalysis",
+      "confidence": 0.85
+    }
+  ]
+}`;
 
     // Call Gemini 2.5 Flash (faster and better for text processing)
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -196,16 +214,20 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
     }
 
     const aiData = await aiResponse.json();
-    let extractedContent = aiData.choices?.[0]?.message?.content || '[]';
+    let extractedContent = aiData.choices?.[0]?.message?.content || '{"questions":[],"topics":[]}';
     
     // Clean up markdown formatting if present
     extractedContent = extractedContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     
-    console.log('Raw AI response:', extractedContent);
+    console.log('Raw AI response:', extractedContent.substring(0, 500));
 
-    let extractedQuestions = [];
+    let parsedData: any = { questions: [], topics: [] };
     try {
-      extractedQuestions = JSON.parse(extractedContent);
+      parsedData = JSON.parse(extractedContent);
+      // Handle if AI returned array directly instead of object with questions property
+      if (Array.isArray(parsedData)) {
+        parsedData = { questions: parsedData, topics: [] };
+      }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       await supabase
@@ -220,6 +242,9 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const extractedQuestions = parsedData.questions || [];
+    const extractedTopics = parsedData.topics || [];
 
     if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
       console.error('No questions extracted');
@@ -236,7 +261,7 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
       });
     }
 
-    console.log(`Extracted ${extractedQuestions.length} questions`);
+    console.log(`Extracted ${extractedQuestions.length} questions and ${extractedTopics.length} topics`);
 
     // Delete existing drafts for this exam
     await supabase
@@ -286,6 +311,33 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
       });
     }
 
+    // Delete and insert topics if extracted
+    if (extractedTopics.length > 0) {
+      // Delete existing topics
+      await supabase
+        .from('exam_topics')
+        .delete()
+        .eq('exam_id', draftId);
+
+      // Insert new topics
+      const topicsToInsert = extractedTopics.map((topic: any) => ({
+        exam_id: draftId,
+        topic_name: topic.name,
+        confidence_score: topic.confidence || 0.8
+      }));
+
+      const { error: topicsError } = await supabase
+        .from('exam_topics')
+        .insert(topicsToInsert);
+
+      if (topicsError) {
+        console.error('Topics insertion error:', topicsError);
+        // Don't fail the whole operation if topics fail
+      } else {
+        console.log(`Inserted ${extractedTopics.length} topics`);
+      }
+    }
+
     // Update exam status to completed
     await supabase
       .from('exams')
@@ -298,7 +350,8 @@ RETURN ONLY VALID JSON ARRAY (no markdown, no explanation):
 
     return new Response(JSON.stringify({ 
       success: true,
-      totalQuestions: extractedQuestions.length 
+      totalQuestions: extractedQuestions.length,
+      totalTopics: extractedTopics.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
