@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,63 +80,89 @@ serve(async (req) => {
       });
     }
 
-    // Extract text from PDF with improved cleaning
+    // Extract text from PDF using pdfjs-serverless
     const arrayBuffer = await pdfData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
     let pdfText = '';
     try {
-      const decoder = new TextDecoder('utf-8', { fatal: false });
-      const rawText = decoder.decode(uint8Array);
+      // Primary method: Use pdfjs-serverless for proper PDF parsing
+      console.log('Attempting PDF parsing with pdfjs-serverless...');
+      const pdf = await getDocument({ data: uint8Array, useSystemFonts: true }).promise;
+      const pages: string[] = [];
       
-      // Method 1: Extract text between parentheses (PDF text objects)
-      const textMatches = rawText.match(/\(([^)]+)\)/g);
-      if (textMatches && textMatches.length > 10) {
-        pdfText = textMatches
-          .map(match => match.slice(1, -1))
-          .join(' ')
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '\n')
-          .replace(/\\t/g, ' ')
-          .replace(/\\(.)/g, '$1'); // Unescape characters
-      }
+      console.log(`PDF has ${pdf.numPages} pages`);
       
-      // Method 2: Extract readable ASCII text if method 1 failed
-      if (!pdfText || pdfText.length < 100) {
-        // More aggressive cleaning - only keep printable ASCII and newlines
-        const cleanedText = rawText
-          .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .split(/[\/\[\]<>{}]/g)
-          .filter(part => {
-            // Keep parts that look like actual text (have multiple letters)
-            const letters = part.match(/[a-zA-Z]/g);
-            return letters && letters.length > 3;
-          })
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
           .join(' ');
+        pages.push(pageText);
+      }
+      
+      pdfText = pages.join('\n\n');
+      pdf.cleanup();
+      
+      console.log(`Extracted ${pdfText.length} characters using pdfjs-serverless`);
+    } catch (pdfError) {
+      console.error('pdfjs-serverless parsing failed, trying fallback method:', pdfError);
+      
+      // Fallback: Basic text extraction
+      try {
+        const decoder = new TextDecoder('utf-8', { fatal: false });
+        const rawText = decoder.decode(uint8Array);
         
-        if (cleanedText.length > pdfText.length) {
-          pdfText = cleanedText;
+        // Extract text between parentheses (PDF text objects)
+        const textMatches = rawText.match(/\(([^)]+)\)/g);
+        if (textMatches && textMatches.length > 10) {
+          pdfText = textMatches
+            .map(match => match.slice(1, -1))
+            .join(' ')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\n')
+            .replace(/\\t/g, ' ')
+            .replace(/\\(.)/g, '$1');
         }
+        
+        // If still empty, try aggressive cleaning
+        if (!pdfText || pdfText.length < 100) {
+          const cleanedText = rawText
+            .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .split(/[\/\[\]<>{}]/g)
+            .filter(part => {
+              const letters = part.match(/[a-zA-Z]/g);
+              return letters && letters.length > 3;
+            })
+            .join(' ');
+          
+          if (cleanedText.length > pdfText.length) {
+            pdfText = cleanedText;
+          }
+        }
+        
+        console.log(`Fallback extraction yielded ${pdfText.length} characters`);
+      } catch (fallbackError) {
+        console.error('Fallback extraction also failed:', fallbackError);
       }
-      
-      // Final cleanup
-      pdfText = pdfText
-        .replace(/\s+/g, ' ')
-        .replace(/\n\s+/g, '\n')
-        .trim();
-      
-      // Validate extracted text
-      const readableChars = pdfText.match(/[a-zA-Z0-9]/g);
-      const readableRatio = readableChars ? readableChars.length / pdfText.length : 0;
-      
-      if (readableRatio < 0.5 || pdfText.length < 100) {
-        throw new Error('Extracted text appears corrupted or too short');
-      }
-      
-      console.log(`Extracted ${pdfText.length} chars with ${(readableRatio * 100).toFixed(1)}% readability`);
-    } catch (error) {
-      console.error('PDF text extraction error:', error);
+    }
+    
+    // Final cleanup
+    pdfText = pdfText
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s+/g, '\n')
+      .trim();
+    
+    // Validate extracted text with more lenient threshold
+    const readableChars = pdfText.match(/[a-zA-Z0-9]/g);
+    const readableRatio = readableChars ? readableChars.length / pdfText.length : 0;
+    
+    console.log(`Final text: ${pdfText.length} chars, readability: ${(readableRatio * 100).toFixed(1)}%`);
+    
+    if (readableRatio < 0.25 || pdfText.length < 100) {
+      console.error('Text validation failed - appears corrupted or too short');
       await supabase
         .from('exams')
         .update({ 

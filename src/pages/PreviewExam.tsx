@@ -86,6 +86,7 @@ export default function PreviewExam() {
 
   const handleExtractQuestions = async () => {
     setExtracting(true);
+    setExtractionStatus('extracting'); // Set status immediately for UI feedback
     try {
       const { data, error } = await supabase.functions.invoke('extract-exam-questions', {
         body: { draftId }
