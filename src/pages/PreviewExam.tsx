@@ -28,6 +28,7 @@ export default function PreviewExam() {
   const [loading, setLoading] = useState(true);
   const [draftCount, setDraftCount] = useState(0);
   const [extractionStatus, setExtractionStatus] = useState<string>('pending');
+  const [aiGenerationInProgress, setAiGenerationInProgress] = useState(false);
 
   useEffect(() => {
     if (!draftId) return;
@@ -86,7 +87,8 @@ export default function PreviewExam() {
 
   const handleExtractQuestions = async () => {
     setExtracting(true);
-    setExtractionStatus('extracting'); // Set status immediately for UI feedback
+    setExtractionStatus('extracting');
+    setAiGenerationInProgress(true);
     try {
       const { data, error } = await supabase.functions.invoke('extract-exam-questions', {
         body: { draftId }

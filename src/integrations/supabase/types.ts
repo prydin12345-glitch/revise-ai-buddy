@@ -66,12 +66,15 @@ export type Database = {
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
+          generation_status: string | null
           has_figures: boolean | null
           has_tables: boolean | null
           id: string
+          image_handling_strategy: string | null
           marks: number
           options: Json | null
           original_page_number: number | null
+          original_question_text: string | null
           question_number: string
           question_text: string
           question_type: string
@@ -84,12 +87,15 @@ export type Database = {
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          generation_status?: string | null
           has_figures?: boolean | null
           has_tables?: boolean | null
           id?: string
+          image_handling_strategy?: string | null
           marks: number
           options?: Json | null
           original_page_number?: number | null
+          original_question_text?: string | null
           question_number: string
           question_text: string
           question_type: string
@@ -102,12 +108,15 @@ export type Database = {
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          generation_status?: string | null
           has_figures?: boolean | null
           has_tables?: boolean | null
           id?: string
+          image_handling_strategy?: string | null
           marks?: number
           options?: Json | null
           original_page_number?: number | null
+          original_question_text?: string | null
           question_number?: string
           question_text?: string
           question_type?: string

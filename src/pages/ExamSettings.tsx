@@ -114,7 +114,7 @@ export default function ExamSettings() {
                     <div>
                       <Label className="text-base font-medium">Use Original Structure</Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Keep the exam format as uploaded
+                        AI generates new questions matching the original format
                       </p>
                     </div>
                     <TooltipProvider>
@@ -122,8 +122,14 @@ export default function ExamSettings() {
                         <TooltipTrigger>
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">Questions will maintain their original structure, marks, and formatting from the uploaded document.</p>
+                        <TooltipContent className="max-w-sm">
+                          <p className="font-medium mb-2">Structure Preservation Mode</p>
+                          <ul className="text-xs space-y-1 list-disc list-inside">
+                            <li>Preserves question count, types, and mark distribution</li>
+                            <li>AI generates NEW questions testing similar concepts</li>
+                            <li>Different wording and scenarios (copyright-safe)</li>
+                            <li>Image-based questions are automatically handled</li>
+                          </ul>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
