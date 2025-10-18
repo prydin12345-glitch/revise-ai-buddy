@@ -190,26 +190,50 @@ serve(async (req) => {
 
     // Build format-aware instructions
     const structureInstructions = useOriginalStructure 
-      ? `STRUCTURE PRESERVATION MODE:
-1. Count the number of questions by type (MCQ, short answer, long form)
-2. Note the marks distribution for each question
-3. Identify the topics and difficulty progression
-4. Generate NEW questions that:
-   - Match the same structure (e.g., if original has 4×3-mark MCQs, generate 4×3-mark MCQs)
-   - Cover the same topics in similar order
-   - Test similar concepts but with DIFFERENT wording and scenarios
-   - Do NOT copy any original text, diagrams, or specific examples
-5. Preserve the overall flow and difficulty curve of the original exam`
-      : `FLEXIBLE GENERATION MODE:
-1. Extract topics and difficulty levels from the document
-2. Generate a balanced set of questions based on:
+      ? `✨ STRUCTURE PRESERVATION MODE - FULL AI GENERATION:
+
+CRITICAL: Generate COMPLETELY NEW questions. Never copy original wording.
+
+1. **Analyze Structure**:
+   - Count questions by type (MCQ, short answer, long form)
+   - Note marks distribution for each question
+   - Identify topics and difficulty progression
+
+2. **Generate NEW Questions**:
+   - Match SAME structure (e.g., if original has 4×3-mark MCQs, generate 4×3-mark MCQs)
+   - Cover SAME topics in similar order
+   - Test SAME concepts but with:
+     ✓ DIFFERENT wording and phrasing
+     ✓ DIFFERENT examples and scenarios
+     ✓ DIFFERENT numerical values and data
+     ✓ DIFFERENT names, places, and contexts
+   - For MCQs: Create ENTIRELY NEW options testing the same concept
+   - Preserve overall flow and difficulty curve
+
+3. **Copyright Compliance**:
+   - NEVER copy any original text verbatim
+   - NEVER reference specific diagrams, figures, or page numbers
+   - Replace all specific examples with equivalent alternatives
+   - Change all numerical data while maintaining concept validity
+
+4. **Quality Standards**:
+   - Questions must test identical learning objectives
+   - Difficulty level must match original
+   - Mark allocation must be preserved
+   - All questions must be self-contained (no external references)`
+      : `🎯 FLEXIBLE GENERATION MODE:
+1. Analyze topics and difficulty levels from the document
+2. Generate a balanced set of NEW questions based on:
    - Topics identified (prioritize most prominent topics)
    - Mix of question types (MCQ, short answer, long form)
    - Progressive difficulty (easy → medium → hard)
 3. Total questions and marks can vary from original
-4. Focus on comprehensive topic coverage`;
+4. Focus on comprehensive topic coverage
+5. All questions must be freshly generated (no verbatim copying)`;
 
-    const extractionPrompt = `You are an expert exam question extractor. Analyze this exam paper and extract questions with their details.
+    const extractionPrompt = `You are an expert exam question GENERATOR specializing in creating original, copyright-safe educational assessments.
+
+🎯 YOUR MISSION: Generate BRAND NEW questions inspired by this exam's content.
 
 ${structureInstructions}
 
@@ -262,7 +286,7 @@ Return a JSON object with this structure:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are an expert at extracting exam questions from documents. Always return valid JSON.' },
+          { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only.' },
           { role: 'user', content: extractionPrompt }
         ],
         response_format: { type: "json_object" }
@@ -379,6 +403,68 @@ Return a JSON object with this structure:
       });
     }
 
+    // Process ALL questions when use_original_structure is true (Full AI Generation)
+    if (useOriginalStructure) {
+      console.log('Full AI generation mode: Regenerating ALL questions...');
+      const nonImageQuestions = insertedQuestions?.filter((q: any) => !q.has_figures) || [];
+      
+      for (const question of nonImageQuestions) {
+        try {
+          const regenerationPrompt = `Original question structure: "${question.question_text}"
+Topic: ${question.topic_tag}
+Type: ${question.question_type}
+Marks: ${question.marks}
+Difficulty: ${question.difficulty_level}
+
+Generate a COMPLETELY NEW question that:
+1. Tests the SAME learning objective/concept
+2. Uses DIFFERENT wording, phrasing, and structure
+3. Provides DIFFERENT examples, scenarios, or contexts
+4. If numerical data is involved, use NEW synthetic values
+5. For MCQs: Create ENTIRELY NEW options (if applicable)
+6. Maintains the same difficulty and mark value
+7. Never copies any original text
+
+CRITICAL: Be creative! Change names, locations, scenarios, values - make it fresh while testing the same skill.
+
+Return ONLY the new question text (and options if MCQ), no explanation.`;
+
+          const regenResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                { role: 'system', content: 'You are an expert at creating original exam questions. Never copy verbatim - always generate fresh content while preserving educational value.' },
+                { role: 'user', content: regenerationPrompt }
+              ],
+            }),
+          });
+
+          if (regenResponse.ok) {
+            const regenData = await regenResponse.json();
+            const newQuestionText = regenData.choices?.[0]?.message?.content || question.question_text;
+            
+            await supabase
+              .from('exam_question_drafts')
+              .update({
+                original_question_text: question.question_text,
+                question_text: newQuestionText,
+                generation_status: 'ai_generated',
+              })
+              .eq('id', question.id);
+            
+            console.log(`Regenerated question ${question.question_number} with AI`);
+          }
+        } catch (regenError) {
+          console.error(`Failed to regenerate question ${question.question_number}:`, regenError);
+        }
+      }
+    }
+
     // Process image-based questions using Hybrid Approach
     console.log('Processing image-based questions...');
     const imageQuestions = insertedQuestions?.filter((q: any) => q.has_figures) || [];
@@ -392,13 +478,24 @@ Return a JSON object with this structure:
           const replacementPrompt = `Original question references an image: "${question.question_text}"
 Topic: ${question.topic_tag}
 Marks: ${question.marks}
+Difficulty: ${question.difficulty_level}
 
-Generate a NEW question that:
+Generate a COMPLETELY NEW question that:
 1. Tests the SAME concept/skill without requiring any visual aid
 2. Provides all necessary context in text form
-3. Maintains the same difficulty level (${question.difficulty_level})
-4. Awards the same marks (${question.marks})
-5. Uses different wording and scenarios than the original
+3. Uses DIFFERENT wording, scenarios, and examples
+4. If the original involves data/measurements, generate NEW synthetic values
+   Example: Change "800,000 births" to "230,000 births"
+   Example: Change "Figure 5 shows..." to "Consider a population where..."
+5. Maintains the same difficulty level and awards the same marks
+6. Includes realistic data that makes analytical sense
+7. Is self-contained with no external references
+
+IMPORTANT: 
+- Generate synthetic data/values where needed
+- Use different contexts (change locations, names, scenarios)
+- Never reference the original document
+- Make the question analytically equivalent but conceptually fresh
 
 Return ONLY the new question text, no additional explanation.`;
 

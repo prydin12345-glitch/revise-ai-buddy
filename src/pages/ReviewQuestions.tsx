@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, X, Edit2, Trash2, Sparkles, Image as ImageIcon, Grid3x3 } from "lucide-react";
+import { Loader2, Save, X, Edit2, Trash2, Sparkles, Image as ImageIcon, Grid3x3, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -48,6 +48,7 @@ export default function ReviewQuestions() {
   const [editForm, setEditForm] = useState<Partial<QuestionDraft>>({});
   const [showOnlyAI, setShowOnlyAI] = useState(false);
   const [showImageWarnings, setShowImageWarnings] = useState(true);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (draftId) {
@@ -128,6 +129,41 @@ export default function ReviewQuestions() {
         description: "Question deleted",
       });
       fetchDrafts();
+    }
+  };
+
+  const regenerateQuestion = async (question: QuestionDraft) => {
+    setRegeneratingId(question.id);
+    
+    try {
+      // Call edge function to regenerate this specific question
+      const { data, error } = await supabase.functions.invoke('regenerate-question', {
+        body: { 
+          questionId: question.id,
+          originalText: question.original_question_text || question.question_text,
+          topicTag: question.topic_tag,
+          questionType: question.question_type,
+          marks: question.marks,
+          difficultyLevel: question.difficulty_level
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Question regenerated successfully",
+      });
+
+      fetchDrafts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to regenerate question",
+        variant: "destructive",
+      });
+    } finally {
+      setRegeneratingId(null);
     }
   };
 
@@ -263,6 +299,32 @@ export default function ReviewQuestions() {
 
                 {editingId !== draft.id && (
                   <div className="flex gap-2">
+                    {(draft.generation_status === 'ai_generated' || draft.generation_status === 'structure_inspired') && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => regenerateQuestion(draft)}
+                              disabled={regeneratingId === draft.id}
+                            >
+                              {regeneratingId === draft.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Regenerate
+                                </>
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Generate a new version of this question using AI</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

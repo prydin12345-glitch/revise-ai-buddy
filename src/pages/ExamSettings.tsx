@@ -123,13 +123,15 @@ export default function ExamSettings() {
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-sm">
-                          <p className="font-medium mb-2">Structure Preservation Mode</p>
-                          <ul className="text-xs space-y-1 list-disc list-inside">
-                            <li>Preserves question count, types, and mark distribution</li>
-                            <li>AI generates NEW questions testing similar concepts</li>
-                            <li>Different wording and scenarios (copyright-safe)</li>
-                            <li>Image-based questions are automatically handled</li>
+                          <p className="font-medium mb-2">✨ Full AI Generation Mode</p>
+                          <ul className="text-xs space-y-1.5 list-disc list-inside">
+                            <li><strong>Preserves:</strong> Question count, types, marks, topic flow</li>
+                            <li><strong>Regenerates:</strong> ALL question text with different wording</li>
+                            <li><strong>Changes:</strong> Examples, numerical values, scenarios</li>
+                            <li><strong>Handles:</strong> Image-based questions automatically</li>
+                            <li><strong>Result:</strong> Copyright-safe, educationally equivalent exam</li>
                           </ul>
+                          <p className="text-xs mt-2 text-muted-foreground">No verbatim copying from the original document.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

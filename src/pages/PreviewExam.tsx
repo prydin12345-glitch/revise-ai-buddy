@@ -330,6 +330,24 @@ export default function PreviewExam() {
             </Card>
           </div>
 
+          {/* AI Generation Verification Card */}
+          {extractionStatus === 'completed' && draftCount > 0 && (
+            <Alert className="border-blue-500/50 bg-blue-500/5">
+              <CheckCircle className="h-5 w-5 text-blue-600" />
+              <AlertTitle>✨ AI-Enhanced Exam Generation</AlertTitle>
+              <AlertDescription>
+                <div className="space-y-2 mt-2">
+                  <p>All {draftCount} questions have been generated with AI assistance:</p>
+                  <ul className="text-sm space-y-1 ml-4 list-disc">
+                    <li>Original structure preserved (question count & marks)</li>
+                    <li>Fresh content generated (copyright-safe)</li>
+                    <li>Image-based questions automatically handled</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Question Extraction Section */}
           <Card className="p-6 shadow-[var(--shadow-card)]">
             <div className="flex items-center gap-3 mb-6">
@@ -367,7 +385,9 @@ export default function PreviewExam() {
                   <Loader2 className="h-6 w-6 animate-spin" />
                   <div>
                     <p className="font-medium">Analyzing PDF with AI...</p>
-                    <p className="text-sm text-muted-foreground">This may take 30-60 seconds</p>
+                    <p className="text-sm text-muted-foreground">
+                      Generating new questions, handling images, and ensuring copyright compliance (30-90 seconds)
+                    </p>
                   </div>
                 </div>
                 <Progress value={33} className="w-full" />
