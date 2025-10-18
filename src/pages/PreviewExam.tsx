@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle, Edit2 } from "lucide-react";
+import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle, Edit2, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -98,8 +98,8 @@ export default function PreviewExam() {
 
       const topicsMsg = data.topics > 0 ? ` and ${data.topics} topics` : '';
       toast({
-        title: "Extraction Complete",
-        description: `Successfully extracted ${data.totalQuestions} questions${topicsMsg}`,
+        title: "Generation Complete",
+        description: `Successfully generated ${data.totalQuestions} questions${topicsMsg}`,
       });
 
       // Reload all data including topics
@@ -124,10 +124,10 @@ export default function PreviewExam() {
         setExamSummary(prev => prev ? { ...prev, topics: topicsResult.data } : prev);
       }
     } catch (error: any) {
-      console.error('Extraction error:', error);
+      console.error('Generation error:', error);
       toast({
-        title: "Extraction Failed",
-        description: error.message || "Failed to extract questions",
+        title: "Generation Failed",
+        description: error.message || "Failed to generate questions",
         variant: "destructive",
       });
     } finally {
@@ -139,7 +139,7 @@ export default function PreviewExam() {
     if (draftCount === 0) {
       toast({
         title: "Cannot Publish",
-        description: "Please extract and review questions before publishing",
+        description: "Please generate and review questions before publishing",
         variant: "destructive",
       });
       return;
@@ -205,7 +205,7 @@ export default function PreviewExam() {
       <PageContainer maxWidth="lg">
         <PageHeader
           title="Review & Publish"
-          subtitle="Review your exam configuration and extract questions"
+          subtitle="Review your exam configuration and generate questions"
           step="Step 3 of 4"
         />
 
@@ -259,7 +259,7 @@ export default function PreviewExam() {
                   ))
                 ) : extractionStatus === 'pending' ? (
                   <p className="text-sm text-muted-foreground">
-                    Topics will be identified when you extract questions
+                    Topics will be identified when you generate questions
                   </p>
                 ) : extractionStatus === 'extracting' ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,7 +268,7 @@ export default function PreviewExam() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No topics identified — they'll be extracted with questions
+                    No topics identified — they'll be generated with questions
                   </p>
                 )}
               </div>
@@ -348,16 +348,16 @@ export default function PreviewExam() {
             </Alert>
           )}
 
-          {/* Question Extraction Section */}
+          {/* Question Generation Section */}
           <Card className="p-6 shadow-[var(--shadow-card)]">
             <div className="flex items-center gap-3 mb-6">
-              <FileText className="h-5 w-5 text-primary" />
-              <h3 className="text-xl font-semibold">Question Extraction</h3>
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-semibold">AI Question Generation</h3>
             </div>
             
             {extractionStatus === 'pending' && (
               <div className="space-y-4">
-                <p className="text-muted-foreground">Extract questions from your PDF to continue</p>
+                <p className="text-muted-foreground">Generate AI-powered questions from your PDF to continue</p>
                 <Button 
                   onClick={handleExtractQuestions}
                   disabled={extracting}
@@ -367,12 +367,12 @@ export default function PreviewExam() {
                   {extracting ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                      Extracting Questions...
+                      Generating Questions...
                     </>
                   ) : (
                     <>
-                      <FileText className="h-5 w-5 mr-2" />
-                      Extract Questions from PDF
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      Generate Questions with AI
                     </>
                   )}
                 </Button>
@@ -400,7 +400,7 @@ export default function PreviewExam() {
                   <CheckCircle className="h-5 w-5 text-success" />
                   <AlertTitle>Success!</AlertTitle>
                   <AlertDescription>
-                    {draftCount} questions extracted successfully
+                    {draftCount} questions generated successfully with AI
                   </AlertDescription>
                 </Alert>
                 <Button 
@@ -418,9 +418,9 @@ export default function PreviewExam() {
               <div className="space-y-4">
                 <Alert variant="destructive">
                   <AlertCircle className="h-5 w-5" />
-                  <AlertTitle>Extraction Failed</AlertTitle>
+                  <AlertTitle>Generation Failed</AlertTitle>
                   <AlertDescription className="space-y-2">
-                    <p>{exam.extraction_error || "An error occurred while extracting questions"}</p>
+                    <p>{exam.extraction_error || "An error occurred while generating questions"}</p>
                     {exam.extraction_error?.includes('scanned') && (
                       <p className="text-sm mt-2">
                         💡 Tip: Make sure your PDF is text-based (not a scanned image). You can test this by trying to select text in the PDF.
@@ -440,7 +440,7 @@ export default function PreviewExam() {
                       Retrying...
                     </>
                   ) : (
-                    'Retry Extraction'
+                    'Retry Generation'
                   )}
                 </Button>
               </div>
@@ -460,7 +460,7 @@ export default function PreviewExam() {
                 Publishing Exam...
               </>
             ) : draftCount === 0 ? (
-              "Extract Questions to Continue"
+              "Generate Questions to Continue"
             ) : (
               <>
                 <CheckCircle className="h-5 w-5 mr-2" />
