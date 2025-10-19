@@ -60,8 +60,30 @@ serve(async (req) => {
       });
     }
 
-    // If student, remove correct answers
-    const responseQuestions = isTeacher 
+    // Fetch timer settings
+    const { data: timerData } = await supabase
+      .from('exam_timer')
+      .select('enabled, duration_minutes')
+      .eq('exam_id', examId)
+      .maybeSingle();
+
+    // Check if student has already submitted
+    const { data: submission } = await supabase
+      .from('exam_submissions')
+      .select('submitted_at, total_score, total_marks, status, time_taken_seconds')
+      .eq('exam_id', examId)
+      .eq('student_id', user.id)
+      .maybeSingle();
+
+    // Fetch student's existing answers
+    const { data: existingAnswers } = await supabase
+      .from('student_answers')
+      .select('question_id, answer_text, score, feedback, is_correct')
+      .eq('exam_id', examId)
+      .eq('student_id', user.id);
+
+    // If student and not submitted, remove correct answers
+    const responseQuestions = (isTeacher || submission)
       ? questions 
       : questions?.map(q => ({
           id: q.id,
@@ -70,11 +92,17 @@ serve(async (req) => {
           question_text: q.question_text,
           marks: q.marks,
           options: q.options,
+          figure_urls: q.figure_urls,
+          has_figures: q.has_figures,
+          has_tables: q.has_tables,
         }));
 
     return new Response(JSON.stringify({ 
       questions: responseQuestions,
-      isTeacher 
+      isTeacher,
+      timer: timerData || null,
+      submission: submission || null,
+      existingAnswers: existingAnswers || []
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

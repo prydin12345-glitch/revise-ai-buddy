@@ -16,6 +16,7 @@ import TimerSetup from "./pages/TimerSetup";
 import PreviewExam from "./pages/PreviewExam";
 import ReviewQuestions from "./pages/ReviewQuestions";
 import ExamInProgress from "./pages/ExamInProgress";
+import ExamReview from "./pages/ExamReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

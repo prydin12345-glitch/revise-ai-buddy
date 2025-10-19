@@ -129,6 +129,32 @@ const MyExams = () => {
     }
   };
 
+  const handleView = async (exam: Exam) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+
+      // Check if student has already submitted this exam
+      const { data: submission } = await supabase
+        .from('exam_submissions')
+        .select('id')
+        .eq('exam_id', exam.id)
+        .eq('student_id', user.id)
+        .maybeSingle();
+
+      if (submission) {
+        navigate(`/exam/${exam.id}/review`);
+      } else {
+        navigate(`/exam/${exam.id}/in-progress`);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleEdit = (exam: Exam) => {
     setSelectedExam(exam);
     setEditForm({
@@ -266,7 +292,7 @@ const MyExams = () => {
                     exam={exam}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
-                    onView={(exam) => navigate(`/exam/${exam.id}/in-progress`)}
+                    onView={handleView}
                   />
                 ))}
               </div>

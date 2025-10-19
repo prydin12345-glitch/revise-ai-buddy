@@ -200,6 +200,50 @@ export type Database = {
           },
         ]
       }
+      exam_submissions: {
+        Row: {
+          created_at: string | null
+          exam_id: string
+          id: string
+          status: string | null
+          student_id: string
+          submitted_at: string | null
+          time_taken_seconds: number | null
+          total_marks: number | null
+          total_score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          status?: string | null
+          student_id: string
+          submitted_at?: string | null
+          time_taken_seconds?: number | null
+          total_marks?: number | null
+          total_score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          status?: string | null
+          student_id?: string
+          submitted_at?: string | null
+          time_taken_seconds?: number | null
+          total_marks?: number | null
+          total_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_submissions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_timer: {
         Row: {
           duration_minutes: number | null
@@ -310,24 +354,33 @@ export type Database = {
         Row: {
           answer_text: string | null
           exam_id: string
+          feedback: string | null
           id: string
+          is_correct: boolean | null
           question_id: string
+          score: number | null
           student_id: string
           submitted_at: string
         }
         Insert: {
           answer_text?: string | null
           exam_id: string
+          feedback?: string | null
           id?: string
+          is_correct?: boolean | null
           question_id: string
+          score?: number | null
           student_id: string
           submitted_at?: string
         }
         Update: {
           answer_text?: string | null
           exam_id?: string
+          feedback?: string | null
           id?: string
+          is_correct?: boolean | null
           question_id?: string
+          score?: number | null
           student_id?: string
           submitted_at?: string
         }
