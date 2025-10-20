@@ -39,10 +39,10 @@ serve(async (req) => {
 
     console.log('Extracting questions for exam:', draftId);
 
-    // Get exam details
+    // Get exam details with format and specifications
     const { data: exam, error: examError } = await supabase
       .from('exams')
-      .select('*')
+      .select('*, exam_format(*), exam_specifications(*)')
       .eq('id', draftId)
       .eq('user_id', user.id)
       .single();
@@ -54,15 +54,13 @@ serve(async (req) => {
       });
     }
 
-    // Fetch format settings
-    const { data: formatSettings } = await supabase
-      .from('exam_format')
-      .select('*')
-      .eq('exam_id', draftId)
-      .single();
+    const examBoard = exam.exam_board || 'generic';
+    const qualificationLevel = exam.qualification_level || 'not specified';
+    const specTopics = exam.exam_specifications || [];
     
-    const useOriginalStructure = formatSettings?.use_original_structure ?? true;
+    const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
     console.log('Use original structure:', useOriginalStructure);
+    console.log('Exam board:', examBoard, 'Level:', qualificationLevel);
 
     // Update status to extracting
     await supabase
@@ -188,8 +186,53 @@ serve(async (req) => {
 
     console.log('Calling Lovable AI for question extraction...');
 
+    // Build exam board-specific guidance
+    const examBoardGuidance: Record<string, string> = {
+      aqa: `
+- Use AQA-style command words (describe, explain, evaluate)
+- Follow AQA mark scheme format (1 mark per valid point)
+- Use clear, direct language
+- Include practical application questions`,
+      edexcel: `
+- Use Edexcel command words (state, discuss, assess)
+- Follow Edexcel levels-based marking
+- Include real-world contexts
+- Use structured question formats`,
+      ocr: `
+- Use OCR command words (outline, analyse, justify)
+- Follow OCR point-based marking
+- Include synoptic elements
+- Use varied question formats`,
+      cie: `
+- Use Cambridge command words (identify, compare, suggest)
+- Follow Cambridge detailed mark schemes
+- Include international contexts
+- Use precise scientific terminology`,
+      ib: `
+- Use IB command words (define, calculate, deduce)
+- Follow IB markband descriptors
+- Include TOK and interdisciplinary links
+- Use inquiry-based approach`,
+      wjec: `
+- Use WJEC command words and marking style
+- Include Welsh/UK contexts where appropriate
+- Follow WJEC mark scheme conventions`,
+    };
+
+    const boardInstructions = examBoardGuidance[examBoard] || '- Match standard exam board practices';
+
+    // Build specification filtering if available
+    const specTopicList = specTopics.map((t: any) => t.topic_name).join(', ');
+    const specInstructions = specTopics.length > 0 
+      ? `\n\n📋 SPECIFICATION CONSTRAINT:
+Only generate questions covering these approved topics:
+${specTopicList}
+
+If the exam covers topics NOT in this list, skip them or adapt to spec-approved topics.`
+      : '';
+
     // Build format-aware instructions
-    const structureInstructions = useOriginalStructure 
+    const structureInstructions = useOriginalStructure
       ? `✨ STRUCTURE PRESERVATION MODE - FULL AI GENERATION:
 
 CRITICAL: Generate COMPLETELY NEW questions. Never copy original wording.
@@ -231,7 +274,11 @@ CRITICAL: Generate COMPLETELY NEW questions. Never copy original wording.
 4. Focus on comprehensive topic coverage
 5. All questions must be freshly generated (no verbatim copying)`;
 
-    const extractionPrompt = `You are an expert exam question GENERATOR specializing in creating original, copyright-safe educational assessments.
+    const extractionPrompt = `You are an expert exam question GENERATOR specializing in ${examBoard.toUpperCase()} ${qualificationLevel} exams.
+
+🎯 EXAM BOARD REQUIREMENTS:
+${boardInstructions}
+${specInstructions}
 
 🎯 YOUR MISSION: Generate BRAND NEW questions inspired by this exam's content.
 

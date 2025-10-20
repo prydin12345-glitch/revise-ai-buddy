@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle, Edit2, Sparkles } from "lucide-react";
+import { FileText, Clock, Layout, Tag, Loader2, CheckCircle, AlertCircle, Edit2, Sparkles, Award, BookOpen } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -235,6 +235,31 @@ export default function PreviewExam() {
                   <p className="text-sm text-muted-foreground">Subject</p>
                   <p className="font-medium capitalize">{exam.subject_id}</p>
                 </div>
+                {exam.specification_file_url && (
+                  <Badge variant="outline" className="flex items-center gap-2 w-fit">
+                    <CheckCircle className="h-4 w-4" />
+                    Spec-aligned questions
+                  </Badge>
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center gap-3 mb-4">
+                <Award className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Exam Board</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Board</p>
+                  <p className="font-medium uppercase">{exam.exam_board || 'Not specified'}</p>
+                </div>
+                {exam.qualification_level && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Qualification</p>
+                    <p className="font-medium uppercase">{exam.qualification_level}</p>
+                  </div>
+                )}
               </div>
             </Card>
 

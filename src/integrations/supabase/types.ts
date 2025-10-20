@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       exam_format: {
         Row: {
+          difficulty_calibration: string | null
           exam_id: string
           id: string
           long_form_count: number | null
@@ -27,6 +28,7 @@ export type Database = {
           use_original_structure: boolean | null
         }
         Insert: {
+          difficulty_calibration?: string | null
           exam_id: string
           id?: string
           long_form_count?: number | null
@@ -38,6 +40,7 @@ export type Database = {
           use_original_structure?: boolean | null
         }
         Update: {
+          difficulty_calibration?: string | null
           exam_id?: string
           id?: string
           long_form_count?: number | null
@@ -66,11 +69,13 @@ export type Database = {
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
+          flag_reason: string | null
           generation_status: string | null
           has_figures: boolean | null
           has_tables: boolean | null
           id: string
           image_handling_strategy: string | null
+          is_flagged: boolean | null
           marks: number
           options: Json | null
           original_page_number: number | null
@@ -87,11 +92,13 @@ export type Database = {
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          flag_reason?: string | null
           generation_status?: string | null
           has_figures?: boolean | null
           has_tables?: boolean | null
           id?: string
           image_handling_strategy?: string | null
+          is_flagged?: boolean | null
           marks: number
           options?: Json | null
           original_page_number?: number | null
@@ -108,11 +115,13 @@ export type Database = {
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          flag_reason?: string | null
           generation_status?: string | null
           has_figures?: boolean | null
           has_tables?: boolean | null
           id?: string
           image_handling_strategy?: string | null
+          is_flagged?: boolean | null
           marks?: number
           options?: Json | null
           original_page_number?: number | null
@@ -193,6 +202,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_specifications: {
+        Row: {
+          assessment_objectives: string[] | null
+          created_at: string | null
+          exam_id: string
+          id: string
+          page_numbers: number[] | null
+          topic_name: string
+        }
+        Insert: {
+          assessment_objectives?: string[] | null
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          page_numbers?: number[] | null
+          topic_name: string
+        }
+        Update: {
+          assessment_objectives?: string[] | null
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          page_numbers?: number[] | null
+          topic_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_specifications_exam_id_fkey"
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
@@ -306,10 +350,13 @@ export type Database = {
         Row: {
           created_at: string
           display_order: number | null
+          exam_board: string | null
           extraction_error: string | null
           extraction_status: string | null
           file_url: string | null
           id: string
+          qualification_level: string | null
+          specification_file_url: string | null
           status: Database["public"]["Enums"]["exam_status"]
           subject_id: string
           title: string
@@ -321,10 +368,13 @@ export type Database = {
         Insert: {
           created_at?: string
           display_order?: number | null
+          exam_board?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
           file_url?: string | null
           id?: string
+          qualification_level?: string | null
+          specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_id: string
           title: string
@@ -336,10 +386,13 @@ export type Database = {
         Update: {
           created_at?: string
           display_order?: number | null
+          exam_board?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
           file_url?: string | null
           id?: string
+          qualification_level?: string | null
+          specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_id?: string
           title?: string

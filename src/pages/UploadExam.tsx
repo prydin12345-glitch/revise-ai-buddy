@@ -20,13 +20,36 @@ const subjects = [
   { id: "other", name: "Other" },
 ];
 
+const examBoards = [
+  { id: "aqa", name: "AQA" },
+  { id: "edexcel", name: "Edexcel" },
+  { id: "ocr", name: "OCR" },
+  { id: "cie", name: "Cambridge International (CIE)" },
+  { id: "ib", name: "International Baccalaureate (IB)" },
+  { id: "wjec", name: "WJEC" },
+  { id: "other", name: "Other" }
+];
+
+const qualificationLevels = [
+  { id: "gcse", name: "GCSE" },
+  { id: "igcse", name: "IGCSE" },
+  { id: "a_level", name: "A-Level" },
+  { id: "as_level", name: "AS Level" },
+  { id: "ib_hl", name: "IB Higher Level" },
+  { id: "ib_sl", name: "IB Standard Level" },
+  { id: "other", name: "Other" }
+];
+
 export default function UploadExam() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [subjectId, setSubjectId] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
+  const [examBoard, setExamBoard] = useState<string>("");
+  const [qualificationLevel, setQualificationLevel] = useState<string>("");
+  const [specFile, setSpecFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [errors, setErrors] = useState({ subject: "", file: "", fileName: "" });
+  const [errors, setErrors] = useState({ subject: "", file: "", fileName: "", examBoard: "" });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,15 +59,16 @@ export default function UploadExam() {
 
   const handleUpload = async () => {
     // Validate fields
-    const newErrors = { subject: "", file: "", fileName: "" };
+    const newErrors = { subject: "", file: "", fileName: "", examBoard: "" };
     
     if (!subjectId) newErrors.subject = "Please select a subject";
     if (!file) newErrors.file = "Please choose a file";
     if (!fileName.trim()) newErrors.fileName = "Please name this exam";
+    if (!examBoard) newErrors.examBoard = "Please select an exam board";
     
     setErrors(newErrors);
     
-    if (newErrors.subject || newErrors.file || newErrors.fileName) {
+    if (newErrors.subject || newErrors.file || newErrors.fileName || newErrors.examBoard) {
       return;
     }
 
@@ -55,6 +79,9 @@ export default function UploadExam() {
       formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
+      formData.append('examBoard', examBoard);
+      if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
+      if (specFile) formData.append('specFile', specFile);
 
       const { data, error } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -114,7 +141,49 @@ export default function UploadExam() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="file" className="text-base font-medium">Exam Document</Label>
+              <Label htmlFor="examBoard" className="text-base font-medium">Exam Board *</Label>
+              <Select value={examBoard} onValueChange={(value) => {
+                setExamBoard(value);
+                setErrors({ ...errors, examBoard: "" });
+              }}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Select exam board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {examBoards.map((board) => (
+                    <SelectItem key={board.id} value={board.id}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Used to match question style, command words, and mark scheme format
+              </p>
+              {errors.examBoard && <p className="text-destructive text-sm mt-1">{errors.examBoard}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="qualification" className="text-base font-medium">Qualification (Optional)</Label>
+              <Select value={qualificationLevel} onValueChange={setQualificationLevel}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Select qualification level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {qualificationLevels.map((level) => (
+                    <SelectItem key={level.id} value={level.id}>
+                      {level.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Optional but helps calibrate difficulty level
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="file" className="text-base font-medium">Exam Document *</Label>
               <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
                 <Input
                   id="file"
@@ -140,7 +209,30 @@ export default function UploadExam() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fileName" className="text-base font-medium">Name this exam</Label>
+              <Label htmlFor="specFile" className="text-base font-medium">Upload Specification (Optional)</Label>
+              <Input
+                id="specFile"
+                type="file"
+                accept=".pdf,.docx"
+                onChange={(e) => setSpecFile(e.target.files?.[0] || null)}
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+              />
+              {specFile && (
+                <div className="mt-2 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md">
+                  <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{specFile.name}</p>
+                    <p className="text-xs text-muted-foreground">{(specFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Upload your exam specification to improve question relevance and ensure spec alignment
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fileName" className="text-base font-medium">Name this exam *</Label>
               <Input
                 id="fileName"
                 type="text"

@@ -59,6 +59,7 @@ serve(async (req) => {
       .upsert({
         exam_id: draftId,
         use_original_structure: format.useOriginal || false,
+        difficulty_calibration: format.difficulty || 'exam_board_standard',
         mcq_count: format.mcq?.count || null,
         mcq_marks_each: format.mcq?.marksEach || null,
         short_answer_count: format.shortAnswer?.count || null,

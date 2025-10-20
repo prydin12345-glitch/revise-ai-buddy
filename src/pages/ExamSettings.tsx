@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Clock, FileText, Info } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -29,6 +30,9 @@ export default function ExamSettings() {
   // Timer settings
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [duration, setDuration] = useState(60);
+
+  // Difficulty calibration
+  const [difficulty, setDifficulty] = useState("exam_board_standard");
 
   const getTotalMarks = () => {
     if (useOriginal) return "As per original";
@@ -55,6 +59,7 @@ export default function ExamSettings() {
       // Save format
       const format = {
         useOriginal,
+        difficulty,
         ...(useOriginal ? {} : customFormat),
       };
 
@@ -239,7 +244,38 @@ export default function ExamSettings() {
                       </div>
                     </div>
                   </div>
-                )}
+                 )}
+              </div>
+            </Card>
+
+            {/* Difficulty Calibration Section */}
+            <Card className="p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-center gap-2 mb-6">
+                <FileText className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Question Difficulty</h2>
+              </div>
+
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Difficulty Level</Label>
+                <Select value={difficulty} onValueChange={setDifficulty}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="exam_board_standard">
+                      Exam Board Standard
+                    </SelectItem>
+                    <SelectItem value="stretch_challenge">
+                      Stretch & Challenge (+15% harder)
+                    </SelectItem>
+                    <SelectItem value="simplified_practice">
+                      Simplified Practice (-15% easier)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Adjusts complexity and depth of questions
+                </p>
               </div>
             </Card>
 

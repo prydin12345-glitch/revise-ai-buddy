@@ -33,9 +33,12 @@ serve(async (req) => {
     const file = formData.get('file') as File;
     const subjectId = formData.get('subjectId') as string;
     const examTitle = formData.get('fileName') as string;
+    const examBoard = formData.get('examBoard') as string;
+    const qualificationLevel = formData.get('qualificationLevel') as string | null;
+    const specFile = formData.get('specFile') as File | null;
 
-    if (!file || !subjectId || !examTitle) {
-      return new Response(JSON.stringify({ error: 'File, subject, and file name required' }), {
+    if (!file || !subjectId || !examTitle || !examBoard) {
+      return new Response(JSON.stringify({ error: 'File, subject, exam board, and file name required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -65,6 +68,26 @@ serve(async (req) => {
 
     console.log('File uploaded:', uploadData.path);
 
+    // Upload specification file if provided
+    let specFileUrl = null;
+    if (specFile) {
+      const specExt = specFile.name.split('.').pop();
+      const specPath = `${user.id}/specs/${crypto.randomUUID()}.${specExt}`;
+      const specBuffer = await specFile.arrayBuffer();
+      
+      const { data: specUploadData, error: specUploadError } = await supabase.storage
+        .from('exam-files')
+        .upload(specPath, specBuffer, {
+          contentType: specFile.type,
+          upsert: false,
+        });
+        
+      if (!specUploadError && specUploadData) {
+        specFileUrl = specUploadData.path;
+        console.log('Specification uploaded:', specFileUrl);
+      }
+    }
+
     // Create exam record
     const { data: examData, error: examError } = await supabase
       .from('exams')
@@ -72,6 +95,9 @@ serve(async (req) => {
         user_id: user.id,
         subject_id: subjectId,
         title: examTitle,
+        exam_board: examBoard,
+        qualification_level: qualificationLevel,
+        specification_file_url: specFileUrl,
         type: 'uploaded',
         status: 'draft',
         file_url: uploadData.path,

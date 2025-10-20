@@ -36,6 +36,8 @@ interface QuestionDraft {
   generation_status?: string;
   image_handling_strategy?: string;
   original_question_text?: string;
+  is_flagged?: boolean;
+  flag_reason?: string;
 }
 
 export default function ReviewQuestions() {
@@ -167,6 +169,38 @@ export default function ReviewQuestions() {
     }
   };
 
+  const handleFlag = async (questionId: string, reason: string) => {
+    const { error } = await supabase
+      .from('exam_question_drafts')
+      .update({ 
+        is_flagged: true, 
+        flag_reason: reason 
+      })
+      .eq('id', questionId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to flag question",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Question Flagged",
+        description: "This question is marked for review",
+      });
+      fetchDrafts();
+    }
+  };
+
+  const handleRegenerateFlagged = async () => {
+    const flaggedQuestions = drafts.filter(d => d.is_flagged);
+    
+    for (const question of flaggedQuestions) {
+      await regenerateQuestion(question);
+    }
+  };
+
   const proceedToFormat = () => {
     navigate(`/upload/${draftId}/preview`);
   };
@@ -246,8 +280,8 @@ export default function ReviewQuestions() {
 
         {/* Filters */}
         <Card className="p-4 mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch
                   id="ai-only"
@@ -265,8 +299,16 @@ export default function ReviewQuestions() {
                 <Label htmlFor="image-warnings" className="text-sm">Show image warnings</Label>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {filteredQuestions.length} of {drafts.length} questions
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-muted-foreground">
+                {filteredQuestions.length} of {drafts.length} questions
+              </div>
+              {drafts.some(d => d.is_flagged) && (
+                <Button onClick={handleRegenerateFlagged} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Regenerate Flagged
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -291,11 +333,16 @@ export default function ReviewQuestions() {
                     {draft.question_type === 'mcq' ? 'MCQ' : draft.question_type === 'short_answer' ? 'Short Answer' : 'Long Form'}
                   </Badge>
                   <Badge>{draft.marks} marks</Badge>
-                  {draft.extraction_confidence < 0.7 && (
-                    <Badge variant="destructive">Low Confidence</Badge>
-                  )}
-                  <QuestionSourceBadge question={draft} />
-                </div>
+                   {draft.extraction_confidence < 0.7 && (
+                     <Badge variant="destructive">Low Confidence</Badge>
+                   )}
+                   {draft.is_flagged && (
+                     <Badge variant="destructive" className="ml-2">
+                       Flagged: {draft.flag_reason}
+                     </Badge>
+                   )}
+                   <QuestionSourceBadge question={draft} />
+                 </div>
 
                 {editingId !== draft.id && (
                   <div className="flex gap-2">
@@ -418,11 +465,31 @@ export default function ReviewQuestions() {
                     </div>
                   )}
 
-                  {draft.topic_tag && (
-                    <Badge variant="outline" className="mt-2">{draft.topic_tag}</Badge>
-                  )}
+                   <div className="flex items-center gap-2 mt-3">
+                     {draft.topic_tag && (
+                       <Badge variant="outline">{draft.topic_tag}</Badge>
+                     )}
+                     {!draft.is_flagged && (
+                       <>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleFlag(draft.id, 'too_difficult')}
+                         >
+                           🚩 Too Difficult
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => handleFlag(draft.id, 'off_spec')}
+                         >
+                           ⚠️ Off-Spec
+                         </Button>
+                       </>
+                     )}
+                   </div>
 
-                  {/* Show original vs generated comparison */}
+                   {/* Show original vs generated comparison */}
                   {draft.original_question_text && showImageWarnings && (
                     <Collapsible className="mt-4">
                       <CollapsibleTrigger asChild>
