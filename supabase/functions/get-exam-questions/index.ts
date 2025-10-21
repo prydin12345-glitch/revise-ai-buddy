@@ -45,12 +45,11 @@ serve(async (req) => {
 
     const isTeacher = exam?.user_id === user.id;
 
-    // Fetch questions
+    // Fetch questions (without SQL ordering)
     const { data: questions, error: questionsError } = await supabase
       .from('exam_questions')
       .select('*')
-      .eq('exam_id', examId)
-      .order('question_number');
+      .eq('exam_id', examId);
 
     if (questionsError) {
       console.error('Fetch questions error:', questionsError);
@@ -82,10 +81,28 @@ serve(async (req) => {
       .eq('exam_id', examId)
       .eq('student_id', user.id);
 
+    // Sort questions numerically (not alphabetically)
+    const sortQuestions = (questions: any[]) => {
+      return questions.sort((a, b) => {
+        const aParts = a.question_number.split('.').map(Number);
+        const bParts = b.question_number.split('.').map(Number);
+        
+        // Compare primary number first (1, 2, 3...)
+        if (aParts[0] !== bParts[0]) {
+          return aParts[0] - bParts[0];
+        }
+        
+        // Then compare sub-number (1.1, 1.2...)
+        return (aParts[1] || 0) - (bParts[1] || 0);
+      });
+    };
+
+    const sortedQuestions = sortQuestions(questions || []);
+
     // If student and not submitted, remove correct answers
     const responseQuestions = (isTeacher || submission)
-      ? questions 
-      : questions?.map(q => ({
+      ? sortedQuestions 
+      : sortedQuestions.map(q => ({
           id: q.id,
           question_number: q.question_number,
           question_type: q.question_type,

@@ -37,6 +37,8 @@ const ExamInProgress = () => {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
+  const [submission, setSubmission] = useState<any>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
@@ -84,6 +86,8 @@ const ExamInProgress = () => {
 
       setQuestions(data.questions || []);
       setIsTeacher(data.isTeacher);
+      setExistingAnswers(data.existingAnswers || []);
+      setSubmission(data.submission || null);
       
       if (data.timer?.enabled) {
         setTimerEnabled(true);
@@ -253,6 +257,25 @@ const ExamInProgress = () => {
               <div className="grid grid-cols-4 gap-2">
                 {questions.map((q) => {
                   const hasAnswer = userAnswers[q.id]?.trim();
+                  const answer = existingAnswers?.find((a: any) => a.question_id === q.id);
+                  
+                  // Determine color based on submission status
+                  let colorClass = '';
+                  if (submission && answer) {
+                    // Post-submission colors
+                    if (answer.is_correct === true) {
+                      colorClass = 'bg-green-500 text-white'; // Correct
+                    } else if (answer.score > 0 && answer.score < q.marks) {
+                      colorClass = 'bg-orange-500 text-white'; // Partial
+                    } else {
+                      colorClass = 'bg-red-500 text-white'; // Incorrect
+                    }
+                  } else {
+                    // Pre-submission colors
+                    colorClass = hasAnswer 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80';
+                  }
                   
                   return (
                     <button
@@ -266,11 +289,7 @@ const ExamInProgress = () => {
                           setTimeout(() => scrollToQuestion(q.id), 100);
                         }
                       }}
-                      className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${
-                        hasAnswer 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
+                      className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass}`}
                       title={`Question ${q.question_number}`}
                     >
                       {q.question_number}
@@ -416,7 +435,7 @@ const ExamInProgress = () => {
                     </RadioGroup>
                   ) : (
                     <Textarea 
-                      placeholder={isTeacher ? "Answer key displayed for teachers" : "Type your answer here..."}
+                      placeholder={isTeacher ? "Answer key (read-only)" : "Your Answer"}
                       value={isTeacher ? question.correct_answer || '' : userAnswers[question.id] || ''}
                       onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                       onBlur={(e) => {
