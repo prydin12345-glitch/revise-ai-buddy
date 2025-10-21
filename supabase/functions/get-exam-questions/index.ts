@@ -27,7 +27,7 @@ serve(async (req) => {
       });
     }
 
-    const { examId } = await req.json();
+    const { examId, isPreview } = await req.json();
 
     if (!examId) {
       return new Response(JSON.stringify({ error: 'Exam ID required' }), {
@@ -98,6 +98,20 @@ serve(async (req) => {
     };
 
     const sortedQuestions = sortQuestions(questions || []);
+
+    // If preview mode, return all questions without submission checks
+    if (isPreview) {
+      return new Response(
+        JSON.stringify({
+          questions: sortedQuestions,
+          isTeacher: false,
+          timer: timerData || null,
+          submission: null,
+          existingAnswers: []
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // If student and not submitted, remove correct answers
     const responseQuestions = (isTeacher || submission)

@@ -31,9 +31,10 @@ interface SortableExamCardProps {
   onEdit: (exam: Exam) => void;
   onDelete: (exam: Exam) => void;
   onView: (exam: Exam) => void;
+  onBeginExam: (exam: Exam) => void;
 }
 
-const SortableExamCard = ({ exam, onEdit, onDelete, onView }: SortableExamCardProps) => {
+const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -74,11 +75,21 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView }: SortableExamCardPr
               </Button>
             </div>
           </div>
-          <div className="flex justify-between pt-3 border-t">
+          <div className="flex justify-between items-center pt-3 border-t">
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />{new Date(exam.created_at).toLocaleDateString()}
             </div>
-            <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>
+            {exam.status === 'published' ? (
+              <Button 
+                size="sm" 
+                className="bg-blue-600 hover:bg-blue-700 h-8"
+                onClick={(e) => { e.stopPropagation(); onBeginExam(exam); }}
+              >
+                Begin Exam
+              </Button>
+            ) : (
+              <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -93,6 +104,7 @@ const MyExams = () => {
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
 
@@ -129,7 +141,19 @@ const MyExams = () => {
     }
   };
 
-  const handleView = async (exam: Exam) => {
+  const handleView = (exam: Exam) => {
+    // Container click routes to preview page
+    navigate(`/exam/${exam.id}/preview`);
+  };
+
+  const handleBeginExam = (exam: Exam) => {
+    setSelectedExam(exam);
+    setBeginExamDialogOpen(true);
+  };
+
+  const handleConfirmBeginExam = async () => {
+    if (!selectedExam) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -141,14 +165,16 @@ const MyExams = () => {
       const { data: submission } = await supabase
         .from('exam_submissions')
         .select('id')
-        .eq('exam_id', exam.id)
+        .eq('exam_id', selectedExam.id)
         .eq('student_id', user.id)
         .maybeSingle();
 
+      setBeginExamDialogOpen(false);
+
       if (submission) {
-        navigate(`/exam/${exam.id}/review`);
+        navigate(`/exam/${selectedExam.id}/review`);
       } else {
-        navigate(`/exam/${exam.id}/in-progress`);
+        navigate(`/exam/${selectedExam.id}/live`);
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -293,6 +319,7 @@ const MyExams = () => {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onView={handleView}
+                    onBeginExam={handleBeginExam}
                   />
                 ))}
               </div>
@@ -362,6 +389,24 @@ const MyExams = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Begin Exam Dialog */}
+      <AlertDialog open={beginExamDialogOpen} onOpenChange={setBeginExamDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Begin Live Exam</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're about to start the live exam. Timer will begin and answers will be saved automatically. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBeginExam} className="bg-blue-600 hover:bg-blue-700">
+              Start Exam
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -16,6 +16,7 @@ import TimerSetup from "./pages/TimerSetup";
 import PreviewExam from "./pages/PreviewExam";
 import ReviewQuestions from "./pages/ReviewQuestions";
 import ExamInProgress from "./pages/ExamInProgress";
+import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
 import NotFound from "./pages/NotFound";
 
@@ -55,7 +56,10 @@ const App = () => {
             <Route path="/upload/:draftId/format" element={<FormatExam />} />
             <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
             <Route path="/upload/:draftId/preview" element={<PreviewExam />} />
+            <Route path="/exam/:examId/preview" element={<ExamPreview />} />
+            <Route path="/exam/:examId/live" element={<ExamInProgress />} />
             <Route path="/exam/:examId/in-progress" element={<ExamInProgress />} />
+            <Route path="/exam/:examId/review" element={<ExamReview />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

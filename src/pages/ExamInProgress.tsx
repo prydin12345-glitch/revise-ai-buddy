@@ -435,16 +435,15 @@ const ExamInProgress = () => {
                     </RadioGroup>
                   ) : (
                     <Textarea 
-                      placeholder={isTeacher ? "Answer key (read-only)" : "Your Answer"}
-                      value={isTeacher ? question.correct_answer || '' : userAnswers[question.id] || ''}
+                      placeholder="Your Answer"
+                      value={userAnswers[question.id] || ''}
                       onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                       onBlur={(e) => {
-                        if (e.target.value && !isTeacher) {
+                        if (e.target.value) {
                           handleSaveAnswer(question.id, e.target.value);
                         }
                       }}
                       className="min-h-[200px] resize-y text-base"
-                      disabled={isTeacher}
                     />
                   )}
                 </Card>
