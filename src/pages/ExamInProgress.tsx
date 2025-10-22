@@ -45,6 +45,7 @@ const ExamInProgress = () => {
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    setCurrentPage(0); // Always start at first question when exam loads
     loadQuestions();
   }, [examId]);
 
