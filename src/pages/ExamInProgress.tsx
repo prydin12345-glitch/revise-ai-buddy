@@ -50,7 +50,17 @@ const ExamInProgress = () => {
   }, [examId]);
 
   useEffect(() => {
+    // Clear any existing interval
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+    }
+
     if (!isTeacher && !loading && !isSubmitting) {
+      // Initialize start time if not set
+      if (startTime.current === null || startTime.current === 0) {
+        startTime.current = Date.now();
+      }
+
       timerInterval.current = setInterval(() => {
         setTimeElapsed(Math.floor((Date.now() - startTime.current) / 1000));
         
@@ -93,6 +103,7 @@ const ExamInProgress = () => {
       if (data.timer?.enabled) {
         setTimerEnabled(true);
         setTimeRemaining(data.timer.duration_minutes * 60);
+        startTime.current = Date.now(); // Initialize start time when timer loads
       }
 
       const answersMap: Record<string, string> = {};
@@ -186,18 +197,46 @@ const ExamInProgress = () => {
   const answeredCount = Object.keys(userAnswers).filter(id => userAnswers[id]?.trim()).length;
   const unansweredCount = questions.length - answeredCount;
 
-  // Group questions by parent number for pagination
-  const groupedQuestions = questions.reduce((acc, question) => {
+  // Smart grouping: Keep consecutive MCQs together, split other question types
+  const groupedQuestions = questions.reduce((acc, question, index) => {
+    const prevQuestion = index > 0 ? questions[index - 1] : null;
     const parentNum = question.question_number.split('.')[0];
-    if (!acc[parentNum]) acc[parentNum] = [];
-    acc[parentNum].push(question);
+    
+    // Determine if we should start a new group
+    const shouldStartNewGroup = 
+      index === 0 || // First question
+      question.question_type !== prevQuestion?.question_type || // Type changed
+      (question.question_type !== 'mcq' && parentNum !== prevQuestion.question_number.split('.')[0]); // Non-MCQ with different parent
+    
+    if (shouldStartNewGroup) {
+      const groupKey = `group_${Object.keys(acc).length}`;
+      acc[groupKey] = [];
+    }
+    
+    const lastGroupKey = Object.keys(acc)[Object.keys(acc).length - 1];
+    acc[lastGroupKey].push(question);
+    
     return acc;
   }, {} as Record<string, Question[]>);
 
-  const questionGroups = Object.entries(groupedQuestions).map(([parent, qs]) => ({
-    parent,
-    questions: qs
-  }));
+  const questionGroups = Object.entries(groupedQuestions).map(([key, qs], idx) => {
+    const firstQ = qs[0];
+    const lastQ = qs[qs.length - 1];
+    
+    let label = '';
+    if (qs.length === 1) {
+      label = firstQ.question_number;
+    } else if (firstQ.question_type === 'mcq') {
+      label = `${firstQ.question_number}-${lastQ.question_number}`;
+    } else {
+      label = firstQ.question_number;
+    }
+    
+    return {
+      parent: label,
+      questions: qs
+    };
+  });
 
   const currentGroup = questionGroups[currentPage] || { parent: '1', questions: [] };
   const hasNextPage = currentPage < questionGroups.length - 1;
@@ -425,14 +464,18 @@ const ExamInProgress = () => {
                       disabled={isTeacher}
                       className="space-y-2"
                     >
-                      {question.options.map((option, idx) => (
-                        <div key={idx} className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
-                          <RadioGroupItem value={option.text} id={`${question.id}-${idx}`} />
-                          <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base">
-                            {option.text}
-                          </Label>
-                        </div>
-                      ))}
+                      {question.options.map((option, idx) => {
+                        const optionLabel = String.fromCharCode(65 + idx); // A, B, C, D...
+                        return (
+                          <div key={idx} className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
+                            <RadioGroupItem value={option.text} id={`${question.id}-${idx}`} />
+                            <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base">
+                              <span className="font-semibold mr-2">{optionLabel}.</span>
+                              {option.text}
+                            </Label>
+                          </div>
+                        );
+                      })}
                     </RadioGroup>
                   ) : (
                     <Textarea 
