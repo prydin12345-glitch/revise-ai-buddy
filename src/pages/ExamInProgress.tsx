@@ -55,7 +55,7 @@ const ExamInProgress = () => {
       clearInterval(timerInterval.current);
     }
 
-    if (!isTeacher && !loading && !isSubmitting) {
+    if (!isTeacher && !loading && !isSubmitting && timerEnabled) {
       // Initialize start time if not set
       if (startTime.current === null || startTime.current === 0) {
         startTime.current = Date.now();
