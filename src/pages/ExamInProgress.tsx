@@ -17,7 +17,7 @@ interface Question {
   question_type: string;
   question_text: string;
   marks: number;
-  options?: { text: string }[];
+  options?: string[];
   figure_urls?: string[];
   correct_answer?: string;
 }
@@ -465,13 +465,18 @@ const ExamInProgress = () => {
                       className="space-y-2"
                     >
                       {question.options.map((option, idx) => {
-                        const optionLabel = String.fromCharCode(65 + idx); // A, B, C, D...
+                        const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D...
+                        const isSelected = userAnswers[question.id] === optionLetter;
                         return (
-                          <div key={idx} className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
-                            <RadioGroupItem value={option.text} id={`${question.id}-${idx}`} />
+                          <div 
+                            key={idx} 
+                            className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+                              isSelected ? 'bg-primary/10 border-primary' : 'hover:bg-accent'
+                            }`}
+                          >
+                            <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
                             <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base">
-                              <span className="font-semibold mr-2">{optionLabel}.</span>
-                              {option.text}
+                              {option}
                             </Label>
                           </div>
                         );
