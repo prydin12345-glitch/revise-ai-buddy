@@ -81,19 +81,44 @@ serve(async (req) => {
       .eq('exam_id', examId)
       .eq('student_id', user.id);
 
-    // Sort questions numerically (not alphabetically)
+    // Robust question number parser
+    const parseQuestionNumber = (numStr: string) => {
+      // Extract main number (e.g., 17 from "17 (a) (ii)")
+      const mainMatch = numStr.match(/^(\d+)/);
+      const main = mainMatch ? parseInt(mainMatch[1], 10) : 0;
+      
+      // Extract sub-dot number (e.g., 2 from "1.2" or "17.3")
+      const dotMatch = numStr.match(/^(\d+)\.(\d+)/);
+      const subDot = dotMatch ? parseInt(dotMatch[2], 10) : 0;
+      
+      // Extract letter in parentheses or after number (e.g., 'a' from "17 (a)" or "17a")
+      const letterMatch = numStr.match(/\(([a-z])\)/i) || numStr.match(/^[0-9]+\s*([a-z])/i);
+      const letter = letterMatch ? letterMatch[1].toLowerCase().charCodeAt(0) - 96 : 0;
+      
+      // Extract Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x)
+      const romanMatch = numStr.match(/\((i|ii|iii|iv|v|vi|vii|viii|ix|x)\)/i);
+      const romanMap: Record<string, number> = {
+        'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
+        'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10
+      };
+      const roman = romanMatch ? romanMap[romanMatch[1].toLowerCase()] : 0;
+      
+      return [main, subDot, letter, roman];
+    };
+
+    // Sort questions using robust parser
     const sortQuestions = (questions: any[]) => {
       return questions.sort((a, b) => {
-        const aParts = a.question_number.split('.').map(Number);
-        const bParts = b.question_number.split('.').map(Number);
+        const aParts = parseQuestionNumber(a.question_number);
+        const bParts = parseQuestionNumber(b.question_number);
         
-        // Compare primary number first (1, 2, 3...)
-        if (aParts[0] !== bParts[0]) {
-          return aParts[0] - bParts[0];
+        // Compare each part in order: main -> subDot -> letter -> roman
+        for (let i = 0; i < aParts.length; i++) {
+          if (aParts[i] !== bParts[i]) {
+            return aParts[i] - bParts[i];
+          }
         }
-        
-        // Then compare sub-number (1.1, 1.2...)
-        return (aParts[1] || 0) - (bParts[1] || 0);
+        return 0;
       });
     };
 

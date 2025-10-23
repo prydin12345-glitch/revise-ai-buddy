@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,15 @@ interface Question {
 const ExamInProgress = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get('mode');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [isTeacher, setIsTeacher] = useState(false);
+  const treatAsStudent = modeParam === 'student';
+  const isReadOnly = isTeacher && !treatAsStudent;
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -55,7 +59,7 @@ const ExamInProgress = () => {
       clearInterval(timerInterval.current);
     }
 
-    if (!isTeacher && !loading && !isSubmitting && timerEnabled) {
+    if (!isReadOnly && !loading && !isSubmitting && timerEnabled) {
       // Initialize start time if not set
       if (startTime.current === null || startTime.current === 0) {
         startTime.current = Date.now();
@@ -80,7 +84,7 @@ const ExamInProgress = () => {
         if (timerInterval.current) clearInterval(timerInterval.current);
       };
     }
-  }, [isTeacher, loading, timerEnabled, isSubmitting]);
+  }, [isReadOnly, loading, timerEnabled, isSubmitting]);
 
   const loadQuestions = async () => {
     try {
@@ -95,7 +99,40 @@ const ExamInProgress = () => {
         return;
       }
 
-      setQuestions(data.questions || []);
+      // Client-side fallback: Re-sort questions to ensure correct order
+      const parseQuestionNumber = (numStr: string) => {
+        const mainMatch = numStr.match(/^(\d+)/);
+        const main = mainMatch ? parseInt(mainMatch[1], 10) : 0;
+        
+        const dotMatch = numStr.match(/^(\d+)\.(\d+)/);
+        const subDot = dotMatch ? parseInt(dotMatch[2], 10) : 0;
+        
+        const letterMatch = numStr.match(/\(([a-z])\)/i) || numStr.match(/^[0-9]+\s*([a-z])/i);
+        const letter = letterMatch ? letterMatch[1].toLowerCase().charCodeAt(0) - 96 : 0;
+        
+        const romanMatch = numStr.match(/\((i|ii|iii|iv|v|vi|vii|viii|ix|x)\)/i);
+        const romanMap: Record<string, number> = {
+          'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
+          'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10
+        };
+        const roman = romanMatch ? romanMap[romanMatch[1].toLowerCase()] : 0;
+        
+        return [main, subDot, letter, roman];
+      };
+
+      const sortedQuestions = (data.questions || []).sort((a: Question, b: Question) => {
+        const aParts = parseQuestionNumber(a.question_number);
+        const bParts = parseQuestionNumber(b.question_number);
+        
+        for (let i = 0; i < aParts.length; i++) {
+          if (aParts[i] !== bParts[i]) {
+            return aParts[i] - bParts[i];
+          }
+        }
+        return 0;
+      });
+
+      setQuestions(sortedQuestions);
       setIsTeacher(data.isTeacher);
       setExistingAnswers(data.existingAnswers || []);
       setSubmission(data.submission || null);
@@ -461,7 +498,7 @@ const ExamInProgress = () => {
                     <RadioGroup 
                       value={userAnswers[question.id] || ''} 
                       onValueChange={(val) => handleAnswerChange(question.id, val)}
-                      disabled={isTeacher}
+                      disabled={isReadOnly}
                       className="space-y-2"
                     >
                       {question.options.map((option, idx) => {
@@ -518,7 +555,7 @@ const ExamInProgress = () => {
                 Next Section
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
-            ) : !isTeacher && (
+            ) : !isReadOnly && (
               <Button
                 variant="default"
                 onClick={() => setShowSubmitDialog(true)}

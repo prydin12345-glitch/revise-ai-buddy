@@ -174,7 +174,7 @@ const MyExams = () => {
       if (submission) {
         navigate(`/exam/${selectedExam.id}/review`);
       } else {
-        navigate(`/exam/${selectedExam.id}/live`);
+        navigate(`/exam/${selectedExam.id}/live?mode=student`);
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
