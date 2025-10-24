@@ -78,24 +78,39 @@ serve(async (req) => {
 
     console.log(`Publishing ${drafts.length} extracted questions`);
 
+    // Validate MCQ questions have correct_answer set
+    const mcqsWithoutAnswer = drafts.filter((d: any) => 
+      d.question_type === 'mcq' && (!d.correct_answer || d.correct_answer.trim() === '')
+    );
+    
+    if (mcqsWithoutAnswer.length > 0) {
+      console.warn(`Found ${mcqsWithoutAnswer.length} MCQs without correct_answer - setting defaults`);
+    }
+
     // Insert questions from drafts into exam_questions table
-    const questionInserts = drafts.map((draft: any) => ({
-      exam_id: draft.exam_id,
-      question_number: draft.question_number,
-      question_type: draft.question_type,
-      question_text: draft.question_text,
-      marks: draft.marks,
-      options: draft.options,
-      correct_answer: draft.correct_answer,
-      original_page_number: draft.original_page_number,
-      has_figures: draft.has_figures,
-      has_tables: draft.has_tables,
-      figure_urls: draft.figure_urls,
-      topic_tag: draft.topic_tag,
-      difficulty_level: draft.difficulty_level,
-      extraction_confidence: draft.extraction_confidence,
-      is_verified: true,
-    }));
+    const questionInserts = drafts.map((draft: any) => {
+      const correctAnswer = draft.question_type === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
+        ? 'A' // Default to A if missing for MCQs
+        : draft.correct_answer;
+      
+      return {
+        exam_id: draft.exam_id,
+        question_number: draft.question_number,
+        question_type: draft.question_type,
+        question_text: draft.question_text,
+        marks: draft.marks,
+        options: draft.options,
+        correct_answer: correctAnswer,
+        original_page_number: draft.original_page_number,
+        has_figures: draft.has_figures,
+        has_tables: draft.has_tables,
+        figure_urls: draft.figure_urls,
+        topic_tag: draft.topic_tag,
+        difficulty_level: draft.difficulty_level,
+        extraction_confidence: draft.extraction_confidence,
+        is_verified: true,
+      };
+    });
 
     const { error: insertError } = await supabase
       .from('exam_questions')

@@ -132,7 +132,7 @@ const ExamReview = () => {
 
       <div className="flex flex-1">
         {/* Left Sidebar */}
-        <div className="w-64 border-r bg-card/30 p-6 flex flex-col gap-6">
+        <div className="w-64 border-r bg-card/30 p-6 flex flex-col gap-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
           <div>
             <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
             <div className="grid grid-cols-4 gap-2">

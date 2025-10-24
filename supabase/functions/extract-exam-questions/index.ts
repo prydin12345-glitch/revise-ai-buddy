@@ -306,8 +306,8 @@ Return a JSON object with this structure:
       "question_type": "mcq | short_answer | long_form",
       "question_text": "string (the full question text)",
       "marks": number,
-      "options": ["A) ...", "B) ...", "C) ...", "D) ..."] (only for MCQ, null otherwise),
-      "correct_answer": "string (if explicitly stated, null otherwise)",
+       "options": ["A) ...", "B) ...", "C) ...", "D) ..."] (only for MCQ, null otherwise),
+       "correct_answer": "string (REQUIRED for MCQ - must be 'A', 'B', 'C', or 'D'; for other types can be null if answer not provided)",
       "original_page_number": number,
       "has_figures": boolean,
       "has_tables": boolean,
@@ -410,25 +410,35 @@ Return a JSON object with this structure:
       .eq('exam_id', draftId);
 
     // Insert questions with generation status
-    const draftsToInsert = extractedQuestions.map((q: any, index: number) => ({
-      exam_id: draftId,
-      question_number: String(q.question_number || (index + 1)),
-      question_type: q.question_type || 'short_answer',
-      question_text: q.question_text || '',
-      marks: q.marks || 1,
-      options: q.options || null,
-      correct_answer: q.correct_answer || null,
-      original_page_number: q.original_page_number || 1,
-      has_figures: q.has_figures || false,
-      has_tables: q.has_tables || false,
-      figure_urls: q.figure_urls || [],
-      topic_tag: q.topic_tag || null,
-      difficulty_level: q.difficulty_level || null,
-      extraction_confidence: q.extraction_confidence || 0.9,
-      generation_status: useOriginalStructure ? 'structure_inspired' : 'extracted',
-      image_handling_strategy: null,
-      original_question_text: null,
-    }));
+    const draftsToInsert = extractedQuestions.map((q: any, index: number) => {
+      const questionType = q.question_type || 'short_answer';
+      const correctAnswer = q.correct_answer || null;
+      
+      // Validate MCQ correct_answer
+      if (questionType === 'mcq' && (!correctAnswer || correctAnswer.trim() === '')) {
+        console.warn(`MCQ question ${q.question_number} missing correct_answer - setting to 'A' as default`);
+      }
+      
+      return {
+        exam_id: draftId,
+        question_number: String(q.question_number || (index + 1)),
+        question_type: questionType,
+        question_text: q.question_text || '',
+        marks: q.marks || 1,
+        options: q.options || null,
+        correct_answer: questionType === 'mcq' ? (correctAnswer || 'A') : correctAnswer,
+        original_page_number: q.original_page_number || 1,
+        has_figures: q.has_figures || false,
+        has_tables: q.has_tables || false,
+        figure_urls: q.figure_urls || [],
+        topic_tag: q.topic_tag || null,
+        difficulty_level: q.difficulty_level || null,
+        extraction_confidence: q.extraction_confidence || 0.9,
+        generation_status: useOriginalStructure ? 'structure_inspired' : 'extracted',
+        image_handling_strategy: null,
+        original_question_text: null,
+      };
+    });
 
     const { data: insertedQuestions, error: draftError } = await supabase
       .from('exam_question_drafts')
