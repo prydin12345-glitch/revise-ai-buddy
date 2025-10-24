@@ -66,12 +66,14 @@ export type Database = {
           correct_answer: string | null
           created_at: string | null
           difficulty_level: string | null
+          equation_complexity: string | null
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
           flag_reason: string | null
           generation_status: string | null
           has_figures: boolean | null
+          has_math: boolean | null
           has_tables: boolean | null
           id: string
           image_handling_strategy: string | null
@@ -80,21 +82,26 @@ export type Database = {
           options: Json | null
           original_page_number: number | null
           original_question_text: string | null
+          parent_question_number: string | null
+          question_latex: string | null
           question_number: string
           question_text: string
           question_type: string
+          root_question_number: string | null
           topic_tag: string | null
         }
         Insert: {
           correct_answer?: string | null
           created_at?: string | null
           difficulty_level?: string | null
+          equation_complexity?: string | null
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           flag_reason?: string | null
           generation_status?: string | null
           has_figures?: boolean | null
+          has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           image_handling_strategy?: string | null
@@ -103,21 +110,26 @@ export type Database = {
           options?: Json | null
           original_page_number?: number | null
           original_question_text?: string | null
+          parent_question_number?: string | null
+          question_latex?: string | null
           question_number: string
           question_text: string
           question_type: string
+          root_question_number?: string | null
           topic_tag?: string | null
         }
         Update: {
           correct_answer?: string | null
           created_at?: string | null
           difficulty_level?: string | null
+          equation_complexity?: string | null
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           flag_reason?: string | null
           generation_status?: string | null
           has_figures?: boolean | null
+          has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           image_handling_strategy?: string | null
@@ -126,9 +138,12 @@ export type Database = {
           options?: Json | null
           original_page_number?: number | null
           original_question_text?: string | null
+          parent_question_number?: string | null
+          question_latex?: string | null
           question_number?: string
           question_text?: string
           question_type?: string
+          root_question_number?: string | null
           topic_tag?: string | null
         }
         Relationships: [
@@ -146,57 +161,72 @@ export type Database = {
           correct_answer: string | null
           created_at: string
           difficulty_level: string | null
+          equation_complexity: string | null
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
           has_figures: boolean | null
+          has_math: boolean | null
           has_tables: boolean | null
           id: string
           is_verified: boolean | null
           marks: number
           options: Json | null
           original_page_number: number | null
+          parent_question_number: string | null
+          question_latex: string | null
           question_number: string
           question_text: string
           question_type: string
+          root_question_number: string | null
           topic_tag: string | null
         }
         Insert: {
           correct_answer?: string | null
           created_at?: string
           difficulty_level?: string | null
+          equation_complexity?: string | null
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           has_figures?: boolean | null
+          has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           is_verified?: boolean | null
           marks: number
           options?: Json | null
           original_page_number?: number | null
+          parent_question_number?: string | null
+          question_latex?: string | null
           question_number: string
           question_text: string
           question_type: string
+          root_question_number?: string | null
           topic_tag?: string | null
         }
         Update: {
           correct_answer?: string | null
           created_at?: string
           difficulty_level?: string | null
+          equation_complexity?: string | null
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           has_figures?: boolean | null
+          has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           is_verified?: boolean | null
           marks?: number
           options?: Json | null
           original_page_number?: number | null
+          parent_question_number?: string | null
+          question_latex?: string | null
           question_number?: string
           question_text?: string
           question_type?: string
+          root_question_number?: string | null
           topic_tag?: string | null
         }
         Relationships: [

@@ -88,11 +88,13 @@ serve(async (req) => {
       });
     }
 
-    // Extract text from PDF using pdfjs-serverless
+    // Extract text and images from PDF using pdfjs-serverless
     const arrayBuffer = await pdfData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
     let pdfText = '';
+    const pageImages: Record<number, string> = {};
+    
     try {
       console.log('Attempting PDF parsing with pdfjs-serverless...');
       const pdf = await getDocument({ data: uint8Array, useSystemFonts: true }).promise;
@@ -107,6 +109,22 @@ serve(async (req) => {
           .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
           .join(' ');
         pages.push(pageText);
+        
+        // Extract page as image for diagram support
+        try {
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = {
+            width: viewport.width,
+            height: viewport.height,
+            context: null as any
+          };
+          
+          // Note: Full image extraction requires canvas API which isn't available in Deno
+          // This is a placeholder for future enhancement when canvas support is added
+          console.log(`Page ${pageNum} dimensions: ${viewport.width}x${viewport.height}`);
+        } catch (imgError) {
+          console.log(`Could not extract image from page ${pageNum}:`, imgError);
+        }
       }
       
       pdfText = pages.join('\n\n');
@@ -284,10 +302,26 @@ ${specInstructions}
 
 ${structureInstructions}
 
+📐 MATHEMATICAL NOTATION RULES (CRITICAL FOR MATH EXAMS):
+1. For equations and expressions, provide LaTeX notation in the "question_latex" field
+2. Preserve all mathematical symbols: ∫, Σ, π, √, ≥, ≤, ∞, ±, ×, ÷, θ, α, β
+3. Convert fractions to LaTeX: a/b → \\frac{a}{b}
+4. Convert powers to LaTeX: x^2 → x^{2}, e^(-2x) → e^{-2x}
+5. Convert integrals: ∫ from 0 to 3 → \\int_{0}^{3}
+6. Convert summations: Σ from i=1 to n → \\sum_{i=1}^{n}
+7. Convert square roots: √x → \\sqrt{x}
+8. Mark questions with mathematical content as "has_math": true
+9. Set "equation_complexity": "simple" (basic algebra), "medium" (calculus/trig), or "complex" (multi-step derivations)
+
+🔢 QUESTION NUMBERING FOR HIERARCHICAL QUESTIONS:
+- For main questions: Q1, Q2, Q17 → set "question_number": "1", "parent_question_number": null, "root_question_number": "1"
+- For sub-parts: Q17(a), Q17(b) → set "question_number": "17a", "parent_question_number": "17", "root_question_number": "17"
+- For sub-sub-parts: Q17(a)(i), Q17(a)(ii) → set "question_number": "17a(i)", "parent_question_number": "17a", "root_question_number": "17"
+
 IMPORTANT INSTRUCTIONS:
 1. For Multiple Choice Questions (MCQ), extract all options (A, B, C, D, etc.)
 2. Identify if questions reference figures, diagrams, tables, or images
-3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics")
+3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
 4. Assess difficulty: easy, medium, or hard
 5. Note the page number where each question appears
 6. Extract the marks allocated to each question
@@ -302,12 +336,17 @@ Return a JSON object with this structure:
 {
   "questions": [
     {
-      "question_number": "string (e.g., '1', '1a', 'Q1')",
+      "question_number": "string (e.g., '1', '17a', '17a(i)')",
       "question_type": "mcq | short_answer | long_form",
       "question_text": "string (the full question text)",
+      "question_latex": "string or null (LaTeX notation if question contains math)",
+      "has_math": boolean,
+      "equation_complexity": "simple | medium | complex | null",
+      "parent_question_number": "string or null",
+      "root_question_number": "string",
       "marks": number,
-       "options": ["A) ...", "B) ...", "C) ...", "D) ..."] (only for MCQ, null otherwise),
-       "correct_answer": "string (REQUIRED for MCQ - must be 'A', 'B', 'C', or 'D'; for other types can be null if answer not provided)",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."] (only for MCQ, null otherwise),
+      "correct_answer": "string (REQUIRED for MCQ - must be 'A', 'B', 'C', or 'D'; for other types can be null if answer not provided)",
       "original_page_number": number,
       "has_figures": boolean,
       "has_tables": boolean,
@@ -409,7 +448,7 @@ Return a JSON object with this structure:
       .delete()
       .eq('exam_id', draftId);
 
-    // Insert questions with generation status
+    // Insert questions with generation status and math support
     const draftsToInsert = extractedQuestions.map((q: any, index: number) => {
       const questionType = q.question_type || 'short_answer';
       const correctAnswer = q.correct_answer || null;
@@ -419,11 +458,30 @@ Return a JSON object with this structure:
         console.warn(`MCQ question ${q.question_number} missing correct_answer - setting to 'A' as default`);
       }
       
+      // Extract parent and root question numbers from question_number
+      const questionNum = String(q.question_number || (index + 1));
+      let parentQuestionNumber = q.parent_question_number || null;
+      let rootQuestionNumber = q.root_question_number || questionNum.match(/^\d+/)?.[0] || questionNum;
+      
+      // Auto-detect parent if not provided (e.g., "17a(i)" -> parent is "17a", root is "17")
+      if (!parentQuestionNumber && questionNum.includes('(')) {
+        const matches = questionNum.match(/^(\d+[a-z]*)\(/i);
+        if (matches) {
+          parentQuestionNumber = matches[1];
+          rootQuestionNumber = matches[1].match(/^\d+/)?.[0] || matches[1];
+        }
+      }
+      
       return {
         exam_id: draftId,
-        question_number: String(q.question_number || (index + 1)),
+        question_number: questionNum,
         question_type: questionType,
         question_text: q.question_text || '',
+        question_latex: q.question_latex || null,
+        has_math: q.has_math || false,
+        equation_complexity: q.equation_complexity || null,
+        parent_question_number: parentQuestionNumber,
+        root_question_number: rootQuestionNumber,
         marks: q.marks || 1,
         options: q.options || null,
         correct_answer: questionType === 'mcq' ? (correctAnswer || 'A') : correctAnswer,

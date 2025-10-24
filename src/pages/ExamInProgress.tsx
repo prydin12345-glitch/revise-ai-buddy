@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MathRenderer } from "@/components/MathRenderer";
 
 interface Question {
   id: string;
@@ -482,9 +483,12 @@ const ExamInProgress = () => {
                     </div>
                   </div>
 
-                  <div className="prose prose-sm max-w-none mb-6">
-                    <p className="text-base leading-relaxed text-foreground">{question.question_text}</p>
-                  </div>
+                  <MathRenderer 
+                    content={question.question_text}
+                    latex={(question as any).question_latex}
+                    hasMath={(question as any).has_math}
+                    className="mb-6"
+                  />
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-6">

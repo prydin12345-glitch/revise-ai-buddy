@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { MathRenderer } from "@/components/MathRenderer";
 
 interface QuestionDraft {
   id: string;
@@ -455,7 +456,12 @@ export default function ReviewQuestions() {
                 </div>
               ) : (
                 <div>
-                  <p className="text-sm mb-3">{draft.question_text}</p>
+                  <MathRenderer 
+                    content={draft.question_text}
+                    latex={(draft as any).question_latex}
+                    hasMath={(draft as any).has_math}
+                    className="mb-3"
+                  />
 
                   {draft.question_type === 'mcq' && draft.options && Array.isArray(draft.options) && (
                     <div className="space-y-1 mb-3 pl-4 border-l-2">

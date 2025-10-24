@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award } from "lucide-react";
+import { MathRenderer } from "@/components/MathRenderer";
 
 interface Question {
   id: string;
@@ -229,9 +230,12 @@ const ExamReview = () => {
                     </div>
                   </div>
 
-                  <div className="prose prose-sm max-w-none mb-4">
-                    <p className="text-base leading-relaxed">{question.question_text}</p>
-                  </div>
+                  <MathRenderer 
+                    content={question.question_text}
+                    latex={(question as any).question_latex}
+                    hasMath={(question as any).has_math}
+                    className="mb-4"
+                  />
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
