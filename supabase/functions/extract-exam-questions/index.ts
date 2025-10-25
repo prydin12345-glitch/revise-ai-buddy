@@ -317,14 +317,17 @@ ${specInstructions}
 
 📐 MATHEMATICAL NOTATION (CRITICAL):
 1. ALWAYS provide LaTeX in "question_latex" for ANY math content
-2. Examples:
-   - Fractions: "\\frac{3x+2}{x-1}"
+2. IMPORTANT: In JSON strings, backslashes MUST be escaped as double backslashes (\\)
+3. Examples:
+   - Fractions: "\\\\frac{3x+2}{x-1}"
    - Powers: "e^{-2x}", "x^{2n+1}"
-   - Integrals: "\\int_{0}^{\\pi} \\sin(x) dx"
-   - Square roots: "\\sqrt{x^2 + y^2}"
-   - Greek letters: "\\theta", "\\alpha", "\\pi"
-3. Set "has_math": true for all math questions
-4. Set "equation_complexity" appropriately
+   - Integrals: "\\\\int_{0}^{\\\\pi} \\\\sin(x) dx"
+   - Square roots: "\\\\sqrt{x^2 + y^2}"
+   - Greek letters: "\\\\theta", "\\\\alpha", "\\\\pi"
+4. Set "has_math": true for all math questions
+5. Set "equation_complexity" appropriately
+6. In "question_text", you can use inline math notation with $ signs (e.g., "Find $x$ where...")
+7. CRITICAL: Make sure all JSON is properly escaped - backslashes must be doubled in JSON strings
 
 🔢 QUESTION NUMBERING:
 - Main: "1", "17" → parent: null, root: "1" or "17"
@@ -466,17 +469,38 @@ Return a JSON object with this structure:
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: 'Failed to parse AI response'
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'Failed to parse extracted questions' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('Attempting to fix common JSON issues...');
+      
+      // Try to fix common JSON issues caused by LaTeX
+      try {
+        // Fix unescaped backslashes and dollar signs in LaTeX strings
+        // This is a aggressive fix that attempts to properly escape LaTeX in JSON strings
+        let fixedContent = extractedContent;
+        
+        // Replace unescaped backslashes (but not already escaped ones)
+        fixedContent = fixedContent.replace(/(?<!\\)\\(?!["\\/bfnrtu])/g, '\\\\');
+        
+        // Try parsing again
+        parsedData = JSON.parse(fixedContent);
+        if (Array.isArray(parsedData)) {
+          parsedData = { questions: parsedData, topics: [] };
+        }
+        console.log('Successfully fixed and parsed AI response');
+      } catch (secondError) {
+        console.error('Secondary parsing attempt also failed:', secondError);
+        console.error('Content sample:', extractedContent.substring(4700, 4800));
+        await supabase
+          .from('exams')
+          .update({ 
+            extraction_status: 'failed',
+            extraction_error: 'Failed to parse AI response - invalid JSON format'
+          })
+          .eq('id', draftId);
+        return new Response(JSON.stringify({ error: 'Failed to parse extracted questions' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const extractedQuestions = parsedData.questions || [];
