@@ -184,22 +184,14 @@ serve(async (req) => {
     
     console.log(`Final text: ${pdfText.length} chars, readability: ${(readableRatio * 100).toFixed(1)}%`);
     
-    if (readableRatio < 0.25 || pdfText.length < 100) {
-      console.error('Text validation failed - appears corrupted or too short');
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: 'PDF text extraction failed - document may be scanned or corrupted'
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ 
-        error: 'PDF text extraction failed',
-        details: 'This PDF may be a scanned image or have an unsupported format. Please try uploading a text-based PDF.'
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Determine if we need fallback mode
+    const useFallbackMode = readableRatio < 0.25 || pdfText.length < 100;
+    
+    if (useFallbackMode) {
+      console.warn('⚠️ FALLBACK MODE ACTIVATED: Text unreadable, generating from metadata');
+      pdfText = ''; // Clear unusable text
+    } else {
+      console.log('✅ TEXT-BASED MODE: Using extracted PDF text');
     }
 
     console.log('Calling Lovable AI for question extraction...');
@@ -250,33 +242,53 @@ If the exam covers topics NOT in this list, skip them or adapt to spec-approved 
       : '';
 
     // Build format-aware instructions
-    const structureInstructions = useOriginalStructure
+    const structureInstructions = useFallbackMode
+      ? `🔥 FALLBACK MODE - NO TEXT AVAILABLE:
+
+⚠️ The PDF text could not be extracted (scanned or corrupted document).
+
+📋 GENERATE QUESTIONS FROM METADATA ONLY:
+
+**Exam Details:**
+- Subject: ${exam.subject || exam.title || 'Unknown'}
+- Exam Board: ${examBoard.toUpperCase()}
+- Level: ${qualificationLevel}
+- Format: ${exam.exam_format?.[0]?.format_type || 'Standard exam'}
+
+**Your Task:**
+Generate a TYPICAL exam paper for this board and level. Use your knowledge of typical ${examBoard.toUpperCase()} ${qualificationLevel} ${exam.subject || exam.title} exams.
+
+**Question Structure:**
+${examBoard === 'edexcel' && qualificationLevel === 'a_level' && (exam.subject === 'mathematics' || exam.title?.toLowerCase().includes('maths')) ? `
+- For Edexcel A-level Pure Maths Paper 1:
+  * NO multiple choice questions (all long-form or structured)
+  * Main questions (Q1, Q2, ..., Q17 typically)
+  * Each question may have sub-parts (a), (b), (c)
+  * Sub-parts may have further divisions (i), (ii), (iii)
+  * Typical topics: Calculus (differentiation, integration), Algebra, Trigonometry, Series, Proof, Coordinate Geometry, Vectors
+  * Marks range: 2-14 marks per question
+  * Total paper typically ~100 marks, 15-20 questions
+  * Heavy use of mathematical notation and equations` : `
+- Generate a balanced mix appropriate for ${examBoard} ${qualificationLevel}
+- Include various question types based on the subject
+- Use appropriate command words for this exam board
+- Follow typical mark allocations`}
+
+**CRITICAL REQUIREMENTS:**
+1. ALL questions MUST include "question_latex" with proper LaTeX notation for ANY mathematical expressions
+2. Set "has_math": true for any question with equations, formulas, or math symbols
+3. Set "equation_complexity": "simple", "medium", or "complex" based on mathematical content
+4. Use hierarchical numbering: "question_number", "parent_question_number", "root_question_number"
+   - Main question: "17" → parent: null, root: "17"
+   - Sub-part: "17a" → parent: "17", root: "17"
+   - Sub-sub-part: "17a(i)" → parent: "17a", root: "17"
+5. Allocate marks appropriately (simple: 2-3, medium: 4-6, complex: 7-14)
+6. Tag each question with a specific topic
+7. NO diagrams assumed (has_figures: false) since we cannot extract them
+8. Generate REALISTIC, exam-standard questions`
+      : useOriginalStructure
       ? `✨ STRUCTURE PRESERVATION MODE - FULL AI GENERATION:
-
-CRITICAL: Generate COMPLETELY NEW questions. Never copy original wording.
-
-1. **Analyze Structure**:
-   - Count questions by type (MCQ, short answer, long form)
-   - Note marks distribution for each question
-   - Identify topics and difficulty progression
-
-2. **Generate NEW Questions**:
-   - Match SAME structure (e.g., if original has 4×3-mark MCQs, generate 4×3-mark MCQs)
-   - Cover SAME topics in similar order
-   - Test SAME concepts but with:
-     ✓ DIFFERENT wording and phrasing
-     ✓ DIFFERENT examples and scenarios
-     ✓ DIFFERENT numerical values and data
-     ✓ DIFFERENT names, places, and contexts
-   - For MCQs: Create ENTIRELY NEW options testing the same concept
-   - Preserve overall flow and difficulty curve
-
-3. **Copyright Compliance**:
-   - NEVER copy any original text verbatim
-   - NEVER reference specific diagrams, figures, or page numbers
-   - Replace all specific examples with equivalent alternatives
-   - Change all numerical data while maintaining concept validity
-
+...
 4. **Quality Standards**:
    - Questions must test identical learning objectives
    - Difficulty level must match original
@@ -292,7 +304,61 @@ CRITICAL: Generate COMPLETELY NEW questions. Never copy original wording.
 4. Focus on comprehensive topic coverage
 5. All questions must be freshly generated (no verbatim copying)`;
 
-    const extractionPrompt = `You are an expert exam question GENERATOR specializing in ${examBoard.toUpperCase()} ${qualificationLevel} exams.
+    const extractionPrompt = useFallbackMode
+      ? `🔥 FALLBACK MODE - NO TEXT AVAILABLE
+
+You are generating a ${examBoard.toUpperCase()} ${qualificationLevel} ${exam.subject || exam.title} exam paper from METADATA ONLY (PDF text extraction failed).
+
+${structureInstructions}
+
+🎯 EXAM BOARD REQUIREMENTS:
+${boardInstructions}
+${specInstructions}
+
+📐 MATHEMATICAL NOTATION (CRITICAL):
+1. ALWAYS provide LaTeX in "question_latex" for ANY math content
+2. Examples:
+   - Fractions: "\\frac{3x+2}{x-1}"
+   - Powers: "e^{-2x}", "x^{2n+1}"
+   - Integrals: "\\int_{0}^{\\pi} \\sin(x) dx"
+   - Square roots: "\\sqrt{x^2 + y^2}"
+   - Greek letters: "\\theta", "\\alpha", "\\pi"
+3. Set "has_math": true for all math questions
+4. Set "equation_complexity" appropriately
+
+🔢 QUESTION NUMBERING:
+- Main: "1", "17" → parent: null, root: "1" or "17"
+- Sub: "17a", "17b" → parent: "17", root: "17"
+- Sub-sub: "17a(i)", "17a(ii)" → parent: "17a", root: "17"
+
+Return ONLY valid JSON in this structure:
+{
+  "questions": [
+    {
+      "question_number": "string",
+      "question_type": "mcq | short_answer | long_form",
+      "question_text": "string",
+      "question_latex": "string (REQUIRED for math)",
+      "has_math": boolean,
+      "equation_complexity": "simple | medium | complex | null",
+      "parent_question_number": "string or null",
+      "root_question_number": "string",
+      "marks": number,
+      "options": ["A) ...", "B) ..."] or null,
+      "correct_answer": "string (REQUIRED for MCQ)",
+      "original_page_number": 1,
+      "has_figures": false,
+      "has_tables": false,
+      "topic_tag": "string (REQUIRED)",
+      "difficulty_level": "easy | medium | hard",
+      "extraction_confidence": 0.8
+    }
+  ],
+  "topics": [
+    {"topic_name": "string", "confidence_score": 0.9}
+  ]
+}`
+      : `You are an expert exam question GENERATOR specializing in ${examBoard.toUpperCase()} ${qualificationLevel} exams.
 
 🎯 EXAM BOARD REQUIREMENTS:
 ${boardInstructions}
@@ -303,16 +369,7 @@ ${specInstructions}
 ${structureInstructions}
 
 📐 MATHEMATICAL NOTATION RULES (CRITICAL FOR MATH EXAMS):
-1. For equations and expressions, provide LaTeX notation in the "question_latex" field
-2. Preserve all mathematical symbols: ∫, Σ, π, √, ≥, ≤, ∞, ±, ×, ÷, θ, α, β
-3. Convert fractions to LaTeX: a/b → \\frac{a}{b}
-4. Convert powers to LaTeX: x^2 → x^{2}, e^(-2x) → e^{-2x}
-5. Convert integrals: ∫ from 0 to 3 → \\int_{0}^{3}
-6. Convert summations: Σ from i=1 to n → \\sum_{i=1}^{n}
-7. Convert square roots: √x → \\sqrt{x}
-8. Mark questions with mathematical content as "has_math": true
-9. Set "equation_complexity": "simple" (basic algebra), "medium" (calculus/trig), or "complex" (multi-step derivations)
-
+...
 🔢 QUESTION NUMBERING FOR HIERARCHICAL QUESTIONS:
 - For main questions: Q1, Q2, Q17 → set "question_number": "1", "parent_question_number": null, "root_question_number": "1"
 - For sub-parts: Q17(a), Q17(b) → set "question_number": "17a", "parent_question_number": "17", "root_question_number": "17"
@@ -442,6 +499,14 @@ Return a JSON object with this structure:
 
     console.log(`Extracted ${extractedQuestions.length} questions and ${extractedTopics.length} topics`);
 
+    // Sort questions by normalized question_number for proper hierarchical ordering
+    extractedQuestions.sort((a: any, b: any) => {
+      const aKey = normalizeQuestionNumber(String(a.question_number || ''));
+      const bKey = normalizeQuestionNumber(String(b.question_number || ''));
+      return aKey.localeCompare(bKey);
+    });
+    console.log('Questions sorted by hierarchical numbering');
+
     // Delete existing drafts
     await supabase
       .from('exam_question_drafts')
@@ -492,7 +557,7 @@ Return a JSON object with this structure:
         topic_tag: q.topic_tag || null,
         difficulty_level: q.difficulty_level || null,
         extraction_confidence: q.extraction_confidence || 0.9,
-        generation_status: useOriginalStructure ? 'structure_inspired' : 'extracted',
+        generation_status: useFallbackMode ? 'ai_generated' : (useOriginalStructure ? 'structure_inspired' : 'extracted'),
         image_handling_strategy: null,
         original_question_text: null,
       };
@@ -727,4 +792,22 @@ function determineImageStrategy(question: any): 'concept_replacement' | 'origina
   
   // Use concept replacement for simpler questions
   return 'concept_replacement';
+}
+
+// Helper function to normalize question numbers for sorting
+function normalizeQuestionNumber(qNum: string): string {
+  // Convert "17", "17a", "17a(i)", "17a(ii)" to sortable format
+  // Returns format like "017_a_001" for proper sorting
+  const match = qNum.match(/^(\d+)([a-z]?)(?:\(([ivxlcdm]+)\))?$/i);
+  if (!match) return qNum.padStart(10, '0');
+  
+  const [, num, letter, roman] = match;
+  const paddedNum = num.padStart(3, '0');
+  const letterPart = letter ? `_${letter}` : '';
+  
+  // Convert roman numerals to numbers for sorting
+  const romanMap: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
+  const romanPart = roman ? `_${String(romanMap[roman.toLowerCase()] || 0).padStart(3, '0')}` : '';
+  
+  return `${paddedNum}${letterPart}${romanPart}`;
 }
