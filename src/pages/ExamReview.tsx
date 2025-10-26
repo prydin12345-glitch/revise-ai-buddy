@@ -246,19 +246,68 @@ const ExamReview = () => {
                   )}
 
                   <div className="space-y-4">
-                    <div>
-                      <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
-                      <div className="p-3 rounded-lg bg-muted">
-                        {answer?.answer_text || <span className="text-muted-foreground italic">No answer provided</span>}
-                      </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
+                    <div className="p-3 rounded-lg bg-muted space-y-3">
+                      {answer?.answer_text ? (
+                        (() => {
+                          try {
+                            const parsed = JSON.parse(answer.answer_text);
+                            if (parsed.workingOut || parsed.finalAnswer) {
+                              return (
+                                <>
+                                  {parsed.workingOut && (
+                                    <div>
+                                      <div className="text-xs font-semibold text-muted-foreground mb-1">Working Out:</div>
+                                      <MathRenderer 
+                                        content={parsed.workingOut}
+                                        hasMath={!!(question as any).has_math}
+                                        className="font-mono text-sm"
+                                      />
+                                    </div>
+                                  )}
+                                  {parsed.finalAnswer && (
+                                    <div>
+                                      <div className="text-xs font-semibold text-muted-foreground mb-1">Final Answer:</div>
+                                      <MathRenderer 
+                                        content={parsed.finalAnswer}
+                                        hasMath={!!(question as any).has_math}
+                                        className="font-semibold"
+                                      />
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            }
+                          } catch {
+                            // Not JSON, render as regular text
+                          }
+                          return (
+                            <MathRenderer 
+                              content={answer.answer_text}
+                              hasMath={!!(question as any).has_math}
+                            />
+                          );
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground italic">No answer provided</span>
+                      )}
                     </div>
+                  </div>
 
-                    <div>
-                      <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
-                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        {question.correct_answer}
-                      </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
+                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      {question.correct_answer ? (
+                        <MathRenderer 
+                          content={question.correct_answer}
+                          hasMath={!!(question as any).has_math}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground italic">Not provided</span>
+                      )}
                     </div>
+                  </div>
 
                     {answer?.feedback && (
                       <div>

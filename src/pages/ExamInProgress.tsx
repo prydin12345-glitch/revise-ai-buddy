@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -21,6 +22,8 @@ interface Question {
   options?: string[];
   figure_urls?: string[];
   correct_answer?: string;
+  has_math?: boolean;
+  question_latex?: string;
 }
 
 const ExamInProgress = () => {
@@ -44,6 +47,7 @@ const ExamInProgress = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
+  const [examSubject, setExamSubject] = useState<string>('');
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
@@ -89,6 +93,17 @@ const ExamInProgress = () => {
 
   const loadQuestions = async () => {
     try {
+      // Fetch exam metadata to get subject
+      const { data: examData } = await supabase
+        .from('exams')
+        .select('subject_id')
+        .eq('id', examId)
+        .single();
+      
+      if (examData) {
+        setExamSubject(examData.subject_id || '');
+      }
+
       const { data, error } = await supabase.functions.invoke('get-exam-questions', {
         body: { examId }
       });
@@ -523,6 +538,57 @@ const ExamInProgress = () => {
                         );
                       })}
                     </RadioGroup>
+                  ) : examSubject.toLowerCase().includes('math') ? (
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Working Out (optional)</Label>
+                        <Textarea 
+                          placeholder="Show your working here..."
+                          value={(() => {
+                            try {
+                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                              return parsed.workingOut || '';
+                            } catch {
+                              return '';
+                            }
+                          })()}
+                          onChange={(e) => {
+                            try {
+                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                              const updated = { ...parsed, workingOut: e.target.value };
+                              handleAnswerChange(question.id, JSON.stringify(updated));
+                            } catch {
+                              handleAnswerChange(question.id, JSON.stringify({ workingOut: e.target.value, finalAnswer: '' }));
+                            }
+                          }}
+                          className="min-h-[300px] resize-y text-base font-mono"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
+                        <Textarea 
+                          placeholder="Your final answer (number, expression, or coordinate)"
+                          value={(() => {
+                            try {
+                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                              return parsed.finalAnswer || '';
+                            } catch {
+                              return '';
+                            }
+                          })()}
+                          onChange={(e) => {
+                            try {
+                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                              const updated = { ...parsed, finalAnswer: e.target.value };
+                              handleAnswerChange(question.id, JSON.stringify(updated));
+                            } catch {
+                              handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: e.target.value }));
+                            }
+                          }}
+                          className="min-h-[60px] resize-y text-base"
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <Textarea 
                       placeholder="Your Answer"

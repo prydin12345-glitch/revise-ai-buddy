@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MathRenderer } from "@/components/MathRenderer";
 
 interface Question {
   id: string;
@@ -19,6 +20,8 @@ interface Question {
   marks: number;
   options?: Array<{ text: string; key: string }>;
   figure_urls?: string[];
+  has_math?: boolean;
+  question_latex?: string;
 }
 
 const ExamPreview = () => {
@@ -135,7 +138,12 @@ const ExamPreview = () => {
                   <Badge variant="secondary">{q.marks} {q.marks === 1 ? 'mark' : 'marks'}</Badge>
                 </div>
 
-                <p className="mb-4 whitespace-pre-wrap">{q.question_text}</p>
+                <MathRenderer 
+                  content={q.question_text}
+                  latex={q.question_latex}
+                  hasMath={q.has_math}
+                  className="mb-4"
+                />
 
                 {/* Display figures if any */}
                 {q.figure_urls && q.figure_urls.length > 0 && (

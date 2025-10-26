@@ -47,10 +47,19 @@ serve(async (req) => {
       });
     }
 
+    // Fetch exam metadata to check subject
+    const { data: examData } = await supabase
+      .from('exams')
+      .select('subject_id')
+      .eq('id', examId)
+      .single();
+    
+    const isMathExam = examData?.subject_id?.toLowerCase().includes('math') || false;
+
     // Fetch all questions with correct answers
     const { data: questions, error: questionsError } = await supabase
       .from('exam_questions')
-      .select('id, question_text, question_type, correct_answer, marks, options')
+      .select('id, question_text, question_type, correct_answer, marks, options, has_math, question_latex')
       .eq('exam_id', examId);
 
     if (questionsError) {
@@ -101,7 +110,54 @@ serve(async (req) => {
         // Use Lovable AI to score written answers
         const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
         
+        // Parse math answer if it's JSON
+        let workingOut = '';
+        let finalAnswer = studentAnswer;
+        let parsedAnswer: any = null;
+        
+        if (isMathExam) {
+          try {
+            parsedAnswer = JSON.parse(studentAnswer);
+            workingOut = parsedAnswer.workingOut || '';
+            finalAnswer = parsedAnswer.finalAnswer || studentAnswer;
+          } catch {
+            // Not JSON, treat as regular answer
+          }
+        }
+        
         try {
+          const isMathQuestion = question.has_math || question.question_latex || isMathExam;
+          
+          const systemPrompt = isMathQuestion 
+            ? `You are a mathematics exam grader. Award partial credit for:
+- Correct method even if final answer is wrong
+- Correct setup/equation formulation
+- Algebraic manipulation steps
+- Unit conversions and substitutions
+- Clear mathematical reasoning
+
+Be generous with method marks but strict with accuracy.`
+            : 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy.';
+          
+          const userPrompt = isMathQuestion
+            ? `You are grading a MATHEMATICS exam question. Award partial credit appropriately.
+
+Question: ${question.question_text}
+${question.question_latex ? `LaTeX: ${question.question_latex}` : ''}
+Correct Answer: ${question.correct_answer}
+
+${parsedAnswer ? `Student's Working Out: ${workingOut || 'Not provided'}
+Student's Final Answer: ${finalAnswer}` : `Student Answer: ${studentAnswer}`}
+
+Total Marks: ${question.marks}
+
+Provide:
+- Method marks (for working out) if applicable
+- Accuracy marks (for final answer)
+- Total score
+- Brief feedback explaining mark breakdown`
+            : `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`;
+
           const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -113,24 +169,26 @@ serve(async (req) => {
               messages: [
                 {
                   role: 'system',
-                  content: 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy.'
+                  content: systemPrompt
                 },
                 {
                   role: 'user',
-                  content: `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`
+                  content: userPrompt
                 }
               ],
               tools: [{
                 type: "function",
                 function: {
                   name: "grade_answer",
-                  description: "Grade a student's answer",
+                  description: "Grade a student's answer with optional partial credit breakdown",
                   parameters: {
                     type: "object",
                     properties: {
-                      score: { type: "number", description: "Score out of total marks" },
+                      score: { type: "number", description: "Total score out of total marks" },
                       feedback: { type: "string", description: "Brief feedback explaining the score" },
-                      isCorrect: { type: "boolean", description: "Whether answer is fully correct" }
+                      isCorrect: { type: "boolean", description: "Whether answer is fully correct" },
+                      methodMarks: { type: "number", description: "Marks awarded for method/working (optional, for math questions)" },
+                      accuracyMarks: { type: "number", description: "Marks awarded for final answer accuracy (optional, for math questions)" }
                     },
                     required: ["score", "feedback", "isCorrect"],
                     additionalProperties: false
@@ -163,7 +221,14 @@ serve(async (req) => {
             if (toolCall) {
               const grading = JSON.parse(toolCall.function.arguments);
               score = Math.min(Math.max(0, grading.score), question.marks);
-              feedback = grading.feedback;
+              
+              // Build feedback with breakdown if available
+              if (grading.methodMarks !== undefined && grading.accuracyMarks !== undefined) {
+                feedback = `${grading.feedback}\n\n📊 Mark Breakdown:\n• Method: ${grading.methodMarks}/${question.marks - (grading.accuracyMarks || 0)}\n• Accuracy: ${grading.accuracyMarks}/${grading.accuracyMarks || 0}`;
+              } else {
+                feedback = grading.feedback;
+              }
+              
               isCorrect = grading.isCorrect;
             } else {
               console.error('No tool call in AI response');
