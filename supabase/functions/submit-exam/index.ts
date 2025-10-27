@@ -136,8 +136,10 @@ serve(async (req) => {
 - Unit conversions and substitutions
 - Clear mathematical reasoning
 
-Be generous with method marks but strict with accuracy.`
-            : 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy.';
+Be generous with method marks but strict with accuracy.
+
+IMPORTANT: Address the student directly using "You" (e.g., "You have provided the correct answer", "Your method is correct"). Never use "The student" or third-person language.`
+            : 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
           
           const userPrompt = isMathQuestion
             ? `You are grading a MATHEMATICS exam question. Award partial credit appropriately.

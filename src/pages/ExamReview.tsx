@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 
 interface Question {
@@ -104,6 +104,14 @@ const ExamReview = () => {
     return 'bg-destructive/10 text-destructive';
   };
 
+  const handleSaveToDashboard = () => {
+    toast({ 
+      title: "Results Saved", 
+      description: "Your exam results have been saved to your dashboard." 
+    });
+    setTimeout(() => navigate('/my-exams'), 1000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -127,7 +135,10 @@ const ExamReview = () => {
             Back to Exams
           </Button>
           <h1 className="text-xl font-bold">Exam Review</h1>
-          <div />
+          <Button onClick={handleSaveToDashboard} className="gap-2">
+            <Save className="w-4 h-4" />
+            Save to Dashboard
+          </Button>
         </div>
       </div>
 
