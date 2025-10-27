@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
+import { MathKeyboard } from "@/components/MathKeyboard";
 
 interface Question {
   id: string;
@@ -48,7 +50,10 @@ const ExamInProgress = () => {
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
+  const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const finalAnswerRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -337,6 +342,36 @@ const ExamInProgress = () => {
                 <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
               </div>
             )}
+            
+            {!isReadOnly && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                  <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {examSubject.toLowerCase().includes('math') && (
+                    <DropdownMenuItem 
+                      onClick={() => setMathKeyboardOpen(!mathKeyboardOpen)}
+                      className="cursor-pointer"
+                    >
+                      <Calculator className="mr-2 h-4 w-4" />
+                      {mathKeyboardOpen ? 'Close' : 'Open'} Math Keyboard
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem 
+                    onClick={() => setShowSubmitDialog(true)}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Submit Exam
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
@@ -567,6 +602,9 @@ const ExamInProgress = () => {
                       <div>
                         <Label className="text-sm font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <Textarea 
+                          ref={(el) => {
+                            finalAnswerRefs.current[question.id] = el;
+                          }}
                           placeholder="Your final answer (number, expression, or coordinate)"
                           value={(() => {
                             try {
@@ -585,8 +623,47 @@ const ExamInProgress = () => {
                               handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: e.target.value }));
                             }
                           }}
+                          onFocus={() => setActiveQuestionId(question.id)}
                           className="min-h-[60px] resize-y text-base"
                         />
+                        
+                        {activeQuestionId === question.id && (
+                          <MathKeyboard 
+                            isOpen={mathKeyboardOpen}
+                            onInsertSymbol={(symbol) => {
+                              const textarea = finalAnswerRefs.current[question.id];
+                              if (!textarea) return;
+                              
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const currentValue = (() => {
+                                try {
+                                  const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                                  return parsed.finalAnswer || '';
+                                } catch {
+                                  return '';
+                                }
+                              })();
+                              
+                              const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end);
+                              
+                              try {
+                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                                const updated = { ...parsed, finalAnswer: newValue };
+                                handleAnswerChange(question.id, JSON.stringify(updated));
+                              } catch {
+                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: newValue }));
+                              }
+                              
+                              setTimeout(() => {
+                                textarea.focus();
+                                const newCursorPos = start + symbol.length;
+                                textarea.setSelectionRange(newCursorPos, newCursorPos);
+                              }, 0);
+                            }}
+                            onClose={() => setMathKeyboardOpen(false)}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : (
