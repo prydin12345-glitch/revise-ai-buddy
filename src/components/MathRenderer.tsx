@@ -9,32 +9,45 @@ interface MathRendererProps {
 }
 
 export function MathRenderer({ content, latex, hasMath, className = "" }: MathRendererProps) {
-  // If LaTeX is explicitly provided, render it as block math
-  if (latex) {
-    return (
-      <div className={className}>
-        <BlockMath math={latex} />
-      </div>
-    );
-  }
-
-  // If hasMath flag is set but no LaTeX, try to detect inline math patterns
-  if (hasMath) {
-    // Split content by inline math delimiters (e.g., $...$)
-    const parts = content.split(/(\$[^$]+\$)/g);
+  // Check if content contains math delimiters
+  const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$[^$]+\$/g.test(content);
+  
+  // If content has math delimiters, parse and render them
+  if (hasMath || hasInlineOrBlockMath) {
+    // Split content by both block ($$...$$) and inline ($...$) math delimiters
+    const parts = content.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
     
     return (
       <div className={`prose prose-sm max-w-none ${className}`}>
         {parts.map((part, i) => {
+          // Block math: $$...$$
+          if (part.startsWith('$$') && part.endsWith('$$')) {
+            const mathContent = part.slice(2, -2);
+            return (
+              <div key={i} className="my-4">
+                <BlockMath math={mathContent} />
+              </div>
+            );
+          }
+          // Inline math: $...$
           if (part.startsWith('$') && part.endsWith('$')) {
             const mathContent = part.slice(1, -1);
             return <InlineMath key={i} math={mathContent} />;
           }
-          // Split by newlines to preserve paragraph structure
+          // Regular text - preserve whitespace and structure
           return part.split('\n').map((line, j) => (
-            line.trim() ? <p key={`${i}-${j}`}>{line}</p> : <br key={`${i}-${j}`} />
+            line.trim() ? <span key={`${i}-${j}`}>{line}</span> : <br key={`${i}-${j}`} />
           ));
         })}
+      </div>
+    );
+  }
+
+  // Fallback: if latex prop is provided but content doesn't have delimiters
+  if (latex) {
+    return (
+      <div className={className}>
+        <BlockMath math={latex} />
       </div>
     );
   }
