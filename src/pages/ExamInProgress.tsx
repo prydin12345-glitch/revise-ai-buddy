@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send } from "lucide-react";
+import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathKeyboard } from "@/components/MathKeyboard";
+import { MathField } from "@/components/MathField";
 
 interface Question {
   id: string;
@@ -50,10 +50,7 @@ const ExamInProgress = () => {
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
-  const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
-  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const finalAnswerRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -362,15 +359,6 @@ const ExamInProgress = () => {
                 <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
                   <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {examSubject.toLowerCase().includes('math') && (
-                    <DropdownMenuItem 
-                      onClick={() => setMathKeyboardOpen(!mathKeyboardOpen)}
-                      className="cursor-pointer"
-                    >
-                      <Calculator className="mr-2 h-4 w-4" />
-                      {mathKeyboardOpen ? 'Close' : 'Open'} Math Keyboard
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuItem 
                     onClick={() => setShowSubmitDialog(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
@@ -521,27 +509,11 @@ const ExamInProgress = () => {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-base px-3 py-1">
+                      <Badge className="text-base px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200">
                         Q{question.question_number}
                       </Badge>
-                      <Badge variant="secondary" className="capitalize">
-                        {question.question_type}
-                      </Badge>
                     </div>
-                    <div className="flex items-center gap-4">
-                      {savedAnswers.has(question.id) ? (
-                        <div className="flex items-center gap-1 text-sm text-primary">
-                          <Check className="w-4 h-4" />
-                          <span>Saved</span>
-                        </div>
-                      ) : userAnswers[question.id] && !savedAnswers.has(question.id) ? (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Circle className="w-3 h-3 animate-pulse" />
-                          <span>Saving...</span>
-                        </div>
-                      ) : null}
-                      <Badge className="text-base px-3 py-1">{question.marks} marks</Badge>
-                    </div>
+                    <Badge className="text-base px-3 py-1">{question.marks} marks</Badge>
                   </div>
 
                   <MathRenderer 
@@ -587,7 +559,7 @@ const ExamInProgress = () => {
                   ) : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Working Out (optional)</Label>
+                        <Label className="text-sm font-medium mb-2 block">Working Out</Label>
                         <Textarea 
                           placeholder="Show your working here..."
                           value={(() => {
@@ -612,11 +584,7 @@ const ExamInProgress = () => {
                       </div>
                       <div>
                         <Label className="text-sm font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
-                        <Textarea 
-                          ref={(el) => {
-                            finalAnswerRefs.current[question.id] = el;
-                          }}
-                          placeholder="Your final answer (number, expression, or coordinate)"
+                        <MathField
                           value={(() => {
                             try {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
@@ -625,98 +593,21 @@ const ExamInProgress = () => {
                               return '';
                             }
                           })()}
-                          onChange={(e) => {
+                          onChange={(latex) => {
                             try {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              const updated = { ...parsed, finalAnswer: e.target.value };
+                              const updated = { ...parsed, finalAnswer: latex };
                               handleAnswerChange(question.id, JSON.stringify(updated));
                             } catch {
-                              handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: e.target.value }));
+                              handleAnswerChange(question.id, JSON.stringify({ 
+                                workingOut: '', 
+                                finalAnswer: latex 
+                              }));
                             }
                           }}
-                          onFocus={() => setActiveQuestionId(question.id)}
-                          onBlur={(e) => {
-                            // Auto-format common math patterns
-                            const autoFormat = (text: string): string => {
-                              return text
-                                .replace(/\^2(?![0-9])/g, '²')
-                                .replace(/\^3(?![0-9])/g, '³')
-                                .replace(/\^n/g, 'ⁿ')
-                                .replace(/>=|≥/g, '≥')
-                                .replace(/<=|≤/g, '≤')
-                                .replace(/!=/g, '≠')
-                                .replace(/\*(?!\*)/g, '×');
-                            };
-                            
-                            const formatted = autoFormat(e.target.value);
-                            if (formatted !== e.target.value) {
-                              try {
-                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                const updated = { ...parsed, finalAnswer: formatted };
-                                handleAnswerChange(question.id, JSON.stringify(updated));
-                              } catch {
-                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: formatted }));
-                              }
-                            }
-                          }}
-                          className="min-h-[60px] resize-y text-base"
+                          placeholder="Type your final answer..."
+                          className="min-h-[60px]"
                         />
-                        
-                        {activeQuestionId === question.id && (
-                          <MathKeyboard 
-                            isOpen={mathKeyboardOpen}
-                            onInsertSymbol={(symbol) => {
-                              const textarea = finalAnswerRefs.current[question.id];
-                              if (!textarea) return;
-                              
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const currentValue = (() => {
-                                try {
-                                  const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                  return parsed.finalAnswer || '';
-                                } catch {
-                                  return '';
-                                }
-                              })();
-                              
-                              // Handle special builders
-                              let insertValue = symbol;
-                              let cursorOffset = symbol.length;
-                              
-                              if (symbol === '__FRACTION__') {
-                                insertValue = '[numerator]/[denominator]';
-                                cursorOffset = 1; // Position at "numerator"
-                              } else if (symbol === '__LOG_BASE__') {
-                                insertValue = 'log_[base]([value])';
-                                cursorOffset = 5; // Position at "base"
-                              } else if (symbol === '__POWER__') {
-                                insertValue = '^[exponent]';
-                                cursorOffset = 2; // Position at "exponent"
-                              } else if (symbol === '__SQRT__') {
-                                insertValue = '√([value])';
-                                cursorOffset = 3; // Position inside parentheses
-                              }
-                              
-                              const newValue = currentValue.substring(0, start) + insertValue + currentValue.substring(end);
-                              
-                              try {
-                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                const updated = { ...parsed, finalAnswer: newValue };
-                                handleAnswerChange(question.id, JSON.stringify(updated));
-                              } catch {
-                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: newValue }));
-                              }
-                              
-                              setTimeout(() => {
-                                textarea.focus();
-                                const newCursorPos = start + cursorOffset;
-                                textarea.setSelectionRange(newCursorPos, newCursorPos);
-                              }, 0);
-                            }}
-                            onClose={() => setMathKeyboardOpen(false)}
-                          />
-                        )}
                       </div>
                     </div>
                   ) : (
