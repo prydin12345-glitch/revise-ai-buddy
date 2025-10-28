@@ -15,6 +15,14 @@ const mathSymbols = {
     { label: 'x²', value: '^2' },
     { label: 'x³', value: '^3' },
     { label: 'xⁿ', value: '^n' },
+    { label: '⁰', value: '⁰' },
+    { label: '¹', value: '¹' },
+    { label: '²', value: '²' },
+    { label: '³', value: '³' },
+    { label: '₀', value: '₀' },
+    { label: '₁', value: '₁' },
+    { label: '₂', value: '₂' },
+    { label: '₃', value: '₃' },
     { label: '√', value: '√' },
     { label: '∛', value: '∛' },
     { label: '∜', value: '∜' },
@@ -98,6 +106,12 @@ const mathSymbols = {
     { label: '⌊ ⌋', value: '⌊⌋' },
     { label: '⌈ ⌉', value: '⌈⌉' },
   ],
+  builders: [
+    { label: 'x/y', value: '__FRACTION__' },
+    { label: 'logₐ(x)', value: '__LOG_BASE__' },
+    { label: 'xⁿ', value: '__POWER__' },
+    { label: 'ⁿ√x', value: '__SQRT__' },
+  ],
 };
 
 export function MathKeyboard({ isOpen, onInsertSymbol, onClose }: MathKeyboardProps) {
@@ -118,13 +132,14 @@ export function MathKeyboard({ isOpen, onInsertSymbol, onClose }: MathKeyboardPr
       </div>
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-4">
+        <TabsList className="grid w-full grid-cols-7 mb-4">
           <TabsTrigger value="basic" className="text-xs">Basic</TabsTrigger>
           <TabsTrigger value="operators" className="text-xs">Operators</TabsTrigger>
           <TabsTrigger value="greek" className="text-xs">Greek</TabsTrigger>
           <TabsTrigger value="calculus" className="text-xs">Calculus</TabsTrigger>
           <TabsTrigger value="functions" className="text-xs">Functions</TabsTrigger>
           <TabsTrigger value="brackets" className="text-xs">Brackets</TabsTrigger>
+          <TabsTrigger value="builders" className="text-xs">Builders</TabsTrigger>
         </TabsList>
 
         {Object.entries(mathSymbols).map(([category, symbols]) => (

@@ -255,16 +255,23 @@ const ExamInProgress = () => {
   const answeredCount = Object.keys(userAnswers).filter(id => userAnswers[id]?.trim()).length;
   const unansweredCount = questions.length - answeredCount;
 
-  // Smart grouping: Keep consecutive MCQs together, split other question types
+  // Helper to extract parent question number (e.g., "1a" -> "1", "2b(i)" -> "2")
+  const getParentQuestionNumber = (questionNumber: string): string => {
+    return questionNumber.match(/^(\d+)/)?.[1] || questionNumber;
+  };
+
+  // Smart grouping: Keep consecutive MCQs together, group sub-questions (1a, 1b) together
   const groupedQuestions = questions.reduce((acc, question, index) => {
     const prevQuestion = index > 0 ? questions[index - 1] : null;
-    const parentNum = question.question_number.split('.')[0];
+    const currentParent = getParentQuestionNumber(question.question_number);
+    const prevParent = prevQuestion ? getParentQuestionNumber(prevQuestion.question_number) : null;
     
     // Determine if we should start a new group
     const shouldStartNewGroup = 
       index === 0 || // First question
       question.question_type !== prevQuestion?.question_type || // Type changed
-      (question.question_type !== 'mcq' && parentNum !== prevQuestion.question_number.split('.')[0]); // Non-MCQ with different parent
+      (question.question_type === 'mcq') || // Always group MCQs separately
+      (question.question_type !== 'mcq' && currentParent !== prevParent); // Different parent for non-MCQ
     
     if (shouldStartNewGroup) {
       const groupKey = `group_${Object.keys(acc).length}`;
@@ -283,11 +290,13 @@ const ExamInProgress = () => {
     
     let label = '';
     if (qs.length === 1) {
-      label = firstQ.question_number;
+      label = `Question ${firstQ.question_number}`;
     } else if (firstQ.question_type === 'mcq') {
-      label = `${firstQ.question_number}-${lastQ.question_number}`;
+      label = `Questions ${firstQ.question_number}-${lastQ.question_number}`;
     } else {
-      label = firstQ.question_number;
+      // Sub-questions like 1a, 1b
+      const parent = getParentQuestionNumber(firstQ.question_number);
+      label = `Question ${parent} (${qs.length} part${qs.length !== 1 ? 's' : ''})`;
     }
     
     return {
@@ -468,10 +477,12 @@ const ExamInProgress = () => {
                 {sidebarOpen ? 'Hide' : 'Show'} Navigation
               </Button>
               <span className="text-sm font-medium">
-                Section {currentGroup.parent} 
-                <span className="text-muted-foreground ml-2">
-                  ({currentGroup.questions.length} question{currentGroup.questions.length !== 1 ? 's' : ''})
-                </span>
+                {currentGroup.parent}
+                {currentGroup.questions.length > 1 && (
+                  <span className="text-muted-foreground ml-2">
+                    — Scroll through {currentGroup.questions.map(q => q.question_number).join(', ')}
+                  </span>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -624,6 +635,30 @@ const ExamInProgress = () => {
                             }
                           }}
                           onFocus={() => setActiveQuestionId(question.id)}
+                          onBlur={(e) => {
+                            // Auto-format common math patterns
+                            const autoFormat = (text: string): string => {
+                              return text
+                                .replace(/\^2(?![0-9])/g, '²')
+                                .replace(/\^3(?![0-9])/g, '³')
+                                .replace(/\^n/g, 'ⁿ')
+                                .replace(/>=|≥/g, '≥')
+                                .replace(/<=|≤/g, '≤')
+                                .replace(/!=/g, '≠')
+                                .replace(/\*(?!\*)/g, '×');
+                            };
+                            
+                            const formatted = autoFormat(e.target.value);
+                            if (formatted !== e.target.value) {
+                              try {
+                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
+                                const updated = { ...parsed, finalAnswer: formatted };
+                                handleAnswerChange(question.id, JSON.stringify(updated));
+                              } catch {
+                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: formatted }));
+                              }
+                            }
+                          }}
                           className="min-h-[60px] resize-y text-base"
                         />
                         
@@ -645,7 +680,25 @@ const ExamInProgress = () => {
                                 }
                               })();
                               
-                              const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end);
+                              // Handle special builders
+                              let insertValue = symbol;
+                              let cursorOffset = symbol.length;
+                              
+                              if (symbol === '__FRACTION__') {
+                                insertValue = '[numerator]/[denominator]';
+                                cursorOffset = 1; // Position at "numerator"
+                              } else if (symbol === '__LOG_BASE__') {
+                                insertValue = 'log_[base]([value])';
+                                cursorOffset = 5; // Position at "base"
+                              } else if (symbol === '__POWER__') {
+                                insertValue = '^[exponent]';
+                                cursorOffset = 2; // Position at "exponent"
+                              } else if (symbol === '__SQRT__') {
+                                insertValue = '√([value])';
+                                cursorOffset = 3; // Position inside parentheses
+                              }
+                              
+                              const newValue = currentValue.substring(0, start) + insertValue + currentValue.substring(end);
                               
                               try {
                                 const parsed = JSON.parse(userAnswers[question.id] || '{}');
@@ -657,7 +710,7 @@ const ExamInProgress = () => {
                               
                               setTimeout(() => {
                                 textarea.focus();
-                                const newCursorPos = start + symbol.length;
+                                const newCursorPos = start + cursorOffset;
                                 textarea.setSelectionRange(newCursorPos, newCursorPos);
                               }, 0);
                             }}
