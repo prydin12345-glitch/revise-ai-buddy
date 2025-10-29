@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit, Filter, CheckCircle2, Award } from "lucide-react";
+import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit as EditIcon, Filter, CheckCircle2, Award } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -78,6 +78,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const [filterBy, setFilterBy] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("date-desc");
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [editGoalDialogOpen, setEditGoalDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<RevisionGoal | null>(null);
   const [newGoal, setNewGoal] = useState({
     subject: "",
     target_exams: 10,
@@ -358,6 +360,38 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     }
   };
 
+  const startEditGoal = (goal: RevisionGoal) => {
+    setEditingGoal(goal);
+    setEditGoalDialogOpen(true);
+  };
+
+  const updateGoal = async () => {
+    if (!editingGoal) return;
+    
+    try {
+      const { error } = await supabase
+        .from("revision_goals")
+        .update({
+          subject: editingGoal.subject,
+          target_exams: editingGoal.target_exams,
+          target_percentage: editingGoal.target_percentage,
+          deadline: editingGoal.deadline,
+          subject_color: editingGoal.subject_color,
+        })
+        .eq("id", editingGoal.id);
+
+      if (error) throw error;
+
+      toast.success("Goal updated successfully");
+      setEditGoalDialogOpen(false);
+      setEditingGoal(null);
+      loadRevisionGoals();
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      toast.error("Failed to update goal");
+    }
+  };
+
   return (
     <div className="max-w-[1600px] mx-auto">
       <div className="grid lg:grid-cols-[1fr_380px] gap-8">
@@ -544,9 +578,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                                 </div>
                               )}
                               <div className="flex items-center gap-1.5 text-white">
-                                <Calendar className="h-3.5 w-3.5 text-white" />
-                                <span className="text-white">
-                                  {new Date(exam.created_at).toLocaleDateString('en-US', { 
+                                <CalendarIcon className="h-3.5 w-3.5 text-white" />
+                                <span className="text-white text-[13px]">
+                                  Created on: {new Date(exam.created_at).toLocaleDateString('en-US', { 
                                     month: 'short', 
                                     day: 'numeric', 
                                     year: 'numeric' 
@@ -648,6 +682,13 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-background border-border z-[100]">
+                                <DropdownMenuItem 
+                                  onClick={() => startEditGoal(goal)}
+                                >
+                                  <EditIcon className="w-4 h-4 mr-2" />
+                                  Edit Goal
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={() => deleteGoal(goal.id)}
                                   className="text-destructive focus:text-destructive"
@@ -824,7 +865,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-background border-border z-[100]" align="start">
-                  <Calendar
+                  <CalendarComponent
                     mode="single"
                     selected={newGoal.deadline || undefined}
                     onSelect={(date) => setNewGoal({ ...newGoal, deadline: date || null })}
@@ -847,6 +888,104 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               className="text-white hover:opacity-90"
             >
               Add Goal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog open={editGoalDialogOpen} onOpenChange={setEditGoalDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Edit Revision Goal</DialogTitle>
+            <DialogDescription>
+              Update your goal details
+            </DialogDescription>
+          </DialogHeader>
+          {editingGoal && (
+            <div className="space-y-5 py-4">
+              <SubjectSelector
+                value={editingGoal.subject}
+                color={editingGoal.subject_color}
+                onValueChange={(subject) => setEditingGoal({ ...editingGoal, subject })}
+                onColorChange={(color) => setEditingGoal({ ...editingGoal, subject_color: color })}
+              />
+              
+              <div className="space-y-3">
+                <Label htmlFor="edit-target">Target Number of Exams</Label>
+                <Input
+                  id="edit-target"
+                  type="number"
+                  min="1"
+                  value={editingGoal.target_exams}
+                  onChange={(e) => setEditingGoal({ ...editingGoal, target_exams: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="text-base"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="edit-percentage">Target Percentage</Label>
+                <Input
+                  id="edit-percentage"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="e.g., 85"
+                  value={editingGoal.target_percentage || ""}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setEditingGoal({ 
+                      ...editingGoal, 
+                      target_percentage: e.target.value ? Math.min(100, Math.max(0, val || 0)) : null 
+                    });
+                  }}
+                  className="text-base"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label>Deadline</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal text-base h-11",
+                        !editingGoal.deadline && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-5 w-5" />
+                      {editingGoal.deadline ? format(new Date(editingGoal.deadline), "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background border-border z-[100]" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={editingGoal.deadline ? new Date(editingGoal.deadline) : undefined}
+                      onSelect={(date) => setEditingGoal({ ...editingGoal, deadline: date ? date.toISOString() : null })}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setEditGoalDialogOpen(false);
+              setEditingGoal(null);
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={updateGoal} 
+              disabled={!editingGoal?.subject}
+              style={{ backgroundColor: editingGoal?.subject_color }}
+              className="text-white hover:opacity-90"
+            >
+              Update Goal
             </Button>
           </DialogFooter>
         </DialogContent>
