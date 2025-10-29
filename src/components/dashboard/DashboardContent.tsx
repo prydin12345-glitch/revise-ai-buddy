@@ -612,7 +612,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   <p className="text-muted-foreground">No goals yet. Create your first goal!</p>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {revisionGoals.map((goal) => {
                     const isCompleted = goal.progress >= goal.target_exams;
                     const daysUntilDeadline = goal.deadline 
@@ -622,7 +622,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                     return (
                       <Card 
                         key={goal.id} 
-                        className="relative overflow-hidden hover:shadow-lg transition-all duration-300 group border-2"
+                        className="relative overflow-hidden hover:shadow-lg transition-all duration-300 group border-2 flex-shrink-0 w-[280px] sm:w-[320px] snap-center"
                         style={{ 
                           borderColor: `${goal.subject_color}40`,
                           backgroundColor: `${goal.subject_color}08` 
