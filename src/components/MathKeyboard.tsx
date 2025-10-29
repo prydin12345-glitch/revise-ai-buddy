@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,6 +73,20 @@ const mathSymbols = {
     { label: 'Ω', value: 'Ω' },
     { label: 'Π', value: 'Π' },
   ],
+  calculus: [
+    { label: '∫', value: '∫' },
+    { label: '∂', value: '∂' },
+    { label: '∇', value: '∇' },
+    { label: 'lim', value: 'lim' },
+    { label: 'd/dx', value: 'd/dx' },
+    { label: 'Σ', value: 'Σ' },
+    { label: '∏', value: '∏' },
+    { label: '∪', value: '∪' },
+    { label: '∩', value: '∩' },
+    { label: '⊂', value: '⊂' },
+    { label: '⊃', value: '⊃' },
+    { label: '∅', value: '∅' },
+  ],
   functions: [
     { label: 'sin', value: 'sin' },
     { label: 'cos', value: 'cos' },
@@ -92,20 +107,10 @@ const mathSymbols = {
     { label: '⌈ ⌉', value: '⌈⌉' },
   ],
   builders: [
-    { label: 'x/y', value: '\\frac{#@}{#?}' },
-    { label: 'logₐ(x)', value: '\\log_{#?}(#0)' },
-    { label: 'xⁿ', value: '#@^{#?}' },
-    { label: 'ⁿ√x', value: '\\sqrt[#?]{#0}' },
-  ],
-  insert: [
-    { label: 'd/dx', value: '\\frac{d}{dx}' },
-    { label: '∫ dx', value: '\\int_{#?}^{#?} #0 \\, dx' },
-    { label: 'lim', value: '\\lim_{#? \\to #?} #0' },
-    { label: 'Σ', value: '\\sum_{#?}^{#?} #0' },
-    { label: '∏', value: '\\prod_{#?}^{#?} #0' },
-    { label: 'Matrix 2×2', value: '\\begin{bmatrix}#?&#?\\\\#?&#?\\end{bmatrix}' },
-    { label: 'Matrix 3×3', value: '\\begin{bmatrix}#?&#?&#?\\\\#?&#?&#?\\\\#?&#?&#?\\end{bmatrix}' },
-    { label: 'Vector', value: '\\begin{pmatrix}#?\\\\#?\\\\#?\\end{pmatrix}' },
+    { label: 'x/y', value: '__FRACTION__' },
+    { label: 'logₐ(x)', value: '__LOG_BASE__' },
+    { label: 'xⁿ', value: '__POWER__' },
+    { label: 'ⁿ√x', value: '__SQRT__' },
   ],
 };
 
@@ -127,19 +132,19 @@ export function MathKeyboard({ isOpen, onInsertSymbol, onClose }: MathKeyboardPr
       </div>
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-8 mb-4">
+        <TabsList className="grid w-full grid-cols-7 mb-4">
           <TabsTrigger value="basic" className="text-xs">Basic</TabsTrigger>
           <TabsTrigger value="operators" className="text-xs">Operators</TabsTrigger>
           <TabsTrigger value="greek" className="text-xs">Greek</TabsTrigger>
+          <TabsTrigger value="calculus" className="text-xs">Calculus</TabsTrigger>
           <TabsTrigger value="functions" className="text-xs">Functions</TabsTrigger>
           <TabsTrigger value="brackets" className="text-xs">Brackets</TabsTrigger>
           <TabsTrigger value="builders" className="text-xs">Builders</TabsTrigger>
-          <TabsTrigger value="insert" className="text-xs">Insert</TabsTrigger>
         </TabsList>
 
         {Object.entries(mathSymbols).map(([category, symbols]) => (
           <TabsContent key={category} value={category} className="mt-0">
-            <div className={`grid gap-2 ${category === 'insert' ? 'grid-cols-4' : 'grid-cols-8'}`}>
+            <div className="grid grid-cols-8 gap-2">
               {symbols.map((symbol, idx) => (
                 <Button
                   key={idx}

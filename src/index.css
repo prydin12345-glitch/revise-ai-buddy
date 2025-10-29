@@ -153,19 +153,3 @@ All colors MUST be HSL.
     @apply shadow-[0_0_20px_rgba(74,144,226,0.3)] hover:shadow-[0_0_30px_rgba(74,144,226,0.5)];
   }
 }
-
-/* Hide MathLive's toolbar/menu icons completely */
-math-field::part(menu-toggle),
-math-field::part(virtual-keyboard-toggle) {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-/* Additional hiding for any MathLive UI elements */
-math-field .ML__keyboard-toggle,
-math-field .ML__menu-toggle,
-math-field .ML__virtual-keyboard-toggle {
-  display: none !important;
-}
