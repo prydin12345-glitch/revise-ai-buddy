@@ -234,29 +234,14 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     setFilteredExams(filtered);
   };
 
-  const getMotivationalMessage = (exam: ExamWithSubmission) => {
-    if (!exam.submission) {
-      return `You're halfway through ${exam.title} — keep going!`;
-    }
-    
-    const score = (exam.submission.total_score / exam.submission.total_marks) * 100;
-    if (score >= 85) {
-      return `Excellent work on ${exam.title}! Outstanding performance! 🌟`;
-    } else if (score >= 70) {
-      return `Nice work on ${exam.title} — you're doing great!`;
-    } else if (score >= 50) {
-      return `Good effort on ${exam.title} — let's aim higher next time!`;
-    } else {
-      return `Keep practicing ${exam.title} — you'll get there! 💪`;
-    }
-  };
 
   const getStatusConfig = (isCompleted: boolean) => {
     if (isCompleted) {
       return {
         label: "Completed",
         icon: CheckCircle2,
-        cardBgClass: "bg-success/10",
+        cardBgClass: "bg-success-light",
+        borderClass: "border-success-border",
         textClass: "text-white",
         dotColor: "bg-success",
         iconColor: "text-success",
@@ -265,7 +250,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     return {
       label: "In Progress",
       icon: Clock,
-      cardBgClass: "bg-warning/10",
+      cardBgClass: "bg-warning-light",
+      borderClass: "border-warning-border",
       textClass: "text-white",
       dotColor: "bg-warning",
       iconColor: "text-warning",
@@ -380,6 +366,20 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             <CardHeader className="border-b border-border">
               <CardTitle className="flex items-center justify-between text-2xl font-bold">
                 <span>Recents</span>
+                {/* Centralized Status Indicator */}
+                {filteredExams.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] font-medium text-muted-foreground">
+                      {filteredExams.filter(e => e.submission).length} Completed
+                    </span>
+                    <div className="h-2.5 w-2.5 rounded-full bg-success shadow-lg animate-pulse" />
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-[14px] font-medium text-muted-foreground">
+                      {filteredExams.filter(e => !e.submission).length} In Progress
+                    </span>
+                    <div className="h-2.5 w-2.5 rounded-full bg-warning shadow-lg animate-pulse" />
+                  </div>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm">
@@ -433,17 +433,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                     return (
                       <Card 
                         key={exam.id} 
-                        className={`group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 border border-border rounded-xl ${statusConfig.cardBgClass}`}
+                        className={`group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 border-2 ${statusConfig.borderClass} rounded-xl ${statusConfig.cardBgClass} hover:brightness-95`}
                       >
-                        {/* Status Indicator at Top Center */}
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
-                          <span className={`text-[14px] font-medium ${statusConfig.textClass}`}>
-                            {statusConfig.label}
-                          </span>
-                          <div className={`h-2.5 w-2.5 rounded-full ${statusConfig.dotColor} shadow-lg animate-pulse`} />
-                        </div>
-
-                        <CardContent className="p-6 pt-12 space-y-4">
+                        <CardContent className="p-6 space-y-4">
                           {/* Header Row: Title + Actions */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0 space-y-3">
@@ -521,12 +513,6 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                             </div>
                           </div>
 
-                          {/* Motivational Message */}
-                          {getMotivationalMessage(exam) && (
-                            <p className="text-[13px] text-muted-foreground italic leading-relaxed">
-                              {getMotivationalMessage(exam)}
-                            </p>
-                          )}
                         </CardContent>
 
                         {/* Progress bar for in-progress exams */}
