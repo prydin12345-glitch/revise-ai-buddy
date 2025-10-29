@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit as EditIcon, Filter, CheckCircle2, Award } from "lucide-react";
+import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit as EditIcon, Filter, CheckCircle2, Award, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SubjectSelector } from "./SubjectSelector";
@@ -617,22 +623,70 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         {/* Right: Sidebar Panels */}
         <div className="space-y-6">
           {/* Floating Stats Badges */}
-          <div className="flex flex-wrap items-center gap-3 justify-end">
-            {stats.map((stat, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="text-3xl">{stat.emoji}</span>
-                <span className="text-2xl font-bold text-foreground">{stat.value}</span>
-              </div>
-            ))}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-muted-foreground hover:text-foreground hover:bg-accent transition-all text-sm"
-              onClick={() => navigate("/stats")}
-            >
-              View More Stats
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    <span className="text-base font-medium text-foreground">{exams.filter(e => e.submission).length}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p>Total number of exams you've completed so far</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                    <Target className="h-5 w-5 text-green-500" />
+                    <span className="text-base font-medium text-foreground">
+                      {exams.filter(e => e.submission).length > 0 
+                        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((e.submission!.total_score / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
+                        : "-"}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p>Your average score across all completed exams</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                    <Clock className="h-5 w-5 text-purple-500" />
+                    <span className="text-base font-medium text-foreground">0h</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p>Total time spent actively revising or taking exams</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                    <span className="text-base font-medium text-foreground">0</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p>How many consecutive days you've been active</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent transition-all text-sm"
+                onClick={() => navigate("/stats")}
+              >
+                View More Stats
+              </Button>
+            </div>
+          </TooltipProvider>
 
           {/* Revision goals panel */}
           <Card className="shadow-lg rounded-2xl">
