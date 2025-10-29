@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import 'mathlive';
 
 declare global {
@@ -18,94 +18,43 @@ interface MathFieldProps {
   className?: string;
 }
 
-export function MathField({ 
+export const MathField = forwardRef(function MathField({
   value, 
   onChange, 
   onFocus, 
   onBlur,
   placeholder,
   className 
-}: MathFieldProps) {
+}: MathFieldProps, ref) {
   const mfRef = useRef<any>(null);
+
+  // Expose mathfield instance to parent via ref
+  useImperativeHandle(ref, () => ({
+    executeCommand: (command: any) => {
+      if (mfRef.current) {
+        mfRef.current.executeCommand(command);
+      }
+    },
+    focus: () => {
+      if (mfRef.current) {
+        mfRef.current.focus();
+      }
+    }
+  }));
 
   useEffect(() => {
     const mf = mfRef.current;
     if (!mf) return;
 
-    // Configure mathfield using modern API
-    mf.mathVirtualKeyboardPolicy = 'manual';
+    // Completely disable MathLive's native UI elements
+    mf.mathVirtualKeyboardPolicy = 'off';
     
     // Disable smart mode (no text/math toggle) and clean up UI
     mf.smartMode = false;
     mf.defaultMode = 'math';
     
-    // Hide unnecessary menu items (font, color, commands)
+    // Hide all menu items (Insert, Mode, Font, Color, etc.)
     mf.menuItems = [];
-    
-    // Configure virtual keyboard with modern API
-    if (window.mathVirtualKeyboard) {
-      const vk = window.mathVirtualKeyboard as any;
-      vk.keypressSound = null;
-      vk.plonkSound = null;
-      
-      // Custom keyboard layers for students
-      vk.layers = {
-        'student-basic': {
-          rows: [
-            [
-              { latex: '\\frac{#@}{#?}', label: 'x/y', class: 'small' },
-              { latex: '#@^{#?}', label: 'x^n', class: 'small' },
-              { latex: '\\sqrt{#0}', label: '√', class: 'small' },
-              { latex: '\\pi', class: 'small' },
-              { latex: '\\times', class: 'small' },
-              { latex: '\\div', class: 'small' },
-              { latex: '=', class: 'small' },
-              { latex: '\\geq', class: 'small' },
-              { latex: '\\leq', class: 'small' },
-              { latex: '\\neq', class: 'small' },
-            ],
-            [
-              { latex: '7', class: 'small' }, 
-              { latex: '8', class: 'small' }, 
-              { latex: '9', class: 'small' },
-              { latex: '+', class: 'small' },
-              { latex: '-', class: 'small' },
-              { latex: '(', class: 'small' },
-              { latex: ')', class: 'small' },
-              { label: '[left]', command: ['performWithFeedback', 'moveToPreviousChar'], class: 'small' },
-              { label: '[right]', command: ['performWithFeedback', 'moveToNextChar'], class: 'small' },
-              { label: '[backspace]', command: ['performWithFeedback', 'deleteBackward'], class: 'small' },
-            ],
-            [
-              { latex: '4', class: 'small' }, 
-              { latex: '5', class: 'small' }, 
-              { latex: '6', class: 'small' },
-              { latex: 'x', class: 'small' },
-              { latex: 'y', class: 'small' },
-              { latex: 'n', class: 'small' },
-              { latex: '\\log_{#?}(#0)', label: 'log', class: 'small' },
-              { latex: '\\sin', class: 'small' },
-              { latex: '\\cos', class: 'small' },
-              { latex: '\\tan', class: 'small' },
-            ],
-            [
-              { latex: '1', class: 'small' }, 
-              { latex: '2', class: 'small' }, 
-              { latex: '3', class: 'small' },
-              { latex: '0', class: 'small' },
-              { latex: '.', class: 'small' },
-              { latex: '\\space', label: '␣', class: 'small', tooltip: 'Space' },
-              { latex: '\\alpha', class: 'small' },
-              { latex: '\\beta', class: 'small' },
-              { latex: '\\theta', class: 'small' },
-              { latex: '\\degree', label: '°', class: 'small' },
-            ],
-          ]
-        },
-      };
-      
-      vk.layouts = ['student-basic' as any];
-    }
     
     // Set inline shortcuts directly on mathfield (modern API)
     mf.inlineShortcuts = {
@@ -144,15 +93,8 @@ export function MathField({
   return (
     <math-field
       ref={mfRef}
-      onFocus={() => {
-        if (onFocus) onFocus();
-        if (window.mathVirtualKeyboard) {
-          window.mathVirtualKeyboard.show();
-        }
-      }}
-      onBlur={() => {
-        if (onBlur) onBlur();
-      }}
+      onFocus={onFocus}
+      onBlur={onBlur}
       className={className}
       style={{
         display: 'block',
@@ -169,4 +111,4 @@ export function MathField({
       {value || ''}
     </math-field>
   );
-}
+});

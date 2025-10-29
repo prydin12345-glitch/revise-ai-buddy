@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Send } from "lucide-react";
+import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Send, Calculator } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathField } from "@/components/MathField";
+import { MathKeyboard } from "@/components/MathKeyboard";
 
 interface Question {
   id: string;
@@ -50,10 +51,13 @@ const ExamInProgress = () => {
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
+  const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const mathFieldRefs = useRef<Record<string, any>>({});
 
   useEffect(() => {
     setCurrentPage(0); // Always start at first question when exam loads
@@ -360,6 +364,14 @@ const ExamInProgress = () => {
                   <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
+                    onClick={() => setMathKeyboardOpen(!mathKeyboardOpen)}
+                    className="cursor-pointer"
+                  >
+                    <Calculator className="mr-2 h-4 w-4" />
+                    {mathKeyboardOpen ? 'Hide' : 'Show'} Math Keyboard
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
                     onClick={() => setShowSubmitDialog(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
@@ -585,6 +597,9 @@ const ExamInProgress = () => {
                       <div>
                         <Label className="text-sm font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <MathField
+                          ref={(el) => {
+                            if (el) mathFieldRefs.current[question.id] = el;
+                          }}
                           value={(() => {
                             try {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
@@ -605,10 +620,26 @@ const ExamInProgress = () => {
                               }));
                             }
                           }}
+                          onFocus={() => setActiveQuestionId(question.id)}
                           placeholder="Type your final answer..."
                           className="min-h-[60px]"
                         />
                       </div>
+                      
+                      {/* Math Keyboard */}
+                      {mathKeyboardOpen && activeQuestionId === question.id && (
+                        <MathKeyboard
+                          isOpen={mathKeyboardOpen}
+                          onInsertSymbol={(symbol) => {
+                            const fieldRef = mathFieldRefs.current[question.id];
+                            if (fieldRef) {
+                              fieldRef.executeCommand(['insert', symbol]);
+                              fieldRef.focus();
+                            }
+                          }}
+                          onClose={() => setMathKeyboardOpen(false)}
+                        />
+                      )}
                     </div>
                   ) : (
                     <Textarea 
