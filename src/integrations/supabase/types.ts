@@ -439,6 +439,7 @@ export type Database = {
           deadline: string | null
           id: string
           subject: string
+          subject_color: string | null
           target_exams: number
           target_percentage: number | null
           updated_at: string
@@ -449,6 +450,7 @@ export type Database = {
           deadline?: string | null
           id?: string
           subject: string
+          subject_color?: string | null
           target_exams?: number
           target_percentage?: number | null
           updated_at?: string
@@ -459,6 +461,7 @@ export type Database = {
           deadline?: string | null
           id?: string
           subject?: string
+          subject_color?: string | null
           target_exams?: number
           target_percentage?: number | null
           updated_at?: string

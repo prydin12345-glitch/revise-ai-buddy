@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit, Filter, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit, Filter, CheckCircle2, Award } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { SubjectSelector } from "./SubjectSelector";
+import { GoalPieChart } from "./GoalPieChart";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -55,6 +65,7 @@ interface RevisionGoal {
   target_percentage: number | null;
   deadline: string | null;
   progress: number;
+  subject_color: string;
 }
 
 export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
@@ -72,7 +83,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     subject: "",
     target_exams: 10,
     target_percentage: null as number | null,
-    deadline: "",
+    deadline: null as Date | null,
+    subject_color: "#3B82F6",
   });
 
   const stats = [
@@ -187,6 +199,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           return {
             ...goal,
             progress: submissions?.length || 0,
+            subject_color: goal.subject_color || "#3B82F6",
           };
         })
       );
@@ -303,7 +316,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           subject: newGoal.subject,
           target_exams: newGoal.target_exams,
           target_percentage: newGoal.target_percentage,
-          deadline: newGoal.deadline || null,
+          deadline: newGoal.deadline ? newGoal.deadline.toISOString() : null,
+          subject_color: newGoal.subject_color,
         });
 
       if (error) throw error;
@@ -314,7 +328,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         subject: "",
         target_exams: 10,
         target_percentage: null,
-        deadline: "",
+        deadline: null,
+        subject_color: "#3B82F6",
       });
       loadRevisionGoals();
     } catch (error) {
@@ -590,64 +605,103 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 Revision Goals
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-6">
               {revisionGoals.length === 0 ? (
                 <div className="text-center py-8">
                   <Trophy className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-muted-foreground">No goals yet. Create your first goal!</p>
                 </div>
               ) : (
-                revisionGoals.map((goal) => (
-                  <div key={goal.id} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-foreground font-medium text-lg">{goal.subject}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground font-medium">
-                          {goal.progress} / {goal.target_exams}
-                        </span>
-                        <span className="text-4xl">
-                          {goal.progress >= goal.target_exams ? "🏆" : "📦"}
-                        </span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => deleteGoal(goal.id)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Goal
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                    <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          goal.progress >= goal.target_exams 
-                            ? "bg-secondary" 
-                            : "bg-primary"
-                        }`}
-                        style={{ width: `${Math.min((goal.progress / goal.target_exams) * 100, 100)}%` }}
-                      />
-                    </div>
-                    {goal.target_percentage && (
-                      <p className="text-sm text-muted-foreground">
-                        Target: {goal.target_percentage}% average
-                      </p>
-                    )}
-                    {goal.deadline && (
-                      <p className="text-sm text-muted-foreground">
-                        Deadline: {new Date(goal.deadline).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                ))
+                <div className="grid gap-4 md:grid-cols-2">
+                  {revisionGoals.map((goal) => {
+                    const isCompleted = goal.progress >= goal.target_exams;
+                    const daysUntilDeadline = goal.deadline 
+                      ? Math.ceil((new Date(goal.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                      : null;
+
+                    return (
+                      <Card 
+                        key={goal.id} 
+                        className="relative overflow-hidden hover:shadow-lg transition-all duration-300 group border-2"
+                        style={{ 
+                          borderColor: `${goal.subject_color}40`,
+                          backgroundColor: `${goal.subject_color}08` 
+                        }}
+                      >
+                        <CardContent className="p-6 space-y-4">
+                          {/* Header with subject and actions */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: goal.subject_color }}
+                              />
+                              <h3 className="text-lg font-bold text-foreground">{goal.subject}</h3>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-background border-border z-[100]">
+                                <DropdownMenuItem 
+                                  onClick={() => deleteGoal(goal.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete Goal
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Achievement badge */}
+                          {isCompleted && (
+                            <div className="flex items-center gap-2 text-success">
+                              <Award className="w-5 h-5" />
+                              <span className="text-sm font-semibold">Goal Achieved!</span>
+                            </div>
+                          )}
+
+                          {/* Info section */}
+                          <div className="space-y-2 text-sm">
+                            {goal.target_percentage && (
+                              <div className="flex items-center justify-between text-muted-foreground">
+                                <span>Target Average:</span>
+                                <span className="font-semibold text-foreground">{goal.target_percentage}%</span>
+                              </div>
+                            )}
+                            {goal.deadline && (
+                              <div className="flex items-center justify-between text-muted-foreground">
+                                <span>Deadline:</span>
+                                <span className={cn(
+                                  "font-semibold",
+                                  daysUntilDeadline !== null && daysUntilDeadline < 7 ? "text-destructive" : "text-foreground"
+                                )}>
+                                  {format(new Date(goal.deadline), "MMM dd, yyyy")}
+                                  {daysUntilDeadline !== null && daysUntilDeadline > 0 && (
+                                    <span className="ml-1 text-xs">({daysUntilDeadline}d)</span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Pie chart at bottom */}
+                          <div className="flex justify-center pt-2">
+                            <GoalPieChart 
+                              progress={goal.progress}
+                              target={goal.target_exams}
+                              color={goal.subject_color}
+                              size={100}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               )}
               <Button 
                 variant="outline" 
@@ -693,35 +747,35 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
       {/* Add Goal Dialog */}
       <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Add New Revision Goal</DialogTitle>
+            <DialogTitle className="text-2xl">Add New Revision Goal</DialogTitle>
             <DialogDescription>
               Set a goal to track your progress in a specific subject
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                placeholder="e.g., Mathematics, Biology"
-                value={newGoal.subject}
-                onChange={(e) => setNewGoal({ ...newGoal, subject: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
+          <div className="space-y-5 py-4">
+            <SubjectSelector
+              value={newGoal.subject}
+              color={newGoal.subject_color}
+              onValueChange={(subject) => setNewGoal({ ...newGoal, subject })}
+              onColorChange={(color) => setNewGoal({ ...newGoal, subject_color: color })}
+            />
+            
+            <div className="space-y-3">
               <Label htmlFor="target">Target Number of Exams</Label>
               <Input
                 id="target"
                 type="number"
                 min="1"
                 value={newGoal.target_exams}
-                onChange={(e) => setNewGoal({ ...newGoal, target_exams: parseInt(e.target.value) })}
+                onChange={(e) => setNewGoal({ ...newGoal, target_exams: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="text-base"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="percentage">Target Percentage (Optional)</Label>
+
+            <div className="space-y-3">
+              <Label htmlFor="percentage">Target Percentage</Label>
               <Input
                 id="percentage"
                 type="number"
@@ -729,24 +783,55 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 max="100"
                 placeholder="e.g., 85"
                 value={newGoal.target_percentage || ""}
-                onChange={(e) => setNewGoal({ ...newGoal, target_percentage: e.target.value ? parseInt(e.target.value) : null })}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setNewGoal({ 
+                    ...newGoal, 
+                    target_percentage: e.target.value ? Math.min(100, Math.max(0, val || 0)) : null 
+                  });
+                }}
+                className="text-base"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="deadline">Deadline (Optional)</Label>
-              <Input
-                id="deadline"
-                type="date"
-                value={newGoal.deadline}
-                onChange={(e) => setNewGoal({ ...newGoal, deadline: e.target.value })}
-              />
+
+            <div className="space-y-3">
+              <Label>Deadline</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal text-base h-11",
+                      !newGoal.deadline && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-5 w-5" />
+                    {newGoal.deadline ? format(newGoal.deadline, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-background border-border z-[100]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newGoal.deadline || undefined}
+                    onSelect={(date) => setNewGoal({ ...newGoal, deadline: date || null })}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={addGoal} disabled={!newGoal.subject}>
+            <Button 
+              onClick={addGoal} 
+              disabled={!newGoal.subject}
+              style={{ backgroundColor: newGoal.subject_color }}
+              className="text-white hover:opacity-90"
+            >
               Add Goal
             </Button>
           </DialogFooter>
