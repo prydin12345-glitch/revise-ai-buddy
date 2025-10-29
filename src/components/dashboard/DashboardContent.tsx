@@ -258,6 +258,22 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     };
   };
 
+  const getSubjectStyles = (subject: string) => {
+    const subjectLower = subject.toLowerCase();
+    if (subjectLower.includes("math")) {
+      return "bg-blue-500";
+    } else if (subjectLower.includes("biolog")) {
+      return "bg-green-500";
+    } else if (subjectLower.includes("chem")) {
+      return "bg-purple-500";
+    } else if (subjectLower.includes("physic")) {
+      return "bg-teal-500";
+    } else if (subjectLower.includes("english")) {
+      return "bg-coral-500";
+    }
+    return "bg-primary";
+  };
+
   const deleteExam = async (examId: string) => {
     try {
       const { error } = await supabase
@@ -368,16 +384,23 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 <span>Recents</span>
                 {/* Centralized Status Indicator */}
                 {filteredExams.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-medium text-muted-foreground">
-                      {filteredExams.filter(e => e.submission).length} Completed
-                    </span>
-                    <div className="h-2.5 w-2.5 rounded-full bg-success shadow-lg animate-pulse" />
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-[14px] font-medium text-muted-foreground">
-                      {filteredExams.filter(e => !e.submission).length} In Progress
-                    </span>
-                    <div className="h-2.5 w-2.5 rounded-full bg-warning shadow-lg animate-pulse" />
+                  <div className="flex items-center gap-6">
+                    {(filterBy === "all" || filterBy === "completed") && filteredExams.filter(e => e.submission).length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[17px] font-medium text-white">
+                          {filteredExams.filter(e => e.submission).length} Completed
+                        </span>
+                        <div className="h-3 w-3 rounded-full bg-success shadow-lg animate-pulse" />
+                      </div>
+                    )}
+                    {(filterBy === "all" || filterBy === "in-progress") && filteredExams.filter(e => !e.submission).length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[17px] font-medium text-white">
+                          {filteredExams.filter(e => !e.submission).length} In Progress
+                        </span>
+                        <div className="h-3 w-3 rounded-full bg-warning shadow-lg animate-pulse" />
+                      </div>
+                    )}
                   </div>
                 )}
                 <DropdownMenu>
@@ -446,7 +469,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                               {/* Subject Badge */}
                               <Badge 
                                 variant="outline" 
-                                className="border-primary/30 bg-primary/5 text-primary text-[13px] font-medium px-2.5 py-0.5"
+                                className={`text-white text-[13px] font-medium px-3 py-1 rounded-full border-0 ${getSubjectStyles(exam.subject_id)}`}
                               >
                                 {exam.subject_id}
                               </Badge>
@@ -492,7 +515,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                           </div>
 
                           {/* Score and Date with thicker separator */}
-                          <div className="flex items-center justify-between pt-4 border-t-2 border-border/60">
+                          <div className="flex items-center justify-between pt-4 border-t-2 border-white/30">
                             <div className="flex items-center gap-6 text-[13px]">
                               {score !== null && (
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -502,13 +525,15 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                                   </span>
                                 </div>
                               )}
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {new Date(exam.created_at).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric' 
-                                })}
+                              <div className="flex items-center gap-1.5 text-white">
+                                <Calendar className="h-3.5 w-3.5 text-white" />
+                                <span className="text-white">
+                                  {new Date(exam.created_at).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric' 
+                                  })}
+                                </span>
                               </div>
                             </div>
                           </div>

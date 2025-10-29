@@ -65,6 +65,9 @@ export default {
           light: "hsl(var(--info-light))",
           border: "hsl(var(--info-border))",
         },
+        coral: {
+          500: "#FF7F6A",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
