@@ -50,6 +50,7 @@ const ExamInProgress = () => {
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
+  const [examName, setExamName] = useState<string>('');
   const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -98,15 +99,16 @@ const ExamInProgress = () => {
 
   const loadQuestions = async () => {
     try {
-      // Fetch exam metadata to get subject
+      // Fetch exam metadata to get subject and name
       const { data: examData } = await supabase
         .from('exams')
-        .select('subject_id')
+        .select('subject_id, title')
         .eq('id', examId)
         .single();
       
       if (examData) {
         setExamSubject(examData.subject_id || '');
+        setExamName(examData.title || 'Exam in Progress');
       }
 
       const { data, error } = await supabase.functions.invoke('get-exam-questions', {
@@ -331,12 +333,7 @@ const ExamInProgress = () => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">Exam in Progress</h1>
-            <div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground">
-              <span>Answered: <strong className="text-primary">{answeredCount}</strong></span>
-              <span>•</span>
-              <span>Remaining: <strong className="text-foreground">{unansweredCount}</strong></span>
-            </div>
+            <h1 className="text-xl font-bold">{examName || 'Exam in Progress'}</h1>
           </div>
           <div className="flex items-center gap-4">
             {timerEnabled && (
@@ -436,16 +433,6 @@ const ExamInProgress = () => {
               </div>
             </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Answered:</span>
-                <span className="font-semibold text-primary">{answeredCount}/{questions.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Remaining:</span>
-                <span className="font-semibold">{unansweredCount}</span>
-              </div>
-            </div>
 
             {!isTeacher && (
               <Button 
@@ -465,25 +452,20 @@ const ExamInProgress = () => {
         {/* Main Panel - Wider with page navigation */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Page Navigation Header */}
-          <div className="border-b bg-muted/30 px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="hidden lg:flex"
-              >
-                <Menu className="h-4 w-4 mr-2" />
-                {sidebarOpen ? 'Hide' : 'Show'} Navigation
-              </Button>
-              <span className="text-sm font-medium">
+          <div className="border-b bg-muted/30 px-6 py-4 flex items-center justify-between relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="hidden lg:flex"
+            >
+              <Menu className="h-4 w-4 mr-2" />
+              {sidebarOpen ? 'Hide' : 'Show'} Navigation
+            </Button>
+            <div className="flex-1 flex justify-center">
+              <h2 className="text-lg font-semibold">
                 {currentGroup.parent}
-                {currentGroup.questions.length > 1 && (
-                  <span className="text-muted-foreground ml-2">
-                    — Scroll through {currentGroup.questions.map(q => q.question_number).join(', ')}
-                  </span>
-                )}
-              </span>
+              </h2>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -512,21 +494,21 @@ const ExamInProgress = () => {
 
           {/* Questions Container */}
           <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-5xl py-8 px-6 space-y-6">
+            <div className="container max-w-7xl py-8 px-8 space-y-6">
               {currentGroup.questions.map((question) => (
                 <Card 
                   key={question.id} 
                   ref={(el) => questionRefs.current[question.id] = el}
-                  className="p-6 shadow-sm"
+                  className="p-8 shadow-sm"
                 >
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="text-base px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20">
+                      <Badge variant="secondary" className="text-lg px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary/20">
                         Q{question.question_number}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Badge className="text-base px-3 py-1">{question.marks} marks</Badge>
+                      <Badge className="text-lg px-4 py-1.5">{question.marks} marks</Badge>
                     </div>
                   </div>
 
@@ -534,7 +516,7 @@ const ExamInProgress = () => {
                     content={question.question_text}
                     latex={(question as any).question_latex}
                     hasMath={(question as any).has_math}
-                    className="mb-6"
+                    className="mb-6 text-lg"
                   />
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
@@ -563,7 +545,7 @@ const ExamInProgress = () => {
                             }`}
                           >
                             <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
-                            <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base">
+                            <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
                               {option}
                             </Label>
                           </div>
@@ -573,7 +555,7 @@ const ExamInProgress = () => {
                   ) : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Working Out</Label>
+                        <Label className="text-base font-medium mb-2 block">Working Out</Label>
                         <Textarea 
                           placeholder="Show your working here..."
                           value={(() => {
@@ -597,7 +579,7 @@ const ExamInProgress = () => {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
+                        <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <Textarea 
                           ref={(el) => {
                             finalAnswerRefs.current[question.id] = el;
