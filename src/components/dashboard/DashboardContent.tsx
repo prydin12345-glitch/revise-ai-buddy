@@ -627,7 +627,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             <div className="flex flex-wrap items-center gap-3 justify-end">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                  <div 
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    onClick={() => navigate("/stats?tab=stats")}
+                  >
                     <FileText className="h-5 w-5 text-blue-500" />
                     <span className="text-base font-medium text-foreground">{exams.filter(e => e.submission).length}</span>
                   </div>
@@ -639,7 +642,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                  <div 
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    onClick={() => navigate("/stats?tab=stats")}
+                  >
                     <Target className="h-5 w-5 text-green-500" />
                     <span className="text-base font-medium text-foreground">
                       {exams.filter(e => e.submission).length > 0 
@@ -655,7 +661,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                  <div 
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    onClick={() => navigate("/stats?tab=stats")}
+                  >
                     <Clock className="h-5 w-5 text-purple-500" />
                     <span className="text-base font-medium text-foreground">0h</span>
                   </div>
@@ -667,7 +676,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer">
+                  <div 
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    onClick={() => navigate("/stats?tab=stats")}
+                  >
                     <Flame className="h-5 w-5 text-orange-500" />
                     <span className="text-base font-medium text-foreground">0</span>
                   </div>
@@ -676,15 +688,6 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   <p>How many consecutive days you've been active</p>
                 </TooltipContent>
               </Tooltip>
-              
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="text-muted-foreground hover:text-foreground hover:bg-accent transition-all text-sm"
-                onClick={() => navigate("/stats")}
-              >
-                View More Stats
-              </Button>
             </div>
           </TooltipProvider>
 

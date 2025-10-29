@@ -18,6 +18,7 @@ import ReviewQuestions from "./pages/ReviewQuestions";
 import ExamInProgress from "./pages/ExamInProgress";
 import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
+import Stats from "./pages/Stats";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/stats" element={<Stats />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/upload" element={<UploadExam />} />
             
