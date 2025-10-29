@@ -50,17 +50,25 @@ All colors MUST be HSL.
     --radius: 0.75rem;
 
     /* Status colors */
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 95%;
+    --success-light: 142 71% 96%;
+    --success-border: 142 71% 85%;
     
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --warning-light: 38 92% 95%;
+    --warning-foreground: 39 100% 15%;
+    --warning-light: 38 100% 96%;
+    --warning-border: 38 92% 85%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
-    --info-light: 262 83% 95%;
+    --info-light: 262 83% 96%;
+    --info-border: 262 83% 85%;
+    
+    /* Gradients for status */
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 50%) 0%, hsl(142 71% 45%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(38 92% 50%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(262 83% 63%) 0%, hsl(262 83% 58%) 100%);
 
     /* Sidebar styles */
     --sidebar-background: 0 0% 100%;
@@ -114,17 +122,24 @@ All colors MUST be HSL.
     --input: 222 47% 20%;
     --ring: 210 85% 55%;
 
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 25%;
+    --success-light: 142 71% 20%;
+    --success-border: 142 71% 30%;
     
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --warning-light: 38 92% 25%;
+    --warning-foreground: 38 100% 90%;
+    --warning-light: 38 92% 15%;
+    --warning-border: 38 92% 30%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
-    --info-light: 262 83% 25%;
+    --info-light: 262 83% 20%;
+    --info-border: 262 83% 35%;
+    
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%) 0%, hsl(142 71% 40%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 45%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(262 83% 53%) 100%);
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;

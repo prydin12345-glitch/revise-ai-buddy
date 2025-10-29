@@ -51,16 +51,19 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
           light: "hsl(var(--success-light))",
+          border: "hsl(var(--success-border))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
           light: "hsl(var(--warning-light))",
+          border: "hsl(var(--warning-border))",
         },
         info: {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
           light: "hsl(var(--info-light))",
+          border: "hsl(var(--info-border))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

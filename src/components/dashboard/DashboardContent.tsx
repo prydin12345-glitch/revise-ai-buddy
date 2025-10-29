@@ -239,13 +239,19 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
       return {
         label: "Completed",
         icon: CheckCircle2,
-        colorClass: "bg-success-light text-success-foreground border-success/20",
+        bgClass: "bg-success-light",
+        textClass: "text-success",
+        borderClass: "border-success-border",
+        iconColor: "text-success",
       };
     }
     return {
       label: "In Progress",
       icon: Clock,
-      colorClass: "bg-warning-light text-warning-foreground border-warning/20",
+      bgClass: "bg-warning-light",
+      textClass: "text-warning",
+      borderClass: "border-warning-border",
+      iconColor: "text-warning",
     };
   };
 
@@ -399,73 +405,110 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredExams.map((exam) => (
-                    <Card key={exam.id} className="border-2 hover:border-primary/50 transition-all">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-foreground">{exam.title}</h3>
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                {exam.subject_id}
-                              </span>
-                              {exam.submission ? (
-                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                                  Completed
-                                </span>
-                              ) : (
-                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600">
-                                  In Progress
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span>{new Date(exam.created_at).toLocaleDateString()}</span>
-                              {exam.submission && (
-                                <span className="font-semibold text-foreground">
-                                  Score: {Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)}%
-                                </span>
-                              )}
-                              <span className="capitalize">{exam.type.replace("_", " ")}</span>
-                            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredExams.map((exam) => {
+                    const statusConfig = getStatusConfig(!!exam.submission);
+                    const StatusIcon = statusConfig.icon;
+                    const score = exam.submission 
+                      ? Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)
+                      : null;
+
+                    return (
+                      <Card 
+                        key={exam.id} 
+                        className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 bg-card border border-border rounded-xl"
+                      >
+                        {/* Progress bar for in-progress exams */}
+                        {!exam.submission && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-muted/50">
+                            <div className="h-full bg-warning transition-all duration-500" style={{ width: '50%' }} />
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {exam.submission ? (
-                                <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}/review`)}>
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Review Exam
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}`)}>
-                                  <Play className="w-4 h-4 mr-2" />
-                                  Resume Exam
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}/preview`)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Preview Questions
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => deleteExam(exam.id)}
-                                className="text-destructive"
+                        )}
+
+                        <CardContent className="p-6 space-y-4">
+                          {/* Header Row: Title + Actions */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0 space-y-3">
+                              <h3 className="text-[17px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                {exam.title}
+                              </h3>
+                              
+                              {/* Subject Badge */}
+                              <Badge 
+                                variant="outline" 
+                                className="border-primary/30 bg-primary/5 text-primary text-[13px] font-medium px-2.5 py-0.5"
                               >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                                {exam.subject_id}
+                              </Badge>
+                            </div>
+                            
+                            {/* Action Menu */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {exam.submission ? (
+                                  <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}/review`)} className="gap-2">
+                                    <Eye className="h-4 w-4" />
+                                    Review Exam
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}`)} className="gap-2">
+                                    <Play className="h-4 w-4" />
+                                    Resume Exam
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => navigate(`/exam/${exam.id}/preview`)} className="gap-2">
+                                  <Eye className="h-4 w-4" />
+                                  Preview Questions
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => deleteExam(exam.id)} 
+                                  className="gap-2 text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Status Pill Badge */}
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[14px] font-medium border shadow-sm ${statusConfig.bgClass} ${statusConfig.textClass} ${statusConfig.borderClass}`}
+                            >
+                              <StatusIcon className={`h-4 w-4 ${statusConfig.iconColor}`} />
+                              {statusConfig.label}
+                            </span>
+                          </div>
+
+                          {/* Score Display */}
+                          {score !== null && (
+                            <div className="flex items-center gap-2 pt-1">
+                              <TrendingUp className="h-4 w-4 text-primary" />
+                              <span className="text-[15px] font-semibold text-foreground">{score}%</span>
+                              <span className="text-[13px] text-muted-foreground">score</span>
+                            </div>
+                          )}
+
+                          {/* Date */}
+                          <div className="flex items-center gap-2 text-[13px] text-muted-foreground pt-2 border-t border-border/50">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{new Date(exam.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
