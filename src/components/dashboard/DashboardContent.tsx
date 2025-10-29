@@ -403,16 +403,6 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
       <div className="grid lg:grid-cols-[1fr_380px] gap-8">
         {/* Left: Main Content */}
         <div className="space-y-8">
-          {/* Welcome header */}
-          <div className="space-y-3">
-            <h1 className="text-5xl font-bold tracking-tight text-foreground">
-              Welcome back, {userName}
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              Ready to ace your exams? Let's make today count!
-            </p>
-          </div>
-
           {/* Primary CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
