@@ -521,25 +521,11 @@ const ExamInProgress = () => {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-base px-3 py-1">
+                      <Badge variant="secondary" className="text-base px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20">
                         Q{question.question_number}
-                      </Badge>
-                      <Badge variant="secondary" className="capitalize">
-                        {question.question_type}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4">
-                      {savedAnswers.has(question.id) ? (
-                        <div className="flex items-center gap-1 text-sm text-primary">
-                          <Check className="w-4 h-4" />
-                          <span>Saved</span>
-                        </div>
-                      ) : userAnswers[question.id] && !savedAnswers.has(question.id) ? (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Circle className="w-3 h-3 animate-pulse" />
-                          <span>Saving...</span>
-                        </div>
-                      ) : null}
                       <Badge className="text-base px-3 py-1">{question.marks} marks</Badge>
                     </div>
                   </div>
@@ -587,7 +573,7 @@ const ExamInProgress = () => {
                   ) : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Working Out (optional)</Label>
+                        <Label className="text-sm font-medium mb-2 block">Working Out</Label>
                         <Textarea 
                           placeholder="Show your working here..."
                           value={(() => {
