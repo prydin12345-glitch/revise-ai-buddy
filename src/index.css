@@ -49,9 +49,18 @@ All colors MUST be HSL.
     /* Border radius */
     --radius: 0.75rem;
 
-    /* Success color */
+    /* Status colors */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 95%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 95%;
+    
+    --info: 262 83% 58%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 262 83% 95%;
 
     /* Sidebar styles */
     --sidebar-background: 0 0% 100%;
@@ -107,6 +116,15 @@ All colors MUST be HSL.
 
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 25%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 25%;
+    
+    --info: 262 83% 58%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 262 83% 25%;
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;

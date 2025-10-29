@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit, Filter } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit, Filter, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,15 +183,16 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const applyFiltersAndSort = () => {
     let filtered = [...exams];
 
-    // Apply filters
-    if (filterBy !== "all") {
-      if (filterBy === "completed") {
-        filtered = filtered.filter(e => e.submission);
-      } else if (filterBy === "in-progress") {
-        filtered = filtered.filter(e => !e.submission);
-      } else {
-        filtered = filtered.filter(e => e.subject_id === filterBy);
-      }
+    // Apply status filter
+    if (filterBy === "completed") {
+      filtered = filtered.filter(exam => exam.submission);
+    } else if (filterBy === "in-progress") {
+      filtered = filtered.filter(exam => !exam.submission);
+    }
+
+    // Apply subject filter if not "all"
+    if (filterBy !== "all" && filterBy !== "completed" && filterBy !== "in-progress") {
+      filtered = filtered.filter(exam => exam.subject_id === filterBy);
     }
 
     // Apply sorting
@@ -213,6 +215,38 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     }
 
     setFilteredExams(filtered);
+  };
+
+  const getMotivationalMessage = (exam: ExamWithSubmission) => {
+    if (!exam.submission) {
+      return `You're halfway through ${exam.title} — keep going!`;
+    }
+    
+    const score = (exam.submission.total_score / exam.submission.total_marks) * 100;
+    if (score >= 85) {
+      return `Excellent work on ${exam.title}! Outstanding performance! 🌟`;
+    } else if (score >= 70) {
+      return `Nice work on ${exam.title} — you're doing great!`;
+    } else if (score >= 50) {
+      return `Good effort on ${exam.title} — let's aim higher next time!`;
+    } else {
+      return `Keep practicing ${exam.title} — you'll get there! 💪`;
+    }
+  };
+
+  const getStatusConfig = (isCompleted: boolean) => {
+    if (isCompleted) {
+      return {
+        label: "Completed",
+        icon: CheckCircle2,
+        colorClass: "bg-success-light text-success-foreground border-success/20",
+      };
+    }
+    return {
+      label: "In Progress",
+      icon: Clock,
+      colorClass: "bg-warning-light text-warning-foreground border-warning/20",
+    };
   };
 
   const deleteExam = async (examId: string) => {
