@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'mathlive';
+import { cn } from '@/lib/utils';
 
 declare global {
   namespace JSX {
@@ -27,6 +28,7 @@ export function MathField({
   className 
 }: MathFieldProps) {
   const mfRef = useRef<any>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const mf = mfRef.current;
@@ -111,6 +113,15 @@ export function MathField({
       space: '\\space',
     };
 
+    // Enable physical spacebar to insert space
+    mf.keybindings = [
+      { key: 'Space', command: ['insert', '\\space'] },
+      { key: 'ArrowLeft', command: 'moveToPreviousChar' },
+      { key: 'ArrowRight', command: 'moveToNextChar' },
+      { key: 'Backspace', command: 'deleteBackward' },
+      { key: 'Tab', command: 'moveToNextPlaceholder' },
+    ];
+
     // Set initial value
     if (value && mf.value !== value) {
       mf.value = value;
@@ -127,6 +138,20 @@ export function MathField({
       mf.removeEventListener('input', handleInput);
     };
   }, [value, onChange]);
+
+  // Monitor keyboard visibility state
+  useEffect(() => {
+    if (!window.mathVirtualKeyboard) return;
+    
+    const checkVisibility = () => {
+      const isVisible = (window.mathVirtualKeyboard as any)?.visible || false;
+      setKeyboardVisible(isVisible);
+    };
+    
+    // Check keyboard visibility periodically
+    const interval = setInterval(checkVisibility, 200);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="relative">
@@ -145,7 +170,7 @@ export function MathField({
         style={{
           display: 'block',
           minHeight: '60px',
-          padding: '8px 12px',
+          padding: '8px 44px 8px 12px',
           border: '1px solid hsl(var(--border))',
           borderRadius: '6px',
           fontSize: '16px',
@@ -158,15 +183,29 @@ export function MathField({
       </math-field>
       <button
         type="button"
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           const mf = mfRef.current;
-          if (mf && window.mathVirtualKeyboard) {
-            mf.focus();
-            window.mathVirtualKeyboard.show();
+          
+          if (keyboardVisible) {
+            window.mathVirtualKeyboard?.hide();
+          } else {
+            if (mf) {
+              mf.focus();
+              setTimeout(() => {
+                window.mathVirtualKeyboard?.show();
+              }, 100);
+            }
           }
         }}
-        className="absolute right-2 top-2 p-2 rounded-md hover:bg-accent transition-colors"
-        title="Show Math Keyboard"
+        className={cn(
+          "absolute right-2 top-2 p-2 rounded-md transition-colors z-10 pointer-events-auto",
+          keyboardVisible 
+            ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
+            : "hover:bg-accent"
+        )}
+        title={keyboardVisible ? "Hide Math Keyboard" : "Show Math Keyboard"}
       >
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
