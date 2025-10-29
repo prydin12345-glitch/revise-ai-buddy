@@ -175,29 +175,33 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
       const goalsWithProgress = await Promise.all(
         (goalsData || []).map(async (goal) => {
-          const { count } = await supabase
+          // Get all exams for this subject
+          const { data: subjectExams } = await supabase
             .from("exams")
-            .select("*", { count: "exact", head: true })
+            .select("id")
             .eq("user_id", user.id)
-            .eq("subject_id", goal.subject)
-            .not("id", "in", `(SELECT exam_id FROM exam_submissions WHERE student_id = '${user.id}')`);
+            .eq("subject_id", goal.subject);
 
-          const { data: submissions } = await supabase
+          const examIds = subjectExams?.map(e => e.id) || [];
+
+          // Count how many of these exams have submissions
+          if (examIds.length === 0) {
+            return {
+              ...goal,
+              progress: 0,
+              subject_color: goal.subject_color || "#3B82F6",
+            };
+          }
+
+          const { count: completedCount } = await supabase
             .from("exam_submissions")
-            .select("exam_id")
+            .select("*", { count: "exact", head: true })
             .eq("student_id", user.id)
-            .in("exam_id", 
-              await supabase
-                .from("exams")
-                .select("id")
-                .eq("user_id", user.id)
-                .eq("subject_id", goal.subject)
-                .then(res => res.data?.map(e => e.id) || [])
-            );
+            .in("exam_id", examIds);
 
           return {
             ...goal,
-            progress: submissions?.length || 0,
+            progress: completedCount || 0,
             subject_color: goal.subject_color || "#3B82F6",
           };
         })
@@ -679,9 +683,6 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                                   daysUntilDeadline !== null && daysUntilDeadline < 7 ? "text-destructive" : ""
                                 )}>
                                   {format(new Date(goal.deadline), "MMM dd, yyyy")}
-                                  {daysUntilDeadline !== null && daysUntilDeadline > 0 && (
-                                    <span className="ml-1 text-xs">({daysUntilDeadline}d)</span>
-                                  )}
                                 </span>
                               </div>
                             )}
@@ -749,7 +750,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 onClick={() => navigate("/goals")}
               >
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-primary" />
+                  <CalendarIcon className="w-5 h-5 text-primary" />
                 </div>
                 <span className="font-medium text-lg">View Revision Plan</span>
               </Button>
