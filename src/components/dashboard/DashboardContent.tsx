@@ -36,7 +36,6 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SubjectSelector } from "./SubjectSelector";
-import { GoalPieChart } from "./GoalPieChart";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -667,17 +666,17 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                           {/* Info section */}
                           <div className="space-y-2 text-sm">
                             {goal.target_percentage && (
-                              <div className="flex items-center justify-between text-muted-foreground">
+                              <div className="flex items-center justify-between text-white">
                                 <span>Target Average:</span>
-                                <span className="font-semibold text-foreground">{goal.target_percentage}%</span>
+                                <span className="font-semibold">{goal.target_percentage}%</span>
                               </div>
                             )}
                             {goal.deadline && (
-                              <div className="flex items-center justify-between text-muted-foreground">
+                              <div className="flex items-center justify-between text-white">
                                 <span>Deadline:</span>
                                 <span className={cn(
                                   "font-semibold",
-                                  daysUntilDeadline !== null && daysUntilDeadline < 7 ? "text-destructive" : "text-foreground"
+                                  daysUntilDeadline !== null && daysUntilDeadline < 7 ? "text-destructive" : ""
                                 )}>
                                   {format(new Date(goal.deadline), "MMM dd, yyyy")}
                                   {daysUntilDeadline !== null && daysUntilDeadline > 0 && (
@@ -688,14 +687,28 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                             )}
                           </div>
 
-                          {/* Pie chart at bottom */}
-                          <div className="flex justify-center pt-2">
-                            <GoalPieChart 
-                              progress={goal.progress}
-                              target={goal.target_exams}
-                              color={goal.subject_color}
-                              size={100}
-                            />
+                          {/* Progress bar at bottom */}
+                          <div className="relative mt-4 h-10 border-2 border-border rounded-lg overflow-hidden bg-muted/30">
+                            <div 
+                              className="h-full transition-all duration-700 ease-out flex items-center justify-center"
+                              style={{ 
+                                width: `${Math.min((goal.progress / goal.target_exams) * 100, 100)}%`,
+                                backgroundColor: goal.subject_color,
+                              }}
+                            >
+                              {goal.progress > 0 && (
+                                <span className="text-white font-bold text-sm">
+                                  {goal.progress}/{goal.target_exams}
+                                </span>
+                              )}
+                            </div>
+                            {goal.progress === 0 && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-muted-foreground font-semibold text-sm">
+                                  0/{goal.target_exams}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
