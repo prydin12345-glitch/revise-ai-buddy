@@ -39,6 +39,8 @@ interface ExamWithSubmission {
   status: string;
   type: string;
   created_at: string;
+  totalQuestions?: number;
+  answeredQuestions?: number;
   submission?: {
     total_score: number;
     total_marks: number;
@@ -117,9 +119,24 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             .eq("student_id", user.id)
             .maybeSingle();
 
+          // Fetch questions count
+          const { count: totalQuestions } = await supabase
+            .from("exam_questions")
+            .select("*", { count: "exact", head: true })
+            .eq("exam_id", exam.id);
+
+          // Fetch answered questions count
+          const { count: answeredQuestions } = await supabase
+            .from("student_answers")
+            .select("*", { count: "exact", head: true })
+            .eq("exam_id", exam.id)
+            .eq("student_id", user.id);
+
           return {
             ...exam,
             submission: submission || undefined,
+            totalQuestions: totalQuestions || 0,
+            answeredQuestions: answeredQuestions || 0,
           };
         })
       );
@@ -239,18 +256,18 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
       return {
         label: "Completed",
         icon: CheckCircle2,
-        bgClass: "bg-success-light",
-        textClass: "text-success",
-        borderClass: "border-success-border",
+        cardBgClass: "bg-success/10",
+        textClass: "text-white",
+        dotColor: "bg-success",
         iconColor: "text-success",
       };
     }
     return {
       label: "In Progress",
       icon: Clock,
-      bgClass: "bg-warning-light",
-      textClass: "text-warning",
-      borderClass: "border-warning-border",
+      cardBgClass: "bg-warning/10",
+      textClass: "text-white",
+      dotColor: "bg-warning",
       iconColor: "text-warning",
     };
   };
@@ -416,16 +433,17 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                     return (
                       <Card 
                         key={exam.id} 
-                        className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 bg-card border border-border rounded-xl"
+                        className={`group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 border border-border rounded-xl ${statusConfig.cardBgClass}`}
                       >
-                        {/* Progress bar for in-progress exams */}
-                        {!exam.submission && (
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-muted/50">
-                            <div className="h-full bg-warning transition-all duration-500" style={{ width: '50%' }} />
-                          </div>
-                        )}
+                        {/* Status Indicator at Top Center */}
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
+                          <span className={`text-[14px] font-medium ${statusConfig.textClass}`}>
+                            {statusConfig.label}
+                          </span>
+                          <div className={`h-2.5 w-2.5 rounded-full ${statusConfig.dotColor} shadow-lg animate-pulse`} />
+                        </div>
 
-                        <CardContent className="p-6 space-y-4">
+                        <CardContent className="p-6 pt-12 space-y-4">
                           {/* Header Row: Title + Actions */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0 space-y-3">
@@ -481,31 +499,49 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                             </DropdownMenu>
                           </div>
 
-                          {/* Status Pill Badge */}
-                          <div className="flex items-center gap-2">
-                            <span 
-                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[14px] font-medium border shadow-sm ${statusConfig.bgClass} ${statusConfig.textClass} ${statusConfig.borderClass}`}
-                            >
-                              <StatusIcon className={`h-4 w-4 ${statusConfig.iconColor}`} />
-                              {statusConfig.label}
-                            </span>
-                          </div>
-
-                          {/* Score Display */}
-                          {score !== null && (
-                            <div className="flex items-center gap-2 pt-1">
-                              <TrendingUp className="h-4 w-4 text-primary" />
-                              <span className="text-[15px] font-semibold text-foreground">{score}%</span>
-                              <span className="text-[13px] text-muted-foreground">score</span>
+                          {/* Score and Date with thicker separator */}
+                          <div className="flex items-center justify-between pt-4 border-t-2 border-border/60">
+                            <div className="flex items-center gap-6 text-[13px]">
+                              {score !== null && (
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <TrendingUp className="h-3.5 w-3.5" />
+                                  <span className="text-[15px] font-semibold text-foreground">
+                                    {score}%
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {new Date(exam.created_at).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                })}
+                              </div>
                             </div>
-                          )}
-
-                          {/* Date */}
-                          <div className="flex items-center gap-2 text-[13px] text-muted-foreground pt-2 border-t border-border/50">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>{new Date(exam.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </div>
+
+                          {/* Motivational Message */}
+                          {getMotivationalMessage(exam) && (
+                            <p className="text-[13px] text-muted-foreground italic leading-relaxed">
+                              {getMotivationalMessage(exam)}
+                            </p>
+                          )}
                         </CardContent>
+
+                        {/* Progress bar for in-progress exams */}
+                        {!exam.submission && exam.totalQuestions && exam.totalQuestions > 0 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-destructive/20">
+                            <div 
+                              className="h-full bg-destructive transition-all duration-500 relative group/progress"
+                              style={{ width: `${(exam.answeredQuestions || 0) / exam.totalQuestions * 100}%` }}
+                            >
+                              <span className="absolute -top-8 right-0 bg-destructive text-destructive-foreground text-xs px-2 py-1 rounded opacity-0 group-hover/progress:opacity-100 transition-opacity whitespace-nowrap">
+                                {exam.answeredQuestions || 0}/{exam.totalQuestions} ({Math.round((exam.answeredQuestions || 0) / exam.totalQuestions * 100)}%)
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </Card>
                     );
                   })}
