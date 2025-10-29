@@ -70,8 +70,11 @@ export const MathField = forwardRef(function MathField({
       space: '\\space',
     };
 
-    // Don't override keybindings - let MathLive handle all keyboard input naturally
-    // This ensures spacebar, backspace, and all other keys work properly
+    // Override spacebar to insert space instead of navigation
+    // Let MathLive handle all other keys naturally (backspace, arrows, etc.)
+    mf.keybindings = [
+      { key: 'Space', ifMode: 'math', command: ['insert', ' '] },
+    ];
 
     // Set initial value
     if (value && mf.value !== value) {
