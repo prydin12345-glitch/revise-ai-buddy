@@ -56,6 +56,9 @@ export const MathField = forwardRef(function MathField({
     // Hide all menu items (Insert, Mode, Font, Color, etc.)
     mf.menuItems = [];
     
+    // CRITICAL: Hide the UI toolbar/menu completely
+    mf.removeExtraneousParentheses = false;
+    
     // Set inline shortcuts directly on mathfield (modern API)
     mf.inlineShortcuts = {
       half: '\\frac{1}{2}',
@@ -67,11 +70,8 @@ export const MathField = forwardRef(function MathField({
       space: '\\space',
     };
 
-    // Enable physical keyboard shortcuts - let default behavior handle most keys
-    // Only override Space to insert space character instead of navigation
-    mf.keybindings = [
-      { key: 'Space', ifMode: 'math', command: ['insert', ' '] },
-    ];
+    // Don't override keybindings - let MathLive handle all keyboard input naturally
+    // This ensures spacebar, backspace, and all other keys work properly
 
     // Set initial value
     if (value && mf.value !== value) {
@@ -106,7 +106,9 @@ export const MathField = forwardRef(function MathField({
         fontFamily: 'inherit',
         backgroundColor: 'hsl(var(--background))',
         color: 'hsl(var(--foreground))',
-      }}
+        // Hide MathLive's toolbar/menu icons
+        '--_keyboard-zindex': '-1000',
+      } as React.CSSProperties}
     >
       {value || ''}
     </math-field>
