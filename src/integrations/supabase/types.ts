@@ -433,6 +433,39 @@ export type Database = {
         }
         Relationships: []
       }
+      revision_goals: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          id: string
+          subject: string
+          target_exams: number
+          target_percentage: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          subject: string
+          target_exams?: number
+          target_percentage?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          subject?: string
+          target_exams?: number
+          target_percentage?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       student_answers: {
         Row: {
           answer_text: string | null
