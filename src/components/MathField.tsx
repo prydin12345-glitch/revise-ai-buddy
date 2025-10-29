@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import 'mathlive';
-import { cn } from '@/lib/utils';
 
 declare global {
   namespace JSX {
@@ -28,16 +27,22 @@ export function MathField({
   className 
 }: MathFieldProps) {
   const mfRef = useRef<any>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const mf = mfRef.current;
     if (!mf) return;
 
-    // Configure mathfield using modern API (not deprecated setOptions)
+    // Configure mathfield using modern API
     mf.mathVirtualKeyboardPolicy = 'manual';
     
-    // Configure virtual keyboard with modern API (using type assertions for properties not in types)
+    // Disable smart mode (no text/math toggle) and clean up UI
+    mf.smartMode = false;
+    mf.defaultMode = 'math';
+    
+    // Hide unnecessary menu items (font, color, commands)
+    mf.menuItems = [];
+    
+    // Configure virtual keyboard with modern API
     if (window.mathVirtualKeyboard) {
       const vk = window.mathVirtualKeyboard as any;
       vk.keypressSound = null;
@@ -113,13 +118,10 @@ export function MathField({
       space: '\\space',
     };
 
-    // Enable physical spacebar to insert space
+    // Enable physical keyboard shortcuts - let default behavior handle most keys
+    // Only override Space to insert space character instead of navigation
     mf.keybindings = [
-      { key: 'Space', command: ['insert', '\\space'] },
-      { key: 'ArrowLeft', command: 'moveToPreviousChar' },
-      { key: 'ArrowRight', command: 'moveToNextChar' },
-      { key: 'Backspace', command: 'deleteBackward' },
-      { key: 'Tab', command: 'moveToNextPlaceholder' },
+      { key: 'Space', ifMode: 'math', command: ['insert', ' '] },
     ];
 
     // Set initial value
@@ -139,89 +141,32 @@ export function MathField({
     };
   }, [value, onChange]);
 
-  // Monitor keyboard visibility state
-  useEffect(() => {
-    if (!window.mathVirtualKeyboard) return;
-    
-    const checkVisibility = () => {
-      const isVisible = (window.mathVirtualKeyboard as any)?.visible || false;
-      setKeyboardVisible(isVisible);
-    };
-    
-    // Check keyboard visibility periodically
-    const interval = setInterval(checkVisibility, 200);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <div className="relative">
-      <math-field
-        ref={mfRef}
-        onFocus={() => {
-          if (onFocus) onFocus();
-          if (window.mathVirtualKeyboard) {
-            window.mathVirtualKeyboard.show();
-          }
-        }}
-        onBlur={() => {
-          if (onBlur) onBlur();
-        }}
-        className={className}
-        style={{
-          display: 'block',
-          minHeight: '60px',
-          padding: '8px 44px 8px 12px',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: '6px',
-          fontSize: '16px',
-          fontFamily: 'inherit',
-          backgroundColor: 'hsl(var(--background))',
-          color: 'hsl(var(--foreground))',
-        }}
-      >
-        {value || ''}
-      </math-field>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const mf = mfRef.current;
-          
-          if (keyboardVisible) {
-            window.mathVirtualKeyboard?.hide();
-          } else {
-            if (mf) {
-              mf.focus();
-              setTimeout(() => {
-                window.mathVirtualKeyboard?.show();
-              }, 100);
-            }
-          }
-        }}
-        className={cn(
-          "absolute right-2 top-2 p-2 rounded-md transition-colors z-10 pointer-events-auto",
-          keyboardVisible 
-            ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
-            : "hover:bg-accent"
-        )}
-        title={keyboardVisible ? "Hide Math Keyboard" : "Show Math Keyboard"}
-      >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          width="20" 
-          height="20" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <rect x="2" y="4" width="20" height="16" rx="2"/>
-          <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
-        </svg>
-      </button>
-    </div>
+    <math-field
+      ref={mfRef}
+      onFocus={() => {
+        if (onFocus) onFocus();
+        if (window.mathVirtualKeyboard) {
+          window.mathVirtualKeyboard.show();
+        }
+      }}
+      onBlur={() => {
+        if (onBlur) onBlur();
+      }}
+      className={className}
+      style={{
+        display: 'block',
+        minHeight: '60px',
+        padding: '8px 12px',
+        border: '1px solid hsl(var(--border))',
+        borderRadius: '6px',
+        fontSize: '16px',
+        fontFamily: 'inherit',
+        backgroundColor: 'hsl(var(--background))',
+        color: 'hsl(var(--foreground))',
+      }}
+    >
+      {value || ''}
+    </math-field>
   );
 }
