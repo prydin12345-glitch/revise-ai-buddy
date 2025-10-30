@@ -12,8 +12,8 @@ export const SLOT_INTERVAL = 60; // 60 minutes per slot
 export function timeToGridRow(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   const totalMinutes = (hours - START_HOUR) * 60 + minutes;
-  const row = Math.floor(totalMinutes / SLOT_INTERVAL) + 1;
-  return Math.max(1, Math.min(row, END_HOUR - START_HOUR + 1));
+  const row = Math.floor(totalMinutes / SLOT_INTERVAL) + 2; // +2 to account for header row
+  return Math.max(2, Math.min(row, END_HOUR - START_HOUR + 2));
 }
 
 /**
@@ -41,7 +41,7 @@ export function getTimeSlots(): string[] {
  */
 export function dayToColumnIndex(day: string): number {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  return days.indexOf(day.toLowerCase()) + 1;
+  return days.indexOf(day.toLowerCase()) + 2; // +2 to account for time column
 }
 
 /**

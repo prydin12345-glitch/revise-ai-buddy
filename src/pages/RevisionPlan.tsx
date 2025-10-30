@@ -88,40 +88,8 @@ const RevisionPlan = () => {
 
       setUserExams(examsData || []);
 
-      // Mock revision tasks (will be stored in Supabase table later)
-      const mockTasks: RevisionTask[] = [
-        {
-          id: "1",
-          subject: "Mathematics",
-          subject_color: "#3B82F6",
-          day: "Monday",
-          time: "09:00",
-          duration: 120,
-          focus_topic: "Calculus - Integration",
-          is_completed: false,
-        },
-        {
-          id: "2",
-          subject: "Biology",
-          subject_color: "#10B981",
-          day: "Monday",
-          time: "14:00",
-          duration: 90,
-          focus_topic: "Genetics",
-          is_completed: true,
-        },
-        {
-          id: "3",
-          subject: "Chemistry",
-          subject_color: "#F59E0B",
-          day: "Wednesday",
-          time: "10:00",
-          duration: 60,
-          is_completed: false,
-        },
-      ];
-
-      setTasks(mockTasks);
+      // Initialize with empty tasks array
+      setTasks([]);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load revision plan");
@@ -299,7 +267,7 @@ const RevisionPlan = () => {
           {/* Week View */}
           {viewMode === "week" && (
             <div className="flex gap-4">
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 <CalendarGrid
                   tasks={tasks}
                   onEditTask={(task) => {
@@ -309,6 +277,15 @@ const RevisionPlan = () => {
                   onDeleteTask={handleDeleteTask}
                   onToggleComplete={handleToggleComplete}
                 />
+                {tasks.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center text-muted-foreground">
+                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">No revision plans yet</p>
+                      <p className="text-sm">Click "Add Revision" to get started</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="w-80">

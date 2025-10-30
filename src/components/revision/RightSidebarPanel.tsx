@@ -55,7 +55,16 @@ const TaskSection = ({
           isOver ? "border-primary bg-primary/5" : "border-transparent"
         }`}
       >
-        {tasks.map((task) => (
+        {tasks.length === 0 ? (
+          <div className="flex items-center justify-center h-[100px]">
+            <p className="text-xs text-muted-foreground">
+              {status === 'todo' && 'No upcoming tasks'}
+              {status === 'in-progress' && 'No active tasks'}
+              {status === 'done' && 'No completed tasks'}
+            </p>
+          </div>
+        ) : (
+          tasks.map((task) => (
           <div
             key={task.id}
             onClick={() => onTaskClick(task)}
@@ -79,7 +88,8 @@ const TaskSection = ({
               {task.duration && <span>• {task.duration}m</span>}
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
