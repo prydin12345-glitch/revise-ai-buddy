@@ -26,7 +26,7 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
 
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="grid grid-cols-[80px_repeat(7,1fr)] auto-rows-[60px]">
+      <div className="grid grid-cols-[80px_repeat(7,1fr)] auto-rows-[90px]">
         {/* Header Row - Time column + Day names */}
         <div className="sticky top-0 z-20 bg-muted/50 border-b border-r flex items-center justify-center">
           <span className="text-xs font-medium text-muted-foreground">Time</span>
@@ -43,11 +43,10 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
 
         {/* Time slots and grid cells */}
         {timeSlots.map((time, rowIndex) => (
-          <>
+          <div key={`time-row-${time}`} className="contents">
             {/* Time label */}
             <div 
-              key={`time-${time}`}
-              className="border-b border-r bg-muted/30 flex items-start justify-center pt-1"
+              className="border-b border-r bg-muted/30 flex items-center justify-center p-2"
             >
               <span className="text-xs text-muted-foreground font-medium">
                 {formatTimeDisplay(time)}
@@ -58,14 +57,14 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
             {DAYS.map((day, colIndex) => (
               <div
                 key={`${day}-${time}`}
-                className="relative border-b border-r last:border-r-0 bg-card hover:bg-muted/20 transition-colors"
+                className="relative border-b border-r last:border-r-0 bg-card hover:bg-muted/20 transition-colors p-2"
                 style={{
                   gridRow: rowIndex + 2,
                   gridColumn: colIndex + 2,
                 }}
               />
             ))}
-          </>
+          </div>
         ))}
 
         {/* Task blocks positioned absolutely within the grid */}
