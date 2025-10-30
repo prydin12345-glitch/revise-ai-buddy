@@ -1,26 +1,19 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  CheckCircle2, 
-  ChevronLeft, 
-  ChevronRight,
-  Clock,
-  Calendar as CalendarIcon
-} from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { RevisionTaskCard } from "@/components/revision/RevisionTaskCard";
+import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
 
 interface RevisionTask {
   id: string;
@@ -48,7 +41,6 @@ const SUBJECT_COLORS = [
 ];
 
 const RevisionPlan = () => {
-  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"week" | "day" | "subject">("week");
   const [selectedDay, setSelectedDay] = useState("Monday");
   const [tasks, setTasks] = useState<RevisionTask[]>([]);
@@ -58,6 +50,14 @@ const RevisionPlan = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<RevisionTask | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const [newTask, setNewTask] = useState<Partial<RevisionTask>>({
     subject: "",
@@ -184,226 +184,262 @@ const RevisionPlan = () => {
 
   const getTasksForDay = (day: string) => {
     return tasks
-      .filter(t => t.day === day)
+      .filter(t => t.day === day && !t.is_completed)
       .sort((a, b) => a.time.localeCompare(b.time));
   };
 
+  const getTodoTasks = () => tasks.filter(t => !t.day && !t.is_completed);
+  const getInProgressTasks = () => tasks.filter(t => t.day && !t.is_completed);
+  const getDoneTasks = () => tasks.filter(t => t.is_completed);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = active.id as string;
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (over.id === "todo" || over.id === "in-progress" || over.id === "done") {
+      const updatedTask = { ...task };
+      if (over.id === "done") {
+        updatedTask.is_completed = true;
+      } else {
+        updatedTask.is_completed = false;
+      }
+      setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
+      toast.success("Task status updated");
+    }
+  };
+
   const renderTaskCard = (task: RevisionTask) => (
-    <div
+    <RevisionTaskCard
       key={task.id}
-      className={`group relative p-3 rounded-lg border-l-4 transition-all hover:shadow-md ${
-        task.is_completed ? 'bg-muted/50 opacity-70' : 'bg-card'
-      }`}
-      style={{ borderLeftColor: task.subject_color }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Badge 
-              className="text-xs font-medium"
-              style={{ backgroundColor: task.subject_color }}
-            >
-              {task.subject}
-            </Badge>
-            {task.is_completed && (
-              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-            )}
-          </div>
-          <p className="text-sm font-semibold truncate">{task.focus_topic || task.exam_title || "General revision"}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            <Clock className="w-3 h-3" />
-            <span>{task.time}</span>
-            {task.duration && <span>• {task.duration}m</span>}
-          </div>
-        </div>
-        
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => handleToggleComplete(task.id)}
-          >
-            <CheckCircle2 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingTask(task);
-              setEditDialogOpen(true);
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => handleDeleteTask(task.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
+      id={task.id}
+      subject={task.subject}
+      subjectColor={task.subject_color}
+      focusTopic={task.focus_topic}
+      examTitle={task.exam_title}
+      time={task.time}
+      duration={task.duration}
+      isCompleted={task.is_completed}
+      onEdit={() => {
+        setEditingTask(task);
+        setEditDialogOpen(true);
+      }}
+      onDelete={() => handleDeleteTask(task.id)}
+      onToggleComplete={() => handleToggleComplete(task.id)}
+    />
   );
+
+  const getWeekDateRange = () => {
+    const endDate = new Date(currentWeekStart);
+    endDate.setDate(endDate.getDate() + 6);
+    return `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  };
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Revision Plan</h1>
-            <p className="text-muted-foreground mt-1">Organize your study schedule</p>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="p-6 space-y-4">
+          {/* Top Controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="week">Week View</TabsTrigger>
+                  <TabsTrigger value="day">Day View</TabsTrigger>
+                  <TabsTrigger value="subject">Subject View</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {viewMode === "week" && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      const newDate = new Date(currentWeekStart);
+                      newDate.setDate(newDate.getDate() - 7);
+                      setCurrentWeekStart(newDate);
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-card rounded-lg border">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{getWeekDateRange()}</span>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      const newDate = new Date(currentWeekStart);
+                      newDate.setDate(newDate.getDate() + 7);
+                      setCurrentWeekStart(newDate);
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Revision
+            </Button>
           </div>
-          <Button onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Revision
-          </Button>
-        </div>
 
-        {/* View Mode Tabs */}
-        <div className="flex items-center justify-between">
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-            <TabsList>
-              <TabsTrigger value="week">Week View</TabsTrigger>
-              <TabsTrigger value="day">Day View</TabsTrigger>
-              <TabsTrigger value="subject">Subject View</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
+          {/* Week View */}
           {viewMode === "week" && (
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  const newDate = new Date(currentWeekStart);
-                  newDate.setDate(newDate.getDate() - 7);
-                  setCurrentWeekStart(newDate);
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium px-4">
-                {currentWeekStart.toLocaleDateString()} - {new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-              </span>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  const newDate = new Date(currentWeekStart);
-                  newDate.setDate(newDate.getDate() + 7);
-                  setCurrentWeekStart(newDate);
-                }}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="flex gap-4">
+              <div className="flex-1 grid grid-cols-7 gap-3">
+                {DAYS_OF_WEEK.map((day) => {
+                  const dayTasks = getTasksForDay(day);
+                  const totalHours = dayTasks.reduce((sum, t) => sum + (t.duration || 0), 0) / 60;
+
+                  return (
+                    <Card key={day} className="overflow-hidden">
+                      <div className="bg-primary/10 p-3 border-b">
+                        <h3 className="font-semibold text-sm">{day.slice(0, 3)}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {totalHours.toFixed(1)}h
+                        </p>
+                      </div>
+                      <CardContent className="p-2 space-y-2 min-h-[400px]">
+                        <SortableContext
+                          items={dayTasks.map(t => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {dayTasks.length > 0 ? (
+                            dayTasks.map(renderTaskCard)
+                          ) : (
+                            <p className="text-xs text-muted-foreground text-center py-8">
+                              No tasks
+                            </p>
+                          )}
+                        </SortableContext>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="w-80">
+                <RightSidebarPanel
+                  todoTasks={getTodoTasks()}
+                  inProgressTasks={getInProgressTasks()}
+                  doneTasks={getDoneTasks()}
+                  onTaskClick={(task) => {
+                    setEditingTask(task);
+                    setEditDialogOpen(true);
+                  }}
+                />
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Week View */}
-        {viewMode === "week" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-            {DAYS_OF_WEEK.map((day) => {
-              const dayTasks = getTasksForDay(day);
-              const totalHours = dayTasks.reduce((sum, t) => sum + (t.duration || 0), 0) / 60;
-              
-              return (
-                <Card key={day} className="overflow-hidden">
-                  <div className="bg-primary/10 p-3 border-b">
-                    <h3 className="font-semibold text-sm">{day}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {totalHours.toFixed(1)}h
-                    </p>
-                  </div>
-                  <CardContent className="p-3 space-y-2 min-h-[200px]">
-                    {dayTasks.length > 0 ? (
-                      dayTasks.map(renderTaskCard)
+          {/* Day View */}
+          {viewMode === "day" && (
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-4">
+                <Select value={selectedDay} onValueChange={setSelectedDay}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS_OF_WEEK.map((day) => (
+                      <SelectItem key={day} value={day}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Card>
+                  <CardContent className="p-6 space-y-3">
+                    {getTasksForDay(selectedDay).length > 0 ? (
+                      getTasksForDay(selectedDay).map(renderTaskCard)
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-8">
-                        No tasks scheduled
+                      <p className="text-center text-muted-foreground py-12">
+                        No tasks scheduled for {selectedDay}
                       </p>
                     )}
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
-        )}
+              </div>
 
-        {/* Day View */}
-        {viewMode === "day" && (
-          <div className="space-y-4">
-            <Select value={selectedDay} onValueChange={setSelectedDay}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DAYS_OF_WEEK.map((day) => (
-                  <SelectItem key={day} value={day}>{day}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <div className="w-80">
+                <RightSidebarPanel
+                  todoTasks={getTodoTasks()}
+                  inProgressTasks={getInProgressTasks()}
+                  doneTasks={getDoneTasks()}
+                  onTaskClick={(task) => {
+                    setEditingTask(task);
+                    setEditDialogOpen(true);
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
-            <Card>
-              <CardContent className="p-6 space-y-3">
-                {getTasksForDay(selectedDay).length > 0 ? (
-                  getTasksForDay(selectedDay).map(renderTaskCard)
-                ) : (
-                  <p className="text-center text-muted-foreground py-12">
-                    No tasks scheduled for {selectedDay}
-                  </p>
+          {/* Subject View */}
+          {viewMode === "subject" && (
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-4">
+                {Array.from(new Set(tasks.map(t => t.subject))).map(subject => {
+                  const subjectTasks = tasks.filter(t => t.subject === subject);
+                  const subjectColor = subjectTasks[0]?.subject_color || SUBJECT_COLORS[0];
+
+                  return (
+                    <Card key={subject}>
+                      <div
+                        className="p-4 border-b"
+                        style={{ borderLeftWidth: '4px', borderLeftColor: subjectColor }}
+                      >
+                        <h3 className="font-semibold text-lg">{subject}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {subjectTasks.length} task{subjectTasks.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <CardContent className="p-4 space-y-3">
+                        {subjectTasks.map(renderTaskCard)}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                {tasks.length === 0 && (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No Tasks Yet</h3>
+                      <p className="text-muted-foreground">
+                        Add your first revision task to get started
+                      </p>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              </div>
 
-        {/* Subject View */}
-        {viewMode === "subject" && (
-          <div className="space-y-4">
-            {Array.from(new Set(tasks.map(t => t.subject))).map(subject => {
-              const subjectTasks = tasks.filter(t => t.subject === subject);
-              const subjectColor = subjectTasks[0]?.subject_color || SUBJECT_COLORS[0];
-              
-              return (
-                <Card key={subject}>
-                  <div 
-                    className="p-4 border-b"
-                    style={{ borderLeftWidth: '4px', borderLeftColor: subjectColor }}
-                  >
-                    <h3 className="font-semibold text-lg">{subject}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {subjectTasks.length} task{subjectTasks.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <CardContent className="p-4 space-y-3">
-                    {subjectTasks.map(renderTaskCard)}
-                  </CardContent>
-                </Card>
-              );
-            })}
-            {tasks.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Tasks Yet</h3>
-                  <p className="text-muted-foreground">
-                    Add your first revision task to get started
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+              <div className="w-80">
+                <RightSidebarPanel
+                  todoTasks={getTodoTasks()}
+                  inProgressTasks={getInProgressTasks()}
+                  doneTasks={getDoneTasks()}
+                  onTaskClick={(task) => {
+                    setEditingTask(task);
+                    setEditDialogOpen(true);
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
-        {/* Add Task Dialog */}
-        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          {/* Add Task Dialog */}
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Revision Task</DialogTitle>
@@ -510,10 +546,10 @@ const RevisionPlan = () => {
               <Button onClick={handleAddTask}>Add Task</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
 
-        {/* Edit Task Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          {/* Edit Task Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Revision Task</DialogTitle>
@@ -597,8 +633,9 @@ const RevisionPlan = () => {
               <Button onClick={handleEditTask}>Save Changes</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        </div>
+      </DndContext>
     </DashboardLayout>
   );
 };
