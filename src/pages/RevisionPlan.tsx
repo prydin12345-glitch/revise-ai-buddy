@@ -119,8 +119,23 @@ const RevisionPlan = () => {
         .eq("user_id", user.id)
         .eq("status", "published");
 
+      const { data: tasksData, error: tasksError } = await supabase
+        .from("revision_tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: true });
+
+      if (tasksError) {
+        console.error("Error loading tasks:", tasksError);
+        toast.error("Failed to load revision tasks");
+      } else {
+        setTasks((tasksData || []).map(task => ({
+          ...task,
+          date: new Date(task.date),
+        })));
+      }
+
       setUserExams(examsData || []);
-      setTasks([]);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load revision plan");
@@ -135,51 +150,149 @@ const RevisionPlan = () => {
       return;
     }
 
-    await saveOrUpdateSubject(newTask.subject, newTask.subject_color || SUBJECT_COLORS[0]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to add tasks");
+        return;
+      }
 
-    const dayName = format(newTask.date, 'EEEE');
+      await saveOrUpdateSubject(newTask.subject, newTask.subject_color || SUBJECT_COLORS[0]);
 
-    setTasks([
-      ...tasks,
-      {
-        id: Math.random().toString(),
-        ...newTask,
-        day: dayName,
-      } as RevisionTask,
-    ]);
+      const dayName = format(newTask.date, 'EEEE');
 
-    setAddDialogOpen(false);
-    setNewTask({
-      subject: "",
-      subject_color: SUBJECT_COLORS[0],
-      day: "Monday",
-      date: new Date(),
-      time: "09:00",
-      duration: 60,
-    });
-    toast.success("Revision task added!");
+      const { data, error } = await supabase
+        .from("revision_tasks")
+        .insert({
+          user_id: user.id,
+          subject: newTask.subject!,
+          subject_color: newTask.subject_color || SUBJECT_COLORS[0],
+          day: dayName,
+          date: newTask.date.toISOString(),
+          time: newTask.time!,
+          duration: newTask.duration,
+          focus_topic: newTask.focus_topic,
+          exam_id: newTask.exam_id,
+          exam_title: newTask.exam_title,
+          is_completed: false,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error adding task:", error);
+        toast.error("Failed to add revision task");
+        return;
+      }
+
+      setTasks([
+        ...tasks,
+        {
+          ...data,
+          date: new Date(data.date),
+        } as RevisionTask,
+      ]);
+
+      setAddDialogOpen(false);
+      setNewTask({
+        subject: "",
+        subject_color: SUBJECT_COLORS[0],
+        day: "Monday",
+        date: new Date(),
+        time: "09:00",
+        duration: 60,
+      });
+      toast.success("Revision task added!");
+    } catch (error) {
+      console.error("Error adding task:", error);
+      toast.error("Failed to add revision task");
+    }
   };
 
   const handleEditTask = async () => {
     if (!editingTask) return;
 
-    await saveOrUpdateSubject(editingTask.subject, editingTask.subject_color);
+    try {
+      await saveOrUpdateSubject(editingTask.subject, editingTask.subject_color);
 
-    setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
-    setEditDialogOpen(false);
-    setEditingTask(null);
-    toast.success("Task updated!");
+      const { error } = await supabase
+        .from("revision_tasks")
+        .update({
+          subject: editingTask.subject,
+          subject_color: editingTask.subject_color,
+          day: editingTask.day,
+          date: editingTask.date?.toISOString(),
+          time: editingTask.time,
+          duration: editingTask.duration,
+          focus_topic: editingTask.focus_topic,
+          exam_id: editingTask.exam_id,
+          exam_title: editingTask.exam_title,
+          is_completed: editingTask.is_completed,
+        })
+        .eq("id", editingTask.id);
+
+      if (error) {
+        console.error("Error updating task:", error);
+        toast.error("Failed to update task");
+        return;
+      }
+
+      setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
+      setEditDialogOpen(false);
+      setEditingTask(null);
+      toast.success("Task updated!");
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
+    }
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
-    toast.success("Task deleted");
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from("revision_tasks")
+        .delete()
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Error deleting task:", error);
+        toast.error("Failed to delete task");
+        return;
+      }
+
+      setTasks(tasks.filter(t => t.id !== taskId));
+      toast.success("Task deleted");
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    }
   };
 
-  const handleToggleComplete = (taskId: string) => {
-    setTasks(tasks.map(t => 
-      t.id === taskId ? { ...t, is_completed: !t.is_completed } : t
-    ));
+  const handleToggleComplete = async (taskId: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const newCompletedStatus = !task.is_completed;
+
+      const { error } = await supabase
+        .from("revision_tasks")
+        .update({ is_completed: newCompletedStatus })
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Error toggling task completion:", error);
+        toast.error("Failed to update task status");
+        return;
+      }
+
+      setTasks(tasks.map(t => 
+        t.id === taskId ? { ...t, is_completed: newCompletedStatus } : t
+      ));
+    } catch (error) {
+      console.error("Error toggling task completion:", error);
+      toast.error("Failed to update task status");
+    }
   };
 
   const getTasksForDay = (day: string) => {

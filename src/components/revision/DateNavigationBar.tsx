@@ -10,7 +10,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, startOfWeek, endOfWeek, addWeeks, addMonths } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, addMonths, differenceInWeeks, differenceInMonths, isSameDay, isPast, isFuture } from "date-fns";
 
 interface DateNavigationBarProps {
   viewMode: "week" | "day" | "subject";
@@ -55,13 +55,38 @@ export function DateNavigationBar({
     }
   };
 
-  const getDateRangeDisplay = () => {
-    if (viewMode === "week") {
-      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
-      return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+  const getRelativeTimeLabel = () => {
+    const today = new Date();
+    
+    if (isSameDay(currentDate, today)) {
+      return "Today";
     }
-    return format(currentDate, 'MMM yyyy');
+    
+    if (isPast(currentDate)) {
+      const weeks = Math.abs(differenceInWeeks(currentDate, today));
+      const months = Math.abs(differenceInMonths(currentDate, today));
+      
+      if (months >= 1) {
+        return months === 1 ? "1 month ago" : `${months} months ago`;
+      }
+      return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+    }
+    
+    if (isFuture(currentDate)) {
+      const weeks = differenceInWeeks(currentDate, today);
+      const months = differenceInMonths(currentDate, today);
+      
+      if (months >= 1) {
+        return months === 1 ? "1 month" : `${months} months`;
+      }
+      return weeks === 1 ? "1 week" : `${weeks} weeks`;
+    }
+    
+    return "Today";
+  };
+
+  const getMonthDisplay = () => {
+    return format(currentDate, 'MMM, yyyy');
   };
 
   return (
@@ -77,25 +102,17 @@ export function DateNavigationBar({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        {/* Date State Dropdown */}
-        <Select value={dateState} onValueChange={onDateStateChange}>
-          <SelectTrigger className="w-[140px] h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="1-week">1 Week</SelectItem>
-            <SelectItem value="2-weeks">2 Weeks</SelectItem>
-            <SelectItem value="1-month">1 Month</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Dynamic Relative Time Label */}
+        <Button variant="outline" className="h-9 min-w-[140px]">
+          {getRelativeTimeLabel()}
+        </Button>
 
         {/* Month Dropdown */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="h-9 min-w-[140px] justify-start">
+            <Button variant="outline" className="h-9 min-w-[120px] justify-start">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {getDateRangeDisplay()}
+              {getMonthDisplay()}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">

@@ -469,6 +469,65 @@ export type Database = {
         }
         Relationships: []
       }
+      revision_tasks: {
+        Row: {
+          created_at: string
+          date: string
+          day: string
+          duration: number | null
+          exam_id: string | null
+          exam_title: string | null
+          focus_topic: string | null
+          id: string
+          is_completed: boolean
+          subject: string
+          subject_color: string
+          time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          day: string
+          duration?: number | null
+          exam_id?: string | null
+          exam_title?: string | null
+          focus_topic?: string | null
+          id?: string
+          is_completed?: boolean
+          subject: string
+          subject_color?: string
+          time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day?: string
+          duration?: number | null
+          exam_id?: string | null
+          exam_title?: string | null
+          focus_topic?: string | null
+          id?: string
+          is_completed?: boolean
+          subject?: string
+          subject_color?: string
+          time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revision_tasks_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_answers: {
         Row: {
           answer_text: string | null
