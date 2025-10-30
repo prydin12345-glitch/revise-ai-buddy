@@ -45,7 +45,6 @@ import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
 import { CalendarGrid } from "@/components/revision/CalendarGrid";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
-import { DateNavigationBar } from "@/components/revision/DateNavigationBar";
 
 interface RevisionTask {
   id: string;
@@ -237,37 +236,6 @@ const RevisionPlan = () => {
     return `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
-  const handleDateStateChange = (state: string) => {
-    const today = new Date();
-    switch (state) {
-      case "today":
-        setCurrentWeekStart(today);
-        break;
-      case "1week":
-        const oneWeek = new Date(today);
-        oneWeek.setDate(today.getDate() + 7);
-        setCurrentWeekStart(oneWeek);
-        break;
-      case "2weeks":
-        const twoWeeks = new Date(today);
-        twoWeeks.setDate(today.getDate() + 14);
-        setCurrentWeekStart(twoWeeks);
-        break;
-      case "1month":
-        const oneMonth = new Date(today);
-        oneMonth.setMonth(today.getMonth() + 1);
-        setCurrentWeekStart(oneMonth);
-        break;
-    }
-  };
-
-  const handleMonthChange = (monthYear: string) => {
-    const [month, year] = monthYear.split(' ');
-    const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
-    const newDate = new Date(parseInt(year), monthIndex, 1);
-    setCurrentWeekStart(newDate);
-  };
-
   return (
     <DashboardLayout>
       <DndContext
@@ -275,40 +243,61 @@ const RevisionPlan = () => {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="space-y-0">
-          {/* Date Navigation Bar */}
-          <DateNavigationBar
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            currentWeekStart={currentWeekStart}
-            onNavigatePrevious={() => {
-              const newDate = new Date(currentWeekStart);
-              newDate.setDate(newDate.getDate() - 7);
-              setCurrentWeekStart(newDate);
-            }}
-            onNavigateNext={() => {
-              const newDate = new Date(currentWeekStart);
-              newDate.setDate(newDate.getDate() + 7);
-              setCurrentWeekStart(newDate);
-            }}
-            onDateStateChange={handleDateStateChange}
-            onMonthChange={handleMonthChange}
-          />
+        <div className="p-6 space-y-4">
+          {/* Top Controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="week">Week View</TabsTrigger>
+                  <TabsTrigger value="day">Day View</TabsTrigger>
+                  <TabsTrigger value="subject">Subject View</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-          {/* Add Button */}
-          <div className="p-6">
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => setAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Revision
-              </Button>
+              {viewMode === "week" && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      const newDate = new Date(currentWeekStart);
+                      newDate.setDate(newDate.getDate() - 7);
+                      setCurrentWeekStart(newDate);
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-card rounded-lg border">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{getWeekDateRange()}</span>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      const newDate = new Date(currentWeekStart);
+                      newDate.setDate(newDate.getDate() + 7);
+                      setCurrentWeekStart(newDate);
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Week View */}
-            {viewMode === "week" && (
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <CalendarGrid
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Revision
+            </Button>
+          </div>
+
+          {/* Week View */}
+          {viewMode === "week" && (
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <CalendarGrid
                   tasks={tasks}
                   onEditTask={(task) => {
                     setEditingTask(task);
@@ -435,10 +424,8 @@ const RevisionPlan = () => {
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Add Task Dialog */}
+          {/* Add Task Dialog */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -672,9 +659,10 @@ const RevisionPlan = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </DndContext>
-      </DashboardLayout>
-    );
+        </div>
+      </DndContext>
+    </DashboardLayout>
+  );
 };
 
 export default RevisionPlan;
