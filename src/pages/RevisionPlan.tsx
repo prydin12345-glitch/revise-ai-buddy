@@ -14,6 +14,7 @@ import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useS
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { RevisionTaskCard } from "@/components/revision/RevisionTaskCard";
 import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
+import { CalendarGrid } from "@/components/revision/CalendarGrid";
 
 interface RevisionTask {
   id: string;
@@ -298,36 +299,16 @@ const RevisionPlan = () => {
           {/* Week View */}
           {viewMode === "week" && (
             <div className="flex gap-4">
-              <div className="flex-1 grid grid-cols-7 gap-3">
-                {DAYS_OF_WEEK.map((day) => {
-                  const dayTasks = getTasksForDay(day);
-                  const totalHours = dayTasks.reduce((sum, t) => sum + (t.duration || 0), 0) / 60;
-
-                  return (
-                    <Card key={day} className="overflow-hidden">
-                      <div className="bg-primary/10 p-3 border-b">
-                        <h3 className="font-semibold text-sm">{day.slice(0, 3)}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {totalHours.toFixed(1)}h
-                        </p>
-                      </div>
-                      <CardContent className="p-2 space-y-2 min-h-[400px]">
-                        <SortableContext
-                          items={dayTasks.map(t => t.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {dayTasks.length > 0 ? (
-                            dayTasks.map(renderTaskCard)
-                          ) : (
-                            <p className="text-xs text-muted-foreground text-center py-8">
-                              No tasks
-                            </p>
-                          )}
-                        </SortableContext>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+              <div className="flex-1">
+                <CalendarGrid
+                  tasks={tasks}
+                  onEditTask={(task) => {
+                    setEditingTask(task);
+                    setEditDialogOpen(true);
+                  }}
+                  onDeleteTask={handleDeleteTask}
+                  onToggleComplete={handleToggleComplete}
+                />
               </div>
 
               <div className="w-80">
