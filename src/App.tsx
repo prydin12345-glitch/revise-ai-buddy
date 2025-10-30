@@ -19,6 +19,7 @@ import ExamInProgress from "./pages/ExamInProgress";
 import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
 import Stats from "./pages/Stats";
+import RevisionPlan from "./pages/RevisionPlan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/stats" element={<Stats />} />
+            <Route path="/revision-plan" element={<RevisionPlan />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/upload" element={<UploadExam />} />
             

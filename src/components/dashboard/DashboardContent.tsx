@@ -835,7 +835,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               <Button 
                 variant="outline" 
                 className="w-full h-auto py-5 flex items-center gap-4 border-2 hover:bg-accent transition-all rounded-xl justify-start"
-                onClick={() => navigate("/goals")}
+                onClick={() => navigate("/revision-plan")}
               >
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <CalendarIcon className="w-5 h-5 text-primary" />

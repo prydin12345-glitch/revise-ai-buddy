@@ -23,7 +23,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
-    { icon: Target, label: "Revision Goals", path: "/goals" },
+    { icon: Target, label: "Revision Plan", path: "/revision-plan" },
     { icon: FolderOpen, label: "My Files", path: "/files" },
     { icon: MessageSquare, label: "AI Revision Coach", path: "/coach" },
   ];

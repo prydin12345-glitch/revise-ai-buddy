@@ -169,13 +169,6 @@ const Stats = () => {
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Weak Topics
               </TabsTrigger>
-              <TabsTrigger 
-                value="revision-plan"
-                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
-              >
-                <Target className="w-4 h-4 mr-2" />
-                Revision Plan
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -473,95 +466,6 @@ const Stats = () => {
             )}
           </TabsContent>
 
-          {/* Revision Plan Tab */}
-          <TabsContent value="revision-plan" className="space-y-4">
-            <div className="flex justify-end gap-2 mb-4">
-              <Button onClick={() => navigate("/dashboard")}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Goal
-              </Button>
-            </div>
-
-            {revisionGoals.length > 0 ? (
-              <div className="space-y-4">
-                {revisionGoals.map((goal) => {
-                  const daysLeft = goal.deadline
-                    ? Math.ceil(
-                        (new Date(goal.deadline).getTime() - new Date().getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )
-                    : null;
-
-                  return (
-                    <Card key={goal.id}>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: goal.subject_color }}
-                              />
-                              <h3 className="font-semibold text-lg">{goal.subject}</h3>
-                              {daysLeft !== null && (
-                                <Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>
-                                  {daysLeft > 0 ? `${daysLeft} days left` : "Overdue"}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Progress</span>
-                                <span className="font-medium">
-                                  {goal.progress}/{goal.target_exams} exams
-                                </span>
-                              </div>
-                              <Progress
-                                value={(goal.progress / goal.target_exams) * 100}
-                                className="h-2"
-                              />
-                              {goal.target_percentage && (
-                                <p className="text-sm text-muted-foreground">
-                                  Target: {goal.target_percentage}% average score
-                                </p>
-                              )}
-                              {goal.deadline && (
-                                <p className="text-sm text-muted-foreground">
-                                  Deadline: {new Date(goal.deadline).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate("/dashboard")}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit Goal
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Revision Goals Set</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Create your first goal to start tracking your revision plan
-                  </p>
-                  <Button onClick={() => navigate("/dashboard")}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Goal
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
