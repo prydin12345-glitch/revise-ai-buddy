@@ -1,31 +1,62 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import {
+  CalendarIcon,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
-import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  DndContext,
+  DragEndEvent,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import { RevisionTaskCard } from "@/components/revision/RevisionTaskCard";
 import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
 import { CalendarGrid } from "@/components/revision/CalendarGrid";
+import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 
 interface RevisionTask {
   id: string;
   subject: string;
   subject_color: string;
+  day: string;
+  date?: Date;
+  time: string;
+  duration?: number;
+  focus_topic?: string;
   exam_id?: string;
   exam_title?: string;
-  day: string; // e.g., "Monday", "Tuesday"
-  time: string;
-  duration?: number; // in minutes
-  focus_topic?: string;
   is_completed: boolean;
 }
 
@@ -64,11 +95,12 @@ const RevisionPlan = () => {
     subject: "",
     subject_color: SUBJECT_COLORS[0],
     day: "Monday",
+    date: new Date(),
     time: "09:00",
     duration: 60,
-    focus_topic: "",
-    is_completed: false,
   });
+
+  const { subjects, getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
 
   useEffect(() => {
     loadData();
@@ -79,7 +111,6 @@ const RevisionPlan = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load user exams
       const { data: examsData } = await supabase
         .from("exams")
         .select("id, title, subject_id")
@@ -87,8 +118,6 @@ const RevisionPlan = () => {
         .eq("status", "published");
 
       setUserExams(examsData || []);
-
-      // Initialize with empty tasks array
       setTasks([]);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -98,41 +127,41 @@ const RevisionPlan = () => {
     }
   };
 
-  const handleAddTask = () => {
-    if (!newTask.subject || !newTask.time) {
+  const handleAddTask = async () => {
+    if (!newTask.subject || !newTask.date || !newTask.time) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const task: RevisionTask = {
-      id: Date.now().toString(),
-      subject: newTask.subject!,
-      subject_color: newTask.subject_color || SUBJECT_COLORS[0],
-      day: newTask.day || "Monday",
-      time: newTask.time!,
-      duration: newTask.duration,
-      focus_topic: newTask.focus_topic,
-      exam_id: newTask.exam_id,
-      exam_title: newTask.exam_title,
-      is_completed: false,
-    };
+    await saveOrUpdateSubject(newTask.subject, newTask.subject_color || SUBJECT_COLORS[0]);
 
-    setTasks([...tasks, task]);
+    const dayName = format(newTask.date, 'EEEE');
+
+    setTasks([
+      ...tasks,
+      {
+        id: Math.random().toString(),
+        ...newTask,
+        day: dayName,
+      } as RevisionTask,
+    ]);
+
     setAddDialogOpen(false);
     setNewTask({
       subject: "",
       subject_color: SUBJECT_COLORS[0],
       day: "Monday",
+      date: new Date(),
       time: "09:00",
       duration: 60,
-      focus_topic: "",
-      is_completed: false,
     });
     toast.success("Revision task added!");
   };
 
-  const handleEditTask = () => {
+  const handleEditTask = async () => {
     if (!editingTask) return;
+
+    await saveOrUpdateSubject(editingTask.subject, editingTask.subject_color);
 
     setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
     setEditDialogOpen(false);
@@ -398,170 +427,65 @@ const RevisionPlan = () => {
 
           {/* Add Task Dialog */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Revision Task</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Subject *</Label>
-                <Input
-                  value={newTask.subject}
-                  onChange={(e) => setNewTask({ ...newTask, subject: e.target.value })}
-                  placeholder="e.g., Mathematics"
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add Revision Task</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <SubjectSelector
+                  value={newTask.subject || ""}
+                  color={newTask.subject_color || SUBJECT_COLORS[0]}
+                  onValueChange={(subject) => {
+                    const existingColor = getSubjectColor(subject);
+                    setNewTask({ 
+                      ...newTask, 
+                      subject,
+                      subject_color: existingColor,
+                    });
+                  }}
+                  onColorChange={(color) => setNewTask({ ...newTask, subject_color: color })}
                 />
-              </div>
 
-              <div className="space-y-2">
-                <Label>Subject Color</Label>
-                <div className="flex gap-2">
-                  {SUBJECT_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        newTask.subject_color === color ? 'border-primary scale-110' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setNewTask({ ...newTask, subject_color: color })}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Day *</Label>
-                  <Select
-                    value={newTask.day}
-                    onValueChange={(v) => setNewTask({ ...newTask, day: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DAYS_OF_WEEK.map((day) => (
-                        <SelectItem key={day} value={day}>{day}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Date *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newTask.date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newTask.date ? (
+                          format(newTask.date, "EEEE, MMM dd, yyyy")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={newTask.date}
+                        onSelect={(date) => setNewTask({ ...newTask, date: date || new Date() })}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Time *</Label>
-                  <Input
-                    type="time"
-                    value={newTask.time}
-                    onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Duration (minutes)</Label>
-                <Input
-                  type="number"
-                  value={newTask.duration || ""}
-                  onChange={(e) => setNewTask({ ...newTask, duration: parseInt(e.target.value) || undefined })}
-                  placeholder="60"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Focus Topic (optional)</Label>
-                <Input
-                  value={newTask.focus_topic}
-                  onChange={(e) => setNewTask({ ...newTask, focus_topic: e.target.value })}
-                  placeholder="e.g., Integration techniques"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Link to Exam (optional)</Label>
-                <Select
-                  value={newTask.exam_id}
-                  onValueChange={(v) => {
-                    const exam = userExams.find(e => e.id === v);
-                    setNewTask({ ...newTask, exam_id: v, exam_title: exam?.title });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an exam" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userExams.map((exam) => (
-                      <SelectItem key={exam.id} value={exam.id}>
-                        {exam.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddTask}>Add Task</Button>
-            </DialogFooter>
-          </DialogContent>
-          </Dialog>
-
-          {/* Edit Task Dialog */}
-          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Revision Task</DialogTitle>
-            </DialogHeader>
-            {editingTask && (
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Input
-                    value={editingTask.subject}
-                    onChange={(e) => setEditingTask({ ...editingTask, subject: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Subject Color</Label>
-                  <div className="flex gap-2">
-                    {SUBJECT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          editingTask.subject_color === color ? 'border-primary scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setEditingTask({ ...editingTask, subject_color: color })}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Day *</Label>
-                    <Select
-                      value={editingTask.day}
-                      onValueChange={(v) => setEditingTask({ ...editingTask, day: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS_OF_WEEK.map((day) => (
-                          <SelectItem key={day} value={day}>{day}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Time *</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                     <Input
                       type="time"
-                      value={editingTask.time}
-                      onChange={(e) => setEditingTask({ ...editingTask, time: e.target.value })}
+                      value={newTask.time}
+                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
+                      className="pl-10 [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                   </div>
                 </div>
@@ -570,27 +494,170 @@ const RevisionPlan = () => {
                   <Label>Duration (minutes)</Label>
                   <Input
                     type="number"
-                    value={editingTask.duration || ""}
-                    onChange={(e) => setEditingTask({ ...editingTask, duration: parseInt(e.target.value) || undefined })}
+                    value={newTask.duration || ""}
+                    onChange={(e) => setNewTask({ ...newTask, duration: parseInt(e.target.value) || undefined })}
+                    placeholder="60"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Focus Topic</Label>
+                  <Label>Focus Topic (optional)</Label>
                   <Input
-                    value={editingTask.focus_topic}
-                    onChange={(e) => setEditingTask({ ...editingTask, focus_topic: e.target.value })}
+                    value={newTask.focus_topic}
+                    onChange={(e) => setNewTask({ ...newTask, focus_topic: e.target.value })}
+                    placeholder="e.g., Integration techniques"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Link to Exam (optional)</Label>
+                  <Select
+                    value={newTask.exam_id}
+                    onValueChange={(v) => {
+                      const exam = userExams.find(e => e.id === v);
+                      setNewTask({ ...newTask, exam_id: v, exam_title: exam?.title });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an exam" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userExams.map((exam) => (
+                        <SelectItem key={exam.id} value={exam.id}>
+                          {exam.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEditTask}>Save Changes</Button>
-            </DialogFooter>
-          </DialogContent>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddTask}>Add Task</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Task Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Revision Task</DialogTitle>
+              </DialogHeader>
+              {editingTask && (
+                <div className="space-y-4 py-4">
+                  <SubjectSelector
+                    value={editingTask.subject}
+                    color={editingTask.subject_color}
+                    onValueChange={(subject) => {
+                      const existingColor = getSubjectColor(subject);
+                      setEditingTask({ 
+                        ...editingTask, 
+                        subject,
+                        subject_color: existingColor,
+                      });
+                    }}
+                    onColorChange={(color) => setEditingTask({ ...editingTask, subject_color: color })}
+                  />
+
+                  <div className="space-y-2">
+                    <Label>Date *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !editingTask.date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {editingTask.date ? (
+                            format(editingTask.date, "EEEE, MMM dd, yyyy")
+                          ) : editingTask.day ? (
+                            <span>{editingTask.day}</span>
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={editingTask.date}
+                          onSelect={(date) => {
+                            const dayName = date ? format(date, 'EEEE') : editingTask.day;
+                            setEditingTask({ ...editingTask, date: date || undefined, day: dayName });
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Time *</Label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                      <Input
+                        type="time"
+                        value={editingTask.time}
+                        onChange={(e) => setEditingTask({ ...editingTask, time: e.target.value })}
+                        className="pl-10 [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Duration (minutes)</Label>
+                    <Input
+                      type="number"
+                      value={editingTask.duration || ""}
+                      onChange={(e) => setEditingTask({ ...editingTask, duration: parseInt(e.target.value) || undefined })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Focus Topic</Label>
+                    <Input
+                      value={editingTask.focus_topic}
+                      onChange={(e) => setEditingTask({ ...editingTask, focus_topic: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Link to Exam (optional)</Label>
+                    <Select
+                      value={editingTask.exam_id}
+                      onValueChange={(v) => {
+                        const exam = userExams.find(e => e.id === v);
+                        setEditingTask({ ...editingTask, exam_id: v, exam_title: exam?.title });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an exam" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userExams.map((exam) => (
+                          <SelectItem key={exam.id} value={exam.id}>
+                            {exam.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditTask}>Save Changes</Button>
+              </DialogFooter>
+            </DialogContent>
           </Dialog>
         </div>
       </DndContext>
