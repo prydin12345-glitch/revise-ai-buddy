@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Calendar } from "@/components/ui/calendar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   BarChart3,
   TrendingUp,
@@ -18,6 +18,8 @@ import {
   Plus,
   Edit,
   CheckCircle2,
+  Clock,
+  Flame,
 } from "lucide-react";
 import {
   LineChart,
@@ -150,65 +152,128 @@ const Stats = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Your Stats</h1>
-            <p className="text-muted-foreground mt-1">
-              Track your progress and identify areas for improvement
-            </p>
-          </div>
-        </div>
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="stats" className="text-base">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Stats
-            </TabsTrigger>
-            <TabsTrigger value="weak-topics" className="text-base">
-              <AlertCircle className="w-4 h-4 mr-2" />
-              Weak Topics
-            </TabsTrigger>
-            <TabsTrigger value="revision-plan" className="text-base">
-              <Target className="w-4 h-4 mr-2" />
-              Revision Plan
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-4 mb-8">
+            <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5">
+              <TabsTrigger 
+                value="stats" 
+                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Stats
+              </TabsTrigger>
+              <TabsTrigger 
+                value="weak-topics"
+                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Weak Topics
+              </TabsTrigger>
+              <TabsTrigger 
+                value="revision-plan"
+                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Revision Plan
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Stats Tab */}
           <TabsContent value="stats" className="space-y-6">
-            {/* Score Progression */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Score Progression
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={scoreProgressionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="exam" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={3}
-                      dot={{ fill: "hsl(var(--primary))", r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Hours Spent Bar Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-primary" />
+                    Weekly Activity
+                  </CardTitle>
+                  <CardDescription>Hours spent studying each day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={[
+                      { day: "Mon", maths: 2, biology: 1.5, chemistry: 1 },
+                      { day: "Tue", maths: 1.5, biology: 2, chemistry: 1.5 },
+                      { day: "Wed", maths: 3, biology: 1, chemistry: 2 },
+                      { day: "Thu", maths: 2.5, biology: 2.5, chemistry: 1 },
+                      { day: "Fri", maths: 1, biology: 3, chemistry: 2.5 },
+                      { day: "Sat", maths: 4, biology: 2, chemistry: 3 },
+                      { day: "Sun", maths: 2, biology: 1.5, chemistry: 2 },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis stroke="hsl(var(--muted-foreground))" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                      />
+                      <Bar dataKey="maths" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="biology" fill="#10B981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="chemistry" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Average Score by Topic - Curved Line */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    Topic Performance
+                  </CardTitle>
+                  <CardDescription>Average scores across topics over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={[
+                      { week: "W1", algebra: 65, genetics: 70, reactions: 60 },
+                      { week: "W2", algebra: 70, genetics: 75, reactions: 65 },
+                      { week: "W3", algebra: 75, genetics: 72, reactions: 70 },
+                      { week: "W4", algebra: 80, genetics: 78, reactions: 75 },
+                      { week: "W5", algebra: 85, genetics: 82, reactions: 80 },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="week" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="algebra" 
+                        stroke="#3B82F6" 
+                        strokeWidth={3}
+                        dot={{ fill: "#3B82F6", r: 5 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="genetics" 
+                        stroke="#10B981" 
+                        strokeWidth={3}
+                        dot={{ fill: "#10B981", r: 5 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="reactions" 
+                        stroke="#F59E0B" 
+                        strokeWidth={3}
+                        dot={{ fill: "#F59E0B", r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Subject Mastery */}
@@ -249,29 +314,52 @@ const Stats = () => {
               </Card>
 
               {/* Goal Completion */}
-              <Card>
+              <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <Target className="w-5 h-5 text-primary" />
                     Goal Completion
                   </CardTitle>
+                  <CardDescription>Track your progress towards revision goals</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   {revisionGoals.length > 0 ? (
-                    revisionGoals.map((goal) => (
-                      <div key={goal.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{goal.subject}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {goal.progress}/{goal.target_exams}
-                          </span>
-                        </div>
-                        <Progress
-                          value={(goal.progress / goal.target_exams) * 100}
-                          className="h-2"
-                        />
-                      </div>
-                    ))
+                    <TooltipProvider>
+                      {revisionGoals.map((goal) => {
+                        const progressPercent = (goal.progress / goal.target_exams) * 100;
+                        const isComplete = progressPercent >= 100;
+                        return (
+                          <Tooltip key={goal.id}>
+                            <TooltipTrigger asChild>
+                              <div className="space-y-3 p-4 rounded-lg bg-accent/20 hover:bg-accent/30 transition-colors cursor-pointer">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-semibold text-lg">{goal.subject}</span>
+                                    {isComplete && (
+                                      <Badge className="bg-green-600">
+                                        ✓ Complete
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span className="text-sm font-medium">
+                                    {goal.progress}/{goal.target_exams} exams
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={progressPercent} 
+                                  className="h-3"
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium">{goal.subject} Goal</p>
+                              <p className="text-sm">Target: {goal.target_exams} exams {goal.deadline ? `by ${new Date(goal.deadline).toLocaleDateString()}` : ''}</p>
+                              <p className="text-sm">Progress: {progressPercent.toFixed(0)}%</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </TooltipProvider>
                   ) : (
                     <div className="text-center text-muted-foreground py-8">
                       No goals set yet. Add a goal to track your progress!
@@ -281,31 +369,56 @@ const Stats = () => {
               </Card>
             </div>
 
-            {/* Activity Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-primary" />
-                  Activity Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-accent/20 p-4 rounded-lg">
-                    <div className="text-sm text-muted-foreground">Total Time Spent</div>
-                    <div className="text-2xl font-bold mt-1">0h</div>
+            {/* Activity Overview */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Clock className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Time</p>
                   </div>
-                  <div className="bg-accent/20 p-4 rounded-lg">
-                    <div className="text-sm text-muted-foreground">Most Active Day</div>
-                    <div className="text-2xl font-bold mt-1">-</div>
+                  <p className="text-3xl font-bold">0h</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-blue-500/20">
+                      <CalendarIcon className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Most Active</p>
                   </div>
-                  <div className="bg-accent/20 p-4 rounded-lg">
-                    <div className="text-sm text-muted-foreground">Current Streak</div>
-                    <div className="text-2xl font-bold mt-1">0 days</div>
+                  <p className="text-3xl font-bold">Saturday</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-orange-500/20">
+                      <Flame className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Current Streak</p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <p className="text-3xl font-bold">0 days</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-green-500/20">
+                      <TrendingUp className="h-5 w-5 text-green-500" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Longest Streak</p>
+                  </div>
+                  <p className="text-3xl font-bold">0 days</p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Weak Topics Tab */}
