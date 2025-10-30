@@ -45,6 +45,7 @@ import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
 import { CalendarGrid } from "@/components/revision/CalendarGrid";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { DateNavigationBar } from "@/components/revision/DateNavigationBar";
 
 interface RevisionTask {
   id: string;
@@ -82,6 +83,7 @@ const RevisionPlan = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<RevisionTask | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  const [dateState, setDateState] = useState("1-week");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -230,10 +232,11 @@ const RevisionPlan = () => {
     />
   );
 
-  const getWeekDateRange = () => {
-    const endDate = new Date(currentWeekStart);
-    endDate.setDate(endDate.getDate() + 6);
-    return `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const handleDateStateChange = (state: string) => {
+    setDateState(state);
+    if (state === "today") {
+      setCurrentWeekStart(new Date());
+    }
   };
 
   return (
@@ -244,54 +247,16 @@ const RevisionPlan = () => {
         onDragEnd={handleDragEnd}
       >
         <div className="p-6 space-y-4">
-          {/* Top Controls */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-                <TabsList>
-                  <TabsTrigger value="week">Week View</TabsTrigger>
-                  <TabsTrigger value="day">Day View</TabsTrigger>
-                  <TabsTrigger value="subject">Subject View</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {viewMode === "week" && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => {
-                      const newDate = new Date(currentWeekStart);
-                      newDate.setDate(newDate.getDate() - 7);
-                      setCurrentWeekStart(newDate);
-                    }}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-card rounded-lg border">
-                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{getWeekDateRange()}</span>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => {
-                      const newDate = new Date(currentWeekStart);
-                      newDate.setDate(newDate.getDate() + 7);
-                      setCurrentWeekStart(newDate);
-                    }}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Revision
-            </Button>
-          </div>
+          {/* Date Navigation Bar */}
+          <DateNavigationBar
+            viewMode={viewMode}
+            onViewModeChange={(mode) => setViewMode(mode)}
+            currentDate={currentWeekStart}
+            onDateChange={setCurrentWeekStart}
+            dateState={dateState}
+            onDateStateChange={handleDateStateChange}
+            onAddRevision={() => setAddDialogOpen(true)}
+          />
 
           {/* Week View */}
           {viewMode === "week" && (
