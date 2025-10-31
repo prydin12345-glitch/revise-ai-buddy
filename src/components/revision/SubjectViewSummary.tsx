@@ -34,72 +34,48 @@ export const SubjectViewSummary = ({ tasks }: SubjectViewSummaryProps) => {
   }, {} as Record<string, number>);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Clock className="w-5 h-5 text-primary" />
+    <div className="flex flex-wrap gap-3">
+      <Card className="flex-1 min-w-[200px]">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-full bg-primary/10">
+              <Clock className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Hours</p>
-              <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
+              <p className="text-xs text-muted-foreground">Total Hours</p>
+              <p className="text-xl font-bold">{totalHours.toFixed(1)}h</p>
             </div>
-          </div>
-          <div className="mt-3 space-y-1">
-            {Object.entries(hoursBySubject)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 3)
-              .map(([subject, minutes]) => (
-                <div key={subject} className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">{subject}</span>
-                  <span className="font-medium">{(minutes / 60).toFixed(1)}h</span>
-                </div>
-              ))}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
+      <Card className="flex-1 min-w-[200px]">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-full bg-green-500/10">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Completed Tasks</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground">Completed</p>
+              <p className="text-xl font-bold">
                 {completedTasks} / {tasks.length}
               </p>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 transition-all"
-                style={{
-                  width: `${tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <Target className="w-5 h-5 text-blue-500" />
+      <Card className="flex-1 min-w-[200px]">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-full bg-blue-500/10">
+              <Target className="w-4 h-4 text-blue-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Most Revised Topic</p>
+              <p className="text-xs text-muted-foreground">Top Topic</p>
               <p className="text-lg font-bold truncate">{mostRevisedTopic}</p>
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {topicCounts[mostRevisedTopic] || 0} revision session{topicCounts[mostRevisedTopic] !== 1 ? 's' : ''}
-          </p>
         </CardContent>
       </Card>
     </div>

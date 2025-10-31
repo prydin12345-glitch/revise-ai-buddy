@@ -50,7 +50,7 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, cu
     <div
       ref={setNodeRef}
       style={style}
-      className="group relative inset-1 rounded-md border-l-4 p-2 cursor-move hover:shadow-md transition-all z-10"
+      className="group relative inset-2 rounded border-l-2 p-1.5 cursor-move hover:shadow transition-all z-10"
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -61,21 +61,21 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, cu
       data-subject-color={task.subject_color}
     >
       <div 
-        className="absolute inset-0 rounded-md opacity-10"
+        className="absolute inset-0 rounded opacity-5"
         style={{ backgroundColor: task.subject_color }}
       />
       <div 
-        className="absolute inset-y-0 left-0 w-1 rounded-l-md"
+        className="absolute inset-y-0 left-0 w-0.5 rounded-l"
         style={{ backgroundColor: task.subject_color }}
       />
       
-      <div className="relative space-y-1">
+      <div className="relative space-y-0.5">
         <div className="flex items-start justify-between gap-1">
           <Badge 
             variant="secondary" 
-            className="text-xs font-semibold shrink-0"
+            className="text-[10px] font-semibold shrink-0 h-4 px-1.5"
             style={{ 
-              backgroundColor: `${task.subject_color}20`,
+              backgroundColor: `${task.subject_color}15`,
               color: task.subject_color,
               borderColor: task.subject_color
             }}
@@ -83,39 +83,39 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, cu
             {task.subject}
           </Badge>
           
-          <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+          <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 transition-opacity">
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5"
+              className="h-4 w-4"
               onClick={() => onEdit(task)}
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="h-2.5 w-2.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5"
+              className="h-4 w-4"
               onClick={() => onDelete(task.id)}
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-2.5 w-2.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5"
+              className="h-4 w-4"
               onClick={() => onToggleComplete(task.id)}
             >
-              <Check className={`h-3 w-3 ${task.is_completed ? 'text-green-500' : ''}`} />
+              <Check className={`h-2.5 w-2.5 ${task.is_completed ? 'text-green-500' : ''}`} />
             </Button>
           </div>
         </div>
         
-        <p className="text-xs font-medium line-clamp-2 text-foreground">
+        <p className="text-[10px] font-medium line-clamp-1 text-foreground">
           {task.focus_topic || task.exam_title || 'No topic'}
         </p>
         
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[9px] text-muted-foreground">
           {Math.floor((task.duration || 60) / 60)}h {(task.duration || 60) % 60 > 0 ? `${(task.duration || 60) % 60}m` : ''}
         </p>
       </div>

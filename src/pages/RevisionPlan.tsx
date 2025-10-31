@@ -447,27 +447,57 @@ const RevisionPlan = () => {
         <div className="p-6 space-y-4">
           {/* Date Navigation Bar - Hidden in Subject View */}
           {viewMode !== "subject" && (
-            <DateNavigationBar
-              viewMode={viewMode}
-              onViewModeChange={(mode) => setViewMode(mode)}
-              currentDate={currentWeekStart}
-              onDateChange={setCurrentWeekStart}
-              dateState={dateState}
-              onDateStateChange={handleDateStateChange}
-              onAddRevision={() => setAddDialogOpen(true)}
-            />
-          )}
-
-          {/* Subject View Mode Tabs - Only shown in Subject View */}
-          {viewMode === "subject" && (
-            <div className="flex items-center justify-between">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+            <div className="flex justify-between items-start gap-4">
+              <DateNavigationBar
+                viewMode={viewMode}
+                onViewModeChange={(mode) => setViewMode(mode)}
+                currentDate={currentWeekStart}
+                onDateChange={setCurrentWeekStart}
+                dateState={dateState}
+                onDateStateChange={handleDateStateChange}
+                onAddRevision={() => setAddDialogOpen(true)}
+              />
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="shrink-0">
                 <TabsList>
-                  <TabsTrigger value="week">Week</TabsTrigger>
                   <TabsTrigger value="day">Day</TabsTrigger>
+                  <TabsTrigger value="week">Week</TabsTrigger>
                   <TabsTrigger value="subject">Subject</TabsTrigger>
                 </TabsList>
               </Tabs>
+            </div>
+          )}
+
+          {/* Subject View Header */}
+          {viewMode === "subject" && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[180px] justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedMonth, "MMM, yyyy")}
+                      <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedMonth}
+                      onSelect={(date) => date && setSelectedMonth(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="day">Day</TabsTrigger>
+                    <TabsTrigger value="week">Week</TabsTrigger>
+                    <TabsTrigger value="subject">Subject</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
               <Button onClick={() => setAddDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Revision
@@ -549,27 +579,6 @@ const RevisionPlan = () => {
           {/* Subject View */}
           {viewMode === "subject" && (
             <div className="space-y-4">
-              {/* Month Selector */}
-              <div className="flex items-center justify-between">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[200px] justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(selectedMonth, "MMM, yyyy")}
-                      <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedMonth}
-                      onSelect={(date) => date && setSelectedMonth(date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
               {/* Filters */}
               <SubjectViewFilters
                 subjects={Array.from(new Set(tasks.map(t => t.subject)))}
@@ -585,6 +594,21 @@ const RevisionPlan = () => {
 
               {/* Summary */}
               <SubjectViewSummary tasks={getFilteredAndSortedTasks()} />
+
+              {/* Task List Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Revision Tasks</h3>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground">Show Completed</Label>
+                  <Button
+                    variant={showCompleted ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowCompleted(!showCompleted)}
+                  >
+                    {showCompleted ? "All" : "Active Only"}
+                  </Button>
+                </div>
+              </div>
 
               {/* Task Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
