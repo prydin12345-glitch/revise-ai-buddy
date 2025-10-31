@@ -301,6 +301,16 @@ const RevisionPlan = () => {
       .sort((a, b) => a.time.localeCompare(b.time));
   };
 
+  const getTasksForDate = (date: Date) => {
+    return tasks
+      .filter(t => {
+        if (!t.date) return false;
+        const taskDate = new Date(t.date);
+        return taskDate.toDateString() === date.toDateString() && !t.is_completed;
+      })
+      .sort((a, b) => a.time.localeCompare(b.time));
+  };
+
   const getTodoTasks = () => tasks.filter(t => !t.day && !t.is_completed);
   const getInProgressTasks = () => tasks.filter(t => t.day && !t.is_completed);
   const getDoneTasks = () => tasks.filter(t => t.is_completed);
@@ -415,24 +425,13 @@ const RevisionPlan = () => {
           {viewMode === "day" && (
             <div className="flex gap-4">
               <div className="flex-1 space-y-4">
-                <Select value={selectedDay} onValueChange={setSelectedDay}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAYS_OF_WEEK.map((day) => (
-                      <SelectItem key={day} value={day}>{day}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
                 <Card>
                   <CardContent className="p-6 space-y-3">
-                    {getTasksForDay(selectedDay).length > 0 ? (
-                      getTasksForDay(selectedDay).map(renderTaskCard)
+                    {getTasksForDate(currentWeekStart).length > 0 ? (
+                      getTasksForDate(currentWeekStart).map(renderTaskCard)
                     ) : (
                       <p className="text-center text-muted-foreground py-12">
-                        No tasks scheduled for {selectedDay}
+                        No tasks scheduled for {format(currentWeekStart, 'EEEE, MMM d')}
                       </p>
                     )}
                   </CardContent>
