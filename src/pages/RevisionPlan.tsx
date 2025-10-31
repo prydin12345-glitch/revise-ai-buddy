@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format, addDays } from "date-fns";
+import { format, addDays, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -46,6 +47,8 @@ import { CalendarGrid } from "@/components/revision/CalendarGrid";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DateNavigationBar } from "@/components/revision/DateNavigationBar";
+import { SubjectViewFilters } from "@/components/revision/SubjectViewFilters";
+import { SubjectViewSummary } from "@/components/revision/SubjectViewSummary";
 
 interface RevisionTask {
   id: string;
@@ -84,6 +87,13 @@ const RevisionPlan = () => {
   const [editingTask, setEditingTask] = useState<RevisionTask | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
   const [dateState, setDateState] = useState("1-week");
+  
+  // Subject view filters
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string>("date-desc");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showCompleted, setShowCompleted] = useState<boolean>(true);
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -315,6 +325,71 @@ const RevisionPlan = () => {
   const getInProgressTasks = () => tasks.filter(t => t.day && !t.is_completed);
   const getDoneTasks = () => tasks.filter(t => t.is_completed);
 
+  // Subject view filter and sort logic
+  const handleSubjectToggle = (subject: string) => {
+    setSelectedSubjects(prev =>
+      prev.includes(subject)
+        ? prev.filter(s => s !== subject)
+        : [...prev, subject]
+    );
+  };
+
+  const getFilteredAndSortedTasks = () => {
+    let filtered = tasks;
+
+    // Filter by month if not showing all time
+    filtered = filtered.filter(task => {
+      if (!task.date) return false;
+      const taskDate = new Date(task.date);
+      return isWithinInterval(taskDate, {
+        start: startOfMonth(selectedMonth),
+        end: endOfMonth(selectedMonth)
+      });
+    });
+
+    // Filter by selected subjects
+    if (selectedSubjects.length > 0) {
+      filtered = filtered.filter(t => selectedSubjects.includes(t.subject));
+    }
+
+    // Filter by completion status
+    if (!showCompleted) {
+      filtered = filtered.filter(t => !t.is_completed);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(t =>
+        (t.focus_topic?.toLowerCase().includes(query)) ||
+        (t.exam_title?.toLowerCase().includes(query)) ||
+        (t.subject.toLowerCase().includes(query))
+      );
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "date-desc":
+          return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+        case "date-asc":
+          return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+        case "duration-desc":
+          return (b.duration || 0) - (a.duration || 0);
+        case "duration-asc":
+          return (a.duration || 0) - (b.duration || 0);
+        case "status-todo":
+          return a.is_completed === b.is_completed ? 0 : a.is_completed ? 1 : -1;
+        case "status-done":
+          return a.is_completed === b.is_completed ? 0 : a.is_completed ? -1 : 1;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -370,16 +445,35 @@ const RevisionPlan = () => {
         onDragEnd={handleDragEnd}
       >
         <div className="p-6 space-y-4">
-          {/* Date Navigation Bar */}
-          <DateNavigationBar
-            viewMode={viewMode}
-            onViewModeChange={(mode) => setViewMode(mode)}
-            currentDate={currentWeekStart}
-            onDateChange={setCurrentWeekStart}
-            dateState={dateState}
-            onDateStateChange={handleDateStateChange}
-            onAddRevision={() => setAddDialogOpen(true)}
-          />
+          {/* Date Navigation Bar - Hidden in Subject View */}
+          {viewMode !== "subject" && (
+            <DateNavigationBar
+              viewMode={viewMode}
+              onViewModeChange={(mode) => setViewMode(mode)}
+              currentDate={currentWeekStart}
+              onDateChange={setCurrentWeekStart}
+              dateState={dateState}
+              onDateStateChange={handleDateStateChange}
+              onAddRevision={() => setAddDialogOpen(true)}
+            />
+          )}
+
+          {/* Subject View Mode Tabs - Only shown in Subject View */}
+          {viewMode === "subject" && (
+            <div className="flex items-center justify-between">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="week">Week</TabsTrigger>
+                  <TabsTrigger value="day">Day</TabsTrigger>
+                  <TabsTrigger value="subject">Subject</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Revision
+              </Button>
+            </div>
+          )}
 
           {/* Week View */}
           {viewMode === "week" && (
@@ -454,52 +548,127 @@ const RevisionPlan = () => {
 
           {/* Subject View */}
           {viewMode === "subject" && (
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-4">
-                {Array.from(new Set(tasks.map(t => t.subject))).map(subject => {
-                  const subjectTasks = tasks.filter(t => t.subject === subject);
-                  const subjectColor = subjectTasks[0]?.subject_color || SUBJECT_COLORS[0];
-
-                  return (
-                    <Card key={subject}>
-                      <div
-                        className="p-4 border-b"
-                        style={{ borderLeftWidth: '4px', borderLeftColor: subjectColor }}
-                      >
-                        <h3 className="font-semibold text-lg">{subject}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {subjectTasks.length} task{subjectTasks.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <CardContent className="p-4 space-y-3">
-                        {subjectTasks.map(renderTaskCard)}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-                {tasks.length === 0 && (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold mb-2">No Tasks Yet</h3>
-                      <p className="text-muted-foreground">
-                        Add your first revision task to get started
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
+            <div className="space-y-4">
+              {/* Month Selector */}
+              <div className="flex items-center justify-between">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[200px] justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedMonth, "MMM, yyyy")}
+                      <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedMonth}
+                      onSelect={(date) => date && setSelectedMonth(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              <div className="w-80">
-                <RightSidebarPanel
-                  todoTasks={getTodoTasks()}
-                  inProgressTasks={getInProgressTasks()}
-                  doneTasks={getDoneTasks()}
-                  onTaskClick={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                />
+              {/* Filters */}
+              <SubjectViewFilters
+                subjects={Array.from(new Set(tasks.map(t => t.subject)))}
+                selectedSubjects={selectedSubjects}
+                onSubjectToggle={handleSubjectToggle}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                showCompleted={showCompleted}
+                onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
+              />
+
+              {/* Summary */}
+              <SubjectViewSummary tasks={getFilteredAndSortedTasks()} />
+
+              {/* Task Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {getFilteredAndSortedTasks().length > 0 ? (
+                  getFilteredAndSortedTasks().map((task) => (
+                    <Card key={task.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div
+                          className="w-full h-1 rounded-t-lg mb-3"
+                          style={{ backgroundColor: task.subject_color }}
+                        />
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-sm line-clamp-2">
+                              {task.focus_topic || task.exam_title || "General revision"}
+                            </h4>
+                            {task.is_completed && (
+                              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium" style={{ color: task.subject_color }}>
+                              {task.subject}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3" />
+                              {task.date && format(new Date(task.date), "MMM d, yyyy")}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {task.time}
+                            </div>
+                          </div>
+
+                          {task.duration && (
+                            <div className="text-xs text-muted-foreground">
+                              Duration: {task.duration}m
+                            </div>
+                          )}
+
+                          <div className="flex gap-1 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingTask(task);
+                                setEditDialogOpen(true);
+                              }}
+                              className="flex-1"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleToggleComplete(task.id)}
+                              className="flex-1"
+                            >
+                              {task.is_completed ? "Undo" : "Complete"}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full">
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-semibold mb-2">No revision plans found</h3>
+                        <p className="text-muted-foreground">
+                          {selectedSubjects.length > 0 || searchQuery
+                            ? "Try adjusting your filters"
+                            : `No revision plans for ${format(selectedMonth, "MMMM yyyy")}`}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </div>
             </div>
           )}
