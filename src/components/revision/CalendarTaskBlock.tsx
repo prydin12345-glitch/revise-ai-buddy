@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Check } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { timeToGridRow, durationToRowSpan, dayToColumnIndex } from "@/lib/calendar-utils";
+import { timeToGridRow, durationToRowSpan, dateToColumnIndex } from "@/lib/calendar-utils";
+import { startOfWeek } from "date-fns";
 
 interface CalendarTaskBlockProps {
   task: {
@@ -15,14 +16,16 @@ interface CalendarTaskBlockProps {
     time: string;
     duration?: number;
     day: string;
+    date?: Date;
     is_completed: boolean;
   };
   onEdit: (task: any) => void;
   onDelete: (id: string) => void;
   onToggleComplete: (id: string) => void;
+  currentWeekStart: Date;
 }
 
-export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete }: CalendarTaskBlockProps) {
+export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, currentWeekStart }: CalendarTaskBlockProps) {
   const {
     attributes,
     listeners,
@@ -32,12 +35,15 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete }: 
     isDragging,
   } = useSortable({ id: task.id });
 
+  const weekStart = startOfWeek(currentWeekStart, { weekStartsOn: 1 });
+  const taskDate = task.date ? new Date(task.date) : new Date();
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     gridRow: `${timeToGridRow(task.time)} / span ${durationToRowSpan(task.duration || 60)}`,
-    gridColumn: dayToColumnIndex(task.day),
+    gridColumn: dateToColumnIndex(taskDate, weekStart),
   };
 
   return (

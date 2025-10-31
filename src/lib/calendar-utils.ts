@@ -37,11 +37,11 @@ export function getTimeSlots(): string[] {
 }
 
 /**
- * Converts day name to column index (1-7)
+ * Converts date to column index based on week start (1-7)
  */
-export function dayToColumnIndex(day: string): number {
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  return days.indexOf(day.toLowerCase()) + 2; // +2 to account for time column
+export function dateToColumnIndex(date: Date, weekStart: Date): number {
+  const daysDiff = Math.floor((date.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24));
+  return daysDiff + 2; // +2 to account for time column
 }
 
 /**

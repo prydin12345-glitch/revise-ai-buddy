@@ -22,6 +22,12 @@ interface DateNavigationBarProps {
   onAddRevision: () => void;
 }
 
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
 export function DateNavigationBar({
   viewMode,
   onViewModeChange,
@@ -32,26 +38,34 @@ export function DateNavigationBar({
   onAddRevision,
 }: DateNavigationBarProps) {
   const handlePrevious = () => {
-    if (dateState === "today") {
-      onDateChange(addWeeks(currentDate, -1));
-    } else if (dateState === "1-week") {
-      onDateChange(addWeeks(currentDate, -1));
-    } else if (dateState === "2-weeks") {
-      onDateChange(addWeeks(currentDate, -2));
-    } else if (dateState === "1-month") {
-      onDateChange(addMonths(currentDate, -1));
+    if (viewMode === "day") {
+      onDateChange(addDays(currentDate, -1));
+    } else {
+      if (dateState === "today") {
+        onDateChange(addWeeks(currentDate, -1));
+      } else if (dateState === "1-week") {
+        onDateChange(addWeeks(currentDate, -1));
+      } else if (dateState === "2-weeks") {
+        onDateChange(addWeeks(currentDate, -2));
+      } else if (dateState === "1-month") {
+        onDateChange(addMonths(currentDate, -1));
+      }
     }
   };
 
   const handleNext = () => {
-    if (dateState === "today") {
-      onDateChange(addWeeks(currentDate, 1));
-    } else if (dateState === "1-week") {
-      onDateChange(addWeeks(currentDate, 1));
-    } else if (dateState === "2-weeks") {
-      onDateChange(addWeeks(currentDate, 2));
-    } else if (dateState === "1-month") {
-      onDateChange(addMonths(currentDate, 1));
+    if (viewMode === "day") {
+      onDateChange(addDays(currentDate, 1));
+    } else {
+      if (dateState === "today") {
+        onDateChange(addWeeks(currentDate, 1));
+      } else if (dateState === "1-week") {
+        onDateChange(addWeeks(currentDate, 1));
+      } else if (dateState === "2-weeks") {
+        onDateChange(addWeeks(currentDate, 2));
+      } else if (dateState === "1-month") {
+        onDateChange(addMonths(currentDate, 1));
+      }
     }
   };
 
@@ -62,6 +76,11 @@ export function DateNavigationBar({
       return "Today";
     }
     
+    const diffDays = Math.round((currentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return "Tomorrow";
+    if (diffDays === -1) return "Yesterday";
+    
     if (isPast(currentDate)) {
       const weeks = Math.abs(differenceInWeeks(currentDate, today));
       const months = Math.abs(differenceInMonths(currentDate, today));
@@ -69,7 +88,10 @@ export function DateNavigationBar({
       if (months >= 1) {
         return months === 1 ? "1 month ago" : `${months} months ago`;
       }
-      return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+      if (weeks >= 1) {
+        return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+      }
+      return format(currentDate, 'EEE, d');
     }
     
     if (isFuture(currentDate)) {
@@ -79,7 +101,10 @@ export function DateNavigationBar({
       if (months >= 1) {
         return months === 1 ? "1 month" : `${months} months`;
       }
-      return weeks === 1 ? "1 week" : `${weeks} weeks`;
+      if (weeks >= 1) {
+        return weeks === 1 ? "1 week" : `${weeks} weeks`;
+      }
+      return format(currentDate, 'EEE, d');
     }
     
     return "Today";
@@ -92,26 +117,36 @@ export function DateNavigationBar({
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <div className="flex items-center gap-3">
-        {/* Navigation Arrows */}
-        <Button
-          size="icon"
-          variant="outline"
-          onClick={handlePrevious}
-          className="h-9 w-9"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+        {/* Date Navigation Group */}
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={handlePrevious}
+            className="h-9 w-9"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-        {/* Dynamic Relative Time Label */}
-        <Button variant="outline" className="h-9 min-w-[140px]">
-          {getRelativeTimeLabel()}
-        </Button>
+          <Button variant="outline" className="h-9 min-w-[140px]">
+            {getRelativeTimeLabel()}
+          </Button>
+
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={handleNext}
+            className="h-9 w-9"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Month Dropdown */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="h-9 min-w-[120px] justify-start">
-              <CalendarIcon className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="h-9 min-w-[120px] justify-start gap-2">
+              <CalendarIcon className="h-4 w-4" />
               {getMonthDisplay()}
             </Button>
           </PopoverTrigger>
@@ -126,17 +161,8 @@ export function DateNavigationBar({
           </PopoverContent>
         </Popover>
 
-        <Button
-          size="icon"
-          variant="outline"
-          onClick={handleNext}
-          className="h-9 w-9"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-
         {/* View Mode Tabs */}
-        <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as any)} className="ml-2">
+        <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as any)}>
           <TabsList className="h-9">
             <TabsTrigger value="day" className="text-sm">Day</TabsTrigger>
             <TabsTrigger value="week" className="text-sm">Week</TabsTrigger>

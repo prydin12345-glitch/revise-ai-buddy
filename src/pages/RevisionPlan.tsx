@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -383,6 +383,8 @@ const RevisionPlan = () => {
                   }}
                   onDeleteTask={handleDeleteTask}
                   onToggleComplete={handleToggleComplete}
+                  currentWeekStart={currentWeekStart}
+                  viewMode={viewMode}
                 />
                 {tasks.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
