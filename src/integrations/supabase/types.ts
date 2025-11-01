@@ -63,15 +63,22 @@ export type Database = {
       }
       exam_question_drafts: {
         Row: {
+          circuit_description: string | null
+          circuit_type: string | null
+          command_verb: string | null
           correct_answer: string | null
           created_at: string | null
+          data_type: string | null
+          diagram_type: string | null
           difficulty_level: string | null
           equation_complexity: string | null
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
           flag_reason: string | null
+          generated_diagram_url: string | null
           generation_status: string | null
+          graph_description: string | null
           has_figures: boolean | null
           has_math: boolean | null
           has_tables: boolean | null
@@ -79,6 +86,8 @@ export type Database = {
           image_handling_strategy: string | null
           is_flagged: boolean | null
           marks: number
+          needs_diagram: boolean | null
+          numerical_answer: string | null
           options: Json | null
           original_page_number: number | null
           original_question_text: string | null
@@ -88,18 +97,27 @@ export type Database = {
           question_text: string
           question_type: string
           root_question_number: string | null
+          scenario_context: string | null
+          table_data: string | null
           topic_tag: string | null
         }
         Insert: {
+          circuit_description?: string | null
+          circuit_type?: string | null
+          command_verb?: string | null
           correct_answer?: string | null
           created_at?: string | null
+          data_type?: string | null
+          diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           flag_reason?: string | null
+          generated_diagram_url?: string | null
           generation_status?: string | null
+          graph_description?: string | null
           has_figures?: boolean | null
           has_math?: boolean | null
           has_tables?: boolean | null
@@ -107,6 +125,8 @@ export type Database = {
           image_handling_strategy?: string | null
           is_flagged?: boolean | null
           marks: number
+          needs_diagram?: boolean | null
+          numerical_answer?: string | null
           options?: Json | null
           original_page_number?: number | null
           original_question_text?: string | null
@@ -116,18 +136,27 @@ export type Database = {
           question_text: string
           question_type: string
           root_question_number?: string | null
+          scenario_context?: string | null
+          table_data?: string | null
           topic_tag?: string | null
         }
         Update: {
+          circuit_description?: string | null
+          circuit_type?: string | null
+          command_verb?: string | null
           correct_answer?: string | null
           created_at?: string | null
+          data_type?: string | null
+          diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
           flag_reason?: string | null
+          generated_diagram_url?: string | null
           generation_status?: string | null
+          graph_description?: string | null
           has_figures?: boolean | null
           has_math?: boolean | null
           has_tables?: boolean | null
@@ -135,6 +164,8 @@ export type Database = {
           image_handling_strategy?: string | null
           is_flagged?: boolean | null
           marks?: number
+          needs_diagram?: boolean | null
+          numerical_answer?: string | null
           options?: Json | null
           original_page_number?: number | null
           original_question_text?: string | null
@@ -144,6 +175,8 @@ export type Database = {
           question_text?: string
           question_type?: string
           root_question_number?: string | null
+          scenario_context?: string | null
+          table_data?: string | null
           topic_tag?: string | null
         }
         Relationships: [
@@ -158,19 +191,28 @@ export type Database = {
       }
       exam_questions: {
         Row: {
+          circuit_description: string | null
+          circuit_type: string | null
+          command_verb: string | null
           correct_answer: string | null
           created_at: string
+          data_type: string | null
+          diagram_type: string | null
           difficulty_level: string | null
           equation_complexity: string | null
           exam_id: string
           extraction_confidence: number | null
           figure_urls: string[] | null
+          generated_diagram_url: string | null
+          graph_description: string | null
           has_figures: boolean | null
           has_math: boolean | null
           has_tables: boolean | null
           id: string
           is_verified: boolean | null
           marks: number
+          needs_diagram: boolean | null
+          numerical_answer: string | null
           options: Json | null
           original_page_number: number | null
           parent_question_number: string | null
@@ -179,22 +221,33 @@ export type Database = {
           question_text: string
           question_type: string
           root_question_number: string | null
+          scenario_context: string | null
+          table_data: string | null
           topic_tag: string | null
         }
         Insert: {
+          circuit_description?: string | null
+          circuit_type?: string | null
+          command_verb?: string | null
           correct_answer?: string | null
           created_at?: string
+          data_type?: string | null
+          diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           exam_id: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          generated_diagram_url?: string | null
+          graph_description?: string | null
           has_figures?: boolean | null
           has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           is_verified?: boolean | null
           marks: number
+          needs_diagram?: boolean | null
+          numerical_answer?: string | null
           options?: Json | null
           original_page_number?: number | null
           parent_question_number?: string | null
@@ -203,22 +256,33 @@ export type Database = {
           question_text: string
           question_type: string
           root_question_number?: string | null
+          scenario_context?: string | null
+          table_data?: string | null
           topic_tag?: string | null
         }
         Update: {
+          circuit_description?: string | null
+          circuit_type?: string | null
+          command_verb?: string | null
           correct_answer?: string | null
           created_at?: string
+          data_type?: string | null
+          diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           exam_id?: string
           extraction_confidence?: number | null
           figure_urls?: string[] | null
+          generated_diagram_url?: string | null
+          graph_description?: string | null
           has_figures?: boolean | null
           has_math?: boolean | null
           has_tables?: boolean | null
           id?: string
           is_verified?: boolean | null
           marks?: number
+          needs_diagram?: boolean | null
+          numerical_answer?: string | null
           options?: Json | null
           original_page_number?: number | null
           parent_question_number?: string | null
@@ -227,6 +291,8 @@ export type Database = {
           question_text?: string
           question_type?: string
           root_question_number?: string | null
+          scenario_context?: string | null
+          table_data?: string | null
           topic_tag?: string | null
         }
         Relationships: [

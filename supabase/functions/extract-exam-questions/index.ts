@@ -238,6 +238,17 @@ serve(async (req) => {
 Only generate questions covering these approved topics:
 ${specTopicList}
 
+COMMAND VERB DISTRIBUTION (maintain variety):
+- 40% calculation/numerical (calculate, determine, show that, find)
+- 30% explanation (explain, describe, discuss, outline)
+- 20% analysis (deduce, evaluate, assess, compare)
+- 10% recall (state, identify, define, name)
+
+ASSESSMENT OBJECTIVES (aim for balance):
+- AO1 (knowledge & recall): 30-35%
+- AO2 (application & analysis): 40-45%
+- AO3 (evaluation & synthesis): 20-25%
+
 If the exam covers topics NOT in this list, skip them or adapt to spec-approved topics.`
       : '';
 
@@ -329,6 +340,58 @@ ${specInstructions}
 6. In "question_text", you can use inline math notation with $ signs (e.g., "Find $x$ where...")
 7. CRITICAL: Make sure all JSON is properly escaped - backslashes must be doubled in JSON strings
 
+📊 GRAPH & DATA TABLE GENERATION:
+When generating questions involving data:
+1. Create realistic numerical datasets with:
+   - Clear independent/dependent variables
+   - Logical relationships (linear, inverse, quadratic)
+   - Appropriate significant figures (2-3 for physics/chemistry)
+   - Randomized values preserving trends
+
+2. For graphs, populate "graph_description" with:
+   - Clear axes labels and units (e.g., "x-axis: time / s, y-axis: velocity / m s⁻¹")
+   - Trend description (e.g., "linear decrease from 20 m/s at t=0 to 0 m/s at t=5s")
+   - Key features (intercepts, gradients, areas under curve)
+   - Example: "Figure 1 shows velocity decreasing linearly over 5 seconds"
+
+3. For data tables, populate "table_data" with markdown:
+   | Time / s | Velocity / m s⁻¹ |
+   |----------|------------------|
+   | 0.0      | 20.0             |
+   | 1.0      | 16.0             |
+   | 2.0      | 12.0             |
+
+4. Set "data_type": "graph", "table", "both", or "none"
+5. Set "needs_diagram": true if visual representation is essential
+
+🔌 CIRCUIT DIAGRAM SUPPORT:
+For electrical/electronics questions:
+1. Describe circuit topology clearly in "circuit_description":
+   - "A thermistor and 0.25 kΩ resistor R are connected in series with a 9.0 V supply"
+   - "The output pd is measured across resistor R"
+   - Specify all component values and connections
+
+2. Set "circuit_type": "series", "parallel", "voltage_divider", "complex", or "none"
+
+3. For voltage dividers, include:
+   - Supply voltage and internal resistance if relevant
+   - Fixed resistor values with units
+   - Variable component type (thermistor, LDR, potentiometer)
+   - Output measurement point
+
+4. Set "needs_diagram": true and "diagram_type": "circuit"
+
+🧪 EXPERIMENTAL SCENARIOS:
+Create rich real-world contexts in "scenario_context":
+- Physics: escape lanes with friction, rotating platforms, string instruments, projectile motion
+- Chemistry: reaction rate experiments, titrations, calorimetry
+- Biology: enzyme activity, photosynthesis rates, population studies
+
+For multi-part questions:
+- Build progressively (part a calculates, part b explains, part c evaluates)
+- Reference the same setup throughout all sub-parts
+- Use varied "command_verb" for each part
+
 🔢 QUESTION NUMBERING:
 - Main: "1", "17" → parent: null, root: "1" or "17"
 - Sub: "17a", "17b" → parent: "17", root: "17"
@@ -354,7 +417,17 @@ Return ONLY valid JSON in this structure:
       "has_tables": false,
       "topic_tag": "string (REQUIRED)",
       "difficulty_level": "easy | medium | hard",
-      "extraction_confidence": 0.8
+      "extraction_confidence": 0.8,
+      "data_type": "graph | table | both | none",
+      "graph_description": "string or null (detailed axes, trend, features)",
+      "table_data": "string or null (markdown table format)",
+      "circuit_type": "series | parallel | voltage_divider | complex | none",
+      "circuit_description": "string or null (topology and component values)",
+      "needs_diagram": boolean,
+      "diagram_type": "circuit | graph | apparatus | geometric | other | null",
+      "scenario_context": "string or null (real-world setup)",
+      "command_verb": "string (calculate, explain, describe, show, deduce, etc.)",
+      "numerical_answer": "string or null (expected answer if calculable)"
     }
   ],
   "topics": [
@@ -372,7 +445,32 @@ ${specInstructions}
 ${structureInstructions}
 
 📐 MATHEMATICAL NOTATION RULES (CRITICAL FOR MATH EXAMS):
-...
+1. ALWAYS provide LaTeX in "question_latex" for ANY math content
+2. IMPORTANT: In JSON strings, backslashes MUST be escaped as double backslashes (\\)
+3. Examples:
+   - Fractions: "\\\\frac{3x+2}{x-1}"
+   - Powers: "e^{-2x}", "x^{2n+1}"
+   - Integrals: "\\\\int_{0}^{\\\\pi} \\\\sin(x) dx"
+4. Set "has_math": true and "equation_complexity" appropriately
+
+📊 GRAPH & DATA TABLE GENERATION:
+When generating questions involving data:
+1. Create realistic numerical datasets with logical relationships
+2. For graphs: describe axes, units, trends clearly in "graph_description"
+3. For tables: use markdown format in "table_data"
+4. Set "data_type": "graph", "table", "both", or "none"
+
+🔌 CIRCUIT DIAGRAM SUPPORT:
+For electrical questions:
+1. Describe circuit topology in "circuit_description"
+2. Specify all component values and connections
+3. Set "circuit_type": "series", "parallel", "voltage_divider", "complex", or "none"
+4. Set "needs_diagram": true and "diagram_type": "circuit" if visual needed
+
+🧪 EXPERIMENTAL SCENARIOS:
+- Create rich contexts in "scenario_context" (e.g., escape lanes, violin strings, rotating platforms)
+- For multi-part questions: build progressively with varied "command_verb" for each part
+
 🔢 QUESTION NUMBERING FOR HIERARCHICAL QUESTIONS:
 - For main questions: Q1, Q2, Q17 → set "question_number": "1", "parent_question_number": null, "root_question_number": "1"
 - For sub-parts: Q17(a), Q17(b) → set "question_number": "17a", "parent_question_number": "17", "root_question_number": "17"
@@ -412,7 +510,17 @@ Return a JSON object with this structure:
       "has_tables": boolean,
       "topic_tag": "string",
       "difficulty_level": "easy | medium | hard",
-      "extraction_confidence": number (0.0 to 1.0)
+      "extraction_confidence": number (0.0 to 1.0),
+      "data_type": "graph | table | both | none",
+      "graph_description": "string or null (detailed axes, trend, features)",
+      "table_data": "string or null (markdown table format)",
+      "circuit_type": "series | parallel | voltage_divider | complex | none",
+      "circuit_description": "string or null (topology and component values)",
+      "needs_diagram": boolean,
+      "diagram_type": "circuit | graph | apparatus | geometric | other | null",
+      "scenario_context": "string or null (real-world setup description)",
+      "command_verb": "string (calculate, explain, describe, show, deduce, discuss, evaluate, etc.)",
+      "numerical_answer": "string or null (expected numerical answer if calculable)"
     }
   ],
   "topics": [
