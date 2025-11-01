@@ -23,10 +23,9 @@ interface CalendarTaskBlockProps {
   onDelete: (id: string) => void;
   onToggleComplete: (id: string) => void;
   currentWeekStart: Date;
-  columnIndex?: number;
 }
 
-export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, currentWeekStart, columnIndex }: CalendarTaskBlockProps) {
+export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, currentWeekStart }: CalendarTaskBlockProps) {
   const {
     attributes,
     listeners,
@@ -44,14 +43,14 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, cu
     transition,
     opacity: isDragging ? 0.5 : 1,
     gridRow: `${timeToGridRow(task.time)} / span ${durationToRowSpan(task.duration || 60)}`,
-    gridColumn: columnIndex || dateToColumnIndex(taskDate, weekStart),
+    gridColumn: dateToColumnIndex(taskDate, weekStart),
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="group relative inset-4 rounded border-l-2 p-2 cursor-move hover:shadow transition-all z-10"
+      className="group relative inset-3 rounded border-l-2 p-1 cursor-move hover:shadow transition-all z-10"
       {...attributes}
       {...listeners}
       onClick={(e) => {
