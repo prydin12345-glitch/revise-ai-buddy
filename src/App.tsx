@@ -8,7 +8,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import MyExams from "./pages/MyExams";
-import UploadExam from "./pages/UploadExam";
+import CreateExam from "./pages/CreateExam";
 import AnalyzeExam from "./pages/AnalyzeExam";
 import ExamSettings from "./pages/ExamSettings";
 import FormatExam from "./pages/FormatExam";
@@ -44,7 +44,7 @@ const App = () => {
             <Route path="/stats" element={<Stats />} />
             <Route path="/revision-plan" element={<RevisionPlan />} />
             <Route path="/my-exams" element={<MyExams />} />
-            <Route path="/upload" element={<UploadExam />} />
+            <Route path="/upload" element={<CreateExam />} />
             
             {/* Exam Upload Flow (Oct 2024):
                 1. /upload → Upload PDF (upload-exam edge function)

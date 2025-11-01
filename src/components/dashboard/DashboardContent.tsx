@@ -412,7 +412,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               onClick={() => navigate("/upload")}
             >
               <Upload className="w-5 h-5 mr-3" />
-              Upload Exam Paper
+              Create Mock Exam
             </Button>
             <Button 
               size="lg" 
@@ -421,7 +421,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               onClick={() => navigate("/exams/new")}
             >
               <FileText className="w-5 h-5 mr-3" />
-              Start Blank Mock Exam
+              Create Practice Questions
             </Button>
           </div>
 
