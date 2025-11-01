@@ -447,48 +447,39 @@ const RevisionPlan = () => {
         <div className="p-6 space-y-4">
           {/* Date Navigation Bar - Hidden in Subject View */}
           {viewMode !== "subject" && (
-            <div className="flex justify-between items-start gap-4">
-              <DateNavigationBar
-                viewMode={viewMode}
-                onViewModeChange={(mode) => setViewMode(mode)}
-                currentDate={currentWeekStart}
-                onDateChange={setCurrentWeekStart}
-                dateState={dateState}
-                onDateStateChange={handleDateStateChange}
-                onAddRevision={() => setAddDialogOpen(true)}
-              />
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="shrink-0">
-                <TabsList>
-                  <TabsTrigger value="day">Day</TabsTrigger>
-                  <TabsTrigger value="week">Week</TabsTrigger>
-                  <TabsTrigger value="subject">Subject</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            <DateNavigationBar
+              viewMode={viewMode}
+              onViewModeChange={(mode) => setViewMode(mode)}
+              currentDate={currentWeekStart}
+              onDateChange={setCurrentWeekStart}
+              dateState={dateState}
+              onDateStateChange={handleDateStateChange}
+              onAddRevision={() => setAddDialogOpen(true)}
+            />
           )}
 
           {/* Subject View Header */}
           {viewMode === "subject" && (
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[180px] justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(selectedMonth, "MMM, yyyy")}
-                      <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedMonth}
-                      onSelect={(date) => date && setSelectedMonth(date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-[180px] justify-start">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(selectedMonth, "MMM, yyyy")}
+                    <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedMonth}
+                    onSelect={(date) => date && setSelectedMonth(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
+              <div className="flex items-center gap-2">
                 <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
                   <TabsList>
                     <TabsTrigger value="day">Day</TabsTrigger>
@@ -496,12 +487,15 @@ const RevisionPlan = () => {
                     <TabsTrigger value="subject">Subject</TabsTrigger>
                   </TabsList>
                 </Tabs>
-              </div>
 
-              <Button onClick={() => setAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Revision
-              </Button>
+                <Button 
+                  onClick={() => setAddDialogOpen(true)}
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
 

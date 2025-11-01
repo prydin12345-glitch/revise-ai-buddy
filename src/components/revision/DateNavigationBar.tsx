@@ -160,8 +160,10 @@ export function DateNavigationBar({
             />
           </PopoverContent>
         </Popover>
+      </div>
 
-        {/* View Mode Tabs */}
+      {/* View Mode Tabs and Add Button */}
+      <div className="flex items-center gap-2">
         <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as any)}>
           <TabsList className="h-9">
             <TabsTrigger value="day" className="text-sm">Day</TabsTrigger>
@@ -169,13 +171,16 @@ export function DateNavigationBar({
             <TabsTrigger value="subject" className="text-sm">Subject</TabsTrigger>
           </TabsList>
         </Tabs>
+        
+        {/* Circular Add Revision Button */}
+        <Button 
+          onClick={onAddRevision} 
+          size="icon"
+          className="h-9 w-9 rounded-full"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
-
-      {/* Add Revision Button */}
-      <Button onClick={onAddRevision} className="h-9">
-        <Plus className="w-4 h-4 mr-2" />
-        Add Revision
-      </Button>
     </div>
   );
 }
