@@ -12,17 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { Upload, FileText, Clock, SlidersHorizontal, Info } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 
-const subjects = [
-  { id: "mathematics", name: "Mathematics" },
-  { id: "physics", name: "Physics" },
-  { id: "chemistry", name: "Chemistry" },
-  { id: "biology", name: "Biology" },
-  { id: "english", name: "English" },
-  { id: "history", name: "History" },
-  { id: "geography", name: "Geography" },
-  { id: "other", name: "Other" },
-];
 
 const examBoards = [
   { id: "aqa", name: "AQA" },
@@ -57,7 +48,9 @@ export default function CreateExam() {
   const [examName, setExamName] = useState("");
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [subjectColor, setSubjectColor] = useState("#3b82f6");
   const [examBoard, setExamBoard] = useState("");
+  const [customExamBoard, setCustomExamBoard] = useState("");
   const [qualificationLevel, setQualificationLevel] = useState("");
   
   // File uploads
@@ -137,11 +130,13 @@ export default function CreateExam() {
 
     try {
       // Upload exam with all settings
+      const finalExamBoard = examBoard === 'other' ? customExamBoard : examBoard;
+      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
-      formData.append('examBoard', examBoard);
+      formData.append('examBoard', finalExamBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (specFile) formData.append('specFile', specFile);
       if (notes) formData.append('notes', notes);
@@ -216,229 +211,228 @@ export default function CreateExam() {
             </Button>
           </div>
 
-          <div className="grid lg:grid-cols-[1fr_380px] gap-6">
-            {/* Left Column - Main Form */}
-            <div className="space-y-6">
-              {/* Exam Name & Notes */}
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <Input
-                    placeholder="Enter exam name.."
-                    value={examName}
-                    onChange={(e) => setExamName(e.target.value)}
-                    className="h-12 text-base bg-card border-border"
-                  />
+          <div className="space-y-6">
+            {/* Row 1: Exam Name & Subject */}
+            <div className="grid lg:grid-cols-2 gap-4">
+              <Input
+                placeholder="Enter exam name.."
+                value={examName}
+                onChange={(e) => setExamName(e.target.value)}
+                className="h-12 text-base bg-card border-border"
+              />
+              <SubjectSelector
+                value={subjectId}
+                color={subjectColor}
+                onValueChange={setSubjectId}
+                onColorChange={setSubjectColor}
+              />
+            </div>
+
+            {/* Row 2: Notes (Full Width) */}
+            <Textarea
+              placeholder="Notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[120px] bg-card border-border resize-none"
+            />
+
+            {/* Row 3: File Uploads & Exam Board */}
+            <div className="grid lg:grid-cols-3 gap-4">
+              <div className="relative">
+                <input
+                  id="exam-file"
+                  type="file"
+                  accept=".pdf,.docx,.doc"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
+                  onClick={() => document.getElementById('exam-file')?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {file ? file.name.substring(0, 18) + '...' : 'Upload Exam Document'}
+                </Button>
+              </div>
+
+              <div className="relative">
+                <input
+                  id="spec-file"
+                  type="file"
+                  accept=".pdf,.docx"
+                  onChange={handleSpecFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
+                  onClick={() => document.getElementById('spec-file')?.click()}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  {specFile ? specFile.name.substring(0, 18) + '...' : 'Exam Specification'}
+                </Button>
+              </div>
+
+              <Select value={examBoard} onValueChange={setExamBoard}>
+                <SelectTrigger className="h-12 bg-card border-border">
+                  <SelectValue placeholder="Exam Board" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {examBoards.map((board) => (
+                    <SelectItem key={board.id} value={board.id}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Row 4: Custom Exam Board Input (if "Other" selected) */}
+            {examBoard === 'other' && (
+              <Input
+                placeholder="Enter custom exam board..."
+                value={customExamBoard}
+                onChange={(e) => setCustomExamBoard(e.target.value)}
+                className="h-12 bg-card border-border"
+              />
+            )}
+
+            {/* Row 5: Combined Settings Container & Configuration Summary */}
+            <div className="grid lg:grid-cols-[1fr_380px] gap-6">
+              {/* Left: Format, Difficulty, Timer */}
+              <Card className="p-6 bg-card/50 border-border">
+                {/* Format Selection */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Format Selection</h2>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
+                    <div className="flex-1">
+                      <Label className="text-base font-medium">Use Original Structure</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm text-muted-foreground">
+                          AI generates new questions matching the original format
+                        </p>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button">
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-sm bg-popover border-border">
+                              <p className="font-medium mb-2">✨ Full AI Generation Mode</p>
+                              <ul className="text-xs space-y-1.5 list-disc list-inside">
+                                <li><strong>Preserves:</strong> Question count, types, marks, topic flow</li>
+                                <li><strong>Regenerates:</strong> ALL question text with different wording</li>
+                                <li><strong>Changes:</strong> Examples, numerical values, scenarios</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={useOriginal}
+                      onCheckedChange={setUseOriginal}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Select value={subjectId} onValueChange={setSubjectId}>
-                    <SelectTrigger className="h-12 bg-card border-border">
-                      <SelectValue placeholder="Subject" />
+
+                {/* Difficulty Level */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <SlidersHorizontal className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Difficulty Level</h2>
+                  </div>
+                  <Select value={difficulty} onValueChange={setDifficulty}>
+                    <SelectTrigger className="h-12 bg-background border-border">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      {subjects.map((subject) => (
-                        <SelectItem key={subject.id} value={subject.id}>
-                          {subject.name}
+                      {difficultyLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          <div>
+                            <div className="font-medium">{level.name}</div>
+                            <div className="text-xs text-muted-foreground">{level.desc}</div>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              <Textarea
-                placeholder="Notes..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[120px] bg-card border-border resize-none"
-              />
-
-              {/* File Uploads & Exam Board */}
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="relative">
-                  <input
-                    id="exam-file"
-                    type="file"
-                    accept=".pdf,.docx,.doc"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                    onClick={() => document.getElementById('exam-file')?.click()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {file ? file.name.substring(0, 20) + '...' : '+ Upload Exam Document'}
-                  </Button>
-                </div>
-
-                <div className="relative">
-                  <input
-                    id="spec-file"
-                    type="file"
-                    accept=".pdf,.docx"
-                    onChange={handleSpecFileChange}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                    onClick={() => document.getElementById('spec-file')?.click()}
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {specFile ? specFile.name.substring(0, 20) + '...' : '+ Exam Specification'}
-                  </Button>
-                </div>
-
-                <Select value={examBoard} onValueChange={setExamBoard}>
-                  <SelectTrigger className="h-12 bg-card border-border">
-                    <SelectValue placeholder="Exam Board" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {examBoards.map((board) => (
-                      <SelectItem key={board.id} value={board.id}>
-                        {board.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Format Selection */}
-              <Card className="p-6 bg-card/50 border-border">
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Format Selection</h2>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex-1">
-                      <Label className="text-base font-medium">Use Original Structure</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        AI generates new questions matching the original format
-                      </p>
-                    </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button">
-                            <Info className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-sm bg-popover border-border">
-                          <p className="font-medium mb-2">✨ Full AI Generation Mode</p>
-                          <ul className="text-xs space-y-1.5 list-disc list-inside">
-                            <li><strong>Preserves:</strong> Question count, types, marks, topic flow</li>
-                            <li><strong>Regenerates:</strong> ALL question text with different wording</li>
-                            <li><strong>Changes:</strong> Examples, numerical values, scenarios</li>
-                          </ul>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                {/* Timer Setup */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Timer Set up</h2>
                   </div>
-                  <Switch
-                    checked={useOriginal}
-                    onCheckedChange={setUseOriginal}
-                  />
-                </div>
-              </Card>
-
-              {/* Difficulty Level */}
-              <Card className="p-6 bg-card/50 border-border">
-                <div className="flex items-center gap-2 mb-4">
-                  <SlidersHorizontal className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Difficulty Level</h2>
-                </div>
-
-                <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger className="h-12 bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {difficultyLevels.map((level) => (
-                      <SelectItem key={level.id} value={level.id}>
-                        <div>
-                          <div className="font-medium">{level.name}</div>
-                          <div className="text-xs text-muted-foreground">{level.desc}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Card>
-
-              {/* Timer Setup */}
-              <Card className="p-6 bg-card/50 border-border">
-                <div className="flex items-center gap-2 mb-4">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Timer Set up</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
-                    <div className="flex items-center gap-3">
-                      <div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
+                      <div className="flex-1">
                         <Label className="text-base font-medium">Enable Timer</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Add a Time Limit to the exam
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-sm text-muted-foreground">
+                            Add a Time Limit to the exam
+                          </p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button">
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-popover border-border">
+                                <p className="max-w-xs">Students will see a countdown timer and must submit before time runs out.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button">
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-popover border-border">
-                            <p className="max-w-xs">Students will see a countdown timer and must submit before time runs out.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <Switch
-                      checked={timerEnabled}
-                      onCheckedChange={setTimerEnabled}
-                    />
-                  </div>
-
-                  {timerEnabled && (
-                    <div className="pt-2">
-                      <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
-                      <Input
-                        type="number"
-                        value={duration}
-                        onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
-                        min="1"
-                        placeholder="Enter duration in minutes"
-                        className="h-11 bg-background"
+                      <Switch
+                        checked={timerEnabled}
+                        onCheckedChange={setTimerEnabled}
                       />
                     </div>
-                  )}
+
+                    {timerEnabled && (
+                      <div className="pt-2">
+                        <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
+                        <Input
+                          type="number"
+                          value={duration}
+                          onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
+                          min="1"
+                          placeholder="Enter duration in minutes"
+                          className="h-11 bg-background"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Card>
-            </div>
 
-            {/* Right Column - Configuration Summary */}
-            <div>
-              <Card className="p-6 bg-card/50 border-border sticky top-6">
+              {/* Right: Configuration Summary */}
+              <Card className="p-6 bg-card/50 border-border h-fit">
                 <h3 className="text-lg font-semibold mb-6">Configuration Summary</h3>
                 
                 <div className="space-y-4">
                   <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Name and Subject</p>
                     <p className="font-medium">
-                      {examName || 'Math Test 1'} {subjectId && <span className="text-primary">{subjects.find(s => s.id === subjectId)?.name}</span>}
+                      {examName || 'Math Test 1'} {subjectId && <span style={{ color: subjectColor }}>{subjectId}</span>}
                     </p>
                   </div>
 
                   <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Uploaded Exam</p>
                     <p className="font-medium text-muted-foreground">
-                      {file ? file.name : '[AUTO ENTER PDF OR FILE NAME HERE]'}
+                      {file ? file.name : 'No file uploaded'}
                     </p>
                   </div>
 
