@@ -50,7 +50,7 @@ export function CalendarTaskBlock({ task, onEdit, onDelete, onToggleComplete, cu
     <div
       ref={setNodeRef}
       style={style}
-      className="group relative inset-3 rounded border-l-2 p-1 cursor-move hover:shadow transition-all z-10"
+      className="group relative inset-4 rounded border-l-2 p-1 cursor-move hover:shadow transition-all z-10"
       {...attributes}
       {...listeners}
       onClick={(e) => {

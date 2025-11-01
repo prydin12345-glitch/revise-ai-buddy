@@ -37,8 +37,8 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
   };
 
   return (
-    <Card className="p-0 overflow-hidden">
-      <div className="grid grid-cols-[80px_repeat(7,1fr)] auto-rows-[90px]">
+    <Card className="p-0 overflow-x-auto">
+      <div className="grid grid-cols-[80px_repeat(7,minmax(140px,1fr))] auto-rows-[100px] scroll-smooth">
         {/* Header Row - Time column + Day/Date */}
         <div className="sticky top-0 z-20 bg-muted/50 border-b border-r flex items-center justify-center">
           <span className="text-xs font-medium text-muted-foreground">Time</span>
