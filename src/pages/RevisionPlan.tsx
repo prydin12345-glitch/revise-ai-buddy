@@ -49,6 +49,7 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DateNavigationBar } from "@/components/revision/DateNavigationBar";
 import { SubjectViewFilters } from "@/components/revision/SubjectViewFilters";
 import { SubjectViewSummary } from "@/components/revision/SubjectViewSummary";
+import { DayTabBar } from "@/components/revision/DayTabBar";
 
 interface RevisionTask {
   id: string;
@@ -86,6 +87,7 @@ const RevisionPlan = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<RevisionTask | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [dateState, setDateState] = useState("1-week");
   
   // Subject view filters
@@ -499,73 +501,93 @@ const RevisionPlan = () => {
             </div>
           )}
 
-          {/* Week View */}
+          {/* Week View with Tab Navigation */}
           {viewMode === "week" && (
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <CalendarGrid
-                  tasks={tasks}
-                  onEditTask={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                  onDeleteTask={handleDeleteTask}
-                  onToggleComplete={handleToggleComplete}
-                  currentWeekStart={currentWeekStart}
-                  viewMode={viewMode}
-                />
-                {tasks.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center text-muted-foreground">
-                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">No revision plans yet</p>
-                      <p className="text-sm">Click "Add Revision" to get started</p>
+            <div className="space-y-4">
+              {/* Day Tab Bar */}
+              <DayTabBar
+                currentWeekStart={currentWeekStart}
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                viewMode={viewMode}
+              />
+              
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <CalendarGrid
+                    tasks={tasks}
+                    onEditTask={(task) => {
+                      setEditingTask(task);
+                      setEditDialogOpen(true);
+                    }}
+                    onDeleteTask={handleDeleteTask}
+                    onToggleComplete={handleToggleComplete}
+                    currentWeekStart={selectedDate}
+                    viewMode={viewMode}
+                  />
+                  {tasks.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center text-muted-foreground">
+                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium">No revision plans yet</p>
+                        <p className="text-sm">Click "Add Revision" to get started</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div className="w-80">
-                <RightSidebarPanel
-                  todoTasks={getTodoTasks()}
-                  inProgressTasks={getInProgressTasks()}
-                  doneTasks={getDoneTasks()}
-                  onTaskClick={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                />
+                <div className="w-80">
+                  <RightSidebarPanel
+                    todoTasks={getTodoTasks()}
+                    inProgressTasks={getInProgressTasks()}
+                    doneTasks={getDoneTasks()}
+                    onTaskClick={(task) => {
+                      setEditingTask(task);
+                      setEditDialogOpen(true);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Day View */}
+          {/* Day View with Tab Navigation */}
           {viewMode === "day" && (
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-4">
-                <Card>
-                  <CardContent className="p-6 space-y-3">
-                    {getTasksForDate(currentWeekStart).length > 0 ? (
-                      getTasksForDate(currentWeekStart).map(renderTaskCard)
-                    ) : (
-                      <p className="text-center text-muted-foreground py-12">
-                        No tasks scheduled for {format(currentWeekStart, 'EEEE, MMM d')}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="space-y-4">
+              {/* Day Tab Bar */}
+              <DayTabBar
+                currentWeekStart={currentWeekStart}
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                viewMode={viewMode}
+              />
+              
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <CalendarGrid
+                    tasks={tasks}
+                    onEditTask={(task) => {
+                      setEditingTask(task);
+                      setEditDialogOpen(true);
+                    }}
+                    onDeleteTask={handleDeleteTask}
+                    onToggleComplete={handleToggleComplete}
+                    currentWeekStart={selectedDate}
+                    viewMode={viewMode}
+                  />
+                </div>
 
-              <div className="w-80">
-                <RightSidebarPanel
-                  todoTasks={getTodoTasks()}
-                  inProgressTasks={getInProgressTasks()}
-                  doneTasks={getDoneTasks()}
-                  onTaskClick={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                />
+                <div className="w-80">
+                  <RightSidebarPanel
+                    todoTasks={getTodoTasks()}
+                    inProgressTasks={getInProgressTasks()}
+                    doneTasks={getDoneTasks()}
+                    onTaskClick={(task) => {
+                      setEditingTask(task);
+                      setEditDialogOpen(true);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}

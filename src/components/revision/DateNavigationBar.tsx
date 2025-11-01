@@ -76,6 +76,14 @@ export function DateNavigationBar({
       return "Today";
     }
     
+    // Check if within current week
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    
+    if (currentDate >= weekStart && currentDate <= weekEnd && !isSameDay(currentDate, today)) {
+      return "This Week";
+    }
+    
     const diffDays = Math.round((currentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays === 1) return "Tomorrow";

@@ -26,8 +26,8 @@ interface CalendarGridProps {
 export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete, currentWeekStart, viewMode }: CalendarGridProps) {
   const timeSlots = getTimeSlots();
   
-  const weekStart = startOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Show only the selected day (currentWeekStart is the selected date)
+  const selectedDate = currentWeekStart;
 
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
@@ -38,20 +38,18 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
 
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="grid grid-cols-[80px_repeat(7,1fr)] auto-rows-[90px]">
-        {/* Header Row - Time column + Day/Date */}
+      <div className="grid grid-cols-[80px_1fr] auto-rows-[100px]">
+        {/* Header Row - Time column + Selected Day */}
         <div className="sticky top-0 z-20 bg-muted/50 border-b border-r flex items-center justify-center">
           <span className="text-xs font-medium text-muted-foreground">Time</span>
         </div>
         
-        {weekDays.map((date) => (
-          <div 
-            key={date.toISOString()}
-            className="sticky top-0 z-20 bg-muted/50 border-b border-r last:border-r-0 flex flex-col items-center justify-center px-2 py-1"
-          >
-            <span className="text-sm font-semibold">{format(date, 'EEE, d')}</span>
-          </div>
-        ))}
+        <div 
+          className="sticky top-0 z-20 bg-muted/50 border-b flex flex-col items-center justify-center px-2 py-2"
+        >
+          <span className="text-sm font-semibold">{format(selectedDate, 'EEEE')}</span>
+          <span className="text-xs text-muted-foreground">{format(selectedDate, 'MMM d, yyyy')}</span>
+        </div>
 
         {/* Time slots and grid cells */}
         {timeSlots.map((time, rowIndex) => (
@@ -66,33 +64,30 @@ export function CalendarGrid({ tasks, onEditTask, onDeleteTask, onToggleComplete
               </span>
             </div>
             
-            {/* Grid cells for each day */}
-            {weekDays.map((date, colIndex) => (
-              <div
-                key={`${date.toISOString()}-${time}`}
-                className="relative border-b border-r last:border-r-0 bg-card hover:bg-muted/20 transition-colors p-1"
-                style={{
-                  gridRow: rowIndex + 2,
-                  gridColumn: colIndex + 2,
-                }}
-              />
-            ))}
+            {/* Grid cell for the selected day */}
+            <div
+              key={`${selectedDate.toISOString()}-${time}`}
+              className="relative border-b bg-card hover:bg-muted/20 transition-colors p-1"
+              style={{
+                gridRow: rowIndex + 2,
+                gridColumn: 2,
+              }}
+            />
           </>
         ))}
 
-        {/* Task blocks positioned by date */}
-        {weekDays.flatMap((date, dayIndex) => 
-          getTasksForDate(date).map((task) => (
-            <CalendarTaskBlock
-              key={task.id}
-              task={task}
-              onEdit={onEditTask}
-              onDelete={onDeleteTask}
-              onToggleComplete={onToggleComplete}
-              currentWeekStart={currentWeekStart}
-            />
-          ))
-        )}
+        {/* Task blocks for selected date */}
+        {getTasksForDate(selectedDate).map((task) => (
+          <CalendarTaskBlock
+            key={task.id}
+            task={task}
+            onEdit={onEditTask}
+            onDelete={onDeleteTask}
+            onToggleComplete={onToggleComplete}
+            currentWeekStart={currentWeekStart}
+            columnIndex={2}
+          />
+        ))}
       </div>
     </Card>
   );
