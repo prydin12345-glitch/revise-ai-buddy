@@ -235,21 +235,20 @@ export default function CreateExam() {
 
           <div className="space-y-6">
             {/* Row 1: Exam Name & Subject */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Input
                 placeholder="Enter exam name..."
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
                 className="h-12 text-base bg-card border-border"
               />
-              <div className="h-12">
-                <SubjectSelector
-                  value={subjectId}
-                  color={subjectColor}
-                  onValueChange={setSubjectId}
-                  onColorChange={setSubjectColor}
-                />
-              </div>
+              <SubjectSelector
+                value={subjectId}
+                color={subjectColor}
+                onValueChange={setSubjectId}
+                onColorChange={setSubjectColor}
+                showLabel={false}
+              />
             </div>
 
             {/* Row 2: Notes (Full Width) */}

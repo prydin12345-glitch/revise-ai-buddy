@@ -21,6 +21,7 @@ interface SubjectSelectorProps {
   color: string;
   onValueChange: (value: string) => void;
   onColorChange: (color: string) => void;
+  showLabel?: boolean;
 }
 
 const PREDEFINED_SUBJECTS = [
@@ -59,7 +60,7 @@ const PRESET_COLORS = [
   "#06B6D4", // Cyan
 ];
 
-export const SubjectSelector = ({ value, color, onValueChange, onColorChange }: SubjectSelectorProps) => {
+export const SubjectSelector = ({ value, color, onValueChange, onColorChange, showLabel = true }: SubjectSelectorProps) => {
   const [isCustom, setIsCustom] = useState(false);
   const [customSubject, setCustomSubject] = useState("");
 
@@ -82,7 +83,7 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange }: 
 
   return (
     <div className="space-y-3">
-      <Label>Subject</Label>
+      {showLabel && <Label>Subject</Label>}
       <div className="flex gap-2">
         {!isCustom ? (
           <Select value={value} onValueChange={handleSubjectChange}>
