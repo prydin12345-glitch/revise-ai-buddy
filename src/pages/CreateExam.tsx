@@ -35,10 +35,52 @@ const qualificationLevels = [
   { id: "other", name: "Other" }
 ];
 
-const difficultyLevels = [
-  { id: "exam_board_standard", name: "Exam Board Standard", desc: "Adjusts complexity and depth of questions" },
-  { id: "stretch_challenge", name: "Stretch & Challenge", desc: "+15% harder" },
-  { id: "simplified_practice", name: "Simplified Practice", desc: "-15% easier" },
+const educationalTiers = [
+  { 
+    id: "gcse_igcse", 
+    name: "GCSE / IGCSE", 
+    desc: "UK Year 10–11, international equivalents"
+  },
+  { 
+    id: "a_level", 
+    name: "A-Level / AS-Level", 
+    desc: "UK Year 12–13, Cambridge, Edexcel, OCR"
+  },
+  { 
+    id: "o_level", 
+    name: "O-Level", 
+    desc: "Used in Singapore, Pakistan, etc."
+  },
+  { 
+    id: "college_sixth_form", 
+    name: "College / Sixth Form", 
+    desc: "Pre-university, non-A-level systems"
+  },
+  { 
+    id: "ib_diploma", 
+    name: "IB Diploma", 
+    desc: "International Baccalaureate"
+  },
+  { 
+    id: "university_undergraduate", 
+    name: "University / Undergraduate", 
+    desc: "First-year modules, degree-level"
+  },
+  { 
+    id: "postgraduate_masters", 
+    name: "Postgraduate / Masters", 
+    desc: "Advanced academic level"
+  },
+  { 
+    id: "vocational_technical", 
+    name: "Vocational / Technical", 
+    desc: "BTEC, NVQ, apprenticeships"
+  },
+  { 
+    id: "other", 
+    name: "Other", 
+    desc: "Custom input field for your level"
+  }
 ];
 
 export default function CreateExam() {
@@ -59,7 +101,8 @@ export default function CreateExam() {
   
   // Format settings
   const [useOriginal, setUseOriginal] = useState(true);
-  const [difficulty, setDifficulty] = useState("exam_board_standard");
+  const [educationalTier, setEducationalTier] = useState("");
+  const [customTier, setCustomTier] = useState("");
   
   // Custom exam structure
   const [totalQuestions, setTotalQuestions] = useState(20);
@@ -128,6 +171,24 @@ export default function CreateExam() {
       return;
     }
 
+    if (!educationalTier) {
+      toast({
+        title: "Educational Level Required",
+        description: "Please select an educational level",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (educationalTier === 'other' && !customTier.trim()) {
+      toast({
+        title: "Custom Level Required",
+        description: "Please specify your educational level",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (timerEnabled && duration <= 0) {
       toast({
         title: "Invalid Duration",
@@ -163,7 +224,7 @@ export default function CreateExam() {
       // Save format
       const format = {
         useOriginal,
-        difficulty,
+        educationalTier: educationalTier === 'other' ? customTier : educationalTier,
         ...((!useOriginal) && {
           totalQuestions,
           oneMarkCount,
@@ -475,27 +536,38 @@ export default function CreateExam() {
                   )}
                 </div>
 
-                {/* Difficulty Level */}
+                {/* Educational Level */}
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <SlidersHorizontal className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Difficulty Level</h2>
+                    <h2 className="text-lg font-semibold">Educational Level</h2>
                   </div>
-                  <Select value={difficulty} onValueChange={setDifficulty}>
+                  <Select value={educationalTier} onValueChange={setEducationalTier}>
                     <SelectTrigger className="h-12 bg-background border-border">
-                      <SelectValue />
+                      <SelectValue placeholder="Select educational level..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {difficultyLevels.map((level) => (
-                        <SelectItem key={level.id} value={level.id}>
+                    <SelectContent className="bg-popover border-border max-h-[400px]">
+                      {educationalTiers.map((tier) => (
+                        <SelectItem key={tier.id} value={tier.id} className="py-3">
                           <div>
-                            <div className="font-medium">{level.name}</div>
-                            <div className="text-xs text-muted-foreground">{level.desc}</div>
+                            <div className="font-medium">{tier.name}</div>
+                            <div className="text-xs text-muted-foreground">{tier.desc}</div>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {educationalTier === 'other' && (
+                    <div className="mt-3">
+                      <Input
+                        placeholder='e.g., "German Abitur", "CBSE India", "SAT Prep"'
+                        value={customTier}
+                        onChange={(e) => setCustomTier(e.target.value)}
+                        className="h-11 bg-background border-border"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Timer Setup */}
@@ -583,6 +655,17 @@ export default function CreateExam() {
                           {topicWeighting && <><br/>Topics: {topicWeighting}</>}
                         </span>
                       )}
+                    </p>
+                  </div>
+
+                  <div className="pb-4 border-b border-border">
+                    <p className="text-sm text-muted-foreground mb-1">Educational Level</p>
+                    <p className="font-medium">
+                      {educationalTier 
+                        ? (educationalTier === 'other' 
+                            ? (customTier || 'Not specified') 
+                            : educationalTiers.find(t => t.id === educationalTier)?.name)
+                        : 'Not selected'}
                     </p>
                   </div>
 
