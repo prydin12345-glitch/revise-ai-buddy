@@ -4,6 +4,7 @@ import { Sparkles, Atom, BookOpen, FlaskConical, Dna } from "lucide-react";
 interface GenerationLoadingScreenProps {
   message: string;
   subjectColor?: string;
+  estimatedTime?: number; // in seconds, default 300
 }
 
 const subjectIcons: Record<string, typeof Atom> = {
@@ -14,15 +15,35 @@ const subjectIcons: Record<string, typeof Atom> = {
   default: Sparkles,
 };
 
-export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6" }: GenerationLoadingScreenProps) {
+export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", estimatedTime = 300 }: GenerationLoadingScreenProps) {
   const [iconRotation, setIconRotation] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const rotationInterval = setInterval(() => {
       setIconRotation((prev) => (prev + 2) % 360);
     }, 16);
-    return () => clearInterval(interval);
+    
+    const timeInterval = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+    
+    return () => {
+      clearInterval(rotationInterval);
+      clearInterval(timeInterval);
+    };
   }, []);
+
+  const getTimeMessage = () => {
+    const remaining = Math.max(0, estimatedTime - elapsedTime);
+    
+    if (remaining > 240) return "Estimated time: ~5 minutes";
+    if (remaining > 120) return "~3 minutes remaining...";
+    if (remaining > 60) return "~2 minutes remaining...";
+    if (remaining > 30) return "~1 minute remaining...";
+    if (remaining > 0) return "Almost done — finalizing your questions";
+    return "Just a few more seconds...";
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm">
@@ -98,9 +119,9 @@ export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6" }: G
           />
         </div>
 
-        {/* Tip */}
-        <p className="text-sm text-muted-foreground mt-8">
-          Great exams start with great questions
+        {/* Dynamic Time Estimate */}
+        <p className="text-sm text-muted-foreground mt-8 animate-fade-in">
+          {getTimeMessage()}
         </p>
       </div>
     </div>

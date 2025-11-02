@@ -14,6 +14,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
+import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
 
 
 const examBoards = [
@@ -118,11 +119,17 @@ export default function CreateExam() {
   
   // Timer settings
   const [timerEnabled, setTimerEnabled] = useState(false);
+  const [timerDuration, setTimerDuration] = useState(60);
+  
+  // Generation states
+  const [generating, setGenerating] = useState(false);
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [showGenerationComplete, setShowGenerationComplete] = useState(false);
+  const [generatedDraftId, setGeneratedDraftId] = useState("");
+  const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
   const [duration, setDuration] = useState(60);
   
   const [uploading, setUploading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [currentMessage, setCurrentMessage] = useState("");
 
   const loadingMessages = [
     "Analyzing your exam document...",
@@ -282,13 +289,11 @@ export default function CreateExam() {
 
       clearInterval(messageInterval);
 
-      toast({
-        title: "Generation Complete",
-        description: `Successfully generated ${extractData?.totalQuestions || 'your'} questions`
-      });
-
-      // Navigate directly to review questions
-      navigate(`/upload/${draftId}/review-questions`);
+      // Show completion modal instead of navigating immediately
+      setGeneratedDraftId(draftId);
+      setTotalQuestionsGenerated(extractData?.totalQuestions || 0);
+      setShowGenerationComplete(true);
+      setGenerating(false);
     } catch (error: any) {
       console.error('Generation error:', error);
       clearInterval(messageInterval);
@@ -299,6 +304,48 @@ export default function CreateExam() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleReviewQuestions = () => {
+    setShowGenerationComplete(false);
+    navigate(`/upload/${generatedDraftId}/review-questions`);
+  };
+
+  const handleBeginExam = async () => {
+    setShowGenerationComplete(false);
+    await publishExamAndNavigate(generatedDraftId, 'begin');
+  };
+
+  const handleSaveAndPublish = async () => {
+    setShowGenerationComplete(false);
+    await publishExamAndNavigate(generatedDraftId, 'save');
+  };
+
+  const publishExamAndNavigate = async (draftId: string, action: 'begin' | 'save') => {
+    try {
+      const { data, error } = await supabase.functions.invoke('publish-exam', {
+        body: { draftId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Exam Published",
+        description: "Your exam is ready!",
+      });
+
+      if (action === 'begin') {
+        navigate(`/exam/${data.examId}/in-progress`);
+      } else {
+        navigate('/my-exams');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Publish Failed",
+        description: error.message || "Failed to publish exam",
+        variant: "destructive",
+      });
     }
   };
 
@@ -722,6 +769,25 @@ export default function CreateExam() {
         <GenerationLoadingScreen
           message={currentMessage}
           subjectColor={subjectColor}
+        />
+      )}
+      {generating && (
+        <GenerationLoadingScreen
+          message={currentMessage}
+          subjectColor={subjectColor}
+          estimatedTime={300}
+        />
+      )}
+
+      {showGenerationComplete && (
+        <GenerationCompleteModal
+          draftId={generatedDraftId}
+          totalQuestions={totalQuestionsGenerated}
+          subjectColor={subjectColor}
+          examName={examName}
+          onReview={handleReviewQuestions}
+          onBeginExam={handleBeginExam}
+          onSaveAndPublish={handleSaveAndPublish}
         />
       )}
     </DashboardLayout>
