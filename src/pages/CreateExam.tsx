@@ -61,6 +61,17 @@ export default function CreateExam() {
   const [useOriginal, setUseOriginal] = useState(true);
   const [difficulty, setDifficulty] = useState("exam_board_standard");
   
+  // Custom exam structure
+  const [totalQuestions, setTotalQuestions] = useState(20);
+  const [oneMarkCount, setOneMarkCount] = useState(5);
+  const [twoMarkCount, setTwoMarkCount] = useState(5);
+  const [fourMarkCount, setFourMarkCount] = useState(5);
+  const [extendedCount, setExtendedCount] = useState(5);
+  const [topicWeighting, setTopicWeighting] = useState("");
+  const [includeDiagrams, setIncludeDiagrams] = useState(true);
+  const [includeMCQ, setIncludeMCQ] = useState(false);
+  const [includeGraphs, setIncludeGraphs] = useState(true);
+  
   // Timer settings
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [duration, setDuration] = useState(60);
@@ -153,6 +164,17 @@ export default function CreateExam() {
       const format = {
         useOriginal,
         difficulty,
+        ...((!useOriginal) && {
+          totalQuestions,
+          oneMarkCount,
+          twoMarkCount,
+          fourMarkCount,
+          extendedCount,
+          topicWeighting,
+          includeDiagrams,
+          includeMCQ,
+          includeGraphs,
+        }),
       };
 
       const { error: formatError } = await supabase.functions.invoke('save-exam-format', {
@@ -213,19 +235,21 @@ export default function CreateExam() {
 
           <div className="space-y-6">
             {/* Row 1: Exam Name & Subject */}
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
               <Input
-                placeholder="Enter exam name.."
+                placeholder="Enter exam name..."
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
                 className="h-12 text-base bg-card border-border"
               />
-              <SubjectSelector
-                value={subjectId}
-                color={subjectColor}
-                onValueChange={setSubjectId}
-                onColorChange={setSubjectColor}
-              />
+              <div className="h-12">
+                <SubjectSelector
+                  value={subjectId}
+                  color={subjectColor}
+                  onValueChange={setSubjectId}
+                  onColorChange={setSubjectColor}
+                />
+              </div>
             </div>
 
             {/* Row 2: Notes (Full Width) */}
@@ -341,6 +365,115 @@ export default function CreateExam() {
                       onCheckedChange={setUseOriginal}
                     />
                   </div>
+                  
+                  {/* Custom Exam Structure Panel */}
+                  {!useOriginal && (
+                    <div className="mt-4 p-5 bg-background rounded-lg border border-border space-y-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <SlidersHorizontal className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Custom Exam Structure</h3>
+                      </div>
+                      
+                      {/* Total Questions */}
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Total Number of Questions</Label>
+                        <Input
+                          type="number"
+                          value={totalQuestions}
+                          onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 0)}
+                          min="1"
+                          className="h-10 bg-card"
+                        />
+                      </div>
+
+                      {/* Question Distribution */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium block">Question Distribution</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">1-Mark Questions</Label>
+                            <Input
+                              type="number"
+                              value={oneMarkCount}
+                              onChange={(e) => setOneMarkCount(parseInt(e.target.value) || 0)}
+                              min="0"
+                              className="h-9 bg-card text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">2-Mark Questions</Label>
+                            <Input
+                              type="number"
+                              value={twoMarkCount}
+                              onChange={(e) => setTwoMarkCount(parseInt(e.target.value) || 0)}
+                              min="0"
+                              className="h-9 bg-card text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">4-Mark Questions</Label>
+                            <Input
+                              type="number"
+                              value={fourMarkCount}
+                              onChange={(e) => setFourMarkCount(parseInt(e.target.value) || 0)}
+                              min="0"
+                              className="h-9 bg-card text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Extended (6-10 marks)</Label>
+                            <Input
+                              type="number"
+                              value={extendedCount}
+                              onChange={(e) => setExtendedCount(parseInt(e.target.value) || 0)}
+                              min="0"
+                              className="h-9 bg-card text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Topic Weighting */}
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Topic Weighting (Optional)</Label>
+                        <Textarea
+                          placeholder="e.g., Mechanics 40%, Electricity 30%, Waves 30%"
+                          value={topicWeighting}
+                          onChange={(e) => setTopicWeighting(e.target.value)}
+                          className="min-h-[70px] bg-card border-border resize-none text-sm"
+                        />
+                      </div>
+
+                      {/* Question Features */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium block">Question Features</Label>
+                        
+                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                          <Label className="text-sm cursor-pointer">Include Diagrams or Data Tables</Label>
+                          <Switch
+                            checked={includeDiagrams}
+                            onCheckedChange={setIncludeDiagrams}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                          <Label className="text-sm cursor-pointer">Include Multiple-Choice Section</Label>
+                          <Switch
+                            checked={includeMCQ}
+                            onCheckedChange={setIncludeMCQ}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                          <Label className="text-sm cursor-pointer">Include Graph-Based Questions</Label>
+                          <Switch
+                            checked={includeGraphs}
+                            onCheckedChange={setIncludeGraphs}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Difficulty Level */}
@@ -437,8 +570,21 @@ export default function CreateExam() {
                   </div>
 
                   <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Total Marks</p>
-                    <p className="font-medium">As Per original</p>
+                    <p className="text-sm text-muted-foreground mb-1">Exam Structure</p>
+                    <p className="font-medium">
+                      {useOriginal ? (
+                        "As per original"
+                      ) : (
+                        <span className="text-sm">
+                          Custom: {totalQuestions} questions<br/>
+                          {oneMarkCount > 0 && `${oneMarkCount} × 1-mark, `}
+                          {twoMarkCount > 0 && `${twoMarkCount} × 2-mark, `}
+                          {fourMarkCount > 0 && `${fourMarkCount} × 4-mark, `}
+                          {extendedCount > 0 && `${extendedCount} × extended`}
+                          {topicWeighting && <><br/>Topics: {topicWeighting}</>}
+                        </span>
+                      )}
+                    </p>
                   </div>
 
                   <div>
