@@ -13,8 +13,8 @@ import AnalyzeExam from "./pages/AnalyzeExam";
 import ExamSettings from "./pages/ExamSettings";
 import FormatExam from "./pages/FormatExam";
 import TimerSetup from "./pages/TimerSetup";
-import PreviewExam from "./pages/PreviewExam";
 import ReviewQuestions from "./pages/ReviewQuestions";
+import RedirectToReview from "./pages/RedirectToReview";
 import ExamInProgress from "./pages/ExamInProgress";
 import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
@@ -46,20 +46,21 @@ const App = () => {
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/upload" element={<CreateExam />} />
             
-            {/* Exam Upload Flow (Oct 2024):
-                1. /upload → Upload PDF (upload-exam edge function)
-                2. Background: analyze-exam extracts topics
-                3. /upload/:id/settings → Merged format + timer setup
-                4. /upload/:id/preview → Preview & extract questions
-                5. /upload/:id/review-questions → Edit extracted questions
-                6. Publish exam → /exam/:id/in-progress
+            {/* Exam Upload Flow (Updated):
+                1. /upload → Create & Generate Mock Exam (uploads + triggers AI generation)
+                2. /upload/:id/review-questions → Edit generated questions  
+                3. Publish exam → /exam/:id/in-progress
+                
+                Deprecated routes kept for backward compatibility:
+                - /upload/:id/preview → Redirects to review-questions
             */}
             <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
             <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
             <Route path="/upload/:draftId/settings" element={<ExamSettings />} />
             <Route path="/upload/:draftId/format" element={<FormatExam />} />
             <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
-            <Route path="/upload/:draftId/preview" element={<PreviewExam />} />
+            {/* Deprecated: Step 3 removed, redirect to review-questions */}
+            <Route path="/upload/:draftId/preview" element={<RedirectToReview />} />
             <Route path="/exam/:examId/preview" element={<ExamPreview />} />
             <Route path="/exam/:examId/live" element={<ExamInProgress />} />
             <Route path="/exam/:examId/in-progress" element={<ExamInProgress />} />

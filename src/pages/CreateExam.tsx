@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Clock, SlidersHorizontal, Info } from "lucide-react";
+import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
+import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 
 
 const examBoards = [
@@ -120,6 +121,17 @@ export default function CreateExam() {
   const [duration, setDuration] = useState(60);
   
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [currentMessage, setCurrentMessage] = useState("");
+
+  const loadingMessages = [
+    "Analyzing your exam document...",
+    "Generating fresh questions using AI...",
+    "Handling diagrams and formatting...",
+    "Matching your specification requirements...",
+    "This may take a moment — hang tight!",
+    "Almost there... preparing your exam!"
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -133,7 +145,7 @@ export default function CreateExam() {
     }
   };
 
-  const handleContinue = async () => {
+  const handleGenerate = async () => {
     // Validation
     if (!examName.trim()) {
       toast({
@@ -198,7 +210,16 @@ export default function CreateExam() {
       return;
     }
 
-    setUploading(true);
+    setGenerating(true);
+    setCurrentMessage(loadingMessages[0]);
+
+    // Rotate messages every 4 seconds
+    const messageInterval = setInterval(() => {
+      setCurrentMessage(prev => {
+        const currentIndex = loadingMessages.indexOf(prev);
+        return loadingMessages[(currentIndex + 1) % loadingMessages.length];
+      });
+    }, 4000);
 
     try {
       // Upload exam with all settings
@@ -251,22 +272,33 @@ export default function CreateExam() {
 
       if (timerError) throw timerError;
 
+      // Extract questions with AI
+      const { data: extractData, error: extractError } = await supabase.functions.invoke(
+        'extract-exam-questions',
+        { body: { draftId } }
+      );
+
+      if (extractError) throw extractError;
+
+      clearInterval(messageInterval);
+
       toast({
-        title: "Upload Successful",
-        description: "Processing your exam...",
+        title: "Generation Complete",
+        description: `Successfully generated ${extractData?.totalQuestions || 'your'} questions`
       });
 
-      // Navigate to preview
-      navigate(`/upload/${draftId}/preview`);
+      // Navigate directly to review questions
+      navigate(`/upload/${draftId}/review-questions`);
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('Generation error:', error);
+      clearInterval(messageInterval);
       toast({
-        title: "Upload Failed",
-        description: error.message || "Failed to upload exam",
+        title: "Generation Failed",
+        description: error.message || "Something went wrong — please check your file and try again.",
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setGenerating(false);
     }
   };
 
@@ -278,18 +310,21 @@ export default function CreateExam() {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
             <Button
-              onClick={handleContinue}
-              disabled={uploading}
+              onClick={handleGenerate}
+              disabled={generating || !file || !subjectId || !examBoard || !educationalTier}
               size="lg"
               className="px-8 button-glow"
             >
-              {uploading ? (
+              {generating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                  Processing...
+                  Generating...
                 </>
               ) : (
-                "Continue"
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Generate
+                </>
               )}
             </Button>
           </div>
@@ -681,6 +716,14 @@ export default function CreateExam() {
           </div>
         </div>
       </div>
+
+      {/* Loading Screen */}
+      {generating && (
+        <GenerationLoadingScreen
+          message={currentMessage}
+          subjectColor={subjectColor}
+        />
+      )}
     </DashboardLayout>
   );
 }
