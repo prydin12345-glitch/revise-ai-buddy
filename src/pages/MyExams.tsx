@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X } from "lucide-react";
+import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,7 @@ const MyExams = () => {
     dateRange: { start: '', end: '' },
     dateType: 'published' as 'published' | 'accessed',
   });
+  const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -484,87 +485,88 @@ const MyExams = () => {
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6">
         <div className="space-y-4">
-          <h1 className="text-4xl font-bold text-foreground">My Exams</h1>
-          <p className="text-lg text-muted-foreground">View, manage, and generate exams.</p>
-          
-          <div className="flex gap-3">
-            <Button size="lg" variant="outline" className="flex-1 h-12" onClick={() => navigate("/upload")}>
-              <Upload className="w-5 h-5 mr-2" />Upload New Exam
-            </Button>
-            <Button size="lg" variant="outline" className="flex-1 h-12" onClick={() => toast({ title: "Coming Soon" })}>
-              <Settings className="w-5 h-5 mr-2" />Generate New Exam
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>
+            <Button 
+              size="lg" 
+              className="bg-blue-600 hover:bg-blue-700 h-12 px-6 w-full md:w-auto"
+              onClick={() => setNewExamDialogOpen(true)}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              New Exam
             </Button>
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="inline-flex h-12 items-center justify-start rounded-none border-b bg-transparent p-0 w-full overflow-x-auto scrollbar-hide">
-            <TabsTrigger 
-              value="published" 
-              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Published
-            </TabsTrigger>
-            <TabsTrigger 
-              value="completed" 
-              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-            >
-              <CheckCheck className="w-4 h-4 mr-2" />
-              Completed
-            </TabsTrigger>
-            <TabsTrigger 
-              value="favourite" 
-              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-            >
-              <Star className="w-4 h-4 mr-2" />
-              Favourite
-            </TabsTrigger>
-            <TabsTrigger 
-              value="all" 
-              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-            >
-              <Grid3x3 className="w-4 h-4 mr-2" />
-              All
-            </TabsTrigger>
-            <TabsTrigger 
-              value="archive" 
-              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-            >
-              <Archive className="w-4 h-4 mr-2" />
-              Archive
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-x-auto scrollbar-hide">
+            <TabsList className="inline-flex h-12 items-center justify-start rounded-none border-0 bg-transparent p-0 overflow-x-auto scrollbar-hide">
+              <TabsTrigger 
+                value="published" 
+                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Published
+              </TabsTrigger>
+              <TabsTrigger 
+                value="completed" 
+                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+              >
+                <CheckCheck className="w-4 h-4 mr-2" />
+                Completed
+              </TabsTrigger>
+              <TabsTrigger 
+                value="favourite" 
+                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Favourite
+              </TabsTrigger>
+              <TabsTrigger 
+                value="all" 
+                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+              >
+                <Grid3x3 className="w-4 h-4 mr-2" />
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="archive" 
+                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+              >
+                <Archive className="w-4 h-4 mr-2" />
+                Archive
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 py-2 md:py-0 md:pl-4 md:border-l h-auto md:h-12">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
+              className="h-8 w-8"
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
+              className="h-8 w-8"
             >
               <List className="h-4 w-4" />
             </Button>
+            <div className="w-px h-6 bg-border mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilterPanelOpen(true)}
+              className="h-8"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
           </div>
-          
-          <Button
-            variant="outline"
-            onClick={() => setFilterPanelOpen(true)}
-            className="h-9"
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
         </div>
 
         {loading ? (
@@ -889,6 +891,53 @@ const MyExams = () => {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* New Exam Modal */}
+      <Dialog open={newExamDialogOpen} onOpenChange={setNewExamDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Exam</DialogTitle>
+            <DialogDescription>
+              Choose how you'd like to create your exam
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <Button
+              variant="outline"
+              className="h-24 flex-col gap-2 hover:bg-blue-50 hover:border-blue-600 transition-all"
+              onClick={() => {
+                setNewExamDialogOpen(false);
+                navigate("/upload");
+              }}
+            >
+              <Upload className="w-8 h-8 text-blue-600" />
+              <div className="text-center">
+                <div className="font-semibold">Create Mock Exam</div>
+                <div className="text-xs text-muted-foreground">Upload and format exam papers</div>
+              </div>
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="h-24 flex-col gap-2 hover:bg-blue-50 hover:border-blue-600 transition-all"
+              onClick={() => {
+                setNewExamDialogOpen(false);
+                toast({ 
+                  title: "Coming Soon", 
+                  description: "Practice question creation is under development" 
+                });
+              }}
+            >
+              <Settings className="w-8 h-8 text-blue-600" />
+              <div className="text-center">
+                <div className="font-semibold">Create Practice Questions</div>
+                <div className="text-xs text-muted-foreground">Generate custom question sets</div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
