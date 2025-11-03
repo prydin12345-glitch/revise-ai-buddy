@@ -336,7 +336,7 @@ export default function CreateExam() {
       });
 
       if (action === 'begin') {
-        navigate(`/exam/${data.examId}/in-progress`);
+        navigate(`/exam/${data.examId}/live?mode=student`);
       } else {
         navigate('/my-exams');
       }

@@ -15,6 +15,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathKeyboard } from "@/components/MathKeyboard";
 
+// Helper to add opacity to hex color
+const addOpacity = (hex: string, opacity: number): string => {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 interface Question {
   id: string;
   question_number: string;
@@ -51,6 +60,7 @@ const ExamInProgress = () => {
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
   const [examName, setExamName] = useState<string>('');
+  const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
   const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -109,6 +119,21 @@ const ExamInProgress = () => {
       if (examData) {
         setExamSubject(examData.subject_id || '');
         setExamName(examData.title || 'Exam in Progress');
+        
+        // Fetch subject color from user_subjects table
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && examData.subject_id) {
+          const { data: subjectData } = await supabase
+            .from('user_subjects')
+            .select('subject_color')
+            .eq('user_id', user.id)
+            .ilike('subject_name', examData.subject_id)
+            .maybeSingle();
+          
+          if (subjectData?.subject_color) {
+            setSubjectColor(subjectData.subject_color);
+          }
+        }
       }
 
       const { data, error } = await supabase.functions.invoke('get-exam-questions', {
@@ -396,7 +421,7 @@ const ExamInProgress = () => {
                   // Determine color based on submission status
                   let colorClass = '';
                   if (submission && answer) {
-                    // Post-submission colors
+                    // Post-submission colors (Red/Amber/Green)
                     if (answer.is_correct === true) {
                       colorClass = 'bg-green-500 text-white'; // Correct
                     } else if (answer.score > 0 && answer.score < q.marks) {
@@ -405,9 +430,9 @@ const ExamInProgress = () => {
                       colorClass = 'bg-red-500 text-white'; // Incorrect
                     }
                   } else {
-                    // Pre-submission colors
+                    // Pre-submission colors (use subject color when answered)
                     colorClass = hasAnswer 
-                      ? 'bg-primary text-primary-foreground' 
+                      ? 'text-white' 
                       : 'bg-muted text-muted-foreground hover:bg-muted/80';
                   }
                   
@@ -423,6 +448,7 @@ const ExamInProgress = () => {
                           setTimeout(() => scrollToQuestion(q.id), 100);
                         }
                       }}
+                      style={hasAnswer && !submission ? { backgroundColor: subjectColor } : undefined}
                       className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass}`}
                       title={`Question ${q.question_number}`}
                     >
@@ -503,12 +529,28 @@ const ExamInProgress = () => {
                 >
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="text-lg px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary/20">
+                      <Badge 
+                        variant="secondary" 
+                        className="text-lg px-4 py-1.5"
+                        style={{ 
+                          backgroundColor: addOpacity(subjectColor, 0.2),
+                          borderColor: subjectColor,
+                          color: subjectColor
+                        }}
+                      >
                         Q{question.question_number}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Badge className="text-lg px-4 py-1.5">{question.marks} marks</Badge>
+                      <Badge 
+                        className="text-lg px-4 py-1.5"
+                        style={{
+                          backgroundColor: addOpacity(subjectColor, 0.15),
+                          color: subjectColor
+                        }}
+                      >
+                        {question.marks} marks
+                      </Badge>
                     </div>
                   </div>
 

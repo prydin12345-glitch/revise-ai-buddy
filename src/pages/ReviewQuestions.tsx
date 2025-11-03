@@ -217,7 +217,7 @@ export default function ReviewQuestions() {
         description: "Taking you to your exam...",
       });
 
-      navigate(`/exam/${data.examId}/in-progress`);
+      navigate(`/exam/${data.examId}/live?mode=student`);
     } catch (error: any) {
       toast({
         title: "Failed to Start Exam",
