@@ -3,17 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical } from "lucide-react";
+import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 
 interface Exam {
   id: string;
@@ -32,9 +37,12 @@ interface SortableExamCardProps {
   onDelete: (exam: Exam) => void;
   onView: (exam: Exam) => void;
   onBeginExam: (exam: Exam) => void;
+  subjectColor: string;
+  onToggleFavourite: (examId: string) => void;
+  isFavourite: boolean;
 }
 
-const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam }: SortableExamCardProps) => {
+const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -54,9 +62,27 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam }: Sorta
             <div className="text-3xl">{exam.type === 'generated' ? '🤖' : '📄'}</div>
             <div className="flex-1 cursor-pointer" onClick={() => onView(exam)}>
               <h3 className="font-bold text-lg truncate">{exam.title}</h3>
-              <p className="text-sm text-muted-foreground capitalize">{exam.subject_id}</p>
+              <Badge 
+                style={{ 
+                  backgroundColor: `${subjectColor}20`, 
+                  color: subjectColor,
+                  borderColor: subjectColor 
+                }} 
+                variant="outline" 
+                className="text-xs font-medium mt-1"
+              >
+                {exam.subject_id}
+              </Badge>
             </div>
             <div className="flex gap-1">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
+                className="h-8 w-8"
+              >
+                <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              </Button>
               <Button 
                 size="icon" 
                 variant="ghost" 
@@ -97,9 +123,79 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam }: Sorta
   );
 };
 
+const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite }: SortableExamCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className="hover:shadow-md transition-all">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+              <GripVertical className="w-4 h-4" />
+            </button>
+            
+            <div className="text-2xl">{exam.type === 'generated' ? '🤖' : '📄'}</div>
+            
+            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onView(exam)}>
+              <h3 className="font-semibold text-base truncate">{exam.title}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge 
+                  style={{ 
+                    backgroundColor: `${subjectColor}20`, 
+                    color: subjectColor,
+                    borderColor: subjectColor 
+                  }} 
+                  variant="outline" 
+                  className="text-xs"
+                >
+                  {exam.subject_id}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(exam.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {exam.status === 'published' ? (
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); onBeginExam(exam); }}>
+                  Begin Exam
+                </Button>
+              ) : (
+                <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>
+              )}
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
+                className="h-8 w-8"
+              >
+                <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(exam); }} className="h-8 w-8">
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(exam); }} className="h-8 w-8 hover:text-destructive">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const MyExams = () => {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState("All Subjects");
+  const { subjects, getSubjectColor } = useUserSubjects();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -107,6 +203,18 @@ const MyExams = () => {
   const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
+  
+  const [activeTab, setActiveTab] = useState<'published' | 'completed' | 'favourite' | 'all' | 'archive'>('published');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [completedExamIds, setCompletedExamIds] = useState<string[]>([]);
+  const [favouriteExamIds, setFavouriteExamIds] = useState<string[]>([]);
+  const [filters, setFilters] = useState({
+    subjects: [] as string[],
+    status: [] as string[],
+    dateRange: { start: '', end: '' },
+    dateType: 'published' as 'published' | 'accessed',
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -126,6 +234,9 @@ const MyExams = () => {
 
   const loadExams = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('exams')
         .select('*, exam_topics(topic_name)')
@@ -134,6 +245,26 @@ const MyExams = () => {
 
       if (error) throw error;
       setExams(data || []);
+
+      // Fetch completed exams
+      const { data: submissions, error: submissionsError } = await supabase
+        .from('exam_submissions')
+        .select('exam_id')
+        .eq('student_id', user.id);
+
+      if (!submissionsError) {
+        setCompletedExamIds(submissions?.map(s => s.exam_id) || []);
+      }
+
+      // Fetch favourite exams
+      const { data: favourites, error: favouritesError } = await supabase
+        .from('favourite_exams')
+        .select('exam_id')
+        .eq('user_id', user.id);
+
+      if (!favouritesError) {
+        setFavouriteExamIds(favourites?.map(f => f.exam_id) || []);
+      }
     } catch (error: any) {
       toast({ title: "Load Failed", description: error.message, variant: "destructive" });
     } finally {
@@ -271,8 +402,83 @@ const MyExams = () => {
     }
   };
 
-  const filters = ["All Subjects", "mathematics", "english", "science", "other"];
-  const filteredExams = activeFilter === "All Subjects" ? exams : exams.filter(e => e.subject_id === activeFilter);
+  const handleToggleFavourite = async (examId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const isFav = favouriteExamIds.includes(examId);
+
+      if (isFav) {
+        await supabase
+          .from('favourite_exams')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('exam_id', examId);
+        setFavouriteExamIds(favouriteExamIds.filter(id => id !== examId));
+      } else {
+        await supabase
+          .from('favourite_exams')
+          .insert({ user_id: user.id, exam_id: examId });
+        setFavouriteExamIds([...favouriteExamIds, examId]);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const getFilteredExamsByTab = () => {
+    switch (activeTab) {
+      case 'published':
+        return exams.filter(e => e.status === 'published');
+      case 'completed':
+        return exams.filter(e => completedExamIds.includes(e.id));
+      case 'favourite':
+        return exams.filter(e => favouriteExamIds.includes(e.id));
+      case 'archive':
+        return exams.filter(e => e.status === 'archived');
+      case 'all':
+      default:
+        return exams;
+    }
+  };
+
+  const applyFilters = (examsToFilter: Exam[]) => {
+    let filtered = examsToFilter;
+
+    if (filters.subjects.length > 0) {
+      filtered = filtered.filter(e => 
+        filters.subjects.some(s => 
+          e.subject_id.toLowerCase() === s.toLowerCase()
+        )
+      );
+    }
+
+    if (filters.status.length > 0) {
+      filtered = filtered.filter(e => {
+        if (filters.status.includes('active') && e.status === 'published') return true;
+        if (filters.status.includes('in-progress') && completedExamIds.includes(e.id)) return true;
+        if (filters.status.includes('finished') && completedExamIds.includes(e.id)) return true;
+        return false;
+      });
+    }
+
+    if (filters.dateRange.start || filters.dateRange.end) {
+      filtered = filtered.filter(e => {
+        const examDate = new Date(e.created_at);
+        const startDate = filters.dateRange.start ? new Date(filters.dateRange.start) : null;
+        const endDate = filters.dateRange.end ? new Date(filters.dateRange.end) : null;
+
+        if (startDate && examDate < startDate) return false;
+        if (endDate && examDate > endDate) return false;
+        return true;
+      });
+    }
+
+    return filtered;
+  };
+
+  const filteredExams = applyFilters(getFilteredExamsByTab());
 
   return (
     <DashboardLayout>
@@ -291,13 +497,74 @@ const MyExams = () => {
           </div>
         </div>
 
-        <div className="flex gap-2 p-6 bg-card/30 rounded-xl">
-          {filters.map((filter) => (
-            <Button key={filter} onClick={() => setActiveFilter(filter)}
-              className={`rounded-full px-5 ${activeFilter === filter ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-              {filter}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="inline-flex h-12 items-center justify-start rounded-none border-b bg-transparent p-0 w-full overflow-x-auto scrollbar-hide">
+            <TabsTrigger 
+              value="published" 
+              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Published
+            </TabsTrigger>
+            <TabsTrigger 
+              value="completed" 
+              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+            >
+              <CheckCheck className="w-4 h-4 mr-2" />
+              Completed
+            </TabsTrigger>
+            <TabsTrigger 
+              value="favourite" 
+              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Favourite
+            </TabsTrigger>
+            <TabsTrigger 
+              value="all" 
+              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+            >
+              <Grid3x3 className="w-4 h-4 mr-2" />
+              All
+            </TabsTrigger>
+            <TabsTrigger 
+              value="archive" 
+              className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Archive
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className="h-9 w-9"
+            >
+              <LayoutGrid className="h-4 w-4" />
             </Button>
-          ))}
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className="h-9 w-9"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => setFilterPanelOpen(true)}
+            className="h-9"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+          </Button>
         </div>
 
         {loading ? (
@@ -311,18 +578,39 @@ const MyExams = () => {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filteredExams.map(e => e.id)} strategy={verticalListSortingStrategy}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredExams.map((exam) => (
-                  <SortableExamCard 
-                    key={exam.id} 
-                    exam={exam}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onView={handleView}
-                    onBeginExam={handleBeginExam}
-                  />
-                ))}
-              </div>
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredExams.map((exam) => (
+                    <SortableExamCard 
+                      key={exam.id} 
+                      exam={exam}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onView={handleView}
+                      onBeginExam={handleBeginExam}
+                      subjectColor={getSubjectColor(exam.subject_id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      isFavourite={favouriteExamIds.includes(exam.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredExams.map((exam) => (
+                    <SortableExamListItem 
+                      key={exam.id} 
+                      exam={exam}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onView={handleView}
+                      onBeginExam={handleBeginExam}
+                      subjectColor={getSubjectColor(exam.subject_id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      isFavourite={favouriteExamIds.includes(exam.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </SortableContext>
           </DndContext>
         )}
@@ -411,6 +699,196 @@ const MyExams = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Filter Panel */}
+      <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
+        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Filter Exams</SheetTitle>
+            <SheetDescription>
+              Apply filters to find specific exams
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 py-6">
+            {/* Subject Filter */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Subject</Label>
+              <Select 
+                value={filters.subjects[0] || 'all'} 
+                onValueChange={(value) => {
+                  if (value === 'all') {
+                    setFilters({ ...filters, subjects: [] });
+                  } else {
+                    setFilters({ ...filters, subjects: [value] });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Subjects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.subject_name}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: subject.subject_color }}
+                        />
+                        {subject.subject_name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Status</Label>
+              <div className="space-y-2">
+                {['active', 'in-progress', 'finished'].map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${status}`}
+                      checked={filters.status.includes(status)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFilters({ ...filters, status: [...filters.status, status] });
+                        } else {
+                          setFilters({ ...filters, status: filters.status.filter(s => s !== status) });
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`status-${status}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize cursor-pointer"
+                    >
+                      {status.replace('-', ' ')}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Time & Date</Label>
+              
+              <Select 
+                value={filters.dateType} 
+                onValueChange={(value: 'published' | 'accessed') => 
+                  setFilters({ ...filters, dateType: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="published">Published Date</SelectItem>
+                  <SelectItem value="accessed">Last Accessed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="date-start" className="text-xs">From</Label>
+                  <Input
+                    id="date-start"
+                    type="date"
+                    value={filters.dateRange.start}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      dateRange: { ...filters.dateRange, start: e.target.value } 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date-end" className="text-xs">To</Label>
+                  <Input
+                    id="date-end"
+                    type="date"
+                    value={filters.dateRange.end}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      dateRange: { ...filters.dateRange, end: e.target.value } 
+                    })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Active Filters Display */}
+            {(filters.subjects.length > 0 || filters.status.length > 0 || filters.dateRange.start || filters.dateRange.end) && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Active Filters</Label>
+                <div className="flex flex-wrap gap-2">
+                  {filters.subjects.map((subject) => (
+                    <Badge key={subject} variant="secondary" className="gap-1">
+                      {subject}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => setFilters({ 
+                          ...filters, 
+                          subjects: filters.subjects.filter(s => s !== subject) 
+                        })}
+                      />
+                    </Badge>
+                  ))}
+                  {filters.status.map((status) => (
+                    <Badge key={status} variant="secondary" className="gap-1 capitalize">
+                      {status.replace('-', ' ')}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => setFilters({ 
+                          ...filters, 
+                          status: filters.status.filter(s => s !== status) 
+                        })}
+                      />
+                    </Badge>
+                  ))}
+                  {(filters.dateRange.start || filters.dateRange.end) && (
+                    <Badge variant="secondary" className="gap-1">
+                      {filters.dateRange.start || '...'} - {filters.dateRange.end || '...'}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => setFilters({ 
+                          ...filters, 
+                          dateRange: { start: '', end: '' } 
+                        })}
+                      />
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <SheetFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setFilters({
+                  subjects: [],
+                  status: [],
+                  dateRange: { start: '', end: '' },
+                  dateType: 'published',
+                });
+              }}
+              className="flex-1"
+            >
+              Clear Filters
+            </Button>
+            <Button 
+              onClick={() => setFilterPanelOpen(false)}
+              className="flex-1"
+            >
+              Apply
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </DashboardLayout>
   );
 };

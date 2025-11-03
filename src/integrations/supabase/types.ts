@@ -499,6 +499,35 @@ export type Database = {
         }
         Relationships: []
       }
+      favourite_exams: {
+        Row: {
+          created_at: string
+          exam_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exam_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favourite_exams_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revision_goals: {
         Row: {
           created_at: string
@@ -687,6 +716,7 @@ export type Database = {
         | "published"
         | "in-progress"
         | "completed"
+        | "archived"
       exam_type: "uploaded" | "generated"
     }
     CompositeTypes: {
@@ -822,6 +852,7 @@ export const Constants = {
         "published",
         "in-progress",
         "completed",
+        "archived",
       ],
       exam_type: ["uploaded", "generated"],
     },

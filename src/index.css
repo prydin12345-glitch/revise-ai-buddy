@@ -185,4 +185,13 @@ All colors MUST be HSL.
   .button-glow {
     @apply shadow-[0_0_20px_rgba(74,144,226,0.3)] hover:shadow-[0_0_30px_rgba(74,144,226,0.5)];
   }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
