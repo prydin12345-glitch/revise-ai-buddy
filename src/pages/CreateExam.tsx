@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 
 
 const examBoards = [
@@ -85,8 +86,18 @@ const educationalTiers = [
   }
 ];
 
+const PRESET_COLORS = [
+  "#3B82F6", "#10B981", "#8B5CF6", "#14B8A6", "#FF7F6A",
+  "#F59E0B", "#EC4899", "#EF4444", "#6366F1", "#06B6D4",
+];
+
+const getRandomColor = () => {
+  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+};
+
 export default function CreateExam() {
   const navigate = useNavigate();
+  const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -151,6 +162,32 @@ export default function CreateExam() {
   const handleSpecFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSpecFile(e.target.files[0]);
+    }
+  };
+
+  // Load saved subject color when subject changes
+  useEffect(() => {
+    if (subjectId) {
+      const savedColor = getSubjectColor(subjectId);
+      if (savedColor !== '#3B82F6') {
+        setSubjectColor(savedColor);
+      }
+    }
+  }, [subjectId, getSubjectColor]);
+
+  // Handle subject selection with random color assignment
+  const handleSubjectChange = (newSubject: string) => {
+    setSubjectId(newSubject);
+    
+    // Get existing color or assign random
+    const existingColor = getSubjectColor(newSubject);
+    if (existingColor === '#3B82F6') {
+      // Subject doesn't exist yet, assign random color
+      const randomColor = getRandomColor();
+      setSubjectColor(randomColor);
+    } else {
+      // Use existing color
+      setSubjectColor(existingColor);
     }
   };
 
@@ -219,6 +256,11 @@ export default function CreateExam() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Save subject color to database for consistency
+    if (subjectId && subjectColor) {
+      await saveOrUpdateSubject(subjectId, subjectColor);
     }
 
     setGenerating(true);
@@ -402,7 +444,7 @@ export default function CreateExam() {
               <SubjectSelector
                 value={subjectId}
                 color={subjectColor}
-                onValueChange={setSubjectId}
+                onValueChange={handleSubjectChange}
                 onColorChange={setSubjectColor}
                 showLabel={false}
               />
