@@ -32,15 +32,15 @@ serve(async (req) => {
     const { examId, timeTakenSeconds } = await req.json();
     console.log('Submitting exam:', examId, 'for user:', user.id);
 
-    // Check if already submitted
+    // Check if already submitted (status='graded' means already submitted and graded)
     const { data: existingSubmission } = await supabase
       .from('exam_submissions')
-      .select('id')
+      .select('id, status')
       .eq('exam_id', examId)
       .eq('student_id', user.id)
       .maybeSingle();
 
-    if (existingSubmission) {
+    if (existingSubmission?.status === 'graded') {
       return new Response(JSON.stringify({ error: 'Exam already submitted' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -266,17 +266,36 @@ Provide:
       }
     }
 
-    // Create exam submission record
-    const { error: submissionError } = await supabase
-      .from('exam_submissions')
-      .insert({
-        exam_id: examId,
-        student_id: user.id,
-        time_taken_seconds: timeTakenSeconds,
-        total_score: totalScore,
-        total_marks: totalMarks,
-        status: 'graded'
-      });
+    // Update or create exam submission record
+    let submissionError;
+    if (existingSubmission) {
+      // Update existing in_progress submission
+      const { error } = await supabase
+        .from('exam_submissions')
+        .update({
+          status: 'graded',
+          submitted_at: new Date().toISOString(),
+          time_taken_seconds: timeTakenSeconds,
+          total_score: totalScore,
+          total_marks: totalMarks,
+          time_remaining_seconds: null, // Clear remaining time
+        })
+        .eq('id', existingSubmission.id);
+      submissionError = error;
+    } else {
+      // Create new submission
+      const { error } = await supabase
+        .from('exam_submissions')
+        .insert({
+          exam_id: examId,
+          student_id: user.id,
+          time_taken_seconds: timeTakenSeconds,
+          total_score: totalScore,
+          total_marks: totalMarks,
+          status: 'graded'
+        });
+      submissionError = error;
+    }
 
     if (submissionError) {
       console.error('Submission error:', submissionError);

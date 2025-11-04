@@ -344,10 +344,12 @@ export type Database = {
         Row: {
           created_at: string | null
           exam_id: string
+          exam_started_at: string | null
           id: string
           status: string | null
           student_id: string
           submitted_at: string | null
+          time_remaining_seconds: number | null
           time_taken_seconds: number | null
           total_marks: number | null
           total_score: number | null
@@ -355,10 +357,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           exam_id: string
+          exam_started_at?: string | null
           id?: string
           status?: string | null
           student_id: string
           submitted_at?: string | null
+          time_remaining_seconds?: number | null
           time_taken_seconds?: number | null
           total_marks?: number | null
           total_score?: number | null
@@ -366,10 +370,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           exam_id?: string
+          exam_started_at?: string | null
           id?: string
           status?: string | null
           student_id?: string
           submitted_at?: string | null
+          time_remaining_seconds?: number | null
           time_taken_seconds?: number | null
           total_marks?: number | null
           total_score?: number | null

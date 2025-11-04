@@ -69,10 +69,28 @@ serve(async (req) => {
     // Check if student has already submitted
     const { data: submission } = await supabase
       .from('exam_submissions')
-      .select('submitted_at, total_score, total_marks, status, time_taken_seconds')
+      .select('submitted_at, total_score, total_marks, status, time_taken_seconds, time_remaining_seconds, exam_started_at')
       .eq('exam_id', examId)
       .eq('student_id', user.id)
       .maybeSingle();
+
+    // Calculate remaining time for timer
+    let timeRemaining = timerData?.duration_minutes ? timerData.duration_minutes * 60 : 0;
+
+    if (submission?.status === 'in_progress' && timerData?.enabled) {
+      if (submission.time_remaining_seconds !== null && submission.time_remaining_seconds !== undefined) {
+        // Resume from saved time
+        timeRemaining = submission.time_remaining_seconds;
+        console.log('Resuming timer from saved state:', timeRemaining);
+      } else if (submission.exam_started_at) {
+        // Fallback: Calculate based on start time
+        const elapsedSeconds = Math.floor(
+          (Date.now() - new Date(submission.exam_started_at).getTime()) / 1000
+        );
+        timeRemaining = Math.max(0, (timerData.duration_minutes * 60) - elapsedSeconds);
+        console.log('Calculating timer from start time:', timeRemaining);
+      }
+    }
 
     // Fetch student's existing answers
     const { data: existingAnswers } = await supabase
@@ -130,7 +148,11 @@ serve(async (req) => {
         JSON.stringify({
           questions: sortedQuestions,
           isTeacher: false,
-          timer: timerData || null,
+          timer: timerData?.enabled ? {
+            enabled: true,
+            duration_minutes: timerData.duration_minutes,
+            time_remaining_seconds: timerData.duration_minutes * 60
+          } : null,
           submission: null,
           existingAnswers: []
         }),
@@ -156,7 +178,11 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       questions: responseQuestions,
       isTeacher,
-      timer: timerData || null,
+      timer: timerData?.enabled ? {
+        enabled: true,
+        duration_minutes: timerData.duration_minutes,
+        time_remaining_seconds: timeRemaining
+      } : null,
       submission: submission || null,
       existingAnswers: existingAnswers || []
     }), {

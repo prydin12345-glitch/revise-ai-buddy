@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.submit-exam]
 verify_jwt = true
+
+[functions.save-exam-progress]
+verify_jwt = true

@@ -69,6 +69,64 @@ const ExamInProgress = () => {
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
+  const saveTimerState = useCallback(async () => {
+    if (!timerEnabled || !examId) return;
+    
+    try {
+      // Save to localStorage (immediate, synchronous)
+      localStorage.setItem(`exam_${examId}_time_remaining`, timeRemaining.toString());
+      localStorage.setItem(`exam_${examId}_last_saved`, Date.now().toString());
+      
+      // Save to backend (asynchronous, reliable)
+      await supabase.functions.invoke('save-exam-progress', {
+        body: { 
+          examId, 
+          timeRemainingSeconds: timeRemaining 
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save timer state:', error);
+    }
+  }, [examId, timeRemaining, timerEnabled]);
+
+  // Auto-save timer every 30 seconds
+  useEffect(() => {
+    if (!timerEnabled || isReadOnly || loading) return;
+    
+    const interval = setInterval(() => {
+      saveTimerState();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [timerEnabled, isReadOnly, loading, saveTimerState]);
+
+  // Save timer on tab close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (timerEnabled && examId) {
+        // Synchronous localStorage save
+        localStorage.setItem(`exam_${examId}_time_remaining`, timeRemaining.toString());
+        
+        // Try beacon save (fire-and-forget)
+        try {
+          const data = JSON.stringify({
+            examId,
+            timeRemainingSeconds: timeRemaining
+          });
+          navigator.sendBeacon(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-exam-progress`,
+            data
+          );
+        } catch (e) {
+          console.error('Beacon save failed:', e);
+        }
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [examId, timeRemaining, timerEnabled]);
+
   useEffect(() => {
     setCurrentPage(0); // Always start at first question when exam loads
     loadQuestions();
@@ -187,8 +245,22 @@ const ExamInProgress = () => {
       
       if (data.timer?.enabled) {
         setTimerEnabled(true);
-        setTimeRemaining(data.timer.duration_minutes * 60);
-        startTime.current = Date.now(); // Initialize start time when timer loads
+        
+        // Priority: Backend > LocalStorage > Full Duration
+        const savedTime = data.timer.time_remaining_seconds;
+        const localStorageTime = parseInt(
+          localStorage.getItem(`exam_${examId}_time_remaining`) || '0'
+        );
+        
+        const initialTime = savedTime 
+          || localStorageTime 
+          || (data.timer.duration_minutes * 60);
+        
+        setTimeRemaining(initialTime);
+        
+        // Set start time based on remaining time
+        const elapsedSeconds = (data.timer.duration_minutes * 60) - initialTime;
+        startTime.current = Date.now() - (elapsedSeconds * 1000);
       }
 
       const answersMap: Record<string, string> = {};
@@ -232,6 +304,9 @@ const ExamInProgress = () => {
 
       if (error) throw error;
 
+      // Save timer state after answer saved
+      await saveTimerState();
+
       setSavedAnswers(prev => new Set(prev).add(questionId));
     } catch (error: any) {
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
@@ -255,6 +330,10 @@ const ExamInProgress = () => {
       });
 
       if (error) throw error;
+
+      // Clear localStorage timer state
+      localStorage.removeItem(`exam_${examId}_time_remaining`);
+      localStorage.removeItem(`exam_${examId}_last_saved`);
 
       toast({ 
         title: "Exam Submitted!", 
