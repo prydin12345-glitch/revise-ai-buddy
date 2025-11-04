@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus } from "lucide-react";
+import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -40,9 +40,11 @@ interface SortableExamCardProps {
   subjectColor: string;
   onToggleFavourite: (examId: string) => void;
   isFavourite: boolean;
+  examState: 'not-started' | 'in-progress' | 'completed';
+  getExamButtonConfig: (exam: Exam) => any;
 }
 
-const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite }: SortableExamCardProps) => {
+const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -105,17 +107,31 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />{new Date(exam.created_at).toLocaleDateString()}
             </div>
-            {exam.status === 'published' ? (
-              <Button 
-                size="sm" 
-                className="bg-blue-600 hover:bg-blue-700 h-8"
-                onClick={(e) => { e.stopPropagation(); onBeginExam(exam); }}
-              >
-                Begin Exam
-              </Button>
-            ) : (
-              <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>
+            {examState === 'in-progress' && (
+              <Badge variant="outline" className="border-orange-500 text-orange-500">
+                In Progress
+              </Badge>
             )}
+            {(() => {
+              const buttonConfig = getExamButtonConfig(exam);
+              if (!buttonConfig) {
+                return <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>;
+              }
+              const Icon = buttonConfig.icon;
+              return (
+                <Button 
+                  size="sm" 
+                  className={`${buttonConfig.className} h-8`}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    buttonConfig.action(); 
+                  }}
+                >
+                  {Icon && <Icon className="w-4 h-4 mr-2" />}
+                  {buttonConfig.label}
+                </Button>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>
@@ -123,7 +139,7 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
   );
 };
 
-const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite }: SortableExamCardProps) => {
+const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -164,13 +180,31 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
             </div>
             
             <div className="flex items-center gap-2">
-              {exam.status === 'published' ? (
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); onBeginExam(exam); }}>
-                  Begin Exam
-                </Button>
-              ) : (
-                <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>
+              {examState === 'in-progress' && (
+                <Badge variant="outline" className="border-orange-500 text-orange-500">
+                  In Progress
+                </Badge>
               )}
+              {(() => {
+                const buttonConfig = getExamButtonConfig(exam);
+                if (!buttonConfig) {
+                  return <span className="text-xs px-2 py-1 bg-accent rounded capitalize">{exam.status}</span>;
+                }
+                const Icon = buttonConfig.icon;
+                return (
+                  <Button 
+                    size="sm" 
+                    className={buttonConfig.className}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      buttonConfig.action(); 
+                    }}
+                  >
+                    {Icon && <Icon className="w-4 h-4 mr-2" />}
+                    {buttonConfig.label}
+                  </Button>
+                );
+              })()}
               <Button 
                 size="icon" 
                 variant="ghost" 
@@ -209,6 +243,7 @@ const MyExams = () => {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [completedExamIds, setCompletedExamIds] = useState<string[]>([]);
   const [favouriteExamIds, setFavouriteExamIds] = useState<string[]>([]);
+  const [examStates, setExamStates] = useState<Map<string, 'not-started' | 'in-progress' | 'completed'>>(new Map());
   const [filters, setFilters] = useState({
     subjects: [] as string[],
     status: [] as string[],
@@ -247,14 +282,44 @@ const MyExams = () => {
       if (error) throw error;
       setExams(data || []);
 
-      // Fetch completed exams
-      const { data: submissions, error: submissionsError } = await supabase
-        .from('exam_submissions')
-        .select('exam_id')
-        .eq('student_id', user.id);
+      // Batch fetch exam states for all exams
+      if (data && data.length > 0) {
+        const examIds = data.map(exam => exam.id);
 
-      if (!submissionsError) {
-        setCompletedExamIds(submissions?.map(s => s.exam_id) || []);
+        // Fetch all submissions at once
+        const { data: allSubmissions } = await supabase
+          .from('exam_submissions')
+          .select('exam_id')
+          .eq('student_id', user.id)
+          .in('exam_id', examIds);
+
+        const submittedExamIds = new Set(allSubmissions?.map(s => s.exam_id) || []);
+        setCompletedExamIds(Array.from(submittedExamIds));
+
+        // Fetch all student answers at once
+        const { data: allAnswers } = await supabase
+          .from('student_answers')
+          .select('exam_id')
+          .eq('student_id', user.id)
+          .in('exam_id', examIds);
+
+        const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
+
+        // Determine states efficiently
+        const statesMap = new Map();
+        data.forEach(exam => {
+          if (exam.status !== 'published') {
+            statesMap.set(exam.id, 'not-started');
+          } else if (submittedExamIds.has(exam.id)) {
+            statesMap.set(exam.id, 'completed');
+          } else if (examIdsWithAnswers.has(exam.id)) {
+            statesMap.set(exam.id, 'in-progress');
+          } else {
+            statesMap.set(exam.id, 'not-started');
+          }
+        });
+
+        setExamStates(statesMap);
       }
 
       // Fetch favourite exams
@@ -281,6 +346,39 @@ const MyExams = () => {
   const handleBeginExam = (exam: Exam) => {
     setSelectedExam(exam);
     setBeginExamDialogOpen(true);
+  };
+
+  const getExamButtonConfig = (exam: Exam) => {
+    const state = examStates.get(exam.id);
+    
+    if (exam.status !== 'published') {
+      return null;
+    }
+    
+    switch (state) {
+      case 'completed':
+        return {
+          label: 'Review Exam',
+          action: () => navigate(`/exam/${exam.id}/review`),
+          className: 'bg-green-600 hover:bg-green-700',
+          icon: Eye
+        };
+      case 'in-progress':
+        return {
+          label: 'Continue Exam',
+          action: () => navigate(`/exam/${exam.id}/in-progress`),
+          className: 'bg-orange-600 hover:bg-orange-700',
+          icon: Play
+        };
+      case 'not-started':
+      default:
+        return {
+          label: 'Begin Exam',
+          action: () => handleBeginExam(exam),
+          className: 'bg-blue-600 hover:bg-blue-700',
+          icon: null
+        };
+    }
   };
 
   const handleConfirmBeginExam = async () => {
@@ -593,6 +691,8 @@ const MyExams = () => {
                       subjectColor={getSubjectColor(exam.subject_id)}
                       onToggleFavourite={handleToggleFavourite}
                       isFavourite={favouriteExamIds.includes(exam.id)}
+                      examState={examStates.get(exam.id) || 'not-started'}
+                      getExamButtonConfig={getExamButtonConfig}
                     />
                   ))}
                 </div>
@@ -609,6 +709,8 @@ const MyExams = () => {
                       subjectColor={getSubjectColor(exam.subject_id)}
                       onToggleFavourite={handleToggleFavourite}
                       isFavourite={favouriteExamIds.includes(exam.id)}
+                      examState={examStates.get(exam.id) || 'not-started'}
+                      getExamButtonConfig={getExamButtonConfig}
                     />
                   ))}
                 </div>

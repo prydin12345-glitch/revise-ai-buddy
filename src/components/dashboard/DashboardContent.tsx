@@ -42,6 +42,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SubjectSelector } from "./SubjectSelector";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -76,6 +77,7 @@ interface RevisionGoal {
 export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const userName = userEmail.split("@")[0];
+  const { getSubjectColor } = useUserSubjects();
   
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [filteredExams, setFilteredExams] = useState<ExamWithSubmission[]>([]);
@@ -282,21 +284,6 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     };
   };
 
-  const getSubjectStyles = (subject: string) => {
-    const subjectLower = subject.toLowerCase();
-    if (subjectLower.includes("math")) {
-      return "bg-blue-500";
-    } else if (subjectLower.includes("biolog")) {
-      return "bg-green-500";
-    } else if (subjectLower.includes("chem")) {
-      return "bg-purple-500";
-    } else if (subjectLower.includes("physic")) {
-      return "bg-teal-500";
-    } else if (subjectLower.includes("english")) {
-      return "bg-coral-500";
-    }
-    return "bg-primary";
-  };
 
   const deleteExam = async (examId: string) => {
     try {
@@ -516,8 +503,12 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                               
                               {/* Subject Badge */}
                               <Badge 
-                                variant="outline" 
-                                className={`text-white text-[13px] font-medium px-3 py-1 rounded-full border-0 ${getSubjectStyles(exam.subject_id)}`}
+                                style={{ 
+                                  backgroundColor: getSubjectColor(exam.subject_id),
+                                  color: 'white',
+                                  borderColor: getSubjectColor(exam.subject_id)
+                                }}
+                                className="text-[13px] font-medium px-3 py-1 rounded-full border-0"
                               >
                                 {exam.subject_id}
                               </Badge>
