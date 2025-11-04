@@ -769,26 +769,10 @@ const ExamInProgress = () => {
                                 }
                               })();
                               
-                              // Handle special builders
-                              let insertValue = symbol;
-                              let cursorOffset = symbol.length;
+                              // Insert the LaTeX template at cursor position
+                              const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end);
                               
-                              if (symbol === '__FRACTION__') {
-                                insertValue = '[numerator]/[denominator]';
-                                cursorOffset = 1; // Position at "numerator"
-                              } else if (symbol === '__LOG_BASE__') {
-                                insertValue = 'log_[base]([value])';
-                                cursorOffset = 5; // Position at "base"
-                              } else if (symbol === '__POWER__') {
-                                insertValue = '^[exponent]';
-                                cursorOffset = 2; // Position at "exponent"
-                              } else if (symbol === '__SQRT__') {
-                                insertValue = '√([value])';
-                                cursorOffset = 3; // Position inside parentheses
-                              }
-                              
-                              const newValue = currentValue.substring(0, start) + insertValue + currentValue.substring(end);
-                              
+                              // Update the value
                               try {
                                 const parsed = JSON.parse(userAnswers[question.id] || '{}');
                                 const updated = { ...parsed, finalAnswer: newValue };
@@ -797,10 +781,19 @@ const ExamInProgress = () => {
                                 handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: newValue }));
                               }
                               
+                              // Find and select the first placeholder (□)
                               setTimeout(() => {
                                 textarea.focus();
-                                const newCursorPos = start + cursorOffset;
-                                textarea.setSelectionRange(newCursorPos, newCursorPos);
+                                
+                                const placeholderIndex = newValue.indexOf('□', start);
+                                if (placeholderIndex !== -1) {
+                                  // Select the placeholder box so typing replaces it
+                                  textarea.setSelectionRange(placeholderIndex, placeholderIndex + 1);
+                                } else {
+                                  // No placeholder, position at end of inserted content
+                                  const newCursorPos = start + symbol.length;
+                                  textarea.setSelectionRange(newCursorPos, newCursorPos);
+                                }
                               }, 0);
                             }}
                             onClose={() => setMathKeyboardOpen(false)}
