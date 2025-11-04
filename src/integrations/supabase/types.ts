@@ -451,6 +451,7 @@ export type Database = {
       exams: {
         Row: {
           created_at: string
+          detected_subject: string | null
           display_order: number | null
           exam_board: string | null
           extraction_error: string | null
@@ -460,7 +461,9 @@ export type Database = {
           qualification_level: string | null
           specification_file_url: string | null
           status: Database["public"]["Enums"]["exam_status"]
+          subject_confidence: number | null
           subject_id: string
+          subject_mismatch: boolean | null
           title: string
           total_questions_extracted: number | null
           type: Database["public"]["Enums"]["exam_type"]
@@ -469,6 +472,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          detected_subject?: string | null
           display_order?: number | null
           exam_board?: string | null
           extraction_error?: string | null
@@ -478,7 +482,9 @@ export type Database = {
           qualification_level?: string | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
+          subject_confidence?: number | null
           subject_id: string
+          subject_mismatch?: boolean | null
           title: string
           total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]
@@ -487,6 +493,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          detected_subject?: string | null
           display_order?: number | null
           exam_board?: string | null
           extraction_error?: string | null
@@ -496,7 +503,9 @@ export type Database = {
           qualification_level?: string | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
+          subject_confidence?: number | null
           subject_id?: string
+          subject_mismatch?: boolean | null
           title?: string
           total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]

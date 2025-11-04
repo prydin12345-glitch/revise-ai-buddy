@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles } from "lucide-react";
+import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriangle } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
 const examBoards = [
@@ -141,6 +142,15 @@ export default function CreateExam() {
   const [generatedDraftId, setGeneratedDraftId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
   const [duration, setDuration] = useState(60);
+  
+  // Subject mismatch detection state
+  const [subjectMismatchData, setSubjectMismatchData] = useState<{
+    detected: string;
+    confidence: number;
+    reasoning: string;
+    userSelected: string;
+  } | null>(null);
+  const [showMismatchWarning, setShowMismatchWarning] = useState(false);
   
   const [uploading, setUploading] = useState(false);
 
@@ -332,6 +342,28 @@ export default function CreateExam() {
       );
 
       if (extractError) throw extractError;
+
+      // Check for subject mismatch
+      if (extractData?.subjectDetection?.mismatch) {
+        clearInterval(messageInterval);
+        setGenerating(false);
+        
+        // Store mismatch data for the warning modal
+        setSubjectMismatchData({
+          detected: extractData.subjectDetection.detected,
+          confidence: extractData.subjectDetection.confidence,
+          reasoning: extractData.subjectDetection.reasoning,
+          userSelected: extractData.subjectDetection.userSelected
+        });
+        
+        // Store draftId so we can proceed if user confirms
+        setGeneratedDraftId(draftId);
+        setTotalQuestionsGenerated(extractData?.totalQuestions || 0);
+        
+        // Show warning modal
+        setShowMismatchWarning(true);
+        return; // Don't proceed to completion modal yet
+      }
 
       clearInterval(messageInterval);
 
@@ -868,6 +900,80 @@ export default function CreateExam() {
           onBeginExam={handleBeginExam}
           onSaveAndPublish={handleSaveAndPublish}
         />
+      )}
+
+      {/* Subject Mismatch Warning Modal */}
+      {showMismatchWarning && subjectMismatchData && (
+        <Dialog open={showMismatchWarning} onOpenChange={setShowMismatchWarning}>
+          <DialogContent className="sm:max-w-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-2 border-amber-400">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                Subject Mismatch Detected
+              </DialogTitle>
+              <DialogDescription className="text-amber-800 dark:text-amber-200 space-y-3 pt-2">
+                <p className="font-medium">
+                  ⚠️ Heads up! This file looks more like{" "}
+                  <span className="font-bold text-amber-900 dark:text-amber-100">
+                    {subjectMismatchData.detected}
+                  </span>{" "}
+                  than{" "}
+                  <span className="font-bold text-amber-900 dark:text-amber-100">
+                    {subjectMismatchData.userSelected}
+                  </span>.
+                </p>
+                
+                <p className="text-sm">
+                  Are you sure{" "}
+                  <span className="font-bold text-amber-900 dark:text-amber-100 underline">
+                    {file?.name}
+                  </span>{" "}
+                  is the right upload?
+                </p>
+                
+                <div className="bg-white/50 dark:bg-black/20 rounded-md p-3 text-xs">
+                  <p className="font-semibold mb-1">AI Analysis:</p>
+                  <p>{subjectMismatchData.reasoning}</p>
+                  <p className="mt-2 text-amber-700 dark:text-amber-300">
+                    Confidence: {(subjectMismatchData.confidence * 100).toFixed(0)}%
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowMismatchWarning(false);
+                  setSubjectMismatchData(null);
+                  setFile(null);
+                  toast({
+                    title: "Upload Cancelled",
+                    description: "Please upload the correct file"
+                  });
+                }}
+                className="w-full sm:w-auto border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+              >
+                Replace File
+              </Button>
+              
+              <Button
+                onClick={() => {
+                  setShowMismatchWarning(false);
+                  setShowGenerationComplete(true);
+                  toast({
+                    title: "Proceeding with Warning",
+                    description: `Generated exam appears to be ${subjectMismatchData.detected}-based`
+                  });
+                }}
+                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
+              >
+                Continue Anyway →
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </DashboardLayout>
   );

@@ -364,6 +364,39 @@ When generating questions involving data:
 4. Set "data_type": "graph", "table", "both", or "none"
 5. Set "needs_diagram": true if visual representation is essential
 
+🔍 SUBJECT DETECTION (CRITICAL):
+In addition to extracting questions, you MUST analyze the content to detect the PRIMARY SUBJECT of this exam.
+
+Analyze:
+- Mathematical notation patterns (algebra, calculus, trigonometry = Mathematics)
+- Scientific terminology (forces, energy, circuits = Physics; compounds, reactions = Chemistry)
+- Topic keywords (cells, DNA, ecology = Biology; tenses, literature = English)
+- Equation types (kinematic equations vs organic chemistry vs pure math)
+- Contextual clues (experimental setups, theorem proofs, language analysis)
+
+Return your detection WITHIN THE SAME JSON as questions/topics:
+{
+  "detected_subject": "Physics" | "Mathematics" | "Chemistry" | "Biology" | "English" | "History" | "Geography" | "Computer Science" | "Other",
+  "subject_confidence": 0.95,
+  "subject_reasoning": "Brief explanation (e.g., 'Document contains kinematic equations, circuit diagrams, and force calculations')"
+}
+
+**Subject Classification Guidelines:**
+- **Physics**: Forces, energy, circuits, waves, mechanics, thermodynamics, electricity
+- **Mathematics**: Pure algebra, calculus, geometry, trigonometry, statistics, proofs
+- **Chemistry**: Elements, compounds, reactions, bonding, organic chemistry, stoichiometry
+- **Biology**: Cells, DNA, evolution, ecology, human body systems, genetics
+- **English**: Literature analysis, grammar, comprehension, creative writing
+- **Computer Science**: Programming, algorithms, data structures, networks
+- **History**: Historical events, dates, civilizations, wars, political movements
+- **Geography**: Maps, climate, physical features, human geography, environmental science
+
+**Confidence Score:**
+- 0.9-1.0: Very clear indicators (e.g., heavy use of F=ma, circuit diagrams → Physics)
+- 0.7-0.89: Strong indicators but some ambiguity
+- 0.5-0.69: Moderate confidence, mixed signals
+- < 0.5: Uncertain, document may be multi-subject or unclear
+
 🔌 CIRCUIT DIAGRAM SUPPORT:
 For electrical/electronics questions:
 1. Describe circuit topology clearly in "circuit_description":
@@ -399,6 +432,9 @@ For multi-part questions:
 
 Return ONLY valid JSON in this structure:
 {
+  "detected_subject": "string (REQUIRED - Physics, Mathematics, Chemistry, Biology, English, History, Geography, Computer Science, or Other)",
+  "subject_confidence": number (REQUIRED - 0.0 to 1.0),
+  "subject_reasoning": "string (REQUIRED - brief explanation of detected subject)",
   "questions": [
     {
       "question_number": "string",
@@ -492,6 +528,9 @@ ${pdfText}
 
 Return a JSON object with this structure:
 {
+  "detected_subject": "string (REQUIRED - Physics, Mathematics, Chemistry, Biology, English, History, Geography, Computer Science, or Other)",
+  "subject_confidence": number (REQUIRED - 0.0 to 1.0),
+  "subject_reasoning": "string (REQUIRED - brief explanation of why this subject was detected)",
   "questions": [
     {
       "question_number": "string (e.g., '1', '17a', '17a(i)')",
@@ -613,6 +652,45 @@ Return a JSON object with this structure:
 
     const extractedQuestions = parsedData.questions || [];
     const extractedTopics = parsedData.topics || [];
+
+    // Extract subject detection from AI response
+    const detectedSubject = parsedData.detected_subject || null;
+    const subjectConfidence = parsedData.subject_confidence || null;
+    const subjectReasoning = parsedData.subject_reasoning || null;
+
+    // Map detected subject to our subject system (case-insensitive)
+    const subjectMapping: Record<string, string> = {
+      'physics': 'physics',
+      'mathematics': 'mathematics',
+      'math': 'mathematics',
+      'maths': 'mathematics',
+      'chemistry': 'chemistry',
+      'biology': 'biology',
+      'english': 'english',
+      'history': 'history',
+      'geography': 'geography',
+      'computer science': 'computer_science',
+      'computing': 'computer_science',
+    };
+
+    const normalizedDetected = detectedSubject ? (subjectMapping[detectedSubject.toLowerCase()] || detectedSubject.toLowerCase()) : null;
+    const userSelectedSubject = exam.subject_id?.toLowerCase() || exam.title?.toLowerCase();
+
+    // Check for mismatch (only flag if reasonably confident)
+    const CONFIDENCE_THRESHOLD = 0.6;
+    const isMismatch = normalizedDetected && 
+                       userSelectedSubject && 
+                       normalizedDetected !== userSelectedSubject &&
+                       subjectConfidence && subjectConfidence > CONFIDENCE_THRESHOLD;
+
+    console.log('Subject Detection:', {
+      detected: detectedSubject,
+      normalized: normalizedDetected,
+      confidence: subjectConfidence,
+      selected: exam.subject_id,
+      mismatch: isMismatch,
+      reasoning: subjectReasoning
+    });
 
     if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
       console.error('No questions extracted');
@@ -884,20 +962,30 @@ Return ONLY the new question text, no additional explanation.`;
       console.log(`Inserted ${extractedTopics.length} topics`);
     }
 
-    // Update exam status to completed
+    // Update exam status to completed with subject detection
     await supabase
       .from('exams')
       .update({
         extraction_status: 'completed',
         total_questions_extracted: extractedQuestions.length,
-        extraction_error: null
+        extraction_error: null,
+        detected_subject: detectedSubject,
+        subject_confidence: subjectConfidence,
+        subject_mismatch: isMismatch
       })
       .eq('id', draftId);
 
     return new Response(JSON.stringify({ 
       success: true,
       totalQuestions: extractedQuestions.length,
-      topics: extractedTopics.length
+      topics: extractedTopics.length,
+      subjectDetection: {
+        detected: detectedSubject,
+        confidence: subjectConfidence,
+        reasoning: subjectReasoning,
+        mismatch: isMismatch,
+        userSelected: exam.subject_id
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
