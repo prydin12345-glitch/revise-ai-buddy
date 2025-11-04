@@ -286,14 +286,21 @@ const MyExams = () => {
       if (data && data.length > 0) {
         const examIds = data.map(exam => exam.id);
 
-        // Fetch all submissions at once
+        // Fetch all submissions at once - distinguish by status
         const { data: allSubmissions } = await supabase
           .from('exam_submissions')
-          .select('exam_id')
+          .select('exam_id, status')
           .eq('student_id', user.id)
           .in('exam_id', examIds);
 
-        const submittedExamIds = new Set(allSubmissions?.map(s => s.exam_id) || []);
+        // Separate completed vs in-progress
+        const submittedExamIds = new Set(
+          allSubmissions?.filter(s => s.status === 'submitted').map(s => s.exam_id) || []
+        );
+        const inProgressExamIds = new Set(
+          allSubmissions?.filter(s => s.status === 'in_progress').map(s => s.exam_id) || []
+        );
+
         setCompletedExamIds(Array.from(submittedExamIds));
 
         // Fetch all student answers at once
@@ -305,14 +312,14 @@ const MyExams = () => {
 
         const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
 
-        // Determine states efficiently
+        // Determine states efficiently - CHECK BOTH TABLES
         const statesMap = new Map();
         data.forEach(exam => {
           if (exam.status !== 'published') {
             statesMap.set(exam.id, 'not-started');
           } else if (submittedExamIds.has(exam.id)) {
             statesMap.set(exam.id, 'completed');
-          } else if (examIdsWithAnswers.has(exam.id)) {
+          } else if (inProgressExamIds.has(exam.id) || examIdsWithAnswers.has(exam.id)) {
             statesMap.set(exam.id, 'in-progress');
           } else {
             statesMap.set(exam.id, 'not-started');
@@ -365,7 +372,7 @@ const MyExams = () => {
         };
       case 'in-progress':
         return {
-          label: 'Continue Exam',
+          label: 'Continue',
           action: () => navigate(`/exam/${exam.id}/in-progress`),
           className: 'bg-orange-600 hover:bg-orange-700',
           icon: Play
