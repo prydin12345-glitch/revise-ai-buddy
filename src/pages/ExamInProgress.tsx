@@ -54,6 +54,7 @@ const ExamInProgress = () => {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
@@ -349,6 +350,42 @@ const ExamInProgress = () => {
     }
   };
 
+  const handleQuitExam = async () => {
+    try {
+      // 1. Force save any pending answers immediately
+      const pendingSaves = Object.keys(saveTimeouts.current);
+      for (const questionId of pendingSaves) {
+        if (saveTimeouts.current[questionId]) {
+          clearTimeout(saveTimeouts.current[questionId]);
+          const answer = userAnswers[questionId];
+          if (answer) {
+            await handleSaveAnswer(questionId, answer);
+          }
+        }
+      }
+
+      // 2. Save current timer state
+      await saveTimerState();
+
+      // 3. Show success toast
+      toast({
+        title: "Progress Saved",
+        description: "You can continue this exam later from My Exams.",
+      });
+
+      // 4. Navigate back to My Exams page
+      navigate('/my-exams');
+    } catch (error: any) {
+      toast({
+        title: "Failed to Save Progress",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setShowQuitDialog(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -472,6 +509,17 @@ const ExamInProgress = () => {
                       {mathKeyboardOpen ? 'Close' : 'Open'} Math Keyboard
                     </DropdownMenuItem>
                   )}
+                  
+                  <DropdownMenuItem 
+                    onClick={() => setShowQuitDialog(true)}
+                    className="cursor-pointer"
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Quit Exam
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
                   <DropdownMenuItem 
                     onClick={() => setShowSubmitDialog(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
@@ -898,6 +946,29 @@ const ExamInProgress = () => {
               ) : (
                 'Submit Exam'
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Quit Exam Confirmation Dialog */}
+      <AlertDialog open={showQuitDialog} onOpenChange={setShowQuitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Exam?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to quit this exam? Your progress will be saved, and you can continue later from My Exams.
+              {timerEnabled && timeRemaining > 0 && (
+                <span className="block mt-2 font-semibold text-foreground">
+                  ⏱️ Time remaining: {formatTime(timeRemaining)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleQuitExam} className="bg-primary">
+              Save & Quit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
