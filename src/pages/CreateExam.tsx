@@ -90,6 +90,7 @@ export default function CreateExam() {
   
   // Basic info
   const [examName, setExamName] = useState("");
+  const [examNameError, setExamNameError] = useState(false);
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
@@ -120,6 +121,7 @@ export default function CreateExam() {
   // Timer settings
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerDuration, setTimerDuration] = useState(60);
+  const [durationError, setDurationError] = useState(false);
   
   // Generation states
   const [generating, setGenerating] = useState(false);
@@ -155,6 +157,7 @@ export default function CreateExam() {
   const handleGenerate = async () => {
     // Validation
     if (!examName.trim()) {
+      setExamNameError(true);
       toast({
         title: "Exam Name Required",
         description: "Please enter a name for your exam",
@@ -208,7 +211,8 @@ export default function CreateExam() {
       return;
     }
 
-    if (timerEnabled && duration <= 0) {
+    if (timerEnabled && (!duration || duration <= 0)) {
+      setDurationError(true);
       toast({
         title: "Invalid Duration",
         description: "Please enter a positive duration",
@@ -354,7 +358,7 @@ export default function CreateExam() {
       <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
             <Button
               onClick={handleGenerate}
@@ -379,12 +383,22 @@ export default function CreateExam() {
           <div className="space-y-6">
             {/* Row 1: Exam Name & Subject */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Input
-                placeholder="Enter exam name..."
-                value={examName}
-                onChange={(e) => setExamName(e.target.value)}
-                className="h-12 text-base bg-card border-border"
-              />
+              <div>
+                <Input
+                  placeholder="Enter exam name..."
+                  value={examName}
+                  onChange={(e) => {
+                    setExamName(e.target.value);
+                    if (e.target.value.trim()) {
+                      setExamNameError(false);
+                    }
+                  }}
+                  className={`h-12 text-base bg-card ${examNameError ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                />
+                {examNameError && (
+                  <p className="text-sm text-destructive mt-1">Exam name is required</p>
+                )}
+              </div>
               <SubjectSelector
                 value={subjectId}
                 color={subjectColor}
@@ -691,12 +705,35 @@ export default function CreateExam() {
                         <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
                         <Input
                           type="number"
-                          value={duration}
-                          onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
+                          value={duration || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '') {
+                              setDuration(0);
+                            } else {
+                              setDuration(parseInt(value) || 0);
+                            }
+                            if (parseInt(value) > 0) {
+                              setDurationError(false);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = e.target.value.trim();
+                            if (value) {
+                              // Strip leading zeros and update
+                              const parsed = parseInt(value);
+                              if (!isNaN(parsed)) {
+                                setDuration(parsed);
+                              }
+                            }
+                          }}
                           min="1"
                           placeholder="Enter duration in minutes"
-                          className="h-11 bg-background"
+                          className={`h-11 bg-background ${durationError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                         />
+                        {durationError && (
+                          <p className="text-sm text-destructive mt-1">Please enter a valid duration</p>
+                        )}
                       </div>
                     )}
                   </div>
