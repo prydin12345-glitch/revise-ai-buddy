@@ -57,8 +57,13 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
     useEffect(() => {
       if (mathFieldRef.current && typeof mathFieldRef.current.latex === 'function') {
         const current = mathFieldRef.current.latex();
-        if ((value ?? '') !== current) {
-          mathFieldRef.current.latex(value || '');
+        const newValue = value ?? '';
+        if (newValue !== current) {
+          mathFieldRef.current.latex(newValue);
+          // Force cursor to end after setting value
+          if (newValue) {
+            mathFieldRef.current.moveToRightEnd();
+          }
         }
       }
     }, [value]);

@@ -559,7 +559,8 @@ const ExamInProgress = () => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container flex items-center justify-between h-16 px-6 max-w-none">
+        <div className="container grid grid-cols-3 items-center h-16 px-6 max-w-none gap-4">
+          {/* Left: Menu and Title */}
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -571,7 +572,9 @@ const ExamInProgress = () => {
             </Button>
             <h1 className="text-xl font-bold">{examName || 'Exam in Progress'}</h1>
           </div>
-          <div className="flex items-center gap-4">
+          
+          {/* Center: Timer */}
+          <div className="flex justify-center">
             {timerEnabled && (
               <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${timeRemaining < 300 ? 'bg-destructive text-destructive-foreground animate-pulse' : 'bg-muted'}`}>
                 <Clock className="w-5 h-5" />
@@ -584,10 +587,14 @@ const ExamInProgress = () => {
                 <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
               </div>
             )}
+          </div>
+          
+          {/* Right: Autosave & Menu */}
+          <div className="flex items-center justify-end gap-4">
             
-            {/* Auto-save status indicator */}
+            {/* Auto-save status indicator - hidden visually but accessible to screen readers */}
             {!isReadOnly && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+              <div className="sr-only">
                 {autoSaveStatus === 'saving' && (
                   <span className="flex items-center gap-1">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -876,6 +883,7 @@ const ExamInProgress = () => {
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <VisualMathInput
+                          key={`final-answer-${question.id}`}
                           ref={(el) => {
                             finalAnswerRefs.current[question.id] = el;
                           }}
