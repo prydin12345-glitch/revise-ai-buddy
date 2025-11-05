@@ -883,7 +883,6 @@ const ExamInProgress = () => {
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <VisualMathInput
-                          key={`final-answer-${question.id}`}
                           ref={(el) => {
                             finalAnswerRefs.current[question.id] = el;
                           }}
