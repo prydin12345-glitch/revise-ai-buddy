@@ -65,6 +65,8 @@ const ExamInProgress = () => {
   const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
   const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const finalAnswerRefs = useRef<Record<string, VisualMathInputRef | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
@@ -104,23 +106,32 @@ const ExamInProgress = () => {
 
   // Save timer on tab close/refresh
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
       if (timerEnabled && examId) {
-        // Synchronous localStorage save
+        // Synchronous localStorage save (always works)
         localStorage.setItem(`exam_${examId}_time_remaining`, timeRemaining.toString());
+        localStorage.setItem(`exam_${examId}_last_saved`, Date.now().toString());
         
-        // Try beacon save (fire-and-forget)
+        // Async backend save with keepalive
         try {
-          const data = JSON.stringify({
-            examId,
-            timeRemainingSeconds: timeRemaining
-          });
-          navigator.sendBeacon(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-exam-progress`,
-            data
-          );
-        } catch (e) {
-          console.error('Beacon save failed:', e);
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-exam-progress`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify({
+                examId,
+                timeRemainingSeconds: timeRemaining
+              }),
+              keepalive: true // ✅ Ensures request completes even after page unloads
+            });
+          }
+        } catch (error) {
+          console.error('BeforeUnload save failed:', error);
         }
       }
     };
@@ -153,6 +164,24 @@ const ExamInProgress = () => {
           setTimeRemaining(prev => {
             if (prev <= 1) {
               if (timerInterval.current) clearInterval(timerInterval.current);
+              
+              // Check if this is a stale timer (user was away)
+              const lastSaved = parseInt(
+                localStorage.getItem(`exam_${examId}_last_saved`) || '0'
+              );
+              const timeSinceLastSave = Date.now() - lastSaved;
+              
+              // If more than 2 minutes since last save, this is stale data
+              if (timeSinceLastSave > 120000) {
+                toast({
+                  title: "Session Expired",
+                  description: "Your exam session timed out. Progress has been saved.",
+                  variant: "destructive"
+                });
+                navigate('/my-exams');
+                return 0;
+              }
+              
               handleAutoSubmit();
               return 0;
             }
@@ -202,7 +231,11 @@ const ExamInProgress = () => {
 
       if (error) throw error;
 
-      if (data.submission) {
+      if (data.submission && data.submission.status === 'submitted') {
+        toast({
+          title: "Exam Already Submitted",
+          description: "Redirecting to review page...",
+        });
         navigate(`/exam/${examId}/review`);
         return;
       }
@@ -248,15 +281,28 @@ const ExamInProgress = () => {
       if (data.timer?.enabled) {
         setTimerEnabled(true);
         
-        // Priority: Backend > LocalStorage > Full Duration
-        const savedTime = data.timer.time_remaining_seconds;
+        // Get localStorage data
         const localStorageTime = parseInt(
           localStorage.getItem(`exam_${examId}_time_remaining`) || '0'
         );
+        const lastSaved = parseInt(
+          localStorage.getItem(`exam_${examId}_last_saved`) || '0'
+        );
         
-        const initialTime = savedTime 
-          || localStorageTime 
+        // Check if localStorage data is stale (> 1 hour old)
+        const isStale = lastSaved > 0 && (Date.now() - lastSaved > 3600000);
+        
+        // Priority: Backend > Fresh LocalStorage > Full Duration
+        const initialTime = data.timer.time_remaining_seconds 
+          || (!isStale && localStorageTime > 0 ? localStorageTime : null)
           || (data.timer.duration_minutes * 60);
+        
+        // If we ignored stale localStorage, clear it
+        if (isStale && localStorageTime > 0) {
+          console.log('Cleared stale localStorage timer data');
+          localStorage.removeItem(`exam_${examId}_time_remaining`);
+          localStorage.removeItem(`exam_${examId}_last_saved`);
+        }
         
         setTimeRemaining(initialTime);
         
@@ -299,6 +345,7 @@ const ExamInProgress = () => {
   }, []);
 
   const handleSaveAnswer = async (questionId: string, answer: string) => {
+    setAutoSaveStatus('saving');
     try {
       const { error } = await supabase.functions.invoke('submit-student-answer', {
         body: { examId, questionId, answerText: answer }
@@ -310,7 +357,13 @@ const ExamInProgress = () => {
       await saveTimerState();
 
       setSavedAnswers(prev => new Set(prev).add(questionId));
+      setAutoSaveStatus('saved');
+      setLastSavedTime(new Date());
+      
+      // Reset to idle after 3 seconds
+      setTimeout(() => setAutoSaveStatus('idle'), 3000);
     } catch (error: any) {
+      setAutoSaveStatus('error');
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
     }
   };
@@ -368,13 +421,17 @@ const ExamInProgress = () => {
       // 2. Save current timer state
       await saveTimerState();
 
-      // 3. Show success toast
+      // 3. Clear localStorage after successful save
+      localStorage.removeItem(`exam_${examId}_time_remaining`);
+      localStorage.removeItem(`exam_${examId}_last_saved`);
+
+      // 4. Show success toast
       toast({
         title: "Progress Saved",
         description: "You can continue this exam later from My Exams.",
       });
 
-      // 4. Navigate back to My Exams page
+      // 5. Navigate back to My Exams page
       navigate('/my-exams');
     } catch (error: any) {
       toast({
@@ -488,6 +545,30 @@ const ExamInProgress = () => {
               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
                 <Clock className="w-5 h-5" />
                 <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
+              </div>
+            )}
+            
+            {/* Auto-save status indicator */}
+            {!isReadOnly && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                {autoSaveStatus === 'saving' && (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </span>
+                )}
+                {autoSaveStatus === 'saved' && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <Check className="w-4 h-4" />
+                    Saved
+                  </span>
+                )}
+                {autoSaveStatus === 'error' && (
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertCircle className="w-4 h-4" />
+                    Save failed
+                  </span>
+                )}
               </div>
             )}
             
