@@ -72,6 +72,12 @@ const ExamInProgress = () => {
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const answersRef = useRef(userAnswers);
+  
+  // Keep answersRef in sync with userAnswers
+  useEffect(() => {
+    answersRef.current = userAnswers;
+  }, [userAnswers]);
 
   const saveTimerState = useCallback(async () => {
     if (!timerEnabled || !examId) return;
@@ -340,13 +346,17 @@ const ExamInProgress = () => {
     }
 
     saveTimeouts.current[questionId] = setTimeout(() => {
-      handleSaveAnswer(questionId, answer);
+      // Use the latest answer from ref at fire time
+      const latest = answersRef.current[questionId];
+      handleSaveAnswer(questionId, latest || answer);
     }, 1000);
   }, []);
 
   const handleSaveAnswer = async (questionId: string, answer: string) => {
     setAutoSaveStatus('saving');
     try {
+      console.log(`[Save] Question ${questionId}: ${answer.substring(0, 50)}...`);
+      
       const { error } = await supabase.functions.invoke('submit-student-answer', {
         body: { examId, questionId, answerText: answer }
       });
@@ -365,6 +375,20 @@ const ExamInProgress = () => {
     } catch (error: any) {
       setAutoSaveStatus('error');
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  // Flush saves for current page questions before navigation
+  const flushCurrentPageSaves = async () => {
+    const currentQuestions = questionGroups[currentPage]?.questions || [];
+    for (const question of currentQuestions) {
+      if (saveTimeouts.current[question.id]) {
+        clearTimeout(saveTimeouts.current[question.id]);
+        const latest = answersRef.current[question.id];
+        if (latest) {
+          await handleSaveAnswer(question.id, latest);
+        }
+      }
     }
   };
 
@@ -648,7 +672,8 @@ const ExamInProgress = () => {
                   return (
                     <button
                       key={q.id}
-                      onClick={() => {
+                      onClick={async () => {
+                        await flushCurrentPageSaves();
                         const groupIndex = questionGroups.findIndex(g => 
                           g.questions.some(question => question.id === q.id)
                         );
@@ -706,7 +731,10 @@ const ExamInProgress = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => prev - 1)}
+                onClick={async () => {
+                  await flushCurrentPageSaves();
+                  setCurrentPage(prev => prev - 1);
+                }}
                 disabled={!hasPrevPage}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
@@ -718,7 +746,10 @@ const ExamInProgress = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => prev + 1)}
+                onClick={async () => {
+                  await flushCurrentPageSaves();
+                  setCurrentPage(prev => prev + 1);
+                }}
                 disabled={!hasNextPage}
               >
                 Next Section
@@ -854,6 +885,16 @@ const ExamInProgress = () => {
                             }
                           }}
                           onFocus={() => setActiveQuestionId(question.id)}
+                          onBlur={async () => {
+                            // Immediately flush save on blur
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            const latest = answersRef.current[question.id];
+                            if (latest) {
+                              await handleSaveAnswer(question.id, latest);
+                            }
+                          }}
                           disabled={isReadOnly}
                           className="w-full"
                         />

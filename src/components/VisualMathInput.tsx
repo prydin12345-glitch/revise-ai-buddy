@@ -44,6 +44,7 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
       autoSubscriptNumerals: true,
       handlers: {
         edit: (mathField) => {
+          if (disabled) return;
           if (mathField && mathField.latex) {
             const latexValue = mathField.latex();
             onChange(latexValue);
@@ -51,6 +52,16 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
         },
       },
     };
+
+    // Sync prop value to MathQuill whenever it changes
+    useEffect(() => {
+      if (mathFieldRef.current && typeof mathFieldRef.current.latex === 'function') {
+        const current = mathFieldRef.current.latex();
+        if ((value ?? '') !== current) {
+          mathFieldRef.current.latex(value || '');
+        }
+      }
+    }, [value]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -74,6 +85,10 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
           config={config}
           mathquillDidMount={(mathField) => {
             mathFieldRef.current = mathField;
+            // Set initial latex explicitly
+            if (mathField && typeof mathField.latex === 'function') {
+              mathField.latex(value || '');
+            }
           }}
           onFocus={onFocus}
           onBlur={onBlur}
