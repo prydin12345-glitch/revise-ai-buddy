@@ -12,6 +12,7 @@ interface VisualMathInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  resetKey?: string; // Optional key to force re-sync when question changes
 }
 
 export interface VisualMathInputRef {
@@ -29,6 +30,7 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
       placeholder = 'Enter your answer...',
       className = '',
       disabled = false,
+      resetKey,
     },
     ref
   ) => {
@@ -53,7 +55,7 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
       },
     };
 
-    // Sync prop value to MathQuill whenever it changes
+    // Sync prop value to MathQuill whenever it changes or resetKey changes
     useEffect(() => {
       if (mathFieldRef.current && typeof mathFieldRef.current.latex === 'function') {
         const current = mathFieldRef.current.latex();
@@ -66,7 +68,7 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
           }
         }
       }
-    }, [value]);
+    }, [value, resetKey]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({

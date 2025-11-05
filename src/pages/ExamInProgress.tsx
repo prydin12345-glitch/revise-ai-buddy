@@ -45,7 +45,7 @@ const ExamInProgress = () => {
   const modeParam = searchParams.get('mode');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
@@ -79,6 +79,14 @@ const ExamInProgress = () => {
   useEffect(() => {
     answersRef.current = userAnswers;
   }, [userAnswers]);
+
+  // Helper to update answers in a structured way
+  const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string }>) => {
+    setUserAnswers(prev => {
+      const existing = prev[questionId] || { workingOut: '', finalAnswer: '' };
+      return { ...prev, [questionId]: { ...existing, ...patch } };
+    });
+  };
 
   const saveTimerState = useCallback(async () => {
     if (!timerEnabled || !examId) return;
@@ -330,10 +338,26 @@ const ExamInProgress = () => {
         setTimerNeedsReinit(true);
       }
 
-      const answersMap: Record<string, string> = {};
+      const answersMap: Record<string, { workingOut: string; finalAnswer: string }> = {};
       const savedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
-        answersMap[ans.question_id] = ans.answer_text;
+        const answerText = ans.answer_text || '';
+        // Try to parse as JSON for math exams
+        try {
+          const parsed = JSON.parse(answerText);
+          if (parsed && typeof parsed === 'object' && ('workingOut' in parsed || 'finalAnswer' in parsed)) {
+            answersMap[ans.question_id] = {
+              workingOut: parsed.workingOut || '',
+              finalAnswer: parsed.finalAnswer || ''
+            };
+          } else {
+            // Non-JSON or legacy format
+            answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
+          }
+        } catch {
+          // Plain text answer (non-math or legacy)
+          answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
+        }
         savedSet.add(ans.question_id);
       });
       setUserAnswers(answersMap);
@@ -347,7 +371,8 @@ const ExamInProgress = () => {
   };
 
   const handleAnswerChange = useCallback((questionId: string, answer: string) => {
-    setUserAnswers(prev => ({ ...prev, [questionId]: answer }));
+    // Legacy handler for non-math questions (plain text answer)
+    updateAnswer(questionId, { finalAnswer: answer });
     setSavedAnswers(prev => {
       const newSet = new Set(prev);
       newSet.delete(questionId);
@@ -359,19 +384,28 @@ const ExamInProgress = () => {
     }
 
     saveTimeouts.current[questionId] = setTimeout(() => {
-      // Use the latest answer from ref at fire time
-      const latest = answersRef.current[questionId];
-      handleSaveAnswer(questionId, latest || answer);
+      handleSaveAnswer(questionId);
     }, 1000);
   }, []);
 
-  const handleSaveAnswer = async (questionId: string, answer: string) => {
+  const handleSaveAnswer = async (questionId: string) => {
+    const answerData = answersRef.current[questionId] || { workingOut: '', finalAnswer: '' };
+    
+    // Serialize based on exam type
+    let answerText: string;
+    if (examSubject?.toLowerCase().includes('math')) {
+      // Math exam: save as JSON
+      answerText = JSON.stringify(answerData);
+    } else {
+      // Non-math: save finalAnswer as plain text
+      answerText = answerData.finalAnswer || answerData.workingOut || '';
+    }
     setAutoSaveStatus('saving');
     try {
-      console.log(`[Save] Question ${questionId}: ${answer.substring(0, 50)}...`);
+      console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
       
       const { error } = await supabase.functions.invoke('submit-student-answer', {
-        body: { examId, questionId, answerText: answer }
+        body: { examId, questionId, answerText }
       });
 
       if (error) throw error;
@@ -397,9 +431,9 @@ const ExamInProgress = () => {
     for (const question of currentQuestions) {
       if (saveTimeouts.current[question.id]) {
         clearTimeout(saveTimeouts.current[question.id]);
-        const latest = answersRef.current[question.id];
-        if (latest) {
-          await handleSaveAnswer(question.id, latest);
+        const answerData = answersRef.current[question.id];
+        if (answerData) {
+          await handleSaveAnswer(question.id);
         }
       }
     }
@@ -448,9 +482,9 @@ const ExamInProgress = () => {
       for (const questionId of pendingSaves) {
         if (saveTimeouts.current[questionId]) {
           clearTimeout(saveTimeouts.current[questionId]);
-          const answer = userAnswers[questionId];
-          if (answer) {
-            await handleSaveAnswer(questionId, answer);
+          const answerData = userAnswers[questionId];
+          if (answerData) {
+            await handleSaveAnswer(questionId);
           }
         }
       }
@@ -490,7 +524,9 @@ const ExamInProgress = () => {
       : `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const answeredCount = Object.keys(userAnswers).filter(id => userAnswers[id]?.trim()).length;
+  const answeredCount = Object.values(userAnswers).filter(a => 
+    Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())
+  ).length;
   const unansweredCount = questions.length - answeredCount;
 
   // Helper to extract parent question number (e.g., "1a" -> "1", "2b(i)" -> "2")
@@ -668,7 +704,8 @@ const ExamInProgress = () => {
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
               <div className="grid grid-cols-4 gap-2">
                 {questions.map((q) => {
-                  const hasAnswer = userAnswers[q.id]?.trim();
+                  const answerData = userAnswers[q.id];
+                  const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim());
                   const answer = existingAnswers?.find((a: any) => a.question_id === q.id);
                   
                   // Determine color based on submission status
@@ -831,14 +868,14 @@ const ExamInProgress = () => {
 
                   {question.question_type === 'mcq' && question.options ? (
                     <RadioGroup 
-                      value={userAnswers[question.id] || ''} 
+                      value={userAnswers[question.id]?.finalAnswer || ''} 
                       onValueChange={(val) => handleAnswerChange(question.id, val)}
                       disabled={isReadOnly}
                       className="space-y-2"
                     >
                       {question.options.map((option, idx) => {
                         const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D...
-                        const isSelected = userAnswers[question.id] === optionLetter;
+                        const isSelected = userAnswers[question.id]?.finalAnswer === optionLetter;
                         return (
                           <div 
                             key={idx} 
@@ -860,24 +897,19 @@ const ExamInProgress = () => {
                         <Label className="text-base font-medium mb-2 block">Working Out</Label>
                         <Textarea 
                           placeholder="Show your working here..."
-                          value={(() => {
-                            try {
-                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              return parsed.workingOut || '';
-                            } catch {
-                              return '';
-                            }
-                          })()}
+                          value={userAnswers[question.id]?.workingOut || ''}
                           onChange={(e) => {
-                            try {
-                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              const updated = { ...parsed, workingOut: e.target.value };
-                              handleAnswerChange(question.id, JSON.stringify(updated));
-                            } catch {
-                              handleAnswerChange(question.id, JSON.stringify({ workingOut: e.target.value, finalAnswer: '' }));
+                            updateAnswer(question.id, { workingOut: e.target.value });
+                            // Trigger debounced save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
                             }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1000);
                           }}
                           className="min-h-[300px] resize-y text-base font-mono"
+                          disabled={isReadOnly}
                         />
                       </div>
                       <div>
@@ -887,22 +919,17 @@ const ExamInProgress = () => {
                             finalAnswerRefs.current[question.id] = el;
                           }}
                           placeholder="Enter your final answer using visual math templates"
-                          value={(() => {
-                            try {
-                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              return parsed.finalAnswer || '';
-                            } catch {
-                              return userAnswers[question.id] || '';
-                            }
-                          })()}
+                          value={userAnswers[question.id]?.finalAnswer || ''}
+                          resetKey={question.id}
                           onChange={(latex) => {
-                            try {
-                              const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              const updated = { ...parsed, finalAnswer: latex };
-                              handleAnswerChange(question.id, JSON.stringify(updated));
-                            } catch {
-                              handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: latex }));
+                            updateAnswer(question.id, { finalAnswer: latex });
+                            // Trigger debounced save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
                             }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1000);
                           }}
                           onFocus={() => setActiveQuestionId(question.id)}
                           onBlur={async () => {
@@ -910,9 +937,9 @@ const ExamInProgress = () => {
                             if (saveTimeouts.current[question.id]) {
                               clearTimeout(saveTimeouts.current[question.id]);
                             }
-                            const latest = answersRef.current[question.id];
-                            if (latest) {
-                              await handleSaveAnswer(question.id, latest);
+                            const answerData = answersRef.current[question.id];
+                            if (answerData) {
+                              await handleSaveAnswer(question.id);
                             }
                           }}
                           disabled={isReadOnly}
@@ -936,11 +963,11 @@ const ExamInProgress = () => {
                   ) : (
                     <Textarea 
                       placeholder="Your Answer"
-                      value={userAnswers[question.id] || ''}
+                      value={userAnswers[question.id]?.finalAnswer || ''}
                       onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                      onBlur={(e) => {
+                      onBlur={async (e) => {
                         if (e.target.value) {
-                          handleSaveAnswer(question.id, e.target.value);
+                          await handleSaveAnswer(question.id);
                         }
                       }}
                       className="min-h-[200px] resize-y text-base"
