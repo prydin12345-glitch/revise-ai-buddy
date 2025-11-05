@@ -989,6 +989,16 @@ Return a JSON object with this structure:
       });
     }
 
+    // ✅ INCREMENTAL UPDATE: Update question count immediately after insertion
+    console.log(`✅ Inserted ${insertedQuestions?.length || 0} questions - updating count immediately`);
+    await supabase
+      .from('exams')
+      .update({ 
+        total_questions_extracted: insertedQuestions?.length || 0
+      })
+      .eq('id', draftId);
+    console.log('Question count updated in database');
+
     // Process ALL questions when use_original_structure is true (Full AI Generation)
     if (useOriginalStructure) {
       console.log('Full AI generation mode: Regenerating ALL questions...');
@@ -1158,23 +1168,62 @@ Return ONLY the new question text, no additional explanation.`;
       console.log(`Inserted ${extractedTopics.length} topics`);
     }
 
-    // Update exam status to completed with subject detection
-    await supabase
-      .from('exams')
-      .update({
-        extraction_status: 'completed',
-        total_questions_extracted: extractedQuestions.length,
-        extraction_error: null,
-        detected_subject: detectedSubject,
-        subject_confidence: subjectConfidence,
-        subject_mismatch: isMismatch
-      })
-      .eq('id', draftId);
+    // ✅ ROBUST FINAL UPDATE: Update exam status to completed with retry logic
+    console.log('Attempting final status update to "completed"...');
+    let updateSuccess = false;
+    let lastError: any = null;
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Final update attempt ${attempt}/3`);
+        const { error: updateError } = await supabase
+          .from('exams')
+          .update({
+            extraction_status: 'completed',
+            total_questions_extracted: extractedQuestions.length,
+            extraction_error: null,
+            detected_subject: detectedSubject,
+            subject_confidence: subjectConfidence,
+            subject_mismatch: isMismatch
+          })
+          .eq('id', draftId);
+
+        if (updateError) {
+          throw updateError;
+        }
+        
+        console.log(`✅ Final status update successful on attempt ${attempt}`);
+        updateSuccess = true;
+        break;
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ Final update attempt ${attempt} failed:`, error);
+        if (attempt < 3) {
+          console.log(`Retrying in ${attempt} second(s)...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+      }
+    }
+
+    if (!updateSuccess) {
+      console.error('❌ CRITICAL: Failed to update exam status after 3 attempts:', lastError);
+      // Try one last time to at least mark it as completed (even if other fields fail)
+      try {
+        await supabase
+          .from('exams')
+          .update({ extraction_status: 'completed' })
+          .eq('id', draftId);
+        console.log('Emergency fallback update succeeded (status only)');
+      } catch (emergencyError) {
+        console.error('❌ Emergency fallback also failed:', emergencyError);
+      }
+    }
 
   console.log('✅ Extraction completed successfully:', {
     questions: extractedQuestions.length,
     topics: extractedTopics.length,
-    subject: detectedSubject
+    subject: detectedSubject,
+    finalUpdateSuccess: updateSuccess
   });
 }
 
