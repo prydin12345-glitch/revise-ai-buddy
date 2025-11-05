@@ -1,0 +1,142 @@
+/* MathQuill Visual Math Input Customization */
+
+.visual-math-input {
+  position: relative;
+  width: 100%;
+}
+
+.visual-math-input .mq-editable-field {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  min-height: 60px;
+  background: hsl(var(--background));
+  font-size: 1.125rem;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.visual-math-input .mq-editable-field:focus {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.visual-math-input .mq-editable-field.mq-focused {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+/* Cursor styling */
+.mq-cursor {
+  border-left: 2px solid hsl(var(--foreground));
+  animation: mq-blink 1s step-end infinite;
+}
+
+@keyframes mq-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Selected text */
+.mq-selection {
+  background: hsl(var(--primary) / 0.3);
+}
+
+/* Placeholder boxes (editable slots) */
+.mq-empty {
+  background: hsl(var(--muted) / 0.3);
+  border: 1px dashed hsl(var(--border));
+  border-radius: 3px;
+  padding: 2px 6px;
+  min-width: 1em;
+  display: inline-block;
+}
+
+/* Math symbols styling */
+.mq-math-mode .mq-root-block {
+  color: hsl(var(--foreground));
+}
+
+/* Fraction bars */
+.mq-fraction {
+  vertical-align: middle;
+  display: inline-block;
+  text-align: center;
+}
+
+.mq-numerator,
+.mq-denominator {
+  padding: 2px 4px;
+  min-width: 1.5em;
+  display: block;
+}
+
+.mq-fraction-bar {
+  border-top: 1px solid hsl(var(--foreground));
+  margin: 2px 0;
+}
+
+/* Square roots and radicals */
+.mq-sqrt-stem {
+  border-color: hsl(var(--foreground));
+  border-top-width: 1px;
+}
+
+.mq-sqrt-prefix {
+  border-color: hsl(var(--foreground));
+}
+
+/* Superscripts and subscripts */
+.mq-sup {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+.mq-sub {
+  vertical-align: sub;
+  font-size: 0.75em;
+}
+
+/* Matrices and brackets */
+.mq-paren,
+.mq-bracket {
+  color: hsl(var(--foreground));
+}
+
+/* Dark mode compatibility */
+.dark .mq-editable-field {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark .mq-cursor {
+  border-left-color: hsl(var(--foreground));
+}
+
+.dark .mq-selection {
+  background: hsl(var(--primary) / 0.3);
+}
+
+.dark .mq-empty {
+  background: hsl(var(--muted) / 0.2);
+  border-color: hsl(var(--border));
+}
+
+/* Placeholder text */
+.math-placeholder {
+  position: absolute;
+  top: 0.75rem;
+  left: 1rem;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  font-size: 1rem;
+}
+
+/* Disabled state */
+.visual-math-input .mq-editable-field[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: hsl(var(--muted) / 0.3);
+}

@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathKeyboard } from "@/components/MathKeyboard";
+import { VisualMathInput, VisualMathInputRef } from "@/components/VisualMathInput";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -65,7 +66,7 @@ const ExamInProgress = () => {
   const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const finalAnswerRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const finalAnswerRefs = useRef<Record<string, VisualMathInputRef | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -749,11 +750,11 @@ const ExamInProgress = () => {
                       </div>
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
-                        <Textarea 
+                        <VisualMathInput
                           ref={(el) => {
                             finalAnswerRefs.current[question.id] = el;
                           }}
-                          placeholder="Your final answer (number, expression, or coordinate)"
+                          placeholder="Enter your final answer using visual math templates"
                           value={(() => {
                             try {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
@@ -762,87 +763,28 @@ const ExamInProgress = () => {
                               return '';
                             }
                           })()}
-                          onChange={(e) => {
+                          onChange={(latex) => {
                             try {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                              const updated = { ...parsed, finalAnswer: e.target.value };
+                              const updated = { ...parsed, finalAnswer: latex };
                               handleAnswerChange(question.id, JSON.stringify(updated));
                             } catch {
-                              handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: e.target.value }));
+                              handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: latex }));
                             }
                           }}
                           onFocus={() => setActiveQuestionId(question.id)}
-                          onBlur={(e) => {
-                            // Auto-format common math patterns
-                            const autoFormat = (text: string): string => {
-                              return text
-                                .replace(/\^2(?![0-9])/g, '²')
-                                .replace(/\^3(?![0-9])/g, '³')
-                                .replace(/\^n/g, 'ⁿ')
-                                .replace(/>=|≥/g, '≥')
-                                .replace(/<=|≤/g, '≤')
-                                .replace(/!=/g, '≠')
-                                .replace(/\*(?!\*)/g, '×');
-                            };
-                            
-                            const formatted = autoFormat(e.target.value);
-                            if (formatted !== e.target.value) {
-                              try {
-                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                const updated = { ...parsed, finalAnswer: formatted };
-                                handleAnswerChange(question.id, JSON.stringify(updated));
-                              } catch {
-                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: formatted }));
-                              }
-                            }
-                          }}
-                          className="min-h-[60px] resize-y text-base"
+                          disabled={isReadOnly}
+                          className="w-full"
                         />
                         
                         {activeQuestionId === question.id && (
                           <MathKeyboard 
                             isOpen={mathKeyboardOpen}
                             onInsertSymbol={(symbol) => {
-                              const textarea = finalAnswerRefs.current[question.id];
-                              if (!textarea) return;
-                              
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const currentValue = (() => {
-                                try {
-                                  const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                  return parsed.finalAnswer || '';
-                                } catch {
-                                  return '';
-                                }
-                              })();
-                              
-                              // Insert the LaTeX template at cursor position
-                              const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end);
-                              
-                              // Update the value
-                              try {
-                                const parsed = JSON.parse(userAnswers[question.id] || '{}');
-                                const updated = { ...parsed, finalAnswer: newValue };
-                                handleAnswerChange(question.id, JSON.stringify(updated));
-                              } catch {
-                                handleAnswerChange(question.id, JSON.stringify({ workingOut: '', finalAnswer: newValue }));
+                              const mathField = finalAnswerRefs.current[question.id];
+                              if (mathField?.insertLatex) {
+                                mathField.insertLatex(symbol);
                               }
-                              
-                              // Find and select the first placeholder (□)
-                              setTimeout(() => {
-                                textarea.focus();
-                                
-                                const placeholderIndex = newValue.indexOf('□', start);
-                                if (placeholderIndex !== -1) {
-                                  // Select the placeholder box so typing replaces it
-                                  textarea.setSelectionRange(placeholderIndex, placeholderIndex + 1);
-                                } else {
-                                  // No placeholder, position at end of inserted content
-                                  const newCursorPos = start + symbol.length;
-                                  textarea.setSelectionRange(newCursorPos, newCursorPos);
-                                }
-                              }, 0);
                             }}
                             onClose={() => setMathKeyboardOpen(false)}
                           />

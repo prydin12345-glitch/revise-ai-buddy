@@ -160,8 +160,8 @@ export function MathKeyboard({ isOpen, onInsertSymbol, onClose }: MathKeyboardPr
         ))}
       </Tabs>
 
-      <p className="text-xs text-slate-400 mt-4 text-center">
-        Click any symbol to insert LaTeX template at cursor position
+      <p className="text-xs text-muted-foreground mt-4 text-center">
+        Click any symbol to insert visual math template at cursor position
       </p>
     </Card>
   );
