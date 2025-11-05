@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 
+// Declare EdgeRuntime global for background task support
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<any>): void;
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -60,18 +65,20 @@ serve(async (req) => {
       .update({ extraction_status: 'extracting' })
       .eq('id', draftId);
 
-    // Start processing in background (don't await - let it run)
-    processExamExtraction(draftId, user.id, supabase, lovableApiKey)
-      .catch(async (error) => {
-        console.error('Background processing error:', error);
-        await supabase
-          .from('exams')
-          .update({ 
-            extraction_status: 'failed',
-            extraction_error: error instanceof Error ? error.message : 'Unknown error'
-          })
-          .eq('id', draftId);
-      });
+    // Start processing in background using EdgeRuntime.waitUntil to keep it alive
+    EdgeRuntime.waitUntil(
+      processExamExtraction(draftId, user.id, supabase, lovableApiKey)
+        .catch(async (error) => {
+          console.error('Background processing error:', error);
+          await supabase
+            .from('exams')
+            .update({ 
+              extraction_status: 'failed',
+              extraction_error: error instanceof Error ? error.message : 'Unknown error'
+            })
+            .eq('id', draftId);
+        })
+    );
 
     // Return immediately
     return new Response(JSON.stringify({ 
