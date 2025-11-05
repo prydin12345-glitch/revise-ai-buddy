@@ -47,10 +47,11 @@ const ExamInProgress = () => {
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
-  const [isTeacher, setIsTeacher] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
   const isReadOnly = isTeacher && !treatAsStudent;
   const [timerEnabled, setTimerEnabled] = useState(false);
+  const [timerNeedsReinit, setTimerNeedsReinit] = useState(false); // Flag to trigger timer reinit
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -158,11 +159,8 @@ const ExamInProgress = () => {
     }
 
     if (!isReadOnly && !loading && !isSubmitting && timerEnabled) {
-      // Initialize start time if not set
-      if (startTime.current === null || startTime.current === 0) {
-        startTime.current = Date.now();
-      }
-
+      console.log('[Timer] Initializing timer with timeRemaining:', timeRemaining);
+      
       timerInterval.current = setInterval(() => {
         setTimeElapsed(Math.floor((Date.now() - startTime.current) / 1000));
         
@@ -195,12 +193,17 @@ const ExamInProgress = () => {
           });
         }
       }, 1000);
+      
+      // Reset the reinit flag after starting the timer
+      if (timerNeedsReinit) {
+        setTimerNeedsReinit(false);
+      }
 
       return () => {
         if (timerInterval.current) clearInterval(timerInterval.current);
       };
     }
-  }, [isReadOnly, loading, timerEnabled, isSubmitting]);
+  }, [isReadOnly, loading, timerEnabled, isSubmitting, timerNeedsReinit]);
 
   const loadQuestions = async () => {
     try {
@@ -280,7 +283,8 @@ const ExamInProgress = () => {
       });
 
       setQuestions(sortedQuestions);
-      setIsTeacher(data.isTeacher);
+      setIsTeacher(Boolean(data.isTeacher));
+      console.log('[Resume Debug] isTeacher:', data.isTeacher, 'isReadOnly:', Boolean(data.isTeacher) && !treatAsStudent);
       setExistingAnswers(data.existingAnswers || []);
       setSubmission(data.submission || null);
       
@@ -303,6 +307,14 @@ const ExamInProgress = () => {
           || (!isStale && localStorageTime > 0 ? localStorageTime : null)
           || (data.timer.duration_minutes * 60);
         
+        // Detect if this is a resume
+        const isResume = data.timer.time_remaining_seconds && 
+                         data.timer.time_remaining_seconds < (data.timer.duration_minutes * 60);
+        
+        if (isResume) {
+          console.log('[Resume Mode] Restoring exam state with', initialTime, 'seconds remaining');
+        }
+        
         // If we ignored stale localStorage, clear it
         if (isStale && localStorageTime > 0) {
           console.log('Cleared stale localStorage timer data');
@@ -312,9 +324,12 @@ const ExamInProgress = () => {
         
         setTimeRemaining(initialTime);
         
-        // Set start time based on remaining time
+        // ALWAYS recalculate start time based on elapsed time to prevent timer stuck issues
         const elapsedSeconds = (data.timer.duration_minutes * 60) - initialTime;
         startTime.current = Date.now() - (elapsedSeconds * 1000);
+        
+        // Trigger timer reinitialization
+        setTimerNeedsReinit(true);
       }
 
       const answersMap: Record<string, string> = {};
