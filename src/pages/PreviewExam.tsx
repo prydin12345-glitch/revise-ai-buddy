@@ -89,49 +89,82 @@ export default function PreviewExam() {
     setExtracting(true);
     setExtractionStatus('extracting');
     setAiGenerationInProgress(true);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('extract-exam-questions', {
+      // Start extraction (returns immediately)
+      const { error } = await supabase.functions.invoke('extract-exam-questions', {
         body: { draftId }
       });
 
       if (error) throw error;
 
-      const topicsMsg = data.topics > 0 ? ` and ${data.topics} topics` : '';
-      toast({
-        title: "Generation Complete",
-        description: `Successfully generated ${data.totalQuestions} questions${topicsMsg}`,
-      });
-
-      // Reload all data including topics
-      const [examResult, topicsResult] = await Promise.all([
-        supabase
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        const { data: exam } = await supabase
           .from('exams')
-          .select('extraction_status, total_questions_extracted')
+          .select('extraction_status, total_questions_extracted, extraction_error')
           .eq('id', draftId)
-          .single(),
-        supabase
-          .from('exam_topics')
-          .select('*')
-          .eq('exam_id', draftId)
-      ]);
+          .single();
 
-      if (examResult.data) {
-        setExtractionStatus(examResult.data.extraction_status);
-        setDraftCount(examResult.data.total_questions_extracted || 0);
-      }
+        if (!exam) return;
 
-      if (topicsResult.data) {
-        setExamSummary(prev => prev ? { ...prev, topics: topicsResult.data } : prev);
-      }
+        setExtractionStatus(exam.extraction_status);
+
+        if (exam.extraction_status === 'completed') {
+          clearInterval(pollInterval);
+          setExtracting(false);
+          setAiGenerationInProgress(false);
+          setDraftCount(exam.total_questions_extracted || 0);
+
+          // Load topics
+          const { data: topicsResult } = await supabase
+            .from('exam_topics')
+            .select('*')
+            .eq('exam_id', draftId);
+
+          if (topicsResult) {
+            setExamSummary(prev => prev ? { ...prev, topics: topicsResult } : prev);
+          }
+
+          toast({
+            title: "Generation Complete",
+            description: `Successfully generated ${exam.total_questions_extracted} questions`,
+          });
+        } else if (exam.extraction_status === 'failed') {
+          clearInterval(pollInterval);
+          setExtracting(false);
+          setAiGenerationInProgress(false);
+          toast({
+            title: "Generation Failed",
+            description: exam.extraction_error || "Failed to generate questions",
+            variant: "destructive",
+          });
+        }
+      }, 2000); // Poll every 2 seconds
+
+      // Timeout after 10 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (extracting) {
+          setExtracting(false);
+          setAiGenerationInProgress(false);
+          toast({
+            title: "Generation Timeout",
+            description: "Processing is taking longer than expected. Please refresh the page to check status.",
+            variant: "destructive",
+          });
+        }
+      }, 600000);
+
     } catch (error: any) {
       console.error('Generation error:', error);
+      setExtracting(false);
+      setAiGenerationInProgress(false);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate questions",
+        description: error.message || "Failed to start generation",
         variant: "destructive",
       });
-    } finally {
-      setExtracting(false);
     }
   };
 

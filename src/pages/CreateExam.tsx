@@ -335,43 +335,63 @@ export default function CreateExam() {
 
       if (timerError) throw timerError;
 
-      // Extract questions with AI
-      const { data: extractData, error: extractError } = await supabase.functions.invoke(
+      // Start extraction (returns immediately)
+      const { error: extractError } = await supabase.functions.invoke(
         'extract-exam-questions',
         { body: { draftId } }
       );
 
       if (extractError) throw extractError;
 
-      // Check for subject mismatch
-      if (extractData?.subjectDetection?.mismatch) {
-        clearInterval(messageInterval);
-        setGenerating(false);
-        
-        // Store mismatch data for the warning modal
-        setSubjectMismatchData({
-          detected: extractData.subjectDetection.detected,
-          confidence: extractData.subjectDetection.confidence,
-          reasoning: extractData.subjectDetection.reasoning,
-          userSelected: extractData.subjectDetection.userSelected
-        });
-        
-        // Store draftId so we can proceed if user confirms
-        setGeneratedDraftId(draftId);
-        setTotalQuestionsGenerated(extractData?.totalQuestions || 0);
-        
-        // Show warning modal
-        setShowMismatchWarning(true);
-        return; // Don't proceed to completion modal yet
-      }
+      // Poll for completion
+      const pollForCompletion = async () => {
+        const { data: exam } = await supabase
+          .from('exams')
+          .select('extraction_status, total_questions_extracted, extraction_error, subject_mismatch, detected_subject, subject_confidence')
+          .eq('id', draftId)
+          .single();
 
-      clearInterval(messageInterval);
+        if (!exam) return false;
 
-      // Show completion modal instead of navigating immediately
-      setGeneratedDraftId(draftId);
-      setTotalQuestionsGenerated(extractData?.totalQuestions || 0);
-      setShowGenerationComplete(true);
-      setGenerating(false);
+        if (exam.extraction_status === 'completed') {
+          clearInterval(messageInterval);
+
+          // Check for subject mismatch
+          if (exam.subject_mismatch) {
+            setGenerating(false);
+            setSubjectMismatchData({
+              detected: exam.detected_subject,
+              confidence: exam.subject_confidence,
+              reasoning: 'Subject mismatch detected',
+              userSelected: subjectId
+            });
+            setGeneratedDraftId(draftId);
+            setTotalQuestionsGenerated(exam.total_questions_extracted || 0);
+            setShowMismatchWarning(true);
+            return true;
+          }
+
+          // Show completion modal
+          setGeneratedDraftId(draftId);
+          setTotalQuestionsGenerated(exam.total_questions_extracted || 0);
+          setShowGenerationComplete(true);
+          setGenerating(false);
+          return true;
+        } else if (exam.extraction_status === 'failed') {
+          clearInterval(messageInterval);
+          throw new Error(exam.extraction_error || 'Extraction failed');
+        }
+        return false;
+      };
+
+      // Poll every 2 seconds
+      const pollInterval = setInterval(async () => {
+        const completed = await pollForCompletion();
+        if (completed) clearInterval(pollInterval);
+      }, 2000);
+
+      // Initial check
+      await pollForCompletion();
     } catch (error: any) {
       console.error('Generation error:', error);
       clearInterval(messageInterval);

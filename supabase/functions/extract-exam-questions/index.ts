@@ -39,7 +39,7 @@ serve(async (req) => {
 
     console.log('Extracting questions for exam:', draftId);
 
-    // Get exam details with format and specifications
+    // Get exam details quickly
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*, exam_format(*), exam_specifications(*)')
@@ -54,39 +54,84 @@ serve(async (req) => {
       });
     }
 
-    const examBoard = exam.exam_board || 'generic';
-    const qualificationLevel = exam.qualification_level || 'not specified';
-    const specTopics = exam.exam_specifications || [];
-    
-    const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
-    console.log('Use original structure:', useOriginalStructure);
-    console.log('Exam board:', examBoard, 'Level:', qualificationLevel);
-
     // Update status to extracting
     await supabase
       .from('exams')
       .update({ extraction_status: 'extracting' })
       .eq('id', draftId);
 
-    // Download PDF from storage
-    const { data: pdfData, error: downloadError } = await supabase.storage
-      .from('exam-files')
-      .download(exam.file_url);
-
-    if (downloadError || !pdfData) {
-      console.error('Download error:', downloadError);
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: 'Failed to download PDF'
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'Failed to download PDF' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Start processing in background (don't await - let it run)
+    processExamExtraction(draftId, user.id, supabase, lovableApiKey)
+      .catch(async (error) => {
+        console.error('Background processing error:', error);
+        await supabase
+          .from('exams')
+          .update({ 
+            extraction_status: 'failed',
+            extraction_error: error instanceof Error ? error.message : 'Unknown error'
+          })
+          .eq('id', draftId);
       });
-    }
+
+    // Return immediately
+    return new Response(JSON.stringify({ 
+      status: 'processing',
+      message: 'Question extraction started'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error in extract-exam-questions:', error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
+
+// Main processing function
+async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string) {
+  console.log('Starting background extraction for:', draftId);
+
+  // Get exam details with format and specifications
+  const { data: exam, error: examError } = await supabase
+    .from('exams')
+    .select('*, exam_format(*), exam_specifications(*)')
+    .eq('id', draftId)
+    .eq('user_id', userId)
+    .single();
+
+  if (examError || !exam) {
+    throw new Error('Exam not found');
+  }
+
+  const examBoard = exam.exam_board || 'generic';
+  const qualificationLevel = exam.qualification_level || 'not specified';
+  const specTopics = exam.exam_specifications || [];
+  
+  const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
+  console.log('Use original structure:', useOriginalStructure);
+  console.log('Exam board:', examBoard, 'Level:', qualificationLevel);
+
+  // Update status to extracting (already done above)
+  // await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
+
+  // Download PDF from storage
+  const { data: pdfData, error: downloadError } = await supabase.storage
+    .from('exam-files')
+    .download(exam.file_url);
+
+  if (downloadError || !pdfData) {
+    console.error('Download error:', downloadError);
+    await supabase
+      .from('exams')
+      .update({ 
+        extraction_status: 'failed',
+        extraction_error: 'Failed to download PDF'
+      })
+      .eq('id', draftId);
+    throw new Error('Failed to download PDF');
+  }
 
     // Extract text and images from PDF using pdfjs-serverless
     const arrayBuffer = await pdfData.arrayBuffer();
@@ -1119,28 +1164,12 @@ Return ONLY the new question text, no additional explanation.`;
       })
       .eq('id', draftId);
 
-    return new Response(JSON.stringify({ 
-      success: true,
-      totalQuestions: extractedQuestions.length,
-      topics: extractedTopics.length,
-      subjectDetection: {
-        detected: detectedSubject,
-        confidence: subjectConfidence,
-        reasoning: subjectReasoning,
-        mismatch: isMismatch,
-        userSelected: exam.subject_id
-      }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Error in extract-exam-questions:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+  console.log('✅ Extraction completed successfully:', {
+    questions: extractedQuestions.length,
+    topics: extractedTopics.length,
+    subject: detectedSubject
+  });
+}
 
 // Helper function to determine image handling strategy (Hybrid Approach)
 function determineImageStrategy(question: any): 'concept_replacement' | 'original_reference' {
