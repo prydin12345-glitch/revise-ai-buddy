@@ -9,8 +9,56 @@ interface MathRendererProps {
 }
 
 export function MathRenderer({ content, latex, hasMath, className = "" }: MathRendererProps) {
+  // Check if content contains HTML tables
+  const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(content);
+  
   // Check if content contains math delimiters
   const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$[^$]+\$/g.test(content);
+  
+  // If content has HTML tables, render with safe HTML parsing
+  if (hasHtmlTable) {
+    // Split by table tags to separate tables from regular content
+    const tableRegex = /(<table class="exam-table">[\s\S]*?<\/table>)/gi;
+    const parts = content.split(tableRegex);
+    
+    return (
+      <div className={`prose prose-sm max-w-none ${className}`}>
+        {parts.map((part, i) => {
+          // Check if this part is a table
+          if (part.match(tableRegex)) {
+            return (
+              <div 
+                key={i} 
+                className="my-4"
+                dangerouslySetInnerHTML={{ __html: part }}
+              />
+            );
+          }
+          
+          // For non-table parts, check for math expressions
+          const mathParts = part.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+          return mathParts.map((mathPart, j) => {
+            if (mathPart.startsWith('$$') && mathPart.endsWith('$$')) {
+              const mathContent = mathPart.slice(2, -2);
+              return (
+                <div key={`${i}-${j}`} className="my-4">
+                  <BlockMath math={mathContent} />
+                </div>
+              );
+            }
+            if (mathPart.startsWith('$') && mathPart.endsWith('$')) {
+              const mathContent = mathPart.slice(1, -1);
+              return <InlineMath key={`${i}-${j}`} math={mathContent} />;
+            }
+            // Regular text
+            return mathPart.split('\n').map((line, k) => (
+              line.trim() ? <span key={`${i}-${j}-${k}`}>{line}</span> : <br key={`${i}-${j}-${k}`} />
+            ));
+          });
+        })}
+      </div>
+    );
+  }
   
   // If content has math delimiters, parse and render them
   if (hasMath || hasInlineOrBlockMath) {

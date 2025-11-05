@@ -541,12 +541,34 @@ ${structureInstructions}
    - Integrals: "\\\\int_{0}^{\\\\pi} \\\\sin(x) dx"
 4. Set "has_math": true and "equation_complexity" appropriately
 
-📊 GRAPH & DATA TABLE GENERATION:
-When generating questions involving data:
+📊 TABLE GENERATION (CRITICAL):
+When tables are present in questions:
+1. Embed them directly in "question_text" as HTML tables with the exact format below
+2. Use this exact HTML structure:
+   <table class="exam-table">
+     <thead>
+       <tr>
+         <th>Column Header 1</th>
+         <th>Column Header 2</th>
+       </tr>
+     </thead>
+     <tbody>
+       <tr>
+         <td>Cell data</td>
+         <td>X</td>
+       </tr>
+     </tbody>
+   </table>
+3. Use "X" or "✓" for checkmarks/marks in cells
+4. Ensure all text before/after tables is preserved in "question_text"
+5. Set "has_tables": true when tables are present
+6. Tables should be visually formatted with proper spacing and alignment
+
+📊 GRAPH GENERATION:
+When generating questions involving graphs or charts:
 1. Create realistic numerical datasets with logical relationships
-2. For graphs: describe axes, units, trends clearly in "graph_description"
-3. For tables: use markdown format in "table_data"
-4. Set "data_type": "graph", "table", "both", or "none"
+2. Describe axes, units, trends clearly in "graph_description"
+3. Set "data_type": "graph", "table", "both", or "none"
 
 🔌 CIRCUIT DIAGRAM SUPPORT:
 For electrical questions:

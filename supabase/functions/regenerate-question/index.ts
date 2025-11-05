@@ -54,6 +54,15 @@ Generate a COMPLETELY NEW question that:
 6. Maintains the same difficulty and mark value
 7. Never copies any original text
 
+TABLE FORMATTING (if applicable):
+- If the question contains a table, format it as HTML using this exact structure:
+  <table class="exam-table">
+    <thead><tr><th>Header 1</th><th>Header 2</th></tr></thead>
+    <tbody><tr><td>Data 1</td><td>Data 2</td></tr></tbody>
+  </table>
+- Use "X" or "✓" for checkmarks in cells
+- Preserve the table structure and data relationships
+
 CRITICAL: Be creative! Change names, locations, scenarios, values - make it fresh while testing the same skill.
 
 Return ONLY the new question text (and options if MCQ), no explanation.`;

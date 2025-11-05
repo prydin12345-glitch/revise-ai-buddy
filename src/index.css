@@ -197,3 +197,50 @@ All colors MUST be HSL.
     scrollbar-width: none;
   }
 }
+
+/* Exam Table Formatting - Rich Text Tables */
+.exam-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 1rem 0;
+  box-shadow: 0 2px 8px -1px hsl(var(--foreground) / 0.08);
+}
+
+.exam-table thead th {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border: 1px solid hsl(var(--border));
+  font-size: 0.9rem;
+}
+
+.exam-table tbody td {
+  padding: 12px 16px;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  vertical-align: top;
+}
+
+.exam-table tbody tr:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.dark .exam-table {
+  background: hsl(222 47% 14%);
+  border-color: hsl(222 47% 20%);
+}
+
+.dark .exam-table thead th {
+  background: hsl(222 47% 18%);
+  border-color: hsl(222 47% 25%);
+}
+
+.dark .exam-table tbody td {
+  border-color: hsl(222 47% 25%);
+}
