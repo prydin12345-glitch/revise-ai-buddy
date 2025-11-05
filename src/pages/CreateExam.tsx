@@ -277,7 +277,10 @@ export default function CreateExam() {
     setCurrentMessage(loadingMessages[0]);
 
     // Rotate messages every 4 seconds
-    const messageInterval = setInterval(() => {
+    let messageInterval: number | undefined;
+    let pollInterval: number | undefined;
+
+    messageInterval = window.setInterval(() => {
       setCurrentMessage(prev => {
         const currentIndex = loadingMessages.indexOf(prev);
         return loadingMessages[(currentIndex + 1) % loadingMessages.length];
@@ -354,11 +357,11 @@ export default function CreateExam() {
         if (!exam) return false;
 
         if (exam.extraction_status === 'completed') {
-          clearInterval(messageInterval);
+          if (messageInterval) clearInterval(messageInterval);
+          if (pollInterval) clearInterval(pollInterval);
 
           // Check for subject mismatch
           if (exam.subject_mismatch) {
-            setGenerating(false);
             setSubjectMismatchData({
               detected: exam.detected_subject,
               confidence: exam.subject_confidence,
@@ -368,6 +371,7 @@ export default function CreateExam() {
             setGeneratedDraftId(draftId);
             setTotalQuestionsGenerated(exam.total_questions_extracted || 0);
             setShowMismatchWarning(true);
+            setGenerating(false);
             return true;
           }
 
@@ -378,30 +382,32 @@ export default function CreateExam() {
           setGenerating(false);
           return true;
         } else if (exam.extraction_status === 'failed') {
-          clearInterval(messageInterval);
+          if (messageInterval) clearInterval(messageInterval);
+          if (pollInterval) clearInterval(pollInterval);
+          setGenerating(false);
           throw new Error(exam.extraction_error || 'Extraction failed');
         }
         return false;
       };
 
       // Poll every 2 seconds
-      const pollInterval = setInterval(async () => {
+      pollInterval = window.setInterval(async () => {
         const completed = await pollForCompletion();
-        if (completed) clearInterval(pollInterval);
+        if (completed && pollInterval) clearInterval(pollInterval);
       }, 2000);
 
       // Initial check
       await pollForCompletion();
     } catch (error: any) {
       console.error('Generation error:', error);
-      clearInterval(messageInterval);
+      if (messageInterval) clearInterval(messageInterval);
+      if (pollInterval) clearInterval(pollInterval);
+      setGenerating(false);
       toast({
         title: "Generation Failed",
         description: error.message || "Something went wrong — please check your file and try again.",
         variant: "destructive",
       });
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -896,12 +902,6 @@ export default function CreateExam() {
       </div>
 
       {/* Loading Screen */}
-      {generating && (
-        <GenerationLoadingScreen
-          message={currentMessage}
-          subjectColor={subjectColor}
-        />
-      )}
       {generating && (
         <GenerationLoadingScreen
           message={currentMessage}
