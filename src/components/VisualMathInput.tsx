@@ -44,7 +44,10 @@ export const VisualMathInput = forwardRef<VisualMathInputRef, VisualMathInputPro
       autoSubscriptNumerals: true,
       handlers: {
         edit: (mathField) => {
-          onChange(mathField.latex());
+          // Add null check to prevent undefined errors during MathQuill initialization
+          if (mathField && typeof mathField.latex === 'function') {
+            onChange(mathField.latex());
+          }
         },
       },
     };
