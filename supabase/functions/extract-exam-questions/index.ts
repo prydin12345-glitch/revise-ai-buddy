@@ -570,21 +570,71 @@ Return a JSON object with this structure:
   ]
 }`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only.' },
-          { role: 'user', content: extractionPrompt }
-        ],
-        response_format: { type: "json_object" }
-      }),
-    });
+    // Helper function to repair incomplete JSON
+    function repairJSON(jsonStr: string): string {
+      let repaired = jsonStr.trim();
+      
+      // Count brackets and braces
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/\]/g) || []).length;
+      const openBraces = (repaired.match(/\{/g) || []).length;
+      const closeBraces = (repaired.match(/\}/g) || []).length;
+      
+      // Add missing closing brackets/braces
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        repaired += ']';
+      }
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        repaired += '}';
+      }
+      
+      // Remove trailing commas before closing brackets/braces
+      repaired = repaired.replace(/,(\s*[\]}])/g, '$1');
+      
+      return repaired;
+    }
+
+    // Make AI request with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
+    
+    let aiResponse;
+    try {
+      aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only.' },
+            { role: 'user', content: extractionPrompt }
+          ],
+          response_format: { type: "json_object" }
+        }),
+        signal: controller.signal
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('AI request timed out after 3 minutes');
+        await supabase
+          .from('exams')
+          .update({ 
+            extraction_status: 'failed',
+            extraction_error: 'AI processing timed out - document may be too large'
+          })
+          .eq('id', draftId);
+        return new Response(JSON.stringify({ error: 'AI processing timed out' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw fetchError;
+    }
+    clearTimeout(timeoutId);
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
@@ -602,51 +652,145 @@ Return a JSON object with this structure:
       });
     }
 
-    const aiData = await aiResponse.json();
-    let extractedContent = aiData.choices?.[0]?.message?.content || '{"questions":[],"topics":[]}';
+    // Parse response with better error handling
+    let aiData;
+    let extractedContent;
+    try {
+      const responseText = await aiResponse.text();
+      console.log(`AI response length: ${responseText.length} characters`);
+      console.log('AI response preview:', responseText.substring(0, 500));
+      
+      aiData = JSON.parse(responseText);
+      extractedContent = aiData.choices?.[0]?.message?.content || '{"questions":[],"topics":[]}';
+    } catch (responseError) {
+      console.error('Failed to parse AI response envelope:', responseError);
+      await supabase
+        .from('exams')
+        .update({ 
+          extraction_status: 'failed',
+          extraction_error: 'AI returned malformed response envelope'
+        })
+        .eq('id', draftId);
+      return new Response(JSON.stringify({ error: 'AI returned invalid response format' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Clean up markdown code blocks
     extractedContent = extractedContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     
-    console.log('Raw AI response:', extractedContent.substring(0, 200));
+    console.log('Extracted content length:', extractedContent.length);
+    console.log('Content preview:', extractedContent.substring(0, 300));
+    console.log('Content ending:', extractedContent.substring(Math.max(0, extractedContent.length - 300)));
 
     let parsedData: any = { questions: [], topics: [] };
+    
+    // Attempt 1: Direct parsing
     try {
       parsedData = JSON.parse(extractedContent);
       if (Array.isArray(parsedData)) {
         parsedData = { questions: parsedData, topics: [] };
       }
+      console.log('✅ Successfully parsed AI response on first attempt');
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      console.error('Attempting to fix common JSON issues...');
+      console.error('❌ Attempt 1 failed:', parseError);
+      console.error('Parse error message:', (parseError as Error).message);
       
-      // Try to fix common JSON issues caused by LaTeX
+      // Attempt 2: Repair JSON (fix incomplete brackets/braces)
       try {
-        // Fix unescaped backslashes and dollar signs in LaTeX strings
-        // This is a aggressive fix that attempts to properly escape LaTeX in JSON strings
-        let fixedContent = extractedContent;
+        console.log('Attempting to repair incomplete JSON...');
+        const repairedContent = repairJSON(extractedContent);
+        console.log('Repaired content ending:', repairedContent.substring(Math.max(0, repairedContent.length - 200)));
         
-        // Replace unescaped backslashes (but not already escaped ones)
-        fixedContent = fixedContent.replace(/(?<!\\)\\(?!["\\/bfnrtu])/g, '\\\\');
-        
-        // Try parsing again
-        parsedData = JSON.parse(fixedContent);
+        parsedData = JSON.parse(repairedContent);
         if (Array.isArray(parsedData)) {
           parsedData = { questions: parsedData, topics: [] };
         }
-        console.log('Successfully fixed and parsed AI response');
-      } catch (secondError) {
-        console.error('Secondary parsing attempt also failed:', secondError);
-        console.error('Content sample:', extractedContent.substring(4700, 4800));
-        await supabase
-          .from('exams')
-          .update({ 
-            extraction_status: 'failed',
-            extraction_error: 'Failed to parse AI response - invalid JSON format'
-          })
-          .eq('id', draftId);
-        return new Response(JSON.stringify({ error: 'Failed to parse extracted questions' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        console.log('✅ Successfully parsed after JSON repair');
+      } catch (repairError) {
+        console.error('❌ Attempt 2 (repair) failed:', repairError);
+        
+        // Attempt 3: Fix LaTeX escaping issues
+        try {
+          console.log('Attempting to fix LaTeX escaping...');
+          let fixedContent = extractedContent;
+          
+          // Replace unescaped backslashes (but not already escaped ones)
+          fixedContent = fixedContent.replace(/(?<!\\)\\(?!["\\/bfnrtu])/g, '\\\\');
+          
+          // Repair after fixing escapes
+          fixedContent = repairJSON(fixedContent);
+          
+          parsedData = JSON.parse(fixedContent);
+          if (Array.isArray(parsedData)) {
+            parsedData = { questions: parsedData, topics: [] };
+          }
+          console.log('✅ Successfully parsed after LaTeX escape fix');
+        } catch (latexError) {
+          console.error('❌ Attempt 3 (LaTeX fix) failed:', latexError);
+          
+          // Final attempt: Extract what we can from partial JSON
+          try {
+            console.log('Final attempt: extracting partial data...');
+            
+            // Try to find the questions array even if JSON is incomplete
+            const questionsMatch = extractedContent.match(/"questions"\s*:\s*\[([\s\S]*?)(?:\],|\]$)/);
+            const topicsMatch = extractedContent.match(/"topics"\s*:\s*\[([\s\S]*?)(?:\],|\]$)/);
+            
+            let questionsArray = [];
+            let topicsArray = [];
+            
+            if (questionsMatch) {
+              try {
+                const questionsJson = '[' + questionsMatch[1] + ']';
+                const repairedQuestions = repairJSON(questionsJson);
+                questionsArray = JSON.parse(repairedQuestions);
+                console.log(`Extracted ${questionsArray.length} questions from partial JSON`);
+              } catch (e) {
+                console.error('Could not extract questions array:', e);
+              }
+            }
+            
+            if (topicsMatch) {
+              try {
+                const topicsJson = '[' + topicsMatch[1] + ']';
+                const repairedTopics = repairJSON(topicsJson);
+                topicsArray = JSON.parse(repairedTopics);
+                console.log(`Extracted ${topicsArray.length} topics from partial JSON`);
+              } catch (e) {
+                console.error('Could not extract topics array:', e);
+              }
+            }
+            
+            if (questionsArray.length > 0) {
+              parsedData = { questions: questionsArray, topics: topicsArray };
+              console.log('✅ Partial extraction successful');
+            } else {
+              throw new Error('No questions could be extracted from incomplete JSON');
+            }
+          } catch (finalError) {
+            console.error('❌ All parsing attempts failed:', finalError);
+            console.error('Content sample (start):', extractedContent.substring(0, 500));
+            console.error('Content sample (middle):', extractedContent.substring(Math.floor(extractedContent.length / 2), Math.floor(extractedContent.length / 2) + 500));
+            console.error('Content sample (end):', extractedContent.substring(Math.max(0, extractedContent.length - 500)));
+            
+            await supabase
+              .from('exams')
+              .update({ 
+                extraction_status: 'failed',
+                extraction_error: 'Failed to parse AI response - incomplete or invalid JSON. The document may be too large. Try using a shorter document or enabling "Use Original Structure" mode.'
+              })
+              .eq('id', draftId);
+            return new Response(JSON.stringify({ 
+              error: 'Failed to parse extracted questions',
+              details: 'The AI response was incomplete or malformed. This often happens with very large documents. Try a shorter document or contact support.'
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
       }
     }
 
