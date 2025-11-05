@@ -303,9 +303,7 @@ const ExamInProgress = () => {
         const isStale = lastSaved > 0 && (Date.now() - lastSaved > 3600000);
         
         // Priority: Backend > Fresh LocalStorage > Full Duration
-        const initialTime = data.timer.time_remaining_seconds 
-          || (!isStale && localStorageTime > 0 ? localStorageTime : null)
-          || (data.timer.duration_minutes * 60);
+        const initialTime = (data.timer.time_remaining_seconds ?? (!isStale && localStorageTime > 0 ? localStorageTime : null)) ?? (data.timer.duration_minutes * 60);
         
         // Detect if this is a resume
         const isResume = data.timer.time_remaining_seconds && 
@@ -887,7 +885,7 @@ const ExamInProgress = () => {
                               const parsed = JSON.parse(userAnswers[question.id] || '{}');
                               return parsed.finalAnswer || '';
                             } catch {
-                              return '';
+                              return userAnswers[question.id] || '';
                             }
                           })()}
                           onChange={(latex) => {
@@ -950,7 +948,10 @@ const ExamInProgress = () => {
           <div className="border-t bg-muted/30 px-6 py-4 flex items-center justify-between">
             <Button
               variant="outline"
-              onClick={() => setCurrentPage(prev => prev - 1)}
+              onClick={async () => {
+                await flushCurrentPageSaves();
+                setCurrentPage(prev => prev - 1);
+              }}
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
@@ -959,7 +960,10 @@ const ExamInProgress = () => {
             
             {hasNextPage ? (
               <Button
-                onClick={() => setCurrentPage(prev => prev + 1)}
+                onClick={async () => {
+                  await flushCurrentPageSaves();
+                  setCurrentPage(prev => prev + 1);
+                }}
               >
                 Next Section
                 <ChevronRight className="h-4 w-4 ml-2" />

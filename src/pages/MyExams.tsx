@@ -373,7 +373,7 @@ const MyExams = () => {
       case 'in-progress':
         return {
           label: 'Continue',
-          action: () => navigate(`/exam/${exam.id}/in-progress`),
+          action: () => navigate(`/exam/${exam.id}/in-progress?mode=student`),
           className: 'bg-orange-600 hover:bg-orange-700',
           icon: Play
         };
