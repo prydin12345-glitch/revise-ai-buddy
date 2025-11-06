@@ -43,6 +43,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SubjectSelector } from "./SubjectSelector";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { SubjectColorChangeConfirmation, shouldShowColorChangeWarning } from "./SubjectColorChangeConfirmation";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -77,7 +78,7 @@ interface RevisionGoal {
 export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const userName = userEmail.split("@")[0];
-  const { getSubjectColor } = useUserSubjects();
+  const { getSubjectColor, saveOrUpdateSubject, getAffectedEntityCounts } = useUserSubjects();
   
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [filteredExams, setFilteredExams] = useState<ExamWithSubmission[]>([]);
@@ -95,6 +96,16 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     deadline: null as Date | null,
     subject_color: "#3B82F6",
   });
+
+  // Color change confirmation state
+  const [colorConfirmationOpen, setColorConfirmationOpen] = useState(false);
+  const [pendingColorChange, setPendingColorChange] = useState<{
+    subject: string;
+    oldColor: string;
+    newColor: string;
+    affectedCounts: { exams: number; goals: number; tasks: number };
+    callback: () => void;
+  } | null>(null);
 
   const stats = [
     { label: "Exams Taken", value: exams.filter(e => e.submission).length.toString(), emoji: "📄" },
@@ -851,8 +862,44 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             <SubjectSelector
               value={newGoal.subject}
               color={newGoal.subject_color}
-              onValueChange={(subject) => setNewGoal({ ...newGoal, subject })}
-              onColorChange={(color) => setNewGoal({ ...newGoal, subject_color: color })}
+              onValueChange={(subject) => {
+                const existingColor = getSubjectColor(subject);
+                setNewGoal({ 
+                  ...newGoal, 
+                  subject,
+                  subject_color: existingColor
+                });
+              }}
+              onColorChange={async (color) => {
+                const currentSubject = newGoal.subject;
+                if (!currentSubject) {
+                  setNewGoal({ ...newGoal, subject_color: color });
+                  return;
+                }
+
+                const oldColor = getSubjectColor(currentSubject);
+                const isExistingSubject = oldColor !== "#3B82F6";
+                
+                if (isExistingSubject && shouldShowColorChangeWarning()) {
+                  const counts = await getAffectedEntityCounts(currentSubject);
+                  setPendingColorChange({
+                    subject: currentSubject,
+                    oldColor,
+                    newColor: color,
+                    affectedCounts: counts,
+                    callback: () => {
+                      setNewGoal({ ...newGoal, subject_color: color });
+                      saveOrUpdateSubject(currentSubject, color);
+                    }
+                  });
+                  setColorConfirmationOpen(true);
+                } else {
+                  setNewGoal({ ...newGoal, subject_color: color });
+                  if (isExistingSubject) {
+                    saveOrUpdateSubject(currentSubject, color);
+                  }
+                }
+              }}
             />
             
             <div className="space-y-3">
@@ -945,8 +992,44 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               <SubjectSelector
                 value={editingGoal.subject}
                 color={editingGoal.subject_color}
-                onValueChange={(subject) => setEditingGoal({ ...editingGoal, subject })}
-                onColorChange={(color) => setEditingGoal({ ...editingGoal, subject_color: color })}
+                onValueChange={(subject) => {
+                  const existingColor = getSubjectColor(subject);
+                  setEditingGoal({ 
+                    ...editingGoal, 
+                    subject,
+                    subject_color: existingColor
+                  });
+                }}
+                onColorChange={async (color) => {
+                  const currentSubject = editingGoal.subject;
+                  if (!currentSubject) {
+                    setEditingGoal({ ...editingGoal, subject_color: color });
+                    return;
+                  }
+
+                  const oldColor = getSubjectColor(currentSubject);
+                  const isExistingSubject = oldColor !== "#3B82F6";
+                  
+                  if (isExistingSubject && shouldShowColorChangeWarning()) {
+                    const counts = await getAffectedEntityCounts(currentSubject);
+                    setPendingColorChange({
+                      subject: currentSubject,
+                      oldColor,
+                      newColor: color,
+                      affectedCounts: counts,
+                      callback: () => {
+                        setEditingGoal({ ...editingGoal, subject_color: color });
+                        saveOrUpdateSubject(currentSubject, color);
+                      }
+                    });
+                    setColorConfirmationOpen(true);
+                  } else {
+                    setEditingGoal({ ...editingGoal, subject_color: color });
+                    if (isExistingSubject) {
+                      saveOrUpdateSubject(currentSubject, color);
+                    }
+                  }
+                }}
               />
               
               <div className="space-y-3">
@@ -1028,6 +1111,26 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Color Change Confirmation Modal */}
+      {pendingColorChange && (
+        <SubjectColorChangeConfirmation
+          open={colorConfirmationOpen}
+          onOpenChange={setColorConfirmationOpen}
+          subjectName={pendingColorChange.subject}
+          oldColor={pendingColorChange.oldColor}
+          newColor={pendingColorChange.newColor}
+          affectedCounts={pendingColorChange.affectedCounts}
+          onConfirm={() => {
+            pendingColorChange.callback();
+            setPendingColorChange(null);
+            toast.success(`Color updated for ${pendingColorChange.subject}`);
+          }}
+          onCancel={() => {
+            setPendingColorChange(null);
+          }}
+        />
+      )}
     </div>
   );
 };
