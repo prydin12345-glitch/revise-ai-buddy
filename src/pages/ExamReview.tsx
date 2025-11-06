@@ -176,7 +176,7 @@ const ExamReview = () => {
               <span className="font-semibold">Your Score</span>
             </div>
             <div className="text-3xl font-bold text-primary">
-              {submission?.total_score}/{submission?.total_marks}
+              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
             </div>
             <div className="text-lg font-semibold text-muted-foreground">
               {percentage.toFixed(1)}%
@@ -235,7 +235,7 @@ const ExamReview = () => {
                       {getStatusIcon(answer)}
                       {answer && (
                         <Badge className={getStatusColor(answer)}>
-                          {answer.score}/{question.marks}
+                          {Math.round(answer.score)}/{question.marks}
                         </Badge>
                       )}
                     </div>

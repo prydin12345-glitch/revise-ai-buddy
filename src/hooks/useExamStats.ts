@@ -275,7 +275,7 @@ export const useExamStats = () => {
           dateTaken: format(new Date(sub.submitted_at), 'MMM d, yyyy'),
           timeSpent: formatTimeSpent(sub.time_taken_seconds || 0),
           totalMarks: sub.total_marks,
-          earnedMarks: sub.total_score,
+          earnedMarks: Math.round(sub.total_score),
         }));
         setRecentExams(recent);
       }

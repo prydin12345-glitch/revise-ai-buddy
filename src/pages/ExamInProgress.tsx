@@ -463,7 +463,7 @@ const ExamInProgress = () => {
 
       toast({ 
         title: "Exam Submitted!", 
-        description: `Score: ${data.totalScore}/${data.totalMarks} (${data.percentage.toFixed(1)}%)` 
+        description: `Score: ${Math.round(data.totalScore)}/${data.totalMarks} (${Math.round(data.percentage)}%)` 
       });
       
       navigate(`/exam/${examId}/review`);

@@ -112,7 +112,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     { 
       label: "Average Score", 
       value: exams.filter(e => e.submission).length > 0 
-        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((e.submission!.total_score / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
+        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
         : "-", 
       emoji: "📊" 
     },
@@ -641,7 +641,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                     <Target className="h-5 w-5 text-green-500" />
                     <span className="text-base font-medium text-foreground">
                       {exams.filter(e => e.submission).length > 0 
-                        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((e.submission!.total_score / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
+                        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
                         : "-"}
                     </span>
                   </div>
