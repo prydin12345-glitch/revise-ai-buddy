@@ -63,6 +63,21 @@ TABLE FORMATTING (if applicable):
 - Use "X" or "✓" for checkmarks in cells
 - Preserve the table structure and data relationships
 
+SCIENTIFIC & MATHEMATICAL NOTATION (ALL SUBJECTS - CRITICAL):
+Use LaTeX notation, NEVER HTML tags.
+
+1. Scientific notation: "$2.15 \\times 10^{-12}$" NOT "2.15 x 10<sup>-12</sup>"
+2. Units with exponents: "$m \\, s^{-1}$" NOT "m s<sup>-1</sup>"
+3. Chemical formulas: "$H_2O$", "$Na^+$" NOT "H<sub>2</sub>O" or "Na<sup>+</sup>"
+4. Math expressions: "$v^2$", "$\\frac{1}{2}mv^2$" NOT "v<sup>2</sup>"
+5. Wrap all scientific/math content in $ delimiters
+6. Examples:
+   - Chemistry: "$K_a = 1.7 \\times 10^{-5}$", "$CH_3COOH$"
+   - Physics: "$3.5 \\times 10^8 \\, m \\, s^{-1}$", "$E = mc^2$"
+   - Biology: "$C_{10}H_{16}N_5O_{13}P_3$"
+
+NEVER use <sup>, <sub>, <i>, or <b> tags.
+
 CRITICAL: Be creative! Change names, locations, scenarios, values - make it fresh while testing the same skill.
 
 Return ONLY the new question text (and options if MCQ), no explanation.`;

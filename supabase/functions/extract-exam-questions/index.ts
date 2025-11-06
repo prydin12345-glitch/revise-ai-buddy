@@ -532,14 +532,66 @@ ${specInstructions}
 
 ${structureInstructions}
 
-📐 MATHEMATICAL NOTATION RULES (CRITICAL FOR MATH EXAMS):
-1. ALWAYS provide LaTeX in "question_latex" for ANY math content
-2. IMPORTANT: In JSON strings, backslashes MUST be escaped as double backslashes (\\)
-3. Examples:
-   - Fractions: "\\\\frac{3x+2}{x-1}"
-   - Powers: "e^{-2x}", "x^{2n+1}"
-   - Integrals: "\\\\int_{0}^{\\\\pi} \\\\sin(x) dx"
-4. Set "has_math": true and "equation_complexity" appropriately
+📐 SCIENTIFIC & MATHEMATICAL NOTATION RULES (ALL SUBJECTS - CRITICAL):
+Apply these rules to Chemistry, Physics, Biology, Math, and ALL STEM subjects.
+
+1. NEVER use HTML tags like <sup>, <sub>, <i>, <b> in question text
+2. ALWAYS use LaTeX notation wrapped in $ delimiters for:
+   
+   ✅ Scientific Notation:
+   - Write: "The energy is $2.15 \\times 10^{-12}$ J"
+   - NOT: "The energy is 2.15 x 10<sup>-12</sup> J"
+   
+   ✅ Units with Exponents:
+   - Write: "velocity of $45 \\, m \\, s^{-1}$"
+   - Write: "concentration in $mol \\, dm^{-3}$"
+   - NOT: "45 m s<sup>-1</sup>" or "mol dm<sup>-3</sup>"
+   
+   ✅ Chemical Formulas:
+   - Write: "$H_2O$" for water
+   - Write: "$Na^+$" and "$Cl^-$" for ions
+   - Write: "$CaCO_3$" for calcium carbonate
+   - NOT: "H<sub>2</sub>O" or "Na<sup>+</sup>"
+   
+   ✅ Mathematical Expressions:
+   - Write: "$v^2$", "$\\frac{1}{2}mv^2$", "$E = mc^2$"
+   - Write: "$\\sqrt{x}$", "$x^{2n+1}$"
+   - NOT: "v<sup>2</sup>" or raw text
+   
+   ✅ Physics Equations:
+   - Write: "$F = ma$", "$KE = \\frac{1}{2}mv^2$"
+   - Write: "$\\Delta H = -572 \\, kJ \\, mol^{-1}$"
+   
+   ✅ Complex Expressions:
+   - Fractions: "$\\frac{numerator}{denominator}$"
+   - Integrals: "$\\int_{0}^{\\pi} \\sin(x) \\, dx$"
+   - Summations: "$\\sum_{i=1}^{n} x_i$"
+
+3. LaTeX Escaping in JSON:
+   - In JSON strings, escape backslashes as double backslashes (\\)
+   - Example: "\\\\frac{3x+2}{x-1}" in JSON becomes "\\frac{3x+2}{x-1}" in LaTeX
+   
+4. Set "has_math": true whenever using LaTeX notation
+
+5. Examples by Subject:
+   
+   CHEMISTRY:
+   ✓ "The $K_a$ value for ethanoic acid is $1.7 \\times 10^{-5}$"
+   ✓ "Calculate the enthalpy change in $kJ \\, mol^{-1}$"
+   ✓ "The compound $CH_3COOH$ reacts with $NaOH$"
+   
+   PHYSICS:
+   ✓ "The velocity is $3.5 \\times 10^8 \\, m \\, s^{-1}$"
+   ✓ "Calculate $KE = \\frac{1}{2}mv^2$ where $m = 0.5$ kg"
+   ✓ "The acceleration is $9.81 \\, m \\, s^{-2}$"
+   
+   BIOLOGY:
+   ✓ "The ATP molecule ($C_{10}H_{16}N_5O_{13}P_3$)"
+   ✓ "DNA concentration is $2.5 \\times 10^{-6} \\, mol \\, dm^{-3}$"
+   
+   MATH:
+   ✓ "Solve $3x^2 + 5x - 2 = 0$"
+   ✓ "Find $\\int x^3 \\, dx$"
 
 📊 TABLE GENERATION (CRITICAL):
 When tables are present in questions:
