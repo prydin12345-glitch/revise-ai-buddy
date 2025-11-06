@@ -96,6 +96,7 @@ export const useExamStats = () => {
         .from('exam_submissions')
         .select('*, exams!inner(subject_id, title)')
         .eq('student_id', user.id)
+        .eq('status', 'graded')
         .order('submitted_at', { ascending: false });
 
       setCompletedExams(submissions?.length || 0);

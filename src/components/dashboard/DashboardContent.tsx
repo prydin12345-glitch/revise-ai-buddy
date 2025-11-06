@@ -62,6 +62,7 @@ interface ExamWithSubmission {
     total_score: number;
     total_marks: number;
     submitted_at: string;
+    status: 'in_progress' | 'submitted' | 'graded';
   };
 }
 
@@ -108,11 +109,11 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   } | null>(null);
 
   const stats = [
-    { label: "Exams Taken", value: exams.filter(e => e.submission).length.toString(), emoji: "📄" },
+    { label: "Exams Taken", value: exams.filter(e => e.submission?.status === 'graded').length.toString(), emoji: "📄" },
     { 
       label: "Average Score", 
-      value: exams.filter(e => e.submission).length > 0 
-        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
+      value: exams.filter(e => e.submission?.status === 'graded').length > 0 
+        ? `${Math.round(exams.filter(e => e.submission?.status === 'graded').reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission?.status === 'graded').length)}%`
         : "-", 
       emoji: "📊" 
     },
@@ -146,9 +147,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         (examsData || []).map(async (exam) => {
           const { data: submission } = await supabase
             .from("exam_submissions")
-            .select("total_score, total_marks, submitted_at")
+            .select("total_score, total_marks, submitted_at, status")
             .eq("exam_id", exam.id)
             .eq("student_id", user.id)
+            .eq("status", "graded")
             .maybeSingle();
 
           // Fetch questions count
@@ -166,7 +168,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
           return {
             ...exam,
-            submission: submission || undefined,
+            submission: submission ? {
+              ...submission,
+              status: submission.status as 'in_progress' | 'submitted' | 'graded'
+            } : undefined,
             totalQuestions: totalQuestions || 0,
             answeredQuestions: answeredQuestions || 0,
           };
@@ -218,6 +223,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
             .from("exam_submissions")
             .select("*", { count: "exact", head: true })
             .eq("student_id", user.id)
+            .eq("status", "graded")
             .in("exam_id", examIds);
 
           return {
@@ -239,9 +245,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
     // Apply status filter
     if (filterBy === "completed") {
-      filtered = filtered.filter(exam => exam.submission);
+      filtered = filtered.filter(exam => exam.submission?.status === 'graded');
     } else if (filterBy === "in-progress") {
-      filtered = filtered.filter(exam => !exam.submission);
+      filtered = filtered.filter(exam => !exam.submission || exam.submission?.status !== 'graded');
     }
 
     // Apply subject filter if not "all"
@@ -431,18 +437,18 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                 {/* Centralized Status Indicator */}
                 {filteredExams.length > 0 && (
                   <div className="flex items-center gap-6">
-                    {(filterBy === "all" || filterBy === "completed") && filteredExams.filter(e => e.submission).length > 0 && (
+                {(filterBy === "all" || filterBy === "completed") && filteredExams.filter(e => e.submission?.status === 'graded').length > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-[17px] font-medium text-white">
-                          {filteredExams.filter(e => e.submission).length} Completed
+                          {filteredExams.filter(e => e.submission?.status === 'graded').length} Completed
                         </span>
                         <div className="h-3 w-3 rounded-full bg-success shadow-lg animate-pulse" />
                       </div>
                     )}
-                    {(filterBy === "all" || filterBy === "in-progress") && filteredExams.filter(e => !e.submission).length > 0 && (
+                    {(filterBy === "all" || filterBy === "in-progress") && filteredExams.filter(e => !e.submission || e.submission?.status !== 'graded').length > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-[17px] font-medium text-white">
-                          {filteredExams.filter(e => !e.submission).length} In Progress
+                          {filteredExams.filter(e => !e.submission || e.submission?.status !== 'graded').length} In Progress
                         </span>
                         <div className="h-3 w-3 rounded-full bg-warning shadow-lg animate-pulse" />
                       </div>
@@ -493,9 +499,9 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredExams.map((exam) => {
-                    const statusConfig = getStatusConfig(!!exam.submission);
+                    const statusConfig = getStatusConfig(exam.submission?.status === 'graded');
                     const StatusIcon = statusConfig.icon;
-                    const score = exam.submission 
+                    const score = exam.submission?.status === 'graded' && exam.submission.total_score !== null
                       ? Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)
                       : null;
 
@@ -640,8 +646,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   >
                     <Target className="h-5 w-5 text-green-500" />
                     <span className="text-base font-medium text-foreground">
-                      {exams.filter(e => e.submission).length > 0 
-                        ? `${Math.round(exams.filter(e => e.submission).reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission).length)}%`
+                      {exams.filter(e => e.submission?.status === 'graded').length > 0 
+                        ? `${Math.round(exams.filter(e => e.submission?.status === 'graded').reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission?.status === 'graded').length)}%`
                         : "-"}
                     </span>
                   </div>
