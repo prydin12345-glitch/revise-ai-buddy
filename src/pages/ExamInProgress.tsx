@@ -711,6 +711,16 @@ const ExamInProgress = () => {
                   const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim());
                   const answer = existingAnswers?.find((a: any) => a.question_id === q.id);
                   
+                  // Debug logging for first question
+                  if (q.question_number === '1' && hasAnswer) {
+                    console.log('[Tab Color Debug] Q1:', {
+                      hasAnswer,
+                      submission: !!submission,
+                      subjectColor,
+                      answer: answer?.is_correct
+                    });
+                  }
+                  
                   // Determine color based on submission status
                   let colorClass = '';
                   if (submission && answer) {
@@ -835,8 +845,7 @@ const ExamInProgress = () => {
                         style={{ 
                           backgroundColor: subjectColor,
                           borderColor: subjectColor,
-                          color: '#FFFFFF',
-                          boxShadow: `0 0 15px ${subjectColor}, 0 0 30px ${addOpacity(subjectColor, 0.5)}`
+                          color: '#FFFFFF'
                         }}
                       >
                         Q{question.question_number}
@@ -848,8 +857,7 @@ const ExamInProgress = () => {
                         style={{
                           backgroundColor: subjectColor,
                           borderColor: subjectColor,
-                          color: '#FFFFFF',
-                          boxShadow: `0 0 15px ${subjectColor}, 0 0 30px ${addOpacity(subjectColor, 0.5)}`
+                          color: '#FFFFFF'
                         }}
                       >
                         {question.marks} marks
@@ -883,15 +891,14 @@ const ExamInProgress = () => {
                         const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D...
                         const isSelected = userAnswers[question.id]?.finalAnswer === optionLetter;
                         return (
-                          <div 
+                        <div 
                             key={idx} 
                             className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
                               isSelected ? '' : 'border-border hover:bg-accent'
                             }`}
                             style={isSelected ? {
                               borderColor: subjectColor,
-                              backgroundColor: addOpacity(subjectColor, 0.1),
-                              boxShadow: `0 0 15px ${addOpacity(subjectColor, 0.3)}`
+                              backgroundColor: addOpacity(subjectColor, 0.1)
                             } : undefined}
                           >
                             <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
@@ -919,26 +926,23 @@ const ExamInProgress = () => {
                               handleSaveAnswer(question.id);
                             }, 1000);
                           }}
-                          className={`min-h-[300px] resize-y text-base font-mono transition-all ${
-                            userAnswers[question.id]?.workingOut?.trim() ? 'border-2' : 'border'
-                          }`}
-                          style={userAnswers[question.id]?.workingOut?.trim() ? {
-                            borderColor: subjectColor,
-                            boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`
-                          } : undefined}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = subjectColor;
+                            e.target.style.borderWidth = '2px';
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = '';
+                            e.target.style.borderWidth = '';
+                          }}
+                          className="min-h-[300px] resize-y text-base font-mono transition-all"
                           disabled={isReadOnly}
                         />
                       </div>
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <div 
+                          id={`visual-math-wrapper-${question.id}`}
                           className="transition-all rounded-lg"
-                          style={userAnswers[question.id]?.finalAnswer?.trim() ? {
-                            border: `2px solid ${subjectColor}`,
-                            boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`,
-                            padding: '4px',
-                            borderRadius: '0.5rem'
-                          } : undefined}
                         >
                           <VisualMathInput
                             ref={(el) => {
@@ -957,7 +961,15 @@ const ExamInProgress = () => {
                                 handleSaveAnswer(question.id);
                               }, 1000);
                             }}
-                            onFocus={() => setActiveQuestionId(question.id)}
+                            onFocus={() => {
+                              setActiveQuestionId(question.id);
+                              const wrapper = document.getElementById(`visual-math-wrapper-${question.id}`);
+                              if (wrapper) {
+                                wrapper.style.border = `2px solid ${subjectColor}`;
+                                wrapper.style.padding = '4px';
+                                wrapper.style.borderRadius = '0.5rem';
+                              }
+                            }}
                             onBlur={async () => {
                               // Immediately flush save on blur
                               if (saveTimeouts.current[question.id]) {
@@ -966,6 +978,12 @@ const ExamInProgress = () => {
                               const answerData = answersRef.current[question.id];
                               if (answerData) {
                                 await handleSaveAnswer(question.id);
+                              }
+                              const wrapper = document.getElementById(`visual-math-wrapper-${question.id}`);
+                              if (wrapper) {
+                                wrapper.style.border = '';
+                                wrapper.style.padding = '';
+                                wrapper.style.borderRadius = '';
                               }
                             }}
                             disabled={isReadOnly}
@@ -992,18 +1010,18 @@ const ExamInProgress = () => {
                       placeholder="Your Answer"
                       value={userAnswers[question.id]?.finalAnswer || ''}
                       onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = subjectColor;
+                        e.target.style.borderWidth = '2px';
+                      }}
                       onBlur={async (e) => {
+                        e.target.style.borderColor = '';
+                        e.target.style.borderWidth = '';
                         if (e.target.value) {
                           await handleSaveAnswer(question.id);
                         }
                       }}
-                      className={`min-h-[200px] resize-y text-base transition-all ${
-                        userAnswers[question.id]?.finalAnswer?.trim() ? 'border-2' : 'border'
-                      }`}
-                      style={userAnswers[question.id]?.finalAnswer?.trim() ? {
-                        borderColor: subjectColor,
-                        boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`
-                      } : undefined}
+                      className="min-h-[200px] resize-y text-base transition-all"
                     />
                   )}
                 </Card>
