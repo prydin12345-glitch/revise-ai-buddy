@@ -174,6 +174,16 @@ const ExamInProgress = () => {
         
         if (timerEnabled) {
           setTimeRemaining(prev => {
+            // Trigger final minute alert
+            if (prev === 60) {
+              toast({
+                title: "⏰ Final Minute!",
+                description: "Your exam will auto-submit at 0:00",
+                variant: "destructive",
+                duration: 10000
+              });
+            }
+            
             if (prev <= 1) {
               if (timerInterval.current) clearInterval(timerInterval.current);
               
@@ -615,9 +625,24 @@ const ExamInProgress = () => {
           {/* Center: Timer */}
           <div className="flex justify-center">
             {timerEnabled && (
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${timeRemaining < 300 ? 'bg-destructive text-destructive-foreground animate-pulse' : 'bg-muted'}`}>
-                <Clock className="w-5 h-5" />
+              <div 
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  timeRemaining <= 60 
+                    ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-500/50' 
+                    : timeRemaining < 300 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-muted'
+                }`}
+                style={timeRemaining <= 60 ? {
+                  animation: 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  boxShadow: '0 0 20px rgba(220, 38, 38, 0.6)'
+                } : undefined}
+              >
+                <Clock className={`w-5 h-5 ${timeRemaining <= 60 ? 'animate-bounce' : ''}`} />
                 <span className="font-mono text-lg font-semibold">{formatTime(timeRemaining)}</span>
+                {timeRemaining <= 60 && (
+                  <span className="ml-2 text-xs font-bold uppercase">Final Minute!</span>
+                )}
               </div>
             )}
             {!timerEnabled && !isTeacher && (
@@ -711,18 +736,10 @@ const ExamInProgress = () => {
                   const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim());
                   const answer = existingAnswers?.find((a: any) => a.question_id === q.id);
                   
-                  // Debug logging for first question
-                  if (q.question_number === '1' && hasAnswer) {
-                    console.log('[Tab Color Debug] Q1:', {
-                      hasAnswer,
-                      submission: !!submission,
-                      subjectColor,
-                      answer: answer?.is_correct
-                    });
-                  }
-                  
                   // Determine color based on submission status
                   let colorClass = '';
+                  let inlineStyle: React.CSSProperties | undefined = undefined;
+                  
                   if (submission && answer) {
                     // Post-submission colors (Red/Amber/Green)
                     if (answer.is_correct === true) {
@@ -732,11 +749,15 @@ const ExamInProgress = () => {
                     } else {
                       colorClass = 'bg-red-500 text-white'; // Incorrect
                     }
+                  } else if (hasAnswer) {
+                    // Pre-submission with answer → use subject color
+                    colorClass = 'text-white';
+                    inlineStyle = { 
+                      backgroundColor: subjectColor,
+                    };
                   } else {
-                    // Pre-submission colors (use subject color when answered)
-                    colorClass = hasAnswer 
-                      ? 'text-white' 
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80';
+                    // No answer → gray
+                    colorClass = 'bg-muted text-muted-foreground hover:bg-muted/80';
                   }
                   
                   return (
@@ -752,7 +773,7 @@ const ExamInProgress = () => {
                           setTimeout(() => scrollToQuestion(q.id), 100);
                         }
                       }}
-                      style={hasAnswer && !submission ? { backgroundColor: subjectColor } : undefined}
+                      style={inlineStyle}
                       className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass}`}
                       title={`Question ${q.question_number}`}
                     >
@@ -926,14 +947,18 @@ const ExamInProgress = () => {
                               handleSaveAnswer(question.id);
                             }, 1000);
                           }}
-                          onFocus={(e) => {
-                            e.target.style.borderColor = subjectColor;
-                            e.target.style.borderWidth = '2px';
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.borderColor = '';
-                            e.target.style.borderWidth = '';
-                          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = subjectColor;
+            e.target.style.borderWidth = '2px';
+            e.target.style.outline = 'none';
+            e.target.style.boxShadow = 'none';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '';
+            e.target.style.borderWidth = '';
+            e.target.style.outline = '';
+            e.target.style.boxShadow = '';
+          }}
                           className="min-h-[300px] resize-y text-base font-mono transition-all"
                           disabled={isReadOnly}
                         />
@@ -968,6 +993,8 @@ const ExamInProgress = () => {
                                 wrapper.style.border = `2px solid ${subjectColor}`;
                                 wrapper.style.padding = '4px';
                                 wrapper.style.borderRadius = '0.5rem';
+                                wrapper.style.outline = 'none';
+                                wrapper.style.boxShadow = 'none';
                               }
                             }}
                             onBlur={async () => {
@@ -984,6 +1011,8 @@ const ExamInProgress = () => {
                                 wrapper.style.border = '';
                                 wrapper.style.padding = '';
                                 wrapper.style.borderRadius = '';
+                                wrapper.style.outline = '';
+                                wrapper.style.boxShadow = '';
                               }
                             }}
                             disabled={isReadOnly}
@@ -1013,10 +1042,14 @@ const ExamInProgress = () => {
                       onFocus={(e) => {
                         e.target.style.borderColor = subjectColor;
                         e.target.style.borderWidth = '2px';
+                        e.target.style.outline = 'none';
+                        e.target.style.boxShadow = 'none';
                       }}
                       onBlur={async (e) => {
                         e.target.style.borderColor = '';
                         e.target.style.borderWidth = '';
+                        e.target.style.outline = '';
+                        e.target.style.boxShadow = '';
                         if (e.target.value) {
                           await handleSaveAnswer(question.id);
                         }
