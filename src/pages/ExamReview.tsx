@@ -150,18 +150,21 @@ const ExamReview = () => {
             <div className="grid grid-cols-4 gap-2">
               {questions.map((q) => {
                 const answer = answers[q.id];
+                const isFullyCorrect = answer && answer.score === q.marks;
+                const isPartial = answer && answer.score > 0 && answer.score < q.marks;
                 
                 return (
                   <button
                     key={q.id}
                     onClick={() => scrollToQuestion(q.id)}
                     className={`aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${
-                      answer?.is_correct 
+                      isFullyCorrect
                         ? 'bg-green-500 text-white' 
-                        : answer?.score > 0
+                        : isPartial
                         ? 'bg-orange-500 text-white'
                         : 'bg-destructive text-destructive-foreground'
                     }`}
+                    title={answer ? `Score: ${Math.round(answer.score)}/${q.marks}` : 'Not answered'}
                   >
                     {q.question_number}
                   </button>
