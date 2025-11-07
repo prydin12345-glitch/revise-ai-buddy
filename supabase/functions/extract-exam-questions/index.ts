@@ -406,12 +406,21 @@ When generating questions involving data:
    - Key features (intercepts, gradients, areas under curve)
    - Example: "Figure 1 shows velocity decreasing linearly over 5 seconds"
 
-3. For data tables, populate "table_data" with markdown:
-   | Time / s | Velocity / m s⁻¹ |
-   |----------|------------------|
-   | 0.0      | 20.0             |
-   | 1.0      | 16.0             |
-   | 2.0      | 12.0             |
+3. For data tables, format as HTML with class="exam-table":
+   <table class="exam-table">
+     <thead>
+       <tr><th>Time / s</th><th>Velocity / m s⁻¹</th></tr>
+     </thead>
+     <tbody>
+       <tr><td>0.0</td><td>20.0</td></tr>
+       <tr><td>1.0</td><td>16.0</td></tr>
+       <tr><td>2.0</td><td>12.0</td></tr>
+     </tbody>
+   </table>
+   - Use <thead> for headers with <th> tags
+   - Use <tbody> for data rows with <td> tags
+   - Always include class="exam-table" for styling
+   - Use proper superscripts in headers (e.g., <th>Titre / cm³</th>)
 
 4. Set "data_type": "graph", "table", "both", or "none"
 5. Set "needs_diagram": true if visual representation is essential
@@ -508,7 +517,7 @@ Return ONLY valid JSON in this structure:
       "extraction_confidence": 0.8,
       "data_type": "graph | table | both | none",
       "graph_description": "string or null (detailed axes, trend, features)",
-      "table_data": "string or null (markdown table format)",
+      "table_data": "string or null (HTML table with class='exam-table')",
       "circuit_type": "series | parallel | voltage_divider | complex | none",
       "circuit_description": "string or null (topology and component values)",
       "needs_diagram": boolean,
@@ -678,7 +687,7 @@ Return a JSON object with this structure:
       "extraction_confidence": number (0.0 to 1.0),
       "data_type": "graph | table | both | none",
       "graph_description": "string or null (detailed axes, trend, features)",
-      "table_data": "string or null (markdown table format)",
+      "table_data": "string or null (HTML table with class='exam-table')",
       "circuit_type": "series | parallel | voltage_divider | complex | none",
       "circuit_description": "string or null (topology and component values)",
       "needs_diagram": boolean,
