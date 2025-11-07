@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathKeyboard } from "@/components/MathKeyboard";
 import { VisualMathInput, VisualMathInputRef } from "@/components/VisualMathInput";
+import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -55,6 +56,7 @@ const ExamInProgress = () => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAutoSubmit, setIsAutoSubmit] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -457,6 +459,7 @@ const ExamInProgress = () => {
   };
 
   const handleAutoSubmit = () => {
+    setIsAutoSubmit(true);
     toast({ title: "Time's Up!", description: "Auto-submitting exam...", variant: "destructive" });
     submitExam();
   };
@@ -595,6 +598,17 @@ const ExamInProgress = () => {
   const currentGroup = questionGroups[currentPage] || { parent: '1', questions: [] };
   const hasNextPage = currentPage < questionGroups.length - 1;
   const hasPrevPage = currentPage > 0;
+
+  // Show submission loading screen
+  if (isSubmitting) {
+    return (
+      <SubmissionLoadingScreen 
+        subjectName={examName}
+        subjectColor={subjectColor}
+        isAutoSubmit={isAutoSubmit}
+      />
+    );
+  }
 
   if (loading) {
     return (
