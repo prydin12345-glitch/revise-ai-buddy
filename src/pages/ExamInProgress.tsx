@@ -237,7 +237,10 @@ const ExamInProgress = () => {
             .maybeSingle();
           
           if (subjectData?.subject_color) {
+            console.log('[Subject Color] Loaded:', subjectData.subject_color, 'for subject:', examData.subject_id);
             setSubjectColor(subjectData.subject_color);
+          } else {
+            console.log('[Subject Color] No color found for subject:', examData.subject_id, 'using default');
           }
         }
       }
@@ -828,11 +831,12 @@ const ExamInProgress = () => {
                     <div className="flex items-center gap-3">
                       <Badge 
                         variant="secondary" 
-                        className="text-lg px-4 py-1.5"
+                        className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
                         style={{ 
-                          backgroundColor: addOpacity(subjectColor, 0.2),
+                          backgroundColor: subjectColor,
                           borderColor: subjectColor,
-                          color: subjectColor
+                          color: '#FFFFFF',
+                          boxShadow: `0 0 15px ${subjectColor}, 0 0 30px ${addOpacity(subjectColor, 0.5)}`
                         }}
                       >
                         Q{question.question_number}
@@ -840,10 +844,12 @@ const ExamInProgress = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <Badge 
-                        className="text-lg px-4 py-1.5"
+                        className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
                         style={{
-                          backgroundColor: addOpacity(subjectColor, 0.15),
-                          color: subjectColor
+                          backgroundColor: subjectColor,
+                          borderColor: subjectColor,
+                          color: '#FFFFFF',
+                          boxShadow: `0 0 15px ${subjectColor}, 0 0 30px ${addOpacity(subjectColor, 0.5)}`
                         }}
                       >
                         {question.marks} marks
@@ -879,9 +885,14 @@ const ExamInProgress = () => {
                         return (
                           <div 
                             key={idx} 
-                            className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
-                              isSelected ? 'bg-primary/10 border-primary' : 'hover:bg-accent'
+                            className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                              isSelected ? '' : 'border-border hover:bg-accent'
                             }`}
+                            style={isSelected ? {
+                              borderColor: subjectColor,
+                              backgroundColor: addOpacity(subjectColor, 0.1),
+                              boxShadow: `0 0 15px ${addOpacity(subjectColor, 0.3)}`
+                            } : undefined}
                           >
                             <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
                             <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
@@ -908,43 +919,59 @@ const ExamInProgress = () => {
                               handleSaveAnswer(question.id);
                             }, 1000);
                           }}
-                          className="min-h-[300px] resize-y text-base font-mono"
+                          className={`min-h-[300px] resize-y text-base font-mono transition-all ${
+                            userAnswers[question.id]?.workingOut?.trim() ? 'border-2' : 'border'
+                          }`}
+                          style={userAnswers[question.id]?.workingOut?.trim() ? {
+                            borderColor: subjectColor,
+                            boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`
+                          } : undefined}
                           disabled={isReadOnly}
                         />
                       </div>
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
-                        <VisualMathInput
-                          ref={(el) => {
-                            finalAnswerRefs.current[question.id] = el;
-                          }}
-                          placeholder="Enter your final answer using visual math templates"
-                          value={userAnswers[question.id]?.finalAnswer || ''}
-                          resetKey={question.id}
-                          onChange={(latex) => {
-                            updateAnswer(question.id, { finalAnswer: latex });
-                            // Trigger debounced save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1000);
-                          }}
-                          onFocus={() => setActiveQuestionId(question.id)}
-                          onBlur={async () => {
-                            // Immediately flush save on blur
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            const answerData = answersRef.current[question.id];
-                            if (answerData) {
-                              await handleSaveAnswer(question.id);
-                            }
-                          }}
-                          disabled={isReadOnly}
-                          className="w-full"
-                        />
+                        <div 
+                          className="transition-all rounded-lg"
+                          style={userAnswers[question.id]?.finalAnswer?.trim() ? {
+                            border: `2px solid ${subjectColor}`,
+                            boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`,
+                            padding: '4px',
+                            borderRadius: '0.5rem'
+                          } : undefined}
+                        >
+                          <VisualMathInput
+                            ref={(el) => {
+                              finalAnswerRefs.current[question.id] = el;
+                            }}
+                            placeholder="Enter your final answer using visual math templates"
+                            value={userAnswers[question.id]?.finalAnswer || ''}
+                            resetKey={question.id}
+                            onChange={(latex) => {
+                              updateAnswer(question.id, { finalAnswer: latex });
+                              // Trigger debounced save
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            onFocus={() => setActiveQuestionId(question.id)}
+                            onBlur={async () => {
+                              // Immediately flush save on blur
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              const answerData = answersRef.current[question.id];
+                              if (answerData) {
+                                await handleSaveAnswer(question.id);
+                              }
+                            }}
+                            disabled={isReadOnly}
+                            className="w-full"
+                          />
+                        </div>
                         
                         {activeQuestionId === question.id && (
                           <MathKeyboard 
@@ -970,7 +997,13 @@ const ExamInProgress = () => {
                           await handleSaveAnswer(question.id);
                         }
                       }}
-                      className="min-h-[200px] resize-y text-base"
+                      className={`min-h-[200px] resize-y text-base transition-all ${
+                        userAnswers[question.id]?.finalAnswer?.trim() ? 'border-2' : 'border'
+                      }`}
+                      style={userAnswers[question.id]?.finalAnswer?.trim() ? {
+                        borderColor: subjectColor,
+                        boxShadow: `0 0 10px ${addOpacity(subjectColor, 0.2)}`
+                      } : undefined}
                     />
                   )}
                 </Card>
