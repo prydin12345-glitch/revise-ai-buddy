@@ -22,6 +22,8 @@ const Stats = () => {
     recentExams,
     bestSubject,
     revisionGoals,
+    currentStreak,
+    longestStreak,
     timeRange,
     setTimeRange,
     pieChartMode,
@@ -74,6 +76,8 @@ const Stats = () => {
               totalExams={totalExams}
               completedExams={completedExams}
               inProgressExams={inProgressExams}
+              currentStreak={currentStreak}
+              longestStreak={longestStreak}
             />
 
             {/* Best Subject Highlight */}

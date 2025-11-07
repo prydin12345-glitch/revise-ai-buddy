@@ -46,7 +46,7 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
           <Clock className="w-5 h-5 text-primary" />
           Weekly Study Activity
         </CardTitle>
-        <CardDescription>Hours studied per subject each day</CardDescription>
+        <CardDescription>Total study time per day (including exams)</CardDescription>
       </CardHeader>
       <CardContent>
         {data.length > 0 && subjects.length > 0 ? (

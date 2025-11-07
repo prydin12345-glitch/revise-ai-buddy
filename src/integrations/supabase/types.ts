@@ -689,6 +689,36 @@ export type Database = {
           },
         ]
       }
+      user_streaks: {
+        Row: {
+          created_at: string | null
+          current_streak: number
+          id: string
+          last_exam_submitted_at: string | null
+          longest_streak: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_streak?: number
+          id?: string
+          last_exam_submitted_at?: string | null
+          longest_streak?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_streak?: number
+          id?: string
+          last_exam_submitted_at?: string | null
+          longest_streak?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subjects: {
         Row: {
           created_at: string

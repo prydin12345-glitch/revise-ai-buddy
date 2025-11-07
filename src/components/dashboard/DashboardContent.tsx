@@ -90,6 +90,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [editGoalDialogOpen, setEditGoalDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<RevisionGoal | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [newGoal, setNewGoal] = useState({
     subject: "",
     target_exams: 10,
@@ -118,7 +119,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
       emoji: "📊" 
     },
     { label: "Study Hours", value: "0h", emoji: "⏰" },
-    { label: "Day Streak", value: "0", emoji: "🔥" },
+    { label: "Day Streak", value: currentStreak.toString(), emoji: "🔥" },
   ];
 
   useEffect(() => {
@@ -134,6 +135,31 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Fetch user streak
+      const { data: streakData } = await supabase
+        .from('user_streaks')
+        .select('current_streak, longest_streak, last_exam_submitted_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (streakData) {
+        const lastSubmission = streakData.last_exam_submitted_at 
+          ? new Date(streakData.last_exam_submitted_at) 
+          : null;
+        
+        if (lastSubmission) {
+          const hoursSinceLastSubmission = 
+            (Date.now() - lastSubmission.getTime()) / (1000 * 60 * 60);
+          
+          // If more than 24 hours, streak should be 0
+          setCurrentStreak(hoursSinceLastSubmission <= 24 ? streakData.current_streak : 0);
+        } else {
+          setCurrentStreak(0);
+        }
+      } else {
+        setCurrentStreak(0);
+      }
 
       const { data: examsData, error: examsError } = await supabase
         .from("exams")

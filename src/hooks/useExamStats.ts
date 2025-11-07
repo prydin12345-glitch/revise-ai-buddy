@@ -63,6 +63,8 @@ export const useExamStats = () => {
   const [recentExams, setRecentExams] = useState<RecentExam[]>([]);
   const [bestSubject, setBestSubject] = useState<BestSubject | null>(null);
   const [revisionGoals, setRevisionGoals] = useState<RevisionGoal[]>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   
   const [timeRange, setTimeRange] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [pieChartMode, setPieChartMode] = useState<'score' | 'count'>('score');
@@ -281,11 +283,12 @@ export const useExamStats = () => {
         setRecentExams(recent);
       }
 
-      // Fetch study activity (revision tasks)
+      // Fetch study activity (revision tasks + exam time)
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
       
+      // 1. Fetch revision tasks
       const { data: tasks } = await supabase
         .from('revision_tasks')
         .select('subject, duration, date')
@@ -293,12 +296,27 @@ export const useExamStats = () => {
         .gte('date', weekStart.toISOString())
         .lte('date', weekEnd.toISOString());
 
+      // 2. Fetch exam submissions for the week
+      const { data: weekSubmissions } = await supabase
+        .from('exam_submissions')
+        .select(`
+          time_taken_seconds,
+          submitted_at,
+          exams!inner(subject_id)
+        `)
+        .eq('student_id', user.id)
+        .eq('status', 'graded')
+        .gte('submitted_at', weekStart.toISOString())
+        .lte('submitted_at', weekEnd.toISOString());
+
+      // 3. Combine both sources
+      const studyMap = new Map<string, Map<string, number>>();
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
+      days.forEach(day => studyMap.set(day, new Map()));
+      
+      // Add revision task hours
       if (tasks && tasks.length > 0) {
-        const studyMap = new Map<string, Map<string, number>>();
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        
-        days.forEach(day => studyMap.set(day, new Map()));
-        
         tasks.forEach(task => {
           const taskDate = new Date(task.date);
           const dayName = format(taskDate, 'EEEE');
@@ -312,17 +330,36 @@ export const useExamStats = () => {
             studyMap.get(dayName)!.get(task.subject)! + hours
           );
         });
-
-        const studyData: StudyActivityData[] = days.map(day => {
-          const data: StudyActivityData = { day };
-          studyMap.get(day)!.forEach((hours, subject) => {
-            data[subject] = Math.round(hours * 10) / 10;
-          });
-          return data;
-        });
-
-        setStudyActivityData(studyData);
       }
+
+      // Add exam time hours
+      if (weekSubmissions && weekSubmissions.length > 0) {
+        weekSubmissions.forEach(sub => {
+          const submittedDate = new Date(sub.submitted_at);
+          const dayName = format(submittedDate, 'EEEE');
+          const subject = sub.exams.subject_id;
+          const hours = (sub.time_taken_seconds || 0) / 3600; // Convert seconds to hours
+          
+          if (!studyMap.get(dayName)!.has(subject)) {
+            studyMap.get(dayName)!.set(subject, 0);
+          }
+          studyMap.get(dayName)!.set(
+            subject, 
+            studyMap.get(dayName)!.get(subject)! + hours
+          );
+        });
+      }
+
+      // Build final study activity data
+      const studyData: StudyActivityData[] = days.map(day => {
+        const data: StudyActivityData = { day };
+        studyMap.get(day)!.forEach((hours, subject) => {
+          data[subject] = Math.round(hours * 10) / 10;
+        });
+        return data;
+      });
+
+      setStudyActivityData(studyData);
 
       // Fetch revision goals
       const { data: goals } = await supabase
@@ -346,6 +383,34 @@ export const useExamStats = () => {
             };
           });
         setRevisionGoals(goalsWithProgress);
+      }
+
+      // Fetch user streak
+      const { data: streakData } = await supabase
+        .from('user_streaks')
+        .select('current_streak, longest_streak, last_exam_submitted_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (streakData) {
+        const lastSubmission = streakData.last_exam_submitted_at 
+          ? new Date(streakData.last_exam_submitted_at) 
+          : null;
+        
+        if (lastSubmission) {
+          const hoursSinceLastSubmission = 
+            (Date.now() - lastSubmission.getTime()) / (1000 * 60 * 60);
+          
+          // If more than 24 hours, streak should be 0
+          setCurrentStreak(hoursSinceLastSubmission <= 24 ? streakData.current_streak : 0);
+          setLongestStreak(streakData.longest_streak);
+        } else {
+          setCurrentStreak(0);
+          setLongestStreak(0);
+        }
+      } else {
+        setCurrentStreak(0);
+        setLongestStreak(0);
       }
 
     } catch (err) {
@@ -372,6 +437,8 @@ export const useExamStats = () => {
     recentExams,
     bestSubject,
     revisionGoals,
+    currentStreak,
+    longestStreak,
     timeRange,
     setTimeRange,
     pieChartMode,

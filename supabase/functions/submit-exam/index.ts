@@ -307,6 +307,61 @@ Provide:
 
     console.log('Exam submitted successfully. Score:', totalScore, '/', totalMarks);
 
+    // Update user streak
+    const now = new Date();
+    const { data: streakData } = await supabase
+      .from('user_streaks')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    let newStreak = 1;
+    let longestStreak = 1;
+
+    if (streakData) {
+      const lastSubmission = streakData.last_exam_submitted_at 
+        ? new Date(streakData.last_exam_submitted_at) 
+        : null;
+      
+      if (lastSubmission) {
+        const hoursSinceLastSubmission = 
+          (now.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60);
+        
+        // Within 24 hours = continue streak
+        if (hoursSinceLastSubmission <= 24) {
+          newStreak = streakData.current_streak + 1;
+          longestStreak = Math.max(newStreak, streakData.longest_streak);
+        } else {
+          // Reset streak if > 24 hours
+          newStreak = 1;
+          longestStreak = streakData.longest_streak;
+        }
+      }
+      
+      // Update existing streak
+      await supabase
+        .from('user_streaks')
+        .update({
+          current_streak: newStreak,
+          longest_streak: longestStreak,
+          last_exam_submitted_at: now.toISOString(),
+          updated_at: now.toISOString()
+        })
+        .eq('user_id', user.id);
+    } else {
+      // Create first streak
+      await supabase
+        .from('user_streaks')
+        .insert({
+          user_id: user.id,
+          current_streak: 1,
+          longest_streak: 1,
+          last_exam_submitted_at: now.toISOString()
+        });
+    }
+
+    console.log('Streak updated. New streak:', newStreak);
+
     return new Response(JSON.stringify({ 
       success: true,
       totalScore,

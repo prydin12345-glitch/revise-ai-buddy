@@ -1,17 +1,19 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardList, CheckCircle2, Clock } from "lucide-react";
+import { ClipboardList, CheckCircle2, Clock, Flame } from "lucide-react";
 
 interface TopStatsCardsProps {
   totalExams: number;
   completedExams: number;
   inProgressExams: number;
+  currentStreak: number;
+  longestStreak: number;
 }
 
-export const TopStatsCards = ({ totalExams, completedExams, inProgressExams }: TopStatsCardsProps) => {
+export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, currentStreak, longestStreak }: TopStatsCardsProps) => {
   const percentageComplete = totalExams > 0 ? (completedExams / totalExams) * 100 : 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
@@ -70,6 +72,26 @@ export const TopStatsCards = ({ totalExams, completedExams, inProgressExams }: T
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Ready to complete</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-xl bg-orange-500/10">
+              <Flame className="h-6 w-6 text-orange-500" />
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-muted-foreground">Current Streak</p>
+              <p className="text-3xl font-bold text-foreground">{currentStreak}</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Longest: {longestStreak} days</span>
+              <span>🔥</span>
             </div>
           </div>
         </CardContent>
