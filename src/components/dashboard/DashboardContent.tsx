@@ -835,26 +835,24 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
                           {/* Progress bar at bottom */}
                           <div className="relative mt-4 h-10 border-2 border-border rounded-lg overflow-hidden bg-muted/30">
+                            {/* Colored progress bar background */}
                             <div 
-                              className="h-full transition-all duration-700 ease-out flex items-center justify-center"
+                              className="h-full transition-all duration-700 ease-out"
                               style={{ 
                                 width: `${Math.min((goal.progress / goal.target_exams) * 100, 100)}%`,
                                 backgroundColor: goal.subject_color,
                               }}
-                            >
-                              {goal.progress > 0 && (
-                                <span className="text-white font-bold text-sm">
-                                  {goal.progress}/{goal.target_exams}
-                                </span>
-                              )}
+                            />
+                            
+                            {/* Centered progress text overlay - always spans full width */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className={cn(
+                                "font-bold text-sm",
+                                goal.progress > 0 ? "text-white" : "text-muted-foreground"
+                              )}>
+                                {goal.progress}/{goal.target_exams}
+                              </span>
                             </div>
-                            {goal.progress === 0 && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-muted-foreground font-semibold text-sm">
-                                  0/{goal.target_exams}
-                                </span>
-                              </div>
-                            )}
                           </div>
                         </CardContent>
                       </Card>
