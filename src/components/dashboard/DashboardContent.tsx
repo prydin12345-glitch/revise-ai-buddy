@@ -133,8 +133,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         : "-", 
       emoji: "📊" 
     },
-    { label: "Study Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(1)}h` : "0h", emoji: "⏰" },
-    { label: "Day Streak", value: currentStreak.toString(), emoji: "🔥" },
+    { label: "Study Hours", value: studyActivityData.length === 0 ? "..." : (totalStudyHours > 0 ? `${totalStudyHours.toFixed(1)}h` : "0h"), emoji: "⏰" },
+    { label: "Day Streak", value: loading ? "..." : currentStreak.toString(), emoji: "🔥" },
   ];
 
   useEffect(() => {
