@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { SubjectSelector } from "./SubjectSelector";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { SubjectColorChangeConfirmation, shouldShowColorChangeWarning } from "./SubjectColorChangeConfirmation";
+import { useExamStats } from "@/hooks/useExamStats";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -80,6 +81,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const userName = userEmail.split("@")[0];
   const { getSubjectColor, saveOrUpdateSubject, getAffectedEntityCounts } = useUserSubjects();
+  const { studyActivityData } = useExamStats();
   
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [filteredExams, setFilteredExams] = useState<ExamWithSubmission[]>([]);
@@ -98,6 +100,14 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
     deadline: null as Date | null,
     subject_color: "#3B82F6",
   });
+
+  // Calculate total study hours from exam submissions and revision tasks
+  const totalStudyHours = studyActivityData.reduce((total, day) => {
+    const dayTotal = Object.entries(day)
+      .filter(([key]) => key !== 'day')
+      .reduce((sum, [_, hours]) => sum + (hours as number), 0);
+    return total + dayTotal;
+  }, 0);
 
   // Color change confirmation state
   const [colorConfirmationOpen, setColorConfirmationOpen] = useState(false);
@@ -118,7 +128,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         : "-", 
       emoji: "📊" 
     },
-    { label: "Study Hours", value: "0h", emoji: "⏰" },
+    { label: "Study Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(1)}h` : "0h", emoji: "⏰" },
     { label: "Day Streak", value: currentStreak.toString(), emoji: "🔥" },
   ];
 
