@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play } from "lucide-react";
+import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play, Beaker, Calculator, BookOpen, Globe, FileText, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -55,60 +56,67 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="hover:shadow-xl transition-all">
+      <Card className="hover:shadow-xl transition-all group">
         <CardContent className="p-5">
-          <div className="flex items-start gap-3 mb-3">
-            <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 hover:text-primary transition-colors">
-              <GripVertical className="w-5 h-5" />
-            </button>
-            <div className="text-3xl">{exam.type === 'generated' ? '🤖' : '📄'}</div>
+          {/* Top Section: Subject + Date */}
+          <div className="flex items-center justify-between mb-3">
+            <Badge 
+              style={{ 
+                backgroundColor: `${subjectColor}20`, 
+                color: subjectColor,
+                borderColor: subjectColor 
+              }} 
+              variant="outline" 
+              className="text-xs font-medium"
+            >
+              {exam.subject_id}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {new Date(exam.created_at).toLocaleDateString()}
+            </span>
+          </div>
+
+          {/* Middle Section: Title + Actions */}
+          <div className="flex items-start gap-3 mb-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity mt-1 hover:text-primary hover:bg-primary/10 p-1 rounded">
+                    <GripVertical className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Drag to reorder</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
             <div className="flex-1 cursor-pointer" onClick={() => onView(exam)}>
-              <h3 className="font-bold text-lg truncate">{exam.title}</h3>
-              <Badge 
-                style={{ 
-                  backgroundColor: `${subjectColor}20`, 
-                  color: subjectColor,
-                  borderColor: subjectColor 
-                }} 
-                variant="outline" 
-                className="text-xs font-medium mt-1"
-              >
-                {exam.subject_id}
-              </Badge>
+              <h3 className="font-bold text-lg line-clamp-2 mb-1">{exam.title}</h3>
+              {exam.exam_topics.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {exam.exam_topics[0].topic_name}
+                </p>
+              )}
             </div>
-            <div className="flex gap-1">
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
-                className="h-8 w-8"
-              >
-                <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }} className="h-7 w-7">
+                <Star className={`w-3.5 h-3.5 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
               </Button>
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={(e) => { e.stopPropagation(); onEdit(exam); }}
-                className="h-8 w-8 hover:bg-primary/10"
-              >
-                <Edit2 className="w-4 h-4" />
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(exam); }} className="h-7 w-7">
+                <Edit2 className="w-3.5 h-3.5" />
               </Button>
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={(e) => { e.stopPropagation(); onDelete(exam); }}
-                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="w-4 h-4" />
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(exam); }} className="h-7 w-7 hover:text-destructive">
+                <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
-          <div className="flex justify-between items-center pt-3 border-t">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />{new Date(exam.created_at).toLocaleDateString()}
-            </div>
+
+          {/* Bottom Section: Action Buttons */}
+          <div className="flex gap-2 pt-3 border-t">
             {examState === 'in-progress' && (
-              <Badge variant="outline" className="border-orange-500 text-orange-500">
+              <Badge variant="outline" className="border-orange-500/50 text-orange-600 bg-orange-50 dark:bg-orange-950/20 text-xs mr-auto">
                 In Progress
               </Badge>
             )}
@@ -119,17 +127,33 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
               }
               const Icon = buttonConfig.icon;
               return (
-                <Button 
-                  size="sm" 
-                  className={`${buttonConfig.className} h-8`}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    buttonConfig.action(); 
-                  }}
-                >
-                  {Icon && <Icon className="w-4 h-4 mr-2" />}
-                  {buttonConfig.label}
-                </Button>
+                <>
+                  <Button 
+                    className={buttonConfig.className}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      buttonConfig.action(); 
+                    }}
+                    size="sm"
+                  >
+                    {Icon && <Icon className="w-4 h-4 mr-2" />}
+                    {buttonConfig.label}
+                  </Button>
+                  {buttonConfig.secondaryButton && (
+                    <Button 
+                      variant="outline"
+                      style={{ borderColor: subjectColor, color: subjectColor }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        buttonConfig.secondaryButton.action(); 
+                      }}
+                      size="sm"
+                    >
+                      {buttonConfig.secondaryButton.icon && <buttonConfig.secondaryButton.icon className="w-4 h-4 mr-2" />}
+                      {buttonConfig.secondaryButton.label}
+                    </Button>
+                  )}
+                </>
               );
             })()}
           </div>
@@ -150,14 +174,21 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="hover:shadow-md transition-all">
+      <Card className="hover:shadow-md transition-all group">
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-              <GripVertical className="w-4 h-4" />
-            </button>
-            
-            <div className="text-2xl">{exam.type === 'generated' ? '🤖' : '📄'}</div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:text-primary hover:bg-primary/10 p-1 rounded transition-colors">
+                    <GripVertical className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Drag to reorder</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onView(exam)}>
               <h3 className="font-semibold text-base truncate">{exam.title}</h3>
@@ -181,7 +212,7 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
             
             <div className="flex items-center gap-2">
               {examState === 'in-progress' && (
-                <Badge variant="outline" className="border-orange-500 text-orange-500">
+                <Badge variant="outline" className="border-orange-500/50 text-orange-600 bg-orange-50 dark:bg-orange-950/20 text-xs">
                   In Progress
                 </Badge>
               )}
@@ -192,17 +223,33 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
                 }
                 const Icon = buttonConfig.icon;
                 return (
-                  <Button 
-                    size="sm" 
-                    className={buttonConfig.className}
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      buttonConfig.action(); 
-                    }}
-                  >
-                    {Icon && <Icon className="w-4 h-4 mr-2" />}
-                    {buttonConfig.label}
-                  </Button>
+                  <>
+                    <Button 
+                      size="sm" 
+                      className={buttonConfig.className}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        buttonConfig.action(); 
+                      }}
+                    >
+                      {Icon && <Icon className="w-4 h-4 mr-2" />}
+                      {buttonConfig.label}
+                    </Button>
+                    {buttonConfig.secondaryButton && (
+                      <Button 
+                        variant="outline"
+                        style={{ borderColor: subjectColor, color: subjectColor }}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          buttonConfig.secondaryButton.action(); 
+                        }}
+                        size="sm"
+                      >
+                        {buttonConfig.secondaryButton.icon && <buttonConfig.secondaryButton.icon className="w-4 h-4 mr-2" />}
+                        {buttonConfig.secondaryButton.label}
+                      </Button>
+                    )}
+                  </>
                 );
               })()}
               <Button 
@@ -235,6 +282,7 @@ const MyExams = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
+  const [retakeExamDialogOpen, setRetakeExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
   
@@ -253,7 +301,11 @@ const MyExams = () => {
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -295,7 +347,7 @@ const MyExams = () => {
 
         // Separate completed vs in-progress
         const submittedExamIds = new Set(
-          allSubmissions?.filter(s => s.status === 'submitted').map(s => s.exam_id) || []
+          allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed').map(s => s.exam_id) || []
         );
         const inProgressExamIds = new Set(
           allSubmissions?.filter(s => s.status === 'in_progress').map(s => s.exam_id) || []
@@ -365,17 +417,22 @@ const MyExams = () => {
     switch (state) {
       case 'completed':
         return {
-          label: 'Review Exam',
+          label: 'Review',
           action: () => navigate(`/exam/${exam.id}/review`),
           className: 'bg-green-600 hover:bg-green-700',
-          icon: Eye
+          icon: Eye,
+          secondaryButton: {
+            label: 'Retake',
+            action: () => handleRetakeExam(exam),
+            icon: RotateCcw,
+          }
         };
       case 'in-progress':
         return {
           label: 'Continue',
           action: () => navigate(`/exam/${exam.id}/in-progress?mode=student`),
           className: 'bg-orange-600 hover:bg-orange-700',
-          icon: Play
+          icon: null
         };
       case 'not-started':
       default:
@@ -385,6 +442,45 @@ const MyExams = () => {
           className: 'bg-blue-600 hover:bg-blue-700',
           icon: null
         };
+    }
+  };
+
+  const handleRetakeExam = (exam: Exam) => {
+    setSelectedExam(exam);
+    setRetakeExamDialogOpen(true);
+  };
+
+  const handleConfirmRetake = async () => {
+    if (!selectedExam) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete existing submission and answers to allow retake
+      await supabase
+        .from('exam_submissions')
+        .delete()
+        .eq('exam_id', selectedExam.id)
+        .eq('student_id', user.id);
+      
+      await supabase
+        .from('student_answers')
+        .delete()
+        .eq('exam_id', selectedExam.id)
+        .eq('student_id', user.id);
+
+      setRetakeExamDialogOpen(false);
+      
+      // Reload exams to update state
+      await loadExams();
+      
+      // Navigate to fresh exam
+      navigate(`/exam/${selectedExam.id}/live?mode=student`);
+      
+      toast({ title: "Success", description: "Starting fresh exam session" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -806,6 +902,26 @@ const MyExams = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmBeginExam} className="bg-blue-600 hover:bg-blue-700">
               Start Exam
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Retake Exam Dialog */}
+      <AlertDialog open={retakeExamDialogOpen} onOpenChange={setRetakeExamDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retake this exam?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Retaking this exam will generate a fresh version with the same questions.
+              Your previous score and stats will remain saved and visible in your dashboard and stats page.
+              Are you sure you want to retake this exam?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRetake} className="bg-blue-600 hover:bg-blue-700">
+              Retake Exam
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
