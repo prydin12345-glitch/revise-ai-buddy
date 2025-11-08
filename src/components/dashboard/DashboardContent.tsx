@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, TrendingUp, Clock, Trophy, Flame, CheckSquare, Calendar as CalendarIcon, MessageSquare, RotateCcw, Plus, Heart, ClipboardList, MoreVertical, Play, Eye, Trash2, Edit as EditIcon, Filter, CheckCircle2, Award, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -102,12 +102,17 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
   });
 
   // Calculate total study hours from exam submissions and revision tasks
-  const totalStudyHours = studyActivityData.reduce((total, day) => {
-    const dayTotal = Object.entries(day)
-      .filter(([key]) => key !== 'day')
-      .reduce((sum, [_, hours]) => sum + (hours as number), 0);
-    return total + dayTotal;
-  }, 0);
+  const totalStudyHours = useMemo(() => {
+    console.log('Calculating totalStudyHours from studyActivityData:', studyActivityData);
+    const total = studyActivityData.reduce((total, day) => {
+      const dayTotal = Object.entries(day)
+        .filter(([key]) => key !== 'day')
+        .reduce((sum, [_, hours]) => sum + (hours as number), 0);
+      return total + dayTotal;
+    }, 0);
+    console.log('Total study hours calculated:', total);
+    return total;
+  }, [studyActivityData]);
 
   // Color change confirmation state
   const [colorConfirmationOpen, setColorConfirmationOpen] = useState(false);
@@ -153,6 +158,8 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log('Streak data fetched:', streakData);
+
       if (streakData) {
         const lastSubmission = streakData.last_exam_submitted_at 
           ? new Date(streakData.last_exam_submitted_at) 
@@ -162,12 +169,18 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
           const hoursSinceLastSubmission = 
             (Date.now() - lastSubmission.getTime()) / (1000 * 60 * 60);
           
+          console.log('Hours since last submission:', hoursSinceLastSubmission);
+          
           // If more than 24 hours, streak should be 0
-          setCurrentStreak(hoursSinceLastSubmission <= 24 ? streakData.current_streak : 0);
+          const calculatedStreak = hoursSinceLastSubmission <= 24 ? streakData.current_streak : 0;
+          console.log('Setting current streak to:', calculatedStreak);
+          setCurrentStreak(calculatedStreak);
         } else {
+          console.log('No last submission date, setting streak to 0');
           setCurrentStreak(0);
         }
       } else {
+        console.log('No streak data found, setting streak to 0');
         setCurrentStreak(0);
       }
 
