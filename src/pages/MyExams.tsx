@@ -346,9 +346,9 @@ const MyExams = () => {
           .in('exam_id', examIds);
 
         // Separate completed vs in-progress
-        const submittedExamIds = new Set(
-          allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed').map(s => s.exam_id) || []
-        );
+    const submittedExamIds = new Set(
+      allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
+    );
         const inProgressExamIds = new Set(
           allSubmissions?.filter(s => s.status === 'in_progress').map(s => s.exam_id) || []
         );
