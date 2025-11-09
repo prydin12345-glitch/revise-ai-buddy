@@ -5,6 +5,36 @@
   width: 100%;
 }
 
+/* MathFinalAnswer Component Styling */
+.math-final-answer {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.math-final-answer .mq-editable-field {
+  display: block;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  min-height: 220px;
+  background: hsl(var(--background));
+  font-size: 1.125rem;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.math-final-answer .mq-editable-field:focus {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.math-final-answer .mq-editable-field.mq-focused {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
 .visual-math-input .mq-editable-field {
   display: block;
   border: 1px solid hsl(var(--border));
