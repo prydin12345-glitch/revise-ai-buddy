@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathKeyboard } from "@/components/MathKeyboard";
 import { VisualMathInput, VisualMathInputRef } from "@/components/VisualMathInput";
+import { MathFinalAnswer, MathFinalAnswerRef } from "@/components/MathFinalAnswer";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 
 // Helper to add opacity to hex color
@@ -71,7 +72,7 @@ const ExamInProgress = () => {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const finalAnswerRefs = useRef<Record<string, VisualMathInputRef | null>>({});
+  const finalAnswerRefs = useRef<Record<string, MathFinalAnswerRef | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -982,60 +983,34 @@ const ExamInProgress = () => {
                       </div>
                       <div>
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
-                        <div 
-                          id={`visual-math-wrapper-${question.id}`}
-                          className="w-full transition-all rounded-lg"
-                        >
-                          <VisualMathInput
-                            ref={(el) => {
-                              finalAnswerRefs.current[question.id] = el;
-                            }}
-                            placeholder="Enter your final answer using visual math templates"
-                            value={userAnswers[question.id]?.finalAnswer || ''}
-                            resetKey={question.id}
-                            onChange={(latex) => {
-                              updateAnswer(question.id, { finalAnswer: latex });
-                              // Trigger debounced save
-                              if (saveTimeouts.current[question.id]) {
-                                clearTimeout(saveTimeouts.current[question.id]);
-                              }
-                              saveTimeouts.current[question.id] = setTimeout(() => {
-                                handleSaveAnswer(question.id);
-                              }, 1000);
-                            }}
-                            onFocus={() => {
-                              setActiveQuestionId(question.id);
-                              const wrapper = document.getElementById(`visual-math-wrapper-${question.id}`);
-                              if (wrapper) {
-                                wrapper.style.border = `2px solid ${subjectColor}`;
-                                wrapper.style.padding = '4px';
-                                wrapper.style.borderRadius = '0.5rem';
-                                wrapper.style.outline = 'none';
-                                wrapper.style.boxShadow = 'none';
-                              }
-                            }}
-                            onBlur={async () => {
-                              // Immediately flush save on blur
-                              if (saveTimeouts.current[question.id]) {
-                                clearTimeout(saveTimeouts.current[question.id]);
-                              }
-                              const answerData = answersRef.current[question.id];
-                              if (answerData) {
-                                await handleSaveAnswer(question.id);
-                              }
-                              const wrapper = document.getElementById(`visual-math-wrapper-${question.id}`);
-                              if (wrapper) {
-                                wrapper.style.border = '';
-                                wrapper.style.padding = '';
-                                wrapper.style.borderRadius = '';
-                                wrapper.style.outline = '';
-                                wrapper.style.boxShadow = '';
-                              }
-                            }}
-                            disabled={isReadOnly}
-                            className="w-full"
-                          />
-                        </div>
+                        <MathFinalAnswer
+                          ref={(el) => {
+                            finalAnswerRefs.current[question.id] = el;
+                          }}
+                          placeholder="Enter your final answer using visual math templates"
+                          value={userAnswers[question.id]?.finalAnswer || ''}
+                          onChange={(latex) => {
+                            updateAnswer(question.id, { finalAnswer: latex });
+                            // Trigger debounced save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1000);
+                          }}
+                          onBlur={async () => {
+                            // Immediately flush save on blur
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            const answerData = answersRef.current[question.id];
+                            if (answerData) {
+                              await handleSaveAnswer(question.id);
+                            }
+                          }}
+                          className="w-full"
+                        />
                         
                         {activeQuestionId === question.id && (
                           <MathKeyboard 
