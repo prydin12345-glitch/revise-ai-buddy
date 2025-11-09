@@ -13,9 +13,6 @@ import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronR
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathKeyboard } from "@/components/MathKeyboard";
-import { VisualMathInput, VisualMathInputRef } from "@/components/VisualMathInput";
-import { MathFinalAnswer, MathFinalAnswerRef } from "@/components/MathFinalAnswer";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 
 // Helper to add opacity to hex color
@@ -67,12 +64,9 @@ const ExamInProgress = () => {
   const [examSubject, setExamSubject] = useState<string>('');
   const [examName, setExamName] = useState<string>('');
   const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
-  const [mathKeyboardOpen, setMathKeyboardOpen] = useState(false);
-  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const finalAnswerRefs = useRef<Record<string, MathFinalAnswerRef | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -361,20 +355,10 @@ const ExamInProgress = () => {
       const savedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
-        // Try to parse as JSON for math exams
-        try {
-          const parsed = JSON.parse(answerText);
-          if (parsed && typeof parsed === 'object' && ('workingOut' in parsed || 'finalAnswer' in parsed)) {
-            answersMap[ans.question_id] = {
-              workingOut: parsed.workingOut || '',
-              finalAnswer: parsed.finalAnswer || ''
-            };
-          } else {
-            // Non-JSON or legacy format
-            answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
-          }
-        } catch {
-          // Plain text answer (non-math or legacy)
+        // For math exams, text goes to workingOut; for others, to finalAnswer
+        if (examSubject?.toLowerCase().includes('math')) {
+          answersMap[ans.question_id] = { workingOut: answerText, finalAnswer: '' };
+        } else {
           answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
         }
         savedSet.add(ans.question_id);
@@ -413,8 +397,8 @@ const ExamInProgress = () => {
     // Serialize based on exam type
     let answerText: string;
     if (examSubject?.toLowerCase().includes('math')) {
-      // Math exam: save as JSON
-      answerText = JSON.stringify(answerData);
+      // Math exam: save workingOut only (no separate final answer field)
+      answerText = answerData.workingOut || '';
     } else {
       // Non-math: save finalAnswer as plain text
       answerText = answerData.finalAnswer || answerData.workingOut || '';
@@ -708,17 +692,8 @@ const ExamInProgress = () => {
                 <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
                   <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {examSubject.toLowerCase().includes('math') && (
-                    <DropdownMenuItem 
-                      onClick={() => setMathKeyboardOpen(!mathKeyboardOpen)}
-                      className="cursor-pointer"
-                    >
-                      <Calculator className="mr-2 h-4 w-4" />
-                      {mathKeyboardOpen ? 'Close' : 'Open'} Math Keyboard
-                    </DropdownMenuItem>
-                  )}
                   
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => setShowQuitDialog(true)}
                     className="cursor-pointer"
                   >
@@ -949,82 +924,40 @@ const ExamInProgress = () => {
                       })}
                     </RadioGroup>
                   ) : examSubject.toLowerCase().includes('math') ? (
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-base font-medium mb-2 block">Working Out</Label>
-                        <Textarea 
-                          placeholder="Show your working here..."
-                          value={userAnswers[question.id]?.workingOut || ''}
-                          onChange={(e) => {
-                            updateAnswer(question.id, { workingOut: e.target.value });
-                            // Trigger debounced save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1000);
-                          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = subjectColor;
-            e.target.style.borderWidth = '2px';
-            e.target.style.outline = 'none';
-            e.target.style.boxShadow = 'none';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '';
-            e.target.style.borderWidth = '';
-            e.target.style.outline = '';
-            e.target.style.boxShadow = '';
-          }}
-                          className="min-h-[300px] resize-y text-base font-mono transition-all"
-                          disabled={isReadOnly}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
-                        <MathFinalAnswer
-                          ref={(el) => {
-                            finalAnswerRefs.current[question.id] = el;
-                          }}
-                          placeholder="Enter your final answer using visual math templates"
-                          value={userAnswers[question.id]?.finalAnswer || ''}
-                          onChange={(latex) => {
-                            updateAnswer(question.id, { finalAnswer: latex });
-                            // Trigger debounced save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1000);
-                          }}
-                          onBlur={async () => {
-                            // Immediately flush save on blur
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            const answerData = answersRef.current[question.id];
-                            if (answerData) {
-                              await handleSaveAnswer(question.id);
-                            }
-                          }}
-                          className="w-full"
-                        />
-                        
-                        {activeQuestionId === question.id && (
-                          <MathKeyboard 
-                            isOpen={mathKeyboardOpen}
-                            onInsertSymbol={(symbol) => {
-                              const mathField = finalAnswerRefs.current[question.id];
-                              if (mathField?.insertLatex) {
-                                mathField.insertLatex(symbol);
-                              }
-                            }}
-                            onClose={() => setMathKeyboardOpen(false)}
-                          />
-                        )}
-                      </div>
+                    <div>
+                      <Label className="text-base font-medium mb-2 block">Your Answer</Label>
+                      <Textarea 
+                        placeholder="Show your working and final answer here..."
+                        value={userAnswers[question.id]?.workingOut || ''}
+                        onChange={(e) => {
+                          updateAnswer(question.id, { workingOut: e.target.value });
+                          // Trigger debounced save
+                          if (saveTimeouts.current[question.id]) {
+                            clearTimeout(saveTimeouts.current[question.id]);
+                          }
+                          saveTimeouts.current[question.id] = setTimeout(() => {
+                            handleSaveAnswer(question.id);
+                          }, 1000);
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = subjectColor;
+                          e.target.style.borderWidth = '2px';
+                          e.target.style.outline = 'none';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onBlur={async (e) => {
+                          e.target.style.borderColor = '';
+                          e.target.style.borderWidth = '';
+                          e.target.style.outline = '';
+                          e.target.style.boxShadow = '';
+                          if (saveTimeouts.current[question.id]) {
+                            clearTimeout(saveTimeouts.current[question.id]);
+                          }
+                          await handleSaveAnswer(question.id);
+                        }}
+                        className="min-h-[300px] resize-y text-base font-mono transition-all"
+                        disabled={isReadOnly}
+                      />
                     </div>
                   ) : (
                     <Textarea 
