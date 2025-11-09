@@ -86,7 +86,10 @@ const ExamInProgress = () => {
   const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string }>) => {
     setUserAnswers(prev => {
       const existing = prev[questionId] || { workingOut: '', finalAnswer: '' };
-      return { ...prev, [questionId]: { ...existing, ...patch } };
+      const next = { ...existing, ...patch };
+      // Keep the ref in sync immediately to avoid stale saves
+      answersRef.current = { ...answersRef.current, [questionId]: next };
+      return { ...prev, [questionId]: next };
     });
   };
 
@@ -981,7 +984,7 @@ const ExamInProgress = () => {
                         <Label className="text-base font-medium mb-2 block">Final Answer <span className="text-destructive">*</span></Label>
                         <div 
                           id={`visual-math-wrapper-${question.id}`}
-                          className="transition-all rounded-lg"
+                          className="w-full transition-all rounded-lg"
                         >
                           <VisualMathInput
                             ref={(el) => {
