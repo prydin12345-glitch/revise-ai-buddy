@@ -45,7 +45,7 @@ serve(async (req) => {
         student_id: user.id,
         answer_text: answerText,
       }, {
-        onConflict: 'exam_id,question_id,student_id'
+        onConflict: 'question_id,student_id'
       });
 
     if (upsertError) {
