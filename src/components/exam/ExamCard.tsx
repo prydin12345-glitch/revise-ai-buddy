@@ -300,15 +300,6 @@ export const ExamCard = ({
             )}
           </div>
 
-          {/* In Progress Badge Overlay */}
-          {progress.examState === 'in-progress' && (
-            <Badge 
-              variant="outline" 
-              className="absolute top-4 left-4 border-warning bg-warning-light text-warning-foreground"
-            >
-              In Progress
-            </Badge>
-          )}
         </CardContent>
       </Card>
     </div>
