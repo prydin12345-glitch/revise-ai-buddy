@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play, Beaker, Calculator, BookOpen, Globe, FileText, RotateCcw } from "lucide-react";
+import { ExamCard } from "@/components/exam/ExamCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,15 @@ interface Exam {
   type: string;
   display_order?: number;
   exam_topics: Array<{ topic_name: string }>;
+}
+
+interface ExamProgress {
+  questionsCompleted: number;
+  totalQuestions: number;
+  percentComplete: number;
+  timeRemaining: string;
+  lastAccessed: string;
+  examState: 'not-started' | 'in-progress' | 'completed';
 }
 
 interface SortableExamCardProps {
@@ -292,6 +302,7 @@ const MyExams = () => {
   const [completedExamIds, setCompletedExamIds] = useState<string[]>([]);
   const [favouriteExamIds, setFavouriteExamIds] = useState<string[]>([]);
   const [examStates, setExamStates] = useState<Map<string, 'not-started' | 'in-progress' | 'completed'>>(new Map());
+  const [examProgress, setExamProgress] = useState<Map<string, ExamProgress>>(new Map());
   const [filters, setFilters] = useState({
     subjects: [] as string[],
     status: [] as string[],
@@ -334,28 +345,28 @@ const MyExams = () => {
       if (error) throw error;
       setExams(data || []);
 
-      // Batch fetch exam states for all exams
+      // Batch fetch exam states and progress for all exams
       if (data && data.length > 0) {
         const examIds = data.map(exam => exam.id);
 
-        // Fetch all submissions at once - distinguish by status
+        // Fetch all submissions at once with last_accessed_at
         const { data: allSubmissions } = await supabase
           .from('exam_submissions')
-          .select('exam_id, status')
+          .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
           .eq('student_id', user.id)
           .in('exam_id', examIds);
 
         // Separate completed vs in-progress
-    const submittedExamIds = new Set(
-      allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
-    );
+        const submittedExamIds = new Set(
+          allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
+        );
         const inProgressExamIds = new Set(
           allSubmissions?.filter(s => s.status === 'in_progress').map(s => s.exam_id) || []
         );
 
         setCompletedExamIds(Array.from(submittedExamIds));
 
-        // Fetch all student answers at once
+        // Fetch all student answers at once with counts
         const { data: allAnswers } = await supabase
           .from('student_answers')
           .select('exam_id')
@@ -364,21 +375,101 @@ const MyExams = () => {
 
         const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
 
-        // Determine states efficiently - CHECK BOTH TABLES
+        // Fetch questions count for all exams
+        const { data: questionsData } = await supabase
+          .from('exam_questions')
+          .select('exam_id')
+          .in('exam_id', examIds);
+
+        // Fetch timer settings for all exams
+        const { data: timerData } = await supabase
+          .from('exam_timer')
+          .select('exam_id, enabled, duration_minutes')
+          .in('exam_id', examIds);
+
+        // Create lookup maps
+        const submissionsMap = new Map(allSubmissions?.map(s => [s.exam_id, s]) || []);
+        const answersCountMap = new Map<string, number>();
+        allAnswers?.forEach(a => {
+          answersCountMap.set(a.exam_id, (answersCountMap.get(a.exam_id) || 0) + 1);
+        });
+        const questionsCountMap = new Map<string, number>();
+        questionsData?.forEach(q => {
+          questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1);
+        });
+        const timerMap = new Map(timerData?.map(t => [t.exam_id, t]) || []);
+
+        // Determine states and calculate progress
         const statesMap = new Map();
+        const progressMap = new Map<string, ExamProgress>();
+
         data.forEach(exam => {
+          let state: 'not-started' | 'in-progress' | 'completed';
+          
           if (exam.status !== 'published') {
-            statesMap.set(exam.id, 'not-started');
+            state = 'not-started';
           } else if (submittedExamIds.has(exam.id)) {
-            statesMap.set(exam.id, 'completed');
+            state = 'completed';
           } else if (inProgressExamIds.has(exam.id) || examIdsWithAnswers.has(exam.id)) {
-            statesMap.set(exam.id, 'in-progress');
+            state = 'in-progress';
           } else {
-            statesMap.set(exam.id, 'not-started');
+            state = 'not-started';
           }
+
+          statesMap.set(exam.id, state);
+
+          // Calculate progress
+          const totalQuestions = questionsCountMap.get(exam.id) || 0;
+          const questionsCompleted = state === 'completed' ? totalQuestions : (answersCountMap.get(exam.id) || 0);
+          const percentComplete = totalQuestions > 0 ? (questionsCompleted / totalQuestions) * 100 : 0;
+
+          // Calculate time remaining
+          let timeRemaining = "No timer";
+          const timer = timerMap.get(exam.id);
+          const submission = submissionsMap.get(exam.id);
+          
+          if (state === 'completed') {
+            timeRemaining = "Completed";
+          } else if (timer?.enabled) {
+            if (submission?.time_remaining_seconds !== undefined && submission.time_remaining_seconds !== null) {
+              const hours = Math.floor(submission.time_remaining_seconds / 3600);
+              const minutes = Math.floor((submission.time_remaining_seconds % 3600) / 60);
+              if (hours > 0) {
+                timeRemaining = `${hours}hr ${minutes}min`;
+              } else {
+                timeRemaining = `${minutes}min`;
+              }
+            } else if (timer.duration_minutes) {
+              const hours = Math.floor(timer.duration_minutes / 60);
+              const minutes = timer.duration_minutes % 60;
+              if (hours > 0) {
+                timeRemaining = `${hours}hr ${minutes}min`;
+              } else {
+                timeRemaining = `${minutes}min`;
+              }
+            }
+          }
+
+          // Format last accessed
+          let lastAccessed = "Never";
+          if (submission?.last_accessed_at) {
+            lastAccessed = new Date(submission.last_accessed_at).toLocaleDateString('en-GB');
+          } else if (submission?.exam_started_at) {
+            lastAccessed = new Date(submission.exam_started_at).toLocaleDateString('en-GB');
+          }
+
+          progressMap.set(exam.id, {
+            questionsCompleted,
+            totalQuestions,
+            percentComplete,
+            timeRemaining,
+            lastAccessed,
+            examState: state,
+          });
         });
 
         setExamStates(statesMap);
+        setExamProgress(progressMap);
       }
 
       // Fetch favourite exams
@@ -783,39 +874,57 @@ const MyExams = () => {
             <SortableContext items={filteredExams.map(e => e.id)} strategy={verticalListSortingStrategy}>
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredExams.map((exam) => (
-                    <SortableExamCard 
-                      key={exam.id} 
-                      exam={exam}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onView={handleView}
-                      onBeginExam={handleBeginExam}
-                      subjectColor={getSubjectColor(exam.subject_id)}
-                      onToggleFavourite={handleToggleFavourite}
-                      isFavourite={favouriteExamIds.includes(exam.id)}
-                      examState={examStates.get(exam.id) || 'not-started'}
-                      getExamButtonConfig={getExamButtonConfig}
-                    />
-                  ))}
+                  {filteredExams.map((exam) => {
+                    const progress = examProgress.get(exam.id) || {
+                      questionsCompleted: 0,
+                      totalQuestions: 0,
+                      percentComplete: 0,
+                      timeRemaining: "No timer",
+                      lastAccessed: "Never",
+                      examState: 'not-started',
+                    };
+                    
+                    return (
+                      <ExamCard 
+                        key={exam.id} 
+                        exam={exam}
+                        progress={progress}
+                        subjectColor={getSubjectColor(exam.subject_id)}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onToggleFavourite={handleToggleFavourite}
+                        isFavourite={favouriteExamIds.includes(exam.id)}
+                        isArchived={activeTab === 'archive'}
+                      />
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredExams.map((exam) => (
-                    <SortableExamListItem 
-                      key={exam.id} 
-                      exam={exam}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onView={handleView}
-                      onBeginExam={handleBeginExam}
-                      subjectColor={getSubjectColor(exam.subject_id)}
-                      onToggleFavourite={handleToggleFavourite}
-                      isFavourite={favouriteExamIds.includes(exam.id)}
-                      examState={examStates.get(exam.id) || 'not-started'}
-                      getExamButtonConfig={getExamButtonConfig}
-                    />
-                  ))}
+                  {filteredExams.map((exam) => {
+                    const progress = examProgress.get(exam.id) || {
+                      questionsCompleted: 0,
+                      totalQuestions: 0,
+                      percentComplete: 0,
+                      timeRemaining: "No timer",
+                      lastAccessed: "Never",
+                      examState: 'not-started',
+                    };
+                    
+                    return (
+                      <ExamCard 
+                        key={exam.id} 
+                        exam={exam}
+                        progress={progress}
+                        subjectColor={getSubjectColor(exam.subject_id)}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onToggleFavourite={handleToggleFavourite}
+                        isFavourite={favouriteExamIds.includes(exam.id)}
+                        isArchived={activeTab === 'archive'}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </SortableContext>
