@@ -135,7 +135,7 @@ export const ExamCard = ({
           boxShadow: `0 2px 8px ${subjectColor}26`,
         }}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           {/* Top Row: Drag Handle + Title + Subject Tag */}
           <div className="flex items-start gap-3 mb-3">
             <TooltipProvider>
@@ -144,7 +144,7 @@ export const ExamCard = ({
                   <button 
                     {...attributes} 
                     {...listeners} 
-                    className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity mt-1 hover:bg-accent p-1 rounded"
+                    className="cursor-grab active:cursor-grabbing transition-opacity mt-1 hover:bg-accent p-1 rounded"
                   >
                     <GripVertical className="w-4 h-4" />
                   </button>
@@ -192,7 +192,7 @@ export const ExamCard = ({
               Created: {new Date(exam.created_at).toLocaleDateString('en-GB')}
             </span>
             
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-1 transition-opacity">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -280,7 +280,7 @@ export const ExamCard = ({
                   <TooltipTrigger asChild>
                     <Button
                       size="icon"
-                      className={`h-14 w-14 rounded-full ${buttonConfig.bgColor} text-white shadow-lg transition-all duration-300 hover:scale-110`}
+                      className="h-10 w-10 rounded-full text-white shadow-lg transition-all duration-300 hover:scale-110"
                       style={{
                         backgroundColor: subjectColor,
                       }}
@@ -289,7 +289,7 @@ export const ExamCard = ({
                         buttonConfig.action();
                       }}
                     >
-                      <ButtonIcon className="w-6 h-6" />
+                      <ButtonIcon className="w-5 h-5" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>

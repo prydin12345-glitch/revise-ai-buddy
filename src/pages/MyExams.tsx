@@ -779,14 +779,22 @@ const MyExams = () => {
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 h-12 px-6 w-full md:w-auto"
-              onClick={() => setNewExamDialogOpen(true)}
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              New Exam
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="icon"
+                    className="bg-blue-500 hover:bg-blue-600 h-12 w-12 rounded-full shadow-lg"
+                    onClick={() => setNewExamDialogOpen(true)}
+                  >
+                    <Plus className="w-6 h-6 text-white" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Create New Exam</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
