@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_goals: {
+        Row: {
+          blocks_completed: number
+          completed_minutes: number
+          created_at: string | null
+          date: string
+          id: string
+          longest_focus_block: number | null
+          target_minutes: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          blocks_completed?: number
+          completed_minutes?: number
+          created_at?: string | null
+          date: string
+          id?: string
+          longest_focus_block?: number | null
+          target_minutes?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          blocks_completed?: number
+          completed_minutes?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          longest_focus_block?: number | null
+          target_minutes?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_format: {
         Row: {
           difficulty_calibration: string | null
@@ -584,15 +620,23 @@ export type Database = {
       }
       revision_tasks: {
         Row: {
+          archived_at: string | null
           created_at: string
           date: string
           day: string
           duration: number | null
           exam_id: string | null
           exam_title: string | null
+          focus_session_duration: number | null
+          focus_session_started_at: string | null
           focus_topic: string | null
           id: string
+          idle_since: string | null
           is_completed: boolean
+          is_private: boolean | null
+          last_modified_at: string | null
+          next_review_date: string | null
+          status: string | null
           subject: string
           subject_color: string
           time: string
@@ -600,15 +644,23 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           date: string
           day: string
           duration?: number | null
           exam_id?: string | null
           exam_title?: string | null
+          focus_session_duration?: number | null
+          focus_session_started_at?: string | null
           focus_topic?: string | null
           id?: string
+          idle_since?: string | null
           is_completed?: boolean
+          is_private?: boolean | null
+          last_modified_at?: string | null
+          next_review_date?: string | null
+          status?: string | null
           subject: string
           subject_color?: string
           time: string
@@ -616,15 +668,23 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           date?: string
           day?: string
           duration?: number | null
           exam_id?: string | null
           exam_title?: string | null
+          focus_session_duration?: number | null
+          focus_session_started_at?: string | null
           focus_topic?: string | null
           id?: string
+          idle_since?: string | null
           is_completed?: boolean
+          is_private?: boolean | null
+          last_modified_at?: string | null
+          next_review_date?: string | null
+          status?: string | null
           subject?: string
           subject_color?: string
           time?: string
@@ -746,6 +806,42 @@ export type Database = {
           subject_name?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_subject_stats: {
+        Row: {
+          blocks_count: number
+          created_at: string | null
+          id: string
+          subject: string
+          subject_color: string
+          total_minutes: number
+          updated_at: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          blocks_count?: number
+          created_at?: string | null
+          id?: string
+          subject: string
+          subject_color?: string
+          total_minutes?: number
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          blocks_count?: number
+          created_at?: string | null
+          id?: string
+          subject?: string
+          subject_color?: string
+          total_minutes?: number
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
         }
         Relationships: []
       }
