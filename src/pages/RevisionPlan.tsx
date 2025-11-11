@@ -1,116 +1,78 @@
 import { useState, useEffect } from "react";
-import { format, addDays, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import {
-  CalendarIcon,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, addDays, startOfWeek, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  DndContext,
-  DragEndEvent,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import { RevisionTaskCard } from "@/components/revision/RevisionTaskCard";
-import { RightSidebarPanel } from "@/components/revision/RightSidebarPanel";
-import { CalendarGrid } from "@/components/revision/CalendarGrid";
-import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
+import { TopBar } from "@/components/revision/TopBar";
+import { TimelineGrid } from "@/components/revision/TimelineGrid";
+import { InboxPanel } from "@/components/revision/InboxPanel";
+import { ArchivePanel } from "@/components/revision/ArchivePanel";
+import { DailyGoalBar } from "@/components/revision/DailyGoalBar";
+import { FocusMode } from "@/components/revision/FocusMode";
+import { QuickAddModal } from "@/components/revision/QuickAddModal";
+import { SubjectBalanceChart } from "@/components/revision/SubjectBalanceChart";
+import { SpacedRepetitionPrompt } from "@/components/revision/SpacedRepetitionPrompt";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
-import { DateNavigationBar } from "@/components/revision/DateNavigationBar";
-import { SubjectViewFilters } from "@/components/revision/SubjectViewFilters";
-import { SubjectViewSummary } from "@/components/revision/SubjectViewSummary";
 
 interface RevisionTask {
   id: string;
   subject: string;
   subject_color: string;
-  day: string;
-  date?: Date;
+  date: string;
   time: string;
   duration?: number;
   focus_topic?: string;
   exam_id?: string;
   exam_title?: string;
   is_completed: boolean;
+  status: 'inbox' | 'scheduled' | 'archived';
+  archived_at?: string;
+  idle_since?: string;
+  focus_session_started_at?: string;
+  focus_session_duration?: number;
+  next_review_date?: string;
+  is_private?: boolean;
 }
 
-const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+interface DailyGoal {
+  target_minutes: number;
+  completed_minutes: number;
+  blocks_completed: number;
+  longest_focus_block: number;
+}
 
-const SUBJECT_COLORS = [
-  "#3B82F6", // Blue
-  "#10B981", // Green
-  "#F59E0B", // Orange
-  "#8B5CF6", // Purple
-  "#EF4444", // Red
-  "#EC4899", // Pink
-  "#06B6D4", // Cyan
-];
+interface WeeklyStats {
+  subject: string;
+  subject_color: string;
+  total_minutes: number;
+  blocks_count: number;
+}
 
 const RevisionPlan = () => {
-  const [viewMode, setViewMode] = useState<"week" | "day" | "subject">("week");
-  const [selectedDay, setSelectedDay] = useState("Monday");
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<RevisionTask[]>([]);
   const [userExams, setUserExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<RevisionTask | null>(null);
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
-  const [dateState, setDateState] = useState("1-week");
   
-  // Subject view filters
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<string>("date-desc");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showCompleted, setShowCompleted] = useState<boolean>(true);
-  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  const [newTask, setNewTask] = useState<Partial<RevisionTask>>({
-    subject: "",
-    subject_color: SUBJECT_COLORS[0],
-    day: "Monday",
-    date: new Date(),
-    time: "09:00",
-    duration: 60,
+  // Modals
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [focusModeOpen, setFocusModeOpen] = useState(false);
+  const [spacedRepOpen, setSpacedRepOpen] = useState(false);
+  
+  // Focus state
+  const [focusTask, setFocusTask] = useState<RevisionTask | null>(null);
+  const [completedTask, setCompletedTask] = useState<RevisionTask | null>(null);
+  
+  // Goals and stats
+  const [dailyGoal, setDailyGoal] = useState<DailyGoal>({
+    target_minutes: 180,
+    completed_minutes: 0,
+    blocks_completed: 0,
+    longest_focus_block: 0,
   });
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats[]>([]);
+  const [userStreak, setUserStreak] = useState(0);
 
   const { subjects, getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
 
@@ -118,34 +80,38 @@ const RevisionPlan = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    loadDailyGoal();
+    loadWeeklyStats();
+  }, [currentDate]);
+
   const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Load exams
       const { data: examsData } = await supabase
         .from("exams")
-        .select("id, title, subject_id")
+        .select("id, title, subject_id, created_at")
         .eq("user_id", user.id)
         .eq("status", "published");
 
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("revision_tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("date", { ascending: true });
-
-      if (tasksError) {
-        console.error("Error loading tasks:", tasksError);
-        toast.error("Failed to load revision tasks");
-      } else {
-        setTasks((tasksData || []).map(task => ({
-          ...task,
-          date: new Date(task.date),
-        })));
-      }
-
       setUserExams(examsData || []);
+
+      // Load tasks
+      await loadTasks();
+
+      // Load streak
+      const { data: streakData } = await supabase
+        .from("user_streaks")
+        .select("current_streak")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (streakData) {
+        setUserStreak(streakData.current_streak);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load revision plan");
@@ -154,779 +120,480 @@ const RevisionPlan = () => {
     }
   };
 
-  const handleAddTask = async () => {
-    if (!newTask.subject || !newTask.date || !newTask.time) {
-      toast.error("Please fill in all required fields");
+  const loadTasks = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: tasksData, error } = await supabase
+      .from("revision_tasks")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("Error loading tasks:", error);
+      toast.error("Failed to load tasks");
+    } else {
+      setTasks((tasksData || []).map(task => ({
+        ...task,
+        status: (task.status || 'scheduled') as 'inbox' | 'scheduled' | 'archived',
+      })));
+    }
+  };
+
+  const loadDailyGoal = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const dateStr = format(currentDate, "yyyy-MM-dd");
+
+    // Get or create daily goal
+    const { data: goalData, error } = await supabase
+      .from("daily_goals")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", dateStr)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error loading daily goal:", error);
       return;
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("You must be logged in to add tasks");
-        return;
-      }
-
-      await saveOrUpdateSubject(newTask.subject, newTask.subject_color || SUBJECT_COLORS[0]);
-
-      const dayName = format(newTask.date, 'EEEE');
-
-      const { data, error } = await supabase
-        .from("revision_tasks")
+    if (goalData) {
+      setDailyGoal({
+        target_minutes: goalData.target_minutes,
+        completed_minutes: goalData.completed_minutes,
+        blocks_completed: goalData.blocks_completed,
+        longest_focus_block: goalData.longest_focus_block,
+      });
+    } else {
+      // Create default goal for today
+      const { data: newGoal } = await supabase
+        .from("daily_goals")
         .insert({
           user_id: user.id,
-          subject: newTask.subject!,
-          subject_color: newTask.subject_color || SUBJECT_COLORS[0],
-          day: dayName,
-          date: newTask.date.toISOString(),
-          time: newTask.time!,
-          duration: newTask.duration,
-          focus_topic: newTask.focus_topic,
-          exam_id: newTask.exam_id,
-          exam_title: newTask.exam_title,
-          is_completed: false,
+          date: dateStr,
+          target_minutes: 180,
+          completed_minutes: 0,
+          blocks_completed: 0,
+          longest_focus_block: 0,
         })
         .select()
         .single();
 
-      if (error) {
-        console.error("Error adding task:", error);
-        toast.error("Failed to add revision task");
-        return;
+      if (newGoal) {
+        setDailyGoal({
+          target_minutes: newGoal.target_minutes,
+          completed_minutes: newGoal.completed_minutes,
+          blocks_completed: newGoal.blocks_completed,
+          longest_focus_block: newGoal.longest_focus_block,
+        });
       }
-
-      setTasks([
-        ...tasks,
-        {
-          ...data,
-          date: new Date(data.date),
-        } as RevisionTask,
-      ]);
-
-      setAddDialogOpen(false);
-      setNewTask({
-        subject: "",
-        subject_color: SUBJECT_COLORS[0],
-        day: "Monday",
-        date: new Date(),
-        time: "09:00",
-        duration: 60,
-      });
-      toast.success("Revision task added!");
-    } catch (error) {
-      console.error("Error adding task:", error);
-      toast.error("Failed to add revision task");
     }
   };
 
-  const handleEditTask = async () => {
-    if (!editingTask) return;
+  const loadWeeklyStats = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    try {
-      await saveOrUpdateSubject(editingTask.subject, editingTask.subject_color);
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, "yyyy-MM-dd");
 
+    const { data: statsData, error } = await supabase
+      .from("weekly_subject_stats")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("week_start", weekStartStr);
+
+    if (error) {
+      console.error("Error loading weekly stats:", error);
+    } else {
+      setWeeklyStats(statsData || []);
+    }
+  };
+
+  const updateDailyGoal = async (updates: Partial<DailyGoal>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const dateStr = format(currentDate, "yyyy-MM-dd");
+    const newGoal = { ...dailyGoal, ...updates };
+
+    const { error } = await supabase
+      .from("daily_goals")
+      .update({
+        completed_minutes: newGoal.completed_minutes,
+        blocks_completed: newGoal.blocks_completed,
+        longest_focus_block: newGoal.longest_focus_block,
+      })
+      .eq("user_id", user.id)
+      .eq("date", dateStr);
+
+    if (error) {
+      console.error("Error updating daily goal:", error);
+    } else {
+      setDailyGoal(newGoal);
+    }
+  };
+
+  const updateWeeklyStats = async (subject: string, subjectColor: string, minutes: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, "yyyy-MM-dd");
+
+    const existingStat = weeklyStats.find(s => s.subject === subject);
+
+    if (existingStat) {
       const { error } = await supabase
-        .from("revision_tasks")
+        .from("weekly_subject_stats")
         .update({
-          subject: editingTask.subject,
-          subject_color: editingTask.subject_color,
-          day: editingTask.day,
-          date: editingTask.date?.toISOString(),
-          time: editingTask.time,
-          duration: editingTask.duration,
-          focus_topic: editingTask.focus_topic,
-          exam_id: editingTask.exam_id,
-          exam_title: editingTask.exam_title,
-          is_completed: editingTask.is_completed,
+          total_minutes: existingStat.total_minutes + minutes,
+          blocks_count: existingStat.blocks_count + 1,
         })
-        .eq("id", editingTask.id);
+        .eq("user_id", user.id)
+        .eq("week_start", weekStartStr)
+        .eq("subject", subject);
 
-      if (error) {
-        console.error("Error updating task:", error);
-        toast.error("Failed to update task");
-        return;
+      if (!error) {
+        setWeeklyStats(weeklyStats.map(s =>
+          s.subject === subject
+            ? { ...s, total_minutes: s.total_minutes + minutes, blocks_count: s.blocks_count + 1 }
+            : s
+        ));
       }
+    } else {
+      const { data, error } = await supabase
+        .from("weekly_subject_stats")
+        .insert({
+          user_id: user.id,
+          week_start: weekStartStr,
+          subject,
+          subject_color: subjectColor,
+          total_minutes: minutes,
+          blocks_count: 1,
+        })
+        .select()
+        .single();
 
-      setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
-      setEditDialogOpen(false);
-      setEditingTask(null);
-      toast.success("Task updated!");
-    } catch (error) {
-      console.error("Error updating task:", error);
-      toast.error("Failed to update task");
+      if (!error && data) {
+        setWeeklyStats([...weeklyStats, data]);
+      }
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      const { error } = await supabase
-        .from("revision_tasks")
-        .delete()
-        .eq("id", taskId);
+  const handleQuickAdd = async (taskData: {
+    subject: string;
+    focusTopic: string;
+    time: string;
+    duration: number;
+  }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      if (error) {
-        console.error("Error deleting task:", error);
-        toast.error("Failed to delete task");
-        return;
-      }
+    const subjectColor = getSubjectColor(taskData.subject);
+    await saveOrUpdateSubject(taskData.subject, subjectColor);
 
-      setTasks(tasks.filter(t => t.id !== taskId));
-      toast.success("Task deleted");
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      toast.error("Failed to delete task");
+    const { data, error } = await supabase
+      .from("revision_tasks")
+      .insert({
+        user_id: user.id,
+        subject: taskData.subject,
+        subject_color: subjectColor,
+        date: format(currentDate, "yyyy-MM-dd"),
+        day: format(currentDate, "EEEE"),
+        time: taskData.time,
+        duration: taskData.duration,
+        focus_topic: taskData.focusTopic,
+        is_completed: false,
+        status: 'scheduled',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding task:", error);
+      toast.error("Failed to add task");
+    } else {
+      setTasks([...tasks, { ...data, status: data.status as 'inbox' | 'scheduled' | 'archived' }]);
+      toast.success("Task added");
     }
   };
 
   const handleToggleComplete = async (taskId: string) => {
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      const newCompletedStatus = !task.is_completed;
-
-      const { error } = await supabase
-        .from("revision_tasks")
-        .update({ is_completed: newCompletedStatus })
-        .eq("id", taskId);
-
-      if (error) {
-        console.error("Error toggling task completion:", error);
-        toast.error("Failed to update task status");
-        return;
-      }
-
-      setTasks(tasks.map(t => 
-        t.id === taskId ? { ...t, is_completed: newCompletedStatus } : t
-      ));
-    } catch (error) {
-      console.error("Error toggling task completion:", error);
-      toast.error("Failed to update task status");
-    }
-  };
-
-  const getTasksForDay = (day: string) => {
-    return tasks
-      .filter(t => t.day === day && !t.is_completed)
-      .sort((a, b) => a.time.localeCompare(b.time));
-  };
-
-  const getTasksForDate = (date: Date) => {
-    return tasks
-      .filter(t => {
-        if (!t.date) return false;
-        const taskDate = new Date(t.date);
-        return taskDate.toDateString() === date.toDateString() && !t.is_completed;
-      })
-      .sort((a, b) => a.time.localeCompare(b.time));
-  };
-
-  const getTodoTasks = () => tasks.filter(t => !t.day && !t.is_completed);
-  const getInProgressTasks = () => tasks.filter(t => t.day && !t.is_completed);
-  const getDoneTasks = () => tasks.filter(t => t.is_completed);
-
-  // Subject view filter and sort logic
-  const handleSubjectToggle = (subject: string) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subject)
-        ? prev.filter(s => s !== subject)
-        : [...prev, subject]
-    );
-  };
-
-  const getFilteredAndSortedTasks = () => {
-    let filtered = tasks;
-
-    // Filter by month if not showing all time
-    filtered = filtered.filter(task => {
-      if (!task.date) return false;
-      const taskDate = new Date(task.date);
-      return isWithinInterval(taskDate, {
-        start: startOfMonth(selectedMonth),
-        end: endOfMonth(selectedMonth)
-      });
-    });
-
-    // Filter by selected subjects
-    if (selectedSubjects.length > 0) {
-      filtered = filtered.filter(t => selectedSubjects.includes(t.subject));
-    }
-
-    // Filter by completion status
-    if (!showCompleted) {
-      filtered = filtered.filter(t => !t.is_completed);
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(t =>
-        (t.focus_topic?.toLowerCase().includes(query)) ||
-        (t.exam_title?.toLowerCase().includes(query)) ||
-        (t.subject.toLowerCase().includes(query))
-      );
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "date-desc":
-          return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
-        case "date-asc":
-          return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
-        case "duration-desc":
-          return (b.duration || 0) - (a.duration || 0);
-        case "duration-asc":
-          return (a.duration || 0) - (b.duration || 0);
-        case "status-todo":
-          return a.is_completed === b.is_completed ? 0 : a.is_completed ? 1 : -1;
-        case "status-done":
-          return a.is_completed === b.is_completed ? 0 : a.is_completed ? -1 : 1;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const taskId = active.id as string;
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    if (over.id === "todo" || over.id === "in-progress" || over.id === "done") {
-      const updatedTask = { ...task };
-      if (over.id === "done") {
-        updatedTask.is_completed = true;
+    const newCompletedState = !task.is_completed;
+
+    const { error } = await supabase
+      .from("revision_tasks")
+      .update({ is_completed: newCompletedState })
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Error toggling complete:", error);
+      toast.error("Failed to update task");
+    } else {
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, is_completed: newCompletedState } : t));
+
+      if (newCompletedState) {
+        // Update daily goal
+        const duration = task.duration || 0;
+        await updateDailyGoal({
+          completed_minutes: dailyGoal.completed_minutes + duration,
+          blocks_completed: dailyGoal.blocks_completed + 1,
+        });
+
+        // Update weekly stats
+        await updateWeeklyStats(task.subject, task.subject_color, duration);
+
+        // Show spaced repetition prompt
+        setCompletedTask(task);
+        setSpacedRepOpen(true);
+
+        toast.success(`Nice! ${duration}m ${task.subject} added to your progress`);
       } else {
-        updatedTask.is_completed = false;
+        const duration = task.duration || 0;
+        await updateDailyGoal({
+          completed_minutes: Math.max(0, dailyGoal.completed_minutes - duration),
+          blocks_completed: Math.max(0, dailyGoal.blocks_completed - 1),
+        });
       }
-      setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
-      toast.success("Task status updated");
     }
   };
 
-  const renderTaskCard = (task: RevisionTask) => (
-    <RevisionTaskCard
-      key={task.id}
-      id={task.id}
-      subject={task.subject}
-      subjectColor={task.subject_color}
-      focusTopic={task.focus_topic}
-      examTitle={task.exam_title}
-      time={task.time}
-      duration={task.duration}
-      isCompleted={task.is_completed}
-      onEdit={() => {
-        setEditingTask(task);
-        setEditDialogOpen(true);
-      }}
-      onDelete={() => handleDeleteTask(task.id)}
-      onToggleComplete={() => handleToggleComplete(task.id)}
-    />
+  const handleDeleteTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from("revision_tasks")
+      .delete()
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    } else {
+      setTasks(tasks.filter(t => t.id !== taskId));
+      toast.success("Task deleted");
+    }
+  };
+
+  const handleArchiveTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from("revision_tasks")
+      .update({
+        status: 'archived',
+        archived_at: new Date().toISOString(),
+      })
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Error archiving task:", error);
+      toast.error("Failed to archive task");
+    } else {
+      await loadTasks();
+      toast.success("Task archived");
+    }
+  };
+
+  const handleRestoreTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from("revision_tasks")
+      .update({
+        status: 'inbox',
+        archived_at: null,
+      })
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Error restoring task:", error);
+      toast.error("Failed to restore task");
+    } else {
+      await loadTasks();
+      toast.success("Task restored to inbox");
+    }
+  };
+
+  const handleStartFocus = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    setFocusTask(task);
+    setFocusModeOpen(true);
+  };
+
+  const handleEndFocus = async (actualDuration: number) => {
+    if (!focusTask) return;
+
+    const { error } = await supabase
+      .from("revision_tasks")
+      .update({
+        focus_session_duration: (focusTask.focus_session_duration || 0) + actualDuration,
+      })
+      .eq("id", focusTask.id);
+
+    if (error) {
+      console.error("Error saving focus session:", error);
+    } else {
+      await loadTasks();
+      
+      // Update daily goal with longest focus block
+      if (actualDuration > dailyGoal.longest_focus_block) {
+        await updateDailyGoal({
+          longest_focus_block: actualDuration,
+        });
+      }
+
+      toast.success(`Focus session complete: ${actualDuration}m`);
+    }
+
+    setFocusTask(null);
+  };
+
+  const handleScheduleReview = async (daysFromNow: number) => {
+    if (!completedTask) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const reviewDate = addDays(new Date(), daysFromNow);
+    const subjectColor = getSubjectColor(completedTask.subject);
+
+    const { error } = await supabase
+      .from("revision_tasks")
+      .insert({
+        user_id: user.id,
+        subject: completedTask.subject,
+        subject_color: subjectColor,
+        date: format(reviewDate, "yyyy-MM-dd"),
+        day: format(reviewDate, "EEEE"),
+        time: "09:00",
+        duration: completedTask.duration,
+        focus_topic: `Review: ${completedTask.focus_topic || completedTask.exam_title}`,
+        is_completed: false,
+        status: 'inbox',
+      });
+
+    if (error) {
+      console.error("Error scheduling review:", error);
+      toast.error("Failed to schedule review");
+    } else {
+      await loadTasks();
+      toast.success(`Review scheduled for ${format(reviewDate, "MMM d")}`);
+    }
+  };
+
+  // Filter tasks by status
+  const scheduledTasks = tasks.filter(t => 
+    t.status === 'scheduled' && 
+    format(new Date(t.date), "yyyy-MM-dd") === format(currentDate, "yyyy-MM-dd")
   );
+  const inboxTasks = tasks.filter(t => t.status === 'inbox');
+  const archivedTasks = tasks.filter(t => t.status === 'archived');
 
-  const handleDateStateChange = (state: string) => {
-    setDateState(state);
-    if (state === "today") {
-      setCurrentWeekStart(new Date());
-    }
-  };
+  // Get nearest exam
+  const nearestExam = userExams.length > 0 ? {
+    title: userExams[0].title,
+    date: new Date(userExams[0].created_at),
+    subject: userExams[0].subject_id,
+  } : undefined;
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">
+          <p>Loading...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="p-6 space-y-4">
-          {/* Date Navigation Bar - Hidden in Subject View */}
-          {viewMode !== "subject" && (
-            <DateNavigationBar
-              viewMode={viewMode}
-              onViewModeChange={(mode) => setViewMode(mode)}
-              currentDate={currentWeekStart}
-              onDateChange={setCurrentWeekStart}
-              dateState={dateState}
-              onDateStateChange={handleDateStateChange}
-              onAddRevision={() => setAddDialogOpen(true)}
+      <div className="h-full flex flex-col">
+        <TopBar
+          currentDate={currentDate}
+          onDateChange={setCurrentDate}
+          nearestExam={nearestExam}
+          onQuickAdd={() => setQuickAddOpen(true)}
+        />
+
+        <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+          {/* Left Sidebar - Inbox */}
+          <div className="w-80 flex-shrink-0">
+            <InboxPanel
+              tasks={inboxTasks}
+              onTaskClick={(taskId) => {
+                // TODO: Edit task
+              }}
+              onArchive={handleArchiveTask}
+              onOpenArchive={() => setArchiveOpen(true)}
             />
-          )}
+          </div>
 
-          {/* Subject View Header */}
-          {viewMode === "subject" && (
-            <div className="flex items-center justify-between">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[180px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedMonth, "MMM, yyyy")}
-                    <ChevronRight className="ml-auto h-4 w-4 rotate-90" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={selectedMonth}
-                    onSelect={(date) => date && setSelectedMonth(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+          {/* Main Content - Timeline */}
+          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+            <DailyGoalBar
+              targetMinutes={dailyGoal.target_minutes}
+              completedMinutes={dailyGoal.completed_minutes}
+              blocksCompleted={dailyGoal.blocks_completed}
+              longestFocusBlock={dailyGoal.longest_focus_block}
+              streak={userStreak}
+            />
+            
+            <TimelineGrid
+              currentDate={currentDate}
+              tasks={scheduledTasks}
+              onEditTask={(taskId) => {
+                // TODO: Edit task
+              }}
+              onDeleteTask={handleDeleteTask}
+              onToggleComplete={handleToggleComplete}
+              onStartFocus={handleStartFocus}
+            />
+          </div>
 
-              <div className="flex items-center gap-2">
-                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-                  <TabsList>
-                    <TabsTrigger value="day">Day</TabsTrigger>
-                    <TabsTrigger value="week">Week</TabsTrigger>
-                    <TabsTrigger value="subject">Subject</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-
-                <Button 
-                  onClick={() => setAddDialogOpen(true)}
-                  size="icon"
-                  className="h-9 w-9 rounded-full"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Week View */}
-          {viewMode === "week" && (
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <CalendarGrid
-                  tasks={tasks}
-                  onEditTask={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                  onDeleteTask={handleDeleteTask}
-                  onToggleComplete={handleToggleComplete}
-                  currentWeekStart={currentWeekStart}
-                  viewMode={viewMode}
-                />
-                {tasks.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center text-muted-foreground">
-                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">No revision plans yet</p>
-                      <p className="text-sm">Click "Add Revision" to get started</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="w-80">
-                <RightSidebarPanel
-                  todoTasks={getTodoTasks()}
-                  inProgressTasks={getInProgressTasks()}
-                  doneTasks={getDoneTasks()}
-                  onTaskClick={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Day View */}
-          {viewMode === "day" && (
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-4">
-                <Card>
-                  <CardContent className="p-6 space-y-3">
-                    {getTasksForDate(currentWeekStart).length > 0 ? (
-                      getTasksForDate(currentWeekStart).map(renderTaskCard)
-                    ) : (
-                      <p className="text-center text-muted-foreground py-12">
-                        No tasks scheduled for {format(currentWeekStart, 'EEEE, MMM d')}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="w-80">
-                <RightSidebarPanel
-                  todoTasks={getTodoTasks()}
-                  inProgressTasks={getInProgressTasks()}
-                  doneTasks={getDoneTasks()}
-                  onTaskClick={(task) => {
-                    setEditingTask(task);
-                    setEditDialogOpen(true);
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Subject View */}
-          {viewMode === "subject" && (
-            <div className="space-y-4">
-              {/* Filters */}
-              <SubjectViewFilters
-                subjects={Array.from(new Set(tasks.map(t => t.subject)))}
-                selectedSubjects={selectedSubjects}
-                onSubjectToggle={handleSubjectToggle}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                showCompleted={showCompleted}
-                onShowCompletedToggle={() => setShowCompleted(!showCompleted)}
-              />
-
-              {/* Summary */}
-              <SubjectViewSummary tasks={getFilteredAndSortedTasks()} />
-
-              {/* Task List Header */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Revision Tasks</h3>
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm text-muted-foreground">Show Completed</Label>
-                  <Button
-                    variant={showCompleted ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowCompleted(!showCompleted)}
-                  >
-                    {showCompleted ? "All" : "Active Only"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Task Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getFilteredAndSortedTasks().length > 0 ? (
-                  getFilteredAndSortedTasks().map((task) => (
-                    <Card key={task.id} className="hover:shadow-lg transition-shadow">
-                      <CardContent className="p-4">
-                        <div
-                          className="w-full h-1 rounded-t-lg mb-3"
-                          style={{ backgroundColor: task.subject_color }}
-                        />
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-semibold text-sm line-clamp-2">
-                              {task.focus_topic || task.exam_title || "General revision"}
-                            </h4>
-                            {task.is_completed && (
-                              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-medium" style={{ color: task.subject_color }}>
-                              {task.subject}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3" />
-                              {task.date && format(new Date(task.date), "MMM d, yyyy")}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {task.time}
-                            </div>
-                          </div>
-
-                          {task.duration && (
-                            <div className="text-xs text-muted-foreground">
-                              Duration: {task.duration}m
-                            </div>
-                          )}
-
-                          <div className="flex gap-1 pt-2 border-t">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingTask(task);
-                                setEditDialogOpen(true);
-                              }}
-                              className="flex-1"
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleToggleComplete(task.id)}
-                              className="flex-1"
-                            >
-                              {task.is_completed ? "Undo" : "Complete"}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full">
-                    <Card>
-                      <CardContent className="py-12 text-center">
-                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                        <h3 className="text-lg font-semibold mb-2">No revision plans found</h3>
-                        <p className="text-muted-foreground">
-                          {selectedSubjects.length > 0 || searchQuery
-                            ? "Try adjusting your filters"
-                            : `No revision plans for ${format(selectedMonth, "MMMM yyyy")}`}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Add Task Dialog */}
-          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add Revision Task</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <SubjectSelector
-                  value={newTask.subject || ""}
-                  color={newTask.subject_color || SUBJECT_COLORS[0]}
-                  onValueChange={(subject) => {
-                    const existingColor = getSubjectColor(subject);
-                    setNewTask({ 
-                      ...newTask, 
-                      subject,
-                      subject_color: existingColor,
-                    });
-                  }}
-                  onColorChange={(color) => setNewTask({ ...newTask, subject_color: color })}
-                />
-
-                <div className="space-y-2">
-                  <Label>Date *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newTask.date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newTask.date ? (
-                          format(newTask.date, "EEEE, MMM dd, yyyy")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={newTask.date}
-                        onSelect={(date) => setNewTask({ ...newTask, date: date || new Date() })}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Time *</Label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
-                    <Input
-                      type="time"
-                      value={newTask.time}
-                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
-                      className="pl-10 [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Duration (minutes)</Label>
-                  <Input
-                    type="number"
-                    value={newTask.duration || ""}
-                    onChange={(e) => setNewTask({ ...newTask, duration: parseInt(e.target.value) || undefined })}
-                    placeholder="60"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Focus Topic (optional)</Label>
-                  <Input
-                    value={newTask.focus_topic}
-                    onChange={(e) => setNewTask({ ...newTask, focus_topic: e.target.value })}
-                    placeholder="e.g., Integration techniques"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Link to Exam (optional)</Label>
-                  <Select
-                    value={newTask.exam_id}
-                    onValueChange={(v) => {
-                      const exam = userExams.find(e => e.id === v);
-                      setNewTask({ ...newTask, exam_id: v, exam_title: exam?.title });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an exam" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userExams.map((exam) => (
-                        <SelectItem key={exam.id} value={exam.id}>
-                          {exam.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTask}>Add Task</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Task Dialog */}
-          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit Revision Task</DialogTitle>
-              </DialogHeader>
-              {editingTask && (
-                <div className="space-y-4 py-4">
-                  <SubjectSelector
-                    value={editingTask.subject}
-                    color={editingTask.subject_color}
-                    onValueChange={(subject) => {
-                      const existingColor = getSubjectColor(subject);
-                      setEditingTask({ 
-                        ...editingTask, 
-                        subject,
-                        subject_color: existingColor,
-                      });
-                    }}
-                    onColorChange={(color) => setEditingTask({ ...editingTask, subject_color: color })}
-                  />
-
-                  <div className="space-y-2">
-                    <Label>Date *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !editingTask.date && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {editingTask.date ? (
-                            format(editingTask.date, "EEEE, MMM dd, yyyy")
-                          ) : editingTask.day ? (
-                            <span>{editingTask.day}</span>
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={editingTask.date}
-                          onSelect={(date) => {
-                            const dayName = date ? format(date, 'EEEE') : editingTask.day;
-                            setEditingTask({ ...editingTask, date: date || undefined, day: dayName });
-                          }}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Time *</Label>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
-                      <Input
-                        type="time"
-                        value={editingTask.time}
-                        onChange={(e) => setEditingTask({ ...editingTask, time: e.target.value })}
-                        className="pl-10 [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Duration (minutes)</Label>
-                    <Input
-                      type="number"
-                      value={editingTask.duration || ""}
-                      onChange={(e) => setEditingTask({ ...editingTask, duration: parseInt(e.target.value) || undefined })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Focus Topic</Label>
-                    <Input
-                      value={editingTask.focus_topic}
-                      onChange={(e) => setEditingTask({ ...editingTask, focus_topic: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Link to Exam (optional)</Label>
-                    <Select
-                      value={editingTask.exam_id}
-                      onValueChange={(v) => {
-                        const exam = userExams.find(e => e.id === v);
-                        setEditingTask({ ...editingTask, exam_id: v, exam_title: exam?.title });
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an exam" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userExams.map((exam) => (
-                          <SelectItem key={exam.id} value={exam.id}>
-                            {exam.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleEditTask}>Save Changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Right Sidebar - Subject Balance */}
+          <div className="w-80 flex-shrink-0">
+            <SubjectBalanceChart
+              stats={weeklyStats}
+              weekStart={startOfWeek(currentDate, { weekStartsOn: 1 })}
+            />
+          </div>
         </div>
-      </DndContext>
+
+        {/* Modals */}
+        <QuickAddModal
+          open={quickAddOpen}
+          onOpenChange={setQuickAddOpen}
+          subjects={subjects}
+          onAdd={handleQuickAdd}
+        />
+
+        <ArchivePanel
+          open={archiveOpen}
+          onOpenChange={setArchiveOpen}
+          tasks={archivedTasks}
+          onRestore={handleRestoreTask}
+          onDelete={handleDeleteTask}
+        />
+
+        <FocusMode
+          open={focusModeOpen}
+          onOpenChange={setFocusModeOpen}
+          task={focusTask}
+          onEndFocus={handleEndFocus}
+        />
+
+        <SpacedRepetitionPrompt
+          open={spacedRepOpen}
+          onOpenChange={setSpacedRepOpen}
+          task={completedTask}
+          onScheduleReview={handleScheduleReview}
+        />
+      </div>
     </DashboardLayout>
   );
 };
