@@ -20,6 +20,7 @@ import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
 import Stats from "./pages/Stats";
 import RevisionPlan from "./pages/RevisionPlan";
+import CreatePracticeQuestions from "./pages/CreatePracticeQuestions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => {
             <Route path="/stats" element={<Stats />} />
             <Route path="/revision-plan" element={<RevisionPlan />} />
             <Route path="/my-exams" element={<MyExams />} />
+            <Route path="/practice-questions/new" element={<CreatePracticeQuestions />} />
             <Route path="/upload" element={<CreateExam />} />
             
             {/* Exam Upload Flow (Updated):

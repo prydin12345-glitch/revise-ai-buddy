@@ -582,6 +582,131 @@ export type Database = {
           },
         ]
       }
+      practice_question_sets: {
+        Row: {
+          created_at: string | null
+          difficulty_level: string | null
+          difficulty_mode: string | null
+          educational_tier: string | null
+          exam_board: string | null
+          example_questions_file_url: string | null
+          extraction_error: string | null
+          extraction_status: string | null
+          id: string
+          notes: string | null
+          question_count: number
+          set_name: string
+          specification_file_url: string | null
+          status: string | null
+          subject_id: string
+          subtopics: string[]
+          total_questions_generated: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty_level?: string | null
+          difficulty_mode?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          example_questions_file_url?: string | null
+          extraction_error?: string | null
+          extraction_status?: string | null
+          id?: string
+          notes?: string | null
+          question_count: number
+          set_name: string
+          specification_file_url?: string | null
+          status?: string | null
+          subject_id: string
+          subtopics: string[]
+          total_questions_generated?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          difficulty_level?: string | null
+          difficulty_mode?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          example_questions_file_url?: string | null
+          extraction_error?: string | null
+          extraction_status?: string | null
+          id?: string
+          notes?: string | null
+          question_count?: number
+          set_name?: string
+          specification_file_url?: string | null
+          status?: string | null
+          subject_id?: string
+          subtopics?: string[]
+          total_questions_generated?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      practice_questions: {
+        Row: {
+          correct_answer: string | null
+          created_at: string | null
+          difficulty_level: string | null
+          equation_complexity: string | null
+          has_math: boolean | null
+          id: string
+          marks: number
+          options: Json | null
+          question_latex: string | null
+          question_number: string
+          question_text: string
+          question_type: string
+          set_id: string | null
+          subtopic: string
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          equation_complexity?: string | null
+          has_math?: boolean | null
+          id?: string
+          marks: number
+          options?: Json | null
+          question_latex?: string | null
+          question_number: string
+          question_text: string
+          question_type: string
+          set_id?: string | null
+          subtopic: string
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string | null
+          difficulty_level?: string | null
+          equation_complexity?: string | null
+          has_math?: boolean | null
+          id?: string
+          marks?: number
+          options?: Json | null
+          question_latex?: string | null
+          question_number?: string
+          question_text?: string
+          question_type?: string
+          set_id?: string | null
+          subtopic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_questions_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revision_goals: {
         Row: {
           created_at: string
@@ -751,6 +876,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subject_subtopics: {
+        Row: {
+          created_at: string | null
+          educational_tier: string | null
+          exam_board: string | null
+          id: string
+          is_user_added: boolean | null
+          subject: string
+          subtopic: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          id?: string
+          is_user_added?: boolean | null
+          subject: string
+          subtopic: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          id?: string
+          is_user_added?: boolean | null
+          subject?: string
+          subtopic?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_streaks: {
         Row: {
