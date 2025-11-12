@@ -387,89 +387,6 @@ const CreatePracticeQuestions = () => {
               </div>
             </Card>
 
-            {/* Educational Level & Exam Board */}
-            <Card className="p-4 space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="educational-tier">Educational Level</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Select level or enter custom</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select value={educationalTier} onValueChange={setEducationalTier}>
-                  <SelectTrigger id="educational-tier">
-                    <SelectValue placeholder="Select level..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gcse">GCSE</SelectItem>
-                    <SelectItem value="a_level">A-Level</SelectItem>
-                    <SelectItem value="ib">IB</SelectItem>
-                    <SelectItem value="ks3">KS3</SelectItem>
-                    <SelectItem value="ks4">KS4</SelectItem>
-                    <SelectItem value="sat">SAT</SelectItem>
-                    <SelectItem value="act">ACT</SelectItem>
-                    <SelectItem value="undergraduate">Undergraduate</SelectItem>
-                    <SelectItem value="other">Other (Custom)</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {educationalTier === "other" && (
-                  <Input
-                    placeholder="Enter custom educational level..."
-                    value={customEducationalTier}
-                    onChange={(e) => setCustomEducationalTier(e.target.value)}
-                    className="mt-2"
-                  />
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="exam-board">Exam Board</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Select board or enter custom</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select value={examBoard} onValueChange={setExamBoard}>
-                  <SelectTrigger id="exam-board">
-                    <SelectValue placeholder="Select board..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aqa">AQA</SelectItem>
-                    <SelectItem value="edexcel">Edexcel</SelectItem>
-                    <SelectItem value="ocr">OCR</SelectItem>
-                    <SelectItem value="wjec">WJEC</SelectItem>
-                    <SelectItem value="cie">Cambridge (CIE)</SelectItem>
-                    <SelectItem value="ib">IB</SelectItem>
-                    <SelectItem value="college_board">College Board</SelectItem>
-                    <SelectItem value="other">Other (Custom)</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {examBoard === "other" && (
-                  <Input
-                    placeholder="Enter custom exam board..."
-                    value={customExamBoard}
-                    onChange={(e) => setCustomExamBoard(e.target.value)}
-                    className="mt-2"
-                  />
-                )}
-              </div>
-            </Card>
           </div>
 
           {/* Configuration Summary */}
@@ -563,6 +480,93 @@ const CreatePracticeQuestions = () => {
                     <span>30</span>
                   </div>
                 </div>
+              </div>
+            </Card>
+
+            {/* Educational Level */}
+            <Card className="p-4 sticky top-[28rem]">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="educational-tier">Educational Level</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Select level or enter custom</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <SelectTrigger id="educational-tier">
+                    <SelectValue placeholder="Select level..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gcse">GCSE</SelectItem>
+                    <SelectItem value="a_level">A-Level</SelectItem>
+                    <SelectItem value="ib">IB</SelectItem>
+                    <SelectItem value="ks3">KS3</SelectItem>
+                    <SelectItem value="ks4">KS4</SelectItem>
+                    <SelectItem value="sat">SAT</SelectItem>
+                    <SelectItem value="act">ACT</SelectItem>
+                    <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                    <SelectItem value="other">Other (Custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {educationalTier === "other" && (
+                  <Input
+                    placeholder="Enter custom educational level..."
+                    value={customEducationalTier}
+                    onChange={(e) => setCustomEducationalTier(e.target.value)}
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            </Card>
+
+            {/* Exam Board */}
+            <Card className="p-4 sticky top-[36rem]">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="exam-board">Exam Board</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Select board or enter custom</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select value={examBoard} onValueChange={setExamBoard}>
+                  <SelectTrigger id="exam-board">
+                    <SelectValue placeholder="Select board..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aqa">AQA</SelectItem>
+                    <SelectItem value="edexcel">Edexcel</SelectItem>
+                    <SelectItem value="ocr">OCR</SelectItem>
+                    <SelectItem value="wjec">WJEC</SelectItem>
+                    <SelectItem value="cie">Cambridge (CIE)</SelectItem>
+                    <SelectItem value="ib">IB</SelectItem>
+                    <SelectItem value="college_board">College Board</SelectItem>
+                    <SelectItem value="other">Other (Custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {examBoard === "other" && (
+                  <Input
+                    placeholder="Enter custom exam board..."
+                    value={customExamBoard}
+                    onChange={(e) => setCustomExamBoard(e.target.value)}
+                    className="mt-2"
+                  />
+                )}
               </div>
             </Card>
           </div>
