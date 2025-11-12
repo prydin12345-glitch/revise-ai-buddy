@@ -134,8 +134,32 @@ Return JSON array with:
     console.log('AI response received');
 
     const content = aiResponse.choices[0].message.content;
-    const parsedContent = JSON.parse(content);
+    console.log('Raw AI content:', content.substring(0, 200)); // Log first 200 chars for debugging
+    
+    // Strip markdown code fences if present
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith('```json')) {
+      cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    console.log('Cleaned content:', cleanedContent.substring(0, 200));
+    
+    let parsedContent;
+    try {
+      parsedContent = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Failed to parse content:', cleanedContent);
+      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    }
+    
     const questions = parsedContent.questions;
+
+    if (!questions || !Array.isArray(questions)) {
+      throw new Error('AI response does not contain a valid questions array');
+    }
 
     console.log(`Generated ${questions.length} questions`);
 
