@@ -1272,10 +1272,7 @@ const MyExams = () => {
               className="h-24 flex-col gap-2 hover:bg-blue-50 hover:border-blue-600 transition-all"
               onClick={() => {
                 setNewExamDialogOpen(false);
-                toast({ 
-                  title: "Coming Soon", 
-                  description: "Practice question creation is under development" 
-                });
+                navigate("/practice-questions/new");
               }}
             >
               <Settings className="w-8 h-8 text-blue-600" />

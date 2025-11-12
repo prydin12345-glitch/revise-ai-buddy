@@ -471,7 +471,7 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               size="lg" 
               variant="outline"
               className="flex-1 h-16 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
-              onClick={() => navigate("/exams/new")}
+              onClick={() => navigate("/practice-questions/new")}
             >
               <FileText className="w-5 h-5 mr-3" />
               Create Practice Questions
