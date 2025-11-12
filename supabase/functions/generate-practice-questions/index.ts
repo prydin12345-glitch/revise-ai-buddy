@@ -11,13 +11,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let setId: string | null = null;
+
   try {
+    // Use service role key for server-side operations to bypass RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const { setId } = await req.json();
+    const body = await req.json();
+    setId = body.setId;
 
     if (!setId) {
       throw new Error('Set ID is required');
@@ -25,14 +29,17 @@ serve(async (req) => {
 
     console.log('Generating practice questions for set:', setId);
 
-    // Get practice set details
+    // Get practice set details - use maybeSingle to avoid error if not found
     const { data: setData, error: setError } = await supabaseClient
       .from('practice_question_sets')
       .select('*')
       .eq('id', setId)
-      .single();
+      .maybeSingle();
 
     if (setError) throw setError;
+    if (!setData) {
+      throw new Error(`Practice set not found: ${setId}`);
+    }
 
     console.log('Set data:', setData);
 
@@ -176,16 +183,15 @@ Return JSON array with:
   } catch (error: any) {
     console.error('Error generating practice questions:', error);
     
-    // Update set status to failed
-    if (error.message && error.message.includes('setId')) {
-      // Can't update if we don't have setId
-    } else {
+    // Update set status to failed if we have a setId
+    if (setId) {
       try {
-        const { setId } = await req.json();
-        await createClient(
+        const supabaseClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        )
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        
+        await supabaseClient
           .from('practice_question_sets')
           .update({
             extraction_status: 'failed',
