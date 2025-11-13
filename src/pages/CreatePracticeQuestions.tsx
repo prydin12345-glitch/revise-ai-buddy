@@ -201,26 +201,43 @@ const CreatePracticeQuestions = () => {
   };
 
   const handlePreview = () => {
+    setShowGenerationComplete(false);
     navigate(`/practice-questions/${generatedSetId}/preview`);
   };
 
   const handleSaveToPracticeSets = async () => {
     try {
+      if (!generatedSetId) return;
+
       await supabase
-        .from("practice_question_sets")
-        .update({ status: "published" })
-        .eq("id", generatedSetId);
+        .from('practice_question_sets')
+        .update({ status: 'published' })
+        .eq('id', generatedSetId);
 
       toast.success("Practice set saved successfully!");
-      navigate("/practice-questions");
-    } catch (error) {
+      setShowGenerationComplete(false);
+      navigate('/quizzes');
+    } catch (error: any) {
       console.error("Error saving practice set:", error);
-      toast.error("Failed to save practice set");
+      toast.error(error.message || "Failed to save practice set");
     }
   };
 
-  const handleAddToRevisionPlan = () => {
-    navigate(`/revision-plan?addPracticeSet=${generatedSetId}`);
+  const handleAddToRevisionPlan = async () => {
+    try {
+      if (!generatedSetId) return;
+
+      await supabase
+        .from('practice_question_sets')
+        .update({ status: 'published' })
+        .eq('id', generatedSetId);
+
+      setShowGenerationComplete(false);
+      navigate(`/revision-plan?addSet=${generatedSetId}`);
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error(error.message || "Failed to add to revision plan");
+    }
   };
 
   return (
