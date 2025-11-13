@@ -1,16 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { Loader2, Clock, Check, X, Menu, ChevronLeft, ChevronRight, MoreVertical, Flag, Eye, EyeOff, Send, Trophy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+// Helper to add opacity to hex color
+const addOpacity = (hex: string, opacity: number): string => {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 interface Question {
   id: string;
@@ -38,17 +49,62 @@ const TakePracticeQuiz = () => {
   const [practiceSet, setPracticeSet] = useState<any>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showResultsDialog, setShowResultsDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [timerEnabled] = useState(false); // Can be enabled later
+  const startTime = useRef<number>(Date.now());
+  const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadQuiz();
+    return () => {
+      if (timerInterval.current) clearInterval(timerInterval.current);
+    };
   }, [setId]);
 
+  // Timer effect
   useEffect(() => {
-    updateProgress();
-  }, [userAnswers]);
+    timerInterval.current = setInterval(() => {
+      setTimeElapsed(Math.floor((Date.now() - startTime.current) / 1000));
+    }, 1000);
+    
+    return () => {
+      if (timerInterval.current) clearInterval(timerInterval.current);
+    };
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignore if user is typing
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevious();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFlag();
+      } else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setSidebarOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentIndex, questions]);
 
   const loadQuiz = async () => {
     try {
@@ -60,6 +116,17 @@ const TakePracticeQuiz = () => {
 
       if (setError) throw setError;
       setPracticeSet(setData);
+
+      // Get subject color
+      const { data: subjectData } = await supabase
+        .from('user_subjects')
+        .select('subject_color')
+        .eq('subject_name', setData.subject_id)
+        .single();
+      
+      if (subjectData?.subject_color) {
+        setSubjectColor(subjectData.subject_color);
+      }
 
       const { data: questionsData, error: questionsError } = await supabase
         .from('practice_questions')
@@ -98,14 +165,14 @@ const TakePracticeQuiz = () => {
     }
   };
 
-  const updateProgress = async () => {
+  const updateProgress = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const attempted = Object.keys(userAnswers).length;
       const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
-      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+      const timeSpent = Math.floor((Date.now() - startTime.current) / 1000);
 
       await supabase
         .from('practice_set_progress')
@@ -119,27 +186,37 @@ const TakePracticeQuiz = () => {
         .eq('user_id', user.id)
         .eq('set_id', setId);
     } catch (error) {
-      console.error('Error updating progress:', error);
+      console.error('Failed to update progress:', error);
     }
-  };
+  }, [userAnswers, questions, setId, startTime]);
+
+  useEffect(() => {
+    updateProgress();
+  }, [userAnswers, updateProgress]);
 
   const handleAnswerChange = (answer: string) => {
     const currentQuestion = questions[currentIndex];
     setUserAnswers(prev => ({
       ...prev,
       [currentQuestion.id]: {
+        ...prev[currentQuestion.id],
         answer,
         submitted: false,
       }
     }));
-    setShowFeedback(false);
   };
 
   const handleSubmitAnswer = () => {
     const currentQuestion = questions[currentIndex];
-    const userAnswer = userAnswers[currentQuestion.id]?.answer || '';
-    const isCorrect = userAnswer.trim().toLowerCase() === currentQuestion.correct_answer?.trim().toLowerCase();
+    const currentAnswer = userAnswers[currentQuestion.id];
+    
+    if (!currentAnswer?.answer?.trim()) {
+      toast({ title: "No Answer", description: "Please provide an answer before submitting.", variant: "destructive" });
+      return;
+    }
 
+    const isCorrect = currentAnswer.answer.trim().toLowerCase() === currentQuestion.correct_answer?.toLowerCase();
+    
     setUserAnswers(prev => ({
       ...prev,
       [currentQuestion.id]: {
@@ -148,169 +225,441 @@ const TakePracticeQuiz = () => {
         submitted: true,
       }
     }));
-    setShowFeedback(true);
-  };
 
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setShowFeedback(false);
-    }
+    toast({
+      title: isCorrect ? "Correct! ✓" : "Incorrect ✗",
+      description: isCorrect 
+        ? "Well done! Your answer is correct." 
+        : `The correct answer is: ${currentQuestion.correct_answer}`,
+      variant: isCorrect ? "default" : "destructive",
+    });
   };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
-      setShowFeedback(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleFinish = () => {
-    const attempted = Object.keys(userAnswers).length;
-    const correct = Object.values(userAnswers).filter(a => a.isCorrect).length;
-    
-    toast({
-      title: "Quiz Complete!",
-      description: `You got ${correct} out of ${attempted} questions correct.`,
+  const handleNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const toggleFlag = () => {
+    const currentQuestion = questions[currentIndex];
+    setFlaggedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(currentQuestion.id)) {
+        newSet.delete(currentQuestion.id);
+        toast({ title: "Flag Removed", description: "Question unflagged for review." });
+      } else {
+        newSet.add(currentQuestion.id);
+        toast({ title: "Flagged", description: "Question flagged for review." });
+      }
+      return newSet;
     });
-    
-    navigate('/quizzes');
+  };
+
+  const handleFinishQuiz = async () => {
+    setIsSubmitting(true);
+    await updateProgress();
+    setShowSubmitDialog(false);
+    setShowResultsDialog(true);
+    setIsSubmitting(false);
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs.toString().padStart(2, '0')}s`;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
-  if (questions.length === 0) {
+  if (!questions.length) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">No questions found</p>
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <p className="text-muted-foreground">No questions found in this quiz.</p>
+        <Button onClick={() => navigate('/quizzes')}>Back to My Quizzes</Button>
       </div>
     );
   }
 
   const currentQuestion = questions[currentIndex];
   const currentAnswer = userAnswers[currentQuestion.id];
-  const progress = (Object.keys(userAnswers).length / questions.length) * 100;
+  const answeredCount = Object.keys(userAnswers).length;
+  const correctCount = Object.values(userAnswers).filter(a => a.isCorrect).length;
+  const isFlagged = flaggedQuestions.has(currentQuestion.id);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-card border-b">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center mb-2">
-            <h1 className="text-lg font-bold">{practiceSet?.set_name}</h1>
-            <Badge>
-              Question {currentIndex + 1} of {questions.length}
-            </Badge>
+    <div className="min-h-screen flex flex-col">
+      {/* Top Bar */}
+      <div className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between px-6 py-3">
+          {/* Left: Practice Set Name */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold">{practiceSet?.set_name || 'Practice Quiz'}</h1>
+            <Badge variant="outline">{practiceSet?.subject_id}</Badge>
           </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-      </header>
-
-      {/* Question */}
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <Badge variant="outline">{currentQuestion.question_number}</Badge>
-            <Badge>{currentQuestion.marks} marks</Badge>
+          
+          {/* Center: Timer */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
+            <Clock className="w-5 h-5" />
+            <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
           </div>
-
-          <div className="prose dark:prose-invert max-w-none mb-6">
-            {currentQuestion.has_math && currentQuestion.question_latex ? (
-              <MathRenderer content={currentQuestion.question_text} latex={currentQuestion.question_latex} hasMath={true} />
-            ) : (
-              <p className="text-lg">{currentQuestion.question_text}</p>
-            )}
-          </div>
-
-          {/* Answer Input */}
-          {currentQuestion.question_type === 'multiple-choice' && currentQuestion.options ? (
-            <RadioGroup
-              value={currentAnswer?.answer || ''}
-              onValueChange={handleAnswerChange}
-              disabled={currentAnswer?.submitted}
-            >
-              {currentQuestion.options.map((option: any, idx: number) => (
-                <div key={idx} className="flex items-center space-x-2 p-3 rounded border mb-2">
-                  <RadioGroupItem value={option.key} id={`option-${idx}`} />
-                  <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
-                    {option.key}) {option.text}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          ) : (
-            <Textarea
-              placeholder="Type your answer here..."
-              value={currentAnswer?.answer || ''}
-              onChange={(e) => handleAnswerChange(e.target.value)}
-              disabled={currentAnswer?.submitted}
-              rows={4}
-              className="mb-4"
-            />
-          )}
-
-          {/* Feedback */}
-          {showFeedback && currentAnswer?.submitted && (
-            <div className={`mt-4 p-4 rounded-lg ${currentAnswer.isCorrect ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                {currentAnswer.isCorrect ? (
-                  <>
-                    <Check className="h-5 w-5 text-green-600" />
-                    <span className="font-semibold text-green-700 dark:text-green-400">Correct!</span>
-                  </>
-                ) : (
-                  <>
-                    <X className="h-5 w-5 text-red-600" />
-                    <span className="font-semibold text-red-700 dark:text-red-400">Incorrect</span>
-                  </>
-                )}
-              </div>
-              {!currentAnswer.isCorrect && (
-                <p className="text-sm text-muted-foreground">
-                  Correct answer: <span className="font-medium">{currentQuestion.correct_answer}</span>
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex justify-between mt-6">
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
-            </Button>
-
-            <div className="flex gap-2">
-              {!currentAnswer?.submitted && (
-                <Button onClick={handleSubmitAnswer} disabled={!currentAnswer?.answer}>
-                  Submit Answer
-                </Button>
-              )}
+          
+          {/* Right: Options Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+              <DropdownMenuLabel>Quiz Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               
-              {currentIndex < questions.length - 1 ? (
-                <Button onClick={handleNext}>
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button onClick={handleFinish}>
-                  Finish Quiz
-                </Button>
-              )}
+              <DropdownMenuItem
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="cursor-pointer"
+              >
+                {sidebarOpen ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                {sidebarOpen ? 'Hide' : 'Show'} Navigation
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem
+                onClick={toggleFlag}
+                className="cursor-pointer"
+              >
+                <Flag className={`mr-2 h-4 w-4 ${isFlagged ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                {isFlagged ? 'Unflag' : 'Flag'} Question
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                onClick={() => setShowSubmitDialog(true)}
+                className="cursor-pointer text-primary focus:text-primary"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Finish Quiz
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="flex flex-1">
+        {/* Left Sidebar - Collapsible */}
+        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto`}>
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <div>
+              <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
+              <div className="grid grid-cols-4 gap-2">
+                {questions.map((q, idx) => {
+                  const answer = userAnswers[q.id];
+                  const hasAnswer = Boolean(answer?.answer?.trim());
+                  const isAnswered = answer?.submitted;
+                  const isFlaggedQ = flaggedQuestions.has(q.id);
+                  
+                  let colorClass = '';
+                  let inlineStyle: React.CSSProperties | undefined = undefined;
+                  
+                  if (isAnswered && answer.isCorrect === true) {
+                    colorClass = 'bg-green-500 text-white'; // Correct
+                  } else if (isAnswered && answer.isCorrect === false) {
+                    colorClass = 'bg-red-500 text-white'; // Incorrect
+                  } else if (hasAnswer) {
+                    colorClass = 'text-white';
+                    inlineStyle = { backgroundColor: subjectColor };
+                  } else {
+                    colorClass = 'bg-muted text-muted-foreground hover:bg-muted/80';
+                  }
+                  
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => {
+                        setCurrentIndex(idx);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      style={inlineStyle}
+                      className={`relative aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass} ${currentIndex === idx ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
+                      title={`Question ${q.question_number}${isFlaggedQ ? ' (Flagged)' : ''}`}
+                    >
+                      {q.question_number}
+                      {isFlaggedQ && (
+                        <Flag className="absolute -top-1 -right-1 w-3 h-3 fill-yellow-500 text-yellow-500" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-auto space-y-2">
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div className="flex justify-between">
+                  <span>Answered:</span>
+                  <span className="font-medium">{answeredCount} / {questions.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Correct:</span>
+                  <span className="font-medium text-green-600">{correctCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Flagged:</span>
+                  <span className="font-medium text-yellow-600">{flaggedQuestions.size}</span>
+                </div>
+              </div>
+              
+              <Button 
+                size="lg" 
+                onClick={() => setShowSubmitDialog(true)}
+                disabled={isSubmitting}
+                variant="default"
+                className="w-full"
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trophy className="mr-2 h-4 w-4" />}
+                Finish Quiz
+              </Button>
             </div>
           </div>
-        </Card>
+        </div>
+
+        {/* Main Panel */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Toggle Navigation Bar */}
+          <div className="border-b bg-muted/30 px-6 py-4 flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="flex items-center gap-2"
+            >
+              <Menu className="h-4 w-4" />
+              {sidebarOpen ? 'Hide' : 'Show'} Navigation
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              Question {currentIndex + 1} of {questions.length}
+            </div>
+          </div>
+
+          {/* Question Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <Card className="p-6" style={{ backgroundColor: addOpacity(subjectColor, 0.05) }}>
+                {/* Question Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <Badge 
+                    className="text-white"
+                    style={{ backgroundColor: subjectColor }}
+                  >
+                    Q{currentQuestion.question_number}
+                  </Badge>
+                  <Badge 
+                    variant="outline"
+                    className="text-white border-white/20"
+                    style={{ backgroundColor: subjectColor }}
+                  >
+                    {currentQuestion.marks} {currentQuestion.marks === 1 ? 'mark' : 'marks'}
+                  </Badge>
+                  {isFlagged && (
+                    <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                      <Flag className="w-3 h-3 mr-1 fill-yellow-500" />
+                      Flagged
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="ml-auto">
+                    {currentQuestion.subtopic}
+                  </Badge>
+                </div>
+
+                {/* Question Text */}
+                <div className="prose prose-sm max-w-none mb-6">
+                  <MathRenderer 
+                    content={currentQuestion.question_text}
+                    latex={currentQuestion.question_latex}
+                    hasMath={currentQuestion.has_math}
+                  />
+                </div>
+
+                {/* Answer Input */}
+                <div className="space-y-4">
+                  {currentQuestion.question_type === 'multiple_choice' && currentQuestion.options ? (
+                    <RadioGroup
+                      value={currentAnswer?.answer || ''}
+                      onValueChange={handleAnswerChange}
+                      disabled={currentAnswer?.submitted}
+                    >
+                      {(Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map((option: string, idx: number) => (
+                        <div key={idx} className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50">
+                          <RadioGroupItem value={option} id={`option-${idx}`} />
+                          <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  ) : (
+                    <Textarea
+                      placeholder="Type your answer here..."
+                      value={currentAnswer?.answer || ''}
+                      onChange={(e) => handleAnswerChange(e.target.value)}
+                      disabled={currentAnswer?.submitted}
+                      className="min-h-[120px]"
+                    />
+                  )}
+
+                  {/* Feedback */}
+                  {currentAnswer?.submitted && (
+                    <div className={`flex items-center gap-2 p-4 rounded-lg ${currentAnswer.isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                      {currentAnswer.isCorrect ? (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span className="font-medium">Correct!</span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-5 h-5" />
+                          <div>
+                            <span className="font-medium">Incorrect.</span>
+                            <span className="ml-2">Correct answer: {currentQuestion.correct_answer}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Submit Answer Button */}
+                  {!currentAnswer?.submitted && (
+                    <Button
+                      onClick={handleSubmitAnswer}
+                      disabled={!currentAnswer?.answer?.trim()}
+                      className="w-full"
+                    >
+                      Submit Answer
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              {/* Navigation Buttons */}
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={currentIndex === 0}
+                  size="lg"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={handleNext}
+                  disabled={currentIndex === questions.length - 1}
+                  size="lg"
+                >
+                  Next
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Submit Confirmation Dialog */}
+      <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish Quiz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have answered {answeredCount} out of {questions.length} questions.
+              {answeredCount < questions.length && (
+                <span className="block mt-2 text-yellow-600 font-medium">
+                  Warning: {questions.length - answeredCount} question(s) are unanswered.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue Practicing</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinishQuiz}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Finish Quiz
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Results Dialog */}
+      <Dialog open={showResultsDialog} onOpenChange={setShowResultsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-yellow-500" />
+              Quiz Complete!
+            </DialogTitle>
+            <DialogDescription>
+              Here's how you performed:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4 rounded-lg bg-muted">
+                <div className="text-3xl font-bold">{correctCount}</div>
+                <div className="text-sm text-muted-foreground">Correct</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-muted">
+                <div className="text-3xl font-bold">{answeredCount}</div>
+                <div className="text-sm text-muted-foreground">Answered</div>
+              </div>
+            </div>
+            
+            <div className="text-center p-4 rounded-lg bg-primary/10">
+              <div className="text-2xl font-bold text-primary">
+                {answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0}%
+              </div>
+              <div className="text-sm text-muted-foreground">Score</div>
+            </div>
+            
+            <div className="text-center text-sm text-muted-foreground">
+              Time: {formatTime(timeElapsed)}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-col gap-2">
+            <Button onClick={() => navigate('/quizzes')} className="w-full">
+              Back to My Quizzes
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowResultsDialog(false);
+                setCurrentIndex(0);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="w-full"
+            >
+              Review Answers
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
