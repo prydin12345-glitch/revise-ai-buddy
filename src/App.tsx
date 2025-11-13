@@ -21,6 +21,9 @@ import ExamReview from "./pages/ExamReview";
 import Stats from "./pages/Stats";
 import RevisionPlan from "./pages/RevisionPlan";
 import CreatePracticeQuestions from "./pages/CreatePracticeQuestions";
+import MyQuizzes from "./pages/MyQuizzes";
+import PracticeSetPreview from "./pages/PracticeSetPreview";
+import TakePracticeQuiz from "./pages/TakePracticeQuiz";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,7 +48,10 @@ const App = () => {
             <Route path="/stats" element={<Stats />} />
             <Route path="/revision-plan" element={<RevisionPlan />} />
             <Route path="/my-exams" element={<MyExams />} />
-            <Route path="/practice-questions/new" element={<CreatePracticeQuestions />} />
+            <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
+            <Route path="/quizzes" element={<MyQuizzes />} />
+            <Route path="/practice-questions/:setId/preview" element={<PracticeSetPreview />} />
+            <Route path="/practice-questions/:setId/take" element={<TakePracticeQuiz />} />
             <Route path="/upload" element={<CreateExam />} />
             
             {/* Exam Upload Flow (Updated):
