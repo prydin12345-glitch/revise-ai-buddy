@@ -98,6 +98,41 @@ const TakePracticeQuiz = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-save draft answers every 30 seconds
+  useEffect(() => {
+    const autoSaveInterval = setInterval(async () => {
+      // Only auto-save if user has typed something
+      const hasDrafts = Object.values(userAnswers).some(a => !a.submitted && a.answer.trim());
+      
+      if (!hasDrafts) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const draftAnswers: Record<string, string> = {};
+      Object.entries(userAnswers).forEach(([questionId, answer]) => {
+        if (!answer.submitted && answer.answer.trim()) {
+          draftAnswers[questionId] = answer.answer;
+        }
+      });
+
+      await supabase.from('practice_set_progress').upsert({
+        user_id: user.id,
+        set_id: setId,
+        session_data: { draft_answers: draftAnswers },
+        time_spent_seconds: timeElapsed,
+        last_accessed_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,set_id'
+      });
+
+      console.log("Auto-saved draft answers");
+      
+    }, 30000); // Every 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [userAnswers, timeElapsed, setId]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
@@ -157,19 +192,83 @@ const TakePracticeQuiz = () => {
       setQuizTitle(quizSet.set_name);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
-      const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number");
+      const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int");
       if (!questionsData?.length) {
         toast.error("No questions found");
         navigate("/quizzes");
         return;
       }
 
-      setQuestions(questionsData);
+      // Sort numerically as fallback if question_number_int is null
+      const sortedQuestions = questionsData.sort((a, b) => {
+        const numA = a.question_number_int || parseInt(a.question_number) || 0;
+        const numB = b.question_number_int || parseInt(b.question_number) || 0;
+        return numA - numB;
+      });
+
+      setQuestions(sortedQuestions);
+
       const initialAnswers: Record<string, UserAnswer> = {};
-      questionsData.forEach((q) => {
+      sortedQuestions.forEach((q) => {
         initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
       });
       setUserAnswers(initialAnswers);
+
+      // Load saved progress and restore session state
+      const { data: progress } = await supabase
+        .from('practice_set_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('set_id', setId)
+        .single();
+
+      if (progress) {
+        // Restore timer
+        if (progress.time_spent_seconds) {
+          setTimeElapsed(progress.time_spent_seconds);
+        }
+        
+        // Restore current question index
+        if (progress.current_question_index !== null && progress.current_question_index !== undefined) {
+          setCurrentIndex(progress.current_question_index);
+        }
+        
+        // Restore flagged questions
+        if (progress.flagged_question_ids?.length > 0) {
+          setFlaggedQuestions(new Set(progress.flagged_question_ids));
+        }
+        
+        // Restore draft answers from session_data
+        if (progress.session_data && typeof progress.session_data === 'object' && progress.session_data !== null) {
+          const sessionData = progress.session_data as any;
+          if (sessionData.draft_answers) {
+            setUserAnswers(prev => {
+              const updated = { ...prev };
+              Object.entries(sessionData.draft_answers).forEach(
+                ([questionId, draftText]) => {
+                  if (updated[questionId]) {
+                    updated[questionId].answer = draftText as string;
+                  }
+                }
+              );
+              return updated;
+            });
+          }
+          
+          // Restore navigation state
+          if (sessionData.navigation_state) {
+            const navState = sessionData.navigation_state;
+            setSidebarOpen(navState.sidebar_open ?? true);
+            setHideNavigation(navState.hide_navigation ?? false);
+          }
+        }
+
+        if (progress.current_question_index > 0) {
+          toast.success("Progress restored!", {
+            description: `Resuming from Question ${progress.current_question_index + 1}`
+          });
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to load quiz");
@@ -242,6 +341,26 @@ const TakePracticeQuiz = () => {
         }
       });
 
+      // Update progress counts
+      const newAnsweredCount = Object.values(userAnswers).filter(a => a.submitted).length + 1;
+      const newCorrectCount = Object.values(userAnswers).filter(a => a.submitted && a.isCorrect).length + (data.isCorrect ? 1 : 0);
+
+      // Save updated progress
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('practice_set_progress').upsert({
+          user_id: user.id,
+          set_id: setId,
+          questions_attempted: newAnsweredCount,
+          questions_correct: newCorrectCount,
+          time_spent_seconds: timeElapsed,
+          current_question_index: currentIndex,
+          last_accessed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,set_id'
+        });
+      }
+
       toast.success(data.score === currentQuestion.marks ? "Perfect! ✓" : `${data.score}/${currentQuestion.marks} marks`);
     } catch (error: any) {
       toast.error(error.message || "Grading failed");
@@ -252,8 +371,59 @@ const TakePracticeQuiz = () => {
 
   const handleQuitAndSave = async () => {
     setIsSaving(true);
-    toast.success("Progress saved!");
-    navigate('/quizzes');
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Prepare draft answers (unanswered questions with text)
+      const draftAnswers: Record<string, string> = {};
+      Object.entries(userAnswers).forEach(([questionId, answer]) => {
+        if (!answer.submitted && answer.answer.trim()) {
+          draftAnswers[questionId] = answer.answer;
+        }
+      });
+
+      // Count answered and correct
+      const answeredCount = Object.values(userAnswers).filter(a => a.submitted).length;
+      const correctCount = Object.values(userAnswers).filter(a => a.submitted && a.isCorrect).length;
+
+      // Upsert progress with session state
+      const { error } = await supabase
+        .from('practice_set_progress')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          current_question_index: currentIndex,
+          flagged_question_ids: Array.from(flaggedQuestions),
+          time_spent_seconds: timeElapsed,
+          questions_attempted: answeredCount,
+          questions_correct: correctCount,
+          last_accessed_at: new Date().toISOString(),
+          session_data: {
+            draft_answers: draftAnswers,
+            timer_elapsed: timeElapsed,
+            navigation_state: {
+              sidebar_open: sidebarOpen,
+              hide_navigation: hideNavigation
+            }
+          }
+        }, {
+          onConflict: 'user_id,set_id'
+        });
+
+      if (error) throw error;
+
+      setShowQuitDialog(false);
+      toast.success("Progress saved successfully!");
+      navigate('/quizzes');
+      
+    } catch (error: any) {
+      console.error("Save error:", error);
+      toast.error("Failed to save progress");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleFlag = () => {
@@ -484,7 +654,30 @@ const TakePracticeQuiz = () => {
           <AlertDialogHeader><AlertDialogTitle>Submit Practice Quiz?</AlertDialogTitle><AlertDialogDescription className="space-y-2"><p>You've answered {answeredCount} out of {questions.length} questions.</p>{unansweredCount > 0 && <p className="text-amber-600 font-medium">⚠️ {unansweredCount} question(s) are unanswered.</p>}{flaggedQuestions.size > 0 && <p className="text-blue-600">🚩 {flaggedQuestions.size} question(s) flagged for review.</p>}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Review Answers</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowSubmitDialog(false); setShowResults(true); }}>Submit Quiz</AlertDialogAction>
+            <AlertDialogAction onClick={async () => {
+              setShowSubmitDialog(false);
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  await supabase.from('practice_set_progress').upsert({
+                    user_id: user.id,
+                    set_id: setId,
+                    questions_attempted: questions.length,
+                    questions_correct: Object.values(userAnswers).filter(a => a.isCorrect).length,
+                    completed_at: new Date().toISOString(),
+                    time_spent_seconds: timeElapsed,
+                    current_question_index: 0,
+                    flagged_question_ids: [],
+                    session_data: {}
+                  }, {
+                    onConflict: 'user_id,set_id'
+                  });
+                }
+              } catch (error) {
+                console.error("Submission error:", error);
+              }
+              setShowResults(true);
+            }}>Submit Quiz</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
