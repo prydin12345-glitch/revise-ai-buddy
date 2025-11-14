@@ -88,7 +88,6 @@ const TakePracticeQuiz = () => {
 
   useEffect(() => {
     loadQuiz();
-    loadPreviousAnswers();
   }, [setId]);
 
   useEffect(() => {
@@ -101,10 +100,11 @@ const TakePracticeQuiz = () => {
   // Auto-save draft answers every 30 seconds
   useEffect(() => {
     const autoSaveInterval = setInterval(async () => {
-      // Only auto-save if user has typed something
-      const hasDrafts = Object.values(userAnswers).some(a => !a.submitted && a.answer.trim());
+      const hasDrafts = Object.values(userAnswers).some(
+        a => !a.submitted && a.answer.trim()
+      );
       
-      if (!hasDrafts) return;
+      if (!hasDrafts && timeElapsed === 0) return;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -116,19 +116,33 @@ const TakePracticeQuiz = () => {
         }
       });
 
+      // Get current counts from database
+      const { data: currentProgress } = await supabase
+        .from('practice_set_progress')
+        .select('questions_attempted, questions_correct')
+        .eq('user_id', user.id)
+        .eq('set_id', setId)
+        .single();
+
       await supabase.from('practice_set_progress').upsert({
         user_id: user.id,
         set_id: setId,
-        session_data: { draft_answers: draftAnswers },
+        session_data: { 
+          draft_answers: draftAnswers,
+          timer_elapsed: timeElapsed
+        },
         time_spent_seconds: timeElapsed,
-        last_accessed_at: new Date().toISOString()
+        last_accessed_at: new Date().toISOString(),
+        // Preserve existing counts
+        questions_attempted: currentProgress?.questions_attempted || 0,
+        questions_correct: currentProgress?.questions_correct || 0
       }, {
         onConflict: 'user_id,set_id'
       });
 
-      console.log("Auto-saved draft answers");
+      console.log("Auto-saved:", { timer: timeElapsed, drafts: Object.keys(draftAnswers).length });
       
-    }, 30000); // Every 30 seconds
+    }, 30000);
 
     return () => clearInterval(autoSaveInterval);
   }, [userAnswers, timeElapsed, setId]);
@@ -182,6 +196,7 @@ const TakePracticeQuiz = () => {
         return;
       }
 
+      // 1. Load quiz metadata
       const { data: quizSet } = await supabase.from("practice_question_sets").select("*").eq("id", setId).single();
       if (!quizSet) {
         toast.error("Quiz not found");
@@ -192,6 +207,7 @@ const TakePracticeQuiz = () => {
       setQuizTitle(quizSet.set_name);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
+      // 2. Load questions with numeric sorting
       const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int");
       if (!questionsData?.length) {
         toast.error("No questions found");
@@ -199,7 +215,6 @@ const TakePracticeQuiz = () => {
         return;
       }
 
-      // Sort numerically as fallback if question_number_int is null
       const sortedQuestions = questionsData.sort((a, b) => {
         const numA = a.question_number_int || parseInt(a.question_number) || 0;
         const numB = b.question_number_int || parseInt(b.question_number) || 0;
@@ -208,13 +223,35 @@ const TakePracticeQuiz = () => {
 
       setQuestions(sortedQuestions);
 
+      // 3. Initialize blank answers first
       const initialAnswers: Record<string, UserAnswer> = {};
       sortedQuestions.forEach((q) => {
         initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
       });
-      setUserAnswers(initialAnswers);
 
-      // Load saved progress and restore session state
+      // 4. Load submitted answers from database (BEFORE restoring drafts)
+      const { data: savedAnswers } = await supabase
+        .from('practice_question_answers')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('set_id', setId);
+      
+      if (savedAnswers?.length) {
+        savedAnswers.forEach(ans => {
+          initialAnswers[ans.question_id] = {
+            answer: ans.answer_text || "",
+            workingOut: ans.working_out || "",
+            submitted: true,
+            score: Number(ans.score),
+            methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
+            accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
+            feedback: ans.feedback || "",
+            isCorrect: ans.is_correct || false
+          };
+        });
+      }
+
+      // 5. Load session progress
       const { data: progress } = await supabase
         .from('practice_set_progress')
         .select('*')
@@ -238,20 +275,15 @@ const TakePracticeQuiz = () => {
           setFlaggedQuestions(new Set(progress.flagged_question_ids));
         }
         
-        // Restore draft answers from session_data
+        // 6. Restore draft answers (only for UNSUBMITTED questions)
         if (progress.session_data && typeof progress.session_data === 'object' && progress.session_data !== null) {
           const sessionData = progress.session_data as any;
           if (sessionData.draft_answers) {
-            setUserAnswers(prev => {
-              const updated = { ...prev };
-              Object.entries(sessionData.draft_answers).forEach(
-                ([questionId, draftText]) => {
-                  if (updated[questionId]) {
-                    updated[questionId].answer = draftText as string;
-                  }
-                }
-              );
-              return updated;
+            Object.entries(sessionData.draft_answers).forEach(([questionId, draftText]) => {
+              // Only restore draft if question hasn't been submitted
+              if (initialAnswers[questionId] && !initialAnswers[questionId].submitted) {
+                initialAnswers[questionId].answer = draftText as string;
+              }
             });
           }
           
@@ -263,12 +295,16 @@ const TakePracticeQuiz = () => {
           }
         }
 
-        if (progress.current_question_index > 0) {
+        if (progress.current_question_index > 0 || savedAnswers?.length > 0) {
           toast.success("Progress restored!", {
-            description: `Resuming from Question ${progress.current_question_index + 1}`
+            description: `${savedAnswers?.length || 0} answers loaded • Resuming from Q${progress.current_question_index + 1}`
           });
         }
       }
+
+      // 7. Set all answers at once
+      setUserAnswers(initialAnswers);
+
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to load quiz");
@@ -277,34 +313,6 @@ const TakePracticeQuiz = () => {
     }
   };
 
-  const loadPreviousAnswers = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: savedAnswers } = await supabase.from('practice_question_answers').select('*').eq('user_id', user.id).eq('set_id', setId);
-      if (savedAnswers?.length) {
-        setUserAnswers(prev => {
-          const updated = { ...prev };
-          savedAnswers.forEach(ans => {
-            updated[ans.question_id] = {
-              answer: ans.answer_text || "",
-              workingOut: ans.working_out || "",
-              submitted: true,
-              score: Number(ans.score),
-              methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
-              accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
-              feedback: ans.feedback || "",
-              isCorrect: ans.is_correct || false
-            };
-          });
-          return updated;
-        });
-      }
-    } catch (error) {
-      console.error("Error loading answers:", error);
-    }
-  };
 
   const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIndex];
@@ -328,6 +336,7 @@ const TakePracticeQuiz = () => {
 
       if (error) throw error;
 
+      // Update local state with grading results
       setUserAnswers({
         ...userAnswers,
         [currentQuestion.id]: {
@@ -341,21 +350,17 @@ const TakePracticeQuiz = () => {
         }
       });
 
-      // Update progress counts
-      const newAnsweredCount = Object.values(userAnswers).filter(a => a.submitted).length + 1;
-      const newCorrectCount = Object.values(userAnswers).filter(a => a.submitted && a.isCorrect).length + (data.isCorrect ? 1 : 0);
-
-      // Save updated progress
+      // Update session state (timer, index) but NOT counts
+      // The edge function already updated questions_attempted and questions_correct
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('practice_set_progress').upsert({
           user_id: user.id,
           set_id: setId,
-          questions_attempted: newAnsweredCount,
-          questions_correct: newCorrectCount,
           time_spent_seconds: timeElapsed,
           current_question_index: currentIndex,
           last_accessed_at: new Date().toISOString()
+          // Don't include questions_attempted or questions_correct - edge function handles them
         }, {
           onConflict: 'user_id,set_id'
         });
@@ -363,6 +368,7 @@ const TakePracticeQuiz = () => {
 
       toast.success(data.score === currentQuestion.marks ? "Perfect! ✓" : `${data.score}/${currentQuestion.marks} marks`);
     } catch (error: any) {
+      console.error("Error:", error);
       toast.error(error.message || "Grading failed");
     } finally {
       setIsGrading(false);
@@ -376,7 +382,7 @@ const TakePracticeQuiz = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Prepare draft answers (unanswered questions with text)
+      // Prepare draft answers (only unanswered questions)
       const draftAnswers: Record<string, string> = {};
       Object.entries(userAnswers).forEach(([questionId, answer]) => {
         if (!answer.submitted && answer.answer.trim()) {
@@ -384,11 +390,15 @@ const TakePracticeQuiz = () => {
         }
       });
 
-      // Count answered and correct
-      const answeredCount = Object.values(userAnswers).filter(a => a.submitted).length;
-      const correctCount = Object.values(userAnswers).filter(a => a.submitted && a.isCorrect).length;
+      // Get current progress counts from database (don't recalculate from state)
+      const { data: currentProgress } = await supabase
+        .from('practice_set_progress')
+        .select('questions_attempted, questions_correct')
+        .eq('user_id', user.id)
+        .eq('set_id', setId)
+        .single();
 
-      // Upsert progress with session state
+      // Upsert progress - preserve existing counts, update session state
       const { error } = await supabase
         .from('practice_set_progress')
         .upsert({
@@ -397,8 +407,9 @@ const TakePracticeQuiz = () => {
           current_question_index: currentIndex,
           flagged_question_ids: Array.from(flaggedQuestions),
           time_spent_seconds: timeElapsed,
-          questions_attempted: answeredCount,
-          questions_correct: correctCount,
+          // Preserve existing counts from database
+          questions_attempted: currentProgress?.questions_attempted || 0,
+          questions_correct: currentProgress?.questions_correct || 0,
           last_accessed_at: new Date().toISOString(),
           session_data: {
             draft_answers: draftAnswers,
@@ -658,23 +669,35 @@ const TakePracticeQuiz = () => {
               setShowSubmitDialog(false);
               try {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                  await supabase.from('practice_set_progress').upsert({
-                    user_id: user.id,
-                    set_id: setId,
-                    questions_attempted: questions.length,
-                    questions_correct: Object.values(userAnswers).filter(a => a.isCorrect).length,
-                    completed_at: new Date().toISOString(),
-                    time_spent_seconds: timeElapsed,
-                    current_question_index: 0,
-                    flagged_question_ids: [],
-                    session_data: {}
-                  }, {
-                    onConflict: 'user_id,set_id'
-                  });
-                }
+                if (!user) return;
+
+                // Get final counts from database (the source of truth)
+                const { data: allAnswers } = await supabase
+                  .from('practice_question_answers')
+                  .select('score, is_correct')
+                  .eq('user_id', user.id)
+                  .eq('set_id', setId);
+
+                const questionsAttempted = allAnswers?.length || 0;
+                const questionsCorrect = allAnswers?.filter(a => a.is_correct).length || 0;
+
+                // Mark as completed
+                await supabase.from('practice_set_progress').upsert({
+                  user_id: user.id,
+                  set_id: setId,
+                  questions_attempted: questionsAttempted,
+                  questions_correct: questionsCorrect,
+                  completed_at: new Date().toISOString(),
+                  time_spent_seconds: timeElapsed,
+                  current_question_index: 0,
+                  flagged_question_ids: [],
+                  session_data: {}
+                }, {
+                  onConflict: 'user_id,set_id'
+                });
               } catch (error) {
                 console.error("Submission error:", error);
+                toast.error("Failed to submit quiz");
               }
               setShowResults(true);
             }}>Submit Quiz</AlertDialogAction>
