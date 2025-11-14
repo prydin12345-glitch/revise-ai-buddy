@@ -582,6 +582,35 @@ export type Database = {
           },
         ]
       }
+      favourite_practice_sets: {
+        Row: {
+          created_at: string | null
+          id: string
+          set_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          set_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          set_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favourite_practice_sets_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practice_question_sets: {
         Row: {
           created_at: string | null
@@ -700,6 +729,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "practice_questions_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_set_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          last_accessed_at: string | null
+          questions_attempted: number | null
+          questions_correct: number | null
+          set_id: string
+          time_spent_seconds: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          questions_attempted?: number | null
+          questions_correct?: number | null
+          set_id: string
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          questions_attempted?: number | null
+          questions_correct?: number | null
+          set_id?: string
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_set_progress_set_id_fkey"
             columns: ["set_id"]
             isOneToOne: false
             referencedRelation: "practice_question_sets"
