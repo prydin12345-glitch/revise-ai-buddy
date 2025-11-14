@@ -755,6 +755,7 @@ export type Database = {
           options: Json | null
           question_latex: string | null
           question_number: string
+          question_number_int: number | null
           question_text: string
           question_type: string
           set_id: string | null
@@ -772,6 +773,7 @@ export type Database = {
           options?: Json | null
           question_latex?: string | null
           question_number: string
+          question_number_int?: number | null
           question_text: string
           question_type: string
           set_id?: string | null
@@ -789,6 +791,7 @@ export type Database = {
           options?: Json | null
           question_latex?: string | null
           question_number?: string
+          question_number_int?: number | null
           question_text?: string
           question_type?: string
           set_id?: string | null
@@ -809,10 +812,13 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string | null
+          current_question_index: number | null
+          flagged_question_ids: string[] | null
           id: string
           last_accessed_at: string | null
           questions_attempted: number | null
           questions_correct: number | null
+          session_data: Json | null
           set_id: string
           time_spent_seconds: number | null
           updated_at: string | null
@@ -821,10 +827,13 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string | null
+          current_question_index?: number | null
+          flagged_question_ids?: string[] | null
           id?: string
           last_accessed_at?: string | null
           questions_attempted?: number | null
           questions_correct?: number | null
+          session_data?: Json | null
           set_id: string
           time_spent_seconds?: number | null
           updated_at?: string | null
@@ -833,10 +842,13 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string | null
+          current_question_index?: number | null
+          flagged_question_ids?: string[] | null
           id?: string
           last_accessed_at?: string | null
           questions_attempted?: number | null
           questions_correct?: number | null
+          session_data?: Json | null
           set_id?: string
           time_spent_seconds?: number | null
           updated_at?: string | null
