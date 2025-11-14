@@ -4,17 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
   Clock,
   Menu,
-  X,
   Flag,
   CheckCircle2,
   XCircle,
@@ -81,6 +78,7 @@ const TakePracticeQuiz = () => {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hideNavigation, setHideNavigation] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
@@ -99,6 +97,45 @@ const TakePracticeQuiz = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+
+      switch(e.key) {
+        case 'ArrowLeft':
+          if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          break;
+        case 'ArrowRight':
+          if (currentIndex < questions.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          toggleFlag();
+          break;
+        case 'h':
+        case 'H':
+          e.preventDefault();
+          toggleHideNavigation();
+          break;
+        case 's':
+        case 'S':
+          e.preventDefault();
+          setWorkedSolutionVisible(prev => !prev);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentIndex, questions.length]);
 
   const loadQuiz = async () => {
     try {
@@ -219,80 +256,277 @@ const TakePracticeQuiz = () => {
     navigate('/quizzes');
   };
 
+  const toggleFlag = () => {
+    const currentQuestionId = questions[currentIndex].id;
+    setFlaggedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(currentQuestionId)) {
+        newSet.delete(currentQuestionId);
+        toast.success("Question unflagged");
+      } else {
+        newSet.add(currentQuestionId);
+        toast.success("Question flagged for review");
+      }
+      return newSet;
+    });
+  };
+
+  const toggleHideNavigation = () => {
+    setHideNavigation(!hideNavigation);
+    setSidebarOpen(hideNavigation);
+  };
+
+  const getQuestionButtonStyle = (question: Question) => {
+    const answer = userAnswers[question.id];
+    const hasAnswer = Boolean(answer?.answer?.trim());
+    const isFlagged = flaggedQuestions.has(question.id);
+    const isCurrent = questions[currentIndex].id === question.id;
+
+    let className = 'relative aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ';
+    let style: React.CSSProperties = {};
+
+    if (answer?.submitted) {
+      if (answer.score === question.marks) {
+        className += 'bg-green-500 text-white';
+      } else if ((answer.score || 0) > 0) {
+        className += 'bg-orange-500 text-white';
+      } else {
+        className += 'bg-red-500 text-white';
+      }
+    } else if (hasAnswer) {
+      className += 'text-white';
+      style.backgroundColor = subjectColor;
+    } else {
+      className += 'bg-muted text-muted-foreground hover:bg-muted/80';
+    }
+
+    if (isFlagged) className += ' ring-2 ring-yellow-500 ring-offset-2';
+    if (isCurrent) className += ' ring-2 ring-primary ring-offset-2';
+
+    return { className, style };
+  };
+
+  const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!questions.length) return <div className="p-8 text-center">No questions available</div>;
 
   const currentQuestion = questions[currentIndex];
   const currentAnswer = userAnswers[currentQuestion.id] || { answer: "", submitted: false };
+  const answeredCount = Object.values(userAnswers).filter(a => a.answer.trim()).length;
+  const unansweredCount = questions.length - answeredCount;
   const totalScore = Object.values(userAnswers).reduce((sum, ans) => sum + (ans.score || 0), 0);
   const totalPossible = questions.reduce((sum, q) => sum + q.marks, 0);
+  const fullyCorrectCount = Object.entries(userAnswers).filter(([id, a]) => a.submitted && a.score === questions.find(q => q.id === id)?.marks).length;
+  const partialCreditCount = Object.entries(userAnswers).filter(([id, a]) => a.submitted && (a.score || 0) > 0 && a.score !== questions.find(q => q.id === id)?.marks).length;
+  const incorrectCount = Object.values(userAnswers).filter(a => a.submitted && (a.score || 0) === 0).length;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="bg-card border-b p-4 flex justify-between items-center">
-        <h1 className="font-semibold">{quizTitle}</h1>
-        <div className="flex gap-2">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm">{Math.floor(timeElapsed / 60)}m {timeElapsed % 60}s</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setWorkedSolutionVisible(!workedSolutionVisible)}>
-                {workedSolutionVisible ? "Hide" : "Show"} Solution
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowQuitDialog(true)}><Save className="w-4 h-4 mr-2" />Quit & Save</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowSubmitDialog(true)}>Submit All</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <div className="min-h-screen flex flex-col bg-background w-full">
+      <div className={`sticky top-0 z-50 border-b bg-card/95 backdrop-blur transition-transform duration-300 ${hideNavigation ? '-translate-y-full' : 'translate-y-0'}`}>
+        <div className="container grid grid-cols-3 items-center h-16 px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="font-semibold text-lg truncate">{quizTitle}</h1>
+          </div>
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
+              <Clock className="w-5 h-5" />
+              <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={toggleHideNavigation}>
+                  {hideNavigation ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                  {hideNavigation ? 'Show' : 'Hide'} Navigation
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleFlag}>
+                  <Flag className="w-4 h-4 mr-2" />
+                  {flaggedQuestions.has(currentQuestion.id) ? 'Unflag' : 'Flag'} Question
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setWorkedSolutionVisible(!workedSolutionVisible)}>
+                  {workedSolutionVisible ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                  {workedSolutionVisible ? 'Hide' : 'Show'} Solution
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowQuitDialog(true)}>
+                  <Save className="w-4 h-4 mr-2" />Quit & Save
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowSubmitDialog(true)}>Submit All</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 p-6">
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex justify-between">
-              <Badge>Question {currentIndex + 1} of {questions.length}</Badge>
-              <Badge variant="outline">{currentQuestion.marks} marks</Badge>
+      {hideNavigation && (
+        <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-[60] bg-card shadow-lg" onClick={toggleHideNavigation}>
+          <Menu className="w-5 h-5" />
+        </Button>
+      )}
+
+      <div className="flex flex-1 w-full">
+        <div className={`${hideNavigation ? 'w-0' : sidebarOpen ? 'w-64' : 'w-0'} lg:block ${sidebarOpen && !hideNavigation ? 'fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto' : ''} transition-all duration-300 border-r bg-card/30 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto`}>
+          {sidebarOpen && !hideNavigation && (
+            <div className="fixed inset-0 bg-black/50 lg:hidden z-30" onClick={() => setSidebarOpen(false)} />
+          )}
+          <div className="relative z-40 bg-card h-full">
+            <div className="p-6 flex flex-col gap-6 h-full">
+              <div>
+                <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
+                <div className="grid grid-cols-4 gap-2">
+                  {questions.map((q) => {
+                    const { className, style } = getQuestionButtonStyle(q);
+                    return (
+                      <button key={q.id} onClick={() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); }} className={className} style={style}>
+                        {q.question_number}
+                        {flaggedQuestions.has(q.id) && (
+                          <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
+                            <Flag className="w-2 h-2 text-white" fill="white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div><span className="font-medium">Answered:</span> {answeredCount}/{questions.length}</div>
+                <div><span className="font-medium">Flagged:</span> {flaggedQuestions.size}</div>
+              </div>
+              <Button variant="destructive" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
             </div>
-            <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
-            
-            <Textarea value={currentAnswer.answer} onChange={(e) => setUserAnswers({...userAnswers, [currentQuestion.id]: {...currentAnswer, answer: e.target.value}})} disabled={currentAnswer.submitted} className="min-h-[100px]" />
-            
-            {currentAnswer.submitted && (
-              <Card className="border-l-4" style={{borderLeftColor: (currentAnswer.score || 0) === currentQuestion.marks ? '#22c55e' : (currentAnswer.score || 0) > 0 ? '#f59e0b' : '#ef4444'}}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="font-semibold">{currentAnswer.score?.toFixed(1)} / {currentQuestion.marks} marks</span>
-                    {currentAnswer.methodMarks !== undefined && <Badge variant="outline">M: {currentAnswer.methodMarks?.toFixed(1)} | A: {currentAnswer.accuracyMarks?.toFixed(1)}</Badge>}
-                  </div>
-                  <MathRenderer content={currentAnswer.feedback || ""} />
-                  {workedSolutionVisible && currentQuestion.worked_solution && (
-                    <div className="mt-3 pt-3 border-t"><p className="font-medium text-sm mb-1">Worked Solution:</p><MathRenderer content={currentQuestion.worked_solution} /></div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {isGrading && <div className="flex gap-2 text-sm"><Loader2 className="w-4 h-4 animate-spin" />Grading...</div>}
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-4 mt-4">
-          <Button onClick={() => setCurrentIndex(i => i - 1)} disabled={currentIndex === 0} variant="outline" className="flex-1"><ChevronLeft />Previous</Button>
-          <Button onClick={handleSubmitAnswer} disabled={currentAnswer.submitted || isGrading} className="flex-1">{isGrading ? "Grading..." : "Submit"}</Button>
-          <Button onClick={() => setCurrentIndex(i => i + 1)} disabled={currentIndex === questions.length - 1} variant="outline" className="flex-1">Next<ChevronRight /></Button>
+          </div>
         </div>
+
+        <main className="flex-1 p-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-card rounded-lg border">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-lg px-4 py-2">Question {currentIndex + 1} of {questions.length}</Badge>
+                  {flaggedQuestions.has(currentQuestion.id) && <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600"><Flag className="w-3 h-3" />Flagged</Badge>}
+                </div>
+                <div className="flex gap-1">
+                  {questions.map((q, idx) => {
+                    const answer = userAnswers[q.id];
+                    return (
+                      <button key={q.id} onClick={() => { setCurrentIndex(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`w-2 h-2 rounded-full transition-all ${idx === currentIndex ? 'bg-primary w-6' : answer?.submitted ? (answer.score === q.marks ? 'bg-green-500' : (answer.score || 0) > 0 ? 'bg-orange-500' : 'bg-red-500') : answer?.answer ? 'bg-blue-500' : 'bg-muted'}`} title={`Question ${idx + 1}`} />
+                    );
+                  })}
+                </div>
+              </div>
+              <Progress value={(answeredCount / questions.length) * 100} className="h-2" />
+            </div>
+
+            <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
+              <CardContent className="p-8 space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold">{currentQuestion.question_number}</h2>
+                  <Badge style={{ backgroundColor: subjectColor, color: 'white' }}>{currentQuestion.marks} marks</Badge>
+                </div>
+                <div className="text-base leading-relaxed">
+                  <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
+                </div>
+                <Textarea value={currentAnswer.answer} onChange={(e) => setUserAnswers({ ...userAnswers, [currentQuestion.id]: { ...currentAnswer, answer: e.target.value }})} disabled={currentAnswer.submitted} className="min-h-[120px]" placeholder="Type your answer here..." />
+                {currentAnswer.submitted && (
+                  <Card className="border-l-4" style={{ borderLeftColor: (currentAnswer.score || 0) === currentQuestion.marks ? '#22c55e' : (currentAnswer.score || 0) > 0 ? '#f59e0b' : '#ef4444' }}>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-lg">{currentAnswer.score?.toFixed(1)} / {currentQuestion.marks} marks</span>
+                        {currentAnswer.methodMarks !== undefined && <Badge variant="outline">M: {currentAnswer.methodMarks?.toFixed(1)} | A: {currentAnswer.accuracyMarks?.toFixed(1)}</Badge>}
+                      </div>
+                      <div className="text-sm"><MathRenderer content={currentAnswer.feedback || ""} /></div>
+                      {workedSolutionVisible && currentQuestion.worked_solution && (
+                        <div className="mt-4 pt-4 border-t">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            <p className="font-medium text-sm">Worked Solution:</p>
+                          </div>
+                          <MathRenderer content={currentQuestion.worked_solution} />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                {isGrading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" />Grading your answer...</div>}
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-4 p-4 border-t bg-card/50 rounded-lg">
+              <Button onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} disabled={currentIndex === 0} variant="outline" size="lg" className="flex-1"><ChevronLeft className="w-4 h-4 mr-2" />Previous</Button>
+              <Button onClick={handleSubmitAnswer} disabled={currentAnswer.submitted || isGrading || !currentAnswer.answer.trim()} size="lg" className="flex-1" style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}>{isGrading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Grading...</> : 'Submit Answer'}</Button>
+              <Button onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} disabled={currentIndex === questions.length - 1} variant="outline" size="lg" className="flex-1">Next<ChevronRight className="w-4 h-4 ml-2" /></Button>
+            </div>
+          </div>
+        </main>
       </div>
 
       <AlertDialog open={showQuitDialog} onOpenChange={setShowQuitDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Save & Quit?</AlertDialogTitle></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Save & Quit?</AlertDialogTitle><AlertDialogDescription>Your progress will be saved and you can continue later.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleQuitAndSave}>Save & Quit</AlertDialogAction>
+            <AlertDialogAction onClick={handleQuitAndSave} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Save & Quit</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Submit Practice Quiz?</AlertDialogTitle><AlertDialogDescription className="space-y-2"><p>You've answered {answeredCount} out of {questions.length} questions.</p>{unansweredCount > 0 && <p className="text-amber-600 font-medium">⚠️ {unansweredCount} question(s) are unanswered.</p>}{flaggedQuestions.size > 0 && <p className="text-blue-600">🚩 {flaggedQuestions.size} question(s) flagged for review.</p>}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Review Answers</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowSubmitDialog(false); setShowResults(true); }}>Submit Quiz</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {showResults && (
+        <AlertDialog open={showResults} onOpenChange={setShowResults}>
+          <AlertDialogContent className="max-w-2xl">
+            <AlertDialogHeader><AlertDialogTitle className="text-2xl">Quiz Complete! 🎉</AlertDialogTitle></AlertDialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-6 text-center bg-green-50 dark:bg-green-950">
+                  <div className="text-4xl font-bold text-green-600 dark:text-green-400">{totalScore.toFixed(1)}</div>
+                  <div className="text-sm text-muted-foreground mt-2">Total Score</div>
+                </Card>
+                <Card className="p-6 text-center bg-blue-50 dark:bg-blue-950">
+                  <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">{totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(1) : 0}%</div>
+                  <div className="text-sm text-muted-foreground mt-2">Percentage</div>
+                </Card>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                  <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />Fully Correct</span>
+                  <Badge className="bg-green-600">{fullyCorrectCount}</Badge>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
+                  <span className="flex items-center gap-2"><AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />Partial Credit</span>
+                  <Badge className="bg-orange-600">{partialCreditCount}</Badge>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+                  <span className="flex items-center gap-2"><XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />Incorrect</span>
+                  <Badge className="bg-red-600">{incorrectCount}</Badge>
+                </div>
+              </div>
+              <div className="text-center text-sm text-muted-foreground">Completed in {formatTime(timeElapsed)}</div>
+            </div>
+            <AlertDialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowResults(false); setCurrentIndex(0); }}>Review Answers</Button>
+              <Button onClick={() => navigate('/quizzes')}>Back to My Quizzes</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 };
