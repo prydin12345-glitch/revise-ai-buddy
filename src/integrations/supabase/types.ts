@@ -611,6 +611,72 @@ export type Database = {
           },
         ]
       }
+      practice_question_answers: {
+        Row: {
+          accuracy_marks: number | null
+          answer_text: string | null
+          created_at: string | null
+          feedback: string | null
+          id: string
+          is_correct: boolean | null
+          method_marks: number | null
+          question_id: string
+          score: number | null
+          set_id: string
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string
+          working_out: string | null
+        }
+        Insert: {
+          accuracy_marks?: number | null
+          answer_text?: string | null
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          is_correct?: boolean | null
+          method_marks?: number | null
+          question_id: string
+          score?: number | null
+          set_id: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          working_out?: string | null
+        }
+        Update: {
+          accuracy_marks?: number | null
+          answer_text?: string | null
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          is_correct?: boolean | null
+          method_marks?: number | null
+          question_id?: string
+          score?: number | null
+          set_id?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          working_out?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "practice_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_question_answers_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practice_question_sets: {
         Row: {
           created_at: string | null
@@ -693,6 +759,7 @@ export type Database = {
           question_type: string
           set_id: string | null
           subtopic: string
+          worked_solution: string | null
         }
         Insert: {
           correct_answer?: string | null
@@ -709,6 +776,7 @@ export type Database = {
           question_type: string
           set_id?: string | null
           subtopic: string
+          worked_solution?: string | null
         }
         Update: {
           correct_answer?: string | null
@@ -725,6 +793,7 @@ export type Database = {
           question_type?: string
           set_id?: string | null
           subtopic?: string
+          worked_solution?: string | null
         }
         Relationships: [
           {
