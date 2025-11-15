@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_tracking: {
+        Row: {
+          cost_credits: number | null
+          created_at: string | null
+          feature_name: string
+          id: string
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          cost_credits?: number | null
+          created_at?: string | null
+          feature_name: string
+          id?: string
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          cost_credits?: number | null
+          created_at?: string | null
+          feature_name?: string
+          id?: string
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_goals: {
         Row: {
           blocks_completed: number
@@ -1126,6 +1153,102 @@ export type Database = {
           subject?: string
           subtopic?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          accent_color: string | null
+          ai_feedback_detail: string | null
+          beta_features_enabled: boolean | null
+          created_at: string | null
+          display_name: string | null
+          email_notifications: boolean | null
+          enable_ai_suggestions: boolean | null
+          font_size: string | null
+          high_contrast_mode: boolean | null
+          id: string
+          in_app_notifications: boolean | null
+          language: string | null
+          push_notifications: boolean | null
+          save_revision_history: boolean | null
+          theme_mode: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string | null
+          ai_feedback_detail?: string | null
+          beta_features_enabled?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          email_notifications?: boolean | null
+          enable_ai_suggestions?: boolean | null
+          font_size?: string | null
+          high_contrast_mode?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          language?: string | null
+          push_notifications?: boolean | null
+          save_revision_history?: boolean | null
+          theme_mode?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accent_color?: string | null
+          ai_feedback_detail?: string | null
+          beta_features_enabled?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          email_notifications?: boolean | null
+          enable_ai_suggestions?: boolean | null
+          font_size?: string | null
+          high_contrast_mode?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          language?: string | null
+          push_notifications?: boolean | null
+          save_revision_history?: boolean | null
+          theme_mode?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          device_name: string | null
+          device_type: string | null
+          id: string
+          ip_address: unknown
+          last_active: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: unknown
+          last_active?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: unknown
+          last_active?: string | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -24,6 +24,7 @@ import CreatePracticeQuestions from "./pages/CreatePracticeQuestions";
 import MyQuizzes from "./pages/MyQuizzes";
 import PracticeSetPreview from "./pages/PracticeSetPreview";
 import TakePracticeQuiz from "./pages/TakePracticeQuiz";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/revision-plan" element={<RevisionPlan />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
             <Route path="/quizzes" element={<MyQuizzes />} />
