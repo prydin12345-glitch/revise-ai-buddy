@@ -866,7 +866,9 @@ export type Database = {
       }
       revision_goals: {
         Row: {
+          confidence_level: number | null
           created_at: string
+          current_percentage: number | null
           deadline: string | null
           id: string
           subject: string
@@ -877,7 +879,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          confidence_level?: number | null
           created_at?: string
+          current_percentage?: number | null
           deadline?: string | null
           id?: string
           subject: string
@@ -888,7 +892,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          confidence_level?: number | null
           created_at?: string
+          current_percentage?: number | null
           deadline?: string | null
           id?: string
           subject?: string
@@ -903,6 +909,9 @@ export type Database = {
       revision_tasks: {
         Row: {
           archived_at: string | null
+          auto_rescheduled: boolean | null
+          confidence_after: number | null
+          confidence_before: number | null
           created_at: string
           date: string
           day: string
@@ -917,7 +926,10 @@ export type Database = {
           is_completed: boolean
           is_private: boolean | null
           last_modified_at: string | null
+          missed_count: number | null
           next_review_date: string | null
+          priority: string | null
+          progress_percentage: number | null
           status: string | null
           subject: string
           subject_color: string
@@ -927,6 +939,9 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          auto_rescheduled?: boolean | null
+          confidence_after?: number | null
+          confidence_before?: number | null
           created_at?: string
           date: string
           day: string
@@ -941,7 +956,10 @@ export type Database = {
           is_completed?: boolean
           is_private?: boolean | null
           last_modified_at?: string | null
+          missed_count?: number | null
           next_review_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
           status?: string | null
           subject: string
           subject_color?: string
@@ -951,6 +969,9 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          auto_rescheduled?: boolean | null
+          confidence_after?: number | null
+          confidence_before?: number | null
           created_at?: string
           date?: string
           day?: string
@@ -965,7 +986,10 @@ export type Database = {
           is_completed?: boolean
           is_private?: boolean | null
           last_modified_at?: string | null
+          missed_count?: number | null
           next_review_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
           status?: string | null
           subject?: string
           subject_color?: string
@@ -979,6 +1003,44 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_feedback: {
+        Row: {
+          confidence_rating: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          task_id: string
+          understood: boolean
+          user_id: string
+        }
+        Insert: {
+          confidence_rating: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          task_id: string
+          understood?: boolean
+          user_id: string
+        }
+        Update: {
+          confidence_rating?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          task_id?: string
+          understood?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_feedback_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "revision_tasks"
             referencedColumns: ["id"]
           },
         ]
