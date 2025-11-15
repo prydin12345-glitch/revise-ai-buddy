@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -185,7 +186,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </div>
             </div>
 
-            {/* Right: Upgrade button + Profile */}
+            {/* Right: Upgrade button + Notifications + Profile */}
             <div className="flex items-center gap-3">
               <Button
                 variant="default"
@@ -195,6 +196,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <Sparkles className="w-4 h-4" />
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
+
+              <NotificationDropdown />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

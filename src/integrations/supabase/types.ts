@@ -638,6 +638,48 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_data: Json | null
+          body: string | null
+          created_at: string
+          id: string
+          is_pinned: boolean | null
+          is_read: boolean
+          snoozed_until: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_data?: Json | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          is_read?: boolean
+          snoozed_until?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_data?: Json | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          is_read?: boolean
+          snoozed_until?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       practice_question_answers: {
         Row: {
           accuracy_marks: number | null
