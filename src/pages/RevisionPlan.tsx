@@ -246,6 +246,44 @@ const RevisionPlan = () => {
     .filter(exam => new Date(exam.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
+  const handleAddTask = async (taskData: {
+    subject: string;
+    focusTopic: string;
+    time: string;
+    duration: number;
+  }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const subjectData = subjects.find(s => s.subject_name === taskData.subject);
+
+      await supabase
+        .from("revision_tasks")
+        .insert({
+          user_id: user.id,
+          subject: taskData.subject,
+          subject_color: subjectData?.subject_color || '#3B82F6',
+          focus_topic: taskData.focusTopic,
+          date: format(currentDate, 'yyyy-MM-dd'),
+          time: taskData.time,
+          duration: taskData.duration,
+          status: 'scheduled',
+          priority: 'medium',
+          progress_percentage: 0,
+          is_completed: false,
+          day: format(currentDate, 'EEEE')
+        });
+
+      toast.success("Task added!");
+      setQuickAddOpen(false);
+      await loadData();
+    } catch (error) {
+      console.error("Error adding task:", error);
+      toast.error("Failed to add task");
+    }
+  };
+
   const handleTaskAction = async (action: string, taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -281,6 +319,30 @@ const RevisionPlan = () => {
     } catch (error) {
       console.error("Error handling task action:", error);
       toast.error("Failed to update task");
+    }
+  };
+
+  const handleEndFocus = async (actualDuration: number) => {
+    if (!focusTask) return;
+
+    try {
+      await supabase
+        .from("revision_tasks")
+        .update({
+          focus_session_duration: actualDuration,
+          progress_percentage: 100,
+          is_completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", focusTask.id);
+
+      toast.success("Focus session completed!");
+      setFocusModeOpen(false);
+      setFeedbackTask(focusTask);
+      await loadData();
+    } catch (error) {
+      console.error("Error ending focus session:", error);
+      toast.error("Failed to save focus session");
     }
   };
 
@@ -469,15 +531,16 @@ const RevisionPlan = () => {
       <QuickAddModal
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
-        onTaskCreated={loadData}
-        userExams={userExams}
+        subjects={subjects}
+        onAdd={handleAddTask}
+        suggestedTime={format(currentDate, 'HH:mm')}
       />
 
       <FocusMode
         open={focusModeOpen}
         onOpenChange={setFocusModeOpen}
         task={focusTask}
-        onComplete={loadData}
+        onEndFocus={handleEndFocus}
       />
 
       <SessionFeedbackModal
