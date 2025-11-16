@@ -251,6 +251,8 @@ const RevisionPlan = () => {
     focusTopic: string;
     time: string;
     duration: number;
+    dueDate?: string;
+    reminderDaysBefore?: number;
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -268,6 +270,8 @@ const RevisionPlan = () => {
           date: format(currentDate, 'yyyy-MM-dd'),
           time: taskData.time,
           duration: taskData.duration,
+          due_date: taskData.dueDate,
+          reminder_days_before: taskData.reminderDaysBefore || 1,
           status: 'scheduled',
           priority: 'medium',
           progress_percentage: 0,
@@ -533,6 +537,19 @@ const RevisionPlan = () => {
         onOpenChange={setQuickAddOpen}
         subjects={subjects}
         onAdd={handleAddTask}
+        onSaveSubject={async (name, color) => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          
+          await supabase.from("user_subjects").insert({
+            user_id: user.id,
+            subject_name: name,
+            subject_color: color,
+          });
+          
+          await loadData();
+          toast.success(`Subject "${name}" added!`);
+        }}
         suggestedTime={format(currentDate, 'HH:mm')}
       />
 
