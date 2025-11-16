@@ -984,6 +984,7 @@ export type Database = {
           created_at: string
           date: string
           day: string
+          due_date: string | null
           duration: number | null
           exam_id: string | null
           exam_title: string | null
@@ -999,6 +1000,7 @@ export type Database = {
           next_review_date: string | null
           priority: string | null
           progress_percentage: number | null
+          reminder_days_before: number | null
           status: string | null
           subject: string
           subject_color: string
@@ -1014,6 +1016,7 @@ export type Database = {
           created_at?: string
           date: string
           day: string
+          due_date?: string | null
           duration?: number | null
           exam_id?: string | null
           exam_title?: string | null
@@ -1029,6 +1032,7 @@ export type Database = {
           next_review_date?: string | null
           priority?: string | null
           progress_percentage?: number | null
+          reminder_days_before?: number | null
           status?: string | null
           subject: string
           subject_color?: string
@@ -1044,6 +1048,7 @@ export type Database = {
           created_at?: string
           date?: string
           day?: string
+          due_date?: string | null
           duration?: number | null
           exam_id?: string | null
           exam_title?: string | null
@@ -1059,6 +1064,7 @@ export type Database = {
           next_review_date?: string | null
           priority?: string | null
           progress_percentage?: number | null
+          reminder_days_before?: number | null
           status?: string | null
           subject?: string
           subject_color?: string
