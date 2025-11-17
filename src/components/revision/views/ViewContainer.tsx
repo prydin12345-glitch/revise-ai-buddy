@@ -9,6 +9,8 @@ interface ViewContainerProps {
   tasks: any[];
   nearestExam?: any;
   onTaskAction: (action: string, taskId: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
 const viewVariants = {
@@ -17,16 +19,24 @@ const viewVariants = {
   exit: { opacity: 0, x: -20 }
 };
 
-export const ViewContainer = ({ viewMode, currentDate, tasks, nearestExam, onTaskAction }: ViewContainerProps) => {
+export const ViewContainer = ({ 
+  viewMode, 
+  currentDate, 
+  tasks, 
+  nearestExam, 
+  onTaskAction,
+  isExpanded,
+  onToggleExpand
+}: ViewContainerProps) => {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={viewMode}
+        key={`${viewMode}-${isExpanded}`}
         variants={viewVariants}
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
       >
         {viewMode === 'day' && (
           <DayView
@@ -34,6 +44,8 @@ export const ViewContainer = ({ viewMode, currentDate, tasks, nearestExam, onTas
             tasks={tasks}
             nearestExam={nearestExam}
             onTaskAction={onTaskAction}
+            isExpanded={isExpanded}
+            onToggleExpand={onToggleExpand}
           />
         )}
         {viewMode === 'week' && (
@@ -41,6 +53,8 @@ export const ViewContainer = ({ viewMode, currentDate, tasks, nearestExam, onTas
             currentDate={currentDate}
             tasks={tasks}
             onTaskAction={onTaskAction}
+            isExpanded={isExpanded}
+            onToggleExpand={onToggleExpand}
           />
         )}
         {viewMode === 'month' && (
@@ -48,6 +62,8 @@ export const ViewContainer = ({ viewMode, currentDate, tasks, nearestExam, onTas
             currentDate={currentDate}
             tasks={tasks}
             onTaskAction={onTaskAction}
+            isExpanded={isExpanded}
+            onToggleExpand={onToggleExpand}
           />
         )}
       </motion.div>

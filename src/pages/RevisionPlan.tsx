@@ -47,6 +47,7 @@ const RevisionPlan = () => {
   const [loading, setLoading] = useState(true);
   const [userStreak, setUserStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Modals
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -288,6 +289,10 @@ const RevisionPlan = () => {
     }
   };
 
+  const handleToggleExpand = () => {
+    setIsExpanded(prev => !prev);
+  };
+
   const handleTaskAction = async (action: string, taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -456,12 +461,17 @@ const RevisionPlan = () => {
 
       {/* 3-Column Layout */}
       <div className={cn(
-        "grid gap-4 p-4",
+        "grid gap-4 p-4 transition-all duration-300 ease-in-out",
         "grid-cols-1",
-        "lg:grid-cols-[320px_1fr_320px]"
+        isExpanded 
+          ? "lg:grid-cols-1"
+          : "lg:grid-cols-[320px_1fr_320px]"
       )}>
         {/* Left Sidebar - Desktop */}
-        <div className="hidden lg:block">
+        <div className={cn(
+          "hidden lg:block transition-all duration-300",
+          isExpanded && "lg:hidden"
+        )}>
           <CalendarSidebar
             currentDate={currentDate}
             onDateChange={(date) => date && setCurrentDate(date)}
@@ -472,23 +482,25 @@ const RevisionPlan = () => {
         </div>
 
         {/* Left Sidebar - Mobile */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="lg:hidden mb-4">
-              <Menu className="h-4 w-4 mr-2" />
-              Calendar & Inbox
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[320px]">
-            <CalendarSidebar
-              currentDate={currentDate}
-              onDateChange={(date) => date && setCurrentDate(date)}
-              inboxTasks={inboxTasks}
-              archivedTasks={archivedTasks}
-              allTasks={tasks}
-            />
-          </SheetContent>
-        </Sheet>
+        {!isExpanded && (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="lg:hidden mb-4">
+                <Menu className="h-4 w-4 mr-2" />
+                Calendar & Inbox
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[320px]">
+              <CalendarSidebar
+                currentDate={currentDate}
+                onDateChange={(date) => date && setCurrentDate(date)}
+                inboxTasks={inboxTasks}
+                archivedTasks={archivedTasks}
+                allTasks={tasks}
+              />
+            </SheetContent>
+          </Sheet>
+        )}
 
         {/* Center: Dynamic View */}
         <ViewContainer
@@ -497,10 +509,15 @@ const RevisionPlan = () => {
           tasks={scheduledTasks}
           nearestExam={nearestExam}
           onTaskAction={handleTaskAction}
+          isExpanded={isExpanded}
+          onToggleExpand={handleToggleExpand}
         />
 
         {/* Right Sidebar - Desktop */}
-        <div className="hidden lg:block space-y-4">
+        <div className={cn(
+          "hidden lg:block space-y-4 transition-all duration-300",
+          isExpanded && "lg:hidden"
+        )}>
           <StreakTracker currentStreak={userStreak} longestStreak={longestStreak} />
           <ExamInfoCard nearestExam={nearestExam} />
           <SuggestionsPanel
@@ -511,24 +528,26 @@ const RevisionPlan = () => {
         </div>
 
         {/* Right Sidebar - Mobile */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="lg:hidden">
-              View Suggestions & Stats
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[320px] overflow-y-auto">
-            <div className="space-y-4">
-              <StreakTracker currentStreak={userStreak} longestStreak={longestStreak} />
-              <ExamInfoCard nearestExam={nearestExam} />
-              <SuggestionsPanel
-                weakTopics={weakTopics}
-                unrevisedSubjects={unrevisedSubjects}
-                suggestedSlots={suggestedSlots}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        {!isExpanded && (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="lg:hidden">
+                View Suggestions & Stats
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[320px] overflow-y-auto">
+              <div className="space-y-4">
+                <StreakTracker currentStreak={userStreak} longestStreak={longestStreak} />
+                <ExamInfoCard nearestExam={nearestExam} />
+                <SuggestionsPanel
+                  weakTopics={weakTopics}
+                  unrevisedSubjects={unrevisedSubjects}
+                  suggestedSlots={suggestedSlots}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
 
       {/* Modals */}

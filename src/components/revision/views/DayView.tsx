@@ -2,7 +2,7 @@ import { format, setHours, isSameHour, isToday } from "date-fns";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Maximize2, Clock } from "lucide-react";
+import { Maximize2, Minimize2, Clock } from "lucide-react";
 import { EnhancedTaskBlock } from "../task-cards/EnhancedTaskBlock";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +26,18 @@ interface DayViewProps {
   tasks: Task[];
   nearestExam?: any;
   onTaskAction: (action: string, taskId: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
-export const DayView = ({ currentDate, tasks, nearestExam, onTaskAction }: DayViewProps) => {
+export const DayView = ({ 
+  currentDate, 
+  tasks, 
+  nearestExam, 
+  onTaskAction,
+  isExpanded,
+  onToggleExpand
+}: DayViewProps) => {
   const hours = Array.from({ length: 16 }, (_, i) => i + 7); // 07:00-22:00
   const now = new Date();
 
@@ -44,7 +53,10 @@ export const DayView = ({ currentDate, tasks, nearestExam, onTaskAction }: DayVi
   };
 
   return (
-    <Card className="h-full">
+    <Card className={cn(
+      "h-full transition-all duration-300 ease-in-out",
+      isExpanded && "shadow-xl"
+    )}>
       <CardHeader className="sticky top-16 bg-background z-40 border-b">
         <div className="flex items-center justify-between">
           <div>
@@ -57,14 +69,29 @@ export const DayView = ({ currentDate, tasks, nearestExam, onTaskAction }: DayVi
               </p>
             )}
           </div>
-          <Button variant="ghost" size="icon">
-            <Maximize2 className="h-4 w-4" />
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={onToggleExpand}
+            className="transition-transform duration-300 hover:scale-110"
+          >
+            {isExpanded ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </CardHeader>
       
-      <ScrollArea className="h-[calc(100vh-200px)]">
-        <CardContent className="p-0">
+      <ScrollArea className={cn(
+        "h-[calc(100vh-200px)] transition-all duration-300",
+        isExpanded && "h-[calc(100vh-180px)]"
+      )}>
+        <CardContent className={cn(
+          "p-0 transition-all duration-300",
+          isExpanded && "p-4"
+        )}>
           <div className="relative">
             {hours.map(hour => {
               const hourTasks = getTasksForHour(hour);

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfWeek, endOfWeek } from "date-fns";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EnhancedTaskBlock } from "../task-cards/EnhancedTaskBlock";
 
@@ -27,9 +28,17 @@ interface MonthViewProps {
   currentDate: Date;
   tasks: Task[];
   onTaskAction: (action: string, taskId: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
-export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) => {
+export const MonthView = ({ 
+  currentDate, 
+  tasks, 
+  onTaskAction,
+  isExpanded,
+  onToggleExpand
+}: MonthViewProps) => {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   
   const monthStart = startOfMonth(currentDate);
@@ -56,9 +65,37 @@ export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) 
   };
 
   return (
-    <Card className="p-4">
-      <ScrollArea className="h-[calc(100vh-200px)]">
-        <div className="grid grid-cols-7 gap-1">
+    <Card className={cn(
+      "p-4 transition-all duration-300 ease-in-out",
+      isExpanded && "shadow-xl"
+    )}>
+      {/* Header with expand button */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">
+          {format(currentDate, 'MMMM yyyy')}
+        </h2>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={onToggleExpand}
+          className="transition-transform duration-300 hover:scale-110"
+        >
+          {isExpanded ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
+      <ScrollArea className={cn(
+        "h-[calc(100vh-200px)] transition-all duration-300",
+        isExpanded && "h-[calc(100vh-180px)]"
+      )}>
+        <div className={cn(
+          "grid grid-cols-7 gap-1 transition-all duration-300",
+          isExpanded && "gap-2"
+        )}>
           {/* Day Headers */}
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">
@@ -70,7 +107,7 @@ export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) 
           {days.map(day => {
             const dayTasks = getTasksForDate(day);
             const dateKey = format(day, 'yyyy-MM-dd');
-            const isExpanded = expandedDays.has(dateKey);
+            const isDayExpanded = expandedDays.has(dateKey);
             const isCurrentMonth = isSameMonth(day, currentDate);
             const isToday = isSameDay(day, new Date());
             
@@ -81,7 +118,7 @@ export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) 
                   "min-h-[100px] border rounded-lg p-2 transition-all",
                   isCurrentMonth ? "bg-background" : "bg-muted/30",
                   isToday && "ring-2 ring-primary",
-                  isExpanded && "row-span-2"
+                  isDayExpanded && "row-span-2"
                 )}
               >
                 {/* Day Number & Task Count */}
@@ -103,7 +140,7 @@ export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) 
                 {/* Task Indicators or Expanded Tasks */}
                 {dayTasks.length > 0 && (
                   <div className="space-y-1">
-                    {isExpanded ? (
+                    {isDayExpanded ? (
                       <>
                         {dayTasks.map(task => (
                           <EnhancedTaskBlock
@@ -115,33 +152,33 @@ export const MonthView = ({ currentDate, tasks, onTaskAction }: MonthViewProps) 
                         ))}
                         <button
                           onClick={() => toggleDayExpansion(day)}
-                          className="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 mt-1"
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 w-full justify-center mt-1"
                         >
-                          <ChevronUp className="w-3 h-3" />
-                          Show less
+                          Show less <ChevronUp className="h-3 w-3" />
                         </button>
                       </>
                     ) : (
                       <>
+                        {/* Task dots */}
                         {dayTasks.slice(0, 2).map(task => (
                           <div
                             key={task.id}
-                            className="text-xs p-1 rounded truncate"
-                            style={{ 
+                            className="text-xs truncate p-1 rounded text-foreground"
+                            style={{
                               backgroundColor: `${task.subject_color}20`,
                               borderLeft: `3px solid ${task.subject_color}`
                             }}
                           >
-                            {task.time} • {task.focus_topic || task.exam_title}
+                            {task.time} {task.subject}
                           </div>
                         ))}
+                        
                         {dayTasks.length > 2 && (
                           <button
                             onClick={() => toggleDayExpansion(day)}
-                            className="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1"
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 w-full justify-center mt-1"
                           >
-                            <ChevronDown className="w-3 h-3" />
-                            +{dayTasks.length - 2} more
+                            +{dayTasks.length - 2} more <ChevronDown className="h-3 w-3" />
                           </button>
                         )}
                       </>
