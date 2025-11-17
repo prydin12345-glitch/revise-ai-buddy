@@ -7,6 +7,13 @@ interface StreakTrackerProps {
 }
 
 export const StreakTracker = ({ currentStreak, longestStreak }: StreakTrackerProps) => {
+  const getMotivationalMessage = () => {
+    if (currentStreak === 0) return "Complete a task today to start your streak!";
+    if (currentStreak <= 3) return "Keep it up! 🔥";
+    if (currentStreak <= 6) return "You're on fire! 🔥🔥";
+    return "Amazing streak! Don't break the chain! 🔥🔥🔥";
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -18,7 +25,11 @@ export const StreakTracker = ({ currentStreak, longestStreak }: StreakTrackerPro
       <CardContent>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-3xl font-bold text-orange-500">{currentStreak}</div>
+            <div className={`text-3xl font-bold transition-all duration-500 ${
+              currentStreak > 0 ? 'text-orange-500 animate-pulse' : 'text-muted-foreground'
+            }`}>
+              {currentStreak}
+            </div>
             <p className="text-xs text-muted-foreground">days current</p>
           </div>
           <div className="text-right">
@@ -27,17 +38,13 @@ export const StreakTracker = ({ currentStreak, longestStreak }: StreakTrackerPro
           </div>
         </div>
         
-        {currentStreak > 0 && (
-          <div className="mt-3 p-2 bg-orange-500/10 rounded text-xs text-center">
-            🔥 Keep it up! Don't break the chain!
-          </div>
-        )}
-        
-        {currentStreak === 0 && (
-          <div className="mt-3 p-2 bg-muted rounded text-xs text-center text-muted-foreground">
-            Complete a task today to start your streak!
-          </div>
-        )}
+        <div className={`mt-3 p-2 rounded text-xs text-center transition-all ${
+          currentStreak > 0 
+            ? 'bg-orange-500/10 text-orange-500' 
+            : 'bg-muted text-muted-foreground'
+        }`}>
+          {getMotivationalMessage()}
+        </div>
       </CardContent>
     </Card>
   );
