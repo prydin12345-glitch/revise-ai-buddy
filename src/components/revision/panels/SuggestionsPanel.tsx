@@ -42,6 +42,12 @@ export const SuggestionsPanel = ({
   onScheduleSubject,
   onScheduleInSlot
 }: SuggestionsPanelProps) => {
+  const getPriorityColor = (avgScore: number) => {
+    if (avgScore < 50) return 'text-red-500';
+    if (avgScore < 70) return 'text-orange-500';
+    return 'text-yellow-500';
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -64,16 +70,16 @@ export const SuggestionsPanel = ({
                   key={topic.id}
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start text-left h-auto py-2"
+                  className="w-full justify-start text-left h-auto py-2 hover:bg-accent"
                   onClick={() => onScheduleRevision?.(topic)}
                 >
                   <div className="flex-1">
                     <p className="font-medium text-sm">{topic.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className={`text-xs ${getPriorityColor(topic.avgScore)}`}>
                       Avg: {topic.avgScore}% • {topic.attemptsCount} attempts
                     </p>
                   </div>
-                  <Plus className="w-4 h-4 ml-2" />
+                  <Plus className="w-4 h-4 ml-2 flex-shrink-0" />
                 </Button>
               ))}
             </div>
@@ -92,13 +98,15 @@ export const SuggestionsPanel = ({
                 <Badge
                   key={subject.id}
                   variant="outline"
-                  className="cursor-pointer hover:bg-accent"
+                  className="cursor-pointer hover:bg-accent transition-colors"
                   style={{ borderColor: subject.color }}
                   onClick={() => onScheduleSubject?.(subject)}
                 >
                   {subject.name}
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ({subject.daysSince}d)
+                  <span className={`ml-1 text-xs ${
+                    subject.daysSince >= 14 ? 'text-red-500' : 'text-muted-foreground'
+                  }`}>
+                    ({subject.daysSince}d ago)
                   </span>
                 </Badge>
               ))}

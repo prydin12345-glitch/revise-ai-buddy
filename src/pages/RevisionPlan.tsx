@@ -6,16 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Menu, Plus } from "lucide-react";
 import { ViewContainer } from "@/components/revision/views/ViewContainer";
 import { CalendarSidebar } from "@/components/revision/panels/CalendarSidebar";
 import { SuggestionsPanel } from "@/components/revision/panels/SuggestionsPanel";
-import { ExamInfoCard } from "@/components/revision/panels/ExamInfoCard";
+import { GoalInfoCard } from "@/components/revision/panels/GoalInfoCard";
 import { StreakTracker } from "@/components/revision/features/StreakTracker";
 import { SessionFeedbackModal } from "@/components/revision/features/SessionFeedbackModal";
 import { AutoRescheduleModal } from "@/components/revision/features/AutoRescheduleModal";
 import { FocusMode } from "@/components/revision/FocusMode";
 import { QuickAddModal } from "@/components/revision/QuickAddModal";
+import { EditGoalModal } from "@/components/revision/modals/EditGoalModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +46,7 @@ const RevisionPlan = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<RevisionTask[]>([]);
   const [userExams, setUserExams] = useState<any[]>([]);
+  const [revisionGoals, setRevisionGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userStreak, setUserStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
@@ -55,6 +58,9 @@ const RevisionPlan = () => {
   const [focusTask, setFocusTask] = useState<RevisionTask | null>(null);
   const [feedbackTask, setFeedbackTask] = useState<RevisionTask | null>(null);
   const [missedTasks, setMissedTasks] = useState<RevisionTask[]>([]);
+  const [editGoalOpen, setEditGoalOpen] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<any>(null);
+  const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
 
   // Suggestions
   const [weakTopics, setWeakTopics] = useState<any[]>([]);
@@ -79,17 +85,20 @@ const RevisionPlan = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Load goals
+      const { data: goalsData } = await supabase
+        .from("revision_goals")
+        .select("*")
+        .eq("user_id", user.id);
+
+      setRevisionGoals(goalsData || []);
+
       // Load exams with goals
       const { data: examsData } = await supabase
         .from("exams")
         .select("id, title, subject_id, created_at")
         .eq("user_id", user.id)
         .eq("status", "published");
-
-      const { data: goalsData } = await supabase
-        .from("revision_goals")
-        .select("*")
-        .eq("user_id", user.id);
 
       // Combine exams with goals
       const examsWithGoals = (examsData || []).map(exam => {
@@ -153,8 +162,8 @@ const RevisionPlan = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Detect weak topics from practice performance
-      const { data: answers } = await supabase
+      // Detect weak topics from practice AND exam performance
+      const { data: practiceAnswers } = await supabase
         .from("practice_question_answers")
         .select(`
           question:practice_questions(subtopic),
@@ -165,9 +174,23 @@ const RevisionPlan = () => {
         .gte("created_at", subDays(new Date(), 30).toISOString())
         .limit(100);
 
-      if (answers) {
-        const topicScores: Record<string, any> = {};
-        answers.forEach((ans: any) => {
+      // Get exam performance data
+      const { data: examAnswers } = await supabase
+        .from("student_answers")
+        .select(`
+          question:exam_questions(topic_tag),
+          score,
+          is_correct
+        `)
+        .eq("student_id", user.id)
+        .gte("submitted_at", subDays(new Date(), 30).toISOString())
+        .limit(100);
+
+      // Combine practice and exam data
+      const topicScores: Record<string, any> = {};
+      
+      if (practiceAnswers) {
+        practiceAnswers.forEach((ans: any) => {
           const topic = ans.question?.subtopic;
           if (!topic) return;
           if (!topicScores[topic]) {
@@ -177,36 +200,61 @@ const RevisionPlan = () => {
           topicScores[topic].count++;
           if (ans.is_correct) topicScores[topic].correct++;
         });
-
-        const weak = Object.entries(topicScores)
-          .map(([name, stats]: [string, any]) => ({
-            id: name,
-            name,
-            avgScore: Math.round((stats.total / stats.count) * 100) / 100,
-            attemptsCount: stats.count
-          }))
-          .filter(topic => topic.avgScore < 70)
-          .slice(0, 3);
-
-        setWeakTopics(weak);
       }
 
-      // Detect unrevised subjects
+      if (examAnswers) {
+        examAnswers.forEach((ans: any) => {
+          const topic = ans.question?.topic_tag;
+          if (!topic) return;
+          if (!topicScores[topic]) {
+            topicScores[topic] = { total: 0, count: 0, correct: 0 };
+          }
+          topicScores[topic].total += Number(ans.score) || 0;
+          topicScores[topic].count++;
+          if (ans.is_correct) topicScores[topic].correct++;
+        });
+      }
+
+      const weak = Object.entries(topicScores)
+        .map(([name, stats]: [string, any]) => ({
+          id: name,
+          name,
+          avgScore: Math.round((stats.total / stats.count) * 100) / 100,
+          attemptsCount: stats.count
+        }))
+        .filter(topic => topic.avgScore < 70)
+        .sort((a, b) => a.avgScore - b.avgScore)
+        .slice(0, 5);
+
+      setWeakTopics(weak);
+
+      // Detect unrevised subjects (increased to 14 days)
       const recentTasks = tasks.filter(t => {
         const taskDate = new Date(t.date);
-        return taskDate >= subDays(new Date(), 7) && t.is_completed;
+        return taskDate >= subDays(new Date(), 14) && t.is_completed;
       });
       
       const revisedSubjects = new Set(recentTasks.map(t => t.subject));
       const unrevised = subjects
         .filter(s => !revisedSubjects.has(s.subject_name))
-        .map(s => ({
-          id: s.id,
-          name: s.subject_name,
-          color: s.subject_color,
-          daysSince: 7
-        }))
-        .slice(0, 3);
+        .map(s => {
+          const lastTask = tasks
+            .filter(t => t.subject === s.subject_name && t.is_completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          const daysSince = lastTask 
+            ? Math.floor((new Date().getTime() - new Date(lastTask.date).getTime()) / (1000 * 60 * 60 * 24))
+            : 30;
+
+          return {
+            id: s.id,
+            name: s.subject_name,
+            color: s.subject_color,
+            daysSince
+          };
+        })
+        .sort((a, b) => b.daysSince - a.daysSince)
+        .slice(0, 5);
 
       setUnrevisedSubjects(unrevised);
     } catch (error) {
@@ -307,6 +355,13 @@ const RevisionPlan = () => {
             updated_at: new Date().toISOString()
           })
           .eq("id", taskId);
+        
+        // Update study streak
+        try {
+          await supabase.functions.invoke('update-study-streak');
+        } catch (streakError) {
+          console.error("Error updating streak:", streakError);
+        }
         
         setFeedbackTask(task);
         await loadData();
@@ -417,6 +472,51 @@ const RevisionPlan = () => {
     }
   };
 
+  const handleEditGoal = (goalId: string) => {
+    const goal = revisionGoals.find(g => g.id === goalId);
+    if (goal) {
+      setSelectedGoal(goal);
+      setEditGoalOpen(true);
+    }
+  };
+
+  const handleSaveGoal = async (goalId: string, updates: any) => {
+    try {
+      await supabase
+        .from("revision_goals")
+        .update(updates)
+        .eq("id", goalId);
+
+      toast.success("Goal updated successfully!");
+      await loadData();
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      toast.error("Failed to update goal");
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    setDeleteGoalId(goalId);
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!deleteGoalId) return;
+
+    try {
+      await supabase
+        .from("revision_goals")
+        .delete()
+        .eq("id", deleteGoalId);
+
+      toast.success("Goal deleted successfully!");
+      setDeleteGoalId(null);
+      await loadData();
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      toast.error("Failed to delete goal");
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -519,7 +619,11 @@ const RevisionPlan = () => {
           isExpanded && "lg:hidden"
         )}>
           <StreakTracker currentStreak={userStreak} longestStreak={longestStreak} />
-          <ExamInfoCard nearestExam={nearestExam} />
+          <GoalInfoCard 
+            goal={revisionGoals[0]} 
+            onEdit={handleEditGoal}
+            onDelete={handleDeleteGoal}
+          />
           <SuggestionsPanel
             weakTopics={weakTopics}
             unrevisedSubjects={unrevisedSubjects}
@@ -538,7 +642,11 @@ const RevisionPlan = () => {
             <SheetContent side="right" className="w-[320px] overflow-y-auto">
               <div className="space-y-4">
                 <StreakTracker currentStreak={userStreak} longestStreak={longestStreak} />
-                <ExamInfoCard nearestExam={nearestExam} />
+                <GoalInfoCard 
+                  goal={revisionGoals[0]} 
+                  onEdit={handleEditGoal}
+                  onDelete={handleDeleteGoal}
+                />
                 <SuggestionsPanel
                   weakTopics={weakTopics}
                   unrevisedSubjects={unrevisedSubjects}
@@ -590,6 +698,29 @@ const RevisionPlan = () => {
         onReschedule={handleReschedule}
         onDismiss={() => setMissedTasks([])}
       />
+
+      <EditGoalModal
+        open={editGoalOpen}
+        onOpenChange={setEditGoalOpen}
+        goal={selectedGoal}
+        subjects={subjects}
+        onSave={handleSaveGoal}
+      />
+
+      <AlertDialog open={!!deleteGoalId} onOpenChange={(open) => !open && setDeleteGoalId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Revision Goal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this revision goal? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteGoal}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
