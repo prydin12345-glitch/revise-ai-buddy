@@ -996,6 +996,7 @@ export type Database = {
           is_completed: boolean
           is_private: boolean | null
           last_modified_at: string | null
+          linked_practice_set_id: string | null
           missed_count: number | null
           next_review_date: string | null
           priority: string | null
@@ -1004,6 +1005,7 @@ export type Database = {
           status: string | null
           subject: string
           subject_color: string
+          target_score: number | null
           time: string
           updated_at: string
           user_id: string
@@ -1028,6 +1030,7 @@ export type Database = {
           is_completed?: boolean
           is_private?: boolean | null
           last_modified_at?: string | null
+          linked_practice_set_id?: string | null
           missed_count?: number | null
           next_review_date?: string | null
           priority?: string | null
@@ -1036,6 +1039,7 @@ export type Database = {
           status?: string | null
           subject: string
           subject_color?: string
+          target_score?: number | null
           time: string
           updated_at?: string
           user_id: string
@@ -1060,6 +1064,7 @@ export type Database = {
           is_completed?: boolean
           is_private?: boolean | null
           last_modified_at?: string | null
+          linked_practice_set_id?: string | null
           missed_count?: number | null
           next_review_date?: string | null
           priority?: string | null
@@ -1068,6 +1073,7 @@ export type Database = {
           status?: string | null
           subject?: string
           subject_color?: string
+          target_score?: number | null
           time?: string
           updated_at?: string
           user_id?: string
@@ -1078,6 +1084,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_tasks_linked_practice_set_id_fkey"
+            columns: ["linked_practice_set_id"]
+            isOneToOne: false
+            referencedRelation: "practice_question_sets"
             referencedColumns: ["id"]
           },
         ]

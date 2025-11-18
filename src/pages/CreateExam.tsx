@@ -15,8 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
+import { AddToRevisionPlanPrompt } from "@/components/exam/AddToRevisionPlanPrompt";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { QuickAddModal } from "@/components/revision/QuickAddModal";
+import { format } from "date-fns";
 
 
 const examBoards = [
@@ -151,6 +154,11 @@ export default function CreateExam() {
     userSelected: string;
   } | null>(null);
   const [showMismatchWarning, setShowMismatchWarning] = useState(false);
+  
+  // Revision plan prompt states
+  const [showRevisionPlanPrompt, setShowRevisionPlanPrompt] = useState(false);
+  const [publishedExamData, setPublishedExamData] = useState<{ id: string; title: string; subject: string } | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   
   const [uploading, setUploading] = useState(false);
 
@@ -439,10 +447,16 @@ export default function CreateExam() {
         description: "Your exam is ready!",
       });
 
-      if (action === 'begin') {
+      if (action === 'save') {
+        // Store exam data and show revision plan prompt
+        setPublishedExamData({
+          id: data.examId,
+          title: examName,
+          subject: subjectId
+        });
+        setShowRevisionPlanPrompt(true);
+      } else if (action === 'begin') {
         navigate(`/exam/${data.examId}/live?mode=student`);
-      } else {
-        navigate('/my-exams');
       }
     } catch (error: any) {
       toast({
@@ -450,6 +464,53 @@ export default function CreateExam() {
         description: error.message || "Failed to publish exam",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleScheduleFromPrompt = () => {
+    setShowRevisionPlanPrompt(false);
+    setQuickAddOpen(true);
+  };
+
+  const handleDismissPrompt = () => {
+    setShowRevisionPlanPrompt(false);
+    navigate('/my-exams');
+  };
+
+  const handleAddRevisionTask = async (task: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("revision_tasks")
+      .insert({
+        user_id: user.id,
+        subject: task.subject,
+        subject_color: task.subjectColor,
+        focus_topic: task.focusTopic,
+        time: task.time,
+        duration: task.duration,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        day: format(new Date(), 'EEEE'),
+        due_date: task.dueDate,
+        reminder_days_before: task.reminderDaysBefore,
+        exam_id: task.linkedExamId,
+        linked_practice_set_id: task.linkedPracticeSetId,
+        target_score: task.targetScore,
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add revision task",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Revision task added to your plan",
+      });
+      navigate('/revision-plan');
     }
   };
 
@@ -995,6 +1056,31 @@ export default function CreateExam() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Revision Plan Prompt */}
+      {showRevisionPlanPrompt && publishedExamData && (
+        <AddToRevisionPlanPrompt
+          open={showRevisionPlanPrompt}
+          onOpenChange={setShowRevisionPlanPrompt}
+          title={publishedExamData.title}
+          subject={publishedExamData.subject}
+          onSchedule={handleScheduleFromPrompt}
+          onDismiss={handleDismissPrompt}
+        />
+      )}
+
+      {/* Quick Add Modal */}
+      <QuickAddModal
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        subjects={[{ subject_name: subjectId, subject_color: subjectColor }]}
+        onAdd={handleAddRevisionTask}
+        preFilledData={publishedExamData ? {
+          subject: publishedExamData.subject,
+          focusTopic: publishedExamData.title,
+          linkedExamId: publishedExamData.id
+        } : undefined}
+      />
     </DashboardLayout>
   );
 }

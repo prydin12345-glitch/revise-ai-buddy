@@ -20,6 +20,7 @@ import { QuickAddModal } from "@/components/revision/QuickAddModal";
 import { EditGoalModal } from "@/components/revision/modals/EditGoalModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 
 interface RevisionTask {
   id: string;
@@ -39,9 +40,12 @@ interface RevisionTask {
   confidence_after: number | null;
   archived_at: string | null;
   missed_count?: number;
+  linked_practice_set_id?: string | null;
+  target_score?: number | null;
 }
 
 const RevisionPlan = () => {
+  const location = useLocation();
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<RevisionTask[]>([]);
@@ -51,6 +55,7 @@ const RevisionPlan = () => {
   const [userStreak, setUserStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [preFilledTaskData, setPreFilledTaskData] = useState<any>(null);
   
   // Modals
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -72,6 +77,16 @@ const RevisionPlan = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    // Handle navigation state from CreateExam or CreatePracticeQuestions
+    if (location.state?.openQuickAdd) {
+      setPreFilledTaskData(location.state.preFilledData);
+      setQuickAddOpen(true);
+      // Clear navigation state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   useEffect(() => {
     if (tasks.length > 0) {
