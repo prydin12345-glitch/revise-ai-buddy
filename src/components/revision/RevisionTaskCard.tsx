@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, Clock, FileText, CheckSquare, Target } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -17,6 +17,9 @@ interface RevisionTaskCardProps {
   onDelete: () => void;
   onToggleComplete: () => void;
   isDraggable?: boolean;
+  linkedExamId?: string;
+  linkedPracticeSetId?: string;
+  targetScore?: number;
 }
 
 export const RevisionTaskCard = ({
@@ -32,6 +35,9 @@ export const RevisionTaskCard = ({
   onDelete,
   onToggleComplete,
   isDraggable = true,
+  linkedExamId,
+  linkedPracticeSetId,
+  targetScore,
 }: RevisionTaskCardProps) => {
   const {
     attributes,
@@ -65,13 +71,31 @@ export const RevisionTaskCard = ({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge
               className="text-xs font-medium"
               style={{ backgroundColor: subjectColor }}
             >
               {subject}
             </Badge>
+            {linkedExamId && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <FileText className="w-3 h-3" />
+                Linked Exam
+              </Badge>
+            )}
+            {linkedPracticeSetId && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <CheckSquare className="w-3 h-3" />
+                Practice Set
+              </Badge>
+            )}
+            {targetScore !== undefined && targetScore !== null && (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <Target className="w-3 h-3" />
+                Target: {targetScore}%
+              </Badge>
+            )}
             {isCompleted && (
               <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
             )}
