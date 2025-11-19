@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Play, Edit, CheckCircle2 } from "lucide-react";
+import { Clock, Play, Edit, CheckCircle2, FileText, CheckSquare, Target } from "lucide-react";
 import { PriorityBadge } from "../panels/PriorityBadge";
 import { TaskProgressBar } from "./TaskProgressBar";
 import { ConfidenceStars } from "./ConfidenceStars";
@@ -25,9 +25,12 @@ interface EnhancedTaskBlockProps {
   task: Task;
   onAction: (action: string, taskId: string) => void;
   compact?: boolean;
+  linkedExamId?: string | null;
+  linkedPracticeSetId?: string | null;
+  targetScore?: number | null;
 }
 
-export const EnhancedTaskBlock = ({ task, onAction, compact = false }: EnhancedTaskBlockProps) => {
+export const EnhancedTaskBlock = ({ task, onAction, compact = false, linkedExamId, linkedPracticeSetId, targetScore }: EnhancedTaskBlockProps) => {
   return (
     <div
       className={cn(
@@ -46,15 +49,37 @@ export const EnhancedTaskBlock = ({ task, onAction, compact = false }: EnhancedT
       )}
       
       {/* Subject Badge */}
-      <Badge 
-        className="text-xs"
-        style={{ 
-          backgroundColor: task.subject_color,
-          color: 'white'
-        }}
-      >
-        {task.subject}
-      </Badge>
+      <div className="flex items-center gap-1 flex-wrap">
+        <Badge 
+          className="text-xs"
+          style={{ 
+            backgroundColor: task.subject_color,
+            color: 'white'
+          }}
+        >
+          {task.subject}
+        </Badge>
+        
+        {/* Linked Content Badges */}
+        {linkedExamId && (
+          <Badge variant="outline" className="text-xs gap-1">
+            <FileText className="w-3 h-3" />
+            Exam
+          </Badge>
+        )}
+        {linkedPracticeSetId && (
+          <Badge variant="outline" className="text-xs gap-1">
+            <CheckSquare className="w-3 h-3" />
+            Practice
+          </Badge>
+        )}
+        {targetScore !== undefined && targetScore !== null && (
+          <Badge variant="secondary" className="text-xs gap-1">
+            <Target className="w-3 h-3" />
+            {targetScore}%
+          </Badge>
+        )}
+      </div>
       
       {/* Task Details */}
       <div className={cn("mt-1", compact && "text-xs")}>

@@ -20,6 +20,9 @@ interface Task {
   progress_percentage: number;
   confidence_before: number | null;
   confidence_after: number | null;
+  exam_id?: string | null;
+  linked_practice_set_id?: string | null;
+  target_score?: number | null;
 }
 
 interface WeekViewProps {
@@ -115,6 +118,9 @@ export const WeekView = ({
                       task={task}
                       onAction={onTaskAction}
                       compact
+                      linkedExamId={task.exam_id}
+                      linkedPracticeSetId={task.linked_practice_set_id}
+                      targetScore={task.target_score}
                     />
                   ))}
                 </div>
