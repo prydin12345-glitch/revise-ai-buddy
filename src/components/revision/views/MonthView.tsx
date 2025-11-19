@@ -33,14 +33,12 @@ interface MonthViewProps {
   onTaskAction: (action: string, taskId: string) => void;
   highlightedTaskId?: string | null;
 }
-}
 
 export const MonthView = ({ 
   currentDate, 
   tasks, 
   onTaskAction,
-  isExpanded,
-  onToggleExpand
+  highlightedTaskId
 }: MonthViewProps) => {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   
@@ -68,37 +66,16 @@ export const MonthView = ({
   };
 
   return (
-    <Card className={cn(
-      "p-4 transition-all duration-300 ease-in-out",
-      isExpanded && "shadow-xl"
-    )}>
-      {/* Header with expand button */}
+    <Card className="p-4">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">
           {format(currentDate, 'MMMM yyyy')}
         </h2>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={onToggleExpand}
-          className="transition-transform duration-300 hover:scale-110"
-        >
-          {isExpanded ? (
-            <Minimize2 className="h-4 w-4" />
-          ) : (
-            <Maximize2 className="h-4 w-4" />
-          )}
-        </Button>
       </div>
 
-      <ScrollArea className={cn(
-        "h-[calc(100vh-200px)] transition-all duration-300",
-        isExpanded && "h-[calc(100vh-180px)]"
-      )}>
-        <div className={cn(
-          "grid grid-cols-7 gap-1 transition-all duration-300",
-          isExpanded && "gap-2"
-        )}>
+      <ScrollArea className="h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-7 gap-1">
           {/* Day Headers */}
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">

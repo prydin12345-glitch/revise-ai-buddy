@@ -35,9 +35,6 @@ interface WeekViewProps {
 }
 
 export const WeekView = ({ currentDate, tasks, onTaskAction, isExpanded, onToggleExpand, highlightedTaskId }: WeekViewProps) => {
-  isExpanded,
-  onToggleExpand
-}: WeekViewProps) => {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start on Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
