@@ -31,8 +31,8 @@ interface MonthViewProps {
   currentDate: Date;
   tasks: Task[];
   onTaskAction: (action: string, taskId: string) => void;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
+  highlightedTaskId?: string | null;
+}
 }
 
 export const MonthView = ({ 
@@ -151,10 +151,11 @@ export const MonthView = ({
                             task={task}
                             onAction={onTaskAction}
                             compact
-                            linkedExamId={task.exam_id}
-                            linkedPracticeSetId={task.linked_practice_set_id}
-                            targetScore={task.target_score}
-                          />
+                        linkedExamId={task.exam_id}
+                        linkedPracticeSetId={task.linked_practice_set_id}
+                        targetScore={task.target_score}
+                        isHighlighted={task.id === highlightedTaskId}
+                      />
                         ))}
                         <button
                           onClick={() => toggleDayExpansion(day)}
