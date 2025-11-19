@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -18,6 +20,7 @@ import { AutoRescheduleModal } from "@/components/revision/features/AutoReschedu
 import { FocusMode } from "@/components/revision/FocusMode";
 import { QuickAddModal } from "@/components/revision/QuickAddModal";
 import { EditGoalModal } from "@/components/revision/modals/EditGoalModal";
+import { FilterDropdown } from "@/components/revision/FilterDropdown";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
@@ -660,7 +663,7 @@ const RevisionPlan = () => {
     <DashboardLayout>
       {/* Sticky Top Bar */}
       <div className="sticky top-0 z-50 bg-background border-b">
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between gap-4 p-4">
           {/* Left: Month/Year Display & View Mode */}
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">
@@ -676,13 +679,41 @@ const RevisionPlan = () => {
             </Tabs>
           </div>
           
-          {/* Right: Actions */}
+          {/* Right: Search, Filters & Actions */}
           <div className="flex items-center gap-2">
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-48"
+            />
+            
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showCompleted}
+                onCheckedChange={setShowCompleted}
+              />
+              <span className="text-sm whitespace-nowrap">Show Completed</span>
+            </div>
+
+            <FilterDropdown
+              subjects={uniqueSubjects}
+              selectedSubjects={selectedSubjects}
+              onSubjectsChange={setSelectedSubjects}
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              completionStatus={completionFilter}
+              onCompletionStatusChange={setCompletionFilter}
+              linkedContent={linkedContentFilter}
+              onLinkedContentChange={setLinkedContentFilter}
+              activeFilterCount={getActiveFilterCount()}
+            />
+            
             <Button 
-              size="icon" 
               onClick={() => setQuickAddOpen(true)}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
             </Button>
           </div>
         </div>
@@ -736,24 +767,9 @@ const RevisionPlan = () => {
           viewMode={viewMode}
           currentDate={currentDate}
           tasks={scheduledTasks}
-          nearestExam={nearestExam}
           onTaskAction={handleTaskAction}
           isExpanded={isExpanded}
           onToggleExpand={handleToggleExpand}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearch}
-          showCompleted={showCompleted}
-          onToggleCompleted={() => setShowCompleted(!showCompleted)}
-          subjects={uniqueSubjects}
-          selectedSubjects={selectedSubjects}
-          onSubjectsChange={setSelectedSubjects}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          completionStatus={completionFilter}
-          onCompletionStatusChange={setCompletionFilter}
-          linkedContent={linkedContentFilter}
-          onLinkedContentChange={setLinkedContentFilter}
-          activeFilterCount={getActiveFilterCount()}
           highlightedTaskId={highlightedTaskId}
         />
 
