@@ -19,6 +19,9 @@ interface Task {
   progress_percentage: number;
   confidence_before: number | null;
   confidence_after: number | null;
+  exam_id?: string | null;
+  linked_practice_set_id?: string | null;
+  target_score?: number | null;
 }
 
 interface DayViewProps {
@@ -124,6 +127,9 @@ export const DayView = ({
                             key={task.id}
                             task={task}
                             onAction={onTaskAction}
+                            linkedExamId={task.exam_id}
+                            linkedPracticeSetId={task.linked_practice_set_id}
+                            targetScore={task.target_score}
                           />
                         ))
                       ) : (
