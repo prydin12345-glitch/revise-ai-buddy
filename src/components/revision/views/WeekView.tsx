@@ -31,12 +31,10 @@ interface WeekViewProps {
   onTaskAction: (action: string, taskId: string) => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  highlightedTaskId?: string | null;
 }
 
-export const WeekView = ({ 
-  currentDate, 
-  tasks, 
-  onTaskAction,
+export const WeekView = ({ currentDate, tasks, onTaskAction, isExpanded, onToggleExpand, highlightedTaskId }: WeekViewProps) => {
   isExpanded,
   onToggleExpand
 }: WeekViewProps) => {
@@ -118,10 +116,11 @@ export const WeekView = ({
                       task={task}
                       onAction={onTaskAction}
                       compact
-                      linkedExamId={task.exam_id}
-                      linkedPracticeSetId={task.linked_practice_set_id}
-                      targetScore={task.target_score}
-                    />
+                            linkedExamId={task.exam_id}
+                            linkedPracticeSetId={task.linked_practice_set_id}
+                            targetScore={task.target_score}
+                            isHighlighted={task.id === highlightedTaskId}
+                          />
                   ))}
                 </div>
               );

@@ -27,10 +27,8 @@ interface Task {
 interface DayViewProps {
   currentDate: Date;
   tasks: Task[];
-  nearestExam?: any;
   onTaskAction: (action: string, taskId: string) => void;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
+  highlightedTaskId?: string | null;
 }
 
 export const DayView = ({ 
@@ -127,10 +125,11 @@ export const DayView = ({
                             key={task.id}
                             task={task}
                             onAction={onTaskAction}
-                            linkedExamId={task.exam_id}
-                            linkedPracticeSetId={task.linked_practice_set_id}
-                            targetScore={task.target_score}
-                          />
+                  linkedExamId={task.exam_id}
+                  linkedPracticeSetId={task.linked_practice_set_id}
+                  targetScore={task.target_score}
+                  isHighlighted={task.id === highlightedTaskId}
+                />
                         ))
                       ) : (
                         <div className="h-12 rounded-lg border-2 border-dashed border-border/50 flex items-center justify-center text-xs text-muted-foreground hover:border-primary/50 hover:bg-accent/50 transition-colors cursor-pointer">

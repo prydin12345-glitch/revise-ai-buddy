@@ -57,6 +57,15 @@ const RevisionPlan = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [preFilledTaskData, setPreFilledTaskData] = useState<any>(null);
   
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
+  const [completionFilter, setCompletionFilter] = useState<'all' | 'completed' | 'pending'>('all');
+  const [linkedContentFilter, setLinkedContentFilter] = useState<'all' | 'exam' | 'practice' | 'none'>('all');
+  
   // Modals
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
@@ -66,6 +75,7 @@ const RevisionPlan = () => {
   const [editGoalOpen, setEditGoalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   // Suggestions
   const [weakTopics, setWeakTopics] = useState<any[]>([]);
@@ -87,6 +97,16 @@ const RevisionPlan = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location]);
+
+  useEffect(() => {
+    if (searchQuery && highlightedTaskId) {
+      const element = document.querySelector(`[data-task-id="${highlightedTaskId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setHighlightedTaskId(null), 3000);
+      }
+    }
+  }, [highlightedTaskId]);
 
   useEffect(() => {
     if (tasks.length > 0) {
@@ -277,28 +297,90 @@ const RevisionPlan = () => {
     }
   };
 
-  // Get tasks filtered by view and date
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (selectedSubjects.length > 0) count++;
+    if (dateRange.from || dateRange.to) count++;
+    if (completionFilter !== 'all') count++;
+    if (linkedContentFilter !== 'all') count++;
+    return count;
+  };
+
   const getFilteredTasks = () => {
+    let filtered = tasks;
+
+    // View mode filter (date-based)
     if (viewMode === 'day') {
-      return tasks.filter(t => 
-        isSameDay(new Date(t.date), currentDate) && t.status === 'scheduled'
+      filtered = filtered.filter(task => 
+        isSameDay(new Date(task.date), currentDate)
       );
     } else if (viewMode === 'week') {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const weekEnd = addDays(weekStart, 6);
-      return tasks.filter(t => {
-        const taskDate = new Date(t.date);
-        return taskDate >= weekStart && taskDate <= weekEnd && t.status === 'scheduled';
+      filtered = filtered.filter(task => {
+        const taskDate = new Date(task.date);
+        return taskDate >= weekStart && taskDate < addDays(weekStart, 7);
       });
-    } else {
-      // Month view - all tasks in current month
-      return tasks.filter(t => {
-        const taskDate = new Date(t.date);
-        return taskDate.getMonth() === currentDate.getMonth() && 
-               taskDate.getFullYear() === currentDate.getFullYear() &&
-               t.status === 'scheduled';
+    } else if (viewMode === 'month') {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      filtered = filtered.filter(task => {
+        const taskDate = new Date(task.date);
+        return taskDate >= monthStart && taskDate <= monthEnd;
       });
     }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(task =>
+        task.subject.toLowerCase().includes(query) ||
+        task.focus_topic?.toLowerCase().includes(query) ||
+        task.exam_title?.toLowerCase().includes(query)
+      );
+    }
+
+    // Show completed toggle
+    if (!showCompleted) {
+      filtered = filtered.filter(task => !task.is_completed);
+    }
+
+    // Subject filter
+    if (selectedSubjects.length > 0) {
+      filtered = filtered.filter(task => selectedSubjects.includes(task.subject));
+    }
+
+    // Date range filter
+    if (dateRange.from || dateRange.to) {
+      filtered = filtered.filter(task => {
+        const taskDate = new Date(task.date);
+        if (dateRange.from && dateRange.to) {
+          return taskDate >= dateRange.from && taskDate <= dateRange.to;
+        } else if (dateRange.from) {
+          return taskDate >= dateRange.from;
+        } else if (dateRange.to) {
+          return taskDate <= dateRange.to;
+        }
+        return true;
+      });
+    }
+
+    // Completion status filter
+    if (completionFilter === 'completed') {
+      filtered = filtered.filter(task => task.is_completed);
+    } else if (completionFilter === 'pending') {
+      filtered = filtered.filter(task => !task.is_completed);
+    }
+
+    // Linked content filter
+    if (linkedContentFilter === 'exam') {
+      filtered = filtered.filter(task => !!task.exam_id);
+    } else if (linkedContentFilter === 'practice') {
+      filtered = filtered.filter(task => !!task.linked_practice_set_id);
+    } else if (linkedContentFilter === 'none') {
+      filtered = filtered.filter(task => !task.exam_id && !task.linked_practice_set_id);
+    }
+
+    return filtered.filter(t => t.status === 'scheduled');
   };
 
   const inboxTasks = tasks.filter(t => t.status === 'inbox');
@@ -309,6 +391,20 @@ const RevisionPlan = () => {
   const nearestExam = userExams
     .filter(exam => new Date(exam.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+  const uniqueSubjects = Array.from(new Set(subjects.map(s => s.subject_name)));
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query) {
+      const filtered = getFilteredTasks();
+      if (filtered.length > 0) {
+        setHighlightedTaskId(filtered[0].id);
+      }
+    } else {
+      setHighlightedTaskId(null);
+    }
+  };
 
   const handleAddTask = async (taskData: {
     subject: string;
@@ -532,6 +628,24 @@ const RevisionPlan = () => {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTaskId) return;
+
+    try {
+      await supabase
+        .from("revision_tasks")
+        .delete()
+        .eq("id", deleteTaskId);
+
+      toast.success("Task deleted successfully!");
+      setDeleteTaskId(null);
+      await loadData();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -626,6 +740,21 @@ const RevisionPlan = () => {
           onTaskAction={handleTaskAction}
           isExpanded={isExpanded}
           onToggleExpand={handleToggleExpand}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearch}
+          showCompleted={showCompleted}
+          onToggleCompleted={() => setShowCompleted(!showCompleted)}
+          subjects={uniqueSubjects}
+          selectedSubjects={selectedSubjects}
+          onSubjectsChange={setSelectedSubjects}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          completionStatus={completionFilter}
+          onCompletionStatusChange={setCompletionFilter}
+          linkedContent={linkedContentFilter}
+          onLinkedContentChange={setLinkedContentFilter}
+          activeFilterCount={getActiveFilterCount()}
+          highlightedTaskId={highlightedTaskId}
         />
 
         {/* Right Sidebar - Desktop */}
@@ -733,6 +862,21 @@ const RevisionPlan = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteGoal}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => !open && setDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Revision Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this task from your revision plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

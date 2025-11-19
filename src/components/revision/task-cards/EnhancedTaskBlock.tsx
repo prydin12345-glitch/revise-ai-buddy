@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Play, Edit, CheckCircle2, FileText, CheckSquare, Target } from "lucide-react";
+import { Clock, Play, Edit, CheckCircle2, FileText, CheckSquare, Target, Trash2 } from "lucide-react";
 import { PriorityBadge } from "../panels/PriorityBadge";
 import { TaskProgressBar } from "./TaskProgressBar";
 import { ConfidenceStars } from "./ConfidenceStars";
@@ -28,15 +28,18 @@ interface EnhancedTaskBlockProps {
   linkedExamId?: string | null;
   linkedPracticeSetId?: string | null;
   targetScore?: number | null;
+  isHighlighted?: boolean;
 }
 
-export const EnhancedTaskBlock = ({ task, onAction, compact = false, linkedExamId, linkedPracticeSetId, targetScore }: EnhancedTaskBlockProps) => {
+export const EnhancedTaskBlock = ({ task, onAction, compact = false, linkedExamId, linkedPracticeSetId, targetScore, isHighlighted }: EnhancedTaskBlockProps) => {
   return (
     <div
+      data-task-id={task.id}
       className={cn(
         "group relative rounded-lg border-l-4 hover:shadow-md transition-all",
         compact ? "p-2" : "p-3",
-        task.is_completed && "opacity-60"
+        task.is_completed && "opacity-60",
+        isHighlighted && "ring-2 ring-primary shadow-lg"
       )}
       style={{
         borderLeftColor: task.subject_color,
@@ -151,6 +154,13 @@ export const EnhancedTaskBlock = ({ task, onAction, compact = false, linkedExamI
             </Button>
           </>
         )}
+        <Button 
+          size="sm" 
+          variant="destructive" 
+          onClick={() => onAction('delete', task.id)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
       </div>
     </div>
   );
