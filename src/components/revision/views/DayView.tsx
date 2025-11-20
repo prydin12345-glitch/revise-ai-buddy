@@ -29,9 +29,11 @@ interface DayViewProps {
   tasks: Task[];
   onTaskAction: (action: string, taskId: string) => void;
   highlightedTaskId?: string | null;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export const DayView = ({ currentDate, tasks, onTaskAction, highlightedTaskId }: DayViewProps) => {
+export const DayView = ({ currentDate, tasks, onTaskAction, highlightedTaskId, isExpanded, onToggleExpand }: DayViewProps) => {
   const hours = Array.from({ length: 16 }, (_, i) => i + 7); // 07:00-22:00
   const now = new Date();
 
@@ -55,6 +57,29 @@ export const DayView = ({ currentDate, tasks, onTaskAction, highlightedTaskId }:
               {format(currentDate, 'EEEE')} <span className="text-2xl">{format(currentDate, 'd')}th</span>
             </h2>
           </div>
+          
+          {onToggleExpand && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleExpand}
+              className="gap-2"
+              aria-label={isExpanded ? "Collapse view" : "Expand view"}
+              title={isExpanded ? "Collapse view" : "Expand view"}
+            >
+              {isExpanded ? (
+                <>
+                  <Minimize2 className="h-4 w-4" />
+                  Collapse
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-4 w-4" />
+                  Expand
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </CardHeader>
       

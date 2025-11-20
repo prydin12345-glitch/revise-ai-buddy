@@ -493,6 +493,8 @@ const RevisionPlan = () => {
         setFocusModeOpen(true);
       } else if (action === 'edit') {
         setQuickAddOpen(true);
+      } else if (action === 'delete') {
+        setDeleteTaskId(taskId);
       }
     } catch (error) {
       console.error("Error handling task action:", error);
@@ -635,6 +637,14 @@ const RevisionPlan = () => {
     if (!deleteTaskId) return;
 
     try {
+      // Clear highlight if we're deleting the highlighted task
+      if (highlightedTaskId === deleteTaskId) {
+        setHighlightedTaskId(null);
+      }
+
+      // Optimistic update: remove from UI immediately
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== deleteTaskId));
+
       await supabase
         .from("revision_tasks")
         .delete()
@@ -642,10 +652,14 @@ const RevisionPlan = () => {
 
       toast.success("Task deleted successfully!");
       setDeleteTaskId(null);
+      
+      // Refetch to ensure consistency
       await loadData();
     } catch (error) {
       console.error("Error deleting task:", error);
       toast.error("Failed to delete task");
+      // Rollback optimistic update on error
+      await loadData();
     }
   };
 

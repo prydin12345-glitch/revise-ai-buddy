@@ -32,13 +32,17 @@ interface MonthViewProps {
   tasks: Task[];
   onTaskAction: (action: string, taskId: string) => void;
   highlightedTaskId?: string | null;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 export const MonthView = ({ 
   currentDate, 
   tasks, 
   onTaskAction,
-  highlightedTaskId
+  highlightedTaskId,
+  isExpanded,
+  onToggleExpand
 }: MonthViewProps) => {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   
@@ -72,6 +76,29 @@ export const MonthView = ({
         <h2 className="text-xl font-bold">
           {format(currentDate, 'MMMM yyyy')}
         </h2>
+        
+        {onToggleExpand && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleExpand}
+            className="gap-2"
+            aria-label={isExpanded ? "Collapse view" : "Expand view"}
+            title={isExpanded ? "Collapse view" : "Expand view"}
+          >
+            {isExpanded ? (
+              <>
+                <Minimize2 className="h-4 w-4" />
+                Collapse
+              </>
+            ) : (
+              <>
+                <Maximize2 className="h-4 w-4" />
+                Expand
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
