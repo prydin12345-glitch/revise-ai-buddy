@@ -9,6 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -24,6 +26,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
@@ -57,21 +60,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen flex w-full bg-background">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
+        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
           sidebarCollapsed ? "w-16" : "w-64"
-        } ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        }`}
       >
         <div className="flex flex-col h-full">
           {/* Hamburger Menu */}
@@ -168,18 +161,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-sidebar-background border-b border-sidebar-border shadow-lg">
+        <header className="sticky top-0 z-30 h-14 lg:h-16 bg-sidebar-background border-b border-sidebar-border shadow-lg">
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
-            {/* Left: Mobile menu + Logo + Search */}
+            {/* Left: Logo + Search */}
             <div className="flex items-center gap-6 flex-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden hover:bg-white/10"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5 text-white" />
-              </Button>
               
               <div className="hidden lg:flex items-center">
                 <span className="text-xl font-bold text-white">Examly</span>
@@ -234,8 +219,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">{children}</main>
+        <main className="p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && <MobileBottomNav />}
     </div>
   );
 };

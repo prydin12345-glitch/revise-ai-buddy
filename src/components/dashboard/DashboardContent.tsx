@@ -453,27 +453,27 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
 
   return (
     <div className="max-w-[1600px] mx-auto">
-      <div className="grid lg:grid-cols-[1fr_380px] gap-8">
+      <div className="grid lg:grid-cols-[1fr_380px] gap-4 lg:gap-8">
         {/* Left: Main Content */}
-        <div className="space-y-8">
+        <div className="space-y-6 lg:space-y-8">
           {/* Primary CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button 
               size="lg" 
               variant="outline"
-              className="flex-1 h-16 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
+              className="flex-1 h-14 sm:h-16 text-base sm:text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
               onClick={() => navigate("/upload")}
             >
-              <Upload className="w-5 h-5 mr-3" />
+              <Upload className="w-5 h-5 mr-2 sm:mr-3" />
               Create Mock Exam
             </Button>
             <Button 
               size="lg" 
               variant="outline"
-              className="flex-1 h-16 text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
+              className="flex-1 h-14 sm:h-16 text-base sm:text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
               onClick={() => navigate("/practice-questions/new")}
             >
-              <FileText className="w-5 h-5 mr-3" />
+              <FileText className="w-5 h-5 mr-2 sm:mr-3" />
               Create Practice Questions
             </Button>
           </div>
@@ -668,17 +668,17 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
         </div>
 
         {/* Right: Sidebar Panels */}
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* Floating Stats Badges */}
           <TooltipProvider>
-            <div className="flex flex-wrap items-center gap-3 justify-end">
+            <div className="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-3 lg:justify-end">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer min-h-[44px]"
                     onClick={() => navigate("/stats?tab=stats")}
                   >
-                    <FileText className="h-5 w-5 text-blue-500" />
+                    <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
                     <span className="text-base font-medium text-foreground">{exams.filter(e => e.submission).length}</span>
                   </div>
                 </TooltipTrigger>
@@ -690,10 +690,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer min-h-[44px]"
                     onClick={() => navigate("/stats?tab=stats")}
                   >
-                    <Target className="h-5 w-5 text-green-500" />
+                    <Target className="h-5 w-5 text-green-500 flex-shrink-0" />
                     <span className="text-base font-medium text-foreground">
                       {exams.filter(e => e.submission?.status === 'graded').length > 0 
                         ? `${Math.round(exams.filter(e => e.submission?.status === 'graded').reduce((acc, e) => acc + ((Math.round(e.submission!.total_score) / e.submission!.total_marks) * 100), 0) / exams.filter(e => e.submission?.status === 'graded').length)}%`
@@ -709,10 +709,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer min-h-[44px]"
                     onClick={() => navigate("/stats?tab=stats")}
                   >
-                    <Clock className="h-5 w-5 text-purple-500" />
+                    <Clock className="h-5 w-5 text-purple-500 flex-shrink-0" />
                     <span className="text-base font-medium text-foreground">0h</span>
                   </div>
                 </TooltipTrigger>
@@ -724,10 +724,10 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent/20 hover:border hover:border-border cursor-pointer min-h-[44px]"
                     onClick={() => navigate("/stats?tab=stats")}
                   >
-                    <Flame className="h-5 w-5 text-orange-500" />
+                    <Flame className="h-5 w-5 text-orange-500 flex-shrink-0" />
                     <span className="text-base font-medium text-foreground">0</span>
                   </div>
                 </TooltipTrigger>
