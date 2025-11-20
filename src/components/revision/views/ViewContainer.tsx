@@ -29,6 +29,8 @@ export const ViewContainer = ({
           tasks={tasks}
           onTaskAction={onTaskAction}
           highlightedTaskId={highlightedTaskId}
+          isExpanded={isExpanded}
+          onToggleExpand={onToggleExpand}
         />
       )}
       {viewMode === 'week' && (
@@ -47,6 +49,8 @@ export const ViewContainer = ({
           tasks={tasks}
           onTaskAction={onTaskAction}
           highlightedTaskId={highlightedTaskId}
+          isExpanded={isExpanded}
+          onToggleExpand={onToggleExpand}
         />
       )}
     </>
