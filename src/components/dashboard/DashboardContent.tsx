@@ -1013,14 +1013,16 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-background border-border z-[100]" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={newGoal.deadline || undefined}
-                    onSelect={(date) => setNewGoal({ ...newGoal, deadline: date || null })}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
+                  <div className="min-h-[320px]">
+                    <CalendarComponent
+                      mode="single"
+                      selected={newGoal.deadline || undefined}
+                      onSelect={(date) => setNewGoal({ ...newGoal, deadline: date || null })}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>
@@ -1143,14 +1145,16 @@ export const DashboardContent = ({ userEmail }: DashboardContentProps) => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-background border-border z-[100]" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={editingGoal.deadline ? new Date(editingGoal.deadline) : undefined}
-                      onSelect={(date) => setEditingGoal({ ...editingGoal, deadline: date ? date.toISOString() : null })}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    <div className="min-h-[320px]">
+                      <CalendarComponent
+                        mode="single"
+                        selected={editingGoal.deadline ? new Date(editingGoal.deadline) : undefined}
+                        onSelect={(date) => setEditingGoal({ ...editingGoal, deadline: date ? date.toISOString() : null })}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                       className="pointer-events-auto"
                     />
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
