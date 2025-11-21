@@ -16,6 +16,7 @@ import { SuggestionsPanel } from "@/components/revision/panels/SuggestionsPanel"
 import { GoalInfoCard } from "@/components/revision/panels/GoalInfoCard";
 import { StreakTracker } from "@/components/revision/features/StreakTracker";
 import { SessionFeedbackModal } from "@/components/revision/features/SessionFeedbackModal";
+import { SpacedRepetitionPrompt } from "@/components/revision/SpacedRepetitionPrompt";
 import { AutoRescheduleModal } from "@/components/revision/features/AutoRescheduleModal";
 import { FocusMode } from "@/components/revision/FocusMode";
 import { QuickAddModal } from "@/components/revision/QuickAddModal";
@@ -45,6 +46,8 @@ interface RevisionTask {
   missed_count?: number;
   linked_practice_set_id?: string | null;
   target_score?: number | null;
+  due_date?: string | null;
+  reminder_days_before?: number | null;
 }
 
 const RevisionPlan = () => {
@@ -71,10 +74,14 @@ const RevisionPlan = () => {
   
   // Modals
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [editTaskMode, setEditTaskMode] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [focusTask, setFocusTask] = useState<RevisionTask | null>(null);
   const [feedbackTask, setFeedbackTask] = useState<RevisionTask | null>(null);
   const [missedTasks, setMissedTasks] = useState<RevisionTask[]>([]);
+  const [spacedRepTask, setSpacedRepTask] = useState<RevisionTask | null>(null);
+  const [spacedRepPromptOpen, setSpacedRepPromptOpen] = useState(false);
   const [editGoalOpen, setEditGoalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
@@ -113,7 +120,7 @@ const RevisionPlan = () => {
 
   useEffect(() => {
     if (tasks.length > 0) {
-      checkMissedTasks();
+      detectMissedTasks();
       loadSuggestions();
     }
   }, [tasks]);
@@ -183,15 +190,20 @@ const RevisionPlan = () => {
     }
   };
 
-  const checkMissedTasks = () => {
-    const now = new Date();
-    const missed = tasks.filter(task => {
-      if (task.is_completed || task.status !== 'scheduled') return false;
-      const taskDateTime = new Date(`${task.date} ${task.time}`);
-      return taskDateTime < now && !isSameDay(taskDateTime, now);
-    });
-    if (missed.length > 0 && missedTasks.length === 0) {
-      setMissedTasks(missed);
+  const detectMissedTasks = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('detect-missed-tasks');
+      
+      if (error) {
+        console.error('Error detecting missed tasks:', error);
+        return;
+      }
+
+      if (data?.missedTasks && data.missedTasks.length > 0 && missedTasks.length === 0) {
+        setMissedTasks(data.missedTasks);
+      }
+    } catch (error) {
+      console.error('Error calling detect-missed-tasks:', error);
     }
   };
 
@@ -386,7 +398,6 @@ const RevisionPlan = () => {
     return filtered.filter(t => t.status === 'scheduled');
   };
 
-  const inboxTasks = tasks.filter(t => t.status === 'inbox');
   const archivedTasks = tasks.filter(t => t.archived_at !== null);
   const scheduledTasks = getFilteredTasks();
 
@@ -416,6 +427,9 @@ const RevisionPlan = () => {
     duration: number;
     dueDate?: string;
     reminderDaysBefore?: number;
+    linkedExamId?: string;
+    linkedPracticeSetId?: string;
+    targetScore?: number;
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -435,6 +449,9 @@ const RevisionPlan = () => {
           duration: taskData.duration,
           due_date: taskData.dueDate,
           reminder_days_before: taskData.reminderDaysBefore || 1,
+          exam_id: taskData.linkedExamId || null,
+          linked_practice_set_id: taskData.linkedPracticeSetId || null,
+          target_score: taskData.targetScore || null,
           status: 'scheduled',
           priority: 'medium',
           progress_percentage: 0,
@@ -448,6 +465,48 @@ const RevisionPlan = () => {
     } catch (error) {
       console.error("Error adding task:", error);
       toast.error("Failed to add task");
+    }
+  };
+
+  const handleUpdateTask = async (taskId: string, taskData: {
+    subject: string;
+    focusTopic: string;
+    time: string;
+    duration: number;
+    dueDate?: string;
+    reminderDaysBefore?: number;
+    linkedExamId?: string;
+    linkedPracticeSetId?: string;
+    targetScore?: number;
+  }) => {
+    try {
+      const subjectData = subjects.find(s => s.subject_name === taskData.subject);
+
+      await supabase
+        .from("revision_tasks")
+        .update({
+          subject: taskData.subject,
+          subject_color: subjectData?.subject_color || '#3B82F6',
+          focus_topic: taskData.focusTopic,
+          time: taskData.time,
+          duration: taskData.duration,
+          due_date: taskData.dueDate,
+          reminder_days_before: taskData.reminderDaysBefore || 1,
+          exam_id: taskData.linkedExamId || null,
+          linked_practice_set_id: taskData.linkedPracticeSetId || null,
+          target_score: taskData.targetScore || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", taskId);
+
+      toast.success("Task updated!");
+      setQuickAddOpen(false);
+      setEditTaskMode(false);
+      setEditingTaskId(null);
+      await loadData();
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
     }
   };
 
@@ -492,6 +551,19 @@ const RevisionPlan = () => {
         setFocusTask(task);
         setFocusModeOpen(true);
       } else if (action === 'edit') {
+        setEditTaskMode(true);
+        setEditingTaskId(taskId);
+        setPreFilledTaskData({
+          subject: task.subject,
+          focusTopic: task.focus_topic || '',
+          linkedExamId: task.exam_id || undefined,
+          linkedPracticeSetId: task.linked_practice_set_id || undefined,
+          time: task.time,
+          duration: task.duration || 60,
+          dueDate: task.due_date || undefined,
+          reminderDaysBefore: task.reminder_days_before || 1,
+          targetScore: task.target_score || undefined,
+        });
         setQuickAddOpen(true);
       } else if (action === 'delete') {
         setDeleteTaskId(taskId);
@@ -533,16 +605,6 @@ const RevisionPlan = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Update task with confidence
-      await supabase
-        .from("revision_tasks")
-        .update({
-          confidence_after: feedback.confidence,
-          progress_percentage: feedback.understood ? 100 : 75,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", feedbackTask.id);
-
       // Insert session feedback
       await supabase
         .from("session_feedback")
@@ -554,12 +616,75 @@ const RevisionPlan = () => {
           notes: feedback.notes
         });
 
+      // Calculate spaced repetition date
+      const { data: spacedRepData, error: spacedRepError } = await supabase.functions.invoke(
+        'calculate-spaced-repetition',
+        {
+          body: {
+            taskId: feedbackTask.id,
+            confidence: feedback.confidence
+          }
+        }
+      );
+
+      if (spacedRepError) {
+        console.error('Error calculating spaced repetition:', spacedRepError);
+      }
+
       toast.success("Feedback saved!");
+      
+      // Show spaced repetition prompt if confidence is moderate or below
+      if (feedback.confidence <= 4) {
+        setSpacedRepTask(feedbackTask);
+        setSpacedRepPromptOpen(true);
+      }
+      
       setFeedbackTask(null);
       await loadData();
     } catch (error) {
       console.error("Error saving feedback:", error);
       toast.error("Failed to save feedback");
+    }
+  };
+
+  const handleScheduleReview = async (daysFromNow: number) => {
+    if (!spacedRepTask) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const reviewDate = addDays(new Date(), daysFromNow);
+
+      // Create a new review task linked to the original
+      await supabase
+        .from("revision_tasks")
+        .insert({
+          user_id: user.id,
+          subject: spacedRepTask.subject,
+          subject_color: spacedRepTask.subject_color,
+          focus_topic: `Review: ${spacedRepTask.focus_topic || spacedRepTask.exam_title || 'Previous session'}`,
+          date: format(reviewDate, 'yyyy-MM-dd'),
+          time: spacedRepTask.time,
+          duration: Math.ceil((spacedRepTask.duration || 60) * 0.75), // 75% of original duration
+          exam_id: spacedRepTask.exam_id,
+          linked_practice_set_id: spacedRepTask.linked_practice_set_id,
+          target_score: spacedRepTask.target_score,
+          parent_task_id: spacedRepTask.id,
+          status: 'scheduled',
+          priority: 'medium',
+          progress_percentage: 0,
+          is_completed: false,
+          day: format(reviewDate, 'EEEE')
+        });
+
+      toast.success(`Review scheduled for ${format(reviewDate, 'MMM d')}`);
+      setSpacedRepTask(null);
+      setSpacedRepPromptOpen(false);
+      await loadData();
+    } catch (error) {
+      console.error("Error scheduling review:", error);
+      toast.error("Failed to schedule review");
     }
   };
 
@@ -749,7 +874,7 @@ const RevisionPlan = () => {
           <CalendarSidebar
             currentDate={currentDate}
             onDateChange={(date) => date && setCurrentDate(date)}
-            inboxTasks={inboxTasks}
+            inboxTasks={[]}
             archivedTasks={archivedTasks}
             allTasks={tasks}
           />
@@ -768,7 +893,7 @@ const RevisionPlan = () => {
               <CalendarSidebar
                 currentDate={currentDate}
                 onDateChange={(date) => date && setCurrentDate(date)}
-                inboxTasks={inboxTasks}
+                inboxTasks={[]}
                 archivedTasks={archivedTasks}
                 allTasks={tasks}
               />
@@ -835,9 +960,19 @@ const RevisionPlan = () => {
       {/* Modals */}
       <QuickAddModal
         open={quickAddOpen}
-        onOpenChange={setQuickAddOpen}
+        onOpenChange={(open) => {
+          setQuickAddOpen(open);
+          if (!open) {
+            setEditTaskMode(false);
+            setEditingTaskId(null);
+            setPreFilledTaskData(null);
+          }
+        }}
         subjects={subjects}
         onAdd={handleAddTask}
+        onUpdate={handleUpdateTask}
+        editMode={editTaskMode}
+        editTaskId={editingTaskId || undefined}
         onSaveSubject={async (name, color) => {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return;
@@ -852,6 +987,7 @@ const RevisionPlan = () => {
           toast.success(`Subject "${name}" added!`);
         }}
         suggestedTime={format(currentDate, 'HH:mm')}
+        preFilledData={preFilledTaskData}
       />
 
       <FocusMode
@@ -865,6 +1001,13 @@ const RevisionPlan = () => {
         task={feedbackTask}
         onSubmit={handleSessionFeedback}
         onSkip={() => setFeedbackTask(null)}
+      />
+
+      <SpacedRepetitionPrompt
+        open={spacedRepPromptOpen}
+        onOpenChange={setSpacedRepPromptOpen}
+        task={spacedRepTask}
+        onScheduleReview={handleScheduleReview}
       />
 
       <AutoRescheduleModal
