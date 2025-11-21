@@ -38,7 +38,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
     { icon: Target, label: "Revision Plan", path: "/revision-plan" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
-    { icon: MessageSquare, label: "AI Revision Coach", path: "/coach" },
   ];
 
   const handleLogout = async () => {
@@ -168,15 +167,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               
               <div className="hidden lg:flex items-center">
                 <span className="text-xl font-bold text-white">Examly</span>
-              </div>
-
-              <div className="relative flex-1 max-w-md hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search exams, topics, or files..."
-                  className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:bg-white/15 focus:border-primary/50 transition-colors"
-                />
               </div>
             </div>
 
