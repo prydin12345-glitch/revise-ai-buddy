@@ -57,56 +57,56 @@ export const ExamResultsChart = ({
         {data.length > 0 && subjects.length > 0 ? (
           <>
             <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="period" 
-                  stroke="hsl(var(--muted-foreground))"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  stroke="hsl(var(--muted-foreground))"
-                  style={{ fontSize: '12px' }}
-                  label={{ value: 'Score (%)', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                  formatter={(value: any) => [`${Math.round(value)}%`, '']}
-                />
-                {subjects.map((subject) => (
-                  <Line
-                    key={subject.name}
-                    type="monotone"
-                    dataKey={subject.name}
-                    stroke={subject.color}
-                    strokeWidth={3}
-                    dot={{ fill: subject.color, r: 5 }}
-                    connectNulls
-                    name={subject.name}
+              <LineChart data={data} className="md:h-[350px]">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="period" 
+                    stroke="hsl(var(--muted-foreground))"
+                    style={{ fontSize: '12px' }}
                   />
-                ))}
-                {revisionGoals.map((goal) => (
-                  <ReferenceLine
-                    key={`goal-${goal.subject}`}
-                    y={goal.targetPercentage}
-                    stroke={goal.color}
-                    strokeDasharray="5 5"
-                    strokeWidth={2}
-                    label={{ 
-                      value: `${goal.subject} Target: ${goal.targetPercentage}%`, 
-                      fill: goal.color,
-                      position: 'right',
-                      style: { fontSize: '11px' }
+                  <YAxis 
+                    domain={[0, 100]} 
+                    stroke="hsl(var(--muted-foreground))"
+                    style={{ fontSize: '12px' }}
+                    label={{ value: 'Score (%)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
                     }}
+                    formatter={(value: any) => [`${Math.round(value)}%`, '']}
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+                  {subjects.map((subject) => (
+                    <Line
+                      key={subject.name}
+                      type="monotone"
+                      dataKey={subject.name}
+                      stroke={subject.color}
+                      strokeWidth={3}
+                      dot={{ fill: subject.color, r: 5 }}
+                      connectNulls
+                      name={subject.name}
+                    />
+                  ))}
+                  {revisionGoals.map((goal) => (
+                    <ReferenceLine
+                      key={`goal-${goal.subject}`}
+                      y={goal.targetPercentage}
+                      stroke={goal.color}
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      label={{ 
+                        value: `${goal.subject} Target: ${goal.targetPercentage}%`, 
+                        fill: goal.color,
+                        position: 'right',
+                        style: { fontSize: '11px' }
+                      }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
             {revisionGoals.length > 0 && (
               <div className="mt-4 space-y-2">
                 {revisionGoals.map((goal) => (

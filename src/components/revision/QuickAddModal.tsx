@@ -30,6 +30,20 @@ interface QuickAddModalProps {
     linkedPracticeSetId?: string;
     targetScore?: number;
   }) => void;
+  onUpdate?: (taskId: string, updates: {
+    subject: string;
+    subject_color: string;
+    focusTopic: string;
+    time: string;
+    duration: number;
+    dueDate?: string;
+    reminderDaysBefore?: number;
+    linkedExamId?: string;
+    linkedPracticeSetId?: string;
+    targetScore?: number;
+  }) => void;
+  editMode?: boolean;
+  editTaskId?: string;
   suggestedTime?: string;
   onSaveSubject?: (name: string, color: string) => Promise<void>;
   preFilledData?: {
@@ -37,10 +51,15 @@ interface QuickAddModalProps {
     focusTopic?: string;
     linkedExamId?: string;
     linkedPracticeSetId?: string;
+    time?: string;
+    duration?: number;
+    dueDate?: string;
+    reminderDaysBefore?: number;
+    targetScore?: number;
   };
 }
 
-export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTime, onSaveSubject, preFilledData }: QuickAddModalProps) => {
+export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, onUpdate, editMode = false, editTaskId, suggestedTime, onSaveSubject, preFilledData }: QuickAddModalProps) => {
   const [subject, setSubject] = useState("");
   const [focusTopic, setFocusTopic] = useState("");
   const [time, setTime] = useState(suggestedTime || "09:00");
@@ -87,8 +106,19 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
       if (preFilledData.focusTopic) setFocusTopic(preFilledData.focusTopic);
       if (preFilledData.linkedExamId) setLinkedExamId(preFilledData.linkedExamId);
       if (preFilledData.linkedPracticeSetId) setLinkedPracticeSetId(preFilledData.linkedPracticeSetId);
+      if (preFilledData.time) setTime(preFilledData.time);
+      if (preFilledData.duration) setDuration(preFilledData.duration.toString());
+      if (preFilledData.dueDate) setDueDate(new Date(preFilledData.dueDate));
+      if (preFilledData.reminderDaysBefore) setReminderDaysBefore(preFilledData.reminderDaysBefore);
+      if (preFilledData.targetScore) setTargetScore(preFilledData.targetScore);
+      
+      // Set subject color
+      const existingSubject = subjects.find(s => s.subject_name === preFilledData.subject);
+      if (existingSubject) {
+        setSubjectColor(existingSubject.subject_color);
+      }
     }
-  }, [preFilledData]);
+  }, [preFilledData, subjects]);
 
   const handleSubjectChange = (value: string) => {
     setSubject(value);
@@ -110,7 +140,7 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
       return;
     }
 
-    onAdd({
+    const taskData = {
       subject,
       subject_color: subjectColor,
       focusTopic,
@@ -121,8 +151,15 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
       linkedExamId: linkedExamId || undefined,
       linkedPracticeSetId: linkedPracticeSetId || undefined,
       targetScore,
-    });
+    };
 
+    if (editMode && editTaskId && onUpdate) {
+      onUpdate(editTaskId, taskData);
+    } else {
+      onAdd(taskData);
+    }
+
+    // Reset form
     setSubject("");
     setFocusTopic("");
     setTime(suggestedTime || "09:00");
@@ -140,7 +177,7 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Revision Task</DialogTitle>
+          <DialogTitle>{editMode ? 'Edit Revision Task' : 'Add Revision Task'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -160,6 +197,7 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
               onChange={(e) => setFocusTopic(e.target.value)}
               placeholder="What will you revise?"
               required
+              className="text-base h-11"
             />
           </div>
 
@@ -215,6 +253,7 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
                 placeholder="e.g., 85"
                 value={targetScore || ""}
                 onChange={(e) => setTargetScore(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="text-base h-11"
               />
             </div>
           )}
@@ -244,8 +283,8 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
             <Label>Due Date (Optional)</Label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                <Button variant="outline" className="w-full justify-start text-base h-11">
+                  <CalendarIcon className="mr-2 h-5 w-5" />
                   {dueDate ? format(dueDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -272,7 +311,7 @@ export const QuickAddModal = ({ open, onOpenChange, subjects, onAdd, suggestedTi
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit">Add Task</Button>
+            <Button type="submit">{editMode ? 'Save Changes' : 'Add Task'}</Button>
           </div>
         </form>
       </DialogContent>

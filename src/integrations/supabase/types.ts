@@ -999,6 +999,7 @@ export type Database = {
           linked_practice_set_id: string | null
           missed_count: number | null
           next_review_date: string | null
+          parent_task_id: string | null
           priority: string | null
           progress_percentage: number | null
           reminder_days_before: number | null
@@ -1033,6 +1034,7 @@ export type Database = {
           linked_practice_set_id?: string | null
           missed_count?: number | null
           next_review_date?: string | null
+          parent_task_id?: string | null
           priority?: string | null
           progress_percentage?: number | null
           reminder_days_before?: number | null
@@ -1067,6 +1069,7 @@ export type Database = {
           linked_practice_set_id?: string | null
           missed_count?: number | null
           next_review_date?: string | null
+          parent_task_id?: string | null
           priority?: string | null
           progress_percentage?: number | null
           reminder_days_before?: number | null
@@ -1091,6 +1094,13 @@ export type Database = {
             columns: ["linked_practice_set_id"]
             isOneToOne: false
             referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "revision_tasks"
             referencedColumns: ["id"]
           },
         ]

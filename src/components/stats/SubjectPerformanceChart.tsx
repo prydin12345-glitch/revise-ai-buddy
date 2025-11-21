@@ -61,7 +61,7 @@ export const SubjectPerformanceChart = ({ data, viewMode, onViewModeChange }: Su
       </CardHeader>
       <CardContent>
         {chartData.length > 0 ? (
-          <>
+          <div className="relative">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -86,21 +86,21 @@ export const SubjectPerformanceChart = ({ data, viewMode, onViewModeChange }: Su
                 {viewMode === 'score' ? 'Avg Score' : 'Total Exams'}
               </p>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {data.map((subject) => (
                 <div key={subject.name} className="flex items-center gap-2 text-sm">
                   <div 
-                    className="w-3 h-3 rounded-full" 
+                    className="w-3 h-3 rounded-full flex-shrink-0" 
                     style={{ backgroundColor: subject.color }}
                   />
-                  <span className="font-medium">{subject.name}</span>
+                  <span className="font-medium truncate">{subject.name}</span>
                   <span className="text-muted-foreground ml-auto">
                     {Math.round(subject.avgScore)}%
                   </span>
                 </div>
               ))}
             </div>
-          </>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-[300px] text-muted-foreground">
             No completed exams yet — start one now!
