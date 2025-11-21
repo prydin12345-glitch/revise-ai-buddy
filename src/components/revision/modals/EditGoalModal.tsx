@@ -127,13 +127,15 @@ export const EditGoalModal = ({ open, onOpenChange, goal, subjects, onSave }: Ed
                   {deadline ? format(deadline, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={deadline}
-                  onSelect={setDeadline}
-                  initialFocus
-                />
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="min-h-[320px]">
+                  <Calendar
+                    mode="single"
+                    selected={deadline}
+                    onSelect={setDeadline}
+                    initialFocus
+                  />
+                </div>
               </PopoverContent>
             </Popover>
           </div>
