@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, ArrowLeft } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Brain, ArrowLeft, GraduationCap, Users, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,9 +14,18 @@ const Auth = () => {
   const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "login" ? "login" : "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "tutor">("student");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const roleOptions = [
+    { value: "student", label: "Student", icon: GraduationCap, description: "I'm here to learn and revise" },
+    { value: "teacher", label: "Teacher", icon: BookOpen, description: "I want to create and assign exams" },
+    { value: "tutor", label: "Tutor", icon: Users, description: "I tutor students privately" },
+  ] as const;
 
   useEffect(() => {
     // Check if user is already logged in
@@ -37,6 +47,11 @@ const Auth = () => {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/onboarding`,
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              signup_role: selectedRole,
+            },
           },
         });
 
@@ -44,8 +59,13 @@ const Auth = () => {
 
         toast({
           title: "Success!",
-          description: "Account created. Please check your email to verify.",
+          description: "Account created successfully. Redirecting to onboarding...",
         });
+
+        // Auto-login after signup
+        setTimeout(() => {
+          navigate("/onboarding");
+        }, 1000);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -100,6 +120,58 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
+              {mode === "signup" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        type="text"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        type="text"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>I am a...</Label>
+                    <RadioGroup value={selectedRole} onValueChange={(value: any) => setSelectedRole(value)}>
+                      {roleOptions.map((option) => {
+                        const Icon = option.icon;
+                        return (
+                          <div key={option.value} className="flex items-center space-x-3 border rounded-lg p-3 hover:bg-accent/50 cursor-pointer transition-colors">
+                            <RadioGroupItem value={option.value} id={option.value} />
+                            <Label htmlFor={option.value} className="flex items-center gap-3 cursor-pointer flex-1">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Icon className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium">{option.label}</div>
+                                <div className="text-sm text-muted-foreground">{option.description}</div>
+                              </div>
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </RadioGroup>
+                  </div>
+                </>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -124,7 +196,7 @@ const Auth = () => {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Loading..." : mode === "signup" ? "Sign Up" : "Log In"}
+                {loading ? "Loading..." : mode === "signup" ? "Create Account" : "Log In"}
               </Button>
             </form>
 
