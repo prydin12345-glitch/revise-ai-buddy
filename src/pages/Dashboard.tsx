@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { StudentDashboardContent } from "@/components/dashboard/StudentDashboardContent";
+import { TeacherDashboardContent } from "@/components/dashboard/TeacherDashboardContent";
+import { TutorDashboardContent } from "@/components/dashboard/TutorDashboardContent";
 import { Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +77,17 @@ const Dashboard = () => {
 
   const RoleIcon = getRoleIcon();
 
+  const renderDashboardContent = () => {
+    switch (primaryRole) {
+      case "teacher":
+        return <TeacherDashboardContent />;
+      case "tutor":
+        return <TutorDashboardContent />;
+      default:
+        return <StudentDashboardContent userEmail={session.user.email || "User"} />;
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -95,7 +108,7 @@ const Dashboard = () => {
           </CardHeader>
         </Card>
 
-        <DashboardContent userEmail={session.user.email || "User"} />
+        {renderDashboardContent()}
       </div>
     </DashboardLayout>
   );
