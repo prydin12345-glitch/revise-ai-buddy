@@ -1,15 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Users, ClipboardList, Calendar, TrendingUp, BookOpen, UserCheck } from "lucide-react";
+import { Upload, Users, ClipboardList, BookOpen, UserCheck, AlertCircle, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { VerificationRequestModal } from "@/components/teacher/VerificationRequestModal";
+import { AssignExamModal } from "@/components/teacher/AssignExamModal";
 
-export const TeacherDashboardContent = () => {
+interface DashboardContentProps {
+  userEmail: string;
+}
+
+export const TeacherDashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<{ id: string; title: string } | null>(null);
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
@@ -21,7 +30,28 @@ export const TeacherDashboardContent = () => {
 
   useEffect(() => {
     loadTeacherData();
+    checkVerificationStatus();
   }, []);
+
+  const checkVerificationStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("teacher_verifications")
+        .select("status")
+        .eq("teacher_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      setVerificationStatus(data?.status || null);
+    } catch (error) {
+      console.error("Error checking verification:", error);
+    }
+  };
 
   const loadTeacherData = async () => {
     try {
@@ -80,7 +110,7 @@ export const TeacherDashboardContent = () => {
     { label: "Total Classes", value: stats.totalClasses, icon: Users, color: "text-blue-500" },
     { label: "Total Students", value: stats.totalStudents, icon: UserCheck, color: "text-green-500" },
     { label: "Exams Created", value: stats.totalExamsCreated, icon: ClipboardList, color: "text-purple-500" },
-    { label: "Active Assignments", value: stats.totalAssignments, icon: Calendar, color: "text-orange-500" },
+    { label: "Active Assignments", value: stats.totalAssignments, icon: ClipboardList, color: "text-orange-500" },
   ];
 
   if (loading) {
@@ -93,6 +123,38 @@ export const TeacherDashboardContent = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
+      {/* Verification Status Alert */}
+      {verificationStatus === null && (
+        <Card className="border-warning bg-warning/10">
+          <CardContent className="p-4 flex items-start gap-4">
+            <AlertCircle className="w-5 h-5 text-warning mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-warning mb-1">Teacher Verification Required</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                To assign exams and manage classes, you need to verify your teacher status.
+              </p>
+              <Button size="sm" onClick={() => setShowVerificationModal(true)}>
+                Request Verification
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {verificationStatus === "pending" && (
+        <Card className="border-primary bg-primary/10">
+          <CardContent className="p-4 flex items-start gap-4">
+            <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-primary mb-1">Verification Pending</h3>
+              <p className="text-sm text-muted-foreground">
+                Your verification request is being reviewed. You'll be notified once approved.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Primary Actions */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <Button 
@@ -156,8 +218,7 @@ export const TeacherDashboardContent = () => {
               {recentExams.map((exam) => (
                 <div
                   key={exam.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/exam/${exam.id}`)}
+                  className="flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/50 transition-colors"
                 >
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{exam.title}</h3>
@@ -168,9 +229,24 @@ export const TeacherDashboardContent = () => {
                       </span>
                     </div>
                   </div>
-                  <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
-                    {exam.status}
-                  </Badge>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/exam/${exam.id}/preview`)}
+                    >
+                      View
+                    </Button>
+                    {verificationStatus === "verified" && (
+                      <Button
+                        size="sm"
+                        onClick={() => setSelectedExam({ id: exam.id, title: exam.title })}
+                      >
+                        <Send className="w-4 h-4 mr-1" />
+                        Assign
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -224,6 +300,27 @@ export const TeacherDashboardContent = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      <VerificationRequestModal
+        open={showVerificationModal}
+        onOpenChange={setShowVerificationModal}
+        userEmail={userEmail}
+        onVerificationRequested={checkVerificationStatus}
+      />
+
+      {selectedExam && (
+        <AssignExamModal
+          open={!!selectedExam}
+          onOpenChange={(open) => !open && setSelectedExam(null)}
+          examId={selectedExam.id}
+          examTitle={selectedExam.title}
+          onAssigned={() => {
+            setSelectedExam(null);
+            loadTeacherData();
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -80,7 +80,7 @@ const Dashboard = () => {
   const renderDashboardContent = () => {
     switch (primaryRole) {
       case "teacher":
-        return <TeacherDashboardContent />;
+        return <TeacherDashboardContent userEmail={session.user.email || "User"} />;
       case "tutor":
         return <TutorDashboardContent />;
       default:
