@@ -18,6 +18,8 @@ interface ExamWithSubmission {
   subject_id: string;
   status: string;
   created_at: string;
+  assigned_by?: string;
+  deadline?: string;
   submission?: {
     total_score: number;
     total_marks: number;
@@ -91,15 +93,34 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         setCurrentStreak(hoursSince <= 24 ? streakData.current_streak : 0);
       }
 
-      // Load exams
-      const { data: examsData, error: examsError } = await supabase
+      // Load user's own exams and assigned exams
+      const { data: ownExams } = await supabase
         .from("exams")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(3);
 
-      if (examsError) throw examsError;
+      // Load assigned exams
+      const { data: assignments } = await supabase
+        .from("exam_assignments")
+        .select(`
+          exam_id,
+          deadline,
+          exams (*)
+        `)
+        .eq("assignment_type", "all_students")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      const assignedExams = assignments?.map(a => ({
+        ...(a.exams as any),
+        assigned_by: "teacher",
+        deadline: a.deadline
+      })) || [];
+
+      const examsData = [...(ownExams || []), ...assignedExams];
 
       const examsWithSubmissions = await Promise.all(
         (examsData || []).map(async (exam) => {
@@ -249,9 +270,17 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                       <h3 className="font-semibold text-lg">{exam.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline">{exam.subject_id}</Badge>
+                        {exam.assigned_by && (
+                          <Badge variant="secondary">Assigned by Teacher</Badge>
+                        )}
                         <span className="text-sm text-muted-foreground">
                           {new Date(exam.created_at).toLocaleDateString()}
                         </span>
+                        {exam.deadline && (
+                          <Badge variant="destructive">
+                            Due: {new Date(exam.deadline).toLocaleDateString()}
+                          </Badge>
+                        )}
                         {isCompleted && exam.submission && (
                           <Badge variant="default">
                             Score: {Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)}%
