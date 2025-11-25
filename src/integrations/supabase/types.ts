@@ -1115,45 +1115,77 @@ export type Database = {
       }
       revision_goals: {
         Row: {
+          auto_schedule: boolean | null
           confidence_level: number | null
           created_at: string
           current_percentage: number | null
+          custom_goal_text: string | null
           deadline: string | null
+          effort_estimate: number | null
+          goal_type: string
           id: string
+          schedule_status: string | null
+          scheduled_tasks_count: number | null
           subject: string
           subject_color: string | null
+          subject_id: string | null
           target_exams: number
+          target_metric: Json | null
           target_percentage: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          auto_schedule?: boolean | null
           confidence_level?: number | null
           created_at?: string
           current_percentage?: number | null
+          custom_goal_text?: string | null
           deadline?: string | null
+          effort_estimate?: number | null
+          goal_type: string
           id?: string
+          schedule_status?: string | null
+          scheduled_tasks_count?: number | null
           subject: string
           subject_color?: string | null
+          subject_id?: string | null
           target_exams?: number
+          target_metric?: Json | null
           target_percentage?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          auto_schedule?: boolean | null
           confidence_level?: number | null
           created_at?: string
           current_percentage?: number | null
+          custom_goal_text?: string | null
           deadline?: string | null
+          effort_estimate?: number | null
+          goal_type?: string
           id?: string
+          schedule_status?: string | null
+          scheduled_tasks_count?: number | null
           subject?: string
           subject_color?: string | null
+          subject_id?: string | null
           target_exams?: number
+          target_metric?: Json | null
           target_percentage?: number | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "revision_goals_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       revision_tasks: {
         Row: {
@@ -1173,8 +1205,10 @@ export type Database = {
           focus_session_duration: number | null
           focus_session_started_at: string | null
           focus_topic: string | null
+          generated_from_goal_id: string | null
           id: string
           idle_since: string | null
+          is_auto_scheduled: boolean | null
           is_completed: boolean
           is_private: boolean | null
           is_teacher_assigned: boolean | null
@@ -1186,6 +1220,7 @@ export type Database = {
           priority: string | null
           progress_percentage: number | null
           reminder_days_before: number | null
+          spaced_profile: Json | null
           status: string | null
           subject: string
           subject_color: string
@@ -1211,8 +1246,10 @@ export type Database = {
           focus_session_duration?: number | null
           focus_session_started_at?: string | null
           focus_topic?: string | null
+          generated_from_goal_id?: string | null
           id?: string
           idle_since?: string | null
+          is_auto_scheduled?: boolean | null
           is_completed?: boolean
           is_private?: boolean | null
           is_teacher_assigned?: boolean | null
@@ -1224,6 +1261,7 @@ export type Database = {
           priority?: string | null
           progress_percentage?: number | null
           reminder_days_before?: number | null
+          spaced_profile?: Json | null
           status?: string | null
           subject: string
           subject_color?: string
@@ -1249,8 +1287,10 @@ export type Database = {
           focus_session_duration?: number | null
           focus_session_started_at?: string | null
           focus_topic?: string | null
+          generated_from_goal_id?: string | null
           id?: string
           idle_since?: string | null
+          is_auto_scheduled?: boolean | null
           is_completed?: boolean
           is_private?: boolean | null
           is_teacher_assigned?: boolean | null
@@ -1262,6 +1302,7 @@ export type Database = {
           priority?: string | null
           progress_percentage?: number | null
           reminder_days_before?: number | null
+          spaced_profile?: Json | null
           status?: string | null
           subject?: string
           subject_color?: string
@@ -1276,6 +1317,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_tasks_generated_from_goal_id_fkey"
+            columns: ["generated_from_goal_id"]
+            isOneToOne: false
+            referencedRelation: "revision_goals"
             referencedColumns: ["id"]
           },
           {
@@ -1436,32 +1484,44 @@ export type Database = {
       }
       student_groups: {
         Row: {
+          capacity: number | null
           created_at: string
           description: string | null
           id: string
+          invite_code: string | null
           is_active: boolean
+          is_suggested: boolean | null
           name: string
           settings: Json | null
+          subjects_covered: Json | null
           tutor_id: string
           updated_at: string
         }
         Insert: {
+          capacity?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          invite_code?: string | null
           is_active?: boolean
+          is_suggested?: boolean | null
           name: string
           settings?: Json | null
+          subjects_covered?: Json | null
           tutor_id: string
           updated_at?: string
         }
         Update: {
+          capacity?: number | null
           created_at?: string
           description?: string | null
           id?: string
+          invite_code?: string | null
           is_active?: boolean
+          is_suggested?: boolean | null
           name?: string
           settings?: Json | null
+          subjects_covered?: Json | null
           tutor_id?: string
           updated_at?: string
         }
@@ -1497,6 +1557,48 @@ export type Database = {
           subject?: string
           subtopic?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          category: string
+          common_topics: Json | null
+          created_at: string | null
+          default_exam_types: Json | null
+          default_spaced_profile: Json | null
+          icon_name: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          common_topics?: Json | null
+          created_at?: string | null
+          default_exam_types?: Json | null
+          default_spaced_profile?: Json | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          common_topics?: Json | null
+          created_at?: string | null
+          default_exam_types?: Json | null
+          default_spaced_profile?: Json | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1552,6 +1654,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tutor_profiles: {
+        Row: {
+          availability: Json | null
+          bio: string | null
+          created_at: string | null
+          id: string
+          onboarding_completed: boolean | null
+          preferred_group_size: number | null
+          student_count_estimate: number | null
+          subjects_taught: Json | null
+          teaching_mode: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          availability?: Json | null
+          bio?: string | null
+          created_at?: string | null
+          id?: string
+          onboarding_completed?: boolean | null
+          preferred_group_size?: number | null
+          student_count_estimate?: number | null
+          subjects_taught?: Json | null
+          teaching_mode?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          availability?: Json | null
+          bio?: string | null
+          created_at?: string | null
+          id?: string
+          onboarding_completed?: boolean | null
+          preferred_group_size?: number | null
+          student_count_estimate?: number | null
+          subjects_taught?: Json | null
+          teaching_mode?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_onboarding_status: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          goals_completed: boolean | null
+          id: string
+          last_step: string | null
+          role: string
+          subjects_completed: boolean | null
+          tutor_profile_completed: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          goals_completed?: boolean | null
+          id?: string
+          last_step?: string | null
+          role: string
+          subjects_completed?: boolean | null
+          tutor_profile_completed?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          goals_completed?: boolean | null
+          id?: string
+          last_step?: string | null
+          role?: string
+          subjects_completed?: boolean | null
+          tutor_profile_completed?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -1757,29 +1940,52 @@ export type Database = {
       user_subjects: {
         Row: {
           created_at: string
+          curriculum_tag: string | null
+          custom_name: string | null
           id: string
+          is_custom: boolean | null
+          proficiency_estimate: number | null
           subject_color: string
+          subject_id: string | null
           subject_name: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          curriculum_tag?: string | null
+          custom_name?: string | null
           id?: string
+          is_custom?: boolean | null
+          proficiency_estimate?: number | null
           subject_color?: string
+          subject_id?: string | null
           subject_name: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          curriculum_tag?: string | null
+          custom_name?: string | null
           id?: string
+          is_custom?: boolean | null
+          proficiency_estimate?: number | null
           subject_color?: string
+          subject_id?: string | null
           subject_name?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_subject_stats: {
         Row: {

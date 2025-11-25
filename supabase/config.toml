@@ -1,5 +1,11 @@
 project_id = "ynhevbrihlnwzehrfoft"
 
+[functions.auto-schedule-goal]
+verify_jwt = true
+
+[functions.complete-tutor-onboarding]
+verify_jwt = true
+
 [functions.upload-exam]
 verify_jwt = true
 
