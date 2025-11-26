@@ -60,18 +60,18 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
   const addCustomSubject = () => {
     if (!customSubjectName.trim()) return;
 
-    setSelectedSubjects([
-      ...selectedSubjects,
-      {
-        subject_name: customSubjectName.trim(), // Set as subject_name for consistency
-        custom_name: customSubjectName.trim(),
-        curriculum_tag: customCurriculum || undefined,
-        subject_color: getSubjectColor("other"),
-        is_custom: true, // Explicitly true
-        user_id: ""
-      }
-    ]);
+    const newSubject: UserSubject = {
+      subject_name: customSubjectName.trim(),
+      custom_name: customSubjectName.trim(),
+      curriculum_tag: customCurriculum || undefined,
+      subject_color: getSubjectColor("other"),
+      is_custom: true,
+      user_id: "",
+      subject_id: undefined
+    };
 
+    console.log("Adding custom subject:", newSubject);
+    setSelectedSubjects([...selectedSubjects, newSubject]);
     setCustomSubjectName("");
     setCustomCurriculum("");
     setShowCustomModal(false);
@@ -160,12 +160,24 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
 
       <Button
         onClick={() => {
-          // Validate before proceeding
-          const validSubjects = selectedSubjects.filter(s => 
-            (s.subject_name || s.custom_name)
-          );
-          if (validSubjects.length === 0) return;
-          onComplete(validSubjects);
+          if (selectedSubjects.length === 0) return;
+
+          // Validate subjects before continuing
+          const invalidSubjects = selectedSubjects.filter(s => {
+            if (!s.is_custom && !s.subject_id) {
+              console.error("Non-custom subject missing subject_id:", s);
+              return true;
+            }
+            return false;
+          });
+
+          if (invalidSubjects.length > 0) {
+            console.error("Found invalid subjects:", invalidSubjects);
+            return;
+          }
+
+          console.log("Continuing with subjects:", selectedSubjects);
+          onComplete(selectedSubjects);
         }}
         disabled={selectedSubjects.length === 0}
         className="w-full"

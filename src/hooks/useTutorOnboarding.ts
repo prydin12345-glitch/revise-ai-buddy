@@ -27,6 +27,8 @@ export const useTutorOnboarding = () => {
   const completeTutorOnboarding = async (profile: TutorProfile) => {
     setLoading(true);
     try {
+      console.log("Starting tutor onboarding with profile:", profile);
+      
       const { data, error } = await supabase.functions.invoke(
         "complete-tutor-onboarding",
         {
@@ -34,7 +36,18 @@ export const useTutorOnboarding = () => {
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Failed to invoke onboarding function");
+      }
+
+      if (!data || data.error) {
+        const errorMsg = data?.error || "Unknown error occurred";
+        console.error("Function returned error:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("Tutor onboarding completed successfully:", data);
 
       if (data?.suggested_groups) {
         setSuggestedGroups(data.suggested_groups);
@@ -50,14 +63,15 @@ export const useTutorOnboarding = () => {
         profile: data.profile,
         groups: data.suggested_groups || []
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error completing tutor onboarding:", error);
+      const errorMessage = error.message || "Failed to complete onboarding. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to complete onboarding. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
-      return { success: false };
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
