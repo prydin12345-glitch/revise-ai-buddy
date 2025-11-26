@@ -39,14 +39,22 @@ const GOAL_TYPES = [
 ];
 
 const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
+  // Handle empty subjects array
+  const defaultSubject = subjects.length > 0 
+    ? (subjects[0]?.subject_name || subjects[0]?.custom_name || "")
+    : "";
+  const defaultColor = subjects.length > 0 
+    ? (subjects[0]?.subject_color || "#3b82f6")
+    : "#3b82f6";
+
   const [goals, setGoals] = useState<GoalFormData[]>([{
     goal_type: "improve_grade",
     target_metric: { score: 80, unit: "%" },
     deadline: "",
     effort_estimate: 5,
     auto_schedule: false,
-    subject: subjects[0]?.subject_name || subjects[0]?.custom_name || "",
-    subject_color: subjects[0]?.subject_color || "#3b82f6"
+    subject: defaultSubject,
+    subject_color: defaultColor
   }]);
 
   const updateGoal = (index: number, updates: Partial<GoalFormData>) => {
@@ -56,19 +64,32 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
   };
 
   const addGoal = () => {
+    const defaultSubject = subjects.length > 0 
+      ? (subjects[0]?.subject_name || subjects[0]?.custom_name || "")
+      : "";
+    const defaultColor = subjects.length > 0 
+      ? (subjects[0]?.subject_color || "#3b82f6")
+      : "#3b82f6";
+
     setGoals([...goals, {
       goal_type: "improve_grade",
       target_metric: { score: 80, unit: "%" },
       deadline: "",
       effort_estimate: 5,
       auto_schedule: false,
-      subject: subjects[0]?.subject_name || subjects[0]?.custom_name || "",
-      subject_color: subjects[0]?.subject_color || "#3b82f6"
+      subject: defaultSubject,
+      subject_color: defaultColor
     }]);
   };
 
   return (
     <div className="space-y-6">
+      {subjects.length === 0 ? (
+        <div className="text-center p-8 text-muted-foreground">
+          No subjects selected. Please go back and select your subjects first.
+        </div>
+      ) : (
+        <>
       {goals.map((goal, index) => (
         <div key={index} className="space-y-4 p-4 border rounded-lg">
           <div className="grid grid-cols-2 gap-4">
@@ -207,10 +228,23 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
         <Button variant="outline" onClick={addGoal} className="flex-1">
           Add Another Goal
         </Button>
-        <Button onClick={() => onComplete(goals)} className="flex-1">
+        <Button 
+          onClick={() => {
+            // Validate goals before submitting
+            const validGoals = goals.filter(g => 
+              g.subject && g.subject.trim() !== ""
+            );
+            if (validGoals.length === 0) return;
+            onComplete(validGoals);
+          }} 
+          className="flex-1"
+          disabled={goals.every(g => !g.subject || g.subject.trim() === "")}
+        >
           Complete Setup
         </Button>
       </div>
+        </>
+      )}
     </div>
   );
 };

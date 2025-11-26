@@ -39,6 +39,15 @@ const TutorOnboarding = ({ subjects, onComplete }: TutorOnboardingProps) => {
   };
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (profile.subjects_taught.length === 0) {
+      return; // Button is already disabled for this case
+    }
+
+    if (profile.teaching_mode === "groups" && !profile.student_count_estimate) {
+      return; // Validation handled by required fields
+    }
+
     const result = await completeTutorOnboarding(profile);
     if (result.success && result.groups && result.groups.length > 0) {
       setShowGroupsModal(true);

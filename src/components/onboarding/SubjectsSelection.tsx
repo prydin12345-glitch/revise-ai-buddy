@@ -48,9 +48,9 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
         ...selectedSubjects,
         {
           subject_id: subject.id,
-          subject_name: subject.name,
+          subject_name: subject.name, // Always set subject_name
           subject_color: getSubjectColor(subject.category),
-          is_custom: false,
+          is_custom: false, // Explicitly false
           user_id: ""
         }
       ]);
@@ -63,10 +63,11 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
     setSelectedSubjects([
       ...selectedSubjects,
       {
-        custom_name: customSubjectName,
+        subject_name: customSubjectName.trim(), // Set as subject_name for consistency
+        custom_name: customSubjectName.trim(),
         curriculum_tag: customCurriculum || undefined,
         subject_color: getSubjectColor("other"),
-        is_custom: true,
+        is_custom: true, // Explicitly true
         user_id: ""
       }
     ]);
@@ -158,7 +159,14 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
       )}
 
       <Button
-        onClick={() => onComplete(selectedSubjects)}
+        onClick={() => {
+          // Validate before proceeding
+          const validSubjects = selectedSubjects.filter(s => 
+            (s.subject_name || s.custom_name)
+          );
+          if (validSubjects.length === 0) return;
+          onComplete(validSubjects);
+        }}
         disabled={selectedSubjects.length === 0}
         className="w-full"
       >
