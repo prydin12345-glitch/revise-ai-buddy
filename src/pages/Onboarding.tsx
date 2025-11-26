@@ -26,10 +26,28 @@ const Onboarding = () => {
   }, [primaryRole, roleLoading]);
 
   const handleSubjectsComplete = async (selected: UserSubject[]) => {
-    setSelectedSubjects(selected);
+    // Validate input
+    if (!selected || selected.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Ensure all subjects have required fields
+    const validSubjects = selected.map(s => ({
+      ...s,
+      subject_name: s.subject_name || s.custom_name || "Unknown",
+      subject_color: s.subject_color || "#3B82F6",
+      is_custom: Boolean(s.is_custom)
+    }));
+
+    setSelectedSubjects(validSubjects);
     
     // Save subjects to database
-    const success = await saveUserSubjects(selected);
+    const success = await saveUserSubjects(validSubjects);
     if (!success) return;
 
     // Update onboarding status
@@ -55,16 +73,30 @@ const Onboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Validate goals
+      if (!goals || goals.length === 0) {
+        throw new Error("No goals to save");
+      }
+
+      // Validate each goal has required fields
+      const validGoals = goals.filter(g => g.subject && g.subject.trim() !== "");
+      if (validGoals.length === 0) {
+        throw new Error("All goals must have a subject");
+      }
+
       // Insert goals
       const { error: goalsError } = await supabase
         .from("revision_goals")
-        .insert(goals.map(g => ({
+        .insert(validGoals.map(g => ({
           ...g,
           user_id: user.id,
           target_metric: g.target_metric || {}
         })));
 
-      if (goalsError) throw goalsError;
+      if (goalsError) {
+        console.error("Error inserting goals:", goalsError);
+        throw goalsError;
+      }
 
       // Auto-schedule tasks if requested
       const autoScheduleGoals = goals.filter(g => g.auto_schedule);

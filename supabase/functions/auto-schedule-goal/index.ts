@@ -22,10 +22,12 @@ serve(async (req) => {
 
     const { goal_id } = await req.json();
 
-    // Fetch goal details with subject
+    console.log('Auto-scheduling goal:', goal_id);
+
+    // Fetch goal details
     const { data: goal, error: goalError } = await supabaseClient
       .from('revision_goals')
-      .select('*, subjects(*)')
+      .select('*')
       .eq('id', goal_id)
       .single();
 
@@ -34,10 +36,31 @@ serve(async (req) => {
       throw goalError;
     }
 
-    console.log('Generating schedule for goal:', goal);
+    console.log('Goal data:', { 
+      goal_type: goal.goal_type, 
+      subject: goal.subject,
+      subject_id: goal.subject_id,
+      has_subject_id: !!goal.subject_id 
+    });
 
-    // Get spaced repetition profile from subject
-    const spacedProfile = goal.subjects?.default_spaced_profile || { intervals: [1, 3, 7, 14, 30] };
+    // Get spaced repetition profile
+    let spacedProfile = { intervals: [1, 3, 7, 14, 30] }; // Default profile
+    
+    // Try to fetch subject profile if subject_id exists
+    if (goal.subject_id) {
+      const { data: subjectData } = await supabaseClient
+        .from('subjects')
+        .select('default_spaced_profile')
+        .eq('id', goal.subject_id)
+        .single();
+      
+      if (subjectData?.default_spaced_profile) {
+        spacedProfile = subjectData.default_spaced_profile;
+        console.log('Using subject spaced profile');
+      }
+    } else {
+      console.log('No subject_id, using default spaced profile');
+    }
     
     // Calculate task schedule based on goal parameters
     const tasks = generateTaskSchedule(goal, spacedProfile);

@@ -83,27 +83,40 @@ export const useSubjects = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Validate input
+      if (!selectedSubjects || selectedSubjects.length === 0) {
+        throw new Error("No subjects to save");
+      }
+
       // Delete existing subjects
-      await supabase
+      const { error: deleteError } = await supabase
         .from("user_subjects")
         .delete()
         .eq("user_id", user.id);
 
-      // Insert new subjects
+      if (deleteError) {
+        console.error("Error deleting subjects:", deleteError);
+        throw deleteError;
+      }
+
+      // Insert new subjects with proper validation
       const { error } = await supabase
         .from("user_subjects")
         .insert(selectedSubjects.map(s => ({
           user_id: user.id,
           subject_id: s.subject_id || null,
-          subject_name: s.subject_name || s.custom_name || "Unknown",
-          subject_color: s.subject_color,
+          subject_name: s.subject_name || s.custom_name || "Unknown Subject",
+          subject_color: s.subject_color || "#3B82F6",
           custom_name: s.custom_name || null,
           curriculum_tag: s.curriculum_tag || null,
           proficiency_estimate: s.proficiency_estimate || null,
-          is_custom: s.is_custom
+          is_custom: Boolean(s.is_custom) // Explicitly convert to boolean
         })));
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting subjects:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
