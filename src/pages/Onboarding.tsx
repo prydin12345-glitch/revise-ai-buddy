@@ -11,7 +11,7 @@ import GoalsForm from "@/components/onboarding/GoalsForm";
 import TutorOnboarding from "@/components/onboarding/TutorOnboarding";
 
 const Onboarding = () => {
-  const [step, setStep] = useState<"subjects" | "goals" | "tutor">("subjects");
+  const [step, setStep] = useState<"subjects" | "goals" | "tutor" | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<UserSubject[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -19,11 +19,15 @@ const Onboarding = () => {
   const { subjects, saveUserSubjects } = useSubjects();
 
   useEffect(() => {
-    // If tutor role, skip to tutor onboarding
-    if (!roleLoading && primaryRole === "tutor") {
-      setStep("tutor");
+    // Set initial step based on role once it's loaded
+    if (!roleLoading && primaryRole && step === null) {
+      if (primaryRole === "tutor") {
+        setStep("tutor");
+      } else {
+        setStep("subjects");
+      }
     }
-  }, [primaryRole, roleLoading]);
+  }, [primaryRole, roleLoading, step]);
 
   const handleSubjectsComplete = async (selected: UserSubject[]) => {
     // Validate input
@@ -152,10 +156,10 @@ const Onboarding = () => {
     navigate("/dashboard");
   };
 
-  if (roleLoading) {
+  if (roleLoading || step === null) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
+        <div className="animate-pulse">Loading your profile...</div>
       </div>
     );
   }

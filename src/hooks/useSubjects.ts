@@ -88,6 +88,23 @@ export const useSubjects = () => {
         throw new Error("No subjects to save");
       }
 
+      // Validate subjects before saving
+      const invalidSubjects = selectedSubjects.filter(s => {
+        if (!s.is_custom && !s.subject_id) {
+          console.error("Non-custom subject missing subject_id:", s);
+          return true;
+        }
+        if (!s.subject_name && !s.custom_name) {
+          console.error("Subject missing both subject_name and custom_name:", s);
+          return true;
+        }
+        return false;
+      });
+
+      if (invalidSubjects.length > 0) {
+        throw new Error("Some subjects are missing required fields. Please try again.");
+      }
+
       // Delete existing subjects
       const { error: deleteError } = await supabase
         .from("user_subjects")
@@ -96,26 +113,30 @@ export const useSubjects = () => {
 
       if (deleteError) {
         console.error("Error deleting subjects:", deleteError);
-        throw deleteError;
+        throw new Error(`Failed to clear existing subjects: ${deleteError.message}`);
       }
 
-      // Insert new subjects with proper validation
-      const { error } = await supabase
-        .from("user_subjects")
-        .insert(selectedSubjects.map(s => ({
-          user_id: user.id,
-          subject_id: s.subject_id || null,
-          subject_name: s.subject_name || s.custom_name || "Unknown Subject",
-          subject_color: s.subject_color || "#3B82F6",
-          custom_name: s.custom_name || null,
-          curriculum_tag: s.curriculum_tag || null,
-          proficiency_estimate: s.proficiency_estimate || null,
-          is_custom: Boolean(s.is_custom) // Explicitly convert to boolean
-        })));
+      // Prepare subjects for insertion with explicit validation
+      const subjectsToInsert = selectedSubjects.map(s => ({
+        user_id: user.id,
+        subject_id: s.subject_id || null,
+        subject_name: s.subject_name || s.custom_name || 'Unknown Subject',
+        subject_color: s.subject_color || '#3B82F6',
+        custom_name: s.custom_name || null,
+        curriculum_tag: s.curriculum_tag || null,
+        proficiency_estimate: s.proficiency_estimate || null,
+        is_custom: s.is_custom === true // Explicit boolean comparison
+      }));
 
-      if (error) {
-        console.error("Error inserting subjects:", error);
-        throw error;
+      console.log("Inserting subjects:", subjectsToInsert);
+
+      const { error: insertError } = await supabase
+        .from("user_subjects")
+        .insert(subjectsToInsert);
+
+      if (insertError) {
+        console.error("Error inserting subjects:", insertError);
+        throw new Error(`Failed to save subjects: ${insertError.message}`);
       }
 
       toast({
@@ -125,11 +146,12 @@ export const useSubjects = () => {
 
       await loadUserSubjects();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving subjects:", error);
+      const errorMessage = error.message || "Failed to save subjects";
       toast({
         title: "Error",
-        description: "Failed to save subjects",
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
