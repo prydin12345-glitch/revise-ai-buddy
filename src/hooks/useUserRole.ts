@@ -13,6 +13,7 @@ export const useUserRole = () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
+          console.log("useUserRole: No authenticated user found");
           setLoading(false);
           return;
         }
@@ -34,6 +35,10 @@ export const useUserRole = () => {
             return metadata?.is_primary === true;
           });
           setPrimaryRole(primary ? (primary.role as AppRole) : userRoles[0] || null);
+          
+          if (userRoles.length === 0) {
+            console.log("useUserRole: No roles found for user");
+          }
         }
       } catch (error) {
         console.error("Error fetching user roles:", error);
@@ -43,6 +48,19 @@ export const useUserRole = () => {
     };
 
     fetchRoles();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log("useUserRole: User signed in, re-fetching roles");
+          setLoading(true);
+          fetchRoles();
+        }
+      }
+    );
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   const hasRole = (role: AppRole) => roles.includes(role);

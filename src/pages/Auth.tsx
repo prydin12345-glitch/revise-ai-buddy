@@ -42,30 +42,42 @@ const Auth = () => {
 
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/onboarding`,
+            emailRedirectTo: `${window.location.origin}/`,
             data: {
               first_name: firstName,
               last_name: lastName,
-              signup_role: selectedRole,
+              role: selectedRole,
             },
           },
         });
 
         if (error) throw error;
 
-        toast({
-          title: "Success!",
-          description: "Account created successfully. Redirecting to onboarding...",
-        });
+        // Wait for session to be established
+        if (data.user && data.session) {
+          // Create user role entry
+          await supabase.from("user_roles").insert({
+            user_id: data.user.id,
+            role: selectedRole,
+            is_active: true,
+            metadata: { is_primary: true }
+          });
 
-        // Auto-login after signup
-        setTimeout(() => {
+          toast({
+            title: "Account created!",
+            description: "Welcome! Let's set up your profile.",
+          });
           navigate("/onboarding");
-        }, 1000);
+        } else {
+          toast({
+            title: "Account created!",
+            description: "Please check your email to confirm your account.",
+          });
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
