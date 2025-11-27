@@ -12,11 +12,24 @@ serve(async (req) => {
   }
 
   try {
+    // User client for operations that need RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: { headers: { Authorization: req.headers.get('Authorization')! } },
+      }
+    );
+
+    // Service role client for student_groups operations (bypasses RLS to avoid recursion)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
 
@@ -69,7 +82,8 @@ serve(async (req) => {
       
       for (let i = 0; i < groupCount; i++) {
         const inviteCode = generateInviteCode();
-        const { data: group, error: groupError } = await supabaseClient
+        // Use admin client to bypass RLS and avoid infinite recursion
+        const { data: group, error: groupError } = await supabaseAdmin
           .from('student_groups')
           .insert({
             tutor_id: user.id,
