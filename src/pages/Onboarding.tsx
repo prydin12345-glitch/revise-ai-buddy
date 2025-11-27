@@ -19,15 +19,35 @@ const Onboarding = () => {
   const { subjects, saveUserSubjects } = useSubjects();
 
   useEffect(() => {
-    // Set initial step based on role once it's loaded
-    if (!roleLoading && primaryRole && step === null) {
-      if (primaryRole === "tutor") {
-        setStep("tutor");
-      } else {
-        setStep("subjects");
+    const checkAuth = async () => {
+      if (!roleLoading) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          // No authenticated user - redirect to auth
+          toast({
+            title: "Authentication required",
+            description: "Please sign in to continue",
+            variant: "destructive",
+          });
+          navigate("/auth");
+          return;
+        }
+        
+        if (step === null) {
+          // Set step based on role, defaulting to student flow if no role found
+          if (primaryRole === "tutor") {
+            setStep("tutor");
+          } else {
+            // Default to subjects for student/teacher or if no role determined yet
+            setStep("subjects");
+          }
+        }
       }
-    }
-  }, [primaryRole, roleLoading, step]);
+    };
+    
+    checkAuth();
+  }, [primaryRole, roleLoading, step, navigate, toast]);
 
   const handleSubjectsComplete = async (selected: UserSubject[]) => {
     // Validate input
