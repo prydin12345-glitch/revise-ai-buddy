@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Users, ClipboardList, Calendar, UserPlus, BookOpen } from "lucide-react";
+import { Upload, Users, ClipboardList, Calendar, UserPlus, BookOpen, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,25 +91,39 @@ export const TutorDashboardContent = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
-      {/* Primary Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Button 
-          size="lg" 
+          onClick={() => navigate("/upload")} 
+          className="h-24 flex flex-col gap-2"
           variant="outline"
-          className="flex-1 h-14 sm:h-16 text-base sm:text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
-          onClick={() => navigate("/upload")}
         >
-          <Upload className="w-5 h-5 mr-2 sm:mr-3" />
-          Create New Exam
+          <Upload className="h-6 w-6" />
+          <span>Create Exam</span>
         </Button>
         <Button 
-          size="lg" 
+          onClick={() => navigate("/create-practice-questions")} 
+          className="h-24 flex flex-col gap-2"
           variant="outline"
-          className="flex-1 h-14 sm:h-16 text-base sm:text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
-          onClick={() => toast.info("Group management coming soon!")}
         >
-          <Users className="w-5 h-5 mr-2 sm:mr-3" />
-          Manage Groups
+          <BookOpen className="h-6 w-6" />
+          <span>Create Practice</span>
+        </Button>
+        <Button 
+          onClick={() => navigate("/tutor/exams")} 
+          className="h-24 flex flex-col gap-2"
+          variant="outline"
+        >
+          <Users className="h-6 w-6" />
+          <span>Manage Exams</span>
+        </Button>
+        <Button 
+          onClick={() => navigate("/tutor/progress")} 
+          className="h-24 flex flex-col gap-2"
+          variant="outline"
+        >
+          <TrendingUp className="h-6 w-6" />
+          <span>View Progress</span>
         </Button>
       </div>
 

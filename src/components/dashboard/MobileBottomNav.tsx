@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, CheckSquare, Target, TrendingUp, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, CheckSquare, Target, TrendingUp, Settings, Calendar, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface NavItem {
   id: string;
@@ -9,7 +10,7 @@ interface NavItem {
   path: string;
 }
 
-const navItems: NavItem[] = [
+const studentNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'exams', label: 'Exams', icon: FileText, path: '/my-exams' },
   { id: 'quizzes', label: 'Quizzes', icon: CheckSquare, path: '/quizzes' },
@@ -18,9 +19,21 @@ const navItems: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
+const tutorNavItems: NavItem[] = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'exams', label: 'Exams', icon: FileText, path: '/tutor/exams' },
+  { id: 'practice', label: 'Practice', icon: CheckSquare, path: '/tutor/practice' },
+  { id: 'planner', label: 'Planner', icon: Calendar, path: '/tutor/planner' },
+  { id: 'progress', label: 'Progress', icon: BarChart3, path: '/tutor/progress' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+];
+
 export const MobileBottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { primaryRole } = useUserRole();
+
+  const navItems = primaryRole === 'tutor' ? tutorNavItems : studentNavItems;
 
   const isActive = (path: string) => location.pathname === path;
 
