@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp } from "lucide-react";
+import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -27,18 +28,29 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { primaryRole } = useUserRole();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  const navItems = [
+  const studentNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
     { icon: Target, label: "Revision Plan", path: "/revision-plan" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
   ];
+
+  const tutorNavItems = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { icon: FileText, label: "Manage Exams", path: "/tutor/exams" },
+    { icon: CheckSquare, label: "Practice Sets", path: "/tutor/practice" },
+    { icon: Calendar, label: "Student Planner", path: "/tutor/planner" },
+    { icon: BarChart3, label: "Student Progress", path: "/tutor/progress" },
+  ];
+
+  const navItems = primaryRole === 'tutor' ? tutorNavItems : studentNavItems;
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
