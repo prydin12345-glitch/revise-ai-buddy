@@ -57,7 +57,7 @@ const ManageExams = () => {
             <h1 className="text-3xl font-bold tracking-tight">Manage Exams</h1>
             <p className="text-muted-foreground">Create, assign, and track student exams</p>
           </div>
-          <Button onClick={() => navigate("/upload-exam")}>
+          <Button onClick={() => navigate("/tutor/exams/create")}>
             <Plus className="mr-2 h-4 w-4" />
             Create Exam
           </Button>
@@ -72,7 +72,7 @@ const ManageExams = () => {
             {exams.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No exams created yet</p>
-                <Button onClick={() => navigate("/upload-exam")}>
+                <Button onClick={() => navigate("/tutor/exams/create")}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Your First Exam
                 </Button>
