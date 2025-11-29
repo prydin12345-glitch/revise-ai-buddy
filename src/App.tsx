@@ -31,6 +31,7 @@ import ManageExams from "./pages/tutor/ManageExams";
 import ManagePracticeSets from "./pages/tutor/ManagePracticeSets";
 import StudentPlanner from "./pages/tutor/StudentPlanner";
 import StudentProgress from "./pages/tutor/StudentProgress";
+import { TutorLayout } from "./components/tutor/TutorLayout";
 
 const queryClient = new QueryClient();
 
@@ -82,11 +83,11 @@ const App = () => {
             <Route path="/exam/:examId/in-progress" element={<ExamInProgress />} />
             <Route path="/exam/:examId/review" element={<ExamReview />} />
             
-            {/* Tutor Routes */}
-            <Route path="/tutor/exams" element={<ManageExams />} />
-            <Route path="/tutor/practice" element={<ManagePracticeSets />} />
-            <Route path="/tutor/planner" element={<StudentPlanner />} />
-            <Route path="/tutor/progress" element={<StudentProgress />} />
+            {/* Tutor Routes - Wrapped in TutorLayout for persistent sidebar */}
+            <Route path="/tutor/exams" element={<TutorLayout><ManageExams /></TutorLayout>} />
+            <Route path="/tutor/practice" element={<TutorLayout><ManagePracticeSets /></TutorLayout>} />
+            <Route path="/tutor/planner" element={<TutorLayout><StudentPlanner /></TutorLayout>} />
+            <Route path="/tutor/progress" element={<TutorLayout><StudentProgress /></TutorLayout>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
