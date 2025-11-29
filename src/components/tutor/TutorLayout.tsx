@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Loader2 } from "lucide-react";
 
 interface TutorLayoutProps {
@@ -30,5 +31,5 @@ export const TutorLayout = ({ children }: TutorLayoutProps) => {
     return null;
   }
 
-  return <>{children}</>;
+  return <DashboardLayout>{children}</DashboardLayout>;
 };
