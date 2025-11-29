@@ -1,4 +1,3 @@
-import { TutorLayout } from "@/components/tutor/TutorLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Plus } from "lucide-react";
@@ -6,8 +5,7 @@ import { toast } from "sonner";
 
 const StudentPlanner = () => {
   return (
-    <TutorLayout>
-      <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Student Planner</h1>
@@ -60,7 +58,6 @@ const StudentPlanner = () => {
           </Card>
         </div>
       </div>
-    </TutorLayout>
   );
 };
 

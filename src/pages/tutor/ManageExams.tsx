@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TutorLayout } from "@/components/tutor/TutorLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,17 +44,14 @@ const ManageExams = () => {
 
   if (loading) {
     return (
-      <TutorLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </TutorLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <TutorLayout>
-      <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Manage Exams</h1>
@@ -193,7 +189,6 @@ const ManageExams = () => {
           />
         )}
       </div>
-    </TutorLayout>
   );
 };
 
