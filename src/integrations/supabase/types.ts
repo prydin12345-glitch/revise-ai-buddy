@@ -783,6 +783,44 @@ export type Database = {
           },
         ]
       }
+      group_announcements: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          group_id: string
+          id: string
+          message: string
+          title: string
+          tutor_id: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          message: string
+          title: string
+          tutor_id: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          message?: string
+          title?: string
+          tutor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_announcements_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "student_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -1109,6 +1147,53 @@ export type Database = {
             columns: ["set_id"]
             isOneToOne: false
             referencedRelation: "practice_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_feedback_threads: {
+        Row: {
+          created_at: string
+          exam_id: string
+          id: string
+          question_id: string
+          responded_at: string | null
+          status: string
+          student_comment: string
+          student_id: string
+          tutor_id: string | null
+          tutor_response: string | null
+        }
+        Insert: {
+          created_at?: string
+          exam_id: string
+          id?: string
+          question_id: string
+          responded_at?: string | null
+          status?: string
+          student_comment: string
+          student_id: string
+          tutor_id?: string | null
+          tutor_response?: string | null
+        }
+        Update: {
+          created_at?: string
+          exam_id?: string
+          id?: string
+          question_id?: string
+          responded_at?: string | null
+          status?: string
+          student_comment?: string
+          student_id?: string
+          tutor_id?: string | null
+          tutor_response?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_feedback_threads_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
         ]
