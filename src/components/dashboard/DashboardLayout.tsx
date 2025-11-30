@@ -46,6 +46,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "Manage Exams", path: "/tutor/exams" },
     { icon: CheckSquare, label: "Practice Sets", path: "/tutor/practice" },
+    { icon: User, label: "Students", path: "/tutor/students" },
     { icon: Calendar, label: "Student Planner", path: "/tutor/planner" },
     { icon: BarChart3, label: "Student Progress", path: "/tutor/progress" },
   ];
