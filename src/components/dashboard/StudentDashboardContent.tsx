@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Clock, Trophy, Flame, Target, Eye, Play } from "lucide-react";
+import { Upload, FileText, Clock, Trophy, Flame, Target, Eye, Play, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,7 +200,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-primary/50" onClick={() => navigate("/revision-plan")}>
           <CardContent className="p-6 flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -233,6 +233,18 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             <div>
               <h3 className="font-semibold text-lg">Practice Quizzes</h3>
               <p className="text-sm text-muted-foreground">Test your knowledge</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-blue-500/50" onClick={() => navigate("/my-classes")}>
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Users className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">My Classes</h3>
+              <p className="text-sm text-muted-foreground">Join tutor groups</p>
             </div>
           </CardContent>
         </Card>

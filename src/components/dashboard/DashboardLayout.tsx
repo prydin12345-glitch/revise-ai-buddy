@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3 } from "lucide-react";
+import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -38,6 +38,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
+    { icon: Users, label: "My Classes", path: "/my-classes" },
     { icon: Target, label: "Revision Plan", path: "/revision-plan" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
   ];
@@ -94,7 +95,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           {/* Navigation */}
           <nav className="flex-1 p-3 overflow-y-auto">
             <div className="space-y-1">
-              {navItems.slice(0, 3).map((item) => (
+              {navItems.slice(0, 4).map((item) => (
                 <Button
                   key={item.path}
                   variant="ghost"
@@ -118,7 +119,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <Separator className="my-3 bg-border/20" />
             
             <div className="space-y-1">
-              {navItems.slice(3).map((item) => (
+              {navItems.slice(4).map((item) => (
                 <Button
                   key={item.path}
                   variant="ghost"
