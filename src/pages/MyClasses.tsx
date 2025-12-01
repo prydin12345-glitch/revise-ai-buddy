@@ -60,11 +60,22 @@ const MyClasses = () => {
   useEffect(() => {
     loadStudentClasses();
 
-    // Real-time subscription for group changes
+    // Real-time subscription for group changes and announcements
     const groupsChannel = supabase
       .channel('student-groups-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, loadStudentClasses)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_announcements' }, loadStudentClasses)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_announcements' }, (payload) => {
+        // Show toast notification for new announcements
+        const announcement = payload.new as GroupAnnouncement;
+        if (groups.some(g => g.id === announcement.group_id)) {
+          toast.success(`New announcement: ${announcement.title}`, {
+            description: announcement.message.substring(0, 100) + (announcement.message.length > 100 ? '...' : ''),
+          });
+          loadStudentClasses();
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_announcements' }, loadStudentClasses)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'group_announcements' }, loadStudentClasses)
       .subscribe();
 
     return () => {
