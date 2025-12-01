@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CreateGroupModal } from "@/components/tutor/CreateGroupModal";
 import { GroupMembersModal } from "@/components/tutor/GroupMembersModal";
 import { AnnouncementModal } from "@/components/tutor/AnnouncementModal";
+import { AnnouncementsHistory } from "@/components/tutor/AnnouncementsHistory";
 import { useManageGroups } from "@/hooks/useManageGroups";
 import {
   AlertDialog,
@@ -187,6 +188,11 @@ export default function ManageStudents() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Announcements History */}
+      {groups.length > 0 && (
+        <AnnouncementsHistory />
       )}
 
       {/* Modals */}

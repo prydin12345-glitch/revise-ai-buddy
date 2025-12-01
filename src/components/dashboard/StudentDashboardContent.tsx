@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useExamStats } from "@/hooks/useExamStats";
+import { AnnouncementsFeed } from "./AnnouncementsFeed";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -249,6 +250,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           </CardContent>
         </Card>
       </div>
+
+      {/* Announcements Feed */}
+      <AnnouncementsFeed />
 
       {/* Recent Exams */}
       <Card className="shadow-lg rounded-2xl">
