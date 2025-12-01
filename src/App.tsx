@@ -34,6 +34,7 @@ import StudentProgress from "./pages/tutor/StudentProgress";
 import CreateTutorExam from "./pages/tutor/CreateTutorExam";
 import ManageStudents from "./pages/tutor/ManageStudents";
 import { TutorLayout } from "./components/tutor/TutorLayout";
+import MyClasses from "./pages/MyClasses";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => {
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin/verifications" element={<AdminVerifications />} />
             <Route path="/my-exams" element={<MyExams />} />
+            <Route path="/my-classes" element={<MyClasses />} />
             <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
             <Route path="/quizzes" element={<MyQuizzes />} />
             <Route path="/practice-questions/:setId/preview" element={<PracticeSetPreview />} />
