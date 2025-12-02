@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Filter } from "lucide-react";
+import { Bell, CheckCheck, Filter, MessageCircle, Megaphone, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,7 +34,6 @@ export const NotificationDropdown = () => {
     switch (notification.type) {
       case "ai_suggestion":
       case "missed_task":
-        // Navigate to revision plan
         navigate("/revision-plan");
         toast({
           title: "Opening Revision Plan",
@@ -44,16 +43,52 @@ export const NotificationDropdown = () => {
       case "exam_reminder":
         navigate("/revision-plan");
         break;
+      case "announcement":
+        navigate("/my-classes");
+        break;
+      case "feedback_request":
+      case "feedback_response":
+        if (notification.action_data?.examId) {
+          navigate(`/exam-review/${notification.action_data.examId}`);
+        }
+        break;
       case "task_completion":
-        // Just mark as read, no navigation needed
         break;
     }
   };
 
+  const handleExportNotifications = () => {
+    const csv = [
+      ["Type", "Title", "Body", "Created At", "Status"],
+      ...notifications.map(n => [
+        n.type,
+        n.title,
+        n.body || "",
+        new Date(n.created_at).toLocaleString(),
+        n.is_read ? "Read" : "Unread"
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `notifications-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Notifications exported",
+      description: "CSV file downloaded successfully",
+    });
+  };
+
   const examReminders = notifications.filter((n) => n.type === "exam_reminder");
   const suggestions = notifications.filter((n) => n.type === "ai_suggestion");
-  const missedTasks = notifications.filter((n) => n.type === "missed_task");
-  const completions = notifications.filter((n) => n.type === "task_completion");
+  const announcements = notifications.filter((n) => n.type === "announcement");
+  const feedback = notifications.filter((n) => 
+    n.type === "feedback_request" || n.type === "feedback_response"
+  );
 
   return (
     <DropdownMenu>
@@ -73,17 +108,30 @@ export const NotificationDropdown = () => {
       <DropdownMenuContent align="end" className="w-[400px] p-0">
         <div className="flex items-center justify-between p-4 border-b">
           <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={markAllAsRead}
-            >
-              <CheckCheck className="w-4 h-4 mr-1" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex gap-1">
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={handleExportNotifications}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Export
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={markAllAsRead}
+              >
+                <CheckCheck className="w-4 h-4 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -121,13 +169,24 @@ export const NotificationDropdown = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger
-                value="suggestions"
+                value="announcements"
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
               >
-                Suggestions
-                {suggestions.length > 0 && (
+                Classes
+                {announcements.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {suggestions.length}
+                    {announcements.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="feedback"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
+              >
+                Feedback
+                {feedback.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {feedback.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -168,13 +227,33 @@ export const NotificationDropdown = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="suggestions" className="m-0 space-y-0">
-                {suggestions.length === 0 ? (
+              <TabsContent value="announcements" className="m-0 space-y-0">
+                {announcements.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground text-sm">
-                    No AI suggestions
+                    No class announcements
                   </div>
                 ) : (
-                  suggestions.map((notification) => (
+                  announcements.map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      onMarkAsRead={markAsRead}
+                      onPin={pinNotification}
+                      onSnooze={snoozeNotification}
+                      onDelete={deleteNotification}
+                      onAction={handleNotificationAction}
+                    />
+                  ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="feedback" className="m-0 space-y-0">
+                {feedback.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground text-sm">
+                    No feedback notifications
+                  </div>
+                ) : (
+                  feedback.map((notification) => (
                     <NotificationCard
                       key={notification.id}
                       notification={notification}

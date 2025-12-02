@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
-import { Bell, BookOpen, CheckCircle, AlertCircle, Pin, Clock, Trash2 } from "lucide-react";
+import { Bell, BookOpen, CheckCircle, AlertCircle, Pin, Clock, Trash2, Megaphone, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Notification } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,11 @@ const getNotificationIcon = (type: Notification["type"]) => {
       return <CheckCircle className="w-4 h-4 text-green-400" />;
     case "missed_task":
       return <AlertCircle className="w-4 h-4 text-red-400" />;
+    case "announcement":
+      return <Megaphone className="w-4 h-4 text-orange-400" />;
+    case "feedback_request":
+    case "feedback_response":
+      return <MessageCircle className="w-4 h-4 text-cyan-400" />;
     default:
       return <Bell className="w-4 h-4 text-muted-foreground" />;
   }
@@ -38,6 +43,11 @@ const getNotificationColor = (type: Notification["type"]) => {
       return "border-l-green-500";
     case "missed_task":
       return "border-l-red-500";
+    case "announcement":
+      return "border-l-orange-500";
+    case "feedback_request":
+    case "feedback_response":
+      return "border-l-cyan-500";
     default:
       return "border-l-muted";
   }
