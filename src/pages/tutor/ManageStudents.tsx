@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Copy, Eye, Megaphone, Trash2, Plus } from "lucide-react";
+import { Users, Copy, Eye, Megaphone, Trash2, Plus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,31 @@ export default function ManageStudents() {
     });
   };
 
+  const handleExportAnalytics = () => {
+    const csv = [
+      ["Group Name", "Invite Code", "Members", "Subjects"],
+      ...groups.map(g => [
+        g.name,
+        g.invite_code || "N/A",
+        g.member_count?.toString() || "0",
+        Array.isArray(g.subjects_covered) ? (g.subjects_covered as string[]).join("; ") : ""
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `group-analytics-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Analytics exported",
+      description: "CSV file downloaded successfully",
+    });
+  };
+
   const handleViewMembers = (groupId: string) => {
     setSelectedGroupId(groupId);
     setMembersModalOpen(true);
@@ -88,10 +113,18 @@ export default function ManageStudents() {
             Manage your student groups, share invite codes, and post announcements
           </p>
         </div>
-        <Button onClick={() => setCreateModalOpen(true)} className="shadow-lg">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Group
-        </Button>
+        <div className="flex gap-2">
+          {groups.length > 0 && (
+            <Button variant="outline" onClick={handleExportAnalytics}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          )}
+          <Button onClick={() => setCreateModalOpen(true)} className="shadow-lg">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Group
+          </Button>
+        </div>
       </div>
 
       {/* Groups List */}
