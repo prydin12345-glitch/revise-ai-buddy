@@ -5,8 +5,9 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
+import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 
 interface Question {
   id: string;
@@ -42,6 +43,8 @@ const ExamReview = () => {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedQuestionForFeedback, setSelectedQuestionForFeedback] = useState<{ id: string; number: string } | null>(null);
 
   useEffect(() => {
     loadReview();
@@ -235,6 +238,18 @@ const ExamReview = () => {
                     <Badge variant="secondary" className="capitalize shrink-0">{question.question_type}</Badge>
                     <Badge className="shrink-0">{question.marks} marks</Badge>
                     <div className="ml-auto flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedQuestionForFeedback({ id: question.id, number: question.question_number });
+                          setFeedbackModalOpen(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Ask for Help
+                      </Button>
                       {getStatusIcon(answer)}
                       {answer && (
                         <Badge className={getStatusColor(answer)}>
@@ -338,6 +353,16 @@ const ExamReview = () => {
           </div>
         </div>
       </div>
+
+      {selectedQuestionForFeedback && (
+        <FeedbackThreadModal
+          open={feedbackModalOpen}
+          onOpenChange={setFeedbackModalOpen}
+          examId={examId!}
+          questionId={selectedQuestionForFeedback.id}
+          questionNumber={selectedQuestionForFeedback.number}
+        />
+      )}
     </div>
   );
 };
