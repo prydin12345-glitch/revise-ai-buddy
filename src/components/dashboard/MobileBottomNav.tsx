@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, CheckSquare, Target, TrendingUp, Settings, Calendar, BarChart3, Users } from "lucide-react";
+import { LayoutDashboard, FileText, CheckSquare, Target, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -24,7 +24,7 @@ const tutorNavItems: NavItem[] = [
   { id: 'exams', label: 'Exams', icon: FileText, path: '/tutor/exams' },
   { id: 'practice', label: 'Practice', icon: CheckSquare, path: '/tutor/practice' },
   { id: 'students', label: 'Students', icon: Users, path: '/tutor/students' },
-  { id: 'progress', label: 'Progress', icon: BarChart3, path: '/tutor/progress' },
+  { id: 'feedback', label: 'Feedback', icon: MessageCircle, path: '/tutor/feedback' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
