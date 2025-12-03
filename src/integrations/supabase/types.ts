@@ -854,6 +854,13 @@ export type Database = {
             referencedRelation: "student_groups"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "group_members_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {

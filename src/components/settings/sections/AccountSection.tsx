@@ -6,13 +6,21 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Loader2, Copy, Check } from "lucide-react";
+
+type UserProfile = {
+  student_code: string | null;
+};
 
 export const AccountSection = () => {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [studentCode, setStudentCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { preferences, updatePreference } = useUserPreferences();
+  const { primaryRole } = useUserRole();
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -20,6 +28,17 @@ export const AccountSection = () => {
       if (user) {
         setEmail(user.email || "");
         setDisplayName(preferences?.display_name || "");
+
+        // Fetch student code from user_profiles
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("student_code")
+          .eq("id", user.id)
+          .single() as { data: UserProfile | null; error: any };
+
+        if (profile) {
+          setStudentCode(profile.student_code);
+        }
       }
     };
     loadUserData();
@@ -49,6 +68,15 @@ export const AccountSection = () => {
       toast.error('Failed to send password reset email');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyStudentCode = () => {
+    if (studentCode) {
+      navigator.clipboard.writeText(studentCode);
+      setCopied(true);
+      toast.success('Student ID copied!');
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -89,6 +117,35 @@ export const AccountSection = () => {
               Email cannot be changed directly. Contact support if needed.
             </p>
           </div>
+
+          {/* Student ID - only show for students */}
+          {primaryRole === "student" && studentCode && (
+            <div className="space-y-2">
+              <Label htmlFor="studentCode">Student ID</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="studentCode"
+                  value={studentCode}
+                  disabled
+                  className="bg-muted font-mono"
+                />
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleCopyStudentCode}
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Your unique student identifier. Share this with your tutor if needed.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
