@@ -24,7 +24,7 @@ interface FeedbackThread {
   responded_at: string | null;
   exam?: { title: string };
   question?: { question_number: string; question_text: string; has_math: boolean };
-  student?: { display_name: string; email: string };
+  student?: { display_name: string | null; student_code: string | null };
 }
 
 const ManageFeedback = () => {
@@ -79,6 +79,15 @@ const ManageFeedback = () => {
 
       const questionsMap = new Map(questions?.map(q => [q.id, q]) || []);
 
+      // Fetch student profiles
+      const studentIds = [...new Set(data?.map(t => t.student_id) || [])];
+      const { data: studentProfiles } = await supabase
+        .from("user_profiles")
+        .select("id, display_name, student_code")
+        .in("id", studentIds) as { data: Array<{ id: string; display_name: string | null; student_code: string | null }> | null; error: any };
+
+      const studentMap = new Map(studentProfiles?.map(s => [s.id, s]) || []);
+
       // Filter for threads where user is exam creator or assignee
       const { data: userExams } = await supabase
         .from("exams")
@@ -90,7 +99,8 @@ const ManageFeedback = () => {
         .filter(t => userExamIds.has(t.exam_id))
         .map(t => ({
           ...t,
-          question: questionsMap.get(t.question_id)
+          question: questionsMap.get(t.question_id),
+          student: studentMap.get(t.student_id)
         }));
 
       setThreads(filteredThreads as FeedbackThread[]);
@@ -197,6 +207,11 @@ const ManageFeedback = () => {
                       <span className="text-sm font-medium">{thread.exam?.title}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
+                      {thread.student?.display_name || "Student"}
+                      {thread.student?.student_code && (
+                        <span className="font-mono ml-1">({thread.student.student_code})</span>
+                      )}
+                      {" • "}
                       {new Date(thread.created_at).toLocaleString()}
                     </p>
                   </div>
@@ -255,6 +270,11 @@ const ManageFeedback = () => {
                       <span className="text-sm font-medium">{thread.exam?.title}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
+                      {thread.student?.display_name || "Student"}
+                      {thread.student?.student_code && (
+                        <span className="font-mono ml-1">({thread.student.student_code})</span>
+                      )}
+                      {" • "}
                       Responded {thread.responded_at && new Date(thread.responded_at).toLocaleString()}
                     </p>
                   </div>
@@ -297,6 +317,12 @@ const ManageFeedback = () => {
 
           {selectedThread && (
             <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                From: {selectedThread.student?.display_name || "Student"}
+                {selectedThread.student?.student_code && (
+                  <span className="font-mono ml-1">({selectedThread.student.student_code})</span>
+                )}
+              </div>
               <div>
                 <div className="text-sm font-semibold mb-2">Question {selectedThread.question?.question_number}</div>
                 <MathRenderer

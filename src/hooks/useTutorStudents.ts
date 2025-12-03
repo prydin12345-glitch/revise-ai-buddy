@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface TutorStudent {
   id: string;
   display_name: string | null;
+  student_code: string | null;
   email: string;
   group_name: string;
   group_id: string;
@@ -40,42 +41,31 @@ export const useTutorStudents = () => {
 
         const groupIds = groups.map(g => g.id);
 
-        // Get all students in these groups
+        // Get all students in these groups with their profiles
         const { data: members, error: membersError } = await supabase
           .from("group_members")
           .select(`
             student_id,
             group_id,
-            student_groups!inner(name)
+            user_profiles!group_members_student_id_fkey(id, display_name, student_code)
           `)
           .in("group_id", groupIds)
           .eq("is_active", true);
 
         if (membersError) throw membersError;
 
-        // Get user profiles for these students
-        const studentIds = [...new Set(members?.map(m => m.student_id) || [])];
-        
-        const { data: profiles, error: profilesError } = await supabase
-          .from("user_profiles")
-          .select("id, display_name")
-          .in("id", studentIds);
-
-        if (profilesError) throw profilesError;
-
-        // Get auth users for emails
+        // Build students data
         const studentsData: TutorStudent[] = [];
         
         for (const member of members || []) {
-          const profile = profiles?.find(p => p.id === member.student_id);
+          const profile = member.user_profiles as any;
           const group = groups.find(g => g.id === member.group_id);
           
-          // Get email from auth.users via RPC or service role
-          // For now, we'll use display_name as identifier
           studentsData.push({
             id: member.student_id,
             display_name: profile?.display_name || "Unknown",
-            email: "", // Would need service role to fetch from auth.users
+            student_code: profile?.student_code || null,
+            email: "",
             group_name: group?.name || "Unknown Group",
             group_id: member.group_id
           });
