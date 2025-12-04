@@ -28,6 +28,19 @@ export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModal
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Verify user has a profile (required for foreign key constraint)
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      if (!profile) {
+        toast.error("Please complete your profile setup before joining a class. Try logging out and back in.");
+        return;
+      }
+
       // Find the group by invite code
       const { data: group, error: groupError } = await supabase
         .from("student_groups")
@@ -85,7 +98,11 @@ export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModal
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error joining class:", error);
-      toast.error("Failed to join class");
+      if (error.message?.includes("violates foreign key constraint")) {
+        toast.error("Profile setup incomplete. Please log out and back in to complete setup.");
+      } else {
+        toast.error(error.message || "Failed to join class");
+      }
     } finally {
       setLoading(false);
     }

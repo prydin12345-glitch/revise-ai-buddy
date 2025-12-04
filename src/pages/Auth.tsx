@@ -49,24 +49,16 @@ const Auth = () => {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               first_name: firstName,
-              last_name: lastName,
-              role: selectedRole,
+              last_name: lastName || null,
+              signup_role: selectedRole,
             },
           },
         });
 
         if (error) throw error;
 
-        // Wait for session to be established
+        // Wait for session to be established - trigger handles user_roles and user_profiles
         if (data.user && data.session) {
-          // Create user role entry
-          await supabase.from("user_roles").insert({
-            user_id: data.user.id,
-            role: selectedRole,
-            is_active: true,
-            metadata: { is_primary: true }
-          });
-
           toast({
             title: "Account created!",
             description: "Welcome! Let's set up your profile.",
