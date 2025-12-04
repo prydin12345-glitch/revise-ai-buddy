@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { StudentGroupSelector } from "./StudentGroupSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon, AlertCircle } from "lucide-react";
+import { format, isBefore, startOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AssignModalProps {
   open: boolean;
@@ -18,15 +21,66 @@ interface AssignModalProps {
 
 export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned }: AssignModalProps) => {
   const [selectedGroup, setSelectedGroup] = useState("all");
-  const [releaseDate, setReleaseDate] = useState("");
-  const [deadline, setDeadline] = useState("");
+  const [releaseDate, setReleaseDate] = useState<Date | undefined>();
+  const [releaseTime, setReleaseTime] = useState("09:00");
+  const [deadline, setDeadline] = useState<Date | undefined>();
+  const [deadlineTime, setDeadlineTime] = useState("23:59");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ releaseDate?: string; deadline?: string }>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Track if form has changes
+  useEffect(() => {
+    setHasChanges(!!releaseDate || !!deadline || selectedGroup !== "all");
+  }, [releaseDate, deadline, selectedGroup]);
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedGroup("all");
+      setReleaseDate(undefined);
+      setReleaseTime("09:00");
+      setDeadline(undefined);
+      setDeadlineTime("23:59");
+      setErrors({});
+      setHasChanges(false);
+    }
+  }, [open]);
+
+  const validateForm = (): boolean => {
+    const newErrors: { releaseDate?: string; deadline?: string } = {};
+    const now = new Date();
+
+    if (!releaseDate) {
+      newErrors.releaseDate = "Release date is required";
+    } else {
+      const releaseDatetime = combineDateAndTime(releaseDate, releaseTime);
+      if (isBefore(releaseDatetime, now)) {
+        newErrors.releaseDate = "Release date must be in the future";
+      }
+    }
+
+    if (deadline && releaseDate) {
+      const releaseDatetime = combineDateAndTime(releaseDate, releaseTime);
+      const deadlineDatetime = combineDateAndTime(deadline, deadlineTime);
+      if (isBefore(deadlineDatetime, releaseDatetime)) {
+        newErrors.deadline = "Deadline must be after release date";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const combineDateAndTime = (date: Date, time: string): Date => {
+    const [hours, minutes] = time.split(":").map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined;
+  };
 
   const handleSubmit = async () => {
-    if (!releaseDate) {
-      toast.error("Please select a release date");
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
 
@@ -34,13 +88,16 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const releaseDatetime = combineDateAndTime(releaseDate!, releaseTime);
+      const deadlineDatetime = deadline ? combineDateAndTime(deadline, deadlineTime) : null;
+
       const assignmentData = {
         exam_id: examId,
         assigned_by: user.id,
         assignment_type: selectedGroup === "all" ? "all" : "group",
         target_id: selectedGroup === "all" ? null : selectedGroup,
-        release_date: new Date(releaseDate).toISOString(),
-        deadline: deadline ? new Date(deadline).toISOString() : null,
+        release_date: releaseDatetime.toISOString(),
+        deadline: deadlineDatetime?.toISOString() || null,
         is_active: true,
         is_grades_released: false
       };
@@ -49,63 +106,179 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
         .from("exam_assignments")
         .insert(assignmentData);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Assignment error:", error);
+        if (error.code === "42P17") {
+          throw new Error("Permission denied. Please check you have the correct role.");
+        }
+        throw error;
+      }
 
-      toast.success(`Exam "${examTitle}" assigned successfully`);
+      toast.success(`Exam assigned successfully`);
       onAssigned();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error assigning exam:", error);
-      toast.error("Failed to assign exam");
+      toast.error(error.message || "Failed to assign exam");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleCancel = () => {
+    if (hasChanges) {
+      if (confirm("Discard unsaved changes?")) {
+        onOpenChange(false);
+      }
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  const isFormValid = releaseDate && !errors.releaseDate && !errors.deadline;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={handleCancel}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assign Exam</DialogTitle>
-          <DialogDescription>
-            Assign "{examTitle}" to students
+          <DialogTitle className="text-xl font-semibold">Assign Exam</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Assign "<span className="font-medium text-foreground">{examTitle}</span>" to your students
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-5 py-4">
+          {/* Assign To Field */}
           <div className="space-y-2">
-            <Label>Assign To</Label>
+            <Label className="text-sm font-medium">Assign To</Label>
             <StudentGroupSelector value={selectedGroup} onValueChange={setSelectedGroup} />
           </div>
 
+          {/* Release Date Field */}
           <div className="space-y-2">
-            <Label htmlFor="releaseDate">Release Date *</Label>
-            <Input
-              id="releaseDate"
-              type="datetime-local"
-              value={releaseDate}
-              onChange={(e) => setReleaseDate(e.target.value)}
-            />
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Release Date</Label>
+              <span className="text-xs text-muted-foreground">Required</span>
+            </div>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !releaseDate && "text-muted-foreground",
+                      errors.releaseDate && "border-destructive"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {releaseDate ? format(releaseDate, "PPP") : "Select date..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={releaseDate}
+                    onSelect={setReleaseDate}
+                    disabled={(date) => isBefore(date, startOfDay(new Date()))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <input
+                type="time"
+                value={releaseTime}
+                onChange={(e) => setReleaseTime(e.target.value)}
+                className={cn(
+                  "w-24 px-3 py-2 rounded-md border bg-background text-sm",
+                  errors.releaseDate && "border-destructive"
+                )}
+              />
+            </div>
+            {errors.releaseDate && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.releaseDate}
+              </p>
+            )}
           </div>
 
+          {/* Deadline Field */}
           <div className="space-y-2">
-            <Label htmlFor="deadline">Deadline (Optional)</Label>
-            <Input
-              id="deadline"
-              type="datetime-local"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Deadline</Label>
+              <span className="text-xs text-muted-foreground">Optional</span>
+            </div>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !deadline && "text-muted-foreground",
+                      errors.deadline && "border-destructive"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {deadline ? format(deadline, "PPP") : "Select deadline..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={deadline}
+                    onSelect={setDeadline}
+                    disabled={(date) => {
+                      const minDate = releaseDate || new Date();
+                      return isBefore(date, startOfDay(minDate));
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <input
+                type="time"
+                value={deadlineTime}
+                onChange={(e) => setDeadlineTime(e.target.value)}
+                className={cn(
+                  "w-24 px-3 py-2 rounded-md border bg-background text-sm",
+                  errors.deadline && "border-destructive"
+                )}
+              />
+            </div>
+            {errors.deadline && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.deadline}
+              </p>
+            )}
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button 
+            variant="outline" 
+            onClick={handleCancel}
+            className="text-muted-foreground"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Assign Exam
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !isFormValid}
+            className="min-w-[120px]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Assigning...
+              </>
+            ) : (
+              "Assign Exam"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
