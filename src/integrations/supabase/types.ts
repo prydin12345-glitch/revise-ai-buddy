@@ -1902,6 +1902,7 @@ export type Database = {
           id: string
           last_name: string | null
           phone_number: string | null
+          student_code: string | null
           timezone: string | null
           updated_at: string
         }
@@ -1915,6 +1916,7 @@ export type Database = {
           id: string
           last_name?: string | null
           phone_number?: string | null
+          student_code?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -1928,6 +1930,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone_number?: string | null
+          student_code?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -2120,6 +2123,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_student_code: {
+        Args: { p_first_name: string; p_last_name: string }
+        Returns: string
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: {
