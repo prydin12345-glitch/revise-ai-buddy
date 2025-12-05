@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VerificationRequestModal } from "@/components/teacher/VerificationRequestModal";
-import { AssignExamModal } from "@/components/teacher/AssignExamModal";
+import { AssignModal } from "@/components/tutor/AssignModal";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -310,7 +310,7 @@ export const TeacherDashboardContent = ({ userEmail }: DashboardContentProps) =>
       />
 
       {selectedExam && (
-        <AssignExamModal
+        <AssignModal
           open={!!selectedExam}
           onOpenChange={(open) => !open && setSelectedExam(null)}
           examId={selectedExam.id}

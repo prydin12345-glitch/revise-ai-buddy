@@ -91,30 +91,108 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
       const releaseDatetime = combineDateAndTime(releaseDate!, releaseTime);
       const deadlineDatetime = deadline ? combineDateAndTime(deadline, deadlineTime) : null;
 
-      const assignmentData = {
-        exam_id: examId,
-        assigned_by: user.id,
-        assignment_type: selectedGroup === "all" ? "all" : "group",
-        target_id: selectedGroup === "all" ? null : selectedGroup,
-        release_date: releaseDatetime.toISOString(),
-        deadline: deadlineDatetime?.toISOString() || null,
-        is_active: true,
-        is_grades_released: false
-      };
+      if (selectedGroup === "all") {
+        // Get all active groups for this tutor
+        const { data: groups, error: groupsError } = await supabase
+          .from("student_groups")
+          .select("id, name")
+          .eq("tutor_id", user.id)
+          .eq("is_active", true);
 
-      const { error } = await supabase
-        .from("exam_assignments")
-        .insert(assignmentData);
+        if (groupsError) throw groupsError;
 
-      if (error) {
-        console.error("Assignment error:", error);
-        if (error.code === "42P17") {
-          throw new Error("Permission denied. Please check you have the correct role.");
+        if (!groups || groups.length === 0) {
+          throw new Error("No active groups found. Please create a group first.");
         }
-        throw error;
+
+        // Create an assignment for each group
+        const assignments = groups.map(group => ({
+          exam_id: examId,
+          assigned_by: user.id,
+          assignment_type: "group",
+          target_id: group.id,
+          release_date: releaseDatetime.toISOString(),
+          deadline: deadlineDatetime?.toISOString() || null,
+          is_active: true,
+          is_grades_released: false
+        }));
+
+        const { error } = await supabase
+          .from("exam_assignments")
+          .insert(assignments);
+
+        if (error) {
+          console.error("Assignment error:", error);
+          throw error;
+        }
+
+        // Get all student IDs from all groups for notifications
+        const { data: members } = await supabase
+          .from("group_members")
+          .select("student_id")
+          .in("group_id", groups.map(g => g.id))
+          .eq("is_active", true);
+
+        // Create notifications for all students
+        if (members && members.length > 0) {
+          const uniqueStudentIds = [...new Set(members.map(m => m.student_id))];
+          const notifications = uniqueStudentIds.map(studentId => ({
+            user_id: studentId,
+            type: "exam_assigned",
+            title: "New Exam Assigned",
+            body: `You have been assigned: ${examTitle}`,
+            action_data: { exam_id: examId }
+          }));
+
+          await supabase.from("notifications").insert(notifications);
+        }
+
+        toast.success(`Exam assigned to ${groups.length} group${groups.length > 1 ? 's' : ''}`);
+      } else {
+        // Single group assignment
+        const { error } = await supabase
+          .from("exam_assignments")
+          .insert({
+            exam_id: examId,
+            assigned_by: user.id,
+            assignment_type: "group",
+            target_id: selectedGroup,
+            release_date: releaseDatetime.toISOString(),
+            deadline: deadlineDatetime?.toISOString() || null,
+            is_active: true,
+            is_grades_released: false
+          });
+
+        if (error) {
+          console.error("Assignment error:", error);
+          if (error.code === "42P17") {
+            throw new Error("Permission denied. Please check you have the correct role.");
+          }
+          throw error;
+        }
+
+        // Create notifications for students in the group
+        const { data: members } = await supabase
+          .from("group_members")
+          .select("student_id")
+          .eq("group_id", selectedGroup)
+          .eq("is_active", true);
+
+        if (members && members.length > 0) {
+          const notifications = members.map(m => ({
+            user_id: m.student_id,
+            type: "exam_assigned",
+            title: "New Exam Assigned",
+            body: `You have been assigned: ${examTitle}`,
+            action_data: { exam_id: examId }
+          }));
+
+          await supabase.from("notifications").insert(notifications);
+        }
+
+        toast.success("Exam assigned successfully");
       }
 
-      toast.success(`Exam assigned successfully`);
       onAssigned();
       onOpenChange(false);
     } catch (error: any) {
