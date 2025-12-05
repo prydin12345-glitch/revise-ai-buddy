@@ -88,6 +88,24 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check if exam needs to be published first
+      const { data: exam } = await supabase
+        .from("exams")
+        .select("status")
+        .eq("id", examId)
+        .single();
+
+      if (exam?.status === "draft") {
+        // Publish the exam before assigning
+        const { error: publishError } = await supabase.functions.invoke("publish-exam", {
+          body: { draftId: examId }
+        });
+        if (publishError) {
+          console.error("Publish error:", publishError);
+          throw new Error("Failed to publish exam before assigning");
+        }
+      }
+
       const releaseDatetime = combineDateAndTime(releaseDate!, releaseTime);
       const deadlineDatetime = deadline ? combineDateAndTime(deadline, deadlineTime) : null;
 
