@@ -1,183 +1,240 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Users, Calendar, FileText, MessageSquare, ExternalLink, Loader2, Bell, Plus, LogOut } from "lucide-react";
-import { JoinClassModal } from "@/components/tutor/JoinClassModal";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Plus, Search, BookOpen, Megaphone, ClipboardList } from "lucide-react";
+import { JoinClassModal } from "@/components/tutor/JoinClassModal";
+import { MonthFilter } from "@/components/classes/MonthFilter";
+import { ClassCard } from "@/components/classes/ClassCard";
+import { ClassDetailView } from "@/components/classes/ClassDetailView";
+import { AssignmentCard } from "@/components/classes/AssignmentCard";
+import { AnnouncementItem } from "@/components/classes/AnnouncementItem";
 
 interface StudentGroup {
   id: string;
   name: string;
-  description: string | null;
+  description?: string;
   tutor_id: string;
-  invite_code: string | null;
-  capacity: number | null;
-  subjects_covered: any;
-  joined_at: string;
+  subjects_covered?: { name: string; color?: string }[];
+  joined_at?: string;
 }
 
 interface GroupAssignment {
   id: string;
   exam_id: string;
-  deadline: string | null;
-  release_date: string | null;
-  is_grades_released: boolean;
-  exams: {
-    id: string;
-    title: string;
-    subject_id: string;
-    status: string;
-  };
+  exam_title: string;
+  exam_type: "uploaded" | "generated";
+  deadline?: string;
+  release_date?: string;
+  group_id: string;
+  group_name: string;
 }
 
 interface GroupAnnouncement {
   id: string;
   title: string;
   message: string;
-  attachment_url: string | null;
   created_at: string;
-  tutor_id: string;
+  attachment_url?: string;
   group_id: string;
+  group_name: string;
+}
+
+interface TutorInfo {
+  name: string;
+  bio?: string;
+  subjects_taught?: string[];
 }
 
 const MyClasses = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
-  const [assignments, setAssignments] = useState<Map<string, GroupAssignment[]>>(new Map());
-  const [announcements, setAnnouncements] = useState<Map<string, GroupAnnouncement[]>>(new Map());
+  const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
+  const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
+  const [submissions, setSubmissions] = useState<Map<string, { status: string; total_score?: number; total_marks?: number }>>(new Map());
+  const [tutors, setTutors] = useState<Map<string, TutorInfo>>(new Map());
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<StudentGroup | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<StudentGroup | null>(null);
-  const [activeTab, setActiveTab] = useState("classes");
+  const [groupToLeave, setGroupToLeave] = useState<StudentGroup | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [firstName, setFirstName] = useState("");
 
   useEffect(() => {
     loadStudentClasses();
 
-    // Real-time subscription for group changes and announcements
-    const groupsChannel = supabase
-      .channel('student-groups-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, loadStudentClasses)
+    // Real-time subscription for announcements
+    const channel = supabase
+      .channel('student-classes-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_announcements' }, (payload) => {
-        // Show toast notification for new announcements
-        const announcement = payload.new as GroupAnnouncement;
+        const announcement = payload.new as any;
         if (groups.some(g => g.id === announcement.group_id)) {
-          toast.success(`New announcement: ${announcement.title}`, {
-            description: announcement.message.substring(0, 100) + (announcement.message.length > 100 ? '...' : ''),
-          });
+          toast.success(`New announcement: ${announcement.title}`);
           loadStudentClasses();
         }
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_announcements' }, loadStudentClasses)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'group_announcements' }, loadStudentClasses)
       .subscribe();
 
     return () => {
-      supabase.removeChannel(groupsChannel);
+      supabase.removeChannel(channel);
     };
   }, []);
 
   const loadStudentClasses = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch groups the student is a member of
-      const { data: memberships, error: membershipsError } = await supabase
+      // Get user's first name
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name, display_name")
+        .eq("id", user.id)
+        .single();
+      
+      setFirstName(profile?.first_name || profile?.display_name?.split(" ")[0] || "");
+
+      // Get student's group memberships
+      const { data: memberships } = await supabase
         .from("group_members")
         .select(`
+          group_id,
           joined_at,
-          student_groups (
-            id,
-            name,
-            description,
-            tutor_id,
-            invite_code,
-            capacity,
-            subjects_covered
+          student_groups!inner (
+            id, name, description, tutor_id, subjects_covered, is_active
           )
         `)
         .eq("student_id", user.id)
         .eq("is_active", true);
 
-      if (membershipsError) throw membershipsError;
-
-      const groupsData = memberships?.map(m => ({
-        ...(m.student_groups as any),
-        joined_at: m.joined_at
-      })) || [];
-
-      setGroups(groupsData);
-
-      // Fetch assignments and announcements for each group
-      if (groupsData.length > 0) {
-        const groupIds = groupsData.map(g => g.id);
-
-        // Fetch assignments
-        const { data: assignmentsData } = await supabase
-          .from("exam_assignments")
-          .select(`
-            id,
-            exam_id,
-            deadline,
-            release_date,
-            is_grades_released,
-            exams (
-              id,
-              title,
-              subject_id,
-              status
-            )
-          `)
-          .eq("assignment_type", "group")
-          .in("target_id", groupIds)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-
-        const assignmentsMap = new Map<string, GroupAssignment[]>();
-        assignmentsData?.forEach((assignment: any) => {
-          const groupId = assignment.target_id;
-          if (!assignmentsMap.has(groupId)) {
-            assignmentsMap.set(groupId, []);
-          }
-          assignmentsMap.get(groupId)?.push(assignment);
-        });
-        setAssignments(assignmentsMap);
-
-        // Fetch announcements
-        const { data: announcementsData } = await supabase
-          .from("group_announcements")
-          .select("*")
-          .in("group_id", groupIds)
-          .order("created_at", { ascending: false })
-          .limit(10);
-
-        const announcementsMap = new Map<string, GroupAnnouncement[]>();
-        announcementsData?.forEach((announcement) => {
-          if (!announcementsMap.has(announcement.group_id)) {
-            announcementsMap.set(announcement.group_id, []);
-          }
-          announcementsMap.get(announcement.group_id)?.push(announcement);
-        });
-        setAnnouncements(announcementsMap);
+      if (!memberships || memberships.length === 0) {
+        setGroups([]);
+        setLoading(false);
+        return;
       }
-    } catch (error: any) {
+
+      const activeGroups: StudentGroup[] = memberships
+        .filter((m: any) => m.student_groups?.is_active)
+        .map((m: any) => ({
+          id: m.student_groups.id,
+          name: m.student_groups.name,
+          description: m.student_groups.description,
+          tutor_id: m.student_groups.tutor_id,
+          subjects_covered: m.student_groups.subjects_covered || [],
+          joined_at: m.joined_at,
+        }));
+
+      setGroups(activeGroups);
+
+      // Get tutor info
+      const tutorIds = [...new Set(activeGroups.map(g => g.tutor_id))];
+      const { data: tutorProfiles } = await supabase
+        .from("tutor_profiles")
+        .select("user_id, bio, subjects_taught")
+        .in("user_id", tutorIds);
+
+      const { data: tutorUserProfiles } = await supabase
+        .from("user_profiles")
+        .select("id, display_name, first_name, last_name")
+        .in("id", tutorIds);
+
+      const tutorMap = new Map<string, TutorInfo>();
+      tutorIds.forEach(id => {
+        const profile = tutorUserProfiles?.find(p => p.id === id);
+        const tutorProfile = tutorProfiles?.find(p => p.user_id === id);
+        const name = profile?.display_name || 
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || 
+          "Tutor";
+        tutorMap.set(id, {
+          name,
+          bio: tutorProfile?.bio || undefined,
+          subjects_taught: (tutorProfile?.subjects_taught as string[]) || [],
+        });
+      });
+      setTutors(tutorMap);
+
+      // Get assignments for all groups
+      const groupIds = activeGroups.map(g => g.id);
+      const { data: examAssignments } = await supabase
+        .from("exam_assignments")
+        .select(`
+          id, exam_id, deadline, release_date, target_id,
+          exams!inner (id, title, type, status)
+        `)
+        .eq("assignment_type", "group")
+        .eq("is_active", true)
+        .in("target_id", groupIds);
+
+      const allAssignments: GroupAssignment[] = (examAssignments || [])
+        .filter((a: any) => a.exams?.status === "published")
+        .map((a: any) => {
+          const group = activeGroups.find(g => g.id === a.target_id);
+          return {
+            id: a.id,
+            exam_id: a.exam_id,
+            exam_title: a.exams?.title || "Untitled",
+            exam_type: a.exams?.type || "uploaded",
+            deadline: a.deadline,
+            release_date: a.release_date,
+            group_id: a.target_id,
+            group_name: group?.name || "",
+          };
+        });
+
+      setAssignments(allAssignments);
+
+      // Get student submissions
+      const examIds = allAssignments.map(a => a.exam_id);
+      if (examIds.length > 0) {
+        const { data: studentSubmissions } = await supabase
+          .from("exam_submissions")
+          .select("exam_id, status, total_score, total_marks")
+          .eq("student_id", user.id)
+          .in("exam_id", examIds);
+
+        const submissionMap = new Map();
+        studentSubmissions?.forEach(s => {
+          submissionMap.set(s.exam_id, {
+            status: s.status,
+            total_score: s.total_score,
+            total_marks: s.total_marks,
+          });
+        });
+        setSubmissions(submissionMap);
+      }
+
+      // Get announcements
+      const { data: groupAnnouncements } = await supabase
+        .from("group_announcements")
+        .select("id, title, message, created_at, attachment_url, group_id")
+        .in("group_id", groupIds)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const allAnnouncements: GroupAnnouncement[] = (groupAnnouncements || []).map(a => {
+        const group = activeGroups.find(g => g.id === a.group_id);
+        return { ...a, group_name: group?.name || "" };
+      });
+
+      setAnnouncements(allAnnouncements);
+    } catch (error) {
       console.error("Error loading classes:", error);
-      toast.error("Failed to load classes");
+      toast.error("Failed to load your classes");
     } finally {
       setLoading(false);
     }
   };
 
   const handleLeaveGroup = async () => {
-    if (!selectedGroup) return;
-
+    if (!groupToLeave) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -185,302 +242,234 @@ const MyClasses = () => {
       const { error } = await supabase
         .from("group_members")
         .update({ is_active: false })
-        .eq("group_id", selectedGroup.id)
+        .eq("group_id", groupToLeave.id)
         .eq("student_id", user.id);
 
       if (error) throw error;
 
-      toast.success(`Left ${selectedGroup.name}`);
-      setLeaveDialogOpen(false);
-      setSelectedGroup(null);
-      loadStudentClasses();
-    } catch (error: any) {
+      toast.success(`Left ${groupToLeave.name}`);
+      setGroups(prev => prev.filter(g => g.id !== groupToLeave.id));
+      setSelectedClass(null);
+    } catch (error) {
       console.error("Error leaving group:", error);
       toast.error("Failed to leave class");
+    } finally {
+      setLeaveDialogOpen(false);
+      setGroupToLeave(null);
     }
   };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
+  const filteredGroups = groups.filter(g =>
+    g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tutors.get(g.tutor_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getAssignmentsForGroup = (groupId: string) =>
+    assignments.filter(a => a.group_id === groupId);
+
+  const getAnnouncementsForGroup = (groupId: string) =>
+    announcements.filter(a => a.group_id === groupId);
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="p-6 space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+          </div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show detailed view for selected class
+  if (selectedClass) {
+    const tutor = tutors.get(selectedClass.tutor_id);
+    const classAssignments = getAssignmentsForGroup(selectedClass.id);
+    const classAnnouncements = getAnnouncementsForGroup(selectedClass.id);
+
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <ClassDetailView
+            group={selectedClass}
+            tutor={tutor}
+            assignments={classAssignments}
+            submissions={submissions}
+            announcements={classAnnouncements}
+            onBack={() => setSelectedClass(null)}
+            onLeave={() => {
+              setGroupToLeave(selectedClass);
+              setLeaveDialogOpen(true);
+            }}
+          />
+        </div>
+
+        <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Leave {groupToLeave?.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You will no longer receive assignments or announcements from this class.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLeaveGroup} className="bg-destructive text-destructive-foreground">
+                Leave Class
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1600px] mx-auto space-y-6">
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">My Classes</h1>
+            <h1 className="text-3xl font-bold text-foreground">My Classes</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your tutor groups, assignments, and announcements
+              {getGreeting()}{firstName ? `, ${firstName}` : ""}! Manage your tutor groups, assignments, and announcements.
             </p>
           </div>
-          <Button onClick={() => setJoinModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Join a Class
-          </Button>
+          <div className="flex items-center gap-3">
+            <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+            <Button
+              onClick={() => setJoinModalOpen(true)}
+              className="rounded-full w-10 h-10 p-0"
+              title="Join a Class"
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
-        {groups.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Users className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No Classes Yet</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Join a class using your tutor's invite code to get started
-              </p>
-              <Button onClick={() => setJoinModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Join Your First Class
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="classes">My Classes</TabsTrigger>
-              <TabsTrigger value="assignments">All Assignments</TabsTrigger>
-              <TabsTrigger value="announcements">Recent Announcements</TabsTrigger>
-            </TabsList>
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search classes or tutors..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
-            <TabsContent value="classes" className="space-y-4">
-              {groups.map((group) => (
-                <Card key={group.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-2xl mb-2">{group.name}</CardTitle>
-                        {group.description && (
-                          <p className="text-muted-foreground">{group.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-3">
-                          <Badge variant="outline">
-                            Joined {new Date(group.joined_at).toLocaleDateString()}
-                          </Badge>
-                          {group.subjects_covered && Array.isArray(group.subjects_covered) && group.subjects_covered.length > 0 && (
-                            <Badge variant="secondary">
-                              {group.subjects_covered.join(", ")}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedGroup(group);
-                          setLeaveDialogOpen(true);
-                        }}
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Leave
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Assignments for this group */}
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Assignments ({assignments.get(group.id)?.length || 0})
-                      </h4>
-                      {assignments.get(group.id)?.length ? (
-                        <div className="space-y-2">
-                          {assignments.get(group.id)!.slice(0, 3).map((assignment) => (
-                            <div
-                              key={assignment.id}
-                              className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                              onClick={() => navigate(`/exam/${assignment.exam_id}/preview`)}
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium">{assignment.exams.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {assignment.exams.subject_id}
-                                  </Badge>
-                                  {assignment.deadline && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      Due: {new Date(assignment.deadline).toLocaleDateString()}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                          ))}
-                          {assignments.get(group.id)!.length > 3 && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full"
-                              onClick={() => setActiveTab("assignments")}
-                            >
-                              View All {assignments.get(group.id)!.length} Assignments
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No assignments yet</p>
-                      )}
-                    </div>
+        {/* Tabs */}
+        <Tabs defaultValue="classes" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="classes" className="gap-2">
+              <BookOpen className="w-4 h-4" />
+              My Classes
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="gap-2">
+              <ClipboardList className="w-4 h-4" />
+              All Assignments
+            </TabsTrigger>
+            <TabsTrigger value="announcements" className="gap-2">
+              <Megaphone className="w-4 h-4" />
+              Announcements
+            </TabsTrigger>
+          </TabsList>
 
-                    {/* Announcements for this group */}
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Bell className="w-4 h-4" />
-                        Recent Announcements
-                      </h4>
-                      {announcements.get(group.id)?.length ? (
-                        <div className="space-y-2">
-                          {announcements.get(group.id)!.slice(0, 2).map((announcement) => (
-                            <div
-                              key={announcement.id}
-                              className="p-3 border rounded-lg bg-muted/30"
-                            >
-                              <div className="flex items-start justify-between mb-1">
-                                <p className="font-medium">{announcement.title}</p>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(announcement.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{announcement.message}</p>
-                              {announcement.attachment_url && (
-                                <a
-                                  href={announcement.attachment_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  View Attachment
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No announcements yet</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
+          {/* My Classes Tab */}
+          <TabsContent value="classes">
+            {filteredGroups.length === 0 ? (
+              <div className="text-center py-16">
+                <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No Classes Yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Join a class to start receiving assignments and announcements from your tutor.
+                </p>
+                <Button onClick={() => setJoinModalOpen(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Join a Class
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {filteredGroups.map(group => (
+                  <ClassCard
+                    key={group.id}
+                    group={group}
+                    tutorName={tutors.get(group.tutor_id)?.name}
+                    assignmentCount={getAssignmentsForGroup(group.id).length}
+                    announcementCount={getAnnouncementsForGroup(group.id).length}
+                    onClick={() => setSelectedClass(group)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-            <TabsContent value="assignments" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Assignments</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {Array.from(assignments.entries()).flatMap(([groupId, groupAssignments]) => 
-                    groupAssignments.map(assignment => ({
-                      ...assignment,
-                      groupName: groups.find(g => g.id === groupId)?.name
-                    }))
-                  ).length > 0 ? (
-                    <div className="space-y-3">
-                      {Array.from(assignments.entries()).flatMap(([groupId, groupAssignments]) => 
-                        groupAssignments.map(assignment => ({
-                          ...assignment,
-                          groupName: groups.find(g => g.id === groupId)?.name
-                        }))
-                      ).map((assignment) => (
-                        <div
-                          key={assignment.id}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => navigate(`/exam/${assignment.exam_id}/preview`)}
-                        >
-                          <div className="flex-1">
-                            <p className="font-semibold text-lg">{assignment.exams.title}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline">{assignment.exams.subject_id}</Badge>
-                              <Badge variant="secondary">{assignment.groupName}</Badge>
-                              {assignment.deadline && (
-                                <Badge variant="destructive">
-                                  Due: {new Date(assignment.deadline).toLocaleDateString()}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <ExternalLink className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      ))}
+          {/* All Assignments Tab */}
+          <TabsContent value="assignments">
+            {assignments.length === 0 ? (
+              <div className="text-center py-16">
+                <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No Assignments</h3>
+                <p className="text-muted-foreground">
+                  Your tutors haven't assigned any exams or practice sets yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-w-3xl">
+                {assignments
+                  .sort((a, b) => {
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                  })
+                  .map(assignment => (
+                    <div key={assignment.id}>
+                      <p className="text-xs text-muted-foreground mb-1 ml-1">{assignment.group_name}</p>
+                      <AssignmentCard
+                        assignment={assignment}
+                        submission={submissions.get(assignment.exam_id)}
+                      />
                     </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                      <p className="text-muted-foreground">No assignments yet</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  ))}
+              </div>
+            )}
+          </TabsContent>
 
-            <TabsContent value="announcements" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Announcements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {Array.from(announcements.entries()).flatMap(([groupId, groupAnnouncements]) =>
-                    groupAnnouncements.map(announcement => ({
-                      ...announcement,
-                      groupName: groups.find(g => g.id === groupId)?.name
-                    }))
-                  ).length > 0 ? (
-                    <div className="space-y-3">
-                      {Array.from(announcements.entries()).flatMap(([groupId, groupAnnouncements]) =>
-                        groupAnnouncements.map(announcement => ({
-                          ...announcement,
-                          groupName: groups.find(g => g.id === groupId)?.name
-                        }))
-                      ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                        .map((announcement) => (
-                        <div key={announcement.id} className="p-4 border rounded-lg bg-muted/30">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-semibold text-lg">{announcement.title}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">{announcement.groupName}</Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(announcement.created_at).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-muted-foreground mt-2">{announcement.message}</p>
-                          {announcement.attachment_url && (
-                            <a
-                              href={announcement.attachment_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline mt-3 inline-flex items-center gap-1"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View Attachment
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                      <p className="text-muted-foreground">No announcements yet</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        )}
+          {/* Announcements Tab */}
+          <TabsContent value="announcements">
+            {announcements.length === 0 ? (
+              <div className="text-center py-16">
+                <Megaphone className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No Announcements</h3>
+                <p className="text-muted-foreground">
+                  Your tutors haven't posted any announcements yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-w-2xl">
+                {announcements.map(announcement => (
+                  <AnnouncementItem
+                    key={announcement.id}
+                    announcement={announcement}
+                    showGroupName
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <JoinClassModal
@@ -492,14 +481,16 @@ const MyClasses = () => {
       <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave Class</AlertDialogTitle>
+            <AlertDialogTitle>Leave {groupToLeave?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to leave "{selectedGroup?.name}"? You'll need a new invite code to rejoin.
+              You will no longer receive assignments or announcements from this class.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLeaveGroup}>Leave Class</AlertDialogAction>
+            <AlertDialogAction onClick={handleLeaveGroup} className="bg-destructive text-destructive-foreground">
+              Leave Class
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
