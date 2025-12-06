@@ -400,20 +400,20 @@ const MyClasses = () => {
         </div>
 
         {/* Header Row 2: Search + Tabs on same row */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Search bar */}
-          <div className="relative w-full sm:w-64 flex-shrink-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search classes or tutors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
+        <Tabs defaultValue="classes" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Search bar - left side */}
+            <div className="relative w-full sm:w-64 flex-shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search classes or tutors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
 
-          {/* Tabs - inline with search */}
-          <Tabs defaultValue="classes" className="flex-1">
+            {/* Tabs - inline with search */}
             <TabsList className="bg-muted/50">
               <TabsTrigger value="classes" className="gap-2">
                 <BookOpen className="w-4 h-4" />
@@ -428,9 +428,10 @@ const MyClasses = () => {
                 Announcements
               </TabsTrigger>
             </TabsList>
+          </div>
 
           {/* My Classes Tab */}
-          <TabsContent value="classes" className="space-y-6 mt-6">
+          <TabsContent value="classes" className="space-y-6">
             {filteredGroups.length === 0 ? (
               <div className="text-center py-16">
                 <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
@@ -603,8 +604,7 @@ const MyClasses = () => {
               </div>
             )}
           </TabsContent>
-          </Tabs>
-        </div>
+        </Tabs>
       </div>
 
       <JoinClassModal
