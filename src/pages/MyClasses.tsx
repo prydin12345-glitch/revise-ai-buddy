@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Search, BookOpen, Megaphone, ClipboardList } from "lucide-react";
+import { Plus, Search, BookOpen, Megaphone, ClipboardList, TrendingUp } from "lucide-react";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { MonthFilter } from "@/components/classes/MonthFilter";
 import { ClassCard } from "@/components/classes/ClassCard";
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
-import { AssignmentCard } from "@/components/classes/AssignmentCard";
 import { AnnouncementItem } from "@/components/classes/AnnouncementItem";
+import { AssignmentRow } from "@/components/classes/AssignmentRow";
+import { ProgressItem } from "@/components/classes/ProgressItem";
+import { format, isSameMonth, isSameYear } from "date-fns";
 
 interface StudentGroup {
   id: string;
@@ -51,12 +53,18 @@ interface TutorInfo {
   subjects_taught?: string[];
 }
 
+interface SubmissionData {
+  status: string;
+  total_score?: number;
+  total_marks?: number;
+}
+
 const MyClasses = () => {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
   const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
   const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
-  const [submissions, setSubmissions] = useState<Map<string, { status: string; total_score?: number; total_marks?: number }>>(new Map());
+  const [submissions, setSubmissions] = useState<Map<string, SubmissionData>>(new Map());
   const [tutors, setTutors] = useState<Map<string, TutorInfo>>(new Map());
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<StudentGroup | null>(null);
@@ -277,6 +285,44 @@ const MyClasses = () => {
   const getAnnouncementsForGroup = (groupId: string) =>
     announcements.filter(a => a.group_id === groupId);
 
+  // Filter assignments by selected month
+  const upcomingAssignments = useMemo(() => {
+    return assignments
+      .filter(a => {
+        if (!a.deadline) return true;
+        const deadline = new Date(a.deadline);
+        return isSameMonth(deadline, selectedMonth) && isSameYear(deadline, selectedMonth);
+      })
+      .filter(a => {
+        const sub = submissions.get(a.exam_id);
+        return !sub || sub.status !== "graded";
+      })
+      .sort((a, b) => {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+  }, [assignments, submissions, selectedMonth]);
+
+  // Group assignments by date
+  const groupedAssignments = useMemo(() => {
+    const grouped: Record<string, GroupAssignment[]> = {};
+    upcomingAssignments.forEach(a => {
+      const dateKey = a.deadline ? format(new Date(a.deadline), "dd/MM/yyyy") : "No deadline";
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(a);
+    });
+    return grouped;
+  }, [upcomingAssignments]);
+
+  // Get completed assignments (graded only, tutor-assigned)
+  const completedAssignments = useMemo(() => {
+    return assignments.filter(a => {
+      const sub = submissions.get(a.exam_id);
+      return sub && (sub.status === "graded" || sub.status === "submitted");
+    });
+  }, [assignments, submissions]);
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -341,25 +387,34 @@ const MyClasses = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Classes</h1>
-            <p className="text-muted-foreground mt-1">
-              {getGreeting()}{firstName ? `, ${firstName}` : ""}! Manage your tutor groups, assignments, and announcements.
+            <h1 className="text-2xl font-bold text-foreground">My Classes</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Manage your tutor groups, assignments, and announcements
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="relative w-64 hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search classes or tutors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
             <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
             <Button
               onClick={() => setJoinModalOpen(true)}
-              className="rounded-full w-10 h-10 p-0"
+              className="rounded-full w-9 h-9 p-0"
               title="Join a Class"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
+        {/* Mobile Search */}
+        <div className="relative sm:hidden">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search classes or tutors..."
@@ -371,7 +426,7 @@ const MyClasses = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="classes" className="space-y-6">
-          <TabsList>
+          <TabsList className="bg-muted/50">
             <TabsTrigger value="classes" className="gap-2">
               <BookOpen className="w-4 h-4" />
               My Classes
@@ -387,7 +442,7 @@ const MyClasses = () => {
           </TabsList>
 
           {/* My Classes Tab */}
-          <TabsContent value="classes">
+          <TabsContent value="classes" className="space-y-6">
             {filteredGroups.length === 0 ? (
               <div className="text-center py-16">
                 <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
@@ -401,18 +456,100 @@ const MyClasses = () => {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {filteredGroups.map(group => (
-                  <ClassCard
-                    key={group.id}
-                    group={group}
-                    tutorName={tutors.get(group.tutor_id)?.name}
-                    assignmentCount={getAssignmentsForGroup(group.id).length}
-                    announcementCount={getAnnouncementsForGroup(group.id).length}
-                    onClick={() => setSelectedClass(group)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Horizontal scrolling class cards */}
+                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mx-1 px-1">
+                  {filteredGroups.map(group => (
+                    <ClassCard
+                      key={group.id}
+                      group={group}
+                      tutorName={tutors.get(group.tutor_id)?.name}
+                      assignmentCount={getAssignmentsForGroup(group.id).length}
+                      announcementCount={getAnnouncementsForGroup(group.id).length}
+                      onClick={() => setSelectedClass(group)}
+                    />
+                  ))}
+                </div>
+
+                {/* Two-panel layout: Upcoming Assignments + Progress */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Upcoming Assignments - Left Panel (2/3) */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Upcoming Assignments</h2>
+                    
+                    {Object.keys(groupedAssignments).length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        You have no upcoming exams or practice questions set by your tutors.
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {Object.entries(groupedAssignments).map(([date, dateAssignments]) => (
+                          <div key={date} className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">{date}</p>
+                            {dateAssignments.map(assignment => {
+                              const group = groups.find(g => g.id === assignment.group_id);
+                              const tutor = group ? tutors.get(group.tutor_id) : undefined;
+                              const primarySubject = group?.subjects_covered?.[0]?.name;
+                              
+                              return (
+                                <AssignmentRow
+                                  key={assignment.id}
+                                  assignment={{
+                                    id: assignment.id,
+                                    exam_id: assignment.exam_id,
+                                    title: assignment.exam_title,
+                                    type: assignment.exam_type,
+                                    deadline: assignment.deadline || null,
+                                    release_date: assignment.release_date
+                                  }}
+                                  className={assignment.group_name}
+                                  tutorName={tutor?.name}
+                                  submission={submissions.get(assignment.exam_id)}
+                                  subjectColor={primarySubject ? `hsl(var(--primary))` : undefined}
+                                />
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Panel - Right (1/3) */}
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      Progress
+                    </h2>
+                    
+                    {completedAssignments.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8 text-sm">
+                        You have no completed exams or practice questions from your tutors yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {completedAssignments.slice(0, 5).map(assignment => {
+                          const sub = submissions.get(assignment.exam_id);
+                          const group = groups.find(g => g.id === assignment.group_id);
+                          const primarySubject = group?.subjects_covered?.[0]?.name;
+                          
+                          return (
+                            <ProgressItem
+                              key={assignment.id}
+                              examId={assignment.exam_id}
+                              title={assignment.exam_title}
+                              className={assignment.group_name}
+                              subject={primarySubject}
+                              score={sub?.total_score || 0}
+                              totalMarks={sub?.total_marks || 100}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
           </TabsContent>
 
@@ -434,15 +571,27 @@ const MyClasses = () => {
                     if (!b.deadline) return -1;
                     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
                   })
-                  .map(assignment => (
-                    <div key={assignment.id}>
-                      <p className="text-xs text-muted-foreground mb-1 ml-1">{assignment.group_name}</p>
-                      <AssignmentCard
-                        assignment={assignment}
+                  .map(assignment => {
+                    const group = groups.find(g => g.id === assignment.group_id);
+                    const tutor = group ? tutors.get(group.tutor_id) : undefined;
+                    
+                    return (
+                      <AssignmentRow
+                        key={assignment.id}
+                        assignment={{
+                          id: assignment.id,
+                          exam_id: assignment.exam_id,
+                          title: assignment.exam_title,
+                          type: assignment.exam_type,
+                          deadline: assignment.deadline || null,
+                          release_date: assignment.release_date
+                        }}
+                        className={assignment.group_name}
+                        tutorName={tutor?.name}
                         submission={submissions.get(assignment.exam_id)}
                       />
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </TabsContent>
