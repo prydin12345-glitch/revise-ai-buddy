@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Search, BookOpen, Megaphone, ClipboardList, TrendingUp } from "lucide-react";
+import { Plus, Search, BookOpen, Megaphone, ClipboardList } from "lucide-react";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { MonthFilter } from "@/components/classes/MonthFilter";
 import { ClassCard } from "@/components/classes/ClassCard";
@@ -384,24 +384,10 @@ const MyClasses = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">My Classes</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your tutor groups, assignments, and announcements
-            </p>
-          </div>
+        {/* Header Row 1: Title + Month dropdown + Join button */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">My Classes</h1>
           <div className="flex items-center gap-3">
-            <div className="relative w-64 hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search classes or tutors..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
             <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
             <Button
               onClick={() => setJoinModalOpen(true)}
@@ -413,36 +399,38 @@ const MyClasses = () => {
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="relative sm:hidden">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search classes or tutors..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        {/* Header Row 2: Search + Tabs on same row */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Search bar */}
+          <div className="relative w-full sm:w-64 flex-shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search classes or tutors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="classes" className="space-y-6">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="classes" className="gap-2">
-              <BookOpen className="w-4 h-4" />
-              My Classes
-            </TabsTrigger>
-            <TabsTrigger value="assignments" className="gap-2">
-              <ClipboardList className="w-4 h-4" />
-              All Assignments
-            </TabsTrigger>
-            <TabsTrigger value="announcements" className="gap-2">
-              <Megaphone className="w-4 h-4" />
-              Announcements
-            </TabsTrigger>
-          </TabsList>
+          {/* Tabs - inline with search */}
+          <Tabs defaultValue="classes" className="flex-1">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="classes" className="gap-2">
+                <BookOpen className="w-4 h-4" />
+                My Classes
+              </TabsTrigger>
+              <TabsTrigger value="assignments" className="gap-2">
+                <ClipboardList className="w-4 h-4" />
+                All Assignments
+              </TabsTrigger>
+              <TabsTrigger value="announcements" className="gap-2">
+                <Megaphone className="w-4 h-4" />
+                Announcements
+              </TabsTrigger>
+            </TabsList>
 
           {/* My Classes Tab */}
-          <TabsContent value="classes" className="space-y-6">
+          <TabsContent value="classes" className="space-y-6 mt-6">
             {filteredGroups.length === 0 ? (
               <div className="text-center py-16">
                 <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
@@ -472,7 +460,7 @@ const MyClasses = () => {
                 </div>
 
                 {/* Two-panel layout: Upcoming Assignments + Progress */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Upcoming Assignments - Left Panel (2/3) */}
                   <div className="lg:col-span-2 space-y-4">
                     <h2 className="text-lg font-semibold text-foreground">Upcoming Assignments</h2>
@@ -515,12 +503,9 @@ const MyClasses = () => {
                     )}
                   </div>
 
-                  {/* Progress Panel - Right (1/3) */}
+                  {/* Progress - Right Panel (1/3) */}
                   <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
-                      Progress
-                    </h2>
+                    <h2 className="text-lg font-semibold text-foreground">Progress</h2>
                     
                     {completedAssignments.length === 0 ? (
                       <p className="text-muted-foreground text-center py-8 text-sm">
@@ -618,7 +603,8 @@ const MyClasses = () => {
               </div>
             )}
           </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
       </div>
 
       <JoinClassModal
