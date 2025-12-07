@@ -1,8 +1,10 @@
-import { format, isToday, isTomorrow, isPast } from "date-fns";
+import { format, isToday, isTomorrow, isPast, isFuture } from "date-fns";
 import { Clock, FileText, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface AssignmentRowProps {
   assignment: {
@@ -46,7 +48,33 @@ export const AssignmentRow = ({
   const color = subjectColor || subjectColors["default"];
 
   const getStatusConfig = () => {
-    if (!submission) {
+    const now = new Date();
+
+    // Check release date - if not yet released
+    if (assignment.release_date && isFuture(new Date(assignment.release_date))) {
+      return { 
+        label: "Not Available", 
+        variant: "secondary" as const, 
+        action: `Available ${format(new Date(assignment.release_date), "MMM d")}`,
+        canAct: false,
+        disabledReason: `Available on ${format(new Date(assignment.release_date), "MMM d, yyyy 'at' h:mm a")}`
+      };
+    }
+
+    // Check deadline for non-completed assignments
+    const isCompleted = submission?.status === "graded" || submission?.status === "submitted";
+    if (assignment.deadline && isPast(new Date(assignment.deadline)) && !isCompleted) {
+      return { 
+        label: "Deadline Passed", 
+        variant: "destructive" as const, 
+        action: "View",
+        canAct: false,
+        disabledReason: "Deadline has passed"
+      };
+    }
+
+    // Normal status logic
+    if (!submission || !submission.status || submission.status === "not_started") {
       return { label: "Not Started", variant: "secondary" as const, action: "Start", canAct: true };
     }
     if (submission.status === "graded" || submission.status === "submitted") {
@@ -78,10 +106,28 @@ export const AssignmentRow = ({
   const deadlineInfo = getDeadlineInfo();
 
   const handleAction = () => {
-    if (!submission || submission.status === "not_started") {
-      navigate(`/exam/${assignment.exam_id}`);
-    } else {
-      navigate(`/review/${assignment.exam_id}`);
+    try {
+      if (!assignment.exam_id) {
+        toast.error("This assignment is no longer available.");
+        return;
+      }
+
+      if (!status.canAct) {
+        if (assignment.release_date && isFuture(new Date(assignment.release_date))) {
+          toast.info(`This assignment will be available on ${format(new Date(assignment.release_date), "MMM d, yyyy")}`);
+        }
+        return;
+      }
+
+      // Route based on submission status
+      if (submission?.status === "graded" || submission?.status === "submitted") {
+        navigate(`/exam/${assignment.exam_id}/review`);
+      } else {
+        navigate(`/exam/${assignment.exam_id}/in-progress`);
+      }
+    } catch (error) {
+      console.error("Error navigating to assignment:", { error, assignmentId: assignment.id, examId: assignment.exam_id });
+      toast.error("We couldn't load your session. Please try again.");
     }
   };
 
@@ -118,14 +164,34 @@ export const AssignmentRow = ({
           {status.label}
         </Badge>
 
-        <Button 
-          size="sm" 
-          variant="ghost"
-          onClick={handleAction}
-          className="text-primary hover:text-primary hover:bg-primary/10"
-        >
-          {status.action}
-        </Button>
+        {!status.canAct ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  disabled
+                  className="text-muted-foreground"
+                >
+                  {status.action}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {status.disabledReason}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button 
+            size="sm" 
+            variant="ghost"
+            onClick={handleAction}
+            className="text-primary hover:text-primary hover:bg-primary/10"
+          >
+            {status.action}
+          </Button>
+        )}
       </div>
     </div>
   );

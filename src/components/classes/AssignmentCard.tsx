@@ -1,9 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, FileText, CheckCircle2, Circle, PlayCircle } from "lucide-react";
-import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Clock, FileText, CheckCircle2, Circle, PlayCircle, Lock } from "lucide-react";
+import { format, formatDistanceToNow, isPast, isToday, isTomorrow, isFuture } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface AssignmentCardProps {
   assignment: {
@@ -21,14 +23,46 @@ interface AssignmentCardProps {
   };
 }
 
-const getStatusConfig = (submission?: { status: string; total_score?: number; total_marks?: number }, deadline?: string) => {
+const getStatusConfig = (
+  submission?: { status: string; total_score?: number; total_marks?: number }, 
+  deadline?: string,
+  releaseDate?: string
+) => {
+  // Check release date first
+  if (releaseDate && isFuture(new Date(releaseDate))) {
+    return { 
+      label: "Not Available", 
+      color: "hsl(var(--muted-foreground))", 
+      bgColor: "hsl(var(--muted))",
+      action: `Available ${format(new Date(releaseDate), "MMM d")}`,
+      icon: Lock,
+      canAct: false,
+      disabledReason: `Available on ${format(new Date(releaseDate), "MMM d, yyyy 'at' h:mm a")}`
+    };
+  }
+
+  // Check deadline for non-completed assignments
+  const isCompleted = submission?.status === "submitted" && submission?.total_score !== null;
+  if (deadline && isPast(new Date(deadline)) && !isCompleted && submission?.status !== "submitted") {
+    return { 
+      label: "Deadline Passed", 
+      color: "hsl(var(--destructive))", 
+      bgColor: "hsl(var(--destructive) / 0.1)",
+      action: "View",
+      icon: Lock,
+      canAct: false,
+      disabledReason: "Deadline has passed"
+    };
+  }
+
   if (!submission) {
     return { 
       label: "Not Started", 
       color: "hsl(var(--muted-foreground))", 
       bgColor: "hsl(var(--muted))",
       action: "Start Now",
-      icon: Circle
+      icon: Circle,
+      canAct: true
     };
   }
   
@@ -39,7 +73,8 @@ const getStatusConfig = (submission?: { status: string; total_score?: number; to
       color: "hsl(var(--success))", 
       bgColor: "hsl(var(--success) / 0.1)",
       action: "Review",
-      icon: CheckCircle2
+      icon: CheckCircle2,
+      canAct: true
     };
   }
   
@@ -49,7 +84,8 @@ const getStatusConfig = (submission?: { status: string; total_score?: number; to
       color: "hsl(217, 91%, 60%)", 
       bgColor: "hsl(217, 91%, 60%, 0.1)",
       action: "View",
-      icon: CheckCircle2
+      icon: CheckCircle2,
+      canAct: true
     };
   }
   
@@ -58,7 +94,8 @@ const getStatusConfig = (submission?: { status: string; total_score?: number; to
     color: "hsl(43, 74%, 49%)", 
     bgColor: "hsl(43, 74%, 49%, 0.1)",
     action: "Continue",
-    icon: PlayCircle
+    icon: PlayCircle,
+    canAct: true
   };
 };
 
@@ -75,15 +112,33 @@ const getDeadlineText = (deadline?: string) => {
 
 export const AssignmentCard = ({ assignment, submission }: AssignmentCardProps) => {
   const navigate = useNavigate();
-  const status = getStatusConfig(submission, assignment.deadline);
+  const status = getStatusConfig(submission, assignment.deadline, assignment.release_date);
   const deadlineInfo = getDeadlineText(assignment.deadline);
   const StatusIcon = status.icon;
 
   const handleAction = () => {
-    if (!submission || submission.status !== "submitted") {
-      navigate(`/exam/${assignment.exam_id}`);
-    } else {
-      navigate(`/exam/${assignment.exam_id}/review`);
+    try {
+      if (!assignment.exam_id) {
+        toast.error("This assignment is no longer available.");
+        return;
+      }
+
+      if (!status.canAct) {
+        if (assignment.release_date && isFuture(new Date(assignment.release_date))) {
+          toast.info(`This assignment will be available on ${format(new Date(assignment.release_date), "MMM d, yyyy")}`);
+        }
+        return;
+      }
+
+      // Route based on submission status
+      if (submission?.status === "submitted") {
+        navigate(`/exam/${assignment.exam_id}/review`);
+      } else {
+        navigate(`/exam/${assignment.exam_id}/in-progress`);
+      }
+    } catch (error) {
+      console.error("Error navigating to assignment:", { error, assignmentId: assignment.id, examId: assignment.exam_id });
+      toast.error("We couldn't load your session. Please try again.");
     }
   };
 
@@ -124,13 +179,32 @@ export const AssignmentCard = ({ assignment, submission }: AssignmentCardProps) 
               {status.label}
             </div>
             
-            <Button 
-              size="sm" 
-              onClick={handleAction}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              {status.action}
-            </Button>
+            {!status.canAct ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button 
+                      size="sm" 
+                      disabled
+                      className="opacity-50"
+                    >
+                      {status.action}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {status.disabledReason}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button 
+                size="sm" 
+                onClick={handleAction}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                {status.action}
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
