@@ -917,7 +917,12 @@ const ExamInProgress = () => {
                           >
                             <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
                             <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
-                              {option}
+                              <span className="font-medium mr-2">{optionLetter})</span>
+                              <MathRenderer 
+                                content={option} 
+                                hasMath={question.has_math}
+                                inline={true}
+                              />
                             </Label>
                           </div>
                         );
