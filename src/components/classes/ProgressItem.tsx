@@ -24,7 +24,7 @@ export const ProgressItem = ({
   return (
     <div 
       className="p-4 rounded-xl bg-card/50 border border-border/50 space-y-3 hover:bg-card/70 transition-colors cursor-pointer"
-      onClick={() => navigate(`/review/${examId}`)}
+      onClick={() => navigate(`/exam/${examId}/review`)}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="font-semibold text-sm text-foreground uppercase tracking-wide">
