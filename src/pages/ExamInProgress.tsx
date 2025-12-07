@@ -88,25 +88,40 @@ const ExamInProgress = () => {
     });
   };
 
-  const saveTimerState = useCallback(async () => {
-    if (!timerEnabled || !examId) return;
+  // Save exam progress to backend - works for ALL exams (timed and non-timed)
+  const saveExamProgress = useCallback(async () => {
+    if (!examId) return;
     
     try {
-      // Save to localStorage (immediate, synchronous)
-      localStorage.setItem(`exam_${examId}_time_remaining`, timeRemaining.toString());
-      localStorage.setItem(`exam_${examId}_last_saved`, Date.now().toString());
-      
-      // Save to backend (asynchronous, reliable)
       await supabase.functions.invoke('save-exam-progress', {
         body: { 
           examId, 
-          timeRemainingSeconds: timeRemaining 
+          timeRemainingSeconds: timerEnabled ? timeRemaining : null 
         }
       });
+      console.log('[Progress] Saved to backend');
+    } catch (error) {
+      console.error('Failed to save exam progress:', error);
+      throw error; // Propagate for proper error handling
+    }
+  }, [examId, timeRemaining, timerEnabled]);
+
+  const saveTimerState = useCallback(async () => {
+    if (!examId) return;
+    
+    try {
+      // Save to localStorage for timed exams (immediate, synchronous)
+      if (timerEnabled) {
+        localStorage.setItem(`exam_${examId}_time_remaining`, timeRemaining.toString());
+        localStorage.setItem(`exam_${examId}_last_saved`, Date.now().toString());
+      }
+      
+      // Save to backend (works for ALL exams)
+      await saveExamProgress();
     } catch (error) {
       console.error('Failed to save timer state:', error);
     }
-  }, [examId, timeRemaining, timerEnabled]);
+  }, [examId, timeRemaining, timerEnabled, saveExamProgress]);
 
   // Auto-save timer every 30 seconds
   useEffect(() => {
@@ -366,6 +381,24 @@ const ExamInProgress = () => {
       setUserAnswers(answersMap);
       setSavedAnswers(savedSet);
 
+      // Create initial session if none exists (for non-timed exams too)
+      const shouldCreateSession = !data.submission && !(Boolean(data.isTeacher) && !treatAsStudent);
+      if (shouldCreateSession) {
+        console.log('[Session] Creating initial exam session...');
+        try {
+          await supabase.functions.invoke('save-exam-progress', {
+            body: { 
+              examId, 
+              timeRemainingSeconds: data.timer?.enabled 
+                ? (data.timer.duration_minutes * 60) 
+                : null 
+            }
+          });
+        } catch (sessionError) {
+          console.error('Failed to create initial session:', sessionError);
+        }
+      }
+
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -481,37 +514,43 @@ const ExamInProgress = () => {
 
   const handleQuitExam = async () => {
     try {
-      // 1. Force save any pending answers immediately
-      const pendingSaves = Object.keys(saveTimeouts.current);
-      for (const questionId of pendingSaves) {
+      // 1. Clear any pending debounced saves
+      Object.keys(saveTimeouts.current).forEach(questionId => {
         if (saveTimeouts.current[questionId]) {
           clearTimeout(saveTimeouts.current[questionId]);
-          const answerData = userAnswers[questionId];
-          if (answerData) {
-            await handleSaveAnswer(questionId);
-          }
+          delete saveTimeouts.current[questionId];
         }
-      }
+      });
 
-      // 2. Save current timer state
-      await saveTimerState();
+      // 2. Save ALL current answers (not just pending ones)
+      const answersToSave = Object.entries(userAnswers)
+        .filter(([_, answer]) => answer.workingOut?.trim() || answer.finalAnswer?.trim());
+      
+      console.log(`[Quit] Saving ${answersToSave.length} answers...`);
+      
+      const savePromises = answersToSave.map(([questionId]) => handleSaveAnswer(questionId));
+      await Promise.all(savePromises);
 
-      // 3. Clear localStorage after successful save
+      // 3. Save session progress (works for ALL exams - timed and non-timed)
+      await saveExamProgress();
+
+      // 4. Only clear localStorage AFTER successful backend save
       localStorage.removeItem(`exam_${examId}_time_remaining`);
       localStorage.removeItem(`exam_${examId}_last_saved`);
 
-      // 4. Show success toast
+      // 5. Show success toast
       toast({
         title: "Progress Saved",
         description: "You can continue this exam later from My Exams.",
       });
 
-      // 5. Navigate back to My Exams page
+      // 6. Navigate back to My Exams page
       navigate('/my-exams');
     } catch (error: any) {
+      // Keep localStorage as backup on failure
       toast({
         title: "Failed to Save Progress",
-        description: error.message,
+        description: "Your progress is saved locally. Please try again.",
         variant: "destructive"
       });
     } finally {

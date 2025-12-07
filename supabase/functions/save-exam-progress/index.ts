@@ -30,25 +30,48 @@ serve(async (req) => {
 
     const { examId, timeRemainingSeconds } = await req.json();
     
-    if (!examId || timeRemainingSeconds === undefined) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+    // Only examId is required - timeRemainingSeconds is optional (for non-timed exams)
+    if (!examId) {
+      return new Response(JSON.stringify({ error: 'Exam ID is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Saving exam progress: examId=${examId}, timeRemaining=${timeRemainingSeconds}`);
+    console.log(`Saving exam progress: examId=${examId}, timeRemaining=${timeRemainingSeconds ?? 'N/A (non-timed)'}`);
 
-    // Upsert exam progress (create or update in-progress submission)
+    // Check if session already exists
+    const { data: existing } = await supabase
+      .from('exam_submissions')
+      .select('id, exam_started_at')
+      .eq('exam_id', examId)
+      .eq('student_id', user.id)
+      .maybeSingle();
+
+    // Build upsert data - only include defined fields
+    const upsertData: Record<string, any> = {
+      exam_id: examId,
+      student_id: user.id,
+      status: 'in_progress',
+      last_accessed_at: new Date().toISOString(),
+    };
+
+    // Only set exam_started_at for NEW sessions
+    if (!existing) {
+      upsertData.exam_started_at = new Date().toISOString();
+      console.log('Creating new exam session');
+    } else {
+      console.log('Updating existing exam session:', existing.id);
+    }
+
+    // Only include timer fields if provided (for timed exams)
+    if (timeRemainingSeconds !== null && timeRemainingSeconds !== undefined) {
+      upsertData.time_remaining_seconds = timeRemainingSeconds;
+    }
+
     const { error } = await supabase
       .from('exam_submissions')
-      .upsert({
-        exam_id: examId,
-        student_id: user.id,
-        status: 'in_progress',
-        time_remaining_seconds: timeRemainingSeconds,
-        exam_started_at: new Date().toISOString(),
-      }, {
+      .upsert(upsertData, {
         onConflict: 'exam_id,student_id',
         ignoreDuplicates: false,
       });
@@ -60,6 +83,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('Progress saved successfully');
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
