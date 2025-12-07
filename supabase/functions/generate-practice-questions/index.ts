@@ -76,26 +76,54 @@ Requirements:
 - Educational Level: ${setData.educational_tier}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
-- Question types: Mix of short answer and extended response
-- Include proper LaTeX notation for mathematical expressions
+- Question types: Mix of short answer, extended response, and MCQ where appropriate
+- Include proper LaTeX notation for mathematical expressions using $ delimiters (e.g., $x^2$, $\\frac{1}{b^5}$)
 - Set has_math: true for questions with equations
+- Use lowercase variable names consistently (e.g., $x$ not $X$)
+
+📐 MATHEMATICAL NOTATION (CRITICAL):
+1. Use LaTeX wrapped in $ for inline math: "Find the value of $x$ where $x^2 = 4$"
+2. For fractions use: $\\frac{1}{b^5}$ NOT 1/b^5
+3. For exponents use: $b^{-5}$ NOT b^-5
+4. For roots use: $\\sqrt{x}$ NOT sqrt(x)
+5. Always use lowercase variables: $x$, $y$, $a$, $b$ (NOT $X$, $Y$)
+
+📝 MCQ FORMATTING (CRITICAL):
+1. The "question_text" field must contain ONLY the question - NO options inline
+2. MCQ options go in the "options" array
+3. Options must NOT include letter prefixes - the frontend adds A), B), C), D)
+
+✅ CORRECT FORMAT:
+{
+  "question_text": "Which expression represents the same value as $\\frac{1}{b^5}$?",
+  "options": ["$b^{1/5}$", "$b^{-5}$", "$-b^5$", "$5b$"],
+  "correct_answer": "B"
+}
+
+❌ INCORRECT FORMAT:
+{
+  "question_text": "Which expression represents...? A) $b^{1/5}$ B) $b^{-5}$",
+  "options": ["A) $b^{1/5}$", "B) $b^{-5}$", ...]
+}
 
 ${specContent ? 'Align questions with the provided specification document:\n' + specContent.substring(0, 5000) : ''}
 
-Return JSON array with:
+Return JSON with:
 {
   "questions": [
     {
       "question_number": "1",
-      "question_text": "...",
-      "question_latex": "...",
-      "question_type": "short_answer" | "extended",
+      "question_text": "The question text WITHOUT options (options go in options array for MCQ)",
+      "question_latex": "Full LaTeX version if complex math",
+      "question_type": "short_answer" | "extended" | "mcq",
       "marks": 2-10,
       "subtopic": "...",
       "difficulty_level": "easy" | "medium" | "hard",
       "has_math": true/false,
       "equation_complexity": "simple" | "medium" | "complex",
-      "correct_answer": "..."
+      "correct_answer": "The answer (for MCQ: just the letter A/B/C/D)",
+      "options": ["Option text without letter prefix", "..."] (ONLY for MCQ, null otherwise),
+      "worked_solution": "Step-by-step solution"
     }
   ]
 }`;

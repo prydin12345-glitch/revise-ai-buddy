@@ -512,10 +512,20 @@ export default function ReviewQuestions() {
                   />
 
                   {draft.question_type === 'mcq' && draft.options && Array.isArray(draft.options) && (
-                    <div className="space-y-1 mb-3 pl-4 border-l-2">
-                      {draft.options.map((opt, i) => (
-                        <p key={i} className="text-sm text-muted-foreground">{opt}</p>
-                      ))}
+                    <div className="space-y-2 mb-3 pl-4 border-l-2">
+                      {draft.options.map((opt, i) => {
+                        const optionLetter = String.fromCharCode(65 + i);
+                        return (
+                          <div key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="font-medium">{optionLetter})</span>
+                            <MathRenderer 
+                              content={opt as string} 
+                              hasMath={(draft as any).has_math}
+                              inline={true}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

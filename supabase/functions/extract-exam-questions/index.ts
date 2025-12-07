@@ -507,7 +507,7 @@ Return ONLY valid JSON in this structure:
       "parent_question_number": "string or null",
       "root_question_number": "string",
       "marks": number,
-      "options": ["A) ...", "B) ..."] or null,
+      "options": ["option without letter prefix", "..."] or null (for MCQ only - DO NOT include A), B) prefixes),
       "correct_answer": "string (REQUIRED for MCQ)",
       "original_page_number": 1,
       "has_figures": false,
@@ -648,12 +648,16 @@ For electrical questions:
 - For sub-sub-parts: Q17(a)(i), Q17(a)(ii) → set "question_number": "17a(i)", "parent_question_number": "17a", "root_question_number": "17"
 
 IMPORTANT INSTRUCTIONS:
-1. For Multiple Choice Questions (MCQ), extract all options (A, B, C, D, etc.)
+1. For Multiple Choice Questions (MCQ):
+   - The "question_text" must contain ONLY the question stem - NO options inline
+   - Put options in the "options" array WITHOUT letter prefixes (frontend adds A), B), C), D))
+   - Example: "options": ["$b^{-5}$", "$\\frac{1}{b^5}$", ...] NOT ["A) $b^{-5}$", "B) ..."]
 2. Identify if questions reference figures, diagrams, tables, or images
 3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
 4. Assess difficulty: easy, medium, or hard
 5. Note the page number where each question appears
 6. Extract the marks allocated to each question
+7. Use lowercase variables consistently (e.g., $x$ not $X$, $a$ not $A$)
 
 The exam text is below:
 
@@ -677,7 +681,7 @@ Return a JSON object with this structure:
       "parent_question_number": "string or null",
       "root_question_number": "string",
       "marks": number,
-      "options": ["A) ...", "B) ...", "C) ...", "D) ..."] (only for MCQ, null otherwise),
+      "options": ["option text without letter prefix", "..."] (only for MCQ, null otherwise - DO NOT include A), B), C), D) prefixes),
       "correct_answer": "string (REQUIRED for MCQ - must be 'A', 'B', 'C', or 'D'; for other types can be null if answer not provided)",
       "original_page_number": number,
       "has_figures": boolean,

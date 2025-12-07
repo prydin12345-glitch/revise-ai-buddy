@@ -7,6 +7,7 @@ interface MathRendererProps {
   latex?: string | null;
   hasMath?: boolean;
   className?: string;
+  inline?: boolean; // For rendering inside labels/spans without block wrappers
 }
 
 // Process table HTML to render LaTeX in cells
@@ -53,18 +54,49 @@ const processTableWithMath = (tableHtml: string): string => {
   return tableHtml;
 };
 
-export function MathRenderer({ content, latex, hasMath, className = "" }: MathRendererProps) {
+// Helper to clean option text - remove letter prefixes like "A) ", "B) "
+const cleanOptionText = (text: string): string => {
+  return text.replace(/^[A-Da-d]\)\s*/, '').trim();
+};
+
+export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
+  // Clean the content if it has letter prefix (for MCQ options)
+  const cleanedContent = cleanOptionText(content);
+  
   // Check if content contains HTML tables
-  const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(content);
+  const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(cleanedContent);
   
   // Check if content contains math delimiters
-  const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$[^$]+\$/g.test(content);
+  const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$[^$]+\$/g.test(cleanedContent);
+  
+  // Inline mode - render without block-level wrappers for use in labels/spans
+  if (inline) {
+    if (hasMath || hasInlineOrBlockMath) {
+      const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+      return (
+        <span className={className}>
+          {parts.map((part, i) => {
+            if (part.startsWith('$$') && part.endsWith('$$')) {
+              const mathContent = part.slice(2, -2);
+              return <InlineMath key={i} math={mathContent} />;
+            }
+            if (part.startsWith('$') && part.endsWith('$')) {
+              const mathContent = part.slice(1, -1);
+              return <InlineMath key={i} math={mathContent} />;
+            }
+            return <span key={i}>{part}</span>;
+          })}
+        </span>
+      );
+    }
+    return <span className={className}>{cleanedContent}</span>;
+  }
   
   // If content has HTML tables, render with safe HTML parsing
   if (hasHtmlTable) {
     // Split by table tags to separate tables from regular content
     const tableRegex = /(<table class="exam-table">[\s\S]*?<\/table>)/gi;
-    const parts = content.split(tableRegex);
+    const parts = cleanedContent.split(tableRegex);
     
     return (
       <div className={`prose prose-sm max-w-none ${className}`}>
@@ -110,7 +142,7 @@ export function MathRenderer({ content, latex, hasMath, className = "" }: MathRe
   // If content has math delimiters, parse and render them
   if (hasMath || hasInlineOrBlockMath) {
     // Split content by both block ($$...$$) and inline ($...$) math delimiters
-    const parts = content.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+    const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
     
     return (
       <div className={`prose prose-sm max-w-none ${className}`}>
@@ -150,7 +182,7 @@ export function MathRenderer({ content, latex, hasMath, className = "" }: MathRe
   // No math detected - render as regular text
   return (
     <div className={`prose prose-sm max-w-none ${className}`}>
-      {content.split('\n').map((line, i) => (
+      {cleanedContent.split('\n').map((line, i) => (
         line.trim() ? <p key={i}>{line}</p> : <br key={i} />
       ))}
     </div>
