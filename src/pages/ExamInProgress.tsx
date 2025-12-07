@@ -62,6 +62,7 @@ const ExamInProgress = () => {
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
+  const examSubjectRef = useRef<string>(''); // Ref to avoid stale closures
   const [examName, setExamName] = useState<string>('');
   const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -76,6 +77,11 @@ const ExamInProgress = () => {
   useEffect(() => {
     answersRef.current = userAnswers;
   }, [userAnswers]);
+
+  // Keep examSubjectRef in sync with examSubject
+  useEffect(() => {
+    examSubjectRef.current = examSubject;
+  }, [examSubject]);
 
   // Helper to update answers in a structured way
   const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string }>) => {
@@ -366,12 +372,16 @@ const ExamInProgress = () => {
         setTimerNeedsReinit(true);
       }
 
+      // Use local variable from examData to determine if math exam (avoids stale state)
+      const isMathExam = examData?.subject_id?.toLowerCase().includes('math');
+      console.log('[Load] Subject:', examData?.subject_id, 'isMathExam:', isMathExam);
+      
       const answersMap: Record<string, { workingOut: string; finalAnswer: string }> = {};
       const savedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
         // For math exams, text goes to workingOut; for others, to finalAnswer
-        if (examSubject?.toLowerCase().includes('math')) {
+        if (isMathExam) {
           answersMap[ans.question_id] = { workingOut: answerText, finalAnswer: '' };
         } else {
           answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
@@ -427,15 +437,21 @@ const ExamInProgress = () => {
   const handleSaveAnswer = async (questionId: string) => {
     const answerData = answersRef.current[questionId] || { workingOut: '', finalAnswer: '' };
     
+    // Use ref to get current subject (avoids stale closure)
+    const currentSubject = examSubjectRef.current;
+    const isMathExam = currentSubject?.toLowerCase().includes('math');
+    
     // Serialize based on exam type
     let answerText: string;
-    if (examSubject?.toLowerCase().includes('math')) {
+    if (isMathExam) {
       // Math exam: save workingOut only (no separate final answer field)
       answerText = answerData.workingOut || '';
     } else {
       // Non-math: save finalAnswer as plain text
       answerText = answerData.finalAnswer || answerData.workingOut || '';
     }
+    
+    console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
     setAutoSaveStatus('saving');
     try {
       console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
