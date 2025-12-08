@@ -501,27 +501,72 @@ const ExamInProgress = () => {
     submitExam();
   };
 
+  // Retry logic with exponential backoff
+  const submitExamWithRetry = async (maxRetries = 3): Promise<any> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('submit-exam', {
+          body: { examId, timeTakenSeconds: timeElapsed }
+        });
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error(`[Submit] Attempt ${attempt} failed:`, error);
+        if (attempt === maxRetries) throw error;
+        
+        // Wait before retry (exponential backoff: 1s, 2s, 4s)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+      }
+    }
+  };
+
   const submitExam = async () => {
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('submit-exam', {
-        body: { examId, timeTakenSeconds: timeElapsed }
+      // 1. Clear any pending debounced saves
+      Object.keys(saveTimeouts.current).forEach(questionId => {
+        if (saveTimeouts.current[questionId]) {
+          clearTimeout(saveTimeouts.current[questionId]);
+          delete saveTimeouts.current[questionId];
+        }
       });
 
-      if (error) throw error;
+      // 2. Save ALL answers synchronously before submission
+      const answersToSave = Object.entries(answersRef.current)
+        .filter(([_, answer]) => answer?.workingOut?.trim() || answer?.finalAnswer?.trim());
+      
+      console.log(`[Submit] Saving ${answersToSave.length} answers before submission...`);
+      await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
 
-      // Clear localStorage timer state
+      // 3. Call submit edge function with retry
+      const data = await submitExamWithRetry();
+
+      // 4. Clear localStorage timer state
       localStorage.removeItem(`exam_${examId}_time_remaining`);
       localStorage.removeItem(`exam_${examId}_last_saved`);
 
-      toast({ 
-        title: "Exam Submitted!", 
-        description: `Score: ${Math.round(data.totalScore)}/${data.totalMarks} (${Math.round(data.percentage)}%)` 
-      });
+      // 5. Handle score visibility based on tutor settings
+      if (data.scoresHidden) {
+        toast({ 
+          title: "Exam Submitted!", 
+          description: "Your exam has been submitted. Results will be released by your tutor." 
+        });
+      } else {
+        toast({ 
+          title: "Exam Submitted!", 
+          description: `Score: ${Math.round(data.totalScore)}/${data.totalMarks} (${Math.round(data.percentage)}%)` 
+        });
+      }
       
       navigate(`/exam/${examId}/review`);
     } catch (error: any) {
-      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+      console.error('[Submit] Final failure:', error);
+      toast({ 
+        title: "Submission Failed", 
+        description: error.message + ". Your answers are saved. Please try again.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsSubmitting(false);
       setShowSubmitDialog(false);
