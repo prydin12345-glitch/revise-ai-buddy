@@ -4,14 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompletionBadge } from "@/components/tutor/CompletionBadge";
 import { AssignModal } from "@/components/tutor/AssignModal";
 import { useTutorExams } from "@/hooks/useTutorExams";
-import { Plus, Loader2, Edit, UserPlus, Eye, BarChart3 } from "lucide-react";
+import { Plus, Loader2, Edit, UserPlus, Eye, BarChart3, Lock } from "lucide-react";
 import { format } from "date-fns";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const ManageExams = () => {
@@ -25,21 +23,12 @@ const ManageExams = () => {
     setAssignModalOpen(true);
   };
 
-  const handleGradeReleaseToggle = async (examId: string, currentValue: boolean) => {
-    try {
-      const { error } = await supabase
-        .from("exams")
-        .update({ grade_released: !currentValue })
-        .eq("id", examId);
-
-      if (error) throw error;
-
-      toast.success(`Grades ${!currentValue ? "released" : "hidden"}`);
-      refetch();
-    } catch (error) {
-      console.error("Error toggling grade release:", error);
-      toast.error("Failed to update grade release status");
+  const handleEditClick = (examId: string, examStatus: string) => {
+    if (examStatus === "published") {
+      toast.info("Published exams cannot be edited. Create a new version if needed.");
+      return;
     }
+    navigate(`/exam-settings/${examId}`);
   };
 
   if (loading) {
@@ -86,7 +75,6 @@ const ManageExams = () => {
                     <TableHead>Assigned Groups</TableHead>
                     <TableHead>Deadline</TableHead>
                     <TableHead>Completion</TableHead>
-                    <TableHead>Grades Released</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -127,24 +115,28 @@ const ManageExams = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={exam.grade_released}
-                            onCheckedChange={() => handleGradeReleaseToggle(exam.id, exam.grade_released)}
-                          />
-                          <Label className="text-xs">{exam.grade_released ? "Yes" : "No"}</Label>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/exam-settings/${exam.id}`)}
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                        <div className="flex gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditClick(exam.id, exam.status)}
+                                disabled={exam.status === "published"}
+                              >
+                                {exam.status === "published" ? (
+                                  <Lock className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <Edit className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            {exam.status === "published" && (
+                              <TooltipContent>
+                                Published exams cannot be edited
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -156,18 +148,18 @@ const ManageExams = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/exam-preview/${exam.id}`)}
-                            title="Preview"
+                            onClick={() => navigate(`/tutor/exams/${exam.id}/dashboard`)}
+                            title="View Dashboard"
                           >
-                            <Eye className="h-4 w-4" />
+                            <BarChart3 className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toast.info("Analytics coming soon")}
-                            title="Analytics"
+                            onClick={() => navigate(`/exam-preview/${exam.id}`)}
+                            title="Preview Questions"
                           >
-                            <BarChart3 className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>

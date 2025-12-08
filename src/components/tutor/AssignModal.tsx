@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { StudentGroupSelector } from "./StudentGroupSelector";
+import { PrePublishWarningModal } from "./PrePublishWarningModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, CalendarIcon, AlertCircle } from "lucide-react";
@@ -28,6 +29,23 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ releaseDate?: string; deadline?: string }>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [showPrePublishWarning, setShowPrePublishWarning] = useState(false);
+  const [examIsDraft, setExamIsDraft] = useState(false);
+
+  // Check if exam is a draft when modal opens
+  useEffect(() => {
+    const checkExamStatus = async () => {
+      if (open && examId) {
+        const { data: exam } = await supabase
+          .from("exams")
+          .select("status")
+          .eq("id", examId)
+          .single();
+        setExamIsDraft(exam?.status === "draft");
+      }
+    };
+    checkExamStatus();
+  }, [open, examId]);
 
   // Track if form has changes
   useEffect(() => {
@@ -44,6 +62,7 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
       setDeadlineTime("23:59");
       setErrors({});
       setHasChanges(false);
+      setShowPrePublishWarning(false);
     }
   }, [open]);
 
@@ -79,8 +98,19 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
     return combined;
   };
 
-  const handleSubmit = async () => {
+  const handleAssignClick = () => {
     if (!validateForm()) return;
+    
+    // Show pre-publish warning if exam is a draft
+    if (examIsDraft) {
+      setShowPrePublishWarning(true);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
+    setShowPrePublishWarning(false);
 
     setIsSubmitting(true);
 
@@ -363,7 +393,7 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
             Cancel
           </Button>
           <Button 
-            onClick={handleSubmit} 
+            onClick={handleAssignClick} 
             disabled={isSubmitting || !isFormValid}
             className="min-w-[120px]"
           >
@@ -378,6 +408,13 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <PrePublishWarningModal
+        open={showPrePublishWarning}
+        onOpenChange={setShowPrePublishWarning}
+        onConfirm={handleSubmit}
+        isAssigning={true}
+      />
     </Dialog>
   );
 };
