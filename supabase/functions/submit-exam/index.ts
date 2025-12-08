@@ -47,14 +47,30 @@ serve(async (req) => {
       });
     }
 
-    // Fetch exam metadata to check subject
+    // Fetch exam metadata to check subject and grade release settings
     const { data: examData } = await supabase
       .from('exams')
-      .select('subject_id')
+      .select('subject_id, title, assigned_by, grade_released')
       .eq('id', examId)
       .single();
     
     const isMathExam = examData?.subject_id?.toLowerCase().includes('math') || false;
+
+    // Fetch assignment details for deadline and grade release settings
+    const { data: assignment } = await supabase
+      .from('exam_assignments')
+      .select('deadline, is_grades_released, assigned_by')
+      .eq('exam_id', examId)
+      .maybeSingle();
+
+    // Check if submission is late
+    const now = new Date();
+    const isLate = assignment?.deadline ? now > new Date(assignment.deadline) : false;
+    console.log('Deadline check:', { deadline: assignment?.deadline, now: now.toISOString(), isLate });
+
+    // Determine if scores should be hidden (tutor hasn't released grades)
+    const scoresHidden = assignment && !assignment.is_grades_released && !examData?.grade_released;
+    console.log('Score visibility:', { is_grades_released: assignment?.is_grades_released, grade_released: examData?.grade_released, scoresHidden });
 
     // Fetch all questions with correct answers
     const { data: questions, error: questionsError } = await supabase
@@ -266,7 +282,7 @@ Provide:
       }
     }
 
-    // Update or create exam submission record
+    // Update or create exam submission record with is_late flag
     let submissionError;
     if (existingSubmission) {
       // Update existing in_progress submission
@@ -274,11 +290,12 @@ Provide:
         .from('exam_submissions')
         .update({
           status: 'graded',
-          submitted_at: new Date().toISOString(),
+          submitted_at: now.toISOString(),
           time_taken_seconds: timeTakenSeconds,
           total_score: totalScore,
           total_marks: totalMarks,
-          time_remaining_seconds: null, // Clear remaining time
+          time_remaining_seconds: null,
+          is_late: isLate,
         })
         .eq('id', existingSubmission.id);
       submissionError = error;
@@ -292,7 +309,8 @@ Provide:
           time_taken_seconds: timeTakenSeconds,
           total_score: totalScore,
           total_marks: totalMarks,
-          status: 'graded'
+          status: 'graded',
+          is_late: isLate,
         });
       submissionError = error;
     }
@@ -305,10 +323,45 @@ Provide:
       });
     }
 
-    console.log('Exam submitted successfully. Score:', totalScore, '/', totalMarks);
+    console.log('Exam submitted successfully. Score:', totalScore, '/', totalMarks, 'Late:', isLate);
+
+    // Create notification for tutor/teacher if this is an assigned exam
+    const tutorId = assignment?.assigned_by || examData?.assigned_by;
+    if (tutorId) {
+      try {
+        // Get student name
+        const { data: studentProfile } = await supabase
+          .from('user_profiles')
+          .select('first_name, last_name, display_name')
+          .eq('id', user.id)
+          .single();
+        
+        const studentName = studentProfile?.display_name || 
+          (studentProfile?.first_name && studentProfile?.last_name 
+            ? `${studentProfile.first_name} ${studentProfile.last_name}` 
+            : 'A student');
+
+        await supabase.from('notifications').insert({
+          user_id: tutorId,
+          type: 'exam_submitted',
+          title: 'Exam Submitted',
+          body: `${studentName} has submitted "${examData?.title || 'an exam'}"${isLate ? ' (Late)' : ''}`,
+          action_data: { 
+            exam_id: examId, 
+            student_id: user.id,
+            is_late: isLate,
+            score: scoresHidden ? null : totalScore,
+            total_marks: scoresHidden ? null : totalMarks
+          }
+        });
+        console.log('Tutor notification created for:', tutorId);
+      } catch (notifError) {
+        console.error('Failed to create tutor notification:', notifError);
+        // Don't fail the submission for notification errors
+      }
+    }
 
     // Update user streak
-    const now = new Date();
     const { data: streakData } = await supabase
       .from('user_streaks')
       .select('*')
@@ -364,9 +417,11 @@ Provide:
 
     return new Response(JSON.stringify({ 
       success: true,
-      totalScore,
-      totalMarks,
-      percentage: totalMarks > 0 ? (totalScore / totalMarks) * 100 : 0
+      totalScore: scoresHidden ? null : totalScore,
+      totalMarks: scoresHidden ? null : totalMarks,
+      percentage: scoresHidden ? null : (totalMarks > 0 ? (totalScore / totalMarks) * 100 : 0),
+      scoresHidden,
+      isLate
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

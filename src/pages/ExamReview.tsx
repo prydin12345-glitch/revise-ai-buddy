@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 
@@ -42,6 +42,7 @@ const ExamReview = () => {
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scoresHidden, setScoresHidden] = useState(false);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedQuestionForFeedback, setSelectedQuestionForFeedback] = useState<{ id: string; number: string } | null>(null);
@@ -73,6 +74,24 @@ const ExamReview = () => {
       });
       setAnswers(answersMap);
 
+      // Check grade release settings
+      const { data: assignment } = await supabase
+        .from('exam_assignments')
+        .select('is_grades_released, assigned_by')
+        .eq('exam_id', examId)
+        .maybeSingle();
+
+      const { data: exam } = await supabase
+        .from('exams')
+        .select('grade_released, assigned_by')
+        .eq('id', examId)
+        .single();
+
+      // If it's an assigned exam and grades aren't released, hide scores
+      const isAssignedExam = assignment || exam?.assigned_by;
+      const gradesReleased = assignment?.is_grades_released || exam?.grade_released;
+      setScoresHidden(!!isAssignedExam && !gradesReleased);
+
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -94,6 +113,7 @@ const ExamReview = () => {
   };
 
   const getStatusIcon = (answer?: Answer) => {
+    if (scoresHidden) return <EyeOff className="w-5 h-5 text-muted-foreground" />;
     if (!answer) return <XCircle className="w-5 h-5 text-destructive" />;
     if (answer.is_correct) return <CheckCircle className="w-5 h-5 text-green-500" />;
     if (answer.score > 0) return <AlertCircle className="w-5 h-5 text-orange-500" />;
@@ -101,6 +121,7 @@ const ExamReview = () => {
   };
 
   const getStatusColor = (answer?: Answer) => {
+    if (scoresHidden) return 'bg-muted text-muted-foreground';
     if (!answer) return 'bg-destructive/10 text-destructive';
     if (answer.is_correct) return 'bg-green-500/10 text-green-600';
     if (answer.score > 0) return 'bg-orange-500/10 text-orange-600';
@@ -123,10 +144,10 @@ const ExamReview = () => {
     );
   }
 
-  const percentage = submission ? (submission.total_score / submission.total_marks) * 100 : 0;
-  const correctCount = Object.values(answers).filter(a => a.is_correct).length;
-  const partialCount = Object.values(answers).filter(a => !a.is_correct && a.score > 0).length;
-  const incorrectCount = questions.length - correctCount - partialCount;
+  const percentage = submission && !scoresHidden ? (submission.total_score / submission.total_marks) * 100 : 0;
+  const correctCount = scoresHidden ? 0 : Object.values(answers).filter(a => a.is_correct).length;
+  const partialCount = scoresHidden ? 0 : Object.values(answers).filter(a => !a.is_correct && a.score > 0).length;
+  const incorrectCount = scoresHidden ? 0 : questions.length - correctCount - partialCount;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -153,6 +174,20 @@ const ExamReview = () => {
             <div className="grid grid-cols-4 gap-2">
               {questions.map((q) => {
                 const answer = answers[q.id];
+                
+                if (scoresHidden) {
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => scrollToQuestion(q.id)}
+                      className="aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 bg-muted text-muted-foreground"
+                      title="Score hidden"
+                    >
+                      {q.question_number}
+                    </button>
+                  );
+                }
+                
                 const isFullyCorrect = answer && answer.score === q.marks;
                 const isPartial = answer && answer.score > 0 && answer.score < q.marks;
                 
@@ -176,42 +211,56 @@ const ExamReview = () => {
             </div>
           </div>
 
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-primary" />
-              <span className="font-semibold">Your Score</span>
-            </div>
-            <div className="text-3xl font-bold text-primary">
-              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
-            </div>
-            <div className="text-lg font-semibold text-muted-foreground">
-              {percentage.toFixed(1)}%
-            </div>
-          </Card>
+          {scoresHidden ? (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <EyeOff className="w-5 h-5 text-muted-foreground" />
+                <span className="font-semibold">Scores Hidden</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your tutor has not released scores yet. Check back later.
+              </p>
+            </Card>
+          ) : (
+            <>
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary" />
+                  <span className="font-semibold">Your Score</span>
+                </div>
+                <div className="text-3xl font-bold text-primary">
+                  {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
+                </div>
+                <div className="text-lg font-semibold text-muted-foreground">
+                  {percentage.toFixed(1)}%
+                </div>
+              </Card>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Correct</span>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Correct</span>
+                  </div>
+                  <span className="font-semibold">{correctCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                    <span>Partial</span>
+                  </div>
+                  <span className="font-semibold">{partialCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-destructive" />
+                    <span>Incorrect</span>
+                  </div>
+                  <span className="font-semibold">{incorrectCount}</span>
+                </div>
               </div>
-              <span className="font-semibold">{correctCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-500" />
-                <span>Partial</span>
-              </div>
-              <span className="font-semibold">{partialCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-destructive" />
-                <span>Incorrect</span>
-              </div>
-              <span className="font-semibold">{incorrectCount}</span>
-            </div>
-          </div>
+            </>
+          )}
 
           {submission && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4 border-t">
@@ -251,7 +300,7 @@ const ExamReview = () => {
                         Ask for Help
                       </Button>
                       {getStatusIcon(answer)}
-                      {answer && (
+                      {!scoresHidden && answer && (
                         <Badge className={getStatusColor(answer)}>
                           {Math.round(answer.score)}/{question.marks}
                         </Badge>
@@ -324,21 +373,23 @@ const ExamReview = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      {question.correct_answer ? (
-                        <MathRenderer 
-                          content={question.correct_answer}
-                          hasMath={!!(question as any).has_math}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground italic">Not provided</span>
-                      )}
+                  {!scoresHidden && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
+                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        {question.correct_answer ? (
+                          <MathRenderer 
+                            content={question.correct_answer}
+                            hasMath={!!(question as any).has_math}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground italic">Not provided</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                    {answer?.feedback && (
+                    {!scoresHidden && answer?.feedback && (
                       <div>
                         <div className="text-sm font-semibold mb-2 text-muted-foreground">Feedback:</div>
                         <div className="p-3 rounded-lg bg-accent">

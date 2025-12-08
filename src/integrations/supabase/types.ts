@@ -542,6 +542,7 @@ export type Database = {
           exam_id: string
           exam_started_at: string | null
           id: string
+          is_late: boolean | null
           last_accessed_at: string | null
           status: string | null
           student_id: string
@@ -556,6 +557,7 @@ export type Database = {
           exam_id: string
           exam_started_at?: string | null
           id?: string
+          is_late?: boolean | null
           last_accessed_at?: string | null
           status?: string | null
           student_id: string
@@ -570,6 +572,7 @@ export type Database = {
           exam_id?: string
           exam_started_at?: string | null
           id?: string
+          is_late?: boolean | null
           last_accessed_at?: string | null
           status?: string | null
           student_id?: string
