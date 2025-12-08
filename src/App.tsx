@@ -34,6 +34,8 @@ import StudentProgress from "./pages/tutor/StudentProgress";
 import CreateTutorExam from "./pages/tutor/CreateTutorExam";
 import ManageStudents from "./pages/tutor/ManageStudents";
 import ManageFeedback from "./pages/tutor/ManageFeedback";
+import ExamDashboard from "./pages/tutor/ExamDashboard";
+import StudentExamReview from "./pages/tutor/StudentExamReview";
 import { TutorLayout } from "./components/tutor/TutorLayout";
 import MyClasses from "./pages/MyClasses";
 
@@ -91,6 +93,8 @@ const App = () => {
             {/* Tutor Routes - Wrapped in TutorLayout for persistent sidebar */}
             <Route path="/tutor/exams" element={<TutorLayout><ManageExams /></TutorLayout>} />
             <Route path="/tutor/exams/create" element={<TutorLayout><CreateTutorExam /></TutorLayout>} />
+            <Route path="/tutor/exams/:examId/dashboard" element={<TutorLayout><ExamDashboard /></TutorLayout>} />
+            <Route path="/tutor/exams/:examId/student/:studentId" element={<TutorLayout><StudentExamReview /></TutorLayout>} />
             <Route path="/tutor/practice" element={<TutorLayout><ManagePracticeSets /></TutorLayout>} />
             <Route path="/tutor/students" element={<TutorLayout><ManageStudents /></TutorLayout>} />
             <Route path="/tutor/planner" element={<TutorLayout><StudentPlanner /></TutorLayout>} />
