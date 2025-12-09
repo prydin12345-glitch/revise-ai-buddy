@@ -39,7 +39,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
     { icon: Users, label: "My Classes", path: "/my-classes" },
-    { icon: Target, label: "Revision Plan", path: "/revision-plan" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
   ];
 

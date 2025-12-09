@@ -19,7 +19,6 @@ import ExamInProgress from "./pages/ExamInProgress";
 import ExamPreview from "./pages/ExamPreview";
 import ExamReview from "./pages/ExamReview";
 import Stats from "./pages/Stats";
-import RevisionPlan from "./pages/RevisionPlan";
 import CreatePracticeQuestions from "./pages/CreatePracticeQuestions";
 import MyQuizzes from "./pages/MyQuizzes";
 import PracticeSetPreview from "./pages/PracticeSetPreview";
@@ -59,7 +58,6 @@ const App = () => {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/stats" element={<Stats />} />
-            <Route path="/revision-plan" element={<RevisionPlan />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin/verifications" element={<AdminVerifications />} />
             <Route path="/my-exams" element={<MyExams />} />

@@ -223,23 +223,6 @@ const CreatePracticeQuestions = () => {
     }
   };
 
-  const handleAddToRevisionPlan = async () => {
-    try {
-      if (!generatedSetId) return;
-
-      await supabase
-        .from('practice_question_sets')
-        .update({ status: 'published' })
-        .eq('id', generatedSetId);
-
-      setShowGenerationComplete(false);
-      navigate(`/revision-plan?addSet=${generatedSetId}`);
-    } catch (error: any) {
-      console.error("Error:", error);
-      toast.error(error.message || "Failed to add to revision plan");
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
@@ -620,7 +603,6 @@ const CreatePracticeQuestions = () => {
         subjectColor={subjectColor}
         onPreview={handlePreview}
         onSaveToPracticeSets={handleSaveToPracticeSets}
-        onAddToRevisionPlan={handleAddToRevisionPlan}
       />
     </DashboardLayout>
   );

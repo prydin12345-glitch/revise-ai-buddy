@@ -34,14 +34,8 @@ export const NotificationDropdown = () => {
     switch (notification.type) {
       case "ai_suggestion":
       case "missed_task":
-        navigate("/revision-plan");
-        toast({
-          title: "Opening Revision Plan",
-          description: "View your suggested tasks in the inbox",
-        });
-        break;
       case "exam_reminder":
-        navigate("/revision-plan");
+        navigate("/dashboard");
         break;
       case "announcement":
         navigate("/my-classes");
@@ -270,16 +264,6 @@ export const NotificationDropdown = () => {
           </Tabs>
         )}
 
-        <DropdownMenuSeparator className="m-0" />
-        <div className="p-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-xs"
-            onClick={() => navigate("/revision-plan")}
-          >
-            View Revision Plan
-          </Button>
-        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

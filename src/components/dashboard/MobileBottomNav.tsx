@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, CheckSquare, Target, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle } from "lucide-react";
+import { LayoutDashboard, FileText, CheckSquare, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -14,7 +14,6 @@ const studentNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'exams', label: 'Exams', icon: FileText, path: '/my-exams' },
   { id: 'classes', label: 'Classes', icon: Users, path: '/my-classes' },
-  { id: 'plan', label: 'Plan', icon: Target, path: '/revision-plan' },
   { id: 'stats', label: 'Stats', icon: TrendingUp, path: '/stats' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
@@ -43,7 +42,7 @@ export const MobileBottomNav = () => {
       aria-label="Mobile navigation"
       className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-sidebar-background/95 backdrop-blur-lg border-t border-sidebar-border/50 shadow-2xl pb-safe animate-slide-in-bottom"
     >
-      <div className="grid grid-cols-6 h-18 px-2">
+      <div className="grid grid-cols-5 h-18 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
