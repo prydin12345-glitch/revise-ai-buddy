@@ -16,7 +16,6 @@ import {
   Globe,
   FileText,
   Clock,
-  CalendarPlus,
   LucideIcon
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -269,21 +268,6 @@ export const PracticeSetCard = ({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Preview questions</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => navigate(`/revision-plan?addSet=${set.id}`)}
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add to revision plan</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 

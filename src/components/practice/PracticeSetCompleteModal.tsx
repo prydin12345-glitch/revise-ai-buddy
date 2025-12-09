@@ -19,7 +19,6 @@ interface PracticeSetCompleteModalProps {
   subjectColor: string;
   onPreview: () => void;
   onSaveToPracticeSets: () => void;
-  onAddToRevisionPlan: () => void;
 }
 
 export function PracticeSetCompleteModal({
@@ -31,7 +30,6 @@ export function PracticeSetCompleteModal({
   subjectColor,
   onPreview,
   onSaveToPracticeSets,
-  onAddToRevisionPlan,
 }: PracticeSetCompleteModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,9 +78,6 @@ export function PracticeSetCompleteModal({
             </Button>
             <Button onClick={onSaveToPracticeSets} className="w-full" variant="outline">
               Save to Practice Sets
-            </Button>
-            <Button onClick={onAddToRevisionPlan} className="w-full" variant="outline">
-              Add to Revision Plan
             </Button>
           </div>
         </div>

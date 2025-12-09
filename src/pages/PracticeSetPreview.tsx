@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, Play, CalendarPlus, ArrowLeft } from "lucide-react";
+import { Loader2, Eye, Play, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
 
@@ -101,16 +101,10 @@ const PracticeSetPreview = () => {
             </Badge>
             <h1 className="text-xl font-bold">{practiceSet.set_name}</h1>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate(`/revision-plan?addSet=${setId}`)} variant="outline">
-              <CalendarPlus className="h-4 w-4 mr-2" />
-              Add to Revision Plan
-            </Button>
-            <Button onClick={() => navigate(`/practice-questions/${setId}/take`)} size="lg">
-              <Play className="h-4 w-4 mr-2" />
-              Start Quiz
-            </Button>
-          </div>
+          <Button onClick={() => navigate(`/practice-questions/${setId}/take`)} size="lg">
+            <Play className="h-4 w-4 mr-2" />
+            Start Quiz
+          </Button>
         </div>
       </header>
 
