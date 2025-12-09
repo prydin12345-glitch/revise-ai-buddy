@@ -57,17 +57,17 @@ export const ReleaseGradesModal = ({
         .eq("exam_id", examId)
         .in("status", ["submitted", "graded"]);
 
-      // Create notifications for all students
+      // Create notifications for all students using the security definer function
       if (submissions && submissions.length > 0) {
-        const notifications = submissions.map((s) => ({
-          user_id: s.student_id,
-          type: "grades_released",
-          title: "Grades Released",
-          body: `Your grades for "${examTitle}" have been released. View your results now.`,
-          action_data: { exam_id: examId },
-        }));
-
-        await supabase.from("notifications").insert(notifications);
+        for (const s of submissions) {
+          await supabase.rpc('create_student_notification', {
+            p_student_id: s.student_id,
+            p_type: 'grades_released',
+            p_title: 'Grades Released',
+            p_body: `Your grades for "${examTitle}" have been released. View your results now.`,
+            p_action_data: { exam_id: examId }
+          });
+        }
       }
 
       toast.success("Grades released successfully");
