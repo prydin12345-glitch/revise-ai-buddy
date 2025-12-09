@@ -57,6 +57,25 @@ interface SubmissionData {
   status: string;
   total_score?: number;
   total_marks?: number;
+  submitted_at?: string;
+}
+
+interface FeedbackThread {
+  id: string;
+  question_id: string;
+  student_comment: string;
+  tutor_response?: string;
+  status: string;
+  created_at: string;
+  responded_at?: string;
+  exam_id: string;
+}
+
+interface SubjectProgress {
+  name: string;
+  color: string;
+  completed: number;
+  total: number;
 }
 
 const MyClasses = () => {
@@ -66,6 +85,7 @@ const MyClasses = () => {
   const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
   const [submissions, setSubmissions] = useState<Map<string, SubmissionData>>(new Map());
   const [tutors, setTutors] = useState<Map<string, TutorInfo>>(new Map());
+  const [feedbackThreads, setFeedbackThreads] = useState<FeedbackThread[]>([]);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<StudentGroup | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -203,7 +223,7 @@ const MyClasses = () => {
       if (examIds.length > 0) {
         const { data: studentSubmissions } = await supabase
           .from("exam_submissions")
-          .select("exam_id, status, total_score, total_marks")
+          .select("exam_id, status, total_score, total_marks, submitted_at")
           .eq("student_id", user.id)
           .in("exam_id", examIds);
 
@@ -213,9 +233,20 @@ const MyClasses = () => {
             status: s.status,
             total_score: s.total_score,
             total_marks: s.total_marks,
+            submitted_at: s.submitted_at,
           });
         });
         setSubmissions(submissionMap);
+
+        // Fetch feedback threads for submitted exams
+        const { data: threads } = await supabase
+          .from("question_feedback_threads")
+          .select("*")
+          .eq("student_id", user.id)
+          .in("exam_id", examIds)
+          .order("created_at", { ascending: false });
+
+        setFeedbackThreads(threads || []);
       }
 
       // Get announcements
@@ -285,6 +316,36 @@ const MyClasses = () => {
   const getAnnouncementsForGroup = (groupId: string) =>
     announcements.filter(a => a.group_id === groupId);
 
+  const getFeedbackThreadsForGroup = (groupId: string) => {
+    const groupExamIds = assignments.filter(a => a.group_id === groupId).map(a => a.exam_id);
+    return feedbackThreads.filter(t => groupExamIds.includes(t.exam_id));
+  };
+
+  const getSubjectProgressForGroup = (groupId: string): SubjectProgress[] => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group?.subjects_covered || group.subjects_covered.length === 0) return [];
+
+    const groupAssignments = assignments.filter(a => a.group_id === groupId);
+    
+    // For each subject in the group, calculate completion
+    return group.subjects_covered.map(subject => {
+      // In a real scenario, we'd match assignments to subjects based on exam data
+      // For now, distribute assignments across subjects evenly or use all
+      const total = groupAssignments.length;
+      const completed = groupAssignments.filter(a => {
+        const sub = submissions.get(a.exam_id);
+        return sub && (sub.status === "submitted" || sub.status === "graded");
+      }).length;
+
+      return {
+        name: subject.name,
+        color: subject.color || "#3B82F6",
+        completed,
+        total,
+      };
+    });
+  };
+
   // Filter assignments by selected month
   const upcomingAssignments = useMemo(() => {
     return assignments
@@ -343,6 +404,8 @@ const MyClasses = () => {
     const tutor = tutors.get(selectedClass.tutor_id);
     const classAssignments = getAssignmentsForGroup(selectedClass.id);
     const classAnnouncements = getAnnouncementsForGroup(selectedClass.id);
+    const classFeedbackThreads = getFeedbackThreadsForGroup(selectedClass.id);
+    const classSubjectProgress = getSubjectProgressForGroup(selectedClass.id);
 
     return (
       <DashboardLayout>
@@ -353,6 +416,8 @@ const MyClasses = () => {
             assignments={classAssignments}
             submissions={submissions}
             announcements={classAnnouncements}
+            feedbackThreads={classFeedbackThreads}
+            subjectProgress={classSubjectProgress}
             onBack={() => setSelectedClass(null)}
             onLeave={() => {
               setGroupToLeave(selectedClass);

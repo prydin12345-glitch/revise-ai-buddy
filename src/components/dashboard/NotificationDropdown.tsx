@@ -46,6 +46,11 @@ export const NotificationDropdown = () => {
           navigate(`/exam-review/${notification.action_data.examId}`);
         }
         break;
+      case "grades_released":
+        if (notification.action_data?.exam_id) {
+          navigate(`/exam/${notification.action_data.exam_id}/review`);
+        }
+        break;
       case "task_completion":
         break;
     }
@@ -77,7 +82,7 @@ export const NotificationDropdown = () => {
     });
   };
 
-  const examReminders = notifications.filter((n) => n.type === "exam_reminder");
+  const examReminders = notifications.filter((n) => n.type === "exam_reminder" || n.type === "grades_released");
   const suggestions = notifications.filter((n) => n.type === "ai_suggestion");
   const announcements = notifications.filter((n) => n.type === "announcement");
   const feedback = notifications.filter((n) => 

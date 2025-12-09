@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
-import { Bell, BookOpen, CheckCircle, AlertCircle, Pin, Clock, Trash2, Megaphone, MessageCircle } from "lucide-react";
+import { Bell, BookOpen, CheckCircle, AlertCircle, Pin, Clock, Trash2, Megaphone, MessageCircle, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Notification } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,8 @@ const getNotificationIcon = (type: Notification["type"]) => {
     case "feedback_request":
     case "feedback_response":
       return <MessageCircle className="w-4 h-4 text-cyan-400" />;
+    case "grades_released":
+      return <Award className="w-4 h-4 text-emerald-400" />;
     default:
       return <Bell className="w-4 h-4 text-muted-foreground" />;
   }
@@ -48,6 +50,8 @@ const getNotificationColor = (type: Notification["type"]) => {
     case "feedback_request":
     case "feedback_response":
       return "border-l-cyan-500";
+    case "grades_released":
+      return "border-l-emerald-500";
     default:
       return "border-l-muted";
   }

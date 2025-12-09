@@ -7,7 +7,7 @@ export interface Notification {
   user_id: string;
   title: string;
   body: string | null;
-  type: "exam_reminder" | "ai_suggestion" | "task_completion" | "missed_task" | "feedback_request" | "feedback_response" | "announcement";
+  type: "exam_reminder" | "ai_suggestion" | "task_completion" | "missed_task" | "feedback_request" | "feedback_response" | "announcement" | "grades_released" | "verification_approved";
   is_read: boolean;
   is_pinned: boolean;
   snoozed_until: string | null;
