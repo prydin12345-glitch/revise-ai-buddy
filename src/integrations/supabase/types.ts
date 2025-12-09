@@ -2126,6 +2126,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_student_notification: {
+        Args: {
+          p_action_data?: Json
+          p_body: string
+          p_student_id: string
+          p_title: string
+          p_type: string
+        }
+        Returns: string
+      }
       generate_student_code: {
         Args: { p_first_name: string; p_last_name: string }
         Returns: string
