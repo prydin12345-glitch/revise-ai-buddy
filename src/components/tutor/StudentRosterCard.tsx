@@ -1,17 +1,18 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Eye, TrendingDown } from "lucide-react";
+import { Eye, TrendingDown, Users } from "lucide-react";
 
 interface StudentRosterCardProps {
   student: {
     id: string;
+    first_name?: string | null;
     display_name: string | null;
     student_code: string | null;
-    group_name: string;
     group_id: string;
-    first_name?: string | null;
+    group_name: string;
     completion_rate?: number;
     average_score?: number;
     weakest_subject?: string | null;
@@ -19,97 +20,107 @@ interface StudentRosterCardProps {
     exams_assigned?: number;
   };
   onViewProgress: (studentId: string) => void;
+  animationDelay?: number;
 }
 
-export const StudentRosterCard = ({ student, onViewProgress }: StudentRosterCardProps) => {
-  // Extract first name from display_name
+export const StudentRosterCard = ({ student, onViewProgress, animationDelay = 0 }: StudentRosterCardProps) => {
   const firstName = student.first_name || student.display_name?.split(" ")[0] || "Student";
-  const initials = firstName[0]?.toUpperCase() || "S";
-  
-  const completionRate = student.completion_rate ?? 0;
-  const averageScore = student.average_score ?? 0;
-  const examsCompleted = student.exams_completed ?? 0;
-  const examsAssigned = student.exams_assigned ?? 0;
+  const initials = firstName.charAt(0).toUpperCase();
+  const studentId = student.student_code || "N/A";
+  const completionRate = student.completion_rate || 0;
+  const averageScore = student.average_score || 0;
+  const examsCompleted = student.exams_completed || 0;
+  const examsAssigned = student.exams_assigned || 0;
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-500";
-    if (score >= 60) return "text-amber-500";
-    if (score > 0) return "text-rose-500";
+  // Determine performance ring color
+  const getPerformanceRingColor = () => {
+    if (averageScore >= 80) return "ring-emerald-500/50";
+    if (averageScore >= 60) return "ring-amber-500/50";
+    if (averageScore > 0) return "ring-rose-500/50";
+    return "ring-border";
+  };
+
+  // Determine score color
+  const getScoreColor = () => {
+    if (averageScore >= 80) return "text-emerald-600 dark:text-emerald-400";
+    if (averageScore >= 60) return "text-amber-600 dark:text-amber-400";
+    if (averageScore > 0) return "text-rose-600 dark:text-rose-400";
     return "text-muted-foreground";
   };
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border bg-card hover:bg-accent/5 transition-all duration-200 hover:shadow-md">
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <Avatar className="h-12 w-12 border-2 border-primary/20">
-          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-foreground">
-              {firstName}
-            </p>
-            {student.student_code && (
-              <span className="text-muted-foreground font-mono text-sm">
-                ({student.student_code})
-              </span>
-            )}
+    <Card 
+      className="group bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 animate-fade-in"
+      style={{ animationDelay: `${animationDelay}ms` }}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          {/* Avatar */}
+          <Avatar className={`h-12 w-12 ring-2 ${getPerformanceRingColor()} transition-all duration-300 group-hover:ring-primary/50`}>
+            <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* Student Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-base font-semibold truncate">
+                {firstName} <span className="text-muted-foreground font-normal">({studentId})</span>
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-xs font-normal gap-1">
+                <Users className="h-3 w-3" />
+                {student.group_name}
+              </Badge>
+              {student.weakest_subject && (
+                <Badge variant="outline" className="text-xs font-normal gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  <TrendingDown className="h-3 w-3" />
+                  {student.weakest_subject}
+                </Badge>
+              )}
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs">
-              {student.group_name}
-            </Badge>
-            
-            {examsAssigned > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {examsCompleted}/{examsAssigned} tasks
-              </span>
-            )}
-          </div>
-          
-          {examsAssigned > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <Progress value={completionRate} className="h-1.5 flex-1 max-w-[100px]" />
-              <span className="text-xs text-muted-foreground">
-                {Math.round(completionRate)}%
+
+          {/* Progress Stats */}
+          <div className="hidden sm:flex flex-col items-end gap-1 min-w-[120px]">
+            <div className="flex items-center gap-2 w-full">
+              <span className="text-xs text-muted-foreground">Progress</span>
+              <Progress 
+                value={completionRate} 
+                className="h-2 flex-1 bg-muted/50" 
+              />
+              <span className="text-xs font-medium w-8 text-right">{examsCompleted}/{examsAssigned}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Avg Score:</span>
+              <span className={`text-sm font-bold ${getScoreColor()}`}>
+                {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
               </span>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        {/* Average Score */}
-        <div className="text-right hidden sm:block">
-          <p className="text-xs text-muted-foreground">Avg Score</p>
-          <p className={`text-lg font-bold ${getScoreColor(averageScore)}`}>
-            {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
-          </p>
-        </div>
-
-        {/* Weakest Subject */}
-        {student.weakest_subject && (
-          <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-500">
-            <TrendingDown className="h-3 w-3" />
-            <span className="text-xs font-medium truncate max-w-[80px]">
-              {student.weakest_subject}
-            </span>
           </div>
-        )}
 
-        <Button 
-          onClick={() => onViewProgress(student.id)}
-          className="gap-2"
-          size="sm"
-        >
-          <Eye className="h-4 w-4" />
-          <span className="hidden sm:inline">View Progress</span>
-        </Button>
-      </div>
-    </div>
+          {/* Mobile Stats */}
+          <div className="flex sm:hidden flex-col items-end gap-0.5">
+            <span className={`text-lg font-bold ${getScoreColor()}`}>
+              {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
+            </span>
+            <span className="text-xs text-muted-foreground">{examsCompleted}/{examsAssigned} done</span>
+          </div>
+
+          {/* View Progress Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewProgress(student.id)}
+            className="gap-2 bg-primary/5 border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 active:scale-95"
+          >
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">View Progress</span>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

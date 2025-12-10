@@ -1,5 +1,7 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Users, TrendingUp, Target, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, TrendingUp, CheckCircle, AlertTriangle, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface StudentStatsCardsProps {
   totalStudents: number;
@@ -7,6 +9,7 @@ interface StudentStatsCardsProps {
   completionRate: number;
   weakestTopics: string[];
   selectedGroup: string;
+  loading?: boolean;
 }
 
 export const StudentStatsCards = ({
@@ -14,98 +17,163 @@ export const StudentStatsCards = ({
   averageScore,
   completionRate,
   weakestTopics,
-  selectedGroup
+  selectedGroup,
+  loading = false,
 }: StudentStatsCardsProps) => {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="min-h-[140px]">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-3 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
+    <TooltipProvider>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Students */}
+        <Card className="min-h-[140px] bg-gradient-to-br from-card to-primary/5 border-border/50 hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Students
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p>Number of students in {selectedGroup === "all" ? "all groups" : "selected group"}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground">Total Students</p>
-              <p className="text-3xl font-bold text-foreground">{totalStudents}</p>
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Users className="h-4 w-4 text-primary" />
             </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {selectedGroup === "all" ? "Across all groups" : "In selected group"}
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-3xl font-bold tracking-tight">{totalStudents}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {selectedGroup === "all" ? "Across all groups" : "In selected group"}
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-emerald-500/10">
-              <TrendingUp className="h-6 w-6 text-emerald-500" />
+        {/* Average Score */}
+        <Card className="min-h-[140px] bg-gradient-to-br from-card to-emerald-500/5 border-border/50 hover:shadow-lg hover:border-emerald-500/20 transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Average Score
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p>Average score across all completed exams and practice sets</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground">Average Score</p>
-              <p className="text-3xl font-bold text-foreground">
-                {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
-              </p>
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
             </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {averageScore > 0 ? "Across all completed exams" : "No data yet"}
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-3xl font-bold tracking-tight">
+              {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {averageScore >= 80 ? "Excellent performance" : 
+               averageScore >= 60 ? "Good progress" : 
+               averageScore > 0 ? "Needs improvement" : "No data yet"}
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-amber-500/10">
-              <Target className="h-6 w-6 text-amber-500" />
+        {/* Completion Rate */}
+        <Card className="min-h-[140px] bg-gradient-to-br from-card to-blue-500/5 border-border/50 hover:shadow-lg hover:border-blue-500/20 transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Completion Rate
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p>Tasks completed ÷ tasks assigned × 100</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground">Completion Rate</p>
-              <p className="text-3xl font-bold text-foreground">
-                {completionRate > 0 ? `${Math.round(completionRate)}%` : "--"}
-              </p>
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <CheckCircle className="h-4 w-4 text-blue-500" />
             </div>
-          </div>
-          {completionRate > 0 && (
-            <div className="space-y-1">
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                  style={{ width: `${completionRate}%` }}
-                />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-3xl font-bold tracking-tight">
+              {completionRate > 0 ? `${Math.round(completionRate)}%` : "--"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {completionRate >= 90 ? "Outstanding" : 
+               completionRate >= 70 ? "On track" : 
+               completionRate > 0 ? "Below target" : "No assignments yet"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Weakest Topics */}
+        <Card className="min-h-[140px] bg-gradient-to-br from-card to-amber-500/5 border-border/50 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Weakest Topics
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p>Subjects with lowest average scores across students</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="p-2 rounded-lg bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {weakestTopics.length > 0 ? (
+              <div className="space-y-1">
+                {weakestTopics.slice(0, 3).map((topic, index) => (
+                  <div
+                    key={topic}
+                    className="text-sm font-medium truncate"
+                    style={{ opacity: 1 - index * 0.2 }}
+                  >
+                    {topic}
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground mt-1">
-            {completionRate > 0 ? "Tasks completed vs assigned" : "No data yet"}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-rose-500/10">
-              <AlertCircle className="h-6 w-6 text-rose-500" />
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground">Weakest Topics</p>
-              <p className="text-xl font-bold text-foreground truncate max-w-[120px]">
-                {weakestTopics.length > 0 ? weakestTopics[0] : "--"}
-              </p>
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {weakestTopics.length > 1 
-              ? `+${weakestTopics.length - 1} more subjects need attention`
-              : weakestTopics.length > 0 
-                ? "Needs improvement"
-                : "No data yet"
-            }
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Insufficient data
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 };
