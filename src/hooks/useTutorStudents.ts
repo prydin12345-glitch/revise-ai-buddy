@@ -162,13 +162,6 @@ export const useTutorStudents = () => {
           };
         });
 
-        // Get assignments for completion rate calculation
-        const { data: assignments } = await supabase
-          .from("exam_assignments")
-          .select("id, exam_id, target_id, assignment_type")
-          .eq("is_active", true)
-          .eq("assigned_by", user.id);
-
         // Calculate per-student stats
         const studentSubmissionMap: Record<string, any[]> = {};
         submissions.forEach(s => {

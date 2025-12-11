@@ -143,14 +143,6 @@ const StudentProgress = () => {
 
     toast.success("Student progress report exported");
   };
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `student-progress-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast.success("Student progress report exported");
-  };
 
   const handleViewProgress = (studentId: string) => {
     const student = students.find(s => s.id === studentId);
