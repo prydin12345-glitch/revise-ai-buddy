@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, TrendingUp, CheckCircle, AlertTriangle, Info } from "lucide-react";
+import { Users, TrendingUp, CheckCircle, AlertTriangle, Info, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -10,6 +10,9 @@ interface StudentStatsCardsProps {
   weakestTopics: string[];
   selectedGroup: string;
   loading?: boolean;
+  onAverageScoreClick?: () => void;
+  onCompletionRateClick?: () => void;
+  onWeakestTopicsClick?: () => void;
 }
 
 export const StudentStatsCards = ({
@@ -19,6 +22,9 @@ export const StudentStatsCards = ({
   weakestTopics,
   selectedGroup,
   loading = false,
+  onAverageScoreClick,
+  onCompletionRateClick,
+  onWeakestTopicsClick,
 }: StudentStatsCardsProps) => {
   if (loading) {
     return (
@@ -70,7 +76,10 @@ export const StudentStatsCards = ({
         </Card>
 
         {/* Average Score */}
-        <Card className="min-h-[140px] bg-gradient-to-br from-card to-emerald-500/5 border-border/50 hover:shadow-lg hover:border-emerald-500/20 transition-all duration-300">
+        <Card 
+          className={`min-h-[140px] bg-gradient-to-br from-card to-emerald-500/5 border-border/50 hover:shadow-lg hover:border-emerald-500/20 transition-all duration-300 ${onAverageScoreClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
+          onClick={onAverageScoreClick}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <div className="flex items-center gap-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -81,12 +90,15 @@ export const StudentStatsCards = ({
                   <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Average score across all completed exams and practice sets</p>
+                  <p>Average score across all completed exams and practice sets. Click for details.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="p-2 rounded-lg bg-emerald-500/10">
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <div className="flex items-center gap-1">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              </div>
+              {onAverageScoreClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             </div>
           </CardHeader>
           <CardContent className="pt-2">
@@ -102,7 +114,10 @@ export const StudentStatsCards = ({
         </Card>
 
         {/* Completion Rate */}
-        <Card className="min-h-[140px] bg-gradient-to-br from-card to-blue-500/5 border-border/50 hover:shadow-lg hover:border-blue-500/20 transition-all duration-300">
+        <Card 
+          className={`min-h-[140px] bg-gradient-to-br from-card to-blue-500/5 border-border/50 hover:shadow-lg hover:border-blue-500/20 transition-all duration-300 ${onCompletionRateClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
+          onClick={onCompletionRateClick}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <div className="flex items-center gap-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -113,12 +128,15 @@ export const StudentStatsCards = ({
                   <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Tasks completed ÷ tasks assigned × 100</p>
+                  <p>Tasks completed ÷ tasks assigned × 100. Click for breakdown.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <CheckCircle className="h-4 w-4 text-blue-500" />
+            <div className="flex items-center gap-1">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <CheckCircle className="h-4 w-4 text-blue-500" />
+              </div>
+              {onCompletionRateClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             </div>
           </CardHeader>
           <CardContent className="pt-2">
@@ -134,7 +152,10 @@ export const StudentStatsCards = ({
         </Card>
 
         {/* Weakest Topics */}
-        <Card className="min-h-[140px] bg-gradient-to-br from-card to-amber-500/5 border-border/50 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300">
+        <Card 
+          className={`min-h-[140px] bg-gradient-to-br from-card to-amber-500/5 border-border/50 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300 ${onWeakestTopicsClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
+          onClick={onWeakestTopicsClick}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <div className="flex items-center gap-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -145,12 +166,15 @@ export const StudentStatsCards = ({
                   <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Subjects with lowest average scores across students</p>
+                  <p>Topics with lowest average scores. Click for detailed analysis.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <div className="flex items-center gap-1">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              </div>
+              {onWeakestTopicsClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             </div>
           </CardHeader>
           <CardContent className="pt-2">

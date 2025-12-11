@@ -22,6 +22,32 @@ interface AggregateStats {
   weakestTopics: string[];
 }
 
+interface ExamSubmissionDetail {
+  student_id: string;
+  student_name: string;
+  exam_id: string;
+  exam_title: string;
+  total_score: number | null;
+  total_marks: number | null;
+  submitted_at: string | null;
+}
+
+interface CompletionBreakdown {
+  examId: string;
+  examTitle: string;
+  deadline: string | null;
+  completedStudents: { id: string; name: string; studentCode: string | null; submittedAt: string | null }[];
+  pendingStudents: { id: string; name: string; studentCode: string | null }[];
+}
+
+interface TopicAnalysis {
+  topic: string;
+  avgScore: number;
+  incorrectCount: number;
+  totalAttempts: number;
+  questionNumbers: string[];
+}
+
 export const useTutorStudents = () => {
   const [students, setStudents] = useState<TutorStudent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +57,9 @@ export const useTutorStudents = () => {
     completionRate: 0,
     weakestTopics: []
   });
+  const [allSubmissions, setAllSubmissions] = useState<ExamSubmissionDetail[]>([]);
+  const [completionBreakdown, setCompletionBreakdown] = useState<CompletionBreakdown[]>([]);
+  const [topicAnalysis, setTopicAnalysis] = useState<TopicAnalysis[]>([]);
 
   useEffect(() => {
     const fetchTutorStudents = async () => {
@@ -71,14 +100,14 @@ export const useTutorStudents = () => {
 
         if (membersError) throw membersError;
 
-        // Get exam submissions for all students
+        // Get exam submissions for all students with submitted_at
         const studentIds = [...new Set(members?.map(m => m.student_id) || [])];
         
         let submissions: any[] = [];
         if (studentIds.length > 0) {
           const { data: submissionsData, error: submissionsError } = await supabase
             .from("exam_submissions")
-            .select("student_id, total_score, total_marks, exam_id")
+            .select("student_id, total_score, total_marks, exam_id, submitted_at")
             .in("student_id", studentIds)
             .in("status", ["submitted", "graded"]);
           
@@ -87,19 +116,51 @@ export const useTutorStudents = () => {
           }
         }
 
-        // Get exams to map subject
+        // Get exams with titles to map subject and title
         const examIds = [...new Set(submissions.map(s => s.exam_id))];
-        let examsMap: Record<string, string> = {};
+        let examsMap: Record<string, { subject_id: string; title: string }> = {};
         if (examIds.length > 0) {
           const { data: exams } = await supabase
             .from("exams")
-            .select("id, subject_id")
+            .select("id, subject_id, title")
             .in("id", examIds);
           
           exams?.forEach(e => {
-            examsMap[e.id] = e.subject_id;
+            examsMap[e.id] = { subject_id: e.subject_id, title: e.title };
           });
         }
+
+        // Get assignments for completion rate calculation with deadline
+        const { data: assignments } = await supabase
+          .from("exam_assignments")
+          .select("id, exam_id, target_id, assignment_type, deadline")
+          .eq("is_active", true)
+          .eq("assigned_by", user.id);
+
+        // Get exam titles for assignments
+        const assignmentExamIds = [...new Set(assignments?.map(a => a.exam_id) || [])];
+        if (assignmentExamIds.length > 0) {
+          const { data: assignmentExams } = await supabase
+            .from("exams")
+            .select("id, title")
+            .in("id", assignmentExamIds);
+          
+          assignmentExams?.forEach(e => {
+            if (!examsMap[e.id]) {
+              examsMap[e.id] = { subject_id: "", title: e.title };
+            }
+          });
+        }
+
+        // Build student name map
+        const studentNameMap: Record<string, { name: string; code: string | null }> = {};
+        members?.forEach(m => {
+          const profile = m.user_profiles as any;
+          studentNameMap[m.student_id] = {
+            name: profile?.first_name || profile?.display_name || "Unknown",
+            code: profile?.student_code || null
+          };
+        });
 
         // Get assignments for completion rate calculation
         const { data: assignments } = await supabase
@@ -143,7 +204,7 @@ export const useTutorStudents = () => {
               totalScoreSum += score;
               totalScoreCount++;
               
-              const subject = examsMap[s.exam_id] || "Unknown";
+              const subject = examsMap[s.exam_id]?.subject_id || "Unknown";
               if (!subjectScores[subject]) {
                 subjectScores[subject] = { total: 0, count: 0 };
               }
@@ -208,6 +269,121 @@ export const useTutorStudents = () => {
         });
 
         setStudents(studentsData);
+
+        // Build all submissions for histogram
+        const submissionDetails: ExamSubmissionDetail[] = submissions.map(s => ({
+          student_id: s.student_id,
+          student_name: studentNameMap[s.student_id]?.name || "Unknown",
+          exam_id: s.exam_id,
+          exam_title: examsMap[s.exam_id]?.title || "Unknown Exam",
+          total_score: s.total_score,
+          total_marks: s.total_marks,
+          submitted_at: s.submitted_at
+        }));
+        setAllSubmissions(submissionDetails);
+
+        // Build completion breakdown per exam
+        const completionMap: Record<string, CompletionBreakdown> = {};
+        assignments?.forEach(a => {
+          if (!completionMap[a.exam_id]) {
+            completionMap[a.exam_id] = {
+              examId: a.exam_id,
+              examTitle: examsMap[a.exam_id]?.title || "Unknown Exam",
+              deadline: a.deadline,
+              completedStudents: [],
+              pendingStudents: []
+            };
+          }
+
+          // Find students assigned to this exam
+          let assignedStudentIds: string[] = [];
+          if (a.assignment_type === "individual" && a.target_id) {
+            assignedStudentIds = [a.target_id];
+          } else if (a.assignment_type === "group" && a.target_id) {
+            assignedStudentIds = members
+              ?.filter(m => m.group_id === a.target_id)
+              .map(m => m.student_id) || [];
+          }
+
+          assignedStudentIds.forEach(sid => {
+            const submission = submissions.find(s => s.exam_id === a.exam_id && s.student_id === sid);
+            const studentInfo = studentNameMap[sid];
+            if (submission) {
+              completionMap[a.exam_id].completedStudents.push({
+                id: sid,
+                name: studentInfo?.name || "Unknown",
+                studentCode: studentInfo?.code || null,
+                submittedAt: submission.submitted_at
+              });
+            } else if (studentInfo) {
+              completionMap[a.exam_id].pendingStudents.push({
+                id: sid,
+                name: studentInfo?.name || "Unknown",
+                studentCode: studentInfo?.code || null
+              });
+            }
+          });
+        });
+        setCompletionBreakdown(Object.values(completionMap));
+
+        // Fetch topic analysis from student answers and exam questions
+        if (examIds.length > 0 && studentIds.length > 0) {
+          const { data: questions } = await supabase
+            .from("exam_questions")
+            .select("id, exam_id, topic_tag, question_number, marks")
+            .in("exam_id", examIds);
+
+          const { data: answers } = await supabase
+            .from("student_answers")
+            .select("question_id, student_id, score, is_correct")
+            .in("student_id", studentIds);
+
+          if (questions && answers) {
+            const topicStats: Record<string, { 
+              totalScore: number; 
+              maxScore: number; 
+              incorrectCount: number; 
+              totalAttempts: number;
+              questionNumbers: Set<string>;
+            }> = {};
+
+            answers.forEach(answer => {
+              const question = questions.find(q => q.id === answer.question_id);
+              if (question && question.topic_tag) {
+                const topic = question.topic_tag;
+                if (!topicStats[topic]) {
+                  topicStats[topic] = { 
+                    totalScore: 0, 
+                    maxScore: 0, 
+                    incorrectCount: 0, 
+                    totalAttempts: 0,
+                    questionNumbers: new Set()
+                  };
+                }
+                topicStats[topic].totalAttempts++;
+                topicStats[topic].maxScore += question.marks || 1;
+                topicStats[topic].totalScore += answer.score || 0;
+                topicStats[topic].questionNumbers.add(question.question_number);
+                if (answer.is_correct === false) {
+                  topicStats[topic].incorrectCount++;
+                }
+              }
+            });
+
+            const topicAnalysisData: TopicAnalysis[] = Object.entries(topicStats)
+              .map(([topic, stats]) => ({
+                topic,
+                avgScore: stats.maxScore > 0 ? (stats.totalScore / stats.maxScore) * 100 : 0,
+                incorrectCount: stats.incorrectCount,
+                totalAttempts: stats.totalAttempts,
+                questionNumbers: Array.from(stats.questionNumbers)
+              }))
+              .sort((a, b) => a.avgScore - b.avgScore);
+
+            setTopicAnalysis(topicAnalysisData);
+          }
+        }
+
       } catch (err) {
         console.error("Error fetching tutor students:", err);
         setError(err instanceof Error ? err.message : "Failed to load students");
@@ -219,5 +395,5 @@ export const useTutorStudents = () => {
     fetchTutorStudents();
   }, []);
 
-  return { students, loading, error, aggregateStats };
+  return { students, loading, error, aggregateStats, allSubmissions, completionBreakdown, topicAnalysis };
 };

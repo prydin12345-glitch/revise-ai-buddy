@@ -7,6 +7,9 @@ import { useTutorStudents } from "@/hooks/useTutorStudents";
 import { StudentStatsCards } from "@/components/tutor/StudentStatsCards";
 import { StudentRosterCard } from "@/components/tutor/StudentRosterCard";
 import { StudentProgressDashboard } from "@/components/tutor/StudentProgressDashboard";
+import { AggregateScoreHistogramModal } from "@/components/tutor/AggregateScoreHistogramModal";
+import { AggregateCompletionModal } from "@/components/tutor/AggregateCompletionModal";
+import { AggregateWeakestTopicsModal } from "@/components/tutor/AggregateWeakestTopicsModal";
 import { Download, Loader2, Search, Users, GraduationCap, RefreshCw, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -16,13 +19,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 type SortOption = "name-asc" | "name-desc" | "score-high" | "score-low" | "completion-high" | "completion-low";
 
 const StudentProgress = () => {
-  const { students, loading, aggregateStats } = useTutorStudents();
+  const { students, loading, aggregateStats, allSubmissions, completionBreakdown, topicAnalysis } = useTutorStudents();
   const [selectedGroup, setSelectedGroup] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<typeof students[0] | null>(null);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("name-asc");
   const [lastUpdated] = useState(new Date());
+  
+  // Modal states for interactive stats
+  const [showScoreHistogram, setShowScoreHistogram] = useState(false);
+  const [showCompletionBreakdown, setShowCompletionBreakdown] = useState(false);
+  const [showWeakestTopics, setShowWeakestTopics] = useState(false);
 
   // Filter students by group and search query
   const filteredStudents = useMemo(() => {
@@ -97,6 +105,21 @@ const StudentProgress = () => {
     .slice(0, 3)
     .map(([subject]) => subject);
 
+  // Filter topic analysis based on selected group
+  const filteredTopicAnalysis = useMemo(() => {
+    // Topic analysis is already aggregated across all students
+    // In a more advanced version, we could filter by group
+    return topicAnalysis.slice(0, 10);
+  }, [topicAnalysis]);
+
+  // Get weakest topic names for display
+  const displayWeakestTopics = useMemo(() => {
+    if (filteredTopicAnalysis.length > 0) {
+      return filteredTopicAnalysis.slice(0, 3).map(t => t.topic);
+    }
+    return weakestTopics.length > 0 ? weakestTopics : aggregateStats.weakestTopics;
+  }, [filteredTopicAnalysis, weakestTopics, aggregateStats.weakestTopics]);
+
   const handleExport = () => {
     const csv = [
       ["Name", "Student ID", "Group", "Avg Score", "Completion Rate", "Weakest Subject"],
@@ -112,6 +135,14 @@ const StudentProgress = () => {
 
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `student-progress-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast.success("Student progress report exported");
+  };
     const a = document.createElement("a");
     a.href = url;
     a.download = `student-progress-${new Date().toISOString().split("T")[0]}.csv`;
@@ -205,9 +236,12 @@ const StudentProgress = () => {
         totalStudents={filteredStudents.length}
         averageScore={filteredAverageScore}
         completionRate={filteredCompletionRate}
-        weakestTopics={weakestTopics.length > 0 ? weakestTopics : aggregateStats.weakestTopics}
+        weakestTopics={displayWeakestTopics}
         selectedGroup={selectedGroup}
         loading={loading}
+        onAverageScoreClick={() => setShowScoreHistogram(true)}
+        onCompletionRateClick={() => setShowCompletionBreakdown(true)}
+        onWeakestTopicsClick={() => setShowWeakestTopics(true)}
       />
 
       {/* Student Roster */}
@@ -277,6 +311,24 @@ const StudentProgress = () => {
         open={dashboardOpen}
         onOpenChange={setDashboardOpen}
         student={selectedStudent}
+      />
+
+      {/* Aggregate Stats Modals */}
+      <AggregateScoreHistogramModal
+        open={showScoreHistogram}
+        onOpenChange={setShowScoreHistogram}
+        submissions={allSubmissions}
+      />
+      <AggregateCompletionModal
+        open={showCompletionBreakdown}
+        onOpenChange={setShowCompletionBreakdown}
+        completionData={completionBreakdown}
+        totalStudents={filteredStudents.length}
+      />
+      <AggregateWeakestTopicsModal
+        open={showWeakestTopics}
+        onOpenChange={setShowWeakestTopics}
+        topicData={filteredTopicAnalysis}
       />
     </div>
   );
