@@ -61,32 +61,37 @@ export const TutorSubjectPerformanceChart = ({ data }: TutorSubjectPerformanceCh
       </CardHeader>
       <CardContent>
         {chartData.length > 0 ? (
-          <div className="relative">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={85}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-              <p className="text-2xl font-bold text-foreground">{centerValue}</p>
-              <p className="text-xs text-muted-foreground">
-                {viewMode === "score" ? "Avg Score" : "Total Exams"}
-              </p>
+          <div className="relative flex flex-col items-center">
+            <div className="relative w-full h-[280px] flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={65}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Centered text overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-foreground">{centerValue}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {viewMode === "score" ? "Avg Score" : "Total Exams"}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 w-full">
               {data.map((subject) => (
                 <div key={subject.name} className="flex items-center gap-2 text-sm">
                   <div
@@ -102,7 +107,7 @@ export const TutorSubjectPerformanceChart = ({ data }: TutorSubjectPerformanceCh
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+          <div className="flex items-center justify-center h-[280px] text-muted-foreground">
             No exam data to display
           </div>
         )}
