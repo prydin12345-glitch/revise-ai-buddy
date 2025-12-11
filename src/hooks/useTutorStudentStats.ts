@@ -21,6 +21,13 @@ interface FeedbackThread {
   created_at: string;
 }
 
+interface WeakTopic {
+  topic: string;
+  avgScore: number;
+  totalQuestions: number;
+  incorrectCount: number;
+}
+
 interface StudentStats {
   totalExams: number;
   completedExams: number;
@@ -42,6 +49,8 @@ interface StudentStats {
   feedbackThreads: FeedbackThread[];
   weakestSubject: string | null;
   strongestSubject: string | null;
+  weakTopics: WeakTopic[];
+  lastUpdated: Date;
 }
 
 export const useTutorStudentStats = (studentId: string | null) => {
@@ -120,6 +129,19 @@ export const useTutorStudentStats = (studentId: string | null) => {
           .select("id, exam_id")
           .eq("is_active", true);
 
+        // Fetch student answers with question details for topic analysis
+        const { data: studentAnswers } = await supabase
+          .from("student_answers")
+          .select("question_id, score, is_correct, exam_id")
+          .eq("student_id", studentId);
+
+        // Fetch exam questions for topic tags
+        const questionIds = [...new Set(studentAnswers?.map(a => a.question_id) || [])];
+        const { data: examQuestions } = await supabase
+          .from("exam_questions")
+          .select("id, topic_tag, marks")
+          .in("id", questionIds.length > 0 ? questionIds : ["00000000-0000-0000-0000-000000000000"]);
+
         // Process the data
         const examMap = new Map(exams?.map(e => [e.id, e]) || []);
         
@@ -174,6 +196,37 @@ export const useTutorStudentStats = (studentId: string | null) => {
           }
         });
 
+        // Calculate weak topics from student answers
+        const questionMap = new Map(examQuestions?.map(q => [q.id, q]) || []);
+        const topicStats: Record<string, { total: number; correct: number; totalQuestions: number; incorrectCount: number }> = {};
+        
+        studentAnswers?.forEach(answer => {
+          const question = questionMap.get(answer.question_id);
+          if (question && question.topic_tag) {
+            if (!topicStats[question.topic_tag]) {
+              topicStats[question.topic_tag] = { total: 0, correct: 0, totalQuestions: 0, incorrectCount: 0 };
+            }
+            topicStats[question.topic_tag].totalQuestions += 1;
+            if (answer.score !== null && question.marks) {
+              topicStats[question.topic_tag].total += (answer.score / question.marks) * 100;
+              topicStats[question.topic_tag].correct += answer.is_correct ? 1 : 0;
+            }
+            if (!answer.is_correct) {
+              topicStats[question.topic_tag].incorrectCount += 1;
+            }
+          }
+        });
+
+        const weakTopics: WeakTopic[] = Object.entries(topicStats)
+          .map(([topic, stats]) => ({
+            topic,
+            avgScore: stats.totalQuestions > 0 ? stats.total / stats.totalQuestions : 0,
+            totalQuestions: stats.totalQuestions,
+            incorrectCount: stats.incorrectCount
+          }))
+          .filter(t => t.totalQuestions > 0)
+          .sort((a, b) => a.avgScore - b.avgScore);
+
         // Calculate exam results over time
         const examResultsOverTime = processedSubmissions
           .filter(s => s.total_score !== null && s.total_marks && s.total_marks > 0)
@@ -207,7 +260,9 @@ export const useTutorStudentStats = (studentId: string | null) => {
           examResultsOverTime,
           feedbackThreads: feedbackThreads || [],
           weakestSubject,
-          strongestSubject
+          strongestSubject,
+          weakTopics,
+          lastUpdated: new Date()
         });
       } catch (err) {
         console.error("Error fetching student stats:", err);
