@@ -89,9 +89,10 @@ export const AggregateCompletionModal = ({
 
         <ScrollArea className="h-[400px] pr-4">
           {completionData.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No assignments found</p>
+              <p className="font-medium">No assignments found</p>
+              <p className="text-sm mt-1">Completion breakdown will appear once you assign exams to students</p>
             </div>
           ) : (
             <div className="space-y-3">
