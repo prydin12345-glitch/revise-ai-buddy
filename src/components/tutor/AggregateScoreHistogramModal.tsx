@@ -109,8 +109,10 @@ export const AggregateScoreHistogramModal = ({
         </DialogHeader>
 
         {totalExams === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No exam data available yet</p>
+          <div className="text-center py-12 text-muted-foreground">
+            <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">No exam data available yet</p>
+            <p className="text-sm mt-1">Score distribution will appear once students complete assigned exams</p>
           </div>
         ) : (
           <div className="space-y-4">

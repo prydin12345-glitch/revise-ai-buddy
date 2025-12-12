@@ -319,6 +319,18 @@ export const useTutorStudents = () => {
         });
         setCompletionBreakdown(Object.values(completionMap));
 
+        // Debug logging
+        console.log("[useTutorStudents] Data summary:", {
+          studentsCount: studentsData.length,
+          submissionsCount: submissionDetails.length,
+          completionBreakdownCount: Object.keys(completionMap).length,
+          aggregateStats: {
+            averageScore: totalScoreCount > 0 ? totalScoreSum / totalScoreCount : 0,
+            completionRate: totalAssigned > 0 ? (totalCompleted / totalAssigned) * 100 : 0,
+            weakestTopicsCount: weakestTopics.length
+          }
+        });
+
         // Fetch topic analysis from student answers and exam questions
         if (examIds.length > 0 && studentIds.length > 0) {
           const { data: questions } = await supabase
@@ -374,7 +386,17 @@ export const useTutorStudents = () => {
               .sort((a, b) => a.avgScore - b.avgScore);
 
             setTopicAnalysis(topicAnalysisData);
+            console.log("[useTutorStudents] Topic analysis:", {
+              questionsCount: questions.length,
+              answersCount: answers.length,
+              topicsFound: topicAnalysisData.length
+            });
           }
+        } else {
+          console.log("[useTutorStudents] Skipping topic analysis - no exams or students", {
+            examIdsCount: examIds.length,
+            studentIdsCount: studentIds.length
+          });
         }
 
       } catch (err) {
