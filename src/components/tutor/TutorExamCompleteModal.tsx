@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, Edit2, Send, Save } from "lucide-react";
+import { CheckCircle, Edit2, Send, Save, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { StudentGroupSelector } from "./StudentGroupSelector";
+import { ExamPDFPreviewModal } from "@/components/exam/ExamPDFPreviewModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 interface TutorExamCompleteModalProps {
   draftId: string;
@@ -20,7 +20,20 @@ interface TutorExamCompleteModalProps {
   onSaveAsDraft: () => void;
 }
 
+interface ExamQuestion {
+  id: string;
+  question_number: string;
+  question_text: string;
+  question_type: string;
+  marks: number;
+  options?: { label: string; text: string }[] | null;
+  figure_urls?: string[] | null;
+  correct_answer?: string | null;
+  topic_tag?: string | null;
+}
+
 export function TutorExamCompleteModal({
+  draftId,
   totalQuestions,
   subjectColor,
   examName,
@@ -28,6 +41,15 @@ export function TutorExamCompleteModal({
   onSaveAsDraft,
 }: TutorExamCompleteModalProps) {
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [examData, setExamData] = useState<{
+    title: string;
+    subject?: string;
+    exam_board?: string;
+    qualification_level?: string;
+    questions: ExamQuestion[];
+  } | null>(null);
+  const [loadingPDF, setLoadingPDF] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState("all");
   const [releaseDate, setReleaseDate] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -39,6 +61,43 @@ export function TutorExamCompleteModal({
     day: 'numeric',
     year: 'numeric',
   });
+
+  const handleDownloadPDF = async () => {
+    setLoadingPDF(true);
+    try {
+      // Fetch exam data from drafts
+      const { data: questions, error } = await supabase
+        .from("exam_question_drafts")
+        .select("*")
+        .eq("exam_id", draftId)
+        .order("question_number");
+
+      if (error) throw error;
+
+      const formattedQuestions: ExamQuestion[] = questions.map(q => ({
+        id: q.id,
+        question_number: q.question_number,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        marks: q.marks,
+        options: q.options as { label: string; text: string }[] | null,
+        figure_urls: q.figure_urls,
+        correct_answer: q.correct_answer,
+        topic_tag: q.topic_tag,
+      }));
+
+      setExamData({
+        title: examName,
+        questions: formattedQuestions,
+      });
+      setShowPDFModal(true);
+    } catch (error) {
+      console.error("Error fetching exam data:", error);
+      toast.error("Failed to load exam for PDF");
+    } finally {
+      setLoadingPDF(false);
+    }
+  };
 
   const handleAssignAndPublish = async () => {
     if (!releaseDate) {
@@ -221,6 +280,21 @@ export function TutorExamCompleteModal({
           </Button>
           
           <Button 
+            onClick={handleDownloadPDF}
+            size="lg" 
+            variant="outline" 
+            className="w-full h-14 text-lg hover:bg-accent transition-all hover-scale"
+            disabled={loadingPDF}
+          >
+            {loadingPDF ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5 mr-2" />
+            )}
+            Download as PDF
+          </Button>
+          
+          <Button 
             onClick={onSaveAsDraft} 
             size="lg" 
             variant="secondary" 
@@ -231,6 +305,15 @@ export function TutorExamCompleteModal({
           </Button>
         </div>
       </Card>
+
+      {examData && (
+        <ExamPDFPreviewModal
+          open={showPDFModal}
+          onOpenChange={setShowPDFModal}
+          examData={examData}
+          examTitle={examName}
+        />
+      )}
     </div>
   );
 }

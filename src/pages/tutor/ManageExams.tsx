@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompletionBadge } from "@/components/tutor/CompletionBadge";
 import { AssignModal } from "@/components/tutor/AssignModal";
+import { PrintExamButton } from "@/components/exam/PrintExamButton";
 import { useTutorExams } from "@/hooks/useTutorExams";
 import { Plus, Loader2, Edit, UserPlus, Eye, BarChart3, Lock } from "lucide-react";
 import { format } from "date-fns";
@@ -161,6 +162,10 @@ const ManageExams = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <PrintExamButton
+                            examId={exam.id}
+                            examTitle={exam.title}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>
