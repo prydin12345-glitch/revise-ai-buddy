@@ -24,6 +24,9 @@ interface ExamQuestion {
   figure_urls?: string[] | null;
   correct_answer?: string | null;
   topic_tag?: string | null;
+  sub_questions?: { label: string; text: string; marks: number }[] | null;
+  requires_graph?: boolean;
+  requires_diagram?: boolean;
 }
 
 interface ExamData {
@@ -31,6 +34,7 @@ interface ExamData {
   subject?: string;
   exam_board?: string;
   qualification_level?: string;
+  time_allowed?: number;
   questions: ExamQuestion[];
 }
 
