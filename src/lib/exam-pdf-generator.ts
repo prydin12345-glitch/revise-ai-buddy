@@ -39,29 +39,29 @@ const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
 const MARGIN = 20;
 const CONTENT_WIDTH = A4_WIDTH - MARGIN * 2;
-const LINE_HEIGHT = 5;
-const QUESTION_PADDING = 6;
-const BOX_RADIUS = 2;
+const LINE_HEIGHT = 6;
+const FOOTER_HEIGHT = 25;
 
-// Larger answer box heights (increased from original)
-const ANSWER_BOX_SHORT = 25;   // Was 18
-const ANSWER_BOX_MEDIUM = 50;  // Was 35
-const ANSWER_BOX_LONG = 80;    // Was 55
+// Minimum answer area heights
+const MIN_ANSWER_SHORT = 30;
+const MIN_ANSWER_MEDIUM = 50;
+const MIN_ANSWER_LONG = 80;
 
 // Grid settings for graph questions
 const GRID_CELL_SIZE = 5;
-const GRID_WIDTH = 80;
-const GRID_HEIGHT = 60;
+const GRID_WIDTH = 100;
+const GRID_HEIGHT = 80;
 
 // Colors (RGB values)
 const COLORS = {
-  primary: [41, 41, 41] as const,
-  secondary: [100, 100, 100] as const,
-  muted: [150, 150, 150] as const,
-  border: [200, 200, 200] as const,
+  primary: [30, 30, 30] as const,
+  secondary: [80, 80, 80] as const,
+  muted: [140, 140, 140] as const,
+  border: [180, 180, 180] as const,
   lightBg: [250, 250, 250] as const,
-  answerBox: [248, 248, 248] as const,
-  linedBg: [252, 252, 255] as const,
+  answerBox: [252, 252, 252] as const,
+  linedBg: [254, 254, 255] as const,
+  separator: [200, 200, 200] as const,
 };
 
 // Unicode superscript and subscript maps
@@ -101,7 +101,7 @@ function parseQuestionNumber(num: string): { main: number; sub: string; subOrder
   
   const main = parseInt(match[1]);
   const sub = (match[2] || '').toLowerCase();
-  const subOrder = sub ? sub.charCodeAt(0) - 96 : 0; // a=1, b=2, etc.
+  const subOrder = sub ? sub.charCodeAt(0) - 96 : 0;
   
   return { main, sub, subOrder };
 }
@@ -124,10 +124,10 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'essay' | 'gener
   if (['maths', 'mathematics', 'math', 'algebra', 'calculus', 'geometry', 'statistics'].some(k => s.includes(k))) {
     return 'math';
   }
-  if (['physics', 'chemistry', 'biology', 'science'].some(k => s.includes(k))) {
+  if (['physics', 'chemistry'].some(k => s.includes(k))) {
     return 'science';
   }
-  if (['english', 'history', 'literature', 'essay', 'geography', 'sociology', 'psychology'].some(k => s.includes(k))) {
+  if (['biology', 'english', 'history', 'literature', 'essay', 'geography', 'sociology', 'psychology', 'religious'].some(k => s.includes(k))) {
     return 'essay';
   }
   return 'general';
@@ -140,11 +140,11 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
   
   switch (subjectType) {
     case 'math':
-      return 'blank'; // Large blank boxes for working
+      return 'blank';
     case 'essay':
-      return 'lined'; // Lined areas for written responses
+      return 'lined';
     case 'science':
-      return (marks && marks > 4) ? 'grid' : 'blank'; // Grid for calculations
+      return (marks && marks > 4) ? 'grid' : 'blank';
     default:
       return 'blank';
   }
@@ -170,7 +170,6 @@ export async function generateExamPDF(
 
   let yPosition = MARGIN;
   let currentPage = 1;
-  let totalPages = 1;
 
   // Sort questions by number before processing
   const sortedQuestions = sortQuestions(examData.questions);
@@ -182,33 +181,20 @@ export async function generateExamPDF(
     else doc.setFillColor(color[0], color[1], color[2]);
   };
 
-  const addNewPageIfNeeded = (requiredSpace: number): boolean => {
-    if (yPosition + requiredSpace > A4_HEIGHT - MARGIN - 20) {
-      doc.addPage();
-      currentPage++;
-      totalPages++;
-      yPosition = MARGIN;
-      return true;
-    }
-    return false;
+  const addNewPage = () => {
+    doc.addPage();
+    currentPage++;
+    yPosition = MARGIN;
   };
 
-  const safeDrawText = (text: string, x: number, y: number, maxWidth: number): number => {
-    const lines = doc.splitTextToSize(text, maxWidth);
-    let currentY = y;
-    
-    for (const line of lines) {
-      if (currentY > A4_HEIGHT - MARGIN - 20) {
-        doc.addPage();
-        currentPage++;
-        totalPages++;
-        currentY = MARGIN;
-      }
-      doc.text(line, x, currentY);
-      currentY += LINE_HEIGHT;
-    }
-    
-    return lines.length * LINE_HEIGHT;
+  const getRemainingSpace = (): number => {
+    return A4_HEIGHT - yPosition - FOOTER_HEIGHT;
+  };
+
+  const getMinAnswerHeight = (marks: number): number => {
+    if (marks <= 2) return MIN_ANSWER_SHORT;
+    if (marks <= 5) return MIN_ANSWER_MEDIUM;
+    return MIN_ANSWER_LONG;
   };
 
   const addPageNumbers = () => {
@@ -220,7 +206,8 @@ export async function generateExamPDF(
       doc.setFont("helvetica", "normal");
       
       // Footer line
-      setColor(COLORS.border, "draw");
+      setColor(COLORS.separator, "draw");
+      doc.setLineWidth(0.3);
       doc.line(MARGIN, A4_HEIGHT - 18, A4_WIDTH - MARGIN, A4_HEIGHT - 18);
       
       // Page number
@@ -228,164 +215,113 @@ export async function generateExamPDF(
     }
   };
 
-  const drawRoundedRect = (
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    options: { fill?: boolean; stroke?: boolean } = { fill: false, stroke: true }
-  ) => {
-    const style = options.fill && options.stroke ? "FD" : options.fill ? "F" : "D";
-    doc.roundedRect(x, y, width, height, BOX_RADIUS, BOX_RADIUS, style);
-  };
-
   // ============= Header Section =============
   const drawHeader = () => {
-    // Title box
-    setColor(COLORS.border, "draw");
-    setColor(COLORS.lightBg, "fill");
-    drawRoundedRect(MARGIN, yPosition, CONTENT_WIDTH, 45, { fill: true, stroke: true });
-
-    // Exam title
-    doc.setFontSize(18);
+    // Exam title - bold and prominent
+    doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     setColor(COLORS.primary);
     
     const titleLines = doc.splitTextToSize(examData.title.toUpperCase(), CONTENT_WIDTH - 20);
-    const titleY = yPosition + (titleLines.length > 1 ? 8 : 10);
     titleLines.forEach((line: string, idx: number) => {
-      doc.text(line, A4_WIDTH / 2, titleY + (idx * 6), { align: "center" });
+      doc.text(line, A4_WIDTH / 2, yPosition + (idx * 7), { align: "center" });
     });
+    yPosition += titleLines.length * 7 + 4;
 
     // Subject, Board, Level info
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    setColor(COLORS.secondary);
-    const infoItems: string[] = [];
-    if (examData.subject) infoItems.push(`Subject: ${examData.subject}`);
-    if (examData.exam_board) infoItems.push(`Board: ${examData.exam_board}`);
-    if (examData.qualification_level) infoItems.push(`Level: ${examData.qualification_level}`);
-    
-    if (infoItems.length > 0) {
-      doc.text(infoItems.join("  •  "), A4_WIDTH / 2, yPosition + 17, { align: "center" });
+    if (examData.subject || examData.exam_board || examData.qualification_level) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      setColor(COLORS.secondary);
+      const infoItems: string[] = [];
+      if (examData.subject) infoItems.push(examData.subject);
+      if (examData.exam_board) infoItems.push(examData.exam_board);
+      if (examData.qualification_level) infoItems.push(examData.qualification_level);
+      
+      doc.text(infoItems.join("  •  "), A4_WIDTH / 2, yPosition, { align: "center" });
+      yPosition += 8;
     }
 
     // Separator line
-    setColor(COLORS.border, "draw");
-    doc.line(MARGIN + 10, yPosition + 22, A4_WIDTH - MARGIN - 10, yPosition + 22);
+    setColor(COLORS.separator, "draw");
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
+    yPosition += 8;
 
-    // Student info fields
+    // Student info and marks row
     doc.setFontSize(9);
     setColor(COLORS.primary);
-    doc.text("Name:", MARGIN + 8, yPosition + 30);
-    doc.text("Student ID:", MARGIN + 80, yPosition + 30);
-    doc.text("Date:", MARGIN + 135, yPosition + 30);
-
-    // Underlines for student info
-    setColor(COLORS.border, "draw");
-    doc.line(MARGIN + 20, yPosition + 31, MARGIN + 70, yPosition + 31);
-    doc.line(MARGIN + 98, yPosition + 31, MARGIN + 128, yPosition + 31);
-    doc.line(MARGIN + 147, yPosition + 31, MARGIN + 165, yPosition + 31);
-
-    // Total marks and time
-    const totalMarks = examData.total_marks || sortedQuestions.reduce((sum, q) => sum + q.marks, 0);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    setColor(COLORS.primary);
-    
-    let footerText = `Total Marks: ${totalMarks}`;
-    if (examData.time_allowed) {
-      footerText += `  •  Time Allowed: ${examData.time_allowed} minutes`;
-    }
-    doc.text(footerText, A4_WIDTH / 2, yPosition + 40, { align: "center" });
-
-    yPosition += 52;
-  };
-
-  // ============= Instructions Section =============
-  const drawInstructions = () => {
-    const instructionHeight = 32;
-    
-    setColor(COLORS.border, "draw");
-    setColor([252, 252, 252], "fill");
-    drawRoundedRect(MARGIN, yPosition, CONTENT_WIDTH, instructionHeight, { fill: true, stroke: true });
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    setColor(COLORS.primary);
-    doc.text("INSTRUCTIONS", MARGIN + 6, yPosition + 7);
-
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    setColor(COLORS.secondary);
     
-    const instructions = [
-      "•  Read each question carefully before answering.",
-      "•  Write your answers clearly in blue or black ink.",
-      "•  Show all working for calculation questions.",
-      "•  The marks for each question are shown in brackets."
-    ];
-    
-    instructions.forEach((instruction, index) => {
-      doc.text(instruction, MARGIN + 6, yPosition + 14 + (index * 4.5));
-    });
-
-    yPosition += instructionHeight + 8;
-  };
-
-  // ============= Answer Box Drawing =============
-  const drawAnswerBox = (x: number, y: number, width: number, height: number, label: string = "Answer:") => {
+    // Name field
+    doc.text("Name:", MARGIN, yPosition);
     setColor(COLORS.border, "draw");
-    setColor(COLORS.answerBox, "fill");
-    drawRoundedRect(x, y, width, height, { fill: true, stroke: true });
+    doc.line(MARGIN + 12, yPosition + 1, MARGIN + 60, yPosition + 1);
+    
+    // Date field
+    doc.text("Date:", MARGIN + 70, yPosition);
+    doc.line(MARGIN + 82, yPosition + 1, MARGIN + 115, yPosition + 1);
 
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    setColor(COLORS.muted);
-    doc.text(label, x + 4, y + 5);
+    // Total marks
+    const totalMarks = examData.total_marks || sortedQuestions.reduce((sum, q) => sum + q.marks, 0);
+    doc.setFont("helvetica", "bold");
+    setColor(COLORS.primary);
+    let footerText = `Total: ${totalMarks} marks`;
+    if (examData.time_allowed) {
+      footerText += `  •  Time: ${examData.time_allowed} minutes`;
+    }
+    doc.text(footerText, A4_WIDTH - MARGIN, yPosition, { align: "right" });
+    
+    yPosition += 12;
+
+    // Separator line
+    setColor(COLORS.separator, "draw");
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
+    yPosition += 10;
   };
 
   // ============= Lined Answer Area Drawing =============
-  const drawLinedArea = (x: number, y: number, width: number, lineCount: number) => {
-    const lineSpacing = 8; // 8mm between lines
-    setColor(COLORS.linedBg, "fill");
-    doc.rect(x, y, width, lineCount * lineSpacing, "F");
+  const drawLinedArea = (x: number, y: number, width: number, height: number): number => {
+    const lineSpacing = 8;
+    const lineCount = Math.floor(height / lineSpacing);
+    const actualHeight = lineCount * lineSpacing;
     
     setColor(COLORS.border, "draw");
-    doc.setLineWidth(0.1);
+    doc.setLineWidth(0.15);
     
-    for (let i = 0; i <= lineCount; i++) {
+    for (let i = 1; i <= lineCount; i++) {
       doc.line(x, y + (i * lineSpacing), x + width, y + (i * lineSpacing));
     }
     
-    // Draw border
-    doc.setLineWidth(0.2);
-    doc.rect(x, y, width, lineCount * lineSpacing, "D");
-    
-    return lineCount * lineSpacing;
+    return actualHeight;
   };
 
   // ============= Grid Answer Area Drawing =============
   const drawGridArea = (x: number, y: number, width: number, height: number) => {
-    const cellSize = 5; // 5mm grid cells
+    const cellSize = 5;
     
-    setColor([254, 254, 254], "fill");
-    doc.rect(x, y, width, height, "F");
-    
-    setColor([220, 220, 220], "draw");
+    setColor([230, 230, 230], "draw");
     doc.setLineWidth(0.1);
     
-    // Draw vertical grid lines
-    for (let i = 0; i <= width / cellSize; i++) {
+    // Vertical grid lines
+    for (let i = 0; i <= Math.floor(width / cellSize); i++) {
       doc.line(x + (i * cellSize), y, x + (i * cellSize), y + height);
     }
     
-    // Draw horizontal grid lines
-    for (let i = 0; i <= height / cellSize; i++) {
+    // Horizontal grid lines
+    for (let i = 0; i <= Math.floor(height / cellSize); i++) {
       doc.line(x, y + (i * cellSize), x + width, y + (i * cellSize));
     }
+  };
+
+  // ============= Blank Answer Area Drawing =============
+  const drawBlankArea = (x: number, y: number, width: number, height: number) => {
+    // Very light background to indicate answer area
+    setColor([254, 254, 254], "fill");
+    doc.rect(x, y, width, height, "F");
     
-    // Draw border
+    // Light border
     setColor(COLORS.border, "draw");
     doc.setLineWidth(0.2);
     doc.rect(x, y, width, height, "D");
@@ -393,19 +329,16 @@ export async function generateExamPDF(
 
   // ============= Coordinate Grid Drawing =============
   const drawCoordinateGrid = (x: number, y: number, width: number, height: number) => {
-    setColor(COLORS.border, "draw");
+    const cellSize = GRID_CELL_SIZE;
+    
+    // Light grid lines
+    setColor([220, 220, 220], "draw");
     doc.setLineWidth(0.1);
 
-    const cellSize = GRID_CELL_SIZE;
-    const cols = Math.floor(width / cellSize);
-    const rows = Math.floor(height / cellSize);
-
-    // Vertical lines
-    for (let i = 0; i <= cols; i++) {
+    for (let i = 0; i <= Math.floor(width / cellSize); i++) {
       doc.line(x + i * cellSize, y, x + i * cellSize, y + height);
     }
-    // Horizontal lines
-    for (let i = 0; i <= rows; i++) {
+    for (let i = 0; i <= Math.floor(height / cellSize); i++) {
       doc.line(x, y + i * cellSize, x + width, y + i * cellSize);
     }
 
@@ -414,8 +347,8 @@ export async function generateExamPDF(
     setColor([80, 80, 80], "draw");
     const centerX = x + width / 2;
     const centerY = y + height / 2;
-    doc.line(x, centerY, x + width, centerY); // X-axis
-    doc.line(centerX, y, centerX, y + height); // Y-axis
+    doc.line(x, centerY, x + width, centerY);
+    doc.line(centerX, y, centerX, y + height);
 
     // Axis labels
     doc.setFontSize(8);
@@ -426,221 +359,195 @@ export async function generateExamPDF(
     doc.setLineWidth(0.2);
   };
 
-  // ============= Diagram Placeholder Drawing =============
-  const drawDiagramPlaceholder = (x: number, y: number, width: number, height: number) => {
-    setColor(COLORS.border, "draw");
-    setColor([254, 254, 254], "fill");
-    drawRoundedRect(x, y, width, height, { fill: true, stroke: true });
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "italic");
-    setColor(COLORS.muted);
-    doc.text("Draw your diagram here", x + width / 2, y + height / 2, { align: "center" });
-  };
-
-  // ============= Calculate Answer Box Height =============
-  const getAnswerBoxHeight = (marks: number, questionType: string): number => {
-    if (questionType === 'MCQ') return 0;
+  // ============= Draw Answer Area =============
+  const drawAnswerArea = (areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal', x: number, y: number, width: number, height: number) => {
+    if (areaType === 'none') return;
     
-    if (marks <= 2) return ANSWER_BOX_SHORT;
-    if (marks <= 5) return ANSWER_BOX_MEDIUM;
-    return ANSWER_BOX_LONG;
+    if (areaType === 'minimal') {
+      // Just white space, no visual indicators
+      return;
+    }
+    
+    if (areaType === 'lined') {
+      drawLinedArea(x, y, width, height);
+    } else if (areaType === 'grid') {
+      drawGridArea(x, y, width, height);
+    } else {
+      drawBlankArea(x, y, width, height);
+    }
   };
 
-  // ============= Question Container Drawing =============
-  const drawQuestionContainer = (question: ExamQuestion, questionIndex: number) => {
-    const questionNumber = question.question_number || String(questionIndex + 1);
+  // ============= Draw Question in Free-Flow Style =============
+  const drawQuestionFreeFlow = (question: ExamQuestion, isFirstOnPage: boolean) => {
+    const questionNumber = question.question_number;
     const cleanedText = cleanLatexForPDF(question.question_text);
-    const availableTextWidth = CONTENT_WIDTH - QUESTION_PADDING * 4;
-    const textLines = doc.splitTextToSize(cleanedText, availableTextWidth);
-
-    // Pre-calculate content height
-    let contentHeight = 16 + (textLines.length * LINE_HEIGHT);
-
-    // Add height for MCQ options
-    if (question.question_type === "MCQ" && question.options && Array.isArray(question.options)) {
-      contentHeight += question.options.length * 8 + 4;
-    } 
-    // Add height for sub-questions
-    else if (question.sub_questions && question.sub_questions.length > 0) {
-      question.sub_questions.forEach(sub => {
-        const subLines = doc.splitTextToSize(cleanLatexForPDF(sub.text), CONTENT_WIDTH - QUESTION_PADDING * 6);
-        contentHeight += 8 + (subLines.length * LINE_HEIGHT);
-        if (includeWorkingSpace) {
-          const boxHeight = getAnswerBoxHeight(sub.marks, 'written');
-          contentHeight += boxHeight + 6;
-        }
-      });
-    }
-    // Add height for answer areas
-    else if (includeWorkingSpace && question.question_type !== "MCQ") {
-      if (question.requires_graph) {
-        contentHeight += GRID_HEIGHT + 10;
-      } else if (question.requires_diagram) {
-        contentHeight += 55;
-      } else {
-        const boxHeight = getAnswerBoxHeight(question.marks, question.question_type);
-        contentHeight += boxHeight + 8;
-      }
-    }
-
-    // Check if we need a new page BEFORE starting the question
-    if (yPosition + contentHeight + 10 > A4_HEIGHT - MARGIN - 20) {
-      doc.addPage();
-      currentPage++;
-      totalPages++;
-      yPosition = MARGIN;
-    }
-
-    const containerStartY = yPosition;
-
-    // Draw question container border
-    setColor(COLORS.border, "draw");
-    setColor([255, 255, 255], "fill");
-    drawRoundedRect(MARGIN, yPosition, CONTENT_WIDTH, contentHeight, { fill: true, stroke: true });
-
-    // Question header background
-    setColor([248, 249, 250], "fill");
-    doc.rect(MARGIN + 0.5, yPosition + 0.5, CONTENT_WIDTH - 1, 10, "F");
-
-    // Question number and marks
+    const parsed = parseQuestionNumber(questionNumber);
+    const isSubQuestion = parsed.sub !== '';
+    
+    // Question header
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     setColor(COLORS.primary);
-    doc.text(`Question ${questionNumber}`, MARGIN + QUESTION_PADDING, yPosition + 7);
-
+    
+    // Format: "1." or "1a." with marks on right
+    const questionLabel = isSubQuestion ? `(${parsed.sub})` : `${parsed.main}.`;
+    const labelIndent = isSubQuestion ? MARGIN + 8 : MARGIN;
+    
+    doc.text(questionLabel, labelIndent, yPosition);
+    
     if (showMarks) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       setColor(COLORS.secondary);
-      const marksText = `[${question.marks} mark${question.marks > 1 ? "s" : ""}]`;
-      doc.text(marksText, A4_WIDTH - MARGIN - QUESTION_PADDING, yPosition + 7, { align: "right" });
+      doc.text(`(${question.marks})`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
     }
-
-    // Header separator line
-    setColor(COLORS.border, "draw");
-    doc.line(MARGIN + 4, yPosition + 11, A4_WIDTH - MARGIN - 4, yPosition + 11);
-
-    let innerY = yPosition + 16;
-
-    // Question text with proper wrapping
+    
+    yPosition += 2;
+    
+    // Separator line under question number (only for main questions)
+    if (!isSubQuestion) {
+      setColor(COLORS.separator, "draw");
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
+      yPosition += 6;
+    } else {
+      yPosition += 4;
+    }
+    
+    // Question text
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     setColor(COLORS.primary);
+    
+    const textIndent = isSubQuestion ? MARGIN + 12 : MARGIN;
+    const textWidth = CONTENT_WIDTH - (isSubQuestion ? 12 : 0) - 15;
+    const textLines = doc.splitTextToSize(cleanedText, textWidth);
+    
     textLines.forEach((line: string) => {
-      doc.text(line, MARGIN + QUESTION_PADDING, innerY);
-      innerY += LINE_HEIGHT;
+      if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 20) {
+        addNewPage();
+      }
+      doc.text(line, textIndent, yPosition);
+      yPosition += LINE_HEIGHT;
     });
-
-    innerY += 4;
-
+    
+    yPosition += 4;
+    
     // Handle MCQ options
     if (question.question_type === "MCQ" && question.options && Array.isArray(question.options)) {
       for (const option of question.options) {
+        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+          addNewPage();
+        }
+        
         // Draw empty circle for selection
         doc.setLineWidth(0.3);
         setColor(COLORS.secondary, "draw");
-        doc.circle(MARGIN + QUESTION_PADDING + 5, innerY - 1.5, 2.5);
-
+        doc.circle(textIndent + 4, yPosition - 1.5, 2.5);
+        
         // Option text
         doc.setFontSize(10);
         setColor(COLORS.primary);
         const optionText = `${option.label})  ${cleanLatexForPDF(option.text)}`;
-        const optionLines = doc.splitTextToSize(optionText, CONTENT_WIDTH - QUESTION_PADDING * 4);
+        const optionLines = doc.splitTextToSize(optionText, textWidth - 15);
         optionLines.forEach((line: string, idx: number) => {
-          doc.text(line, MARGIN + QUESTION_PADDING + 12, innerY + (idx * LINE_HEIGHT));
+          doc.text(line, textIndent + 12, yPosition + (idx * LINE_HEIGHT));
         });
-        innerY += Math.max(optionLines.length, 1) * LINE_HEIGHT + 3;
+        yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 2;
       }
       doc.setLineWidth(0.2);
     }
     // Handle sub-questions
     else if (question.sub_questions && question.sub_questions.length > 0) {
       for (const sub of question.sub_questions) {
-        // Sub-question label and text
+        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 30) {
+          addNewPage();
+        }
+        
+        // Sub-question label
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         setColor(COLORS.primary);
-        doc.text(`(${sub.label})`, MARGIN + QUESTION_PADDING + 8, innerY);
-
+        doc.text(`(${sub.label})`, textIndent + 4, yPosition);
+        
         if (showMarks) {
           doc.setFont("helvetica", "normal");
           setColor(COLORS.secondary);
-          doc.text(`[${sub.marks} mark${sub.marks > 1 ? "s" : ""}]`, A4_WIDTH - MARGIN - QUESTION_PADDING - 10, innerY, { align: "right" });
+          doc.text(`(${sub.marks})`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
         }
-
+        
         doc.setFont("helvetica", "normal");
         setColor(COLORS.primary);
-        const subLines = doc.splitTextToSize(cleanLatexForPDF(sub.text), CONTENT_WIDTH - QUESTION_PADDING * 6);
+        const subLines = doc.splitTextToSize(cleanLatexForPDF(sub.text), textWidth - 20);
         subLines.forEach((line: string, idx: number) => {
-          doc.text(line, MARGIN + QUESTION_PADDING + 18, innerY + (idx * LINE_HEIGHT));
+          doc.text(line, textIndent + 16, yPosition + (idx * LINE_HEIGHT));
         });
-        innerY += subLines.length * LINE_HEIGHT + 4;
-
-        // Answer area for sub-question based on subject type
+        yPosition += subLines.length * LINE_HEIGHT + 4;
+        
+        // Answer area for sub-question
         if (includeWorkingSpace) {
           const areaType = answerStyle || getAnswerAreaType(examData.subject, sub.marks, 'written');
-          const boxHeight = getAnswerBoxHeight(sub.marks, 'written');
+          const minHeight = getMinAnswerHeight(sub.marks);
+          const remainingSpace = getRemainingSpace();
+          const areaHeight = Math.min(Math.max(minHeight, remainingSpace * 0.4), remainingSpace - 20);
           
-          if (areaType === 'lined') {
-            const lineCount = Math.max(3, Math.floor(boxHeight / 8));
-            drawLinedArea(MARGIN + QUESTION_PADDING + 8, innerY, CONTENT_WIDTH - QUESTION_PADDING * 4, lineCount);
-            innerY += lineCount * 8 + 6;
-          } else if (areaType === 'grid') {
-            drawGridArea(MARGIN + QUESTION_PADDING + 8, innerY, CONTENT_WIDTH - QUESTION_PADDING * 4, boxHeight);
-            innerY += boxHeight + 6;
-          } else {
-            drawAnswerBox(MARGIN + QUESTION_PADDING + 8, innerY, CONTENT_WIDTH - QUESTION_PADDING * 4, boxHeight);
-            innerY += boxHeight + 6;
+          if (areaHeight > 15) {
+            drawAnswerArea(areaType, textIndent + 4, yPosition, CONTENT_WIDTH - 12, areaHeight);
+            yPosition += areaHeight + 8;
           }
         }
       }
     }
-    // Handle graph/diagram/standard answer
+    // Handle graph/diagram/standard answer area
     else if (includeWorkingSpace && question.question_type !== "MCQ") {
       const areaType = answerStyle || getAnswerAreaType(examData.subject, question.marks, question.question_type);
       
       if (question.requires_graph) {
-        drawCoordinateGrid(MARGIN + QUESTION_PADDING, innerY, GRID_WIDTH, GRID_HEIGHT);
-        innerY += GRID_HEIGHT + 8;
+        const graphY = yPosition;
+        const graphX = MARGIN + (CONTENT_WIDTH - GRID_WIDTH) / 2;
+        drawCoordinateGrid(graphX, graphY, GRID_WIDTH, GRID_HEIGHT);
+        yPosition += GRID_HEIGHT + 10;
       } else if (question.requires_diagram) {
-        drawDiagramPlaceholder(MARGIN + QUESTION_PADDING, innerY, CONTENT_WIDTH - QUESTION_PADDING * 2, 50);
-        innerY += 55;
-      } else {
-        const boxHeight = getAnswerBoxHeight(question.marks, question.question_type);
+        const diagramHeight = 60;
+        setColor(COLORS.border, "draw");
+        doc.setLineWidth(0.2);
+        doc.rect(MARGIN, yPosition, CONTENT_WIDTH, diagramHeight, "D");
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "italic");
+        setColor(COLORS.muted);
+        doc.text("Space for diagram", MARGIN + CONTENT_WIDTH / 2, yPosition + diagramHeight / 2, { align: "center" });
+        yPosition += diagramHeight + 8;
+      } else if (areaType !== 'none') {
+        // Calculate dynamic height based on remaining space
+        const minHeight = getMinAnswerHeight(question.marks);
+        const remainingSpace = getRemainingSpace();
+        // Fill most of remaining space, but cap at reasonable max
+        const maxHeight = Math.min(remainingSpace - 10, 150);
+        const areaHeight = Math.max(minHeight, maxHeight);
         
-        if (areaType === 'lined') {
-          const lineCount = Math.max(3, Math.floor(boxHeight / 8));
-          drawLinedArea(MARGIN + QUESTION_PADDING, innerY, CONTENT_WIDTH - QUESTION_PADDING * 2, lineCount);
-          innerY += lineCount * 8 + 6;
-        } else if (areaType === 'grid') {
-          drawGridArea(MARGIN + QUESTION_PADDING, innerY, CONTENT_WIDTH - QUESTION_PADDING * 2, boxHeight);
-          innerY += boxHeight + 6;
-        } else if (areaType !== 'none') {
-          drawAnswerBox(MARGIN + QUESTION_PADDING, innerY, CONTENT_WIDTH - QUESTION_PADDING * 2, boxHeight, "Working space / Answer:");
-          innerY += boxHeight + 6;
+        if (areaHeight > 15) {
+          drawAnswerArea(areaType, textIndent, yPosition, CONTENT_WIDTH - (isSubQuestion ? 8 : 0), areaHeight);
+          yPosition += areaHeight + 8;
         }
       }
     }
-
-    yPosition = containerStartY + contentHeight + 8;
   };
 
   // ============= Answer Key Section =============
   const drawAnswerKey = () => {
-    doc.addPage();
-    yPosition = MARGIN;
+    addNewPage();
 
     // Header
-    setColor(COLORS.border, "draw");
-    setColor(COLORS.lightBg, "fill");
-    drawRoundedRect(MARGIN, yPosition, CONTENT_WIDTH, 15, { fill: true, stroke: true });
-
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     setColor(COLORS.primary);
-    doc.text("ANSWER KEY", A4_WIDTH / 2, yPosition + 10, { align: "center" });
-    yPosition += 22;
+    doc.text("ANSWER KEY", A4_WIDTH / 2, yPosition, { align: "center" });
+    yPosition += 8;
+    
+    setColor(COLORS.separator, "draw");
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
+    yPosition += 10;
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
@@ -648,7 +555,9 @@ export async function generateExamPDF(
     for (const question of sortedQuestions) {
       if (!question.correct_answer) continue;
 
-      addNewPageIfNeeded(15);
+      if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 20) {
+        addNewPage();
+      }
 
       const questionNum = question.question_number;
       doc.setFont("helvetica", "bold");
@@ -658,22 +567,39 @@ export async function generateExamPDF(
       doc.setFont("helvetica", "normal");
       setColor(COLORS.secondary);
       const answerText = cleanLatexForPDF(question.correct_answer);
-      const answerLines = doc.splitTextToSize(answerText, CONTENT_WIDTH - 20);
+      const answerLines = doc.splitTextToSize(answerText, CONTENT_WIDTH - 25);
       answerLines.forEach((line: string, idx: number) => {
-        doc.text(line, MARGIN + 15, yPosition + (idx * LINE_HEIGHT));
+        doc.text(line, MARGIN + 18, yPosition + (idx * LINE_HEIGHT));
       });
 
-      yPosition += Math.max(answerLines.length * LINE_HEIGHT, 6) + 4;
+      yPosition += Math.max(answerLines.length * LINE_HEIGHT, 6) + 6;
     }
   };
 
   // ============= Generate PDF =============
   drawHeader();
-  drawInstructions();
 
-  // Draw all questions in sorted order
+  // Track which main question we're on for page breaks
+  let lastMainQuestion = -1;
+  
   for (let i = 0; i < sortedQuestions.length; i++) {
-    drawQuestionContainer(sortedQuestions[i], i);
+    const question = sortedQuestions[i];
+    const parsed = parseQuestionNumber(question.question_number);
+    
+    // Start new page for each new MAIN question (not sub-questions)
+    const isNewMainQuestion = parsed.main !== lastMainQuestion;
+    const isSubQuestion = parsed.sub !== '';
+    
+    if (isNewMainQuestion && !isSubQuestion && i > 0) {
+      // New main question = new page
+      addNewPage();
+    }
+    
+    drawQuestionFreeFlow(question, i === 0 || isNewMainQuestion);
+    
+    if (!isSubQuestion) {
+      lastMainQuestion = parsed.main;
+    }
   }
 
   // Add answer key if requested
@@ -821,9 +747,9 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\mathit\{([^}]+)\}/g, "$1");
   
   // Cleanup
-  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, ""); // Remove remaining commands
-  cleaned = cleaned.replace(/[{}]/g, ""); // Remove braces
-  cleaned = cleaned.replace(/\s+/g, " "); // Normalize whitespace
+  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
+  cleaned = cleaned.replace(/[{}]/g, "");
+  cleaned = cleaned.replace(/\s+/g, " ");
 
   return cleaned.trim();
 }
