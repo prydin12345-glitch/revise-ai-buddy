@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Eye, Printer, FileText } from "lucide-react";
+import { Download, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +11,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { generateExamPDF, downloadPDF, openPDFInNewTab } from "@/lib/exam-pdf-generator";
 import { toast } from "sonner";
 
@@ -45,6 +52,8 @@ interface ExamPDFPreviewModalProps {
   examTitle: string;
 }
 
+type AnswerStyle = 'auto' | 'blank' | 'lined' | 'grid' | 'minimal';
+
 export function ExamPDFPreviewModal({
   open,
   onOpenChange,
@@ -54,6 +63,7 @@ export function ExamPDFPreviewModal({
   const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
   const [includeWorkingSpace, setIncludeWorkingSpace] = useState(true);
   const [showMarks, setShowMarks] = useState(true);
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>('auto');
   const [generating, setGenerating] = useState(false);
 
   const totalMarks = examData.questions.reduce((sum, q) => sum + q.marks, 0);
@@ -67,6 +77,7 @@ export function ExamPDFPreviewModal({
         includeAnswerKey,
         includeWorkingSpace,
         showMarks,
+        answerStyle: answerStyle === 'auto' ? undefined : answerStyle,
       });
       const filename = `${examTitle.replace(/[^a-z0-9]/gi, "_")}_exam.pdf`;
       downloadPDF(doc, filename);
@@ -87,6 +98,7 @@ export function ExamPDFPreviewModal({
         includeAnswerKey,
         includeWorkingSpace,
         showMarks,
+        answerStyle: answerStyle === 'auto' ? undefined : answerStyle,
       });
       openPDFInNewTab(doc);
     } catch (error) {
@@ -148,9 +160,9 @@ export function ExamPDFPreviewModal({
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="working-space">Include answer lines</Label>
+              <Label htmlFor="working-space">Include answer areas</Label>
               <p className="text-xs text-muted-foreground">
-                Add blank lines for written answers
+                Add space for written answers
               </p>
             </div>
             <Switch
@@ -159,6 +171,27 @@ export function ExamPDFPreviewModal({
               onCheckedChange={setIncludeWorkingSpace}
             />
           </div>
+
+          {includeWorkingSpace && (
+            <div className="space-y-2">
+              <Label>Answer area style</Label>
+              <Select value={answerStyle} onValueChange={(v) => setAnswerStyle(v as AnswerStyle)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select style" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto (based on subject)</SelectItem>
+                  <SelectItem value="blank">Blank boxes</SelectItem>
+                  <SelectItem value="lined">Lined paper</SelectItem>
+                  <SelectItem value="grid">Grid boxes</SelectItem>
+                  <SelectItem value="minimal">Minimal (white space)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Auto: Math gets boxes, English gets lines, Science gets grids
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
