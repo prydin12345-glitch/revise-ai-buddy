@@ -70,29 +70,7 @@ const COLORS = {
   linedBg: [254, 254, 255] as const,
 };
 
-// Unicode maps
-const SUPERSCRIPT_MAP: { [key: string]: string } = {
-  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-  '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
-  'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ',
-  'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ', 'd': 'ᵈ', 'e': 'ᵉ',
-};
-
-const SUBSCRIPT_MAP: { [key: string]: string } = {
-  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-  '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
-  '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
-  'a': 'ₐ', 'e': 'ₑ', 'o': 'ₒ', 'x': 'ₓ',
-  'i': 'ᵢ', 'j': 'ⱼ', 'n': 'ₙ', 'm': 'ₘ',
-};
-
-const FRACTION_MAP: { [key: string]: string } = {
-  '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾',
-  '1/5': '⅕', '2/5': '⅖', '3/5': '⅗', '4/5': '⅘',
-  '1/6': '⅙', '5/6': '⅚', '1/7': '⅐', '1/8': '⅛',
-  '3/8': '⅜', '5/8': '⅝', '7/8': '⅞', '1/9': '⅑', '1/10': '⅒',
-};
+// Note: Unicode maps removed - using ASCII-safe notation for better jsPDF compatibility
 
 // ============= Question Sorting & Grouping =============
 function parseQuestionNumber(num: string): { main: number; sub: string; subOrder: number } {
@@ -491,18 +469,10 @@ export async function generateExamPDF(
     doc.rect(x, y, width, height, "D");
   };
 
-  // ============= Helper: Check if text has Unicode symbols =============
-  const hasUnicodeSymbols = (text: string): boolean => {
-    return /[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿˣʸᵃᵇᶜᵈᵉ₀₁₂₃₄₅₆₇₈₉√∑∏∫αβγδεθπσωφψ×÷±≤≥≠≈∞→←↔½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒°∠△∥⊥∴∵∧∨¬∈∉⊂⊃∪∩∅∂∇∀∃⇒⇐⇔↦ΔΣΩΠΓΘΛρτχ]/.test(text);
-  };
-
   // ============= Helper: Get safe text width =============
-  const getSafeTextWidth = (text: string, baseWidth: number): number => {
-    // Reduce width for text with Unicode symbols to prevent overflow
-    if (hasUnicodeSymbols(text)) {
-      return baseWidth - 8; // Extra safety margin for Unicode chars
-    }
-    return baseWidth - 3; // Small safety margin for all text
+  const getSafeTextWidth = (baseWidth: number): number => {
+    // Apply consistent safety margin for all text (now using ASCII-safe notation)
+    return baseWidth - 5;
   };
 
   // ============= Draw Question Group =============
@@ -582,7 +552,7 @@ export async function generateExamPDF(
       
       const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
       const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
-      const textWidth = getSafeTextWidth(cleanedText, baseTextWidth);
+      const textWidth = getSafeTextWidth(baseTextWidth);
       const textLines = doc.splitTextToSize(cleanedText, textWidth);
       
       textLines.forEach((line: string) => {
@@ -616,7 +586,7 @@ export async function generateExamPDF(
           doc.setFontSize(10);
           setColor(COLORS.primary);
           const optionText = `${option.label})  ${cleanLatexForPDF(option.text)}`;
-          const optionWidth = getSafeTextWidth(optionText, baseTextWidth - 15);
+          const optionWidth = getSafeTextWidth(baseTextWidth - 15);
           const optionLines = doc.splitTextToSize(optionText, optionWidth);
           optionLines.forEach((line: string, idx: number) => {
             doc.setFont("helvetica", "normal");
@@ -654,7 +624,7 @@ export async function generateExamPDF(
           doc.setFontSize(10);
           setColor(COLORS.primary);
           const subText = cleanLatexForPDF(sub.text);
-          const subTextWidth = getSafeTextWidth(subText, baseTextWidth - 10);
+          const subTextWidth = getSafeTextWidth(baseTextWidth - 10);
           const subLines = doc.splitTextToSize(subText, subTextWidth);
           subLines.forEach((line: string) => {
             doc.setFont("helvetica", "normal");
@@ -806,124 +776,145 @@ export async function generateExamPDF(
   return doc;
 }
 
-// ============= LaTeX to Unicode Conversion =============
-function toSuperscript(str: string): string {
-  return str.split('').map(c => SUPERSCRIPT_MAP[c] || c).join('');
+// ============= Text Sanitization for PDF Compatibility =============
+function sanitizeForPDF(text: string): string {
+  let safe = text;
+  
+  // Remove zero-width characters that cause spacing issues in jsPDF
+  safe = safe.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
+  
+  // Remove other invisible/control characters
+  safe = safe.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+  
+  // Replace problematic quote characters with standard ASCII
+  safe = safe.replace(/[""„‟]/g, '"');
+  safe = safe.replace(/[''‚‛]/g, "'");
+  
+  // Replace em/en dashes with regular hyphen
+  safe = safe.replace(/[–—―]/g, '-');
+  
+  // Replace ellipsis with dots
+  safe = safe.replace(/…/g, '...');
+  
+  // Replace non-breaking spaces with regular spaces
+  safe = safe.replace(/[\u00A0\u2007\u202F]/g, ' ');
+  
+  // Normalize multiple spaces to single space
+  safe = safe.replace(/\s+/g, ' ');
+  
+  return safe.trim();
 }
 
-function toSubscript(str: string): string {
-  return str.split('').map(c => SUBSCRIPT_MAP[c] || c).join('');
-}
-
+// ============= ASCII-Safe LaTeX Conversion (No Unicode Symbols) =============
 function cleanLatexForPDF(text: string): string {
   if (!text) return "";
 
   let cleaned = text;
   
+  // Remove math mode delimiters
   cleaned = cleaned.replace(/\$\$(.*?)\$\$/g, "$1");
   cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
   
-  // Fractions
-  cleaned = cleaned.replace(/\\frac\{(\d)\}\{(\d+)\}/g, (_, num, den) => {
-    const key = `${num}/${den}`;
-    return FRACTION_MAP[key] || `${num}/${den}`;
-  });
+  // Fractions - use ASCII notation
+  cleaned = cleaned.replace(/\\frac\{(\d)\}\{(\d+)\}/g, "$1/$2");
   cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)");
   
-  // Roots
-  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
-  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, (_, n, content) => `${toSuperscript(n)}√(${content})`);
+  // Roots - use ASCII notation
+  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
+  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
   
-  // Exponents & Subscripts
-  cleaned = cleaned.replace(/\^{([^}]+)}/g, (_, exp) => toSuperscript(exp));
-  cleaned = cleaned.replace(/\^(\d+)/g, (_, exp) => toSuperscript(exp));
-  cleaned = cleaned.replace(/\^([a-z])/gi, (_, exp) => toSuperscript(exp));
-  cleaned = cleaned.replace(/_{([^}]+)}/g, (_, sub) => toSubscript(sub));
-  cleaned = cleaned.replace(/_(\d+)/g, (_, sub) => toSubscript(sub));
-  cleaned = cleaned.replace(/_([a-z])/gi, (_, sub) => toSubscript(sub));
+  // Exponents - use caret notation (ASCII-safe)
+  cleaned = cleaned.replace(/\^{([^}]+)}/g, "^($1)");
+  cleaned = cleaned.replace(/\^(\d+)/g, "^$1");
+  cleaned = cleaned.replace(/\^([a-z])/gi, "^$1");
   
-  // Operators
-  cleaned = cleaned.replace(/\\times/g, "×");
-  cleaned = cleaned.replace(/\\div/g, "÷");
-  cleaned = cleaned.replace(/\\pm/g, "±");
-  cleaned = cleaned.replace(/\\mp/g, "∓");
-  cleaned = cleaned.replace(/\\cdot/g, "·");
+  // Subscripts - use underscore notation (ASCII-safe)
+  cleaned = cleaned.replace(/_{([^}]+)}/g, "_($1)");
+  cleaned = cleaned.replace(/_(\d+)/g, "_$1");
+  cleaned = cleaned.replace(/_([a-z])/gi, "_$1");
   
-  // Comparisons
-  cleaned = cleaned.replace(/\\leq/g, "≤");
-  cleaned = cleaned.replace(/\\geq/g, "≥");
-  cleaned = cleaned.replace(/\\neq/g, "≠");
-  cleaned = cleaned.replace(/\\approx/g, "≈");
-  cleaned = cleaned.replace(/\\equiv/g, "≡");
+  // Operators - use ASCII equivalents
+  cleaned = cleaned.replace(/\\times/g, " x ");
+  cleaned = cleaned.replace(/\\div/g, " / ");
+  cleaned = cleaned.replace(/\\pm/g, "+/-");
+  cleaned = cleaned.replace(/\\mp/g, "-/+");
+  cleaned = cleaned.replace(/\\cdot/g, " . ");
+  
+  // Comparisons - use ASCII equivalents
+  cleaned = cleaned.replace(/\\leq/g, "<=");
+  cleaned = cleaned.replace(/\\geq/g, ">=");
+  cleaned = cleaned.replace(/\\neq/g, "!=");
+  cleaned = cleaned.replace(/\\approx/g, "~=");
+  cleaned = cleaned.replace(/\\equiv/g, "===");
   cleaned = cleaned.replace(/\\lt/g, "<");
   cleaned = cleaned.replace(/\\gt/g, ">");
   
-  // Greek letters
-  cleaned = cleaned.replace(/\\pi/g, "π");
-  cleaned = cleaned.replace(/\\alpha/g, "α");
-  cleaned = cleaned.replace(/\\beta/g, "β");
-  cleaned = cleaned.replace(/\\gamma/g, "γ");
-  cleaned = cleaned.replace(/\\delta/g, "δ");
-  cleaned = cleaned.replace(/\\epsilon/g, "ε");
-  cleaned = cleaned.replace(/\\theta/g, "θ");
-  cleaned = cleaned.replace(/\\lambda/g, "λ");
-  cleaned = cleaned.replace(/\\mu/g, "μ");
-  cleaned = cleaned.replace(/\\sigma/g, "σ");
-  cleaned = cleaned.replace(/\\omega/g, "ω");
-  cleaned = cleaned.replace(/\\phi/g, "φ");
-  cleaned = cleaned.replace(/\\psi/g, "ψ");
-  cleaned = cleaned.replace(/\\rho/g, "ρ");
-  cleaned = cleaned.replace(/\\tau/g, "τ");
-  cleaned = cleaned.replace(/\\chi/g, "χ");
-  cleaned = cleaned.replace(/\\Delta/g, "Δ");
-  cleaned = cleaned.replace(/\\Sigma/g, "Σ");
-  cleaned = cleaned.replace(/\\Omega/g, "Ω");
-  cleaned = cleaned.replace(/\\Pi/g, "Π");
-  cleaned = cleaned.replace(/\\Gamma/g, "Γ");
-  cleaned = cleaned.replace(/\\Theta/g, "Θ");
-  cleaned = cleaned.replace(/\\Lambda/g, "Λ");
+  // Greek letters - spell out for maximum compatibility
+  cleaned = cleaned.replace(/\\pi/g, "pi");
+  cleaned = cleaned.replace(/\\alpha/g, "alpha");
+  cleaned = cleaned.replace(/\\beta/g, "beta");
+  cleaned = cleaned.replace(/\\gamma/g, "gamma");
+  cleaned = cleaned.replace(/\\delta/g, "delta");
+  cleaned = cleaned.replace(/\\epsilon/g, "epsilon");
+  cleaned = cleaned.replace(/\\theta/g, "theta");
+  cleaned = cleaned.replace(/\\lambda/g, "lambda");
+  cleaned = cleaned.replace(/\\mu/g, "mu");
+  cleaned = cleaned.replace(/\\sigma/g, "sigma");
+  cleaned = cleaned.replace(/\\omega/g, "omega");
+  cleaned = cleaned.replace(/\\phi/g, "phi");
+  cleaned = cleaned.replace(/\\psi/g, "psi");
+  cleaned = cleaned.replace(/\\rho/g, "rho");
+  cleaned = cleaned.replace(/\\tau/g, "tau");
+  cleaned = cleaned.replace(/\\chi/g, "chi");
+  cleaned = cleaned.replace(/\\Delta/g, "Delta");
+  cleaned = cleaned.replace(/\\Sigma/g, "Sigma");
+  cleaned = cleaned.replace(/\\Omega/g, "Omega");
+  cleaned = cleaned.replace(/\\Pi/g, "Pi");
+  cleaned = cleaned.replace(/\\Gamma/g, "Gamma");
+  cleaned = cleaned.replace(/\\Theta/g, "Theta");
+  cleaned = cleaned.replace(/\\Lambda/g, "Lambda");
   
-  // Math symbols
-  cleaned = cleaned.replace(/\\sum/g, "Σ");
-  cleaned = cleaned.replace(/\\prod/g, "∏");
-  cleaned = cleaned.replace(/\\infty/g, "∞");
-  cleaned = cleaned.replace(/\\partial/g, "∂");
-  cleaned = cleaned.replace(/\\nabla/g, "∇");
-  cleaned = cleaned.replace(/\\int/g, "∫");
-  cleaned = cleaned.replace(/\\forall/g, "∀");
-  cleaned = cleaned.replace(/\\exists/g, "∃");
-  cleaned = cleaned.replace(/\\in/g, "∈");
-  cleaned = cleaned.replace(/\\notin/g, "∉");
-  cleaned = cleaned.replace(/\\subset/g, "⊂");
-  cleaned = cleaned.replace(/\\supset/g, "⊃");
-  cleaned = cleaned.replace(/\\cup/g, "∪");
-  cleaned = cleaned.replace(/\\cap/g, "∩");
-  cleaned = cleaned.replace(/\\emptyset/g, "∅");
+  // Math symbols - use ASCII equivalents
+  cleaned = cleaned.replace(/\\sum/g, "Sum");
+  cleaned = cleaned.replace(/\\prod/g, "Product");
+  cleaned = cleaned.replace(/\\infty/g, "infinity");
+  cleaned = cleaned.replace(/\\partial/g, "d");
+  cleaned = cleaned.replace(/\\nabla/g, "nabla");
+  cleaned = cleaned.replace(/\\int/g, "integral");
+  cleaned = cleaned.replace(/\\forall/g, "for all");
+  cleaned = cleaned.replace(/\\exists/g, "exists");
+  cleaned = cleaned.replace(/\\in/g, " in ");
+  cleaned = cleaned.replace(/\\notin/g, " not in ");
+  cleaned = cleaned.replace(/\\subset/g, " subset ");
+  cleaned = cleaned.replace(/\\supset/g, " superset ");
+  cleaned = cleaned.replace(/\\cup/g, " union ");
+  cleaned = cleaned.replace(/\\cap/g, " intersection ");
+  cleaned = cleaned.replace(/\\emptyset/g, "empty set");
   
-  // Arrows
-  cleaned = cleaned.replace(/\\rightarrow/g, "→");
-  cleaned = cleaned.replace(/\\leftarrow/g, "←");
-  cleaned = cleaned.replace(/\\Rightarrow/g, "⇒");
-  cleaned = cleaned.replace(/\\Leftarrow/g, "⇐");
-  cleaned = cleaned.replace(/\\leftrightarrow/g, "↔");
-  cleaned = cleaned.replace(/\\Leftrightarrow/g, "⇔");
-  cleaned = cleaned.replace(/\\to/g, "→");
-  cleaned = cleaned.replace(/\\mapsto/g, "↦");
+  // Arrows - use ASCII
+  cleaned = cleaned.replace(/\\rightarrow/g, "->");
+  cleaned = cleaned.replace(/\\leftarrow/g, "<-");
+  cleaned = cleaned.replace(/\\Rightarrow/g, "=>");
+  cleaned = cleaned.replace(/\\Leftarrow/g, "<=");
+  cleaned = cleaned.replace(/\\leftrightarrow/g, "<->");
+  cleaned = cleaned.replace(/\\Leftrightarrow/g, "<=>");
+  cleaned = cleaned.replace(/\\to/g, "->");
+  cleaned = cleaned.replace(/\\mapsto/g, "|->");
   
-  // Logic & Geometry
-  cleaned = cleaned.replace(/\\therefore/g, "∴");
-  cleaned = cleaned.replace(/\\because/g, "∵");
-  cleaned = cleaned.replace(/\\land/g, "∧");
-  cleaned = cleaned.replace(/\\lor/g, "∨");
-  cleaned = cleaned.replace(/\\neg/g, "¬");
-  cleaned = cleaned.replace(/\\angle/g, "∠");
-  cleaned = cleaned.replace(/\\degree/g, "°");
-  cleaned = cleaned.replace(/\\circ/g, "°");
-  cleaned = cleaned.replace(/\\perp/g, "⊥");
-  cleaned = cleaned.replace(/\\parallel/g, "∥");
-  cleaned = cleaned.replace(/\\triangle/g, "△");
+  // Logic & Geometry - use ASCII
+  cleaned = cleaned.replace(/\\therefore/g, "therefore");
+  cleaned = cleaned.replace(/\\because/g, "because");
+  cleaned = cleaned.replace(/\\land/g, " and ");
+  cleaned = cleaned.replace(/\\lor/g, " or ");
+  cleaned = cleaned.replace(/\\neg/g, "not ");
+  cleaned = cleaned.replace(/\\angle/g, "angle ");
+  cleaned = cleaned.replace(/\\degree/g, " degrees");
+  cleaned = cleaned.replace(/\\circ/g, " degrees");
+  cleaned = cleaned.replace(/\\perp/g, " perpendicular to ");
+  cleaned = cleaned.replace(/\\parallel/g, " parallel to ");
+  cleaned = cleaned.replace(/\\triangle/g, "triangle ");
   
-  // Text commands
+  // Text commands - extract content
   cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\textbf\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\textit\{([^}]+)\}/g, "$1");
@@ -931,10 +922,17 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\mathbf\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\mathit\{([^}]+)\}/g, "$1");
   
-  // Cleanup
+  // Remove any remaining LaTeX commands
   cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
+  
+  // Remove braces
   cleaned = cleaned.replace(/[{}]/g, "");
+  
+  // Normalize whitespace
   cleaned = cleaned.replace(/\s+/g, " ");
+  
+  // Final sanitization pass to ensure PDF compatibility
+  cleaned = sanitizeForPDF(cleaned);
 
   return cleaned.trim();
 }
