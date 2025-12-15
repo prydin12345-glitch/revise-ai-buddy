@@ -6,6 +6,7 @@ interface UserSubject {
   id: string;
   subject_name: string;
   subject_color: string;
+  subject_id?: string | null;
 }
 
 export const useUserSubjects = () => {
@@ -80,65 +81,76 @@ export const useUserSubjects = () => {
   };
 
   const saveOrUpdateSubject = async (subjectName: string, color: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      // Check if subject already exists
-      const existingSubject = subjects.find(
-        (s) => s.subject_name.toLowerCase() === subjectName.toLowerCase()
-      );
+    // Look up the subject_id from the subjects table
+    const { data: subjectData } = await supabase
+      .from("subjects")
+      .select("id")
+      .ilike("name", subjectName)
+      .maybeSingle();
 
-      if (existingSubject) {
-        // Update existing subject color in user_subjects
-        const { error } = await supabase
-          .from("user_subjects")
-          .update({ subject_color: color, updated_at: new Date().toISOString() })
-          .eq("id", existingSubject.id);
+    // Check if subject already exists in user_subjects
+    const existingSubject = subjects.find(
+      (s) => s.subject_name.toLowerCase() === subjectName.toLowerCase()
+    );
 
-        if (error) throw error;
+    if (existingSubject) {
+      // Update existing subject color in user_subjects
+      const { error } = await supabase
+        .from("user_subjects")
+        .update({ 
+          subject_color: color, 
+          updated_at: new Date().toISOString(),
+          subject_id: subjectData?.id || existingSubject.subject_id || null,
+        })
+        .eq("id", existingSubject.id);
 
-        // Cascade update to revision_goals
-        const { error: goalsError } = await supabase
-          .from("revision_goals")
-          .update({ subject_color: color })
-          .eq("user_id", user.id)
-          .ilike("subject", subjectName);
+      if (error) throw error;
 
-        if (goalsError) console.error("Error updating goals:", goalsError);
+      // Cascade update to revision_goals
+      const { error: goalsError } = await supabase
+        .from("revision_goals")
+        .update({ subject_color: color })
+        .eq("user_id", user.id)
+        .ilike("subject", subjectName);
 
-        // Cascade update to revision_tasks
-        const { error: tasksError } = await supabase
-          .from("revision_tasks")
-          .update({ subject_color: color })
-          .eq("user_id", user.id)
-          .ilike("subject", subjectName);
+      if (goalsError) console.error("Error updating goals:", goalsError);
 
-        if (tasksError) console.error("Error updating tasks:", tasksError);
-        
-        setSubjects(subjects.map(s => 
-          s.id === existingSubject.id 
-            ? { ...s, subject_color: color }
-            : s
-        ));
-      } else {
-        // Insert new subject
-        const { data, error } = await supabase
-          .from("user_subjects")
-          .insert({
-            user_id: user.id,
-            subject_name: subjectName,
-            subject_color: color,
-          })
-          .select()
-          .single();
+      // Cascade update to revision_tasks
+      const { error: tasksError } = await supabase
+        .from("revision_tasks")
+        .update({ subject_color: color })
+        .eq("user_id", user.id)
+        .ilike("subject", subjectName);
 
-        if (error) throw error;
-        if (data) setSubjects([...subjects, data]);
-      }
-    } catch (error) {
-      console.error("Error saving subject:", error);
-      toast.error("Failed to save subject preference");
+      if (tasksError) console.error("Error updating tasks:", tasksError);
+      
+      setSubjects(subjects.map(s => 
+        s.id === existingSubject.id 
+          ? { ...s, subject_color: color }
+          : s
+      ));
+    } else {
+      // Insert new subject with proper subject_id reference
+      const isCustomSubject = !subjectData?.id;
+      
+      const { data, error } = await supabase
+        .from("user_subjects")
+        .insert({
+          user_id: user.id,
+          subject_name: subjectName,
+          subject_color: color,
+          subject_id: subjectData?.id || null,
+          is_custom: isCustomSubject,
+          custom_name: isCustomSubject ? subjectName : null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) setSubjects([...subjects, data]);
     }
   };
 
