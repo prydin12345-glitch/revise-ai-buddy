@@ -1358,6 +1358,8 @@ function getSubjectSpecificInstructions(subject: string, examBoard: string, leve
   if (subjectLower.includes('biology')) {
     return `
 - For ${examBoard.toUpperCase()} ${level} Biology:
+  * QUESTION STYLE: Write CONCISE questions like real OCR/AQA exam papers - avoid verbose descriptions
+  * For MCQs: Keep options SHORT (1-2 sentences max, often just a few words)
   * Include a mix of structured questions and extended response
   * Question types: data analysis, experimental design, explanations, calculations
   * Topics: Cell biology, Genetics & DNA, Ecology, Physiology, Evolution, Biochemistry
@@ -1366,7 +1368,9 @@ function getSubjectSpecificInstructions(subject: string, examBoard: string, leve
   * Include practical and experimental scenarios (enzyme experiments, photosynthesis, etc.)
   * Use realistic biological data (gene frequencies, population sizes, enzyme rates)
   * For calculations: Hardy-Weinberg, magnification, Simpson's diversity index
-  * Answer spaces should be lined paper style for written responses`;
+  * Structure multi-part questions with clear (a), (b), (c) sub-parts
+  * Tables and data should be presented cleanly, not described in prose
+  * Use proper scientific terminology without excessive explanation`;
   }
   
   if (subjectLower.includes('chemistry')) {

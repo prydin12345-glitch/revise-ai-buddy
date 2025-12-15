@@ -130,17 +130,22 @@ function groupQuestionsByMain(questions: ExamQuestion[]): QuestionGroup[] {
 }
 
 // ============= Subject Detection =============
-function getSubjectType(subject?: string): 'math' | 'science' | 'essay' | 'general' {
+function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'essay' | 'general' {
   if (!subject) return 'general';
   const s = subject.toLowerCase();
   
   if (['maths', 'mathematics', 'math', 'algebra', 'calculus', 'geometry', 'statistics'].some(k => s.includes(k))) {
     return 'math';
   }
+  // Biology gets its own type - blank answer spaces like maths (not lined like essays)
+  if (['biology', 'human biology'].some(k => s.includes(k))) {
+    return 'biology';
+  }
   if (['physics', 'chemistry'].some(k => s.includes(k))) {
     return 'science';
   }
-  if (['biology', 'english', 'history', 'literature', 'essay', 'geography', 'sociology', 'psychology', 'religious'].some(k => s.includes(k))) {
+  // True essay subjects get lined paper
+  if (['english', 'history', 'literature', 'essay', 'geography', 'sociology', 'psychology', 'religious'].some(k => s.includes(k))) {
     return 'essay';
   }
   return 'general';
@@ -153,6 +158,7 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
   
   switch (subjectType) {
     case 'math':
+    case 'biology':  // Biology gets BLANK like maths, not lined
       return 'blank';
     case 'essay':
       return 'lined';
