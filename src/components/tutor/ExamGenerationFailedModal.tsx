@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw, Save, FileUp } from "lucide-react";
+import { AlertTriangle, RefreshCw, Save, FileUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,7 @@ interface ExamGenerationFailedModalProps {
   onRetry: () => void;
   onSaveAsDraft: () => void;
   onUploadDifferent: () => void;
+  onClose?: () => void;
 }
 
 export function ExamGenerationFailedModal({
@@ -15,10 +16,22 @@ export function ExamGenerationFailedModal({
   onRetry,
   onSaveAsDraft,
   onUploadDifferent,
+  onClose,
 }: ExamGenerationFailedModalProps) {
+  const handleClose = onClose || onSaveAsDraft;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-      <Card className="max-w-2xl w-full mx-4 p-8 shadow-2xl border-destructive/20 animate-scale-in">
+      <Card className="relative max-w-2xl w-full mx-4 p-8 shadow-2xl border-destructive/20 animate-scale-in">
+        {/* Close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-6 w-6" />
+        </button>
+
         <div className="text-center mb-6">
           <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-destructive animate-scale-in" />
           <h2 className="text-3xl font-bold mb-2 text-destructive">

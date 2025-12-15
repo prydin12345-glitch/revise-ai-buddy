@@ -700,6 +700,20 @@ Return a JSON object with this structure:
     function repairJSON(jsonStr: string): string {
       let repaired = jsonStr.trim();
       
+      // Fix common LaTeX escaping issues BEFORE bracket counting
+      // Replace problematic LaTeX patterns that break JSON
+      repaired = repaired
+        // Fix unescaped backslashes in LaTeX (but not already escaped ones or valid escape sequences)
+        .replace(/\\([a-zA-Z]+)\{/g, '\\\\$1{')  // \frac{ -> \\frac{
+        .replace(/\\([a-zA-Z]+)\s/g, '\\\\$1 ')  // \theta  -> \\theta 
+        .replace(/\\_/g, '\\\\_')  // \_ -> \\_
+        .replace(/\\,/g, '\\\\,')  // \, -> \\,
+        .replace(/\\;/g, '\\\\;')  // \; -> \\;
+        // Fix escaped quotes that might be double-escaped
+        .replace(/\\\\"/g, '\\"')
+        // Remove any control characters that break JSON
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+      
       // Count brackets and braces
       const openBrackets = (repaired.match(/\[/g) || []).length;
       const closeBrackets = (repaired.match(/\]/g) || []).length;
@@ -735,9 +749,11 @@ Return a JSON object with this structure:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only.' },
+            { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.' },
             { role: 'user', content: extractionPrompt }
           ],
+          max_tokens: 32000,
+          temperature: 0.3,
           response_format: { type: "json_object" }
         }),
         signal: controller.signal
