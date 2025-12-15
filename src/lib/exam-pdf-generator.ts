@@ -48,10 +48,15 @@ const CONTENT_WIDTH = A4_WIDTH - MARGIN * 2;
 const LINE_HEIGHT = 6;
 const FOOTER_HEIGHT = 20;
 
-// Answer box heights based on marks
-const ANSWER_HEIGHT_1_2_MARKS = 45;
-const ANSWER_HEIGHT_3_4_MARKS = 65;
-const ANSWER_HEIGHT_5_PLUS_MARKS = 90;
+// Answer box heights based on marks - COMPACT sizing
+const ANSWER_HEIGHT_1_2_MARKS = 25;
+const ANSWER_HEIGHT_3_4_MARKS = 40;
+const ANSWER_HEIGHT_5_PLUS_MARKS = 55;
+const ANSWER_HEIGHT_EXTENDED = 70; // For 8+ marks
+
+// Spacing constants - COMPACT
+const QUESTION_SPACING = 8; // Space between questions
+const MIN_SPACE_FOR_QUESTION = 40; // Minimum space needed to start a new question
 
 // Grid settings
 const GRID_CELL_SIZE = 5;
@@ -170,9 +175,11 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
 }
 
 function getAnswerBoxHeight(marks: number): number {
+  if (marks <= 1) return 15; // MCQ or 1-mark - minimal
   if (marks <= 2) return ANSWER_HEIGHT_1_2_MARKS;
   if (marks <= 4) return ANSWER_HEIGHT_3_4_MARKS;
-  return ANSWER_HEIGHT_5_PLUS_MARKS;
+  if (marks <= 7) return ANSWER_HEIGHT_5_PLUS_MARKS;
+  return ANSWER_HEIGHT_EXTENDED;
 }
 
 // ============= Main PDF Generation Function =============
@@ -575,34 +582,35 @@ export async function generateExamPDF(
       yPosition += 3;
       hasDrawnAnyQuestions = true;
 
-      // Handle MCQ options (these don't need answer boxes)
+      // Handle MCQ options - each on separate line with letter alignment
       if (question.question_type === "MCQ" && question.options && Array.isArray(question.options)) {
+        yPosition += 2;
+        
         for (const option of question.options) {
-          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 12) {
+          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
             addNewPage();
           }
           
-          // Draw empty circle
-          doc.setLineWidth(0.3);
-          setColor(COLORS.secondary, "draw");
-          doc.circle(textIndent + 4, yPosition - 1.5, 2.5);
-          
-          // Option text - with consistent font
-          doc.setFont("helvetica", "normal");
+          // Option letter (A, B, C, D) - bold and aligned
+          doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
-          const optionText = `${option.label})  ${cleanLatexForPDF(option.text)}`;
-          const optionWidth = getSafeTextWidth(baseTextWidth - 15);
+          doc.text(`${option.label}`, textIndent + 2, yPosition);
+          
+          // Option text - on same line after letter
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          const optionText = cleanLatexForPDF(option.text);
+          const optionWidth = getSafeTextWidth(baseTextWidth - 20);
           const optionLines = doc.splitTextToSize(optionText, optionWidth);
+          
           optionLines.forEach((line: string, idx: number) => {
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
             doc.text(line, textIndent + 12, yPosition + (idx * LINE_HEIGHT));
           });
-          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 2;
+          
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 1;
         }
-        doc.setLineWidth(0.2);
-        yPosition += 4;
+        yPosition += 3;
       }
       // Handle embedded sub_questions - draw ALL text first, NO individual answer boxes
       else if (question.sub_questions && question.sub_questions.length > 0) {
@@ -671,7 +679,7 @@ export async function generateExamPDF(
       }
     }
 
-    // ============= PHASE 2: Draw ONE unified answer box after all sub-questions =============
+    // ============= PHASE 2: Draw compact answer space after questions =============
     if (includeWorkingSpace && hasDrawnAnyQuestions) {
       // Skip if all questions were MCQ
       const allMCQ = group.questions.every(q => q.question_type === "MCQ");
@@ -682,22 +690,16 @@ export async function generateExamPDF(
         const areaType = answerStyle || getAnswerAreaType(examData.subject, totalSubMarks, 'written');
         
         if (areaType !== 'none') {
-          // Calculate dynamic height based on total marks and remaining space
+          // Calculate COMPACT height based on marks only - don't fill page
           const baseHeight = getAnswerBoxHeight(totalSubMarks);
           const remainingSpace = getRemainingSpace();
           
-          // Use most of remaining page space for answer box
-          const fillRatio = 0.85;
-          const targetHeight = Math.max(baseHeight, remainingSpace * fillRatio);
-          const actualHeight = Math.min(targetHeight, remainingSpace - 20);
+          // Use marks-based height, not page-filling
+          const actualHeight = Math.min(baseHeight, remainingSpace - 15);
           
-          if (actualHeight > 25) {
-            // Ensure we have space for the box
-            if (actualHeight > getRemainingSpace() - 15) {
-              addNewPage();
-            }
-            drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, Math.max(actualHeight, baseHeight), areaType);
-            yPosition += actualHeight + 8;
+          if (actualHeight > 20) {
+            drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, actualHeight, areaType);
+            yPosition += actualHeight + 5;
           }
         }
       }
@@ -764,11 +766,19 @@ export async function generateExamPDF(
   // Page 1: Instructions only
   drawInstructionsPage();
   
-  // Questions start on page 2
+  // Questions start on page 2 - COMPACT: multiple questions per page
+  addNewPage();
+  
   for (let i = 0; i < questionGroups.length; i++) {
-    // Each main question starts on a new page
-    addNewPage();
+    // Only add new page if not enough space for a reasonable question
+    if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
+      addNewPage();
+    }
+    
     drawQuestionGroup(questionGroups[i]);
+    
+    // Add spacing between question groups
+    yPosition += QUESTION_SPACING;
   }
 
   // Add answer key if requested
