@@ -267,9 +267,14 @@ export default function CreateTutorExam() {
       return;
     }
 
-    // Save subject color to database for consistency
+    // Save subject color to database for consistency (non-blocking)
     if (subjectId && subjectColor) {
-      await saveOrUpdateSubject(subjectId, subjectColor);
+      try {
+        await saveOrUpdateSubject(subjectId, subjectColor);
+      } catch (prefError) {
+        console.warn('Subject preference save failed, continuing with generation:', prefError);
+        // Don't block generation - this is non-critical
+      }
     }
 
     setGenerating(true);
