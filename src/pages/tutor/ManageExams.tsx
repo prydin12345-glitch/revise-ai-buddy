@@ -29,7 +29,7 @@ const ManageExams = () => {
       toast.info("Published exams cannot be edited. Create a new version if needed.");
       return;
     }
-    navigate(`/upload/${examId}/settings`);
+    navigate(`/exam-settings/${examId}`);
   };
 
   if (loading) {
@@ -157,7 +157,7 @@ const ManageExams = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/exam/${exam.id}/preview`)}
+                            onClick={() => navigate(`/exam-preview/${exam.id}`)}
                             title="Preview Questions"
                           >
                             <Eye className="h-4 w-4" />
