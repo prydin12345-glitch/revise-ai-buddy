@@ -168,6 +168,8 @@ export type Database = {
           id: string
           is_active: boolean
           is_grades_released: boolean
+          marks_release_date: string | null
+          marks_visibility: string | null
           metadata: Json | null
           release_date: string | null
           target_id: string | null
@@ -182,6 +184,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_grades_released?: boolean
+          marks_release_date?: string | null
+          marks_visibility?: string | null
           metadata?: Json | null
           release_date?: string | null
           target_id?: string | null
@@ -196,6 +200,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_grades_released?: boolean
+          marks_release_date?: string | null
+          marks_visibility?: string | null
           metadata?: Json | null
           release_date?: string | null
           target_id?: string | null
@@ -652,6 +658,7 @@ export type Database = {
       }
       exams: {
         Row: {
+          allow_retakes: boolean | null
           assigned_by: string | null
           created_at: string
           detected_subject: string | null
@@ -664,11 +671,14 @@ export type Database = {
           id: string
           is_template: boolean | null
           qualification_level: string | null
+          show_feedback_per_question: boolean | null
+          shuffle_questions: boolean | null
           specification_file_url: string | null
           status: Database["public"]["Enums"]["exam_status"]
           subject_confidence: number | null
           subject_id: string
           subject_mismatch: boolean | null
+          time_limit_per_question: number | null
           title: string
           total_questions_extracted: number | null
           type: Database["public"]["Enums"]["exam_type"]
@@ -677,6 +687,7 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          allow_retakes?: boolean | null
           assigned_by?: string | null
           created_at?: string
           detected_subject?: string | null
@@ -689,11 +700,14 @@ export type Database = {
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          show_feedback_per_question?: boolean | null
+          shuffle_questions?: boolean | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_confidence?: number | null
           subject_id: string
           subject_mismatch?: boolean | null
+          time_limit_per_question?: number | null
           title: string
           total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]
@@ -702,6 +716,7 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          allow_retakes?: boolean | null
           assigned_by?: string | null
           created_at?: string
           detected_subject?: string | null
@@ -714,11 +729,14 @@ export type Database = {
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          show_feedback_per_question?: boolean | null
+          shuffle_questions?: boolean | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_confidence?: number | null
           subject_id?: string
           subject_mismatch?: boolean | null
+          time_limit_per_question?: number | null
           title?: string
           total_questions_extracted?: number | null
           type?: Database["public"]["Enums"]["exam_type"]
