@@ -322,20 +322,7 @@ If the exam covers topics NOT in this list, skip them or adapt to spec-approved 
 Generate a TYPICAL exam paper for this board and level. Use your knowledge of typical ${examBoard.toUpperCase()} ${qualificationLevel} ${exam.subject || exam.title} exams.
 
 **Question Structure:**
-${examBoard === 'edexcel' && qualificationLevel === 'a_level' && (exam.subject === 'mathematics' || exam.title?.toLowerCase().includes('maths')) ? `
-- For Edexcel A-level Pure Maths Paper 1:
-  * NO multiple choice questions (all long-form or structured)
-  * Main questions (Q1, Q2, ..., Q17 typically)
-  * Each question may have sub-parts (a), (b), (c)
-  * Sub-parts may have further divisions (i), (ii), (iii)
-  * Typical topics: Calculus (differentiation, integration), Algebra, Trigonometry, Series, Proof, Coordinate Geometry, Vectors
-  * Marks range: 2-14 marks per question
-  * Total paper typically ~100 marks, 15-20 questions
-  * Heavy use of mathematical notation and equations` : `
-- Generate a balanced mix appropriate for ${examBoard} ${qualificationLevel}
-- Include various question types based on the subject
-- Use appropriate command words for this exam board
-- Follow typical mark allocations`}
+${getSubjectSpecificInstructions(exam.subject_id || exam.title, examBoard, qualificationLevel)}
 
 **CRITICAL REQUIREMENTS:**
 1. ALL questions MUST include "question_latex" with proper LaTeX notation for ANY mathematical expressions
@@ -1346,4 +1333,65 @@ function normalizeQuestionNumber(qNum: string): string {
   const romanPart = roman ? `_${String(romanMap[roman.toLowerCase()] || 0).padStart(3, '0')}` : '';
   
   return `${paddedNum}${letterPart}${romanPart}`;
+}
+
+// Helper function to get subject-specific generation instructions
+function getSubjectSpecificInstructions(subject: string, examBoard: string, level: string): string {
+  const subjectLower = (subject || '').toLowerCase();
+  
+  if (subjectLower.includes('biology')) {
+    return `
+- For ${examBoard.toUpperCase()} ${level} Biology:
+  * Include a mix of structured questions and extended response
+  * Question types: data analysis, experimental design, explanations, calculations
+  * Topics: Cell biology, Genetics & DNA, Ecology, Physiology, Evolution, Biochemistry
+  * Typical marks: 1-2 (recall), 3-4 (application), 6+ (extended response)
+  * Use command words: State, Describe, Explain, Compare, Evaluate, Suggest, Calculate
+  * Include practical and experimental scenarios (enzyme experiments, photosynthesis, etc.)
+  * Use realistic biological data (gene frequencies, population sizes, enzyme rates)
+  * For calculations: Hardy-Weinberg, magnification, Simpson's diversity index
+  * Answer spaces should be lined paper style for written responses`;
+  }
+  
+  if (subjectLower.includes('chemistry')) {
+    return `
+- For ${examBoard.toUpperCase()} ${level} Chemistry:
+  * Include calculations with moles, concentrations, and equations
+  * Topics: Atomic structure, Bonding, Organic chemistry, Reactions, Equilibria, Thermodynamics
+  * Question types: Calculations, mechanism drawing, explanations, data analysis
+  * Use correct chemical notation and formulae
+  * Include enthalpy calculations, rate equations, equilibrium constants
+  * Use realistic experimental data (titrations, colorimetry, etc.)`;
+  }
+  
+  if (subjectLower.includes('physics')) {
+    return `
+- For ${examBoard.toUpperCase()} ${level} Physics:
+  * Heavy use of calculations and mathematical formulae
+  * Topics: Mechanics, Waves, Electricity, Fields, Particles, Astrophysics
+  * Include free-body diagrams descriptions, graph analysis
+  * Use SI units consistently
+  * Multi-step problems with "show that" questions
+  * Include experimental scenarios and error analysis`;
+  }
+  
+  if (subjectLower.includes('math')) {
+    return `
+- For ${examBoard.toUpperCase()} ${level} Mathematics:
+  * NO multiple choice questions (all structured/long-form)
+  * Main questions with sub-parts (a), (b), (c) and sub-sub-parts (i), (ii)
+  * Topics: Calculus, Algebra, Trigonometry, Series, Proof, Coordinate Geometry, Vectors
+  * Marks range: 2-14 marks per question
+  * Total paper typically ~100 marks
+  * Heavy use of mathematical notation - ALL questions need question_latex
+  * Include "show that" and "hence" questions`;
+  }
+  
+  // Default for other subjects
+  return `
+- Generate a balanced mix appropriate for ${examBoard.toUpperCase()} ${level}
+- Include various question types based on the subject
+- Use appropriate command words for this exam board
+- Follow typical mark allocations
+- Mix of short answer (1-4 marks) and extended response (6+ marks)`;
 }

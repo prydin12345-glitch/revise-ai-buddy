@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { TutorExamCompleteModal } from "@/components/tutor/TutorExamCompleteModal";
+import { ExamGenerationFailedModal } from "@/components/tutor/ExamGenerationFailedModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -137,6 +138,8 @@ export default function CreateTutorExam() {
   const [generating, setGenerating] = useState(false);
   const [currentMessage, setCurrentMessage] = useState("");
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
+  const [showGenerationFailed, setShowGenerationFailed] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
   const [generatedDraftId, setGeneratedDraftId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
   const [duration, setDuration] = useState(60);
@@ -381,7 +384,10 @@ export default function CreateTutorExam() {
           if (messageInterval) clearInterval(messageInterval);
           if (pollInterval) clearInterval(pollInterval);
           setGenerating(false);
-          throw new Error(exam.extraction_error || 'Extraction failed');
+          setExtractionError(exam.extraction_error || 'Extraction failed - please try again');
+          setGeneratedDraftId(draftId);
+          setShowGenerationFailed(true);
+          return true;
         }
         return false;
       };
@@ -414,11 +420,24 @@ export default function CreateTutorExam() {
 
   const handleSaveAsDraft = async () => {
     setShowGenerationComplete(false);
+    setShowGenerationFailed(false);
     toast({
       title: "Exam Saved",
       description: "Your exam has been saved as a draft.",
     });
     navigate('/tutor/exams');
+  };
+
+  const handleRetryGeneration = () => {
+    setShowGenerationFailed(false);
+    setExtractionError("");
+    handleGenerate();
+  };
+
+  const handleUploadDifferent = () => {
+    setShowGenerationFailed(false);
+    setExtractionError("");
+    setFile(null);
   };
 
   return (
@@ -689,6 +708,16 @@ export default function CreateTutorExam() {
             examName={examName}
             onReview={handleReviewQuestions}
             onSaveAsDraft={handleSaveAsDraft}
+          />
+        )}
+
+        {/* Generation Failed Modal */}
+        {showGenerationFailed && (
+          <ExamGenerationFailedModal
+            errorMessage={extractionError}
+            onRetry={handleRetryGeneration}
+            onSaveAsDraft={handleSaveAsDraft}
+            onUploadDifferent={handleUploadDifferent}
           />
         )}
 

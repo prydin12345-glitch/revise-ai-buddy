@@ -9,15 +9,29 @@ import { CompletionBadge } from "@/components/tutor/CompletionBadge";
 import { AssignModal } from "@/components/tutor/AssignModal";
 import { PrintExamButton } from "@/components/exam/PrintExamButton";
 import { useTutorExams } from "@/hooks/useTutorExams";
-import { Plus, Loader2, Edit, UserPlus, Eye, BarChart3, Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, Loader2, Edit, UserPlus, Eye, BarChart3, Lock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ManageExams = () => {
   const navigate = useNavigate();
   const { exams, loading, refetch } = useTutorExams();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<{ id: string; title: string } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [examToDelete, setExamToDelete] = useState<{ id: string; title: string; status: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleAssignClick = (examId: string, examTitle: string) => {
     setSelectedExam({ id: examId, title: examTitle });
@@ -25,11 +39,49 @@ const ManageExams = () => {
   };
 
   const handleEditClick = (examId: string, examStatus: string) => {
-    if (examStatus === "published") {
-      toast.info("Published exams cannot be edited. Create a new version if needed.");
-      return;
+    // Navigate to edit page - it handles read-only mode for published exams
+    navigate(`/tutor/exams/${examId}/edit`);
+  };
+
+  const handlePreviewClick = (examId: string) => {
+    navigate(`/tutor/exams/${examId}/edit`);
+  };
+
+  const handleDeleteClick = (examId: string, examTitle: string, examStatus: string) => {
+    setExamToDelete({ id: examId, title: examTitle, status: examStatus });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!examToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete related data first (cascade)
+      await supabase.from("exam_question_drafts").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_questions").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_assignments").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_submissions").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_topics").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_format").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("exam_timer").delete().eq("exam_id", examToDelete.id);
+      await supabase.from("student_answers").delete().eq("exam_id", examToDelete.id);
+      
+      // Finally delete the exam
+      const { error } = await supabase.from("exams").delete().eq("id", examToDelete.id);
+      
+      if (error) throw error;
+      
+      toast.success(`Exam "${examToDelete.title}" deleted successfully`);
+      refetch();
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+      toast.error("Failed to delete exam");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setExamToDelete(null);
     }
-    navigate(`/exam-settings/${examId}`);
   };
 
   if (loading) {
@@ -123,7 +175,6 @@ const ManageExams = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditClick(exam.id, exam.status)}
-                                disabled={exam.status === "published"}
                               >
                                 {exam.status === "published" ? (
                                   <Lock className="h-4 w-4 text-muted-foreground" />
@@ -132,40 +183,62 @@ const ManageExams = () => {
                                 )}
                               </Button>
                             </TooltipTrigger>
-                            {exam.status === "published" && (
-                              <TooltipContent>
-                                Published exams cannot be edited
-                              </TooltipContent>
-                            )}
+                            <TooltipContent>
+                              {exam.status === "published" ? "View (read-only)" : "Edit exam"}
+                            </TooltipContent>
                           </Tooltip>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleAssignClick(exam.id, exam.title)}
-                            title="Assign"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/tutor/exams/${exam.id}/dashboard`)}
-                            title="View Dashboard"
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/exam-preview/${exam.id}`)}
-                            title="Preview Questions"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAssignClick(exam.id, exam.title)}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Assign to students</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/tutor/exams/${exam.id}/dashboard`)}
+                              >
+                                <BarChart3 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View dashboard</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handlePreviewClick(exam.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Preview questions</TooltipContent>
+                          </Tooltip>
                           <PrintExamButton
                             examId={exam.id}
                             examTitle={exam.title}
                           />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteClick(exam.id, exam.title, exam.status)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete exam</TooltipContent>
+                          </Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -185,6 +258,41 @@ const ManageExams = () => {
             onAssigned={refetch}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{examToDelete?.title}"?
+                {examToDelete?.status === "published" && (
+                  <span className="block mt-2 text-destructive font-medium">
+                    Warning: This exam has been published. Deleting it will remove all student submissions.
+                  </span>
+                )}
+                <span className="block mt-2">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   );
 };
