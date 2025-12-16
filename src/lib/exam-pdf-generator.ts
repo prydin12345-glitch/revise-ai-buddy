@@ -156,8 +156,9 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'ess
   return 'general';
 }
 
-function getAnswerAreaType(subject?: string, marks?: number, questionType?: string): 'blank' | 'lined' | 'grid' | 'none' {
-  if (questionType === 'MCQ') return 'none';
+function getAnswerAreaType(subject?: string, marks?: number, questionType?: string): 'blank' | 'lined' | 'grid' | 'none' | 'mcq_box' {
+  // Case-insensitive MCQ check - MCQs get a small answer checkbox
+  if (questionType?.toLowerCase() === 'mcq') return 'mcq_box';
   
   const subjectType = getSubjectType(subject);
   
@@ -391,8 +392,23 @@ export async function generateExamPDF(
   };
 
   // ============= Answer Box Drawing =============
-  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal') => {
+  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box') => {
     if (areaType === 'none' || areaType === 'minimal') return y;
+
+    // MCQ answer box - small "Your answer [ ]" checkbox
+    if (areaType === 'mcq_box') {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      setColor(COLORS.secondary);
+      doc.text("Your answer", x, y + 4);
+      
+      // Draw small checkbox
+      setColor(COLORS.border, "draw");
+      doc.setLineWidth(0.5);
+      doc.rect(x + 25, y, 10, 8, "D");
+      
+      return y + 12;
+    }
 
     // Shaded background
     setColor(COLORS.answerBoxBg, "fill");
@@ -582,8 +598,8 @@ export async function generateExamPDF(
       yPosition += 3;
       hasDrawnAnyQuestions = true;
 
-      // Handle MCQ options - each on separate line with letter alignment
-      if (question.question_type === "MCQ" && question.options && Array.isArray(question.options)) {
+      // Handle MCQ options - each on separate line with letter alignment (case-insensitive check)
+      if (question.question_type?.toLowerCase() === "mcq" && question.options && Array.isArray(question.options)) {
         yPosition += 2;
         
         for (const option of question.options) {
@@ -610,7 +626,11 @@ export async function generateExamPDF(
           
           yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 1;
         }
-        yPosition += 3;
+        
+        // Draw small MCQ answer box after options
+        yPosition += 2;
+        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box');
+        yPosition += 10;
       }
       // Handle embedded sub_questions - draw ALL text first, NO individual answer boxes
       else if (question.sub_questions && question.sub_questions.length > 0) {
@@ -679,27 +699,36 @@ export async function generateExamPDF(
       }
     }
 
-    // ============= PHASE 2: Draw compact answer space after questions =============
+    // ============= PHASE 2: Draw answer space after questions =============
     if (includeWorkingSpace && hasDrawnAnyQuestions) {
-      // Skip if all questions were MCQ
-      const allMCQ = group.questions.every(q => q.question_type === "MCQ");
+      // Skip if all questions were MCQ (case-insensitive check)
+      const allMCQ = group.questions.every(q => q.question_type?.toLowerCase() === "mcq");
       // Skip if questions had graphs/diagrams (already drawn)
       const hadSpecialElements = group.questions.some(q => q.requires_graph || q.requires_diagram);
       
       if (!allMCQ && !hadSpecialElements) {
+        const subjectType = getSubjectType(examData.subject);
         const areaType = answerStyle || getAnswerAreaType(examData.subject, totalSubMarks, 'written');
         
-        if (areaType !== 'none') {
-          // Calculate COMPACT height based on marks only - don't fill page
-          const baseHeight = getAnswerBoxHeight(totalSubMarks);
+        if (areaType !== 'none' && areaType !== 'mcq_box') {
           const remainingSpace = getRemainingSpace();
           
-          // Use marks-based height, not page-filling
-          const actualHeight = Math.min(baseHeight, remainingSpace - 15);
-          
-          if (actualHeight > 20) {
-            drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, actualHeight, areaType);
-            yPosition += actualHeight + 5;
+          // MATH: Fill remaining page with answer space (one question per page style)
+          if (subjectType === 'math') {
+            const mathBoxHeight = Math.max(remainingSpace - 15, 60);
+            if (mathBoxHeight > 30) {
+              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, mathBoxHeight, areaType);
+              yPosition += mathBoxHeight + 5;
+            }
+          } else {
+            // OTHER SUBJECTS: Compact answer boxes based on marks
+            const baseHeight = getAnswerBoxHeight(totalSubMarks);
+            const actualHeight = Math.min(baseHeight, remainingSpace - 15);
+            
+            if (actualHeight > 20) {
+              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, actualHeight, areaType);
+              yPosition += actualHeight + 5;
+            }
           }
         }
       }
@@ -766,19 +795,30 @@ export async function generateExamPDF(
   // Page 1: Instructions only
   drawInstructionsPage();
   
-  // Questions start on page 2 - COMPACT: multiple questions per page
+  // Questions start on page 2
   addNewPage();
   
+  const subjectType = getSubjectType(examData.subject);
+  
   for (let i = 0; i < questionGroups.length; i++) {
-    // Only add new page if not enough space for a reasonable question
-    if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
-      addNewPage();
+    // MATH: Each question group gets its own page (one question per page)
+    if (subjectType === 'math') {
+      if (i > 0) {
+        addNewPage();
+      }
+    } else {
+      // OTHER SUBJECTS: Multiple questions per page (compact layout)
+      if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
+        addNewPage();
+      }
     }
     
     drawQuestionGroup(questionGroups[i]);
     
-    // Add spacing between question groups
-    yPosition += QUESTION_SPACING;
+    // Add spacing between question groups (only for non-math, since math gets new pages)
+    if (subjectType !== 'math') {
+      yPosition += QUESTION_SPACING;
+    }
   }
 
   // Add answer key if requested
