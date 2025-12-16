@@ -15,6 +15,7 @@ interface ExamQuestion {
   requires_graph?: boolean;
   requires_diagram?: boolean;
   graph_range?: { xMin: number; xMax: number; yMin: number; yMax: number };
+  table_data?: string | null;
 }
 
 interface ExamData {
@@ -31,7 +32,7 @@ interface PDFOptions {
   includeAnswerKey?: boolean;
   includeWorkingSpace?: boolean;
   showMarks?: boolean;
-  answerStyle?: 'blank' | 'lined' | 'grid' | 'minimal';
+  answerStyle?: 'blank' | 'lined' | 'grid' | 'minimal' | 'dotted_lines';
 }
 
 interface QuestionGroup {
@@ -54,9 +55,9 @@ const ANSWER_HEIGHT_3_4_MARKS = 40;
 const ANSWER_HEIGHT_5_PLUS_MARKS = 55;
 const ANSWER_HEIGHT_EXTENDED = 70; // For 8+ marks
 
-// Spacing constants - COMPACT
-const QUESTION_SPACING = 8; // Space between questions
-const MIN_SPACE_FOR_QUESTION = 40; // Minimum space needed to start a new question
+// Spacing constants - INCREASED for Biology-style layout
+const QUESTION_SPACING = 15; // Increased from 8
+const MIN_SPACE_FOR_QUESTION = 60; // Increased from 40
 
 // Grid settings
 const GRID_CELL_SIZE = 5;
@@ -75,12 +76,45 @@ const COLORS = {
   linedBg: [254, 254, 255] as const,
 };
 
-// Note: Unicode maps removed - using ASCII-safe notation for better jsPDF compatibility
+// ============= Parse Embedded MCQ Options from Question Text =============
+function parseEmbeddedMCQOptions(questionText: string): { 
+  cleanText: string; 
+  options: { label: string; text: string }[] 
+} {
+  if (!questionText) return { cleanText: '', options: [] };
+  
+  // Pattern to match: A) text  or  A. text  or  A: text
+  // Handles options that span multiple patterns
+  const optionPattern = /([A-E])[).:]\s*([^A-E]*?)(?=\s*[A-E])[).:]|\s|$)/gi;
+  const matches = [...questionText.matchAll(optionPattern)];
+  
+  if (matches.length >= 3) {
+    // Find where options start - look for first option pattern
+    const firstOptionMatch = questionText.match(/[A-E])[..:]\s/i);
+    const firstOptionIndex = firstOptionMatch ? questionText.indexOf(firstOptionMatch[0]) : -1;
+    
+    // Extract clean question (everything before first option)
+    const cleanText = firstOptionIndex > 0 
+      ? questionText.substring(0, firstOptionIndex).trim() 
+      : questionText;
+    
+    const options = matches.map(match => ({
+      label: match[1].toUpperCase(),
+      text: match[2].trim()
+    })).filter(opt => opt.text.length > 0);
+    
+    if (options.length >= 3) {
+      return { cleanText, options };
+    }
+  }
+  
+  return { cleanText: questionText, options: [] };
+}
 
 // ============= Question Sorting & Grouping =============
 function parseQuestionNumber(num: string): { main: number; sub: string; subOrder: number } {
   const cleaned = num.trim();
-  const match = cleaned.match(/^(\d+)([a-z]?)(?:\s*[.)\]]\s*([ivxlcdm]+)?)?$/i);
+  const match = cleaned.match(/^(\d+)([a-z]?)(?:\s*[.)]\s*([ivxlcdm]+)?)?$/i);
   
   if (!match) {
     const numOnly = parseInt(cleaned);
@@ -142,7 +176,7 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'ess
   if (['maths', 'mathematics', 'math', 'algebra', 'calculus', 'geometry', 'statistics'].some(k => s.includes(k))) {
     return 'math';
   }
-  // Biology gets its own type - blank answer spaces like maths (not lined like essays)
+  // Biology gets its own type - dotted lines like real OCR exams
   if (['biology', 'human biology'].some(k => s.includes(k))) {
     return 'biology';
   }
@@ -156,7 +190,7 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'ess
   return 'general';
 }
 
-function getAnswerAreaType(subject?: string, marks?: number, questionType?: string): 'blank' | 'lined' | 'grid' | 'none' | 'mcq_box' {
+function getAnswerAreaType(subject?: string, marks?: number, questionType?: string): 'blank' | 'lined' | 'grid' | 'none' | 'mcq_box' | 'dotted_lines' {
   // Case-insensitive MCQ check - MCQs get a small answer checkbox
   if (questionType?.toLowerCase() === 'mcq') return 'mcq_box';
   
@@ -164,8 +198,9 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
   
   switch (subjectType) {
     case 'math':
-    case 'biology':  // Biology gets BLANK like maths, not lined
       return 'blank';
+    case 'biology':
+      return 'dotted_lines'; // Biology uses dotted lines like real OCR papers
     case 'essay':
       return 'lined';
     case 'science':
@@ -181,6 +216,16 @@ function getAnswerBoxHeight(marks: number): number {
   if (marks <= 4) return ANSWER_HEIGHT_3_4_MARKS;
   if (marks <= 7) return ANSWER_HEIGHT_5_PLUS_MARKS;
   return ANSWER_HEIGHT_EXTENDED;
+}
+
+// ============= Calculate dotted line count based on marks =============
+function getDottedLineCount(marks: number): number {
+  if (marks <= 1) return 3;   // MCQ - minimal lines
+  if (marks <= 2) return 5;   // Short answer
+  if (marks <= 3) return 8;   // Medium 
+  if (marks <= 4) return 10;  // Extended
+  if (marks <= 6) return 14;  // Long answer
+  return Math.min(marks * 2 + 4, 24); // 8+ marks, cap at 24 lines
 }
 
 // ============= Main PDF Generation Function =============
@@ -397,8 +442,121 @@ export async function generateExamPDF(
     return `[${marks}]`;
   };
 
+  // ============= Draw Dotted Lines (Biology Style) =============
+  const drawDottedLines = (x: number, y: number, width: number, numLines: number, marks?: number): number => {
+    const lineSpacing = 8; // Space between dotted lines
+    
+    for (let i = 0; i < numLines; i++) {
+      const lineY = y + (i * lineSpacing);
+      
+      // Check if we need a new page
+      if (lineY > A4_HEIGHT - FOOTER_HEIGHT - 5) {
+        addNewPage();
+        // Continue drawing on new page
+        return drawDottedLines(x, yPosition, width, numLines - i, i === numLines - 1 ? marks : undefined);
+      }
+      
+      // Draw dotted line
+      doc.setLineDashPattern([1, 2], 0);
+      setColor(COLORS.border, "draw");
+      doc.setLineWidth(0.3);
+      doc.line(x, lineY, x + width - 15, lineY);
+      
+      // On the LAST line, add marks at the end
+      if (i === numLines - 1 && marks) {
+        doc.setLineDashPattern([], 0); // Reset to solid
+        setColor(COLORS.primary);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(formatMarks(marks), x + width, lineY, { align: "right" });
+      }
+    }
+    
+    doc.setLineDashPattern([], 0); // Reset dash pattern
+    return y + (numLines * lineSpacing) + 5;
+  };
+
+  // ============= Render Table Data =============
+  const renderTable = (tableData: string, x: number, y: number): number => {
+    if (!tableData) return y;
+    
+    // Try to parse as JSON first
+    let rows: string[][] = [];
+    try {
+      const parsed = JSON.parse(tableData);
+      if (Array.isArray(parsed)) {
+        rows = parsed.map(row => 
+          Array.isArray(row) ? row.map(cell => String(cell || '')) : [String(row || '')]
+        );
+      }
+    } catch {
+      // Parse as simple pipe-delimited or newline-delimited format
+      const lines = tableData.split('\n').filter(line => line.trim());
+      rows = lines.map(line => 
+        line.includes('|') 
+          ? line.split('|').map(cell => cell.trim()).filter(Boolean)
+          : [line.trim()]
+      );
+    }
+    
+    if (rows.length === 0) return y;
+    
+    const maxCols = Math.max(...rows.map(row => row.length));
+    const colWidth = Math.min((CONTENT_WIDTH - 10) / maxCols, 45);
+    const rowHeight = 8;
+    let currentY = y;
+    
+    // Calculate table width
+    const tableWidth = colWidth * maxCols;
+    const tableX = x;
+    
+    // Draw table
+    for (let i = 0; i < rows.length; i++) {
+      const isHeader = i === 0;
+      
+      // Check if we need a new page
+      if (currentY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 10) {
+        addNewPage();
+        currentY = yPosition;
+      }
+      
+      for (let j = 0; j < maxCols; j++) {
+        const cellX = tableX + (j * colWidth);
+        const cellText = rows[i][j] || '';
+        
+        // Draw cell background for header
+        if (isHeader) {
+          setColor([240, 240, 245], "fill");
+          doc.rect(cellX, currentY, colWidth, rowHeight, "F");
+        }
+        
+        // Draw cell border
+        setColor(COLORS.border, "draw");
+        doc.setLineWidth(0.3);
+        doc.rect(cellX, currentY, colWidth, rowHeight, "D");
+        
+        // Cell text
+        doc.setFont("helvetica", isHeader ? "bold" : "normal");
+        doc.setFontSize(9);
+        setColor(COLORS.primary);
+        
+        // Truncate text if too long
+        const maxTextWidth = colWidth - 4;
+        let displayText = cellText;
+        while (doc.getTextWidth(displayText) > maxTextWidth && displayText.length > 0) {
+          displayText = displayText.slice(0, -1);
+        }
+        
+        doc.text(displayText, cellX + 2, currentY + 5.5);
+      }
+      currentY += rowHeight;
+    }
+    
+    return currentY + 8;
+  };
+
   // ============= Answer Box Drawing =============
-  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box', marks?: number) => {
+  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box' | 'dotted_lines', marks?: number) => {
     if (areaType === 'none' || areaType === 'minimal') return y;
 
     // MCQ answer box - clean "Your answer [marks]" with checkbox
@@ -421,6 +579,12 @@ export async function generateExamPDF(
       }
       
       return y + 14;
+    }
+
+    // Dotted lines for Biology-style answers
+    if (areaType === 'dotted_lines') {
+      const lineCount = getDottedLineCount(marks || 3);
+      return drawDottedLines(x, y, width, lineCount, marks);
     }
 
     // Shaded background
@@ -556,7 +720,7 @@ export async function generateExamPDF(
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQuestion = parsed.sub !== '';
-      const cleanedText = cleanLatexForPDF(question.question_text);
+      let cleanedText = cleanLatexForPDF(question.question_text);
       
       // Check if we need a new page for text only
       const estimatedTextHeight = 30; // Rough estimate for question text
@@ -588,6 +752,22 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       }
 
+      // Parse embedded MCQ options from question text if needed
+      let mcqOptions = question.options;
+      if (question.question_type?.toLowerCase() === 'mcq' && (!mcqOptions || mcqOptions.length === 0)) {
+        const parsed = parseEmbeddedMCQOptions(cleanedText);
+        if (parsed.options.length >= 3) {
+          cleanedText = parsed.cleanText;
+          mcqOptions = parsed.options;
+        }
+      }
+
+      // Render table data if present (before question text)
+      if (question.table_data) {
+        const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
+        yPosition = renderTable(question.table_data, textIndent, yPosition);
+      }
+
       // Question text - with consistent font and safe width, null-safe
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -614,10 +794,10 @@ export async function generateExamPDF(
       hasDrawnAnyQuestions = true;
 
       // Handle MCQ options - clean format matching real exam papers (case-insensitive check)
-      if (question.question_type?.toLowerCase() === "mcq" && question.options && Array.isArray(question.options)) {
+      if (question.question_type?.toLowerCase() === "mcq" && mcqOptions && Array.isArray(mcqOptions) && mcqOptions.length > 0) {
         yPosition += 4;
         
-        for (const option of question.options) {
+        for (const option of mcqOptions) {
           if (!option) continue; // Skip null/undefined options
           
           if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
@@ -738,7 +918,12 @@ export async function generateExamPDF(
               drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, mathBoxHeight, areaType, totalSubMarks);
               yPosition += mathBoxHeight + 5;
             }
-          } else {
+          } 
+          // BIOLOGY: Use dotted lines
+          else if (subjectType === 'biology') {
+            yPosition = drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, 0, 'dotted_lines', totalSubMarks);
+          }
+          else {
             // OTHER SUBJECTS: Compact answer boxes based on marks
             const baseHeight = getAnswerBoxHeight(totalSubMarks);
             const actualHeight = Math.min(baseHeight, remainingSpace - 15);
@@ -962,61 +1147,87 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\subset/g, " subset ");
   cleaned = cleaned.replace(/\\supset/g, " superset ");
   cleaned = cleaned.replace(/\\cup/g, " union ");
-  cleaned = cleaned.replace(/\\cap/g, " intersection ");
+  cleaned = cleaned.replace(/\\cap/g, " intersect ");
   cleaned = cleaned.replace(/\\emptyset/g, "empty set");
-  
-  // Arrows - use ASCII
-  cleaned = cleaned.replace(/\\rightarrow/g, "->");
-  cleaned = cleaned.replace(/\\leftarrow/g, "<-");
-  cleaned = cleaned.replace(/\\Rightarrow/g, "=>");
-  cleaned = cleaned.replace(/\\Leftarrow/g, "<=");
-  cleaned = cleaned.replace(/\\leftrightarrow/g, "<->");
-  cleaned = cleaned.replace(/\\Leftrightarrow/g, "<=>");
-  cleaned = cleaned.replace(/\\to/g, "->");
-  cleaned = cleaned.replace(/\\mapsto/g, "|->");
-  
-  // Logic & Geometry - use ASCII
+  cleaned = cleaned.replace(/\\angle/g, "angle ");
+  cleaned = cleaned.replace(/\\triangle/g, "triangle ");
+  cleaned = cleaned.replace(/\\perp/g, " perpendicular ");
+  cleaned = cleaned.replace(/\\parallel/g, " parallel ");
+  cleaned = cleaned.replace(/\\rightarrow/g, " -> ");
+  cleaned = cleaned.replace(/\\leftarrow/g, " <- ");
+  cleaned = cleaned.replace(/\\Rightarrow/g, " => ");
+  cleaned = cleaned.replace(/\\Leftarrow/g, " <= ");
+  cleaned = cleaned.replace(/\\leftrightarrow/g, " <-> ");
   cleaned = cleaned.replace(/\\therefore/g, "therefore");
   cleaned = cleaned.replace(/\\because/g, "because");
-  cleaned = cleaned.replace(/\\land/g, " and ");
-  cleaned = cleaned.replace(/\\lor/g, " or ");
-  cleaned = cleaned.replace(/\\neg/g, "not ");
-  cleaned = cleaned.replace(/\\angle/g, "angle ");
-  cleaned = cleaned.replace(/\\degree/g, " degrees");
-  cleaned = cleaned.replace(/\\circ/g, " degrees");
-  cleaned = cleaned.replace(/\\perp/g, " perpendicular to ");
-  cleaned = cleaned.replace(/\\parallel/g, " parallel to ");
-  cleaned = cleaned.replace(/\\triangle/g, "triangle ");
   
-  // Text commands - extract content
+  // Functions
+  cleaned = cleaned.replace(/\\sin/g, "sin");
+  cleaned = cleaned.replace(/\\cos/g, "cos");
+  cleaned = cleaned.replace(/\\tan/g, "tan");
+  cleaned = cleaned.replace(/\\log/g, "log");
+  cleaned = cleaned.replace(/\\ln/g, "ln");
+  cleaned = cleaned.replace(/\\exp/g, "exp");
+  cleaned = cleaned.replace(/\\lim/g, "lim");
+  
+  // Text in math mode
   cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\textbf\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\textit\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\mathrm\{([^}]+)\}/g, "$1");
   cleaned = cleaned.replace(/\\mathbf\{([^}]+)\}/g, "$1");
-  cleaned = cleaned.replace(/\\mathit\{([^}]+)\}/g, "$1");
   
-  // Remove any remaining LaTeX commands
+  // Spacing
+  cleaned = cleaned.replace(/\\quad/g, "  ");
+  cleaned = cleaned.replace(/\\qquad/g, "    ");
+  cleaned = cleaned.replace(/\\,/g, " ");
+  cleaned = cleaned.replace(/\\;/g, " ");
+  cleaned = cleaned.replace(/\\!/g, "");
+  cleaned = cleaned.replace(/\\ /g, " ");
+  
+  // Remove remaining LaTeX commands
   cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
   
-  // Remove braces
+  // Clean up curly braces
   cleaned = cleaned.replace(/[{}]/g, "");
   
-  // Normalize whitespace
+  // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, " ");
   
-  // Final sanitization pass to ensure PDF compatibility
+  // Final sanitization for PDF compatibility
   cleaned = sanitizeForPDF(cleaned);
-
+  
   return cleaned.trim();
 }
 
-export function downloadPDF(doc: jsPDF, filename: string): void {
+// ============= Preview PDF Helper =============
+export async function generateExamPDFPreview(
+  examData: ExamData,
+  options: PDFOptions = {}
+): Promise<string> {
+  const doc = await generateExamPDF(examData, options);
+  return doc.output('datauristring');
+}
+
+// ============= Download Helper =============
+export async function downloadExamPDF(
+  examData: ExamData,
+  filename: string,
+  options: PDFOptions = {}
+): Promise<void> {
+  const doc = await generateExamPDF(examData, options);
   doc.save(filename);
 }
 
-export function openPDFInNewTab(doc: jsPDF): void {
-  const pdfBlob = doc.output("blob");
-  const pdfUrl = URL.createObjectURL(pdfBlob);
-  window.open(pdfUrl, "_blank");
+// ============= Legacy Export Aliases =============
+export const downloadPDF = downloadExamPDF;
+
+export async function openPDFInNewTab(
+  examData: ExamData,
+  options: PDFOptions = {}
+): Promise<void> {
+  const doc = await generateExamPDF(examData, options);
+  const pdfBlob = doc.output('blob');
+  const url = URL.createObjectURL(pdfBlob);
+  window.open(url, '_blank');
 }
