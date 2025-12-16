@@ -1209,7 +1209,19 @@ export async function generateExamPDFPreview(
   return doc.output('datauristring');
 }
 
-// ============= Download Helper =============
+// ============= Download Helper (accepts jsPDF doc directly) =============
+export function downloadPDF(doc: jsPDF, filename: string): void {
+  doc.save(filename);
+}
+
+// ============= Open in New Tab (accepts jsPDF doc directly) =============
+export function openPDFInNewTab(doc: jsPDF): void {
+  const pdfBlob = doc.output('blob');
+  const url = URL.createObjectURL(pdfBlob);
+  window.open(url, '_blank');
+}
+
+// ============= Alternative: Download from ExamData =============
 export async function downloadExamPDF(
   examData: ExamData,
   filename: string,
@@ -1217,17 +1229,4 @@ export async function downloadExamPDF(
 ): Promise<void> {
   const doc = await generateExamPDF(examData, options);
   doc.save(filename);
-}
-
-// ============= Legacy Export Aliases =============
-export const downloadPDF = downloadExamPDF;
-
-export async function openPDFInNewTab(
-  examData: ExamData,
-  options: PDFOptions = {}
-): Promise<void> {
-  const doc = await generateExamPDF(examData, options);
-  const pdfBlob = doc.output('blob');
-  const url = URL.createObjectURL(pdfBlob);
-  window.open(url, '_blank');
 }
