@@ -85,12 +85,12 @@ function parseEmbeddedMCQOptions(questionText: string): {
   
   // Pattern to match: A) text  or  A. text  or  A: text
   // Handles options that span multiple patterns
-  const optionPattern = /([A-E])[).:]\s*([^A-E]*?)(?=\s*[A-E])[).:]|\s|$)/gi;
+  const optionPattern = /([A-E])[\).:]\\s*([^A-E]*?)(?=\\s*[A-E][\).:]|\\s|$)/gi;
   const matches = [...questionText.matchAll(optionPattern)];
   
   if (matches.length >= 3) {
     // Find where options start - look for first option pattern
-    const firstOptionMatch = questionText.match(/[A-E])[..:]\s/i);
+    const firstOptionMatch = questionText.match(/[A-E][\).:]\\s/i);
     const firstOptionIndex = firstOptionMatch ? questionText.indexOf(firstOptionMatch[0]) : -1;
     
     // Extract clean question (everything before first option)
