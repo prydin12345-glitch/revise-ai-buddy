@@ -391,23 +391,36 @@ export async function generateExamPDF(
     });
   };
 
+  // ============= Helper: Format marks in brackets =============
+  const formatMarks = (marks: number | undefined | null): string => {
+    if (!marks && marks !== 0) return '';
+    return `[${marks}]`;
+  };
+
   // ============= Answer Box Drawing =============
-  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box') => {
+  const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box', marks?: number) => {
     if (areaType === 'none' || areaType === 'minimal') return y;
 
-    // MCQ answer box - small "Your answer [ ]" checkbox
+    // MCQ answer box - clean "Your answer [marks]" with checkbox
     if (areaType === 'mcq_box') {
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      setColor(COLORS.secondary);
-      doc.text("Your answer", x, y + 4);
+      setColor(COLORS.primary);
+      doc.text("Your answer", x, y + 5);
       
-      // Draw small checkbox
+      // Draw answer box
       setColor(COLORS.border, "draw");
       doc.setLineWidth(0.5);
-      doc.rect(x + 25, y, 10, 8, "D");
+      doc.rect(x + 26, y, 12, 8, "D");
       
-      return y + 12;
+      // Marks in brackets after the box
+      if (marks) {
+        doc.setFontSize(10);
+        setColor(COLORS.primary);
+        doc.text(formatMarks(marks), x + 42, y + 5);
+      }
+      
+      return y + 14;
     }
 
     // Shaded background
@@ -419,11 +432,12 @@ export async function generateExamPDF(
     doc.setLineWidth(0.4);
     doc.rect(x, y, width, height, "D");
 
-    // "Working space / Answer:" label
+    // "Working space / Answer:" label with marks
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     setColor(COLORS.muted);
-    doc.text("Working space / Answer:", x + 3, y + 5);
+    const answerLabel = marks ? `Working space / Answer ${formatMarks(marks)}` : "Working space / Answer:";
+    doc.text(answerLabel, x + 3, y + 5);
 
     // Draw internal lines/grid if needed
     if (areaType === 'lined') {
@@ -517,12 +531,12 @@ export async function generateExamPDF(
     
     doc.text(`${group.mainNumber}.`, MARGIN, yPosition);
     
-    // Total marks for this question on the right
-    if (showMarks) {
+    // Total marks for this question on the right - use [marks] format
+    if (showMarks && group.totalMarks) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       setColor(COLORS.secondary);
-      doc.text(`(${group.totalMarks} marks)`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
+      doc.text(formatMarks(group.totalMarks), A4_WIDTH - MARGIN, yPosition, { align: "right" });
     }
     
     yPosition += 3;
@@ -563,10 +577,10 @@ export async function generateExamPDF(
         setColor(COLORS.primary);
         doc.text(`(${parsed.sub})`, MARGIN + 5, yPosition);
         
-        if (showMarks) {
+        if (showMarks && question.marks) {
           doc.setFont("helvetica", "normal");
           setColor(COLORS.secondary);
-          doc.text(`(${question.marks})`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
+          doc.text(formatMarks(question.marks), A4_WIDTH - MARGIN, yPosition, { align: "right" });
         }
         yPosition += 6;
         totalSubMarks += question.marks;
@@ -574,7 +588,7 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       }
 
-      // Question text - with consistent font and safe width
+      // Question text - with consistent font and safe width, null-safe
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       setColor(COLORS.primary);
@@ -582,7 +596,8 @@ export async function generateExamPDF(
       const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
       const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
       const textWidth = getSafeTextWidth(baseTextWidth);
-      const textLines = doc.splitTextToSize(cleanedText, textWidth);
+      const safeCleanedText = cleanedText || '';
+      const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
       
       textLines.forEach((line: string) => {
         if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
@@ -591,46 +606,49 @@ export async function generateExamPDF(
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         setColor(COLORS.primary);
-        doc.text(line, textIndent, yPosition);
+        doc.text(line || '', textIndent, yPosition);
         yPosition += LINE_HEIGHT;
       });
       
       yPosition += 3;
       hasDrawnAnyQuestions = true;
 
-      // Handle MCQ options - each on separate line with letter alignment (case-insensitive check)
+      // Handle MCQ options - clean format matching real exam papers (case-insensitive check)
       if (question.question_type?.toLowerCase() === "mcq" && question.options && Array.isArray(question.options)) {
-        yPosition += 2;
+        yPosition += 4;
         
         for (const option of question.options) {
+          if (!option) continue; // Skip null/undefined options
+          
           if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
             addNewPage();
           }
           
-          // Option letter (A, B, C, D) - bold and aligned
+          // Option letter (A, B, C, D) - clean format without bullets
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
-          doc.text(`${option.label}`, textIndent + 2, yPosition);
+          const optionLabel = option.label || '';
+          doc.text(optionLabel, textIndent + 3, yPosition);
           
-          // Option text - on same line after letter
+          // Option text - on same line after letter with proper spacing
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
-          const optionText = cleanLatexForPDF(option.text);
-          const optionWidth = getSafeTextWidth(baseTextWidth - 20);
+          const optionText = cleanLatexForPDF(option.text || '');
+          const optionWidth = getSafeTextWidth(baseTextWidth - 18);
           const optionLines = doc.splitTextToSize(optionText, optionWidth);
           
           optionLines.forEach((line: string, idx: number) => {
-            doc.text(line, textIndent + 12, yPosition + (idx * LINE_HEIGHT));
+            doc.text(line || '', textIndent + 12, yPosition + (idx * LINE_HEIGHT));
           });
           
-          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 1;
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 2;
         }
         
-        // Draw small MCQ answer box after options
-        yPosition += 2;
-        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box');
-        yPosition += 10;
+        // Draw MCQ answer box with marks after options
+        yPosition += 3;
+        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
+        yPosition += 8;
       }
       // Handle embedded sub_questions - draw ALL text first, NO individual answer boxes
       else if (question.sub_questions && question.sub_questions.length > 0) {
@@ -645,25 +663,25 @@ export async function generateExamPDF(
           setColor(COLORS.primary);
           doc.text(`(${sub.label})`, textIndent, yPosition);
           
-          if (showMarks) {
+          if (showMarks && sub.marks) {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(10);
             setColor(COLORS.secondary);
-            doc.text(`(${sub.marks})`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
+            doc.text(formatMarks(sub.marks), A4_WIDTH - MARGIN, yPosition, { align: "right" });
           }
           yPosition += 6;
           
-          // Sub question text - consistent font and safe width
+          // Sub question text - consistent font and safe width, null-safe
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
           setColor(COLORS.primary);
-          const subText = cleanLatexForPDF(sub.text);
+          const subText = cleanLatexForPDF(sub.text || '');
           const subTextWidth = getSafeTextWidth(baseTextWidth - 10);
           const subLines = doc.splitTextToSize(subText, subTextWidth);
           subLines.forEach((line: string) => {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(10);
-            doc.text(line, textIndent + 10, yPosition);
+            doc.text(line || '', textIndent + 10, yPosition);
             yPosition += LINE_HEIGHT;
           });
           yPosition += 4;
@@ -717,7 +735,7 @@ export async function generateExamPDF(
           if (subjectType === 'math') {
             const mathBoxHeight = Math.max(remainingSpace - 15, 60);
             if (mathBoxHeight > 30) {
-              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, mathBoxHeight, areaType);
+              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, mathBoxHeight, areaType, totalSubMarks);
               yPosition += mathBoxHeight + 5;
             }
           } else {
@@ -726,7 +744,7 @@ export async function generateExamPDF(
             const actualHeight = Math.min(baseHeight, remainingSpace - 15);
             
             if (actualHeight > 20) {
-              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, actualHeight, areaType);
+              drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, actualHeight, areaType, totalSubMarks);
               yPosition += actualHeight + 5;
             }
           }
@@ -743,7 +761,7 @@ export async function generateExamPDF(
       doc.setFontSize(9);
       doc.setFont("helvetica", "italic");
       setColor(COLORS.secondary);
-      doc.text(`(Total for Question ${group.mainNumber} is ${group.totalMarks} marks)`, A4_WIDTH / 2, yPosition, { align: "center" });
+      doc.text(`(Total for Question ${group.mainNumber} = ${formatMarks(group.totalMarks)})`, A4_WIDTH / 2, yPosition, { align: "center" });
       yPosition += 8;
     }
   };
