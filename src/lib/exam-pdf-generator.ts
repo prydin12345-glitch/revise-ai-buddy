@@ -55,9 +55,14 @@ const ANSWER_HEIGHT_3_4_MARKS = 40;
 const ANSWER_HEIGHT_5_PLUS_MARKS = 55;
 const ANSWER_HEIGHT_EXTENDED = 70; // For 8+ marks
 
-// Spacing constants - INCREASED for Biology-style layout
-const QUESTION_SPACING = 15; // Increased from 8
-const MIN_SPACE_FOR_QUESTION = 60; // Increased from 40
+// Spacing constants
+const QUESTION_SPACING = 15;
+const MIN_SPACE_FOR_QUESTION = 60;
+
+// Biology-specific spacing
+const BIOLOGY_LINE_SPACING = 8;     // Space between dotted answer lines
+const BIOLOGY_QUESTION_GAP = 12;    // Gap after answer area before next sub-question
+const BIOLOGY_SECTION_GAP = 18;     // Gap between main question groups
 
 // Grid settings
 const GRID_CELL_SIZE = 5;
@@ -74,6 +79,7 @@ const COLORS = {
   answerBoxBorder: [200, 200, 200] as const,
   separator: [180, 180, 180] as const,
   linedBg: [254, 254, 255] as const,
+  tableHeader: [235, 235, 240] as const,
 };
 
 // ============= Parse Embedded MCQ Options from Question Text =============
@@ -84,13 +90,13 @@ function parseEmbeddedMCQOptions(questionText: string): {
   if (!questionText) return { cleanText: '', options: [] };
   
   // Pattern to match: A) text  or  A. text  or  A: text
-  // Handles options that span multiple patterns
-  const optionPattern = /([A-E])[\).:]\\s*([^A-E]*?)(?=\\s*[A-E][\).:]|\\s|$)/gi;
+  // Fixed regex - use proper character classes without double escaping
+  const optionPattern = /([A-E])[\).:\s]\s*([^A-E]*?)(?=\s*[A-E][\).:]|$)/gi;
   const matches = [...questionText.matchAll(optionPattern)];
   
   if (matches.length >= 3) {
     // Find where options start - look for first option pattern
-    const firstOptionMatch = questionText.match(/[A-E][\).:]\\s/i);
+    const firstOptionMatch = questionText.match(/[A-E][\).:]\s/i);
     const firstOptionIndex = firstOptionMatch ? questionText.indexOf(firstOptionMatch[0]) : -1;
     
     // Extract clean question (everything before first option)
@@ -367,7 +373,7 @@ export async function generateExamPDF(
     const instructions = [
       "Use black ink or ball-point pen.",
       "Answer all questions.",
-      "Answer the questions in the spaces provided – there may be more space than you need.",
+      "Answer the questions in the spaces provided - there may be more space than you need.",
       "Show all stages of your working clearly.",
       "Diagrams are NOT accurately drawn, unless otherwise indicated.",
       "You must NOT use a calculator for this paper.",
@@ -397,7 +403,7 @@ export async function generateExamPDF(
     const information = [
       `This paper has ${questionCount} questions.`,
       `The total mark for this paper is ${totalMarks}.`,
-      "The marks for each question are shown in brackets – use this as a guide as to how much time to spend on each question.",
+      "The marks for each question are shown in brackets - use this as a guide as to how much time to spend on each question.",
     ];
 
     information.forEach((info) => {
@@ -444,7 +450,7 @@ export async function generateExamPDF(
 
   // ============= Draw Dotted Lines (Biology Style) =============
   const drawDottedLines = (x: number, y: number, width: number, numLines: number, marks?: number): number => {
-    const lineSpacing = 8; // Space between dotted lines
+    const lineSpacing = BIOLOGY_LINE_SPACING;
     
     for (let i = 0; i < numLines; i++) {
       const lineY = y + (i * lineSpacing);
@@ -476,7 +482,7 @@ export async function generateExamPDF(
     return y + (numLines * lineSpacing) + 5;
   };
 
-  // ============= Render Table Data =============
+  // ============= Enhanced Table Rendering =============
   const renderTable = (tableData: string, x: number, y: number): number => {
     if (!tableData) return y;
     
@@ -502,54 +508,91 @@ export async function generateExamPDF(
     if (rows.length === 0) return y;
     
     const maxCols = Math.max(...rows.map(row => row.length));
-    const colWidth = Math.min((CONTENT_WIDTH - 10) / maxCols, 45);
-    const rowHeight = 8;
+    const cellPadding = 3; // Padding inside cells
+    const rowHeight = 10; // Increased row height
     let currentY = y;
     
-    // Calculate table width
-    const tableWidth = colWidth * maxCols;
+    // Calculate dynamic column widths based on content
+    const colWidths: number[] = [];
+    const maxTableWidth = CONTENT_WIDTH - 10;
+    
+    for (let j = 0; j < maxCols; j++) {
+      let maxWidth = 20; // Minimum column width
+      for (const row of rows) {
+        const cellText = row[j] || '';
+        doc.setFontSize(9);
+        const textWidth = doc.getTextWidth(cellText) + cellPadding * 2;
+        maxWidth = Math.max(maxWidth, textWidth);
+      }
+      colWidths.push(maxWidth);
+    }
+    
+    // Scale columns if they exceed max width
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    if (totalWidth > maxTableWidth) {
+      const scale = maxTableWidth / totalWidth;
+      for (let j = 0; j < colWidths.length; j++) {
+        colWidths[j] *= scale;
+      }
+    }
+    
+    const tableWidth = colWidths.reduce((a, b) => a + b, 0);
     const tableX = x;
     
-    // Draw table
-    for (let i = 0; i < rows.length; i++) {
-      const isHeader = i === 0;
-      
-      // Check if we need a new page
-      if (currentY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 10) {
+    // Function to draw a single row
+    const drawRow = (rowData: string[], rowY: number, isHeader: boolean): number => {
+      // Check page break BEFORE drawing row
+      if (rowY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 10) {
         addNewPage();
-        currentY = yPosition;
+        rowY = yPosition;
+        
+        // Re-draw header on new page if this isn't the header
+        if (!isHeader && rows.length > 0) {
+          drawRow(rows[0], rowY, true);
+          rowY += rowHeight;
+        }
       }
       
+      let cellX = tableX;
       for (let j = 0; j < maxCols; j++) {
-        const cellX = tableX + (j * colWidth);
-        const cellText = rows[i][j] || '';
+        const cellText = rowData[j] || '';
+        const colWidth = colWidths[j];
         
-        // Draw cell background for header
+        // Draw cell background for header with shaded color
         if (isHeader) {
-          setColor([240, 240, 245], "fill");
-          doc.rect(cellX, currentY, colWidth, rowHeight, "F");
+          setColor(COLORS.tableHeader, "fill");
+          doc.rect(cellX, rowY, colWidth, rowHeight, "F");
         }
         
-        // Draw cell border
+        // Draw cell border with clear grid lines
         setColor(COLORS.border, "draw");
-        doc.setLineWidth(0.3);
-        doc.rect(cellX, currentY, colWidth, rowHeight, "D");
+        doc.setLineWidth(0.4);
+        doc.rect(cellX, rowY, colWidth, rowHeight, "D");
         
-        // Cell text
+        // Cell text with proper alignment
         doc.setFont("helvetica", isHeader ? "bold" : "normal");
         doc.setFontSize(9);
         setColor(COLORS.primary);
         
         // Truncate text if too long
-        const maxTextWidth = colWidth - 4;
+        const maxTextWidth = colWidth - cellPadding * 2;
         let displayText = cellText;
         while (doc.getTextWidth(displayText) > maxTextWidth && displayText.length > 0) {
           displayText = displayText.slice(0, -1);
         }
         
-        doc.text(displayText, cellX + 2, currentY + 5.5);
+        // Center text vertically in cell
+        doc.text(displayText, cellX + cellPadding, rowY + rowHeight / 2 + 2);
+        cellX += colWidth;
       }
-      currentY += rowHeight;
+      
+      return rowY + rowHeight;
+    };
+    
+    // Draw all rows
+    for (let i = 0; i < rows.length; i++) {
+      const isHeader = i === 0;
+      currentY = drawRow(rows[i], currentY, isHeader);
     }
     
     return currentY + 8;
@@ -678,11 +721,231 @@ export async function generateExamPDF(
 
   // ============= Helper: Get safe text width =============
   const getSafeTextWidth = (baseWidth: number): number => {
-    // Apply consistent safety margin for all text (now using ASCII-safe notation)
     return baseWidth - 5;
   };
 
-  // ============= Draw Question Group =============
+  // ============= Biology-Specific Question Rendering =============
+  // Renders each sub-question IMMEDIATELY followed by its answer lines
+  const drawBiologyQuestionGroup = (group: QuestionGroup) => {
+    // Main question header
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    setColor(COLORS.primary);
+    
+    doc.text(`${group.mainNumber}.`, MARGIN, yPosition);
+    
+    // Total marks for this question on the right
+    if (showMarks && group.totalMarks) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      setColor(COLORS.secondary);
+      doc.text(formatMarks(group.totalMarks), A4_WIDTH - MARGIN, yPosition, { align: "right" });
+    }
+    
+    yPosition += 3;
+    
+    // Separator line
+    setColor(COLORS.separator, "draw");
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
+    yPosition += 8;
+
+    // Process each question in the group
+    for (let i = 0; i < group.questions.length; i++) {
+      const question = group.questions[i];
+      const parsed = parseQuestionNumber(question.question_number);
+      const isSubQuestion = parsed.sub !== '';
+      let cleanedText = cleanLatexForPDF(question.question_text);
+      
+      // Check if we need a new page
+      const estimatedHeight = 50; // Estimate for text + answer lines
+      if (getRemainingSpace() < estimatedHeight) {
+        addNewPage();
+        // Re-draw question number header on continuation
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        setColor(COLORS.muted);
+        doc.text(`Question ${group.mainNumber} continued`, MARGIN, yPosition);
+        yPosition += 10;
+      }
+
+      // Sub-question label (a), (b), etc.
+      const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
+      const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
+      
+      if (isSubQuestion) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        setColor(COLORS.primary);
+        doc.text(`(${parsed.sub})`, MARGIN + 5, yPosition);
+        yPosition += 6;
+      }
+
+      // Parse embedded MCQ options from question text if needed
+      let mcqOptions = question.options;
+      if (question.question_type?.toLowerCase() === 'mcq' && (!mcqOptions || mcqOptions.length === 0)) {
+        const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
+        if (parsedMCQ.options.length >= 3) {
+          cleanedText = parsedMCQ.cleanText;
+          mcqOptions = parsedMCQ.options;
+        }
+      }
+
+      // Render table data if present
+      if (question.table_data) {
+        yPosition = renderTable(question.table_data, textIndent, yPosition);
+      }
+
+      // Question text
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      setColor(COLORS.primary);
+      
+      const textWidth = getSafeTextWidth(baseTextWidth);
+      const safeCleanedText = cleanedText || '';
+      const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
+      
+      textLines.forEach((line: string) => {
+        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+          addNewPage();
+        }
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        setColor(COLORS.primary);
+        doc.text(line || '', textIndent, yPosition);
+        yPosition += LINE_HEIGHT;
+      });
+      
+      yPosition += 4;
+
+      // Handle MCQ options - display on separate lines
+      if (question.question_type?.toLowerCase() === "mcq" && mcqOptions && Array.isArray(mcqOptions) && mcqOptions.length > 0) {
+        yPosition += 2;
+        
+        for (const option of mcqOptions) {
+          if (!option) continue;
+          
+          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
+            addNewPage();
+          }
+          
+          // Option letter (A, B, C, D, E) with spacing
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          setColor(COLORS.primary);
+          const optionLabel = option.label || '';
+          doc.text(optionLabel, textIndent + 5, yPosition);
+          
+          // Option text - on same line
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          const optionText = cleanLatexForPDF(option.text || '');
+          const optionWidth = getSafeTextWidth(baseTextWidth - 20);
+          const optionLines = doc.splitTextToSize(optionText, optionWidth);
+          
+          optionLines.forEach((line: string, idx: number) => {
+            doc.text(line || '', textIndent + 15, yPosition + (idx * LINE_HEIGHT));
+          });
+          
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 3; // Extra spacing between options
+        }
+        
+        // MCQ answer box IMMEDIATELY after options
+        yPosition += 4;
+        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
+        yPosition += 8;
+      }
+      // Handle embedded sub_questions - BIOLOGY STYLE: each gets answer lines immediately
+      else if (question.sub_questions && question.sub_questions.length > 0) {
+        for (const sub of question.sub_questions) {
+          if (getRemainingSpace() < 40) {
+            addNewPage();
+          }
+          
+          // Sub label
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          setColor(COLORS.primary);
+          doc.text(`(${sub.label})`, textIndent, yPosition);
+          yPosition += 6;
+          
+          // Sub question text
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          setColor(COLORS.primary);
+          const subText = cleanLatexForPDF(sub.text || '');
+          const subTextWidth = getSafeTextWidth(baseTextWidth - 10);
+          const subLines = doc.splitTextToSize(subText, subTextWidth);
+          subLines.forEach((line: string) => {
+            if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+              addNewPage();
+            }
+            doc.text(line || '', textIndent + 10, yPosition);
+            yPosition += LINE_HEIGHT;
+          });
+          yPosition += 4;
+          
+          // IMMEDIATELY draw answer lines for this sub-question
+          if (includeWorkingSpace) {
+            const lineCount = getDottedLineCount(sub.marks);
+            yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, lineCount, sub.marks);
+            yPosition += BIOLOGY_QUESTION_GAP;
+          }
+        }
+      }
+      // Regular question - draw answer lines IMMEDIATELY after question text
+      else if (includeWorkingSpace && question.question_type?.toLowerCase() !== 'mcq') {
+        // Handle graph requirement
+        if (question.requires_graph) {
+          if (getRemainingSpace() < GRID_HEIGHT + 15) {
+            addNewPage();
+          }
+          const graphX = MARGIN + (CONTENT_WIDTH - GRID_WIDTH) / 2;
+          drawCoordinateGrid(graphX, yPosition, GRID_WIDTH, GRID_HEIGHT);
+          yPosition += GRID_HEIGHT + 10;
+        }
+        // Handle diagram requirement
+        else if (question.requires_diagram) {
+          const diagramHeight = 60;
+          if (getRemainingSpace() < diagramHeight + 15) {
+            addNewPage();
+          }
+          setColor(COLORS.answerBoxBg, "fill");
+          doc.rect(MARGIN, yPosition, CONTENT_WIDTH, diagramHeight, "F");
+          setColor(COLORS.answerBoxBorder, "draw");
+          doc.setLineWidth(0.3);
+          doc.rect(MARGIN, yPosition, CONTENT_WIDTH, diagramHeight, "D");
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "italic");
+          setColor(COLORS.muted);
+          doc.text("Space for diagram", MARGIN + CONTENT_WIDTH / 2, yPosition + diagramHeight / 2, { align: "center" });
+          yPosition += diagramHeight + 8;
+        }
+        // Standard dotted lines answer area
+        else {
+          const lineCount = getDottedLineCount(question.marks);
+          yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, lineCount, question.marks);
+        }
+        
+        yPosition += BIOLOGY_QUESTION_GAP;
+      }
+    }
+
+    // Total for question X is Y marks (at the end of multi-part questions)
+    if (group.questions.length > 1) {
+      if (getRemainingSpace() < 15) {
+        addNewPage();
+      }
+      yPosition += 3;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      setColor(COLORS.secondary);
+      doc.text(`(Total for Question ${group.mainNumber} = ${formatMarks(group.totalMarks)})`, A4_WIDTH / 2, yPosition, { align: "center" });
+      yPosition += 8;
+    }
+  };
+
+  // ============= Draw Question Group (Math/Other subjects) =============
   const drawQuestionGroup = (group: QuestionGroup) => {
     const hasSubQuestions = group.questions.length > 1 || 
       group.questions[0].sub_questions?.length || 
@@ -755,10 +1018,10 @@ export async function generateExamPDF(
       // Parse embedded MCQ options from question text if needed
       let mcqOptions = question.options;
       if (question.question_type?.toLowerCase() === 'mcq' && (!mcqOptions || mcqOptions.length === 0)) {
-        const parsed = parseEmbeddedMCQOptions(cleanedText);
-        if (parsed.options.length >= 3) {
-          cleanedText = parsed.cleanText;
-          mcqOptions = parsed.options;
+        const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
+        if (parsedMCQ.options.length >= 3) {
+          cleanedText = parsedMCQ.cleanText;
+          mcqOptions = parsedMCQ.options;
         }
       }
 
@@ -919,7 +1182,7 @@ export async function generateExamPDF(
               yPosition += mathBoxHeight + 5;
             }
           } 
-          // BIOLOGY: Use dotted lines
+          // BIOLOGY: Use dotted lines (shouldn't get here with new logic, but fallback)
           else if (subjectType === 'biology') {
             yPosition = drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, 0, 'dotted_lines', totalSubMarks);
           }
@@ -973,31 +1236,30 @@ export async function generateExamPDF(
     for (const question of sortedQuestions) {
       if (!question.correct_answer) continue;
 
-      if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 20) {
+      if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
         addNewPage();
       }
 
-      doc.setFont("helvetica", "bold");
       setColor(COLORS.primary);
-      doc.text(`Q${question.question_number}:`, MARGIN, yPosition);
-
+      doc.setFont("helvetica", "bold");
+      doc.text(`${question.question_number}.`, MARGIN, yPosition);
+      
       doc.setFont("helvetica", "normal");
-      setColor(COLORS.secondary);
       const answerText = cleanLatexForPDF(question.correct_answer);
-      const answerLines = doc.splitTextToSize(answerText, CONTENT_WIDTH - 25);
+      const answerLines = doc.splitTextToSize(answerText, CONTENT_WIDTH - 20);
       answerLines.forEach((line: string, idx: number) => {
-        doc.text(line, MARGIN + 18, yPosition + (idx * LINE_HEIGHT));
+        doc.text(line || '', MARGIN + 15, yPosition + (idx * LINE_HEIGHT));
       });
-
-      yPosition += Math.max(answerLines.length * LINE_HEIGHT, 6) + 6;
+      
+      yPosition += Math.max(answerLines.length, 1) * LINE_HEIGHT + 4;
     }
   };
 
   // ============= Generate PDF =============
   
-  // Page 1: Instructions only
+  // Instructions page (Page 1)
   drawInstructionsPage();
-  
+
   // Questions start on page 2
   addNewPage();
   
@@ -1009,17 +1271,22 @@ export async function generateExamPDF(
       if (i > 0) {
         addNewPage();
       }
-    } else {
+      drawQuestionGroup(questionGroups[i]);
+    } 
+    // BIOLOGY: Use Biology-specific rendering with immediate answer lines
+    else if (subjectType === 'biology') {
+      if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
+        addNewPage();
+      }
+      drawBiologyQuestionGroup(questionGroups[i]);
+      yPosition += BIOLOGY_SECTION_GAP;
+    }
+    else {
       // OTHER SUBJECTS: Multiple questions per page (compact layout)
       if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
         addNewPage();
       }
-    }
-    
-    drawQuestionGroup(questionGroups[i]);
-    
-    // Add spacing between question groups (only for non-math, since math gets new pages)
-    if (subjectType !== 'math') {
+      drawQuestionGroup(questionGroups[i]);
       yPosition += QUESTION_SPACING;
     }
   }
@@ -1038,6 +1305,61 @@ export async function generateExamPDF(
 // ============= Text Sanitization for PDF Compatibility =============
 function sanitizeForPDF(text: string): string {
   let safe = text;
+  
+  // Remove HTML entities
+  safe = safe.replace(/&[A-Za-z0-9#]+;/g, (entity) => {
+    const entityMap: Record<string, string> = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&apos;': "'",
+      '&#39;': "'",
+      '&#x27;': "'",
+      '&mdash;': '-',
+      '&ndash;': '-',
+      '&hellip;': '...',
+      '&lsquo;': "'",
+      '&rsquo;': "'",
+      '&ldquo;': '"',
+      '&rdquo;': '"',
+      '&deg;': ' degrees',
+      '&times;': 'x',
+      '&divide;': '/',
+      '&plusmn;': '+/-',
+      '&frac12;': '1/2',
+      '&frac14;': '1/4',
+      '&frac34;': '3/4',
+    };
+    return entityMap[entity] || '';
+  });
+  
+  // Map common Unicode characters to ASCII equivalents
+  const unicodeMap: Record<string, string> = {
+    'Ø': 'O', 'ø': 'o',
+    'Ü': 'U', 'ü': 'u',
+    'Ö': 'O', 'ö': 'o',
+    'Ä': 'A', 'ä': 'a',
+    '×': 'x', '÷': '/',
+    '±': '+/-', '°': ' degrees',
+    '²': '^2', '³': '^3',
+    '¹': '^1', '⁴': '^4', '⁵': '^5',
+    '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3',
+    '→': '->', '←': '<-', '↔': '<->',
+    '≤': '<=', '≥': '>=', '≠': '!=', '≈': '~=',
+    '∞': 'infinity', '√': 'sqrt',
+    'µ': 'mu', 'π': 'pi', 'Σ': 'Sum', 'Δ': 'Delta',
+    'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'θ': 'theta',
+    '•': '*', '·': '.',
+    '′': "'", '″': '"',
+    '…': '...',
+    '\u00A0': ' ', // Non-breaking space
+  };
+  
+  safe = safe.replace(/[^\x00-\x7F]/g, (char) => {
+    return unicodeMap[char] || '';
+  });
   
   // Remove zero-width characters that cause spacing issues in jsPDF
   safe = safe.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
