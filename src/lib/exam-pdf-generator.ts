@@ -89,9 +89,9 @@ function parseEmbeddedMCQOptions(questionText: string): {
 } {
   if (!questionText) return { cleanText: '', options: [] };
   
-  // Find where options start - match A) or A. after whitespace, punctuation, or start
-  // Looking for patterns like "? A)" or " A." that indicate option start
-  const optionStartPattern = /(?:^|[\s?.!])\s*([A-E])[\).]\s/i;
+  // Find where options start - match A) / A. / A: after whitespace, punctuation, or start.
+  // Handles inline options like "...? A) ... B) ..." and multi-line formats.
+  const optionStartPattern = /(?:^|[\s?.!])\s*([A-E])\s*[\).:]\s*/i;
   const firstMatch = questionText.match(optionStartPattern);
   
   if (!firstMatch) {
@@ -100,7 +100,7 @@ function parseEmbeddedMCQOptions(questionText: string): {
   
   // Find the actual position of the first option letter
   const matchIndex = questionText.indexOf(firstMatch[0]);
-  const firstOptionIndex = matchIndex + firstMatch[0].indexOf(firstMatch[1]);
+  const firstOptionIndex = matchIndex + firstMatch[0].toUpperCase().indexOf(firstMatch[1].toUpperCase());
   
   // Get clean question stem (everything before first option)
   const cleanText = questionText.substring(0, firstOptionIndex).trim();
@@ -108,22 +108,18 @@ function parseEmbeddedMCQOptions(questionText: string): {
   // Extract the options portion
   const optionsPortion = questionText.substring(firstOptionIndex).trim();
   
-  // Split on option patterns: look for A) B) C) D) E) patterns
-  // We split when we see whitespace followed by a letter and ) or .
+  // Split options reliably by detecting new option labels at the beginning of the remaining string.
+  // We intentionally avoid excluding letters in the option text (previous regex did that and broke).
   const parts: string[] = [];
   let currentPart = '';
   let i = 0;
   
   while (i < optionsPortion.length) {
     const remaining = optionsPortion.substring(i);
-    // Check if this is start of a new option (letter followed by ) or . and space)
-    const newOptionMatch = remaining.match(/^([A-E])[\).]\s/i);
+    const newOptionMatch = remaining.match(/^([A-E])\s*[\).:]\s*/i);
     
     if (newOptionMatch && (i === 0 || /\s/.test(optionsPortion[i - 1]))) {
-      // Save previous part if exists
-      if (currentPart.trim()) {
-        parts.push(currentPart.trim());
-      }
+      if (currentPart.trim()) parts.push(currentPart.trim());
       currentPart = '';
     }
     
@@ -131,30 +127,68 @@ function parseEmbeddedMCQOptions(questionText: string): {
     i++;
   }
   
-  // Don't forget the last part
-  if (currentPart.trim()) {
-    parts.push(currentPart.trim());
-  }
+  if (currentPart.trim()) parts.push(currentPart.trim());
   
   const options: { label: string; text: string }[] = [];
-  
   for (const part of parts) {
-    // Extract label and text from each part like "A) Some text here"
-    const match = part.match(/^([A-E])[\).]\s*(.+)$/is);
+    const match = part.match(/^([A-E])\s*[\).:]\s*(.+)$/is);
     if (match) {
-      options.push({
-        label: match[1].toUpperCase(),
-        text: match[2].trim()
-      });
+      options.push({ label: match[1].toUpperCase(), text: match[2].trim() });
     }
   }
   
-  // Need at least 3 options to be considered valid MCQ
   if (options.length >= 3) {
     return { cleanText, options };
   }
   
   return { cleanText: questionText, options: [] };
+}
+
+type NormalizedMCQOption = { label: string; text: string };
+
+function normalizeMCQOptions(rawOptions: unknown): NormalizedMCQOption[] {
+  if (!rawOptions) return [];
+
+  const labels = ["A", "B", "C", "D", "E"];
+
+  if (Array.isArray(rawOptions)) {
+    // Common case from DB: string[] (no labels)
+    if (rawOptions.every((o) => typeof o === "string")) {
+      return (rawOptions as string[])
+        .map((text, idx) => ({
+          label: labels[idx] ?? String.fromCharCode(65 + idx),
+          text: String(text ?? "").trim(),
+        }))
+        .filter((o) => o.text.length > 0);
+    }
+
+    // Already structured
+    if (rawOptions.every((o) => typeof o === "object" && o !== null)) {
+      return (rawOptions as any[])
+        .map((o) => ({
+          label: String(o?.label ?? o?.option ?? "").trim(),
+          text: String(o?.text ?? o?.value ?? o?.statement ?? "").trim(),
+        }))
+        .filter((o) => o.label.length > 0 && o.text.length > 0);
+    }
+
+    return [];
+  }
+
+  // Object like {A: "...", B: "..."}
+  if (typeof rawOptions === "object") {
+    const obj = rawOptions as Record<string, unknown>;
+    const out: NormalizedMCQOption[] = [];
+
+    for (const label of labels) {
+      const v = obj[label];
+      if (typeof v === "string" && v.trim()) out.push({ label, text: v.trim() });
+    }
+
+    return out;
+  }
+
+  return [];
 }
 
 // ============= Question Sorting & Grouping =============
@@ -821,15 +855,21 @@ export async function generateExamPDF(
         yPosition += 6;
       }
 
-      // Parse embedded MCQ options from question text if needed
-      let mcqOptions = question.options;
-      if (question.question_type?.toLowerCase() === 'mcq' && (!mcqOptions || mcqOptions.length === 0)) {
+      // Parse embedded MCQ options from question text (preferred) and normalize DB options (fallback)
+      const questionType = (question.question_type || "").toLowerCase();
+      const isMCQType = questionType === "mcq" || questionType === "multiple_choice" || questionType === "multiple-choice";
+
+      let mcqOptions = normalizeMCQOptions(question.options);
+
+      if (isMCQType) {
         const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
         if (parsedMCQ.options.length >= 3) {
           cleanedText = parsedMCQ.cleanText;
           mcqOptions = parsedMCQ.options;
         }
       }
+
+      const isMCQ = isMCQType && mcqOptions.length >= 3;
 
       // Render table data if present
       if (question.table_data) {
@@ -859,40 +899,47 @@ export async function generateExamPDF(
       yPosition += 4;
 
       // Handle MCQ options - display on separate lines
-      if (question.question_type?.toLowerCase() === "mcq" && mcqOptions && Array.isArray(mcqOptions) && mcqOptions.length > 0) {
+      if (isMCQ) {
         yPosition += 2;
-        
+
         for (const option of mcqOptions) {
           if (!option) continue;
-          
+
           if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
             addNewPage();
           }
-          
-          // Option letter (A, B, C, D, E) with spacing
+
+          const optionLetter = String((option as any).label ?? "")
+            .trim()
+            .replace(/[^A-E]/gi, "")
+            .toUpperCase();
+          const optionTextRaw = String((option as any).text ?? "");
+
+          if (!optionLetter || !optionTextRaw.trim()) continue;
+
+          // Option label (A) with bracket style "A)"
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
-          const optionLabel = option.label || '';
-          doc.text(optionLabel, textIndent + 5, yPosition);
-          
-          // Option text - on same line
+          doc.text(`${optionLetter})`, textIndent + 5, yPosition);
+
+          // Option text
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
-          const optionText = cleanLatexForPDF(option.text || '');
+          const optionText = cleanLatexForPDF(optionTextRaw);
           const optionWidth = getSafeTextWidth(baseTextWidth - 20);
           const optionLines = doc.splitTextToSize(optionText, optionWidth);
-          
+
           optionLines.forEach((line: string, idx: number) => {
-            doc.text(line || '', textIndent + 15, yPosition + (idx * LINE_HEIGHT));
+            doc.text(line || "", textIndent + 15, yPosition + (idx * LINE_HEIGHT));
           });
-          
-          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 3; // Extra spacing between options
+
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 4; // more spacing between options
         }
-        
+
         // MCQ answer box IMMEDIATELY after options
-        yPosition += 4;
-        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
+        yPosition += 2;
+        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, "mcq_box", question.marks);
         yPosition += 8;
       }
       // Handle embedded sub_questions - BIOLOGY STYLE: each gets answer lines immediately
@@ -1055,15 +1102,21 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       }
 
-      // Parse embedded MCQ options from question text if needed
-      let mcqOptions = question.options;
-      if (question.question_type?.toLowerCase() === 'mcq' && (!mcqOptions || mcqOptions.length === 0)) {
+      // Parse embedded MCQ options from question text (preferred) and normalize DB options (fallback)
+      const questionType = (question.question_type || "").toLowerCase();
+      const isMCQType = questionType === "mcq" || questionType === "multiple_choice" || questionType === "multiple-choice";
+
+      let mcqOptions = normalizeMCQOptions(question.options);
+
+      if (isMCQType) {
         const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
         if (parsedMCQ.options.length >= 3) {
           cleanedText = parsedMCQ.cleanText;
           mcqOptions = parsedMCQ.options;
         }
       }
+
+      const isMCQ = isMCQType && mcqOptions.length >= 3;
 
       // Render table data if present (before question text)
       if (question.table_data) {
@@ -1096,41 +1149,48 @@ export async function generateExamPDF(
       yPosition += 3;
       hasDrawnAnyQuestions = true;
 
-      // Handle MCQ options - clean format matching real exam papers (case-insensitive check)
-      if (question.question_type?.toLowerCase() === "mcq" && mcqOptions && Array.isArray(mcqOptions) && mcqOptions.length > 0) {
+      // Handle MCQ options - clean format matching real exam papers
+      if (isMCQ) {
         yPosition += 4;
-        
+
         for (const option of mcqOptions) {
-          if (!option) continue; // Skip null/undefined options
-          
+          if (!option) continue;
+
           if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 10) {
             addNewPage();
           }
-          
-          // Option letter (A, B, C, D) - clean format without bullets
+
+          const optionLetter = String((option as any).label ?? "")
+            .trim()
+            .replace(/[^A-E]/gi, "")
+            .toUpperCase();
+          const optionTextRaw = String((option as any).text ?? "");
+
+          if (!optionLetter || !optionTextRaw.trim()) continue;
+
+          // Option label
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
-          const optionLabel = option.label || '';
-          doc.text(optionLabel, textIndent + 3, yPosition);
-          
-          // Option text - on same line after letter with proper spacing
+          doc.text(`${optionLetter})`, textIndent + 3, yPosition);
+
+          // Option text
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
-          const optionText = cleanLatexForPDF(option.text || '');
+          const optionText = cleanLatexForPDF(optionTextRaw);
           const optionWidth = getSafeTextWidth(baseTextWidth - 18);
           const optionLines = doc.splitTextToSize(optionText, optionWidth);
-          
+
           optionLines.forEach((line: string, idx: number) => {
-            doc.text(line || '', textIndent + 12, yPosition + (idx * LINE_HEIGHT));
+            doc.text(line || "", textIndent + 12, yPosition + (idx * LINE_HEIGHT));
           });
-          
-          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 2;
+
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 4;
         }
-        
+
         // Draw MCQ answer box with marks after options
-        yPosition += 3;
-        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
+        yPosition += 2;
+        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, "mcq_box", question.marks);
         yPosition += 8;
       }
       // Handle embedded sub_questions - draw ALL text first, NO individual answer boxes
