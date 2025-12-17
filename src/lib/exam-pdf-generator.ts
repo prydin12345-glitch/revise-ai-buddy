@@ -89,29 +89,69 @@ function parseEmbeddedMCQOptions(questionText: string): {
 } {
   if (!questionText) return { cleanText: '', options: [] };
   
-  // Pattern to match: A) text  or  A. text  or  A: text
-  // Fixed regex - use proper character classes without double escaping
-  const optionPattern = /([A-E])[\).:\s]\s*([^A-E]*?)(?=\s*[A-E][\).:]|$)/gi;
-  const matches = [...questionText.matchAll(optionPattern)];
+  // Find where options start - match A) or A. after whitespace, punctuation, or start
+  // Looking for patterns like "? A)" or " A." that indicate option start
+  const optionStartPattern = /(?:^|[\s?.!])\s*([A-E])[\).]\s/i;
+  const firstMatch = questionText.match(optionStartPattern);
   
-  if (matches.length >= 3) {
-    // Find where options start - look for first option pattern
-    const firstOptionMatch = questionText.match(/[A-E][\).:]\s/i);
-    const firstOptionIndex = firstOptionMatch ? questionText.indexOf(firstOptionMatch[0]) : -1;
+  if (!firstMatch) {
+    return { cleanText: questionText, options: [] };
+  }
+  
+  // Find the actual position of the first option letter
+  const matchIndex = questionText.indexOf(firstMatch[0]);
+  const firstOptionIndex = matchIndex + firstMatch[0].indexOf(firstMatch[1]);
+  
+  // Get clean question stem (everything before first option)
+  const cleanText = questionText.substring(0, firstOptionIndex).trim();
+  
+  // Extract the options portion
+  const optionsPortion = questionText.substring(firstOptionIndex).trim();
+  
+  // Split on option patterns: look for A) B) C) D) E) patterns
+  // We split when we see whitespace followed by a letter and ) or .
+  const parts: string[] = [];
+  let currentPart = '';
+  let i = 0;
+  
+  while (i < optionsPortion.length) {
+    const remaining = optionsPortion.substring(i);
+    // Check if this is start of a new option (letter followed by ) or . and space)
+    const newOptionMatch = remaining.match(/^([A-E])[\).]\s/i);
     
-    // Extract clean question (everything before first option)
-    const cleanText = firstOptionIndex > 0 
-      ? questionText.substring(0, firstOptionIndex).trim() 
-      : questionText;
-    
-    const options = matches.map(match => ({
-      label: match[1].toUpperCase(),
-      text: match[2].trim()
-    })).filter(opt => opt.text.length > 0);
-    
-    if (options.length >= 3) {
-      return { cleanText, options };
+    if (newOptionMatch && (i === 0 || /\s/.test(optionsPortion[i - 1]))) {
+      // Save previous part if exists
+      if (currentPart.trim()) {
+        parts.push(currentPart.trim());
+      }
+      currentPart = '';
     }
+    
+    currentPart += optionsPortion[i];
+    i++;
+  }
+  
+  // Don't forget the last part
+  if (currentPart.trim()) {
+    parts.push(currentPart.trim());
+  }
+  
+  const options: { label: string; text: string }[] = [];
+  
+  for (const part of parts) {
+    // Extract label and text from each part like "A) Some text here"
+    const match = part.match(/^([A-E])[\).]\s*(.+)$/is);
+    if (match) {
+      options.push({
+        label: match[1].toUpperCase(),
+        text: match[2].trim()
+      });
+    }
+  }
+  
+  // Need at least 3 options to be considered valid MCQ
+  if (options.length >= 3) {
+    return { cleanText, options };
   }
   
   return { cleanText: questionText, options: [] };
