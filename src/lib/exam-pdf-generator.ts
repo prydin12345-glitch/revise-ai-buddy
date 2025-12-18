@@ -85,9 +85,18 @@ const COLORS = {
 // ============= Extract Embedded Table from Question Text =============
 function extractEmbeddedTable(questionText: string): { 
   cleanText: string; 
-  tableData: string | null 
+  tableData: string | null;
+  tableCaption: string | null;
 } {
-  if (!questionText) return { cleanText: '', tableData: null };
+  if (!questionText) return { cleanText: '', tableData: null, tableCaption: null };
+  
+  // First, try to detect a table caption (e.g., "Table 1: Experimental Results")
+  let tableCaption: string | null = null;
+  const captionPattern = /(?:^|\n|\s)(Table\s*\d*[:.]\s*[^\n|]+?)(?=\s*\||\s*$|\n)/i;
+  const captionMatch = questionText.match(captionPattern);
+  if (captionMatch) {
+    tableCaption = captionMatch[1].trim();
+  }
   
   // Pattern to detect markdown table format: | header1 | header2 | ... 
   // Look for lines with multiple pipe characters
@@ -102,17 +111,22 @@ function extractEmbeddedTable(questionText: string): {
         const tableStart = questionText.indexOf(inlineTableMatch[0]);
         const tableEnd = tableStart + inlineTableMatch[0].length;
         const tableData = inlineTableMatch[0];
-        const cleanText = (
+        let cleanText = (
           questionText.substring(0, tableStart).trim() + ' ' +
           questionText.substring(tableEnd).trim()
         ).trim();
         
+        // Remove caption from clean text if found
+        if (tableCaption) {
+          cleanText = cleanText.replace(tableCaption, '').trim();
+        }
+        
         // Convert || to newlines for proper row parsing
         const formattedTable = tableData.replace(/\|\|/g, '\n');
-        return { cleanText, tableData: formattedTable };
+        return { cleanText, tableData: formattedTable, tableCaption };
       }
     }
-    return { cleanText: questionText, tableData: null };
+    return { cleanText: questionText, tableData: null, tableCaption: null };
   }
   
   // Find the table portion in the text
@@ -120,10 +134,15 @@ function extractEmbeddedTable(questionText: string): {
   const tableEnd = questionText.lastIndexOf(matches[matches.length - 1]) + matches[matches.length - 1].length;
   
   const tableData = questionText.substring(tableStart, tableEnd);
-  const cleanText = (
+  let cleanText = (
     questionText.substring(0, tableStart).trim() + ' ' +
     questionText.substring(tableEnd).trim()
   ).trim();
+  
+  // Remove caption from clean text if found
+  if (tableCaption) {
+    cleanText = cleanText.replace(tableCaption, '').trim();
+  }
   
   // Convert inline format to newline-separated for renderTable()
   const formattedTable = tableData
@@ -131,7 +150,7 @@ function extractEmbeddedTable(questionText: string): {
     .replace(/\|---+\|/g, '')     // Remove separator rows like |---|
     .trim();
   
-  return { cleanText, tableData: formattedTable };
+  return { cleanText, tableData: formattedTable, tableCaption };
 }
 
 // ============= Parse Embedded MCQ Options from Question Text =============
@@ -608,9 +627,12 @@ export async function generateExamPDF(
     return y + (numLines * lineSpacing) + 5;
   };
 
-  // ============= Enhanced Table Rendering =============
-  const renderTable = (tableData: string, x: number, y: number): number => {
+  // ============= Enhanced Table Rendering with Caption Support =============
+  const renderTable = (tableData: string, x: number, y: number, caption?: string | null): number => {
     if (!tableData) return y;
+    
+    // Add pre-table spacing for visual separation
+    let currentY = y + 10;
     
     // Try to parse as JSON first
     let rows: string[][] = [];
@@ -622,8 +644,8 @@ export async function generateExamPDF(
         );
       }
     } catch {
-    // Parse as simple pipe-delimited or newline-delimited format
-      const lines = tableData.split('\n').filter(line => line.trim());
+      // Parse as simple pipe-delimited or newline-delimited format
+      let lines = tableData.split('\n').filter(line => line.trim());
       
       // If only one line but has multiple || patterns, split into rows
       if (lines.length === 1 && tableData.includes('||')) {
@@ -639,25 +661,25 @@ export async function generateExamPDF(
         );
       }
       
-      // Filter out separator rows like |---|---|
+      // Filter out separator rows like |---|---| or rows with only dashes
       rows = rows.filter(row => 
-        !row.every(cell => /^-+$/.test(cell))
+        !row.every(cell => /^[-:]+$/.test(cell))
       );
     }
     
     if (rows.length === 0) return y;
     
     const maxCols = Math.max(...rows.map(row => row.length));
-    const cellPadding = 3; // Padding inside cells
-    const rowHeight = 10; // Increased row height
-    let currentY = y;
+    const cellPadding = 4; // Increased padding for better readability
+    const rowHeight = 12; // Taller rows for better visibility
     
     // Calculate dynamic column widths based on content
     const colWidths: number[] = [];
-    const maxTableWidth = CONTENT_WIDTH - 10;
+    const maxTableWidth = CONTENT_WIDTH - 20;
+    const minColWidth = 25;
     
     for (let j = 0; j < maxCols; j++) {
-      let maxWidth = 20; // Minimum column width
+      let maxWidth = minColWidth;
       for (const row of rows) {
         const cellText = row[j] || '';
         doc.setFontSize(9);
@@ -678,13 +700,29 @@ export async function generateExamPDF(
     
     const tableWidth = colWidths.reduce((a, b) => a + b, 0);
     const tableX = x;
+    const totalTableHeight = (rows.length * rowHeight) + (caption ? 18 : 0) + 24; // Include caption and spacing
     
-    // Function to draw a single row
+    // Page break prevention: if table won't fit, start new page
+    if (currentY + totalTableHeight > A4_HEIGHT - FOOTER_HEIGHT - 20) {
+      addNewPage();
+      currentY = yPosition + 10;
+    }
+    
+    // Render table caption if present
+    if (caption) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      setColor(COLORS.primary);
+      doc.text(caption, tableX, currentY);
+      currentY += LINE_HEIGHT + 4;
+    }
+    
+    // Function to draw a single row with enhanced styling
     const drawRow = (rowData: string[], rowY: number, isHeader: boolean): number => {
       // Check page break BEFORE drawing row
       if (rowY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 10) {
         addNewPage();
-        rowY = yPosition;
+        rowY = yPosition + 5;
         
         // Re-draw header on new page if this isn't the header
         if (!isHeader && rows.length > 0) {
@@ -700,13 +738,17 @@ export async function generateExamPDF(
         
         // Draw cell background for header with shaded color
         if (isHeader) {
-          setColor(COLORS.tableHeader, "fill");
+          setColor([230, 235, 245], "fill"); // Light blue-gray header
+          doc.rect(cellX, rowY, colWidth, rowHeight, "F");
+        } else {
+          // Alternate row coloring for better readability
+          setColor([255, 255, 255], "fill");
           doc.rect(cellX, rowY, colWidth, rowHeight, "F");
         }
         
         // Draw cell border with clear grid lines
         setColor(COLORS.border, "draw");
-        doc.setLineWidth(0.4);
+        doc.setLineWidth(isHeader ? 0.5 : 0.3); // Thicker border for header
         doc.rect(cellX, rowY, colWidth, rowHeight, "D");
         
         // Cell text with proper alignment
@@ -720,14 +762,19 @@ export async function generateExamPDF(
         while (doc.getTextWidth(displayText) > maxTextWidth && displayText.length > 0) {
           displayText = displayText.slice(0, -1);
         }
+        if (displayText.length < cellText.length) {
+          displayText = displayText.slice(0, -2) + '…';
+        }
         
         // Center text vertically in cell
-        doc.text(displayText, cellX + cellPadding, rowY + rowHeight / 2 + 2);
+        doc.text(displayText, cellX + cellPadding, rowY + rowHeight / 2 + 3);
         cellX += colWidth;
       }
       
       return rowY + rowHeight;
     };
+    
+    const tableStartY = currentY;
     
     // Draw all rows
     for (let i = 0; i < rows.length; i++) {
@@ -735,7 +782,14 @@ export async function generateExamPDF(
       currentY = drawRow(rows[i], currentY, isHeader);
     }
     
-    return currentY + 8;
+    // Draw outer border (thicker) for the entire table
+    doc.setLineWidth(0.6);
+    setColor(COLORS.border, "draw");
+    const tableHeight = currentY - tableStartY;
+    doc.rect(tableX, tableStartY, tableWidth, tableHeight, "D");
+    
+    // Add post-table spacing for visual separation
+    return currentY + 12;
   };
 
   // ============= Answer Box Drawing =============
@@ -923,10 +977,12 @@ export async function generateExamPDF(
 
       // Extract embedded tables from question text BEFORE MCQ parsing
       let embeddedTableData: string | null = null;
+      let embeddedTableCaption: string | null = null;
       const tableExtract = extractEmbeddedTable(cleanedText);
       if (tableExtract.tableData) {
         cleanedText = tableExtract.cleanText;
         embeddedTableData = tableExtract.tableData;
+        embeddedTableCaption = tableExtract.tableCaption;
       }
 
       // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
@@ -939,10 +995,9 @@ export async function generateExamPDF(
 
       const isMCQ = mcqOptions.length >= 3;
 
-      // Render embedded table (extracted from question text)
+      // Render embedded table (extracted from question text) with caption
       if (embeddedTableData) {
-        yPosition = renderTable(embeddedTableData, textIndent, yPosition);
-        yPosition += 4;
+        yPosition = renderTable(embeddedTableData, textIndent, yPosition, embeddedTableCaption);
       }
 
       // Render table data if present in DB field
@@ -1178,10 +1233,12 @@ export async function generateExamPDF(
 
       // Extract embedded tables from question text BEFORE MCQ parsing
       let embeddedTableData: string | null = null;
+      let embeddedTableCaption: string | null = null;
       const tableExtract = extractEmbeddedTable(cleanedText);
       if (tableExtract.tableData) {
         cleanedText = tableExtract.cleanText;
         embeddedTableData = tableExtract.tableData;
+        embeddedTableCaption = tableExtract.tableCaption;
       }
 
       // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
@@ -1197,10 +1254,9 @@ export async function generateExamPDF(
       const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
       const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
 
-      // Render embedded table (extracted from question text)
+      // Render embedded table (extracted from question text) with caption
       if (embeddedTableData) {
-        yPosition = renderTable(embeddedTableData, textIndent, yPosition);
-        yPosition += 4;
+        yPosition = renderTable(embeddedTableData, textIndent, yPosition, embeddedTableCaption);
       }
 
       // Render table data if present in DB field
