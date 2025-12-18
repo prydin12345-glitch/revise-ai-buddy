@@ -98,13 +98,33 @@ function extractEmbeddedTable(questionText: string): {
     tableCaption = captionMatch[1].trim();
   }
   
-  // Pattern to detect markdown table format: | header1 | header2 | ... 
-  // Look for lines with multiple pipe characters
-  const tablePattern = /(\|[^|\n]+\|(?:[^|\n]+\|)*)/g;
-  const matches = questionText.match(tablePattern);
+  // Enhanced table detection - look for lines containing pipe characters
+  // This handles both standard markdown tables and tables with alignment markers
+  const lines = questionText.split('\n');
+  let tableStartIdx = -1;
+  let tableEndIdx = -1;
+  let pipeLineCount = 0;
   
-  if (!matches || matches.length < 2) {
-    // Also check for inline tables with || as row separator
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Check if line contains pipe characters (table row indicator)
+    // Also handle separator rows that might start with : instead of |
+    const hasPipes = line.includes('|') && (line.split('|').length >= 3);
+    const isSeparatorRow = /^[|:\s-]+$/.test(line) && line.includes('-');
+    
+    if (hasPipes || isSeparatorRow) {
+      if (tableStartIdx === -1) tableStartIdx = i;
+      tableEndIdx = i;
+      if (hasPipes && !isSeparatorRow) pipeLineCount++;
+    } else if (tableStartIdx !== -1 && tableEndIdx !== -1) {
+      // We've exited the table
+      break;
+    }
+  }
+  
+  // Need at least 2 data rows (header + one content row) to be considered a table
+  if (pipeLineCount < 2) {
+    // Fallback: check for inline tables with || as row separator
     if (questionText.includes('||') && questionText.includes('|')) {
       const inlineTableMatch = questionText.match(/(\|[^|]+(?:\|[^|]+)+\|\|?(?:[^|]+\|)+)/);
       if (inlineTableMatch) {
@@ -116,12 +136,10 @@ function extractEmbeddedTable(questionText: string): {
           questionText.substring(tableEnd).trim()
         ).trim();
         
-        // Remove caption from clean text if found
         if (tableCaption) {
           cleanText = cleanText.replace(tableCaption, '').trim();
         }
         
-        // Convert || to newlines for proper row parsing
         const formattedTable = tableData.replace(/\|\|/g, '\n');
         return { cleanText, tableData: formattedTable, tableCaption };
       }
@@ -129,28 +147,21 @@ function extractEmbeddedTable(questionText: string): {
     return { cleanText: questionText, tableData: null, tableCaption: null };
   }
   
-  // Find the table portion in the text
-  const tableStart = questionText.indexOf(matches[0]);
-  const tableEnd = questionText.lastIndexOf(matches[matches.length - 1]) + matches[matches.length - 1].length;
+  // Extract the table portion
+  const tableLines = lines.slice(tableStartIdx, tableEndIdx + 1);
+  const tableData = tableLines.join('\n');
   
-  const tableData = questionText.substring(tableStart, tableEnd);
-  let cleanText = (
-    questionText.substring(0, tableStart).trim() + ' ' +
-    questionText.substring(tableEnd).trim()
-  ).trim();
+  // Remove table from original text
+  const beforeTable = lines.slice(0, tableStartIdx).join('\n').trim();
+  const afterTable = lines.slice(tableEndIdx + 1).join('\n').trim();
+  let cleanText = (beforeTable + ' ' + afterTable).trim();
   
   // Remove caption from clean text if found
   if (tableCaption) {
     cleanText = cleanText.replace(tableCaption, '').trim();
   }
   
-  // Convert inline format to newline-separated for renderTable()
-  const formattedTable = tableData
-    .replace(/\|\s*\|/g, '|\n|')  // Split adjacent | | into rows
-    .replace(/\|---+\|/g, '')     // Remove separator rows like |---|
-    .trim();
-  
-  return { cleanText, tableData: formattedTable, tableCaption };
+  return { cleanText, tableData, tableCaption };
 }
 
 // ============= Parse Embedded MCQ Options from Question Text =============
@@ -650,20 +661,29 @@ export async function generateExamPDF(
       // If only one line but has multiple || patterns, split into rows
       if (lines.length === 1 && tableData.includes('||')) {
         const parts = tableData.split('||').map(p => p.trim());
-        rows = parts.map(part => 
-          part.split('|').map(cell => cell.trim()).filter(Boolean)
-        );
+        rows = parts.map(part => {
+          const cells = part.split('|');
+          // Remove empty strings from start/end only (from leading/trailing pipes)
+          if (cells.length > 0 && cells[0] === '') cells.shift();
+          if (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+          return cells.map(cell => cell.trim());
+        });
       } else {
-        rows = lines.map(line => 
-          line.includes('|') 
-            ? line.split('|').map(cell => cell.trim()).filter(Boolean)
-            : [line.trim()]
-        );
+        rows = lines.map(line => {
+          if (line.includes('|')) {
+            const cells = line.split('|');
+            // Remove empty strings from start/end only (preserve empty cells in middle)
+            if (cells.length > 0 && cells[0].trim() === '') cells.shift();
+            if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop();
+            return cells.map(cell => cell.trim());
+          }
+          return [line.trim()];
+        });
       }
       
-      // Filter out separator rows like |---|---| or rows with only dashes
+      // Filter out separator rows like |---|---| or rows with only dashes/colons
       rows = rows.filter(row => 
-        !row.every(cell => /^[-:]+$/.test(cell))
+        row.length > 0 && !row.every(cell => /^[-:]*$/.test(cell))
       );
     }
     
