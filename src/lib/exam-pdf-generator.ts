@@ -82,6 +82,58 @@ const COLORS = {
   tableHeader: [235, 235, 240] as const,
 };
 
+// ============= Extract Embedded Table from Question Text =============
+function extractEmbeddedTable(questionText: string): { 
+  cleanText: string; 
+  tableData: string | null 
+} {
+  if (!questionText) return { cleanText: '', tableData: null };
+  
+  // Pattern to detect markdown table format: | header1 | header2 | ... 
+  // Look for lines with multiple pipe characters
+  const tablePattern = /(\|[^|\n]+\|(?:[^|\n]+\|)*)/g;
+  const matches = questionText.match(tablePattern);
+  
+  if (!matches || matches.length < 2) {
+    // Also check for inline tables with || as row separator
+    if (questionText.includes('||') && questionText.includes('|')) {
+      const inlineTableMatch = questionText.match(/(\|[^|]+(?:\|[^|]+)+\|\|?(?:[^|]+\|)+)/);
+      if (inlineTableMatch) {
+        const tableStart = questionText.indexOf(inlineTableMatch[0]);
+        const tableEnd = tableStart + inlineTableMatch[0].length;
+        const tableData = inlineTableMatch[0];
+        const cleanText = (
+          questionText.substring(0, tableStart).trim() + ' ' +
+          questionText.substring(tableEnd).trim()
+        ).trim();
+        
+        // Convert || to newlines for proper row parsing
+        const formattedTable = tableData.replace(/\|\|/g, '\n');
+        return { cleanText, tableData: formattedTable };
+      }
+    }
+    return { cleanText: questionText, tableData: null };
+  }
+  
+  // Find the table portion in the text
+  const tableStart = questionText.indexOf(matches[0]);
+  const tableEnd = questionText.lastIndexOf(matches[matches.length - 1]) + matches[matches.length - 1].length;
+  
+  const tableData = questionText.substring(tableStart, tableEnd);
+  const cleanText = (
+    questionText.substring(0, tableStart).trim() + ' ' +
+    questionText.substring(tableEnd).trim()
+  ).trim();
+  
+  // Convert inline format to newline-separated for renderTable()
+  const formattedTable = tableData
+    .replace(/\|\s*\|/g, '|\n|')  // Split adjacent | | into rows
+    .replace(/\|---+\|/g, '')     // Remove separator rows like |---|
+    .trim();
+  
+  return { cleanText, tableData: formattedTable };
+}
+
 // ============= Parse Embedded MCQ Options from Question Text =============
 function parseEmbeddedMCQOptions(questionText: string): { 
   cleanText: string; 
@@ -570,12 +622,26 @@ export async function generateExamPDF(
         );
       }
     } catch {
-      // Parse as simple pipe-delimited or newline-delimited format
+    // Parse as simple pipe-delimited or newline-delimited format
       const lines = tableData.split('\n').filter(line => line.trim());
-      rows = lines.map(line => 
-        line.includes('|') 
-          ? line.split('|').map(cell => cell.trim()).filter(Boolean)
-          : [line.trim()]
+      
+      // If only one line but has multiple || patterns, split into rows
+      if (lines.length === 1 && tableData.includes('||')) {
+        const parts = tableData.split('||').map(p => p.trim());
+        rows = parts.map(part => 
+          part.split('|').map(cell => cell.trim()).filter(Boolean)
+        );
+      } else {
+        rows = lines.map(line => 
+          line.includes('|') 
+            ? line.split('|').map(cell => cell.trim()).filter(Boolean)
+            : [line.trim()]
+        );
+      }
+      
+      // Filter out separator rows like |---|---|
+      rows = rows.filter(row => 
+        !row.every(cell => /^-+$/.test(cell))
       );
     }
     
@@ -855,23 +921,31 @@ export async function generateExamPDF(
         yPosition += 6;
       }
 
-      // Parse embedded MCQ options from question text (preferred) and normalize DB options (fallback)
-      const questionType = (question.question_type || "").toLowerCase();
-      const isMCQType = questionType === "mcq" || questionType === "multiple_choice" || questionType === "multiple-choice";
-
-      let mcqOptions = normalizeMCQOptions(question.options);
-
-      if (isMCQType) {
-        const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
-        if (parsedMCQ.options.length >= 3) {
-          cleanedText = parsedMCQ.cleanText;
-          mcqOptions = parsedMCQ.options;
-        }
+      // Extract embedded tables from question text BEFORE MCQ parsing
+      let embeddedTableData: string | null = null;
+      const tableExtract = extractEmbeddedTable(cleanedText);
+      if (tableExtract.tableData) {
+        cleanedText = tableExtract.cleanText;
+        embeddedTableData = tableExtract.tableData;
       }
 
-      const isMCQ = isMCQType && mcqOptions.length >= 3;
+      // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
+      let mcqOptions = normalizeMCQOptions(question.options);
+      const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
+      if (parsedMCQ.options.length >= 3) {
+        cleanedText = parsedMCQ.cleanText;
+        mcqOptions = parsedMCQ.options;
+      }
 
-      // Render table data if present
+      const isMCQ = mcqOptions.length >= 3;
+
+      // Render embedded table (extracted from question text)
+      if (embeddedTableData) {
+        yPosition = renderTable(embeddedTableData, textIndent, yPosition);
+        yPosition += 4;
+      }
+
+      // Render table data if present in DB field
       if (question.table_data) {
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
@@ -1102,25 +1176,35 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       }
 
-      // Parse embedded MCQ options from question text (preferred) and normalize DB options (fallback)
-      const questionType = (question.question_type || "").toLowerCase();
-      const isMCQType = questionType === "mcq" || questionType === "multiple_choice" || questionType === "multiple-choice";
-
-      let mcqOptions = normalizeMCQOptions(question.options);
-
-      if (isMCQType) {
-        const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
-        if (parsedMCQ.options.length >= 3) {
-          cleanedText = parsedMCQ.cleanText;
-          mcqOptions = parsedMCQ.options;
-        }
+      // Extract embedded tables from question text BEFORE MCQ parsing
+      let embeddedTableData: string | null = null;
+      const tableExtract = extractEmbeddedTable(cleanedText);
+      if (tableExtract.tableData) {
+        cleanedText = tableExtract.cleanText;
+        embeddedTableData = tableExtract.tableData;
       }
 
-      const isMCQ = isMCQType && mcqOptions.length >= 3;
+      // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
+      let mcqOptions = normalizeMCQOptions(question.options);
+      const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
+      if (parsedMCQ.options.length >= 3) {
+        cleanedText = parsedMCQ.cleanText;
+        mcqOptions = parsedMCQ.options;
+      }
 
-      // Render table data if present (before question text)
+      const isMCQ = mcqOptions.length >= 3;
+
+      const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
+      const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
+
+      // Render embedded table (extracted from question text)
+      if (embeddedTableData) {
+        yPosition = renderTable(embeddedTableData, textIndent, yPosition);
+        yPosition += 4;
+      }
+
+      // Render table data if present in DB field
       if (question.table_data) {
-        const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
 
@@ -1129,8 +1213,6 @@ export async function generateExamPDF(
       doc.setFontSize(10);
       setColor(COLORS.primary);
       
-      const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
-      const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
       const textWidth = getSafeTextWidth(baseTextWidth);
       const safeCleanedText = cleanedText || '';
       const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
