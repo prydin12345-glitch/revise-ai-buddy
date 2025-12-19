@@ -969,7 +969,14 @@ export async function generateExamPDF(
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQuestion = parsed.sub !== '';
-      let cleanedText = cleanLatexForPDF(question.question_text);
+      
+      // Extract embedded tables FIRST from raw text (before LaTeX cleaning destroys newlines)
+      const tableExtract = extractEmbeddedTable(question.question_text);
+      const embeddedTableData = tableExtract.tableData;
+      const embeddedTableCaption = tableExtract.tableCaption;
+      
+      // Now apply LaTeX cleaning to the text with tables removed
+      let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
       
       // Check if we need a new page
       const estimatedHeight = 50; // Estimate for text + answer lines
@@ -993,16 +1000,6 @@ export async function generateExamPDF(
         setColor(COLORS.primary);
         doc.text(`(${parsed.sub})`, MARGIN + 5, yPosition);
         yPosition += 6;
-      }
-
-      // Extract embedded tables from question text BEFORE MCQ parsing
-      let embeddedTableData: string | null = null;
-      let embeddedTableCaption: string | null = null;
-      const tableExtract = extractEmbeddedTable(cleanedText);
-      if (tableExtract.tableData) {
-        cleanedText = tableExtract.cleanText;
-        embeddedTableData = tableExtract.tableData;
-        embeddedTableCaption = tableExtract.tableCaption;
       }
 
       // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
@@ -1219,7 +1216,14 @@ export async function generateExamPDF(
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQuestion = parsed.sub !== '';
-      let cleanedText = cleanLatexForPDF(question.question_text);
+      
+      // Extract embedded tables FIRST from raw text (before LaTeX cleaning destroys newlines)
+      const tableExtract = extractEmbeddedTable(question.question_text);
+      const embeddedTableData = tableExtract.tableData;
+      const embeddedTableCaption = tableExtract.tableCaption;
+      
+      // Now apply LaTeX cleaning to the text with tables removed
+      let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
       
       // Check if we need a new page for text only
       const estimatedTextHeight = 30; // Rough estimate for question text
@@ -1249,16 +1253,6 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       } else {
         totalSubMarks += question.marks;
-      }
-
-      // Extract embedded tables from question text BEFORE MCQ parsing
-      let embeddedTableData: string | null = null;
-      let embeddedTableCaption: string | null = null;
-      const tableExtract = extractEmbeddedTable(cleanedText);
-      if (tableExtract.tableData) {
-        cleanedText = tableExtract.cleanText;
-        embeddedTableData = tableExtract.tableData;
-        embeddedTableCaption = tableExtract.tableCaption;
       }
 
       // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
