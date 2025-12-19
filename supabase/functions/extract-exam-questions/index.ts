@@ -393,7 +393,13 @@ When generating questions involving data:
    - Key features (intercepts, gradients, areas under curve)
    - Example: "Figure 1 shows velocity decreasing linearly over 5 seconds"
 
-3. For data tables, format as HTML with class="exam-table":
+3. ⚠️ TABLE FORMAT REQUIREMENT (MANDATORY):
+   - Tables MUST be HTML format: <table class="exam-table">...</table>
+   - Tables MUST NOT be markdown format (no |---|---| pipe/dash syntax)
+   - Any markdown tables in source documents must be converted to HTML
+   - Failure to use HTML tables will cause rendering errors
+   
+   Example HTML table structure:
    <table class="exam-table">
      <thead>
        <tr><th>Time / s</th><th>Velocity / m s⁻¹</th></tr>
@@ -408,6 +414,7 @@ When generating questions involving data:
    - Use <tbody> for data rows with <td> tags
    - Always include class="exam-table" for styling
    - Use proper superscripts in headers (e.g., <th>Titre / cm³</th>)
+   - For LaTeX in cells, use $ delimiters: <td>$x^2$</td>
 
 4. Set "data_type": "graph", "table", "both", or "none"
 5. Set "needs_diagram": true if visual representation is essential
