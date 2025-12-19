@@ -88,6 +88,24 @@ ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 4. For roots use: $\\sqrt{x}$ NOT sqrt(x)
 5. Always use lowercase variables: $x$, $y$, $a$, $b$ (NOT $X$, $Y$)
 
+📊 DATA TABLE FORMATTING (CRITICAL):
+When generating questions that require tables:
+1. ALWAYS use HTML table format with class="exam-table"
+2. NEVER use markdown pipe/dash format (| col1 | col2 |)
+3. Use this exact structure:
+<table class="exam-table">
+  <thead>
+    <tr><th>Header 1</th><th>Header 2</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Data 1</td><td>Data 2</td></tr>
+    <tr><td>Data 3</td><td>Data 4</td></tr>
+  </tbody>
+</table>
+4. Place table AFTER the question text, separated by a blank line
+5. Include a caption prefix like "Table 1:" before the table if relevant
+6. Tables with LaTeX: Use $ delimiters inside cells, e.g., <td>$x^2$</td>
+
 📝 MCQ FORMATTING (CRITICAL):
 1. The "question_text" field must contain ONLY the question - NO options inline
 2. MCQ options go in the "options" array

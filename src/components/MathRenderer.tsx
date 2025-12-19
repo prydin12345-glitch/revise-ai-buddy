@@ -10,6 +10,78 @@ interface MathRendererProps {
   inline?: boolean; // For rendering inside labels/spans without block wrappers
 }
 
+// Convert markdown table lines to HTML table
+const convertTableLinesToHtml = (lines: string[]): string => {
+  if (lines.length < 2) return lines.join('\n');
+  
+  const rows = lines
+    .filter(line => !line.match(/^\s*\|[\s:\-|]+\|\s*$/)) // Remove separator rows (|---|---|)
+    .map(line => {
+      // Split by | and handle edge cases
+      const parts = line.split('|');
+      // Remove empty first/last elements from leading/trailing pipes
+      const cells = parts.slice(1, -1).map(c => c.trim());
+      return cells;
+    })
+    .filter(row => row.length > 0);
+  
+  if (rows.length === 0) return '';
+  
+  const headerRow = rows[0];
+  const bodyRows = rows.slice(1);
+  
+  let html = '<table class="exam-table">\n<thead>\n<tr>';
+  headerRow.forEach(cell => html += `<th>${cell}</th>`);
+  html += '</tr>\n</thead>\n<tbody>\n';
+  
+  bodyRows.forEach(row => {
+    html += '<tr>';
+    row.forEach(cell => html += `<td>${cell}</td>`);
+    html += '</tr>\n';
+  });
+  
+  html += '</tbody>\n</table>';
+  return html;
+};
+
+// Convert markdown table to HTML table
+const convertMarkdownTableToHtml = (content: string): string => {
+  const lines = content.split('\n');
+  const tableLinePattern = /^\s*\|.*\|/;
+  
+  let inTable = false;
+  let tableLines: string[] = [];
+  let result: string[] = [];
+  
+  for (const line of lines) {
+    if (tableLinePattern.test(line)) {
+      inTable = true;
+      tableLines.push(line);
+    } else if (inTable && line.trim() === '') {
+      // End of table - convert it
+      result.push(convertTableLinesToHtml(tableLines));
+      tableLines = [];
+      inTable = false;
+      result.push(line);
+    } else if (inTable) {
+      // Non-table line while in table - end table
+      result.push(convertTableLinesToHtml(tableLines));
+      tableLines = [];
+      inTable = false;
+      result.push(line);
+    } else {
+      result.push(line);
+    }
+  }
+  
+  // Handle table at end of content
+  if (tableLines.length > 0) {
+    result.push(convertTableLinesToHtml(tableLines));
+  }
+  
+  return result.join('\n');
+};
+
 // Process table HTML to render LaTeX in cells
 const processTableWithMath = (tableHtml: string): string => {
   try {
@@ -60,8 +132,11 @@ const cleanOptionText = (text: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
+  // First convert any markdown tables to HTML tables
+  const contentWithHtmlTables = convertMarkdownTableToHtml(content);
+  
   // Clean the content if it has letter prefix (for MCQ options)
-  const cleanedContent = cleanOptionText(content);
+  const cleanedContent = cleanOptionText(contentWithHtmlTables);
   
   // Check if content contains HTML tables
   const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(cleanedContent);
