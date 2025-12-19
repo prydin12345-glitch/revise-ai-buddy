@@ -689,7 +689,121 @@ export async function generateExamPDF(
     
     if (rows.length === 0) return y;
     
+    // ============= HEADER SHORTENING ALIASES =============
+    const HEADER_ALIASES: Record<string, string> = {
+      "desired concentration of diluted sample": "Conc (mol/dm³)",
+      "volume of stock solution required": "Stock Vol (cm³)",
+      "volume of distilled water required": "Water Vol (cm³)",
+      "section of quadrat": "Quadrat",
+      "beetles count": "Count",
+      "beetles counted": "Count",
+      "number of beetles": "Count",
+      "concentration": "Conc",
+      "temperature": "Temp (°C)",
+      "time / s": "Time (s)",
+      "time (s)": "Time (s)",
+      "velocity / m s⁻¹": "Vel (m/s)",
+      "velocity": "Vel (m/s)",
+      "distance / m": "Dist (m)",
+      "mass / g": "Mass (g)",
+      "volume / cm³": "Vol (cm³)",
+      "volume / cm3": "Vol (cm³)",
+      "titre / cm³": "Titre (cm³)",
+      "titre / cm3": "Titre (cm³)",
+    };
+    
+    const shortenHeader = (header: string): string => {
+      const lower = header.toLowerCase().trim();
+      for (const [long, short] of Object.entries(HEADER_ALIASES)) {
+        if (lower.includes(long)) return short;
+      }
+      // If still too long (>16 chars), truncate intelligently
+      if (header.length > 16) {
+        // Try to find a natural break point
+        const words = header.split(/\s+/);
+        if (words.length > 2) {
+          return words.slice(0, 2).join(' ');
+        }
+        return header.substring(0, 14) + '…';
+      }
+      return header;
+    };
+    
+    // ============= CLEAN LaTeX FROM CELLS =============
+    const cleanCellContent = (cellText: string): string => {
+      // Clean LaTeX math delimiters and notation for PDF display
+      let cleaned = cellText;
+      
+      // Remove $ delimiters but keep content
+      cleaned = cleaned.replace(/\$([^$]+)\$/g, '$1');
+      
+      // Clean LaTeX spacing commands
+      cleaned = cleaned.replace(/\\,/g, ' ');
+      cleaned = cleaned.replace(/\\;/g, ' ');
+      cleaned = cleaned.replace(/\\!/g, '');
+      cleaned = cleaned.replace(/\\quad/g, '  ');
+      cleaned = cleaned.replace(/\\qquad/g, '   ');
+      
+      // Convert LaTeX fractions to plain text
+      cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2');
+      
+      // Convert superscripts: ^{-3} -> ⁻³, ^{2} -> ², etc.
+      cleaned = cleaned.replace(/\^{?\-?(\d+)}?/g, (_, num) => {
+        const superscripts: Record<string, string> = {
+          '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+          '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻'
+        };
+        return num.split('').map((c: string) => superscripts[c] || c).join('');
+      });
+      
+      // Convert subscripts: _{2} -> ₂
+      cleaned = cleaned.replace(/_{?\-?(\d+)}?/g, (_, num) => {
+        const subscripts: Record<string, string> = {
+          '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+          '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'
+        };
+        return num.split('').map((c: string) => subscripts[c] || c).join('');
+      });
+      
+      // Clean remaining backslash commands
+      cleaned = cleaned.replace(/\\[a-zA-Z]+/g, '');
+      cleaned = cleaned.replace(/[{}]/g, '');
+      
+      // Normalize whitespace
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      
+      return cleaned;
+    };
+    
+    // Apply header shortening and content cleaning to all cells
+    rows = rows.map((row, rowIndex) => 
+      row.map(cell => {
+        const cleaned = cleanCellContent(cell);
+        // Apply header shortening only to first row
+        return rowIndex === 0 ? shortenHeader(cleaned) : cleaned;
+      })
+    );
+    
+    // ============= TABLE ROTATION FOR NARROW/TALL TABLES =============
     const maxCols = Math.max(...rows.map(row => row.length));
+    const shouldRotate = maxCols <= 3 && rows.length > 5;
+    
+    if (shouldRotate && rows.length > 1) {
+      // Transpose the table (swap rows and columns)
+      const transposed: string[][] = [];
+      for (let j = 0; j < maxCols; j++) {
+        const newRow: string[] = [];
+        for (let i = 0; i < rows.length; i++) {
+          newRow.push(rows[i][j] || '');
+        }
+        transposed.push(newRow);
+      }
+      rows = transposed;
+    }
+    
+    // Recalculate maxCols after potential rotation
+    const finalMaxCols = Math.max(...rows.map(row => row.length));
+    
     const cellPadding = 4; // Increased padding for better readability
     const rowHeight = 12; // Taller rows for better visibility
     
@@ -698,7 +812,7 @@ export async function generateExamPDF(
     const maxTableWidth = CONTENT_WIDTH - 20;
     const minColWidth = 25;
     
-    for (let j = 0; j < maxCols; j++) {
+    for (let j = 0; j < finalMaxCols; j++) {
       let maxWidth = minColWidth;
       for (const row of rows) {
         const cellText = row[j] || '';
@@ -752,7 +866,7 @@ export async function generateExamPDF(
       }
       
       let cellX = tableX;
-      for (let j = 0; j < maxCols; j++) {
+      for (let j = 0; j < finalMaxCols; j++) {
         const cellText = rowData[j] || '';
         const colWidth = colWidths[j];
         
@@ -776,14 +890,15 @@ export async function generateExamPDF(
         doc.setFontSize(9);
         setColor(COLORS.primary);
         
-        // Truncate text if too long
+        // Text already cleaned and shortened - just ensure it fits
         const maxTextWidth = colWidth - cellPadding * 2;
         let displayText = cellText;
-        while (doc.getTextWidth(displayText) > maxTextWidth && displayText.length > 0) {
-          displayText = displayText.slice(0, -1);
-        }
-        if (displayText.length < cellText.length) {
-          displayText = displayText.slice(0, -2) + '…';
+        if (doc.getTextWidth(displayText) > maxTextWidth) {
+          // Use ellipsis for overflow
+          while (doc.getTextWidth(displayText + '…') > maxTextWidth && displayText.length > 0) {
+            displayText = displayText.slice(0, -1);
+          }
+          displayText = displayText + '…';
         }
         
         // Center text vertically in cell

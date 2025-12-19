@@ -402,7 +402,7 @@ When generating questions involving data:
    Example HTML table structure:
    <table class="exam-table">
      <thead>
-       <tr><th>Time / s</th><th>Velocity / m s⁻¹</th></tr>
+       <tr><th>Time (s)</th><th>Vel (m/s)</th></tr>
      </thead>
      <tbody>
        <tr><td>0.0</td><td>20.0</td></tr>
@@ -413,8 +413,35 @@ When generating questions involving data:
    - Use <thead> for headers with <th> tags
    - Use <tbody> for data rows with <td> tags
    - Always include class="exam-table" for styling
-   - Use proper superscripts in headers (e.g., <th>Titre / cm³</th>)
-   - For LaTeX in cells, use $ delimiters: <td>$x^2$</td>
+
+🚀 UNIVERSAL TABLE RULES (MANDATORY FOR PDF RENDERING):
+   1. SHORT HEADERS ONLY (max 14-16 characters):
+      - NEVER use long headers that will truncate in PDF
+      - Always shorten or alias headers:
+        * "Section of Quadrat" → "Quadrat"
+        * "Beetles Count" → "Count"
+        * "Desired concentration of diluted sample" → "Conc (mol/dm³)"
+        * "Volume of stock solution required" → "Stock Vol (cm³)"
+        * "Volume of distilled water required" → "Water Vol (cm³)"
+        * "Temperature / °C" → "Temp (°C)"
+        * "Velocity / m s⁻¹" → "Vel (m/s)"
+        * "Distance / m" → "Dist (m)"
+
+   2. PLAIN TEXT VALUES INSIDE TABLE CELLS:
+      - NEVER output raw LaTeX/math mode inside table cells
+      - Always use plain text with Unicode superscripts:
+        * "$0.4 \\, mol \\, dm^{-3}$" → "0.4 mol dm⁻³"
+        * "$25 \\, cm^3$" → "25 cm³"
+        * "$x^2$" → "x²"
+
+   3. TABLE SIZE LIMITS:
+      - If table has more than 6 rows, consider:
+        (A) Rotating table (swap rows/columns) for better fit
+        (B) Splitting into two smaller tables
+      - Tables MUST NOT break across pages
+
+   4. NARROW TABLES - USE HORIZONTAL LAYOUT:
+      - If table has 2-3 columns and 5+ rows, prefer horizontal format
 
 4. Set "data_type": "graph", "table", "both", or "none"
 5. Set "needs_diagram": true if visual representation is essential

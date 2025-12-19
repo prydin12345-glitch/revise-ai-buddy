@@ -106,6 +106,36 @@ When generating questions that require tables:
 5. Include a caption prefix like "Table 1:" before the table if relevant
 6. Tables with LaTeX: Use $ delimiters inside cells, e.g., <td>$x^2$</td>
 
+🚀 UNIVERSAL TABLE RULES (MANDATORY FOR PDF RENDERING):
+1. SHORT HEADERS ONLY (max 14-16 characters):
+   - NEVER use long headers that will truncate in PDF
+   - Always shorten or alias headers:
+     * "Section of Quadrat" → "Quadrat"
+     * "Beetles Count" → "Count"
+     * "Desired concentration of diluted sample" → "Conc (mol/dm³)"
+     * "Volume of stock solution required" → "Stock Vol (cm³)"
+     * "Volume of distilled water required" → "Water Vol (cm³)"
+     * "Temperature / °C" → "Temp (°C)"
+     * "Time / s" → "Time (s)"
+
+2. PLAIN TEXT VALUES INSIDE TABLE CELLS:
+   - NEVER output raw LaTeX/math mode inside table cells
+   - Always use plain text with Unicode superscripts:
+     * "$0.4 \\, mol \\, dm^{-3}$" → "0.4 mol dm⁻³"
+     * "$25 \\, cm^3$" → "25 cm³"
+     * "$x^2$" → "x²"
+
+3. TABLE SIZE LIMITS:
+   - If table has more than 6 rows, consider:
+     (A) Rotating table (swap rows/columns) for better fit
+     (B) Splitting into two smaller tables
+   - Tables MUST NOT break across pages
+
+4. NARROW TABLES - USE HORIZONTAL LAYOUT:
+   - If table has 2-3 columns and 5+ rows, use horizontal format:
+     | Quadrat | A | B | C | D | E |
+     | Count   |12 |15 |10 |12 |11 |
+
 📝 MCQ FORMATTING (CRITICAL):
 1. The "question_text" field must contain ONLY the question - NO options inline
 2. MCQ options go in the "options" array
