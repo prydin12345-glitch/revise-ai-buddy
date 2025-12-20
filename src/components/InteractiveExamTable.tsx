@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import katex from 'katex';
 
 interface TableCell {
   rowIndex: number;
@@ -20,6 +21,47 @@ interface InteractiveExamTableProps {
   readOnly?: boolean;
   subjectColor?: string;
 }
+
+// Process LaTeX in cell content and convert to plain text or rendered HTML
+const processLatexInCell = (content: string): string => {
+  if (!content) return content;
+  
+  // Convert $\checkmark$ or \checkmark to ✓
+  let processed = content.replace(/\$?\\checkmark\$?/gi, '✓');
+  
+  // Convert LaTeX units like "$0.4 \, mol \, dm^{-3}$" to plain text
+  // Pattern: $number \, unit \, unit$ or variations
+  processed = processed.replace(/\$([^$]+)\$/g, (match, latex) => {
+    // Try to convert common LaTeX patterns to plain text
+    let plain = latex
+      // Remove \, spacing
+      .replace(/\\,/g, ' ')
+      // Convert superscripts like ^{-3} or ^3 to superscript characters
+      .replace(/\^{?(-?\d+)}?/g, (m, num) => {
+        const superscripts: Record<string, string> = {
+          '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+          '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+          '-': '⁻'
+        };
+        return num.split('').map((c: string) => superscripts[c] || c).join('');
+      })
+      // Convert subscripts like _{2} to subscript characters
+      .replace(/_{?(\d+)}?/g, (m, num) => {
+        const subscripts: Record<string, string> = {
+          '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+          '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'
+        };
+        return num.split('').map((c: string) => subscripts[c] || c).join('');
+      })
+      // Clean up extra spaces
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    return plain;
+  });
+  
+  return processed;
+};
 
 // Detect if a column should use numeric input based on header text
 const isNumericColumn = (headerText: string): boolean => {
@@ -44,12 +86,14 @@ const isNumericColumn = (headerText: string): boolean => {
 
 // Detect if a column should use checkbox based on header or content
 const isCheckboxColumn = (headerText: string, sampleContent: string[]): boolean => {
+  // Process content to convert LaTeX checkmarks to actual checkmarks for detection
+  const processedContent = sampleContent.map(c => processLatexInCell(c));
   const checkboxPatterns = [/✓/i, /✔/i, /yes\/no/i, /tick/i, /check/i];
   const headerMatch = checkboxPatterns.some(pattern => pattern.test(headerText));
-  const contentMatch = sampleContent.some(c => 
+  const contentMatch = processedContent.some(c => 
     checkboxPatterns.some(pattern => pattern.test(c)) || c.trim() === ''
   );
-  return headerMatch || (contentMatch && sampleContent.length > 0);
+  return headerMatch || (contentMatch && processedContent.length > 0);
 };
 
 // Parse HTML table and extract structure
@@ -97,10 +141,12 @@ const parseTable = (html: string): {
     const rowData: string[] = [];
     const tds = tr.querySelectorAll('td');
     tds.forEach((td, colIndex) => {
-      const content = td.textContent?.trim() || '';
-      rowData.push(content);
+      // Get raw content and process LaTeX
+      const rawContent = td.textContent?.trim() || '';
+      const processedContent = processLatexInCell(rawContent);
+      rowData.push(processedContent);
       if (colIndex < columnSamples.length) {
-        columnSamples[colIndex].push(content);
+        columnSamples[colIndex].push(processedContent);
       }
     });
     rows.push(rowData);
@@ -171,7 +217,7 @@ export function InteractiveExamTable({
                 key={`header-${idx}`}
                 className="border border-border bg-muted/50 px-3 py-2 text-left text-sm font-semibold"
               >
-                {header}
+                {processLatexInCell(header)}
               </th>
             ))}
           </tr>
@@ -188,13 +234,22 @@ export function InteractiveExamTable({
                 const inputType = cell?.inputType || 'text';
                 
                 if (!isEditable || readOnly) {
-                  // Non-editable cell
+                  // Non-editable cell - render checkmarks as visual indicators
+                  const displayContent = content;
+                  const hasCheckmark = displayContent === '✓' || displayContent === '✔';
+                  
                   return (
                     <td 
                       key={`cell-${rowIndex}-${colIndex}`}
                       className="border border-border px-3 py-2 text-sm"
                     >
-                      {content}
+                      {hasCheckmark ? (
+                        <div className="flex items-center justify-center">
+                          <span className="text-primary font-bold text-lg">✓</span>
+                        </div>
+                      ) : (
+                        displayContent
+                      )}
                     </td>
                   );
                 }
