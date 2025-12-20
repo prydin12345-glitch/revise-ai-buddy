@@ -17,15 +17,47 @@ const BLANK_PATTERN = /\[\s*BLANK\s*\]/gi;
 // Pattern to detect underscore-style blanks (5+ underscores)
 const UNDERSCORE_BLANK_PATTERN = /_{5,}/g;
 
-// Convert underscore blanks to standardized [ BLANK ] format
+// Pattern to detect backslash-style blanks (5+ backslashes, with or without underscores)
+// Matches: \\\\\\, \\_\\_\\_, L\\L\\L (common OCR artifacts)
+const BACKSLASH_BLANK_PATTERN = /(?:[\\\/L_]{5,}|(?:[\\\/L]+[_\\\/L]*){5,})/g;
+
+// Pattern for LaTeX-style underline commands
+const LATEX_UNDERLINE_PATTERN = /\\underline\{[^}]*\}/g;
+
+// Convert various blank formats to standardized [ BLANK ] format
 const normalizeBlankFormat = (content: string): string => {
-  return content.replace(UNDERSCORE_BLANK_PATTERN, '[ BLANK ]');
+  let normalized = content;
+  
+  // Replace backslash patterns first (most common issue from OCR/generation)
+  normalized = normalized.replace(BACKSLASH_BLANK_PATTERN, '[ BLANK ]');
+  
+  // Replace underscore patterns
+  normalized = normalized.replace(UNDERSCORE_BLANK_PATTERN, '[ BLANK ]');
+  
+  // Replace LaTeX underline commands
+  normalized = normalized.replace(LATEX_UNDERLINE_PATTERN, '[ BLANK ]');
+  
+  // Clean up any double spaces created
+  normalized = normalized.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
+  
+  return normalized;
 };
 
 // Check if content has fill-in-the-blank placeholders
 export const hasFillInBlanks = (content: string): boolean => {
-  const normalized = normalizeBlankFormat(content);
-  return BLANK_PATTERN.test(normalized);
+  // Check for existing [ BLANK ] placeholders
+  if (BLANK_PATTERN.test(content)) return true;
+  
+  // Check for underscore patterns
+  if (UNDERSCORE_BLANK_PATTERN.test(content)) return true;
+  
+  // Check for backslash patterns
+  if (BACKSLASH_BLANK_PATTERN.test(content)) return true;
+  
+  // Check for LaTeX underline
+  if (LATEX_UNDERLINE_PATTERN.test(content)) return true;
+  
+  return false;
 };
 
 // Count the number of blanks in content

@@ -1759,6 +1759,23 @@ function cleanLatexForPDF(text: string): string {
 
   let cleaned = text;
   
+  // CRITICAL: Normalize fill-in-the-blank patterns FIRST before any other processing
+  // This prevents backslashes and underscores from being misinterpreted
+  
+  // Pattern to detect backslash-style blanks (5+ backslashes/slashes, with or without underscores)
+  // Matches: \\\\\\, \\_\\_\\_, L\\L\\L, /////, etc. (common OCR artifacts)
+  const backslashBlankPattern = /(?:[\\\/L_]{5,}|(?:[\\\/L]+[_\\\/L]*){5,})/g;
+  cleaned = cleaned.replace(backslashBlankPattern, '[ BLANK ]');
+  
+  // Pattern for 5+ underscores (standalone blank indicators)
+  cleaned = cleaned.replace(/_{5,}/g, '[ BLANK ]');
+  
+  // Pattern for LaTeX underline commands used as blanks
+  cleaned = cleaned.replace(/\\underline\{[^}]*\}/g, '[ BLANK ]');
+  
+  // Clean up any double blanks created by multiple patterns
+  cleaned = cleaned.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
+  
   // Remove math mode delimiters
   cleaned = cleaned.replace(/\$\$(.*?)\$\$/g, "$1");
   cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
