@@ -679,7 +679,28 @@ IMPORTANT INSTRUCTIONS:
    
    ✅ CORRECT: "question_text": "Which best describes X?", "options": ["First option", "Second option", ...]
    ❌ WRONG: "question_text": "Which best describes X?\n\nA) First\nB) Second...", "options": [...]
-2. Identify if questions reference figures, diagrams, tables, or images
+
+2. ⚠️ MCQ VALIDATION (CRITICAL - PREVENTS ANSWERLESS MCQs):
+   Before finalizing any extracted MCQ:
+   - If the question involves calculations from provided data (tables, graphs, datasets), COMPUTE the answer yourself
+   - VERIFY the correct_answer field matches one of the options
+   - If data is provided (table, graph, dataset), ensure the answer matches the data mathematically
+   
+   DATA-BASED MCQ VALIDATION:
+   - Mean = sum of all values ÷ count
+   - Median = middle value when sorted
+   - Mode = most frequently occurring value
+   - VERIFY calculations match an option EXACTLY
+   
+   SPECIAL RULE FOR RELEASED EXAMS:
+   - If extracting from an ALREADY RELEASED exam where options appear incorrect:
+     * Set extraction_confidence to 0.3 for problematic MCQs
+     * Add "Review Required - MCQ validation failed" to topic_tag
+     * Extract as-is but flag for human review
+   
+   ⚠️ NEVER output an extracted MCQ where you can verify no option is mathematically correct without flagging it.
+
+3. Identify if questions reference figures, diagrams, tables, or images
 3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
 4. Assess difficulty: easy, medium, or hard
 5. Note the page number where each question appears
