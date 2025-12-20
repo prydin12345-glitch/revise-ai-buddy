@@ -131,9 +131,24 @@ const cleanOptionText = (text: string): string => {
   return text.replace(/^[A-Da-d]\)\s*/, '').trim();
 };
 
+// Convert underscore blanks to standardized [ BLANK ] format
+const normalizeBlankFormat = (content: string): string => {
+  // Replace 5+ underscores with [ BLANK ]
+  return content.replace(/_{5,}/g, '[ BLANK ]');
+};
+
+// Style [ BLANK ] placeholders for display
+const styleBlankPlaceholders = (content: string): string => {
+  // Replace [ BLANK ] with styled span for display
+  return content.replace(/\[\s*BLANK\s*\]/gi, '<span class="blank-placeholder">[ BLANK ]</span>');
+};
+
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
-  // First convert any markdown tables to HTML tables
-  const contentWithHtmlTables = convertMarkdownTableToHtml(content);
+  // First normalize blank formats (convert underscores to [ BLANK ])
+  const contentWithNormalizedBlanks = normalizeBlankFormat(content);
+  
+  // Then convert any markdown tables to HTML tables
+  const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);
   
   // Clean the content if it has letter prefix (for MCQ options)
   const cleanedContent = cleanOptionText(contentWithHtmlTables);
