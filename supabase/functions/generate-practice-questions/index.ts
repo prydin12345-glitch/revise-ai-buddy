@@ -211,6 +211,49 @@ Step 3: Mode = 12 (appears twice, most frequent)
 Step 4: Ensure one option has "Mean = 12, Median = 12, Mode = 12"
 Step 5: Create plausible distractors with common errors (e.g., forgetting to sort for median)
 
+------------------------------------------------------------
+📊 TABLE GENERATION & STUDENT INTERACTIVITY RULES
+------------------------------------------------------------
+
+When generating questions that include tables for student completion:
+
+1. EMPTY CELLS = STUDENT INPUT FIELDS:
+   - Leave cells blank that students should fill in
+   - Use consistent empty cell format: <td></td>
+   - The frontend will convert empty cells to interactive inputs
+
+2. CELL TYPE DETECTION (for frontend):
+   - Numeric columns: Include units in headers (e.g., "Volume (cm³)", "Count", "Mass (g)")
+   - Checkbox columns: Use ✓ symbols in example rows for classification tables
+   - Text columns: Standard blank cells for short text answers
+
+3. EXAMPLE ROW PATTERN:
+   - For classification tables, include one filled row as an example
+   - Mark with "Example:" or show first row completed
+
+4. TABLE STRUCTURE FOR MARKING:
+   - Each editable cell must have a corresponding correct_answer
+   - For table-based questions, include expected values in worked_solution
+
+5. PDF vs STUDENT VIEW:
+   - In PDF: Empty cells remain blank for manual writing
+   - In student view: Empty cells become interactive inputs (numeric, checkbox, or text)
+
+6. TABLE ANSWER DATA STRUCTURE:
+   Student responses are stored as structured JSON:
+   {
+     "row1_col1": "10.0",
+     "row1_col2": "15.0",
+     "row2_col1": true,
+     "row2_col2": false
+   }
+
+7. MARKING TABLE-BASED QUESTIONS:
+   When marking, evaluate:
+   - Whether table values match the correct solution
+   - Whether checkbox patterns are correct (for classification tables)
+   - Whether the reasoning in free-text section adds partial credit
+
 ❌ INCORRECT FORMAT:
 {
   "question_text": "Which expression represents...? A) $b^{1/5}$ B) $b^{-5}$",

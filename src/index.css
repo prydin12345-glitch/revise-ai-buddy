@@ -231,6 +231,23 @@ All colors MUST be HSL.
   background: hsl(var(--muted) / 0.5);
 }
 
+/* Interactive table cell inputs */
+.exam-table tbody td input {
+  background: transparent;
+  width: 100%;
+  min-width: 60px;
+}
+
+.exam-table tbody td input:focus {
+  background: hsl(var(--background));
+}
+
+/* Empty cells for student input - visual hint */
+.exam-table tbody td:has(input) {
+  background: hsl(var(--accent) / 0.3);
+  padding: 4px;
+}
+
 .dark .exam-table {
   background: hsl(222 47% 14%);
   border-color: hsl(222 47% 20%);
@@ -243,6 +260,10 @@ All colors MUST be HSL.
 
 .dark .exam-table tbody td {
   border-color: hsl(222 47% 25%);
+}
+
+.dark .exam-table tbody td:has(input) {
+  background: hsl(222 47% 16%);
 }
 
 /* Blink effect for critical timer state */

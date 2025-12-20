@@ -27,7 +27,7 @@ serve(async (req) => {
       });
     }
 
-    const { examId, questionId, answerText } = await req.json();
+    const { examId, questionId, answerText, tableAnswers } = await req.json();
 
     if (!examId || !questionId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -36,15 +36,23 @@ serve(async (req) => {
       });
     }
 
+    // Build upsert data, only include table_answers if provided
+    const upsertData: Record<string, any> = {
+      exam_id: examId,
+      question_id: questionId,
+      student_id: user.id,
+      answer_text: answerText,
+    };
+    
+    // Add table_answers if provided (for interactive table questions)
+    if (tableAnswers !== undefined) {
+      upsertData.table_answers = tableAnswers;
+    }
+
     // Upsert answer (insert or update)
     const { error: upsertError } = await supabase
       .from('student_answers')
-      .upsert({
-        exam_id: examId,
-        question_id: questionId,
-        student_id: user.id,
-        answer_text: answerText,
-      }, {
+      .upsert(upsertData, {
         onConflict: 'question_id,student_id'
       });
 

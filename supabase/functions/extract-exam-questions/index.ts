@@ -700,12 +700,34 @@ IMPORTANT INSTRUCTIONS:
    
    ⚠️ NEVER output an extracted MCQ where you can verify no option is mathematically correct without flagging it.
 
-3. Identify if questions reference figures, diagrams, tables, or images
-3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
-4. Assess difficulty: easy, medium, or hard
-5. Note the page number where each question appears
-6. Extract the marks allocated to each question
-7. Use lowercase variables consistently (e.g., $x$ not $X$, $a$ not $A$)
+3. 📊 TABLE EXTRACTION & INTERACTIVITY RULES:
+   When extracting questions with tables for student completion:
+   
+   - EMPTY CELLS = STUDENT INPUT FIELDS:
+     * Leave cells blank that students should fill in
+     * Use consistent empty cell format: <td></td>
+     * The frontend will convert empty cells to interactive inputs
+   
+   - CELL TYPE DETECTION:
+     * Numeric columns: Headers with units (e.g., "Volume (cm³)", "Count")
+     * Checkbox columns: Headers suggesting ✓/✗ or yes/no responses
+     * Text columns: Standard blank cells
+   
+   - PRESERVE TABLE STRUCTURE:
+     * Extract tables in HTML format with class="exam-table"
+     * Keep headers short and consistent
+     * Maintain empty cells for student input
+   
+   - TABLE ANSWER STORAGE:
+     Student responses are stored as structured JSON:
+     { "row1_col1": "10.0", "row2_col1": true }
+
+4. Identify if questions reference figures, diagrams, tables, or images
+5. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
+6. Assess difficulty: easy, medium, or hard
+7. Note the page number where each question appears
+8. Extract the marks allocated to each question
+9. Use lowercase variables consistently (e.g., $x$ not $X$, $a$ not $A$)
 
 The exam text is below:
 

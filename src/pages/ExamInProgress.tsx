@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
+import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -71,6 +72,7 @@ const ExamInProgress = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
+  const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
@@ -118,6 +120,11 @@ const ExamInProgress = () => {
       answersRef.current = { ...answersRef.current, [questionId]: next };
       return { ...prev, [questionId]: next };
     });
+  };
+
+  // Helper to update table answers
+  const updateTableAnswer = (questionId: string, answers: Record<string, string | boolean>) => {
+    setTableAnswers(prev => ({ ...prev, [questionId]: answers }));
   };
 
   // Save exam progress to backend - works for ALL exams (timed and non-timed)
@@ -403,6 +410,7 @@ const ExamInProgress = () => {
       console.log('[Load] Subject:', examData?.subject_id, 'isMathExam:', isMathExam);
       
       const answersMap: Record<string, { workingOut: string; finalAnswer: string }> = {};
+      const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
       const savedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
@@ -412,9 +420,14 @@ const ExamInProgress = () => {
         } else {
           answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
         }
+        // Load table answers if present
+        if (ans.table_answers && typeof ans.table_answers === 'object') {
+          tableAnswersMap[ans.question_id] = ans.table_answers;
+        }
         savedSet.add(ans.question_id);
       });
       setUserAnswers(answersMap);
+      setTableAnswers(tableAnswersMap);
       setSavedAnswers(savedSet);
 
       // Create initial session if none exists (for non-timed exams too)
@@ -477,14 +490,22 @@ const ExamInProgress = () => {
       answerText = answerData.finalAnswer || answerData.workingOut || '';
     }
     
-    console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
-    setAutoSaveStatus('saving');
-    try {
-      console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
-      
-      const { error } = await supabase.functions.invoke('submit-student-answer', {
-        body: { examId, questionId, answerText }
-      });
+      console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
+      setAutoSaveStatus('saving');
+      try {
+        console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
+        
+        // Include table answers if present for this question
+        const questionTableAnswers = tableAnswers[questionId];
+        
+        const { error } = await supabase.functions.invoke('submit-student-answer', {
+          body: { 
+            examId, 
+            questionId, 
+            answerText,
+            tableAnswers: questionTableAnswers || undefined
+          }
+        });
 
       if (error) throw error;
 
@@ -654,9 +675,13 @@ const ExamInProgress = () => {
       : `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const answeredCount = Object.values(userAnswers).filter(a => 
-    Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())
-  ).length;
+  const answeredCount = questions.filter(q => {
+    const textAnswer = userAnswers[q.id];
+    const hasTextAnswer = Boolean(textAnswer?.finalAnswer?.trim() || textAnswer?.workingOut?.trim());
+    const tableAnswer = tableAnswers[q.id];
+    const hasTableAnswer = tableAnswer && Object.keys(tableAnswer).length > 0;
+    return hasTextAnswer || hasTableAnswer;
+  }).length;
   const unansweredCount = questions.length - answeredCount;
 
   // Helper to extract parent question number (e.g., "1a" -> "1", "2b(i)" -> "2")
@@ -1005,12 +1030,41 @@ const ExamInProgress = () => {
                     </div>
                   </div>
 
-                  <MathRenderer 
-                    content={stripInlineMCQOptions(question.question_text, question.question_type)}
-                    latex={(question as any).question_latex}
-                    hasMath={(question as any).has_math}
-                    className="mb-6 text-lg"
-                  />
+                  {/* Render question text - separate table if interactive */}
+                  {hasInteractiveTable(question.question_text) ? (
+                    <>
+                      <MathRenderer 
+                        content={stripInlineMCQOptions(removeTableFromContent(question.question_text), question.question_type)}
+                        latex={(question as any).question_latex}
+                        hasMath={(question as any).has_math}
+                        className="mb-4 text-lg"
+                      />
+                      <InteractiveExamTable
+                        tableHtml={extractTableHtml(question.question_text) || ''}
+                        questionId={question.id}
+                        tableAnswers={tableAnswers[question.id] || {}}
+                        onTableChange={(answers) => {
+                          updateTableAnswer(question.id, answers);
+                          // Trigger save after table change
+                          if (saveTimeouts.current[question.id]) {
+                            clearTimeout(saveTimeouts.current[question.id]);
+                          }
+                          saveTimeouts.current[question.id] = setTimeout(() => {
+                            handleSaveAnswer(question.id);
+                          }, 1000);
+                        }}
+                        readOnly={isReadOnly}
+                        subjectColor={subjectColor}
+                      />
+                    </>
+                  ) : (
+                    <MathRenderer 
+                      content={stripInlineMCQOptions(question.question_text, question.question_type)}
+                      latex={(question as any).question_latex}
+                      hasMath={(question as any).has_math}
+                      className="mb-6 text-lg"
+                    />
+                  )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-6">

@@ -1555,6 +1555,7 @@ export type Database = {
           score: number | null
           student_id: string
           submitted_at: string
+          table_answers: Json | null
         }
         Insert: {
           answer_text?: string | null
@@ -1566,6 +1567,7 @@ export type Database = {
           score?: number | null
           student_id: string
           submitted_at?: string
+          table_answers?: Json | null
         }
         Update: {
           answer_text?: string | null
@@ -1577,6 +1579,7 @@ export type Database = {
           score?: number | null
           student_id?: string
           submitted_at?: string
+          table_answers?: Json | null
         }
         Relationships: [
           {
