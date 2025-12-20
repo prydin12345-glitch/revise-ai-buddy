@@ -266,6 +266,24 @@ All colors MUST be HSL.
   background: hsl(222 47% 16%);
 }
 
+/* Fill-in-the-blank placeholder styling */
+.blank-placeholder {
+  display: inline-block;
+  min-width: 100px;
+  padding: 2px 12px;
+  margin: 0 4px;
+  border-bottom: 2px dashed hsl(var(--muted-foreground));
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 4px 4px 0 0;
+}
+
+.dark .blank-placeholder {
+  background: hsl(var(--muted) / 0.3);
+}
+
 /* Blink effect for critical timer state */
 @keyframes blink-red {
   0%, 100% { 

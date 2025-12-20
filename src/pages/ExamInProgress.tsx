@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MathRenderer } from "@/components/MathRenderer";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
+import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -73,6 +74,7 @@ const ExamInProgress = () => {
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
+  const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
@@ -125,6 +127,17 @@ const ExamInProgress = () => {
   // Helper to update table answers
   const updateTableAnswer = (questionId: string, answers: Record<string, string | boolean>) => {
     setTableAnswers(prev => ({ ...prev, [questionId]: answers }));
+  };
+
+  // Helper to update fill-in-blank answers
+  const updateBlankAnswer = (questionId: string, blankId: string, value: string) => {
+    setBlankAnswers(prev => ({
+      ...prev,
+      [questionId]: {
+        ...(prev[questionId] || {}),
+        [blankId]: value
+      }
+    }));
   };
 
   // Save exam progress to backend - works for ALL exams (timed and non-timed)
@@ -498,11 +511,20 @@ const ExamInProgress = () => {
         // Include table answers if present for this question
         const questionTableAnswers = tableAnswers[questionId];
         
+        // Include blank answers if present for this question
+        // Serialize blank answers into answerText if they exist
+        const questionBlankAnswers = blankAnswers[questionId];
+        let finalAnswerText = answerText;
+        if (questionBlankAnswers && Object.keys(questionBlankAnswers).length > 0) {
+          // For fill-in-blank, serialize the blanks as JSON in the answer
+          finalAnswerText = JSON.stringify(questionBlankAnswers);
+        }
+        
         const { error } = await supabase.functions.invoke('submit-student-answer', {
           body: { 
             examId, 
             questionId, 
-            answerText,
+            answerText: finalAnswerText,
             tableAnswers: questionTableAnswers || undefined
           }
         });
@@ -1030,7 +1052,7 @@ const ExamInProgress = () => {
                     </div>
                   </div>
 
-                  {/* Render question text - separate table if interactive */}
+                  {/* Render question text - handle tables, fill-in-blanks, or standard */}
                   {hasInteractiveTable(question.question_text) ? (
                     <>
                       <MathRenderer 
@@ -1057,6 +1079,24 @@ const ExamInProgress = () => {
                         subjectColor={subjectColor}
                       />
                     </>
+                  ) : hasFillInBlanks(question.question_text) ? (
+                    <FillInBlankRenderer
+                      content={stripInlineMCQOptions(question.question_text, question.question_type)}
+                      questionId={question.id}
+                      answers={blankAnswers[question.id] || {}}
+                      onAnswerChange={(blankId, value) => {
+                        updateBlankAnswer(question.id, blankId, value);
+                        // Trigger save after blank change
+                        if (saveTimeouts.current[question.id]) {
+                          clearTimeout(saveTimeouts.current[question.id]);
+                        }
+                        saveTimeouts.current[question.id] = setTimeout(() => {
+                          handleSaveAnswer(question.id);
+                        }, 1000);
+                      }}
+                      readOnly={isReadOnly}
+                      subjectColor={subjectColor}
+                    />
                   ) : (
                     <MathRenderer 
                       content={stripInlineMCQOptions(question.question_text, question.question_type)}
