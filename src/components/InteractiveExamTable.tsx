@@ -121,29 +121,34 @@ const hasNumericRowLabels = (rows: string[][]): boolean => {
 
 // Detect if a column should use checkbox based on header or content
 // STRICT RULE: Only use checkbox when EXPLICITLY indicated with tick/checkmark language
+// PRIORITY: Checkbox takes precedence when explicit checkmarks are present in content
 const isCheckboxColumn = (headerText: string, sampleContent: string[], allHeaders: string[]): boolean => {
-  // PRIORITY RULE 1: If ANY header in the table contains numeric units or text-entry patterns,
-  // don't classify any column as checkbox unless it explicitly has checkmark content
-  const tableHasEntryHeaders = allHeaders.some(h => isNumericColumn(h) || isTextEntryColumn(h));
-  
   // Process content to convert LaTeX checkmarks to actual checkmarks for detection
   const processedContent = sampleContent.map(c => processLatexInCell(c));
   
   // Check for actual checkmark symbols in content (not just empty cells)
   const hasCheckmarkContent = processedContent.some(c => /[✓✔]/.test(c));
   
+  // PRIORITY RULE: If checkmarks are PRESENT in content, this IS a checkbox column
+  // This takes priority over numeric/text-entry detection
+  if (hasCheckmarkContent) {
+    return true;
+  }
+  
   // STRICT: Only match checkbox if header explicitly mentions tick/check/checkmark symbols
   // These exact phrases: "tick", "check mark", "✓", "✔"
   const explicitCheckboxHeader = /\btick\b|\bcheck\s*mark\b|✓|✔/i.test(headerText);
   
-  // If table has entry-type headers (numeric or text), only allow checkbox if checkmarks are present
-  if (tableHasEntryHeaders) {
-    return hasCheckmarkContent;
+  // If NO checkmarks in content, only use checkbox if header explicitly indicates it
+  // AND the table doesn't have entry-type headers (numeric or text)
+  if (explicitCheckboxHeader) {
+    const tableHasEntryHeaders = allHeaders.some(h => isNumericColumn(h) || isTextEntryColumn(h));
+    // Allow checkbox header to work unless there are numeric/text-entry headers
+    return !tableHasEntryHeaders;
   }
   
-  // Otherwise, only allow checkbox if explicit checkbox header OR actual checkmarks in content
-  // Empty cells alone do NOT qualify as checkbox anymore
-  return explicitCheckboxHeader || hasCheckmarkContent;
+  // Otherwise, NOT a checkbox column
+  return false;
 };
 
 // Parse HTML table and extract structure
@@ -203,17 +208,27 @@ const parseTable = (html: string): {
   });
   
   // Determine input types for each column
-  // PRIORITY ORDER: 1) Numeric, 2) Text-entry, 3) Checkbox (only if explicit)
+  // PRIORITY ORDER: 
+  // 1) Checkbox FIRST - if explicit checkmarks are present in content, checkbox takes priority
+  // 2) Numeric - columns with units  
+  // 3) Text-entry - columns for naming/identifying
+  // 4) Default text
   const columnInputTypes: ('text' | 'numeric' | 'checkbox')[] = headers.map((header, colIndex) => {
     const samples = columnSamples[colIndex] || [];
+    const processedSamples = samples.map(s => processLatexInCell(s));
+    const hasCheckmarkInContent = processedSamples.some(c => /[✓✔]/.test(c));
     
-    // Check numeric FIRST (priority rule) - columns with units
+    // PRIORITY 1: If checkmarks are present in content, this IS a checkbox column
+    // This takes priority over everything else
+    if (hasCheckmarkInContent) return 'checkbox';
+    
+    // PRIORITY 2: Check numeric - columns with units
     if (isNumericColumn(header)) return 'numeric';
     
-    // Check text-entry columns (Structure, Name, Function, etc.)
+    // PRIORITY 3: Check text-entry columns (Structure, Name, Function, etc.)
     if (isTextEntryColumn(header)) return 'text';
     
-    // Check checkbox LAST - only if explicitly indicated with checkmarks
+    // PRIORITY 4: Check checkbox based on explicit header indicators (no checkmarks in content)
     if (isCheckboxColumn(header, samples, headers)) return 'checkbox';
     
     // Default to text input for any remaining columns with empty cells
