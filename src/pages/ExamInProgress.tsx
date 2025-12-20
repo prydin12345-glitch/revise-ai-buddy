@@ -24,6 +24,32 @@ const addOpacity = (hex: string, opacity: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
+// Strip inline MCQ options (A), B), C), D)) from question text for student view
+// This prevents duplication when the UI also renders interactive option buttons
+const stripInlineMCQOptions = (text: string, questionType: string): string => {
+  if (questionType !== 'mcq') return text;
+  
+  let cleanedText = text;
+  
+  // Pattern 1: Options on separate lines starting with A) or A.
+  // Matches from the first standalone A) or A. option line to end
+  const lineOptionsPattern = /(?:\n|^)\s*A[).]\s+[\s\S]*$/i;
+  
+  // Pattern 2: Options all inline (A) ... B) ... C) ... D) ...)
+  const inlineOptionsPattern = /\s+A[).]\s+.+?\s+B[).]\s+.+?\s+C[).]\s+.+?\s+D[).]\s+.+$/i;
+  
+  // Try inline pattern first (more specific)
+  if (inlineOptionsPattern.test(cleanedText)) {
+    cleanedText = cleanedText.replace(inlineOptionsPattern, '').trim();
+  } 
+  // Then try line-by-line pattern
+  else if (lineOptionsPattern.test(cleanedText)) {
+    cleanedText = cleanedText.replace(lineOptionsPattern, '').trim();
+  }
+  
+  return cleanedText;
+};
+
 interface Question {
   id: string;
   question_number: string;
@@ -980,7 +1006,7 @@ const ExamInProgress = () => {
                   </div>
 
                   <MathRenderer 
-                    content={question.question_text}
+                    content={stripInlineMCQOptions(question.question_text, question.question_type)}
                     latex={(question as any).question_latex}
                     hasMath={(question as any).has_math}
                     className="mb-6 text-lg"

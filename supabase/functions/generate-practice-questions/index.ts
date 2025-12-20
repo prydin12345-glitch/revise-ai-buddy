@@ -136,9 +136,14 @@ When generating questions that require tables:
      | Quadrat | A | B | C | D | E |
      | Count   |12 |15 |10 |12 |11 |
 
-📝 MCQ FORMATTING (CRITICAL):
-1. The "question_text" field must contain ONLY the question - NO options inline
-2. MCQ options go in the "options" array
+📝 MCQ FORMATTING (CRITICAL - PREVENTS DUPLICATION):
+⚠️ NEVER include options (A, B, C, D) inside the "question_text" field!
+The student exam interface renders interactive A/B/C/D buttons automatically.
+If you include options in question_text, they will appear TWICE (duplicated).
+
+RULES:
+1. "question_text" = ONLY the question stem (no A/B/C/D options)
+2. "options" array = Contains the option text WITHOUT letter prefixes
 3. Options must NOT include letter prefixes - the frontend adds A), B), C), D)
 
 ✅ CORRECT FORMAT:
@@ -147,6 +152,14 @@ When generating questions that require tables:
   "options": ["$b^{1/5}$", "$b^{-5}$", "$-b^5$", "$5b$"],
   "correct_answer": "B"
 }
+
+❌ WRONG FORMAT (causes duplication):
+{
+  "question_text": "Which expression represents...?\n\nA) $b^{1/5}$\nB) $b^{-5}$\nC) $-b^5$\nD) $5b$",
+  "options": ["$b^{1/5}$", "$b^{-5}$", "$-b^5$", "$5b$"]
+}
+
+⚠️ FAILSAFE: Before outputting any MCQ, verify question_text does NOT contain "A)", "B)", "C)", "D)"
 
 ❌ INCORRECT FORMAT:
 {
