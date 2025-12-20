@@ -250,22 +250,125 @@ export function InteractiveExamTable({
   );
 }
 
-// Helper to detect if content has an interactive table (table with empty cells)
-export function hasInteractiveTable(content: string): boolean {
-  if (!content.includes('<table class="exam-table">')) return false;
+// Convert markdown table to HTML table (same logic as MathRenderer)
+function convertMarkdownTableToHtml(content: string): string {
+  const lines = content.split('\n');
+  const tableLinePattern = /^\s*\|.*\|/;
   
-  // Check if there are empty <td></td> cells
-  const emptyTdPattern = /<td>\s*<\/td>/gi;
-  return emptyTdPattern.test(content);
+  let inTable = false;
+  let tableLines: string[] = [];
+  let result: string[] = [];
+  
+  for (const line of lines) {
+    if (tableLinePattern.test(line)) {
+      inTable = true;
+      tableLines.push(line);
+    } else if (inTable && line.trim() === '') {
+      result.push(convertTableLinesToHtml(tableLines));
+      tableLines = [];
+      inTable = false;
+      result.push(line);
+    } else if (inTable) {
+      result.push(convertTableLinesToHtml(tableLines));
+      tableLines = [];
+      inTable = false;
+      result.push(line);
+    } else {
+      result.push(line);
+    }
+  }
+  
+  if (tableLines.length > 0) {
+    result.push(convertTableLinesToHtml(tableLines));
+  }
+  
+  return result.join('\n');
 }
 
-// Extract table HTML from content
+function convertTableLinesToHtml(lines: string[]): string {
+  if (lines.length < 2) return lines.join('\n');
+  
+  const rows = lines
+    .filter(line => !line.match(/^\s*\|[\s:\-|]+\|\s*$/))
+    .map(line => {
+      const parts = line.split('|');
+      const cells = parts.slice(1, -1).map(c => c.trim());
+      return cells;
+    })
+    .filter(row => row.length > 0);
+  
+  if (rows.length === 0) return '';
+  
+  const headerRow = rows[0];
+  const bodyRows = rows.slice(1);
+  
+  let html = '<table class="exam-table">\n<thead>\n<tr>';
+  headerRow.forEach(cell => html += `<th>${cell}</th>`);
+  html += '</tr>\n</thead>\n<tbody>\n';
+  
+  bodyRows.forEach(row => {
+    html += '<tr>';
+    row.forEach(cell => html += `<td>${cell}</td>`);
+    html += '</tr>\n';
+  });
+  
+  html += '</tbody>\n</table>';
+  return html;
+}
+
+// Helper to detect if content has an interactive table (table with empty cells)
+// Checks both HTML format AND markdown format
+export function hasInteractiveTable(content: string): boolean {
+  // Check for HTML table format
+  if (content.includes('<table class="exam-table">')) {
+    const emptyTdPattern = /<td>\s*<\/td>/gi;
+    if (emptyTdPattern.test(content)) return true;
+  }
+  
+  // Check for markdown table format with empty cells
+  // Pattern matches lines like: | text | | | (empty cells between pipes)
+  const markdownTablePattern = /^\s*\|.*\|/m;
+  if (markdownTablePattern.test(content)) {
+    // Check if there are empty cells (two consecutive pipes with only whitespace between)
+    const emptyMarkdownCellPattern = /\|\s*\|/;
+    if (emptyMarkdownCellPattern.test(content)) return true;
+  }
+  
+  return false;
+}
+
+// Extract table HTML from content (converts markdown to HTML if needed)
 export function extractTableHtml(content: string): string | null {
-  const tableMatch = content.match(/<table class="exam-table">[\s\S]*?<\/table>/i);
-  return tableMatch ? tableMatch[0] : null;
+  // First try HTML format
+  const htmlTableMatch = content.match(/<table class="exam-table">[\s\S]*?<\/table>/i);
+  if (htmlTableMatch) {
+    return htmlTableMatch[0];
+  }
+  
+  // Try markdown format - convert to HTML
+  const markdownTablePattern = /^\s*\|.*\|/m;
+  if (markdownTablePattern.test(content)) {
+    const convertedContent = convertMarkdownTableToHtml(content);
+    const convertedMatch = convertedContent.match(/<table class="exam-table">[\s\S]*?<\/table>/i);
+    return convertedMatch ? convertedMatch[0] : null;
+  }
+  
+  return null;
 }
 
 // Remove table from content for separate rendering
 export function removeTableFromContent(content: string): string {
-  return content.replace(/<table class="exam-table">[\s\S]*?<\/table>/gi, '').trim();
+  // Remove HTML table format
+  let cleaned = content.replace(/<table class="exam-table">[\s\S]*?<\/table>/gi, '').trim();
+  
+  // Remove markdown table format (lines starting and ending with |)
+  const lines = cleaned.split('\n');
+  const nonTableLines = lines.filter(line => {
+    // Skip lines that are part of markdown table (start with | or are separator rows)
+    const isTableRow = /^\s*\|/.test(line);
+    const isSeparator = /^\s*\|[\s:\-|]+\|\s*$/.test(line);
+    return !isTableRow && !isSeparator;
+  });
+  
+  return nonTableLines.join('\n').trim();
 }
