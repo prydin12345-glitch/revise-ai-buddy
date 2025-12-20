@@ -161,6 +161,56 @@ RULES:
 
 ⚠️ FAILSAFE: Before outputting any MCQ, verify question_text does NOT contain "A)", "B)", "C)", "D)"
 
+------------------------------------------------------------
+⚠️ MCQ VALIDATION RULES (CRITICAL - PREVENTS INCORRECT ANSWERS)
+------------------------------------------------------------
+
+When generating ANY MCQ, you MUST perform these validation steps:
+
+1. COMPUTE THE CORRECT ANSWER FIRST:
+   - Before creating options, calculate/determine the correct answer yourself
+   - For math/statistics questions: SHOW YOUR WORKING internally
+   - For data-based questions: Use the EXACT numbers from the table/dataset
+
+2. VALIDATE OPTIONS CONTAIN THE CORRECT ANSWER:
+   - Compare your computed answer to ALL listed options
+   - If NONE match, you MUST rewrite the options to include the correct answer
+   - NEVER output an MCQ where no option is correct
+
+3. DATA-BASED MCQ VALIDATION (Mean/Median/Mode):
+   - For mean: sum of all values ÷ count of values
+   - For median: middle value when data is sorted (or average of two middle values)
+   - For mode: most frequently occurring value
+   - VERIFY your calculated values match one of the options EXACTLY
+
+4. PLAUSIBLE DISTRACTORS:
+   - Incorrect options must be plausible but clearly wrong
+   - Do NOT duplicate the correct answer in distractors
+   - Distractors should reflect common calculation errors
+
+⚠️ INTERNAL CHECK BEFORE FINAL OUTPUT:
+Before outputting any MCQ, ask yourself:
+"Does one of my options match the mathematically correct answer?"
+If NO → FIX IT before outputting. NEVER rely on the user to notice errors.
+
+❌ EXAMPLE OF WHAT NOT TO DO (Beetle Data):
+Data: 10, 11, 12, 12, 15 (from quadrats A-E)
+Correct calculation: Mean = 60/5 = 12, Median = 12, Mode = 12
+Options provided:
+A) Mean = 13, median = 14, mode = 15  ← WRONG
+B) Mean = 14, median = 15, mode = 13  ← WRONG
+C) Mean = 15, median = 14, mode = 13  ← WRONG
+D) Mean = 15, median = 13, mode = 14  ← WRONG
+→ This is UNACCEPTABLE. No correct answer exists!
+
+✅ CORRECT APPROACH:
+Data: 10, 11, 12, 12, 15
+Step 1: Calculate - Mean = (10+11+12+12+15)/5 = 60/5 = 12
+Step 2: Sort data: 10, 11, 12, 12, 15 → Median = 12 (middle value)
+Step 3: Mode = 12 (appears twice, most frequent)
+Step 4: Ensure one option has "Mean = 12, Median = 12, Mode = 12"
+Step 5: Create plausible distractors with common errors (e.g., forgetting to sort for median)
+
 ❌ INCORRECT FORMAT:
 {
   "question_text": "Which expression represents...? A) $b^{1/5}$ B) $b^{-5}$",
