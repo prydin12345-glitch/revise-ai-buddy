@@ -80,20 +80,49 @@ const isNumericColumn = (headerText: string): boolean => {
     /area/i, /m²/i, /cm²/i,
     /frequency/i, /Hz/i,
     /percentage/i, /%/i,
+    /mL/i, /stock/i, /water/i, /dilut/i, /required/i,
   ];
   return numericPatterns.some(pattern => pattern.test(headerText));
 };
 
+// Check if the first column (row labels) contains numeric/unit content
+const hasNumericRowLabels = (rows: string[][]): boolean => {
+  if (rows.length === 0) return false;
+  const numericLabelPatterns = [
+    /mol/i, /dm/i, /cm/i, /mg/i, /kg/i, /mL/i, /L\b/i,
+    /\d+(\.\d+)?/, // Any number
+    /%/i, /°/i,
+  ];
+  return rows.some(row => {
+    if (row.length === 0) return false;
+    const firstCell = row[0];
+    return numericLabelPatterns.some(pattern => pattern.test(firstCell));
+  });
+};
+
 // Detect if a column should use checkbox based on header or content
-const isCheckboxColumn = (headerText: string, sampleContent: string[]): boolean => {
+// IMPORTANT: Numeric columns take priority - only use checkbox if explicitly indicated
+const isCheckboxColumn = (headerText: string, sampleContent: string[], allHeaders: string[]): boolean => {
+  // PRIORITY RULE: If ANY header in the table contains numeric units, 
+  // don't classify any column as checkbox unless it explicitly has checkmark content
+  const tableHasNumericHeaders = allHeaders.some(h => isNumericColumn(h));
+  
   // Process content to convert LaTeX checkmarks to actual checkmarks for detection
   const processedContent = sampleContent.map(c => processLatexInCell(c));
-  const checkboxPatterns = [/✓/i, /✔/i, /yes\/no/i, /tick/i, /check/i];
-  const headerMatch = checkboxPatterns.some(pattern => pattern.test(headerText));
-  const contentMatch = processedContent.some(c => 
-    checkboxPatterns.some(pattern => pattern.test(c)) || c.trim() === ''
-  );
-  return headerMatch || (contentMatch && processedContent.length > 0);
+  
+  // Check for actual checkmark symbols in content (not just empty cells)
+  const hasCheckmarkContent = processedContent.some(c => /[✓✔]/.test(c));
+  
+  // Only match checkbox if header explicitly mentions tick/check/checkmark
+  const explicitCheckboxHeader = /\btick\b|\bcheck\s*mark\b|\bselect\b|✓|✔/i.test(headerText);
+  
+  // If table has numeric headers, only allow checkbox if there are actual checkmarks present
+  if (tableHasNumericHeaders) {
+    return hasCheckmarkContent;
+  }
+  
+  // Otherwise, allow checkbox if header matches or content has checkmarks
+  return explicitCheckboxHeader || hasCheckmarkContent;
 };
 
 // Parse HTML table and extract structure
@@ -153,10 +182,13 @@ const parseTable = (html: string): {
   });
   
   // Determine input types for each column
+  // PRIORITY: Numeric columns take precedence over checkbox detection
   const columnInputTypes: ('text' | 'numeric' | 'checkbox')[] = headers.map((header, colIndex) => {
     const samples = columnSamples[colIndex] || [];
-    if (isCheckboxColumn(header, samples)) return 'checkbox';
+    // Check numeric FIRST (priority rule)
     if (isNumericColumn(header)) return 'numeric';
+    // Then check checkbox (with all headers context)
+    if (isCheckboxColumn(header, samples, headers)) return 'checkbox';
     return 'text';
   });
   
