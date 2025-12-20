@@ -131,10 +131,25 @@ const cleanOptionText = (text: string): string => {
   return text.replace(/^[A-Da-d]\)\s*/, '').trim();
 };
 
-// Convert underscore blanks to standardized [ BLANK ] format
+// Convert various blank formats to standardized [ BLANK ] format
 const normalizeBlankFormat = (content: string): string => {
+  let normalized = content;
+  
+  // Pattern to detect backslash-style blanks (5+ backslashes, with or without underscores)
+  // Matches: \\\\\\, \\_\\_\\_, L\\L\\L (common OCR artifacts)
+  const backslashPattern = /(?:[\\\/L_]{5,}|(?:[\\\/L]+[_\\\/L]*){5,})/g;
+  normalized = normalized.replace(backslashPattern, '[ BLANK ]');
+  
   // Replace 5+ underscores with [ BLANK ]
-  return content.replace(/_{5,}/g, '[ BLANK ]');
+  normalized = normalized.replace(/_{5,}/g, '[ BLANK ]');
+  
+  // Replace LaTeX underline commands
+  normalized = normalized.replace(/\\underline\{[^}]*\}/g, '[ BLANK ]');
+  
+  // Clean up any double blanks created
+  normalized = normalized.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
+  
+  return normalized;
 };
 
 // Style [ BLANK ] placeholders for display
