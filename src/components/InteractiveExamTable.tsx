@@ -151,6 +151,41 @@ const isCheckboxColumn = (headerText: string, sampleContent: string[], allHeader
   return false;
 };
 
+// Check if content is a placeholder that should be treated as empty/editable
+const isPlaceholderContent = (content: string): boolean => {
+  const trimmed = content.trim();
+  // Treat these as empty/editable in checkbox tables
+  const placeholderPatterns = [
+    /^\.{2,}$/,        // "..." or ".."
+    /^…$/,             // ellipsis character
+    /^-{2,}$/,         // "--" or "---"
+    /^_{2,}$/,         // "__" or "___"
+    /^\[?\s*\]?$/,     // "[]" or empty brackets
+  ];
+  return trimmed === '' || placeholderPatterns.some(p => p.test(trimmed));
+};
+
+// Detect if the entire table is a CHECKBOX_TABLE
+// This is true if ANY column contains checkmarks OR the question context indicates ticking
+const isCheckboxTable = (columnSamples: string[][], headers: string[]): boolean => {
+  // Check if ANY column has checkmark content
+  for (const samples of columnSamples) {
+    const processedSamples = samples.map(s => processLatexInCell(s));
+    if (processedSamples.some(c => /[✓✔]/.test(c))) {
+      return true;
+    }
+  }
+  
+  // Check if ANY header explicitly mentions tick/checkmark
+  for (const header of headers) {
+    if (/\btick\b|\bcheck\s*mark\b|✓|✔/i.test(header)) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 // Parse HTML table and extract structure
 const parseTable = (html: string): {
   headers: string[];
@@ -207,29 +242,29 @@ const parseTable = (html: string): {
     rows.push(rowData);
   });
   
+  // CHECKBOX TABLE ENFORCEMENT: First check if this is a checkbox table
+  // If ANY column has checkmarks, the ENTIRE table is a checkbox table
+  const tableIsCheckboxTable = isCheckboxTable(columnSamples, headers);
+  
   // Determine input types for each column
-  // PRIORITY ORDER: 
-  // 1) Checkbox FIRST - if explicit checkmarks are present in content, checkbox takes priority
-  // 2) Numeric - columns with units  
-  // 3) Text-entry - columns for naming/identifying
-  // 4) Default text
+  // CHECKBOX TABLE RULE: If table is checkbox type, ALL data columns are checkbox (except first/label column)
   const columnInputTypes: ('text' | 'numeric' | 'checkbox')[] = headers.map((header, colIndex) => {
+    // First column is typically the label/characteristic column - always text
+    if (colIndex === 0) return 'text';
+    
+    // If this is a CHECKBOX_TABLE, ALL other columns are checkbox - no mixing allowed
+    if (tableIsCheckboxTable) {
+      return 'checkbox';
+    }
+    
+    // For non-checkbox tables, use normal detection logic
     const samples = columnSamples[colIndex] || [];
-    const processedSamples = samples.map(s => processLatexInCell(s));
-    const hasCheckmarkInContent = processedSamples.some(c => /[✓✔]/.test(c));
     
-    // PRIORITY 1: If checkmarks are present in content, this IS a checkbox column
-    // This takes priority over everything else
-    if (hasCheckmarkInContent) return 'checkbox';
-    
-    // PRIORITY 2: Check numeric - columns with units
+    // Check numeric - columns with units
     if (isNumericColumn(header)) return 'numeric';
     
-    // PRIORITY 3: Check text-entry columns (Structure, Name, Function, etc.)
+    // Check text-entry columns (Structure, Name, Function, etc.)
     if (isTextEntryColumn(header)) return 'text';
-    
-    // PRIORITY 4: Check checkbox based on explicit header indicators (no checkmarks in content)
-    if (isCheckboxColumn(header, samples, headers)) return 'checkbox';
     
     // Default to text input for any remaining columns with empty cells
     return 'text';
@@ -238,7 +273,19 @@ const parseTable = (html: string): {
   // Create cell objects for body
   rows.forEach((row, rowIndex) => {
     row.forEach((content, colIndex) => {
-      const isEmpty = content.trim() === '';
+      const inputType = columnInputTypes[colIndex] || 'text';
+      
+      // CHECKBOX TABLE RULE: In checkbox tables, placeholders ("...") are treated as empty/editable
+      // and cells with checkmarks are NOT editable (they're example cells)
+      let isEmpty: boolean;
+      if (tableIsCheckboxTable && colIndex > 0) {
+        // For checkbox tables: editable if empty OR placeholder, NOT editable if has checkmark
+        const hasCheckmark = /[✓✔]/.test(content);
+        isEmpty = !hasCheckmark && (content.trim() === '' || isPlaceholderContent(content));
+      } else {
+        isEmpty = content.trim() === '';
+      }
+      
       cells.push({
         rowIndex: rowIndex + 1, // +1 because header is row 0
         colIndex,
@@ -246,7 +293,7 @@ const parseTable = (html: string): {
         isEditable: isEmpty,
         isHeader: false,
         originalContent: content,
-        inputType: columnInputTypes[colIndex] || 'text'
+        inputType
       });
     });
   });
@@ -311,7 +358,9 @@ export function InteractiveExamTable({
                 if (!isEditable || readOnly) {
                   // Non-editable cell - render checkmarks as visual indicators
                   const displayContent = content;
-                  const hasCheckmark = displayContent === '✓' || displayContent === '✔';
+                  const hasCheckmark = /[✓✔]/.test(displayContent);
+                  // Hide placeholder content in non-editable cells (shouldn't happen but safety)
+                  const isPlaceholder = isPlaceholderContent(displayContent);
                   
                   return (
                     <td 
@@ -322,6 +371,8 @@ export function InteractiveExamTable({
                         <div className="flex items-center justify-center">
                           <span className="text-primary font-bold text-lg">✓</span>
                         </div>
+                      ) : isPlaceholder ? (
+                        '' // Hide placeholders
                       ) : (
                         displayContent
                       )}
