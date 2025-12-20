@@ -669,10 +669,16 @@ For electrical questions:
 - For sub-sub-parts: Q17(a)(i), Q17(a)(ii) → set "question_number": "17a(i)", "parent_question_number": "17a", "root_question_number": "17"
 
 IMPORTANT INSTRUCTIONS:
-1. For Multiple Choice Questions (MCQ):
-   - The "question_text" must contain ONLY the question stem - NO options inline
-   - Put options in the "options" array WITHOUT letter prefixes (frontend adds A), B), C), D))
-   - Example: "options": ["$b^{-5}$", "$\\frac{1}{b^5}$", ...] NOT ["A) $b^{-5}$", "B) ..."]
+1. ⚠️ MCQ FORMATTING (CRITICAL - PREVENTS DUPLICATION):
+   - NEVER include options (A, B, C, D) inside the "question_text" field!
+   - The student exam interface renders interactive A/B/C/D buttons automatically
+   - If you include options in question_text, they will appear TWICE (duplicated)
+   - "question_text" = ONLY the question stem (no A/B/C/D options)
+   - "options" array = Contains the option text WITHOUT letter prefixes
+   - ⚠️ FAILSAFE: Before outputting any MCQ, verify question_text does NOT contain "A)", "B)", "C)", "D)"
+   
+   ✅ CORRECT: "question_text": "Which best describes X?", "options": ["First option", "Second option", ...]
+   ❌ WRONG: "question_text": "Which best describes X?\n\nA) First\nB) Second...", "options": [...]
 2. Identify if questions reference figures, diagrams, tables, or images
 3. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
 4. Assess difficulty: easy, medium, or hard
