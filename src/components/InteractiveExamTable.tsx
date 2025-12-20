@@ -1,0 +1,271 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+
+interface TableCell {
+  rowIndex: number;
+  colIndex: number;
+  key: string;
+  isEditable: boolean;
+  isHeader: boolean;
+  originalContent: string;
+  inputType: 'text' | 'numeric' | 'checkbox';
+}
+
+interface InteractiveExamTableProps {
+  tableHtml: string;
+  questionId: string;
+  tableAnswers: Record<string, string | boolean>;
+  onTableChange: (answers: Record<string, string | boolean>) => void;
+  readOnly?: boolean;
+  subjectColor?: string;
+}
+
+// Detect if a column should use numeric input based on header text
+const isNumericColumn = (headerText: string): boolean => {
+  const numericPatterns = [
+    /volume/i, /cm³/i, /cm\^?3/i, /dm³/i, /dm\^?3/i,
+    /mol/i, /concentration/i, /conc/i,
+    /temp/i, /°C/i, /°F/i, /kelvin/i,
+    /mass/i, /kg/i, /g\b/i, /mg/i,
+    /time/i, /\bs\b/i, /seconds/i, /minutes/i,
+    /count/i, /number/i, /quantity/i, /qty/i,
+    /rate/i, /speed/i, /velocity/i,
+    /pressure/i, /Pa/i, /atm/i,
+    /energy/i, /joule/i, /J\b/i,
+    /current/i, /voltage/i, /resistance/i, /A\b/i, /V\b/i, /Ω/i,
+    /length/i, /width/i, /height/i, /distance/i, /m\b/i, /mm/i, /cm\b/i,
+    /area/i, /m²/i, /cm²/i,
+    /frequency/i, /Hz/i,
+    /percentage/i, /%/i,
+  ];
+  return numericPatterns.some(pattern => pattern.test(headerText));
+};
+
+// Detect if a column should use checkbox based on header or content
+const isCheckboxColumn = (headerText: string, sampleContent: string[]): boolean => {
+  const checkboxPatterns = [/✓/i, /✔/i, /yes\/no/i, /tick/i, /check/i];
+  const headerMatch = checkboxPatterns.some(pattern => pattern.test(headerText));
+  const contentMatch = sampleContent.some(c => 
+    checkboxPatterns.some(pattern => pattern.test(c)) || c.trim() === ''
+  );
+  return headerMatch || (contentMatch && sampleContent.length > 0);
+};
+
+// Parse HTML table and extract structure
+const parseTable = (html: string): {
+  headers: string[];
+  rows: string[][];
+  cells: TableCell[];
+} => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const table = doc.querySelector('table');
+  
+  if (!table) {
+    return { headers: [], rows: [], cells: [] };
+  }
+  
+  const headers: string[] = [];
+  const rows: string[][] = [];
+  const cells: TableCell[] = [];
+  
+  // Extract headers
+  const headerRow = table.querySelector('thead tr');
+  if (headerRow) {
+    const ths = headerRow.querySelectorAll('th');
+    ths.forEach((th, colIndex) => {
+      headers.push(th.textContent?.trim() || '');
+      cells.push({
+        rowIndex: 0,
+        colIndex,
+        key: `header_${colIndex}`,
+        isEditable: false,
+        isHeader: true,
+        originalContent: th.innerHTML,
+        inputType: 'text'
+      });
+    });
+  }
+  
+  // Collect sample content per column to help detect input type
+  const columnSamples: string[][] = headers.map(() => []);
+  
+  // Extract body rows
+  const bodyRows = table.querySelectorAll('tbody tr');
+  bodyRows.forEach((tr, rowIndex) => {
+    const rowData: string[] = [];
+    const tds = tr.querySelectorAll('td');
+    tds.forEach((td, colIndex) => {
+      const content = td.textContent?.trim() || '';
+      rowData.push(content);
+      if (colIndex < columnSamples.length) {
+        columnSamples[colIndex].push(content);
+      }
+    });
+    rows.push(rowData);
+  });
+  
+  // Determine input types for each column
+  const columnInputTypes: ('text' | 'numeric' | 'checkbox')[] = headers.map((header, colIndex) => {
+    const samples = columnSamples[colIndex] || [];
+    if (isCheckboxColumn(header, samples)) return 'checkbox';
+    if (isNumericColumn(header)) return 'numeric';
+    return 'text';
+  });
+  
+  // Create cell objects for body
+  rows.forEach((row, rowIndex) => {
+    row.forEach((content, colIndex) => {
+      const isEmpty = content.trim() === '';
+      cells.push({
+        rowIndex: rowIndex + 1, // +1 because header is row 0
+        colIndex,
+        key: `row${rowIndex + 1}_col${colIndex + 1}`,
+        isEditable: isEmpty,
+        isHeader: false,
+        originalContent: content,
+        inputType: columnInputTypes[colIndex] || 'text'
+      });
+    });
+  });
+  
+  return { headers, rows, cells };
+};
+
+export function InteractiveExamTable({
+  tableHtml,
+  questionId,
+  tableAnswers,
+  onTableChange,
+  readOnly = false,
+  subjectColor = '#3B82F6'
+}: InteractiveExamTableProps) {
+  const { headers, rows, cells } = useMemo(() => parseTable(tableHtml), [tableHtml]);
+  
+  const handleCellChange = useCallback((key: string, value: string | boolean) => {
+    const newAnswers = { ...tableAnswers, [key]: value };
+    onTableChange(newAnswers);
+  }, [tableAnswers, onTableChange]);
+  
+  const getCellValue = (key: string, inputType: string): string | boolean => {
+    const value = tableAnswers[key];
+    if (inputType === 'checkbox') {
+      return value === true || value === 'true';
+    }
+    return typeof value === 'string' ? value : '';
+  };
+  
+  if (headers.length === 0 || rows.length === 0) {
+    // Fallback to static rendering
+    return <div dangerouslySetInnerHTML={{ __html: tableHtml }} />;
+  }
+  
+  return (
+    <div className="my-4 overflow-x-auto">
+      <table className="exam-table w-full border-collapse">
+        <thead>
+          <tr>
+            {headers.map((header, idx) => (
+              <th 
+                key={`header-${idx}`}
+                className="border border-border bg-muted/50 px-3 py-2 text-left text-sm font-semibold"
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={`row-${rowIndex}`}>
+              {row.map((content, colIndex) => {
+                const cell = cells.find(
+                  c => c.rowIndex === rowIndex + 1 && c.colIndex === colIndex && !c.isHeader
+                );
+                const cellKey = cell?.key || `row${rowIndex + 1}_col${colIndex + 1}`;
+                const isEditable = cell?.isEditable || false;
+                const inputType = cell?.inputType || 'text';
+                
+                if (!isEditable || readOnly) {
+                  // Non-editable cell
+                  return (
+                    <td 
+                      key={`cell-${rowIndex}-${colIndex}`}
+                      className="border border-border px-3 py-2 text-sm"
+                    >
+                      {content}
+                    </td>
+                  );
+                }
+                
+                // Editable cell
+                return (
+                  <td 
+                    key={`cell-${rowIndex}-${colIndex}`}
+                    className="border border-border px-1 py-1"
+                  >
+                    {inputType === 'checkbox' ? (
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={getCellValue(cellKey, inputType) as boolean}
+                          onCheckedChange={(checked) => handleCellChange(cellKey, checked === true)}
+                          style={{
+                            borderColor: subjectColor,
+                            backgroundColor: getCellValue(cellKey, inputType) ? subjectColor : undefined
+                          }}
+                          className="h-5 w-5"
+                        />
+                      </div>
+                    ) : (
+                      <Input
+                        type={inputType === 'numeric' ? 'text' : 'text'}
+                        inputMode={inputType === 'numeric' ? 'decimal' : 'text'}
+                        value={getCellValue(cellKey, inputType) as string}
+                        onChange={(e) => handleCellChange(cellKey, e.target.value)}
+                        placeholder={inputType === 'numeric' ? '0' : '...'}
+                        className="h-8 text-sm text-center border-0 focus:ring-2"
+                        style={{
+                          outline: 'none',
+                          boxShadow: 'none'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = subjectColor;
+                          e.target.style.borderWidth = '2px';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '';
+                          e.target.style.borderWidth = '';
+                        }}
+                      />
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Helper to detect if content has an interactive table (table with empty cells)
+export function hasInteractiveTable(content: string): boolean {
+  if (!content.includes('<table class="exam-table">')) return false;
+  
+  // Check if there are empty <td></td> cells
+  const emptyTdPattern = /<td>\s*<\/td>/gi;
+  return emptyTdPattern.test(content);
+}
+
+// Extract table HTML from content
+export function extractTableHtml(content: string): string | null {
+  const tableMatch = content.match(/<table class="exam-table">[\s\S]*?<\/table>/i);
+  return tableMatch ? tableMatch[0] : null;
+}
+
+// Remove table from content for separate rendering
+export function removeTableFromContent(content: string): string {
+  return content.replace(/<table class="exam-table">[\s\S]*?<\/table>/gi, '').trim();
+}
