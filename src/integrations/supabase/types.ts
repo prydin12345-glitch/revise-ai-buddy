@@ -804,6 +804,38 @@ export type Database = {
           },
         ]
       }
+      feedback_tags: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          tag: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          tag: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          tag?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_tags_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "question_feedback_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_announcements: {
         Row: {
           attachment_url: string | null
@@ -1184,6 +1216,8 @@ export type Database = {
           created_at: string
           exam_id: string
           id: string
+          notify_on_reply: boolean | null
+          notify_on_resolve: boolean | null
           question_id: string
           responded_at: string | null
           status: string
@@ -1196,6 +1230,8 @@ export type Database = {
           created_at?: string
           exam_id: string
           id?: string
+          notify_on_reply?: boolean | null
+          notify_on_resolve?: boolean | null
           question_id: string
           responded_at?: string | null
           status?: string
@@ -1208,6 +1244,8 @@ export type Database = {
           created_at?: string
           exam_id?: string
           id?: string
+          notify_on_reply?: boolean | null
+          notify_on_resolve?: boolean | null
           question_id?: string
           responded_at?: string | null
           status?: string
