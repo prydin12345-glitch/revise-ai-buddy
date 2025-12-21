@@ -26,6 +26,7 @@ interface Answer {
   score: number;
   feedback: string;
   is_correct: boolean;
+  table_answers?: Record<string, any>;
 }
 
 interface Submission {
@@ -327,6 +328,25 @@ const ExamReview = () => {
                   <div>
                     <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
                     <div className="p-3 rounded-lg bg-muted space-y-3">
+                      {/* Display table answers if present */}
+                      {answer?.table_answers && Object.keys(answer.table_answers).length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground mb-1">Table Responses:</div>
+                          <div className="grid gap-1 text-sm">
+                            {Object.entries(answer.table_answers).map(([cellKey, value]) => {
+                              const displayValue = value === true ? '✓' : value === false ? '—' : String(value || '');
+                              if (!displayValue || displayValue === '—') return null;
+                              return (
+                                <div key={cellKey} className="flex gap-2">
+                                  <span className="text-muted-foreground">{cellKey}:</span>
+                                  <span className="font-medium">{displayValue}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {/* Display text answer */}
                       {answer?.answer_text ? (
                         (() => {
                           try {
@@ -367,9 +387,9 @@ const ExamReview = () => {
                             />
                           );
                         })()
-                      ) : (
+                      ) : !answer?.table_answers || Object.keys(answer.table_answers).length === 0 ? (
                         <span className="text-muted-foreground italic">No answer provided</span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 

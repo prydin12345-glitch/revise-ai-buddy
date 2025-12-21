@@ -86,10 +86,10 @@ serve(async (req) => {
       });
     }
 
-    // Fetch student answers
+    // Fetch student answers including table_answers
     const { data: studentAnswers, error: answersError } = await supabase
       .from('student_answers')
-      .select('question_id, answer_text')
+      .select('question_id, answer_text, table_answers')
       .eq('exam_id', examId)
       .eq('student_id', user.id);
 
@@ -97,7 +97,26 @@ serve(async (req) => {
       console.error('Error fetching answers:', answersError);
     }
 
+    // Create maps for both text answers and table answers
     const answerMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_text]) || []);
+    const tableAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.table_answers]) || []);
+    
+    // Helper function to format table answers for AI grading
+    const formatTableAnswersForGrading = (tableAnswers: any): string => {
+      if (!tableAnswers || typeof tableAnswers !== 'object') return '';
+      
+      const entries: string[] = [];
+      for (const [cellKey, value] of Object.entries(tableAnswers)) {
+        if (value !== undefined && value !== null && value !== '') {
+          // Format: "Row X, Column Y: value" or "Cell key: value"
+          const displayValue = value === true ? '✓ (checked)' : value === false ? '(unchecked)' : String(value);
+          entries.push(`${cellKey}: ${displayValue}`);
+        }
+      }
+      
+      if (entries.length === 0) return '';
+      return entries.join('\n');
+    };
     
     let totalScore = 0;
     let totalMarks = 0;
@@ -106,16 +125,23 @@ serve(async (req) => {
     for (const question of questions || []) {
       totalMarks += question.marks;
       const studentAnswer = answerMap.get(question.id) || '';
+      const tableAnswers = tableAnswerMap.get(question.id);
+      const formattedTableAnswers = formatTableAnswersForGrading(tableAnswers);
+      
+      // Determine if this question has table answers
+      const hasTableAnswers = formattedTableAnswers.length > 0;
+      const hasTextAnswer = studentAnswer && studentAnswer.trim() !== '';
+      const hasAnyAnswer = hasTableAnswers || hasTextAnswer;
 
       let score = 0;
       let feedback = '';
       let isCorrect = false;
 
-      if (!studentAnswer || studentAnswer.trim() === '') {
-        // No answer provided
+      if (!hasAnyAnswer) {
+        // No answer provided (neither text nor table)
         feedback = 'No answer provided';
         isCorrect = false;
-      } else if (question.question_type === 'mcq') {
+      } else if (question.question_type === 'mcq' && !hasTableAnswers) {
         // Simple exact match for MCQ
         const correctAnswer = question.correct_answer?.toLowerCase().trim() || '';
         const studentAnswerLower = studentAnswer.toLowerCase().trim();
@@ -144,8 +170,21 @@ serve(async (req) => {
         try {
           const isMathQuestion = question.has_math || question.question_latex || isMathExam;
           
-          const systemPrompt = isMathQuestion 
-            ? `You are a mathematics exam grader. Award partial credit for:
+          // Build table-aware system prompt
+          let systemPrompt = '';
+          if (hasTableAnswers) {
+            systemPrompt = `You are an expert exam grader specializing in TABLE-BASED questions. 
+
+CRITICAL TABLE GRADING RULES:
+1. Extract and evaluate EACH cell value from the student's table responses
+2. For CHECKBOX tables: A tick (✓ or true) in a cell means the student selected that option
+3. For INPUT tables: Evaluate numeric/text values cell-by-cell against the answer key
+4. Award marks PER CELL or PER ROW as appropriate
+5. In feedback, explicitly reference which cells/rows are correct or incorrect (e.g., "Row 1: Correct ✓ for Column A")
+
+Address the student directly using "You" (e.g., "You correctly identified...", "Your entry for Row 2 is incorrect").`;
+          } else if (isMathQuestion) {
+            systemPrompt = `You are a mathematics exam grader. Award partial credit for:
 - Correct method even if final answer is wrong
 - Correct setup/equation formulation
 - Algebraic manipulation steps
@@ -154,11 +193,36 @@ serve(async (req) => {
 
 Be generous with method marks but strict with accuracy.
 
-IMPORTANT: Address the student directly using "You" (e.g., "You have provided the correct answer", "Your method is correct"). Never use "The student" or third-person language.`
-            : 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
+IMPORTANT: Address the student directly using "You" (e.g., "You have provided the correct answer", "Your method is correct"). Never use "The student" or third-person language.`;
+          } else {
+            systemPrompt = 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
+          }
           
-          const userPrompt = isMathQuestion
-            ? `You are grading a MATHEMATICS exam question. Award partial credit appropriately.
+          // Build the user prompt based on answer type
+          let userPrompt = '';
+          
+          if (hasTableAnswers) {
+            userPrompt = `You are grading a TABLE-BASED exam question. Evaluate EACH cell individually.
+
+Question: ${question.question_text}
+${question.question_latex ? `LaTeX: ${question.question_latex}` : ''}
+Correct Answer/Key: ${question.correct_answer || 'See marking scheme'}
+
+STUDENT'S TABLE RESPONSES:
+${formattedTableAnswers}
+
+${hasTextAnswer ? `Additional Text Answer: ${studentAnswer}` : ''}
+
+Total Marks: ${question.marks}
+
+GRADING INSTRUCTIONS:
+1. Compare each student cell value to the correct answer for that cell
+2. For checkbox questions: checked=true means ✓, unchecked means empty
+3. Award marks based on correct cells (partial credit allowed)
+4. Provide cell-by-cell feedback (e.g., "Row 1, Column 2: Correct", "Row 2, Column 3: Incorrect, should be X")
+5. Calculate total score based on correct entries`;
+          } else if (isMathQuestion) {
+            userPrompt = `You are grading a MATHEMATICS exam question. Award partial credit appropriately.
 
 Question: ${question.question_text}
 ${question.question_latex ? `LaTeX: ${question.question_latex}` : ''}
@@ -173,8 +237,10 @@ Provide:
 - Method marks (for working out) if applicable
 - Accuracy marks (for final answer)
 - Total score
-- Brief feedback explaining mark breakdown`
-            : `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`;
+- Brief feedback explaining mark breakdown`;
+          } else {
+            userPrompt = `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`;
+          }
 
           const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
