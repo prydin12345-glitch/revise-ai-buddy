@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,11 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, MessageCircle, Send, CheckCircle } from "lucide-react";
+import { Loader2, MessageCircle, Send, CheckCircle, ChevronLeft, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
-import { PageContainer } from "@/components/PageContainer";
-import { PageHeader } from "@/components/PageHeader";
+import { format } from "date-fns";
 
 interface FeedbackThread {
   id: string;
@@ -24,10 +24,38 @@ interface FeedbackThread {
   responded_at: string | null;
   exam?: { title: string };
   question?: { question_number: string; question_text: string; has_math: boolean };
-  student?: { display_name: string | null; student_code: string | null };
+  student?: { display_name: string | null; student_code: string | null; first_name: string | null; last_name: string | null };
 }
 
+// Format student name according to spec
+const formatStudentName = (student?: { display_name: string | null; student_code: string | null; first_name: string | null; last_name: string | null }): string => {
+  if (!student) return "";
+  
+  const { first_name, last_name, student_code } = student;
+  const code = student_code || "";
+  
+  if (first_name && last_name) {
+    // "FirstName LastInitial (StudentID)"
+    return `${first_name} ${last_name.charAt(0).toUpperCase()}${code ? ` (${code})` : ""}`;
+  } else if (first_name) {
+    // "FirstName (StudentID)"
+    return `${first_name}${code ? ` (${code})` : ""}`;
+  } else if (code) {
+    // Just the ID
+    return code;
+  }
+  
+  return "";
+};
+
+// Format date as "20 Dec 2025 · 3:06 pm"
+const formatFeedbackDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return format(date, "d MMM yyyy · h:mm a").toLowerCase().replace(/ am$/, " am").replace(/ pm$/, " pm");
+};
+
 const ManageFeedback = () => {
+  const navigate = useNavigate();
   const [threads, setThreads] = useState<FeedbackThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedThread, setSelectedThread] = useState<FeedbackThread | null>(null);
@@ -68,8 +96,6 @@ const ManageFeedback = () => {
 
       if (error) throw error;
 
-      // Fetch questions separately
-      const threadIds = data?.map(t => t.id) || [];
       const questionIds = data?.map(t => t.question_id) || [];
       
       const { data: questions } = await supabase
@@ -79,16 +105,15 @@ const ManageFeedback = () => {
 
       const questionsMap = new Map(questions?.map(q => [q.id, q]) || []);
 
-      // Fetch student profiles
+      // Fetch student profiles with first_name and last_name
       const studentIds = [...new Set(data?.map(t => t.student_id) || [])];
       const { data: studentProfiles } = await supabase
         .from("user_profiles")
-        .select("id, display_name, student_code")
-        .in("id", studentIds) as { data: Array<{ id: string; display_name: string | null; student_code: string | null }> | null; error: any };
+        .select("id, display_name, student_code, first_name, last_name")
+        .in("id", studentIds) as { data: Array<{ id: string; display_name: string | null; student_code: string | null; first_name: string | null; last_name: string | null }> | null; error: any };
 
       const studentMap = new Map(studentProfiles?.map(s => [s.id, s]) || []);
 
-      // Filter for threads where user is exam creator or assignee
       const { data: userExams } = await supabase
         .from("exams")
         .select("id")
@@ -140,7 +165,6 @@ const ManageFeedback = () => {
 
       if (error) throw error;
 
-      // Notify student
       await supabase.from("notifications").insert({
         user_id: selectedThread.student_id,
         type: "feedback_response",
@@ -171,144 +195,141 @@ const ManageFeedback = () => {
     );
   }
 
-  return (
-    <PageContainer>
-      <PageHeader
-        title="Student Feedback"
-      />
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="pending" className="relative">
-            Pending
-            {pendingThreads.length > 0 && (
-              <Badge className="ml-2 h-5 px-1.5 text-xs">{pendingThreads.length}</Badge>
+  const renderFeedbackCard = (thread: FeedbackThread, isPending: boolean) => {
+    const studentName = formatStudentName(thread.student);
+    const dateStr = formatFeedbackDate(thread.created_at);
+    
+    return (
+      <Card key={thread.id} className="p-4">
+        {/* Header Row */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
+            Q{thread.question?.question_number}
+          </Badge>
+          <span className="text-sm font-medium text-foreground">{thread.exam?.title}</span>
+          {studentName && (
+            <span className="text-sm text-muted-foreground">· {studentName}</span>
+          )}
+          <Badge 
+            variant={isPending ? "secondary" : "default"}
+            className={`ml-auto ${!isPending ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}
+          >
+            {isPending ? (
+              <>
+                <Clock className="w-3 h-3 mr-1" />
+                Pending
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Responded
+              </>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="responded">Responded</TabsTrigger>
-        </TabsList>
+          </Badge>
+        </div>
 
-        <TabsContent value="pending" className="space-y-4">
-          {pendingThreads.length === 0 ? (
-            <Card className="p-12 text-center">
-              <CheckCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
-              <p className="text-muted-foreground">No pending feedback requests</p>
-            </Card>
-          ) : (
-            pendingThreads.map((thread) => (
-              <Card key={thread.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        Q{thread.question?.question_number}
-                      </Badge>
-                      <span className="text-sm font-medium">{thread.exam?.title}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {thread.student?.display_name || "Student"}
-                      {thread.student?.student_code && (
-                        <span className="font-mono ml-1">({thread.student.student_code})</span>
-                      )}
-                      {" • "}
-                      {new Date(thread.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">Pending</Badge>
-                </div>
+        {/* Timestamp */}
+        <p className="text-xs text-muted-foreground mb-3">
+          {isPending ? dateStr : `Responded ${thread.responded_at ? formatFeedbackDate(thread.responded_at) : ""}`}
+        </p>
 
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">
-                      Question:
-                    </div>
-                    <MathRenderer
-                      content={thread.question?.question_text || ""}
-                      hasMath={thread.question?.has_math}
-                      className="text-sm"
-                    />
-                  </div>
+        {/* Question Content */}
+        <div className="space-y-2 mb-3">
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</span>
+            <MathRenderer
+              content={thread.question?.question_text || ""}
+              hasMath={thread.question?.has_math}
+              className="text-sm mt-1"
+            />
+          </div>
 
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">
-                      Student's Question:
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted text-sm">
-                      {thread.student_comment}
-                    </div>
-                  </div>
-                </div>
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Student's Question</span>
+            <div className="p-2.5 rounded-md bg-muted text-sm mt-1">
+              {thread.student_comment}
+            </div>
+          </div>
 
-                <Button onClick={() => handleRespond(thread)} className="w-full gap-2">
-                  <MessageCircle className="w-4 h-4" />
-                  Respond
-                </Button>
-              </Card>
-            ))
+          {!isPending && thread.tutor_response && (
+            <div>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Your Response</span>
+              <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-sm mt-1">
+                {thread.tutor_response}
+              </div>
+            </div>
           )}
-        </TabsContent>
+        </div>
 
-        <TabsContent value="responded" className="space-y-4">
-          {respondedThreads.length === 0 ? (
-            <Card className="p-12 text-center">
-              <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No responses yet</h3>
-              <p className="text-muted-foreground">
-                Responded feedback threads will appear here
-              </p>
-            </Card>
-          ) : (
-            respondedThreads.map((thread) => (
-              <Card key={thread.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        Q{thread.question?.question_number}
-                      </Badge>
-                      <span className="text-sm font-medium">{thread.exam?.title}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {thread.student?.display_name || "Student"}
-                      {thread.student?.student_code && (
-                        <span className="font-mono ml-1">({thread.student.student_code})</span>
-                      )}
-                      {" • "}
-                      Responded {thread.responded_at && new Date(thread.responded_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <Badge className="bg-green-500">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Responded
-                  </Badge>
-                </div>
+        {/* Action */}
+        {isPending && (
+          <div className="pt-3 border-t border-border flex justify-center">
+            <Button onClick={() => handleRespond(thread)} size="sm" className="gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Respond
+            </Button>
+          </div>
+        )}
+      </Card>
+    );
+  };
 
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">
-                      Student's Question:
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted text-sm">
-                      {thread.student_comment}
-                    </div>
-                  </div>
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[1100px] mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        {/* Title Row with Back Button */}
+        <div className="flex items-center gap-3 mb-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate(-1)}
+            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back
+          </Button>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Student Feedback</h1>
+        </div>
 
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">
-                      Your Response:
-                    </div>
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm">
-                      {thread.tutor_response}
-                    </div>
-                  </div>
-                </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full max-w-xs grid-cols-2">
+            <TabsTrigger value="pending" className="relative text-sm">
+              Pending
+              {pendingThreads.length > 0 && (
+                <Badge className="ml-1.5 h-5 px-1.5 text-xs">{pendingThreads.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="responded" className="text-sm">Responded</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="space-y-3 mt-3">
+            {pendingThreads.length === 0 ? (
+              <Card className="p-8 text-center">
+                <CheckCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <h3 className="text-base font-semibold mb-1">All caught up!</h3>
+                <p className="text-sm text-muted-foreground">No pending feedback requests</p>
               </Card>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+            ) : (
+              pendingThreads.map((thread) => renderFeedbackCard(thread, true))
+            )}
+          </TabsContent>
 
+          <TabsContent value="responded" className="space-y-3 mt-3">
+            {respondedThreads.length === 0 ? (
+              <Card className="p-8 text-center">
+                <MessageCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <h3 className="text-base font-semibold mb-1">No responses yet</h3>
+                <p className="text-sm text-muted-foreground">Responded feedback threads will appear here</p>
+              </Card>
+            ) : (
+              respondedThreads.map((thread) => renderFeedbackCard(thread, false))
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Response Dialog */}
       <Dialog open={!!selectedThread} onOpenChange={(open) => !open && setSelectedThread(null)}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -318,10 +339,7 @@ const ManageFeedback = () => {
           {selectedThread && (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
-                From: {selectedThread.student?.display_name || "Student"}
-                {selectedThread.student?.student_code && (
-                  <span className="font-mono ml-1">({selectedThread.student.student_code})</span>
-                )}
+                From: {formatStudentName(selectedThread.student) || "Unknown Student"}
               </div>
               <div>
                 <div className="text-sm font-semibold mb-2">Question {selectedThread.question?.question_number}</div>
@@ -361,7 +379,7 @@ const ManageFeedback = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PageContainer>
+    </div>
   );
 };
 
