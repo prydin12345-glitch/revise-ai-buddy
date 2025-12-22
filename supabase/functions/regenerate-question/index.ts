@@ -63,6 +63,15 @@ TABLE FORMATTING (if applicable):
 - Use "X" or "✓" for checkmarks in cells
 - Preserve the table structure and data relationships
 
+📸 FIGURE NUMBERING RULES (MANDATORY):
+When referencing images/figures/diagrams:
+1. Figure numbers MUST match the question number provided above
+2. First figure = Fig. <question_number>.1 (e.g., Q16 → Fig. 16.1)
+3. Second figure = Fig. <question_number>.2
+4. NEVER reuse or invent unrelated figure numbers
+5. If the original question references a figure, preserve that exact numbering
+Example: If regenerating Q16 with a diagram, use "Fig. 16.1 shows..."
+
 SCIENTIFIC & MATHEMATICAL NOTATION (ALL SUBJECTS - CRITICAL):
 Use LaTeX notation, NEVER HTML tags.
 
