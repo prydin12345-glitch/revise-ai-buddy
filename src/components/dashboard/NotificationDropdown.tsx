@@ -30,29 +30,54 @@ export const NotificationDropdown = () => {
   const { toast } = useToast();
 
   const handleNotificationAction = async (notification: any) => {
-    // Handle different notification types
+    // Use link_url if available (new format), otherwise fall back to type-based routing
+    if (notification.link_url) {
+      navigate(notification.link_url);
+      return;
+    }
+
+    // Legacy fallback for old notifications without link_url
+    const metadata = notification.metadata || notification.action_data || {};
+    
     switch (notification.type) {
       case "ai_suggestion":
       case "missed_task":
-      case "exam_reminder":
         navigate("/dashboard");
+        break;
+      case "exam_reminder":
+      case "exam_assigned":
+        if (metadata.examId || metadata.exam_id) {
+          navigate(`/exam/${metadata.examId || metadata.exam_id}/in-progress`);
+        } else {
+          navigate("/dashboard");
+        }
         break;
       case "announcement":
         navigate("/my-classes");
         break;
       case "feedback_request":
+        if (metadata.threadId) {
+          navigate(`/tutor/feedback?thread=${metadata.threadId}`);
+        } else if (metadata.examId) {
+          navigate(`/tutor/feedback`);
+        }
+        break;
       case "feedback_response":
-        if (notification.action_data?.examId) {
-          navigate(`/exam-review/${notification.action_data.examId}`);
+        if (metadata.examId) {
+          const questionParam = metadata.questionNumber ? `?q=${metadata.questionNumber}` : '';
+          navigate(`/exam/${metadata.examId}/review${questionParam}`);
         }
         break;
       case "grades_released":
-        if (notification.action_data?.exam_id) {
-          navigate(`/exam/${notification.action_data.exam_id}/review`);
+        if (metadata.examId || metadata.exam_id) {
+          navigate(`/exam/${metadata.examId || metadata.exam_id}/review`);
         }
         break;
       case "task_completion":
+      case "verification_approved":
         break;
+      default:
+        console.log("Unknown notification type:", notification.type);
     }
   };
 

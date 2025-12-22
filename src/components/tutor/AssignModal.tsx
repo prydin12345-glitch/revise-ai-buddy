@@ -181,20 +181,7 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
           .in("group_id", groups.map(g => g.id))
           .eq("is_active", true);
 
-        // Create notifications for all students
-        if (members && members.length > 0) {
-          const uniqueStudentIds = [...new Set(members.map(m => m.student_id))];
-          const notifications = uniqueStudentIds.map(studentId => ({
-            user_id: studentId,
-            type: "exam_assigned",
-            title: "New Exam Assigned",
-            body: `You have been assigned: ${examTitle}`,
-            action_data: { exam_id: examId }
-          }));
-
-          await supabase.from("notifications").insert(notifications);
-        }
-
+        // Notifications are handled by database trigger
         toast.success(`Exam assigned to ${groups.length} group${groups.length > 1 ? 's' : ''}`);
       } else {
         // Single group assignment
@@ -219,25 +206,7 @@ export const AssignModal = ({ open, onOpenChange, examId, examTitle, onAssigned 
           throw error;
         }
 
-        // Create notifications for students in the group
-        const { data: members } = await supabase
-          .from("group_members")
-          .select("student_id")
-          .eq("group_id", selectedGroup)
-          .eq("is_active", true);
-
-        if (members && members.length > 0) {
-          const notifications = members.map(m => ({
-            user_id: m.student_id,
-            type: "exam_assigned",
-            title: "New Exam Assigned",
-            body: `You have been assigned: ${examTitle}`,
-            action_data: { exam_id: examId }
-          }));
-
-          await supabase.from("notifications").insert(notifications);
-        }
-
+        // Notifications are handled by database trigger
         toast.success("Exam assigned successfully");
       }
 
