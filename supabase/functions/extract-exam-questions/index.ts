@@ -391,7 +391,21 @@ When generating questions involving data:
    - Clear axes labels and units (e.g., "x-axis: time / s, y-axis: velocity / m s⁻¹")
    - Trend description (e.g., "linear decrease from 20 m/s at t=0 to 0 m/s at t=5s")
    - Key features (intercepts, gradients, areas under curve)
-   - Example: "Figure 1 shows velocity decreasing linearly over 5 seconds"
+
+📸 FIGURE NUMBERING RULES (MANDATORY):
+When referencing images/figures/diagrams:
+1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
+2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
+3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
+4. NEVER reuse figure numbers across different questions
+5. NEVER invent unrelated figure numbers
+6. If referencing an existing external image from the PDF, match the original figure number
+7. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
+
+Example usage:
+- Q16: "Fig. 16.1 shows the velocity-time graph..."
+- Q16 with two figures: "Fig. 16.1 shows the circuit diagram. Fig. 16.2 shows the oscilloscope trace."
+- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
 
 3. ⚠️ TABLE FORMAT REQUIREMENT (MANDATORY):
    - Tables MUST be HTML format: <table class="exam-table">...</table>
@@ -651,6 +665,21 @@ When generating questions involving graphs or charts:
 1. Create realistic numerical datasets with logical relationships
 2. Describe axes, units, trends clearly in "graph_description"
 3. Set "data_type": "graph", "table", "both", or "none"
+
+📸 FIGURE NUMBERING RULES (MANDATORY):
+When referencing images/figures/diagrams:
+1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
+2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
+3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
+4. NEVER reuse figure numbers across different questions
+5. NEVER invent unrelated figure numbers
+6. If referencing an existing external image from the PDF, match the original figure number
+7. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
+
+Example usage:
+- Q16: "Fig. 16.1 shows the velocity-time graph..."
+- Q16 with two figures: "Fig. 16.1 shows the circuit diagram. Fig. 16.2 shows the oscilloscope trace."
+- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
 
 🔌 CIRCUIT DIAGRAM SUPPORT:
 For electrical questions:

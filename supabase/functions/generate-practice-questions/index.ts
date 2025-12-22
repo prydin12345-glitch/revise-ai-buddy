@@ -106,6 +106,19 @@ When generating questions that require tables:
 5. Include a caption prefix like "Table 1:" before the table if relevant
 6. Tables with LaTeX: Use $ delimiters inside cells, e.g., <td>$x^2$</td>
 
+📸 FIGURE NUMBERING RULES (MANDATORY):
+When referencing images/figures/diagrams:
+1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
+2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
+3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
+4. NEVER reuse figure numbers across different questions
+5. NEVER invent unrelated figure numbers
+6. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
+
+Example usage:
+- Q16: "Fig. 16.1 shows the velocity-time graph..."
+- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
+
 🚀 UNIVERSAL TABLE RULES (MANDATORY FOR PDF RENDERING):
 1. SHORT HEADERS ONLY (max 14-16 characters):
    - NEVER use long headers that will truncate in PDF
