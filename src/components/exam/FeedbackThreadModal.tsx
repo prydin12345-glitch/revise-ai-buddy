@@ -91,7 +91,7 @@ export const FeedbackThreadModal = ({
 
         if (error) throw error;
       } else {
-        // Create new thread
+        // Create new thread - notification is handled by database trigger
         const { error } = await supabase
           .from("question_feedback_threads")
           .insert({
@@ -103,24 +103,6 @@ export const FeedbackThreadModal = ({
           });
 
         if (error) throw error;
-
-        // Notify tutor
-        const { data: examData } = await supabase
-          .from("exams")
-          .select("assigned_by, user_id")
-          .eq("id", examId)
-          .single();
-
-        const tutorId = examData?.assigned_by || examData?.user_id;
-        if (tutorId) {
-          await supabase.from("notifications").insert({
-            user_id: tutorId,
-            type: "feedback_request",
-            title: "New Question Feedback",
-            body: `A student needs help with Question ${questionNumber}`,
-            action_data: { examId, questionId, threadId: existingThread?.id }
-          });
-        }
       }
 
       toast({ title: "Feedback submitted", description: "Your tutor will respond soon." });

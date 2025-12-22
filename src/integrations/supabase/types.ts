@@ -924,7 +924,13 @@ export type Database = {
           id: string
           is_pinned: boolean | null
           is_read: boolean
+          link_url: string | null
+          metadata: Json | null
+          read_at: string | null
+          recipient_role: string | null
           snoozed_until: string | null
+          source_role: string | null
+          source_user_id: string | null
           title: string
           type: string
           updated_at: string
@@ -937,7 +943,13 @@ export type Database = {
           id?: string
           is_pinned?: boolean | null
           is_read?: boolean
+          link_url?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          recipient_role?: string | null
           snoozed_until?: string | null
+          source_role?: string | null
+          source_user_id?: string | null
           title: string
           type: string
           updated_at?: string
@@ -950,7 +962,13 @@ export type Database = {
           id?: string
           is_pinned?: boolean | null
           is_read?: boolean
+          link_url?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          recipient_role?: string | null
           snoozed_until?: string | null
+          source_role?: string | null
+          source_user_id?: string | null
           title?: string
           type?: string
           updated_at?: string
@@ -2185,6 +2203,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_notification: {
+        Args: {
+          p_body: string
+          p_link_url?: string
+          p_metadata?: Json
+          p_recipient_role?: string
+          p_source_role?: string
+          p_source_user_id?: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       create_student_notification: {
         Args: {
           p_action_data?: Json

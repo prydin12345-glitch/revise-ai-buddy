@@ -30,6 +30,14 @@ const getNotificationIcon = (type: Notification["type"]) => {
       return <MessageCircle className="w-4 h-4 text-cyan-400" />;
     case "grades_released":
       return <Award className="w-4 h-4 text-emerald-400" />;
+    case "verification_approved":
+      return <CheckCircle className="w-4 h-4 text-green-400" />;
+    case "exam_assigned":
+      return <BookOpen className="w-4 h-4 text-indigo-400" />;
+    case "deadline_changed":
+      return <Clock className="w-4 h-4 text-yellow-400" />;
+    case "exam_submitted":
+      return <CheckCircle className="w-4 h-4 text-blue-400" />;
     default:
       return <Bell className="w-4 h-4 text-muted-foreground" />;
   }
@@ -52,6 +60,14 @@ const getNotificationColor = (type: Notification["type"]) => {
       return "border-l-cyan-500";
     case "grades_released":
       return "border-l-emerald-500";
+    case "verification_approved":
+      return "border-l-green-500";
+    case "exam_assigned":
+      return "border-l-indigo-500";
+    case "deadline_changed":
+      return "border-l-yellow-500";
+    case "exam_submitted":
+      return "border-l-blue-500";
     default:
       return "border-l-muted";
   }

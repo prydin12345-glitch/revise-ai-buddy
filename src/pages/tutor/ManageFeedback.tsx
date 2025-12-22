@@ -279,14 +279,7 @@ const ManageFeedback = () => {
 
       if (error) throw error;
 
-      await supabase.from("notifications").insert({
-        user_id: selectedThread.student_id,
-        type: "feedback_response",
-        title: "Tutor Responded to Your Question",
-        body: `Your tutor responded to your question on Question ${selectedThread.question?.question_number}`,
-        action_data: { examId: selectedThread.exam_id, questionId: selectedThread.question_id }
-      });
-
+      // Notification is handled by database trigger
       toast({ title: "Response sent", description: "The student has been notified." });
       setSelectedThread(null);
       setResponse("");
