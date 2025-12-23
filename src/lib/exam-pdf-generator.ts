@@ -730,49 +730,11 @@ export async function generateExamPDF(
     };
     
     // ============= CLEAN LaTeX FROM CELLS =============
+    // Use the global cleanLatexForPDF function for consistent typography across tables
     const cleanCellContent = (cellText: string): string => {
-      // Clean LaTeX math delimiters and notation for PDF display
-      let cleaned = cellText;
-      
-      // Remove $ delimiters but keep content
-      cleaned = cleaned.replace(/\$([^$]+)\$/g, '$1');
-      
-      // Clean LaTeX spacing commands
-      cleaned = cleaned.replace(/\\,/g, ' ');
-      cleaned = cleaned.replace(/\\;/g, ' ');
-      cleaned = cleaned.replace(/\\!/g, '');
-      cleaned = cleaned.replace(/\\quad/g, '  ');
-      cleaned = cleaned.replace(/\\qquad/g, '   ');
-      
-      // Convert LaTeX fractions to plain text
-      cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2');
-      
-      // Convert superscripts: ^{-3} -> ⁻³, ^{2} -> ², etc.
-      cleaned = cleaned.replace(/\^{?\-?(\d+)}?/g, (_, num) => {
-        const superscripts: Record<string, string> = {
-          '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-          '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻'
-        };
-        return num.split('').map((c: string) => superscripts[c] || c).join('');
-      });
-      
-      // Convert subscripts: _{2} -> ₂
-      cleaned = cleaned.replace(/_{?\-?(\d+)}?/g, (_, num) => {
-        const subscripts: Record<string, string> = {
-          '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-          '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'
-        };
-        return num.split('').map((c: string) => subscripts[c] || c).join('');
-      });
-      
-      // Clean remaining backslash commands
-      cleaned = cleaned.replace(/\\[a-zA-Z]+/g, '');
-      cleaned = cleaned.replace(/[{}]/g, '');
-      
-      // Normalize whitespace
-      cleaned = cleaned.replace(/\s+/g, ' ').trim();
-      
-      return cleaned;
+      // Apply the same LaTeX cleaning used for question text
+      // This ensures consistent superscript/subscript rendering in tables
+      return cleanLatexForPDF(cellText);
     };
     
     // Apply header shortening and content cleaning to all cells
@@ -2068,7 +2030,11 @@ function cleanLatexForPDF(text: string): string {
   // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, " ");
   
-  return cleaned.trim();
+  // FINAL STEP: Apply sanitization to remove zero-width characters and spacing artifacts
+  // This ensures clean, professional text rendering without letter-spacing issues
+  cleaned = sanitizeForPDF(cleaned);
+  
+  return cleaned;
 }
 
 // ============= Preview PDF Helper =============
