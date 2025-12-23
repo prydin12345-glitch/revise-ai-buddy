@@ -1856,7 +1856,25 @@ function toSubscript(str: string): string {
 
 // ============= Check if question has fill-in-the-blank placeholders =============
 function hasFillInBlanks(text: string): boolean {
-  return /\[\s*BLANK\s*\]/i.test(text);
+  // Check for our normalized [ BLANK ] pattern
+  if (/\[\s*BLANK\s*\]/i.test(text)) return true;
+  
+  // Also check for original patterns that may not have been normalized yet:
+  // - Long underscores (5+)
+  // - Multiple backslashes used as blanks
+  // - Underline LaTeX commands
+  if (/_{5,}/.test(text)) return true;
+  if (/(?:[\\\/L_]{5,})/.test(text)) return true;
+  if (/\\underline\{[^}]*\}/.test(text)) return true;
+  
+  return false;
+}
+
+// ============= Convert any remaining BLANK text to underscore placeholders =============
+// This is a SAFETY fallback - ensures no "[ BLANK ]" text ever appears in PDF output
+function convertBlanksToUnderscores(text: string): string {
+  // Replace any [ BLANK ] patterns with a clean underscore line
+  return text.replace(/\[\s*BLANK\s*\]/gi, '_____________');
 }
 
 // ============= Clean LaTeX for PDF with proper Unicode notation =============
@@ -1895,38 +1913,77 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1√($2)");
   
   // ============= SUPERSCRIPTS - Convert to proper Unicode =============
-  // Handle ^{...} notation
+  // Handle ^{...} notation (multi-character)
   cleaned = cleaned.replace(/\^{([^}]+)}/g, (_, content) => toSuperscript(content));
-  // Handle ^digit or ^letter (single char)
-  cleaned = cleaned.replace(/\^([0-9a-zA-Z\-+])/g, (_, char) => toSuperscript(char));
+  
+  // Handle ^(...) notation for grouped exponents like ^(-3) or ^(2n)
+  cleaned = cleaned.replace(/\^\(([^)]+)\)/g, (_, content) => toSuperscript(content));
+  
+  // Handle ^digit or ^letter (single or multiple chars) - e.g. ^3, ^-3, ^2n, ^3b
+  // Match sequences of digits, letters, + and - signs after ^
+  cleaned = cleaned.replace(/\^([0-9a-zA-Z\-+]+)/g, (_, chars) => toSuperscript(chars));
   
   // ============= SUBSCRIPTS - Convert to proper Unicode =============
   // Handle _{...} notation
   cleaned = cleaned.replace(/_{([^}]+)}/g, (_, content) => toSubscript(content));
+  
+  // Handle _(...) notation for grouped subscripts
+  cleaned = cleaned.replace(/_\(([^)]+)\)/g, (_, content) => toSubscript(content));
+  
   // Handle _digit or _letter (single char) - but not in BLANK patterns
   cleaned = cleaned.replace(/(?<!\[|\s)_([0-9a-zA-Z])(?!\s*BLANK)/g, (_, char) => toSubscript(char));
   
+  // ============= SCIENTIFIC NOTATION =============
+  // Handle patterns like 7.2 × 10^3, 1.5 x 10^-6, etc.
+  // The ^ should already be converted above, but ensure × and x are consistent
+  cleaned = cleaned.replace(/\bx\s+10/gi, '× 10');
+  cleaned = cleaned.replace(/\*\s*10/g, '× 10');
+  
   // ============= CHEMICAL FORMULAE - Common patterns =============
-  // Handle common chemical formulae like CO2, H2O, O2, etc.
-  cleaned = cleaned.replace(/\b([A-Z][a-z]?)(\d+)\b/g, (match, element, num) => {
-    // Only convert if it looks like a chemical formula (capital letter followed by number)
-    if (/^[A-Z][a-z]?\d+$/.test(match)) {
-      return element + toSubscript(num);
-    }
-    return match;
+  // Handle common chemical formulae like CO2, H2O, O2, Na2SO4, etc.
+  // Pattern: Capital letter (optional lowercase) followed by digit(s)
+  // But NOT if it's part of a larger alphanumeric string that looks like a code
+  cleaned = cleaned.replace(/\b([A-Z][a-z]?)(\d+)(?=[A-Z]|$|\s|[.,;:!?)}\]])/g, (_, element, num) => {
+    return element + toSubscript(num);
+  });
+  
+  // Handle H2O, CO2, O2, N2 specifically (common molecules)
+  cleaned = cleaned.replace(/\b(H|C|O|N|S|P|Cl|Br|I|F)(\d)(?=O|H|C|N|S|\s|$|[.,;:!?)}\]])/g, (_, el, num) => {
+    return el + toSubscript(num);
   });
   
   // ============= UNITS - Common patterns =============
-  // Handle units like cm3, dm3, m3, etc. (convert trailing digit to superscript for volume units)
-  cleaned = cleaned.replace(/\b(cm|dm|m|km)(\d)\b/g, (_, unit, num) => unit + toSuperscript(num));
-  // Handle mol dm-3, m s-1, etc. (negative exponents in units)
-  cleaned = cleaned.replace(/\b(dm|m|s|kg|mol)(\s*-\s*\d+)\b/g, (_, unit, exp) => {
-    const cleanExp = exp.replace(/\s/g, '');
-    return unit + toSuperscript(cleanExp);
+  // Handle volume units: cm3, dm3, m3, km3, mm3, µm3
+  cleaned = cleaned.replace(/\b(cm|dm|mm|µm|m|km)(\d)\b/g, (_, unit, num) => unit + toSuperscript(num));
+  
+  // Handle rate units with negative exponents: dm-3, s-1, mol-1, etc.
+  // Pattern: unit followed by optional space and negative number
+  cleaned = cleaned.replace(/\b(dm|cm|m|s|kg|mol|min|hr|L|l)\s*-(\d+)\b/g, (_, unit, num) => {
+    return unit + toSuperscript('-' + num);
   });
+  
+  // Handle compound units like "mol dm^-3", "m s^-1", "kg m^-2"
+  cleaned = cleaned.replace(/\b(mol|kg|g|m|s|L|l|J|W|N|Pa)\s+(dm|cm|m|s|kg)\s*-(\d+)/g, (_, unit1, unit2, num) => {
+    return unit1 + ' ' + unit2 + toSuperscript('-' + num);
+  });
+  
+  // ============= TEMPERATURE & DEGREES =============
+  // Handle degree Celsius: °C (ensure proper rendering)
+  cleaned = cleaned.replace(/\bdegrees?\s*C\b/gi, '°C');
+  cleaned = cleaned.replace(/\bdeg\s*C\b/gi, '°C');
+  
+  // Handle microliters, micrometers: uL -> µL, um -> µm
+  cleaned = cleaned.replace(/\b([uμ])([LlMm])\b/g, (_, u, unit) => 'µ' + unit.toUpperCase());
   
   // ============= Q10 pattern (biology) =============
   cleaned = cleaned.replace(/\bQ(\d+)\b/g, (_, num) => 'Q' + toSubscript(num));
+  
+  // ============= MATHEMATICAL VARIABLES =============
+  // Handle patterns like t2, r3, v2 (variable with power) when clearly mathematical
+  // Only apply after explicit operators or at word boundaries
+  cleaned = cleaned.replace(/(?<=[\s(=+\-×÷·])([a-z])(\d)(?=[\s)=+\-×÷·,]|$)/gi, (_, variable, num) => {
+    return variable + toSuperscript(num);
+  });
   
   // Operators - use proper Unicode where available
   cleaned = cleaned.replace(/\\times/g, "×");
@@ -2029,6 +2086,10 @@ function cleanLatexForPDF(text: string): string {
   
   // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, " ");
+  
+  // NOTE: We intentionally DO NOT convert [ BLANK ] to underscores here.
+  // The renderTextWithBlanks function needs the [ BLANK ] markers to render proper answer boxes.
+  // The hasFillInBlanks check ensures questions with blanks go through the special renderer.
   
   // FINAL STEP: Apply sanitization to remove zero-width characters and spacing artifacts
   // This ensures clean, professional text rendering without letter-spacing issues
