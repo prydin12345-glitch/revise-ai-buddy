@@ -1053,6 +1053,117 @@ export async function generateExamPDF(
     return baseWidth - 5;
   };
 
+  // ============= Fill-in-the-Blank Rendering =============
+  // Renders text with inline answer boxes for [ BLANK ] placeholders
+  const BLANK_BOX_WIDTH = 30; // Width of answer box in mm
+  const BLANK_BOX_HEIGHT = 6; // Height of answer box in mm
+  
+  const renderTextWithBlanks = (
+    text: string, 
+    startX: number, 
+    startY: number, 
+    maxWidth: number, 
+    marks?: number
+  ): number => {
+    if (!text || !hasFillInBlanks(text)) {
+      // No blanks - render normally
+      const lines = doc.splitTextToSize(text || '', maxWidth);
+      lines.forEach((line: string) => {
+        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+          addNewPage();
+        }
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        setColor(COLORS.primary);
+        doc.text(line || '', startX, startY);
+        startY += LINE_HEIGHT;
+      });
+      return startY;
+    }
+    
+    // Split text by blank placeholders
+    const BLANK_REGEX = /\[\s*BLANK\s*\]/gi;
+    const parts = text.split(BLANK_REGEX);
+    const blankCount = (text.match(BLANK_REGEX) || []).length;
+    
+    let currentX = startX;
+    let currentY = startY;
+    const lineStartX = startX;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      if (part) {
+        // Render text parts - word by word for proper wrapping
+        const words = part.split(/\s+/).filter(w => w);
+        
+        for (const word of words) {
+          const wordWidth = doc.getTextWidth(word + ' ');
+          
+          // Check if we need to wrap to next line
+          if (currentX + wordWidth > lineStartX + maxWidth) {
+            currentX = lineStartX;
+            currentY += LINE_HEIGHT;
+            
+            // Page break check
+            if (currentY > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+              addNewPage();
+              currentY = yPosition;
+            }
+          }
+          
+          setColor(COLORS.primary);
+          doc.text(word, currentX, currentY);
+          currentX += wordWidth;
+        }
+      }
+      
+      // Draw blank box (except after last part)
+      if (i < blankCount) {
+        // Check if box fits on current line
+        if (currentX + BLANK_BOX_WIDTH + 5 > lineStartX + maxWidth) {
+          currentX = lineStartX;
+          currentY += LINE_HEIGHT;
+          
+          if (currentY > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+            addNewPage();
+            currentY = yPosition;
+          }
+        }
+        
+        // Draw the answer box
+        const boxY = currentY - BLANK_BOX_HEIGHT + 1.5;
+        setColor(COLORS.answerBoxBorder, "draw");
+        doc.setLineWidth(0.4);
+        doc.rect(currentX, boxY, BLANK_BOX_WIDTH, BLANK_BOX_HEIGHT, "D");
+        
+        // Light fill for visibility
+        setColor([250, 250, 252], "fill");
+        doc.rect(currentX + 0.2, boxY + 0.2, BLANK_BOX_WIDTH - 0.4, BLANK_BOX_HEIGHT - 0.4, "F");
+        
+        currentX += BLANK_BOX_WIDTH + 3;
+      }
+    }
+    
+    // Add marks at end of line if provided
+    if (marks) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      setColor(COLORS.secondary);
+      doc.text(formatMarks(marks), lineStartX + maxWidth + 5, currentY, { align: "left" });
+    }
+    
+    return currentY + LINE_HEIGHT + 2;
+  };
+  
+  // Check if question is fill-in-the-blank type
+  const isFillInBlankQuestion = (questionText: string): boolean => {
+    return hasFillInBlanks(questionText);
+  };
+
   // ============= Biology-Specific Question Rendering =============
   // Renders each sub-question IMMEDIATELY followed by its answer lines
   const drawBiologyQuestionGroup = (group: QuestionGroup) => {
@@ -1137,27 +1248,37 @@ export async function generateExamPDF(
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
 
-      // Question text
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      setColor(COLORS.primary);
+      // Check if this is a fill-in-the-blank question
+      const isFillInBlank = isFillInBlankQuestion(cleanedText);
       
+      // Question text - use fill-in-blank renderer if applicable
       const textWidth = getSafeTextWidth(baseTextWidth);
       const safeCleanedText = cleanedText || '';
-      const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
       
-      textLines.forEach((line: string) => {
-        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
-          addNewPage();
-        }
+      if (isFillInBlank) {
+        // Render with inline answer boxes
+        yPosition = renderTextWithBlanks(safeCleanedText, textIndent, yPosition, textWidth, question.marks);
+      } else {
+        // Standard text rendering
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         setColor(COLORS.primary);
-        doc.text(line || '', textIndent, yPosition);
-        yPosition += LINE_HEIGHT;
-      });
-      
-      yPosition += 4;
+        
+        const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
+        
+        textLines.forEach((line: string) => {
+          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+            addNewPage();
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          setColor(COLORS.primary);
+          doc.text(line || '', textIndent, yPosition);
+          yPosition += LINE_HEIGHT;
+        });
+        
+        yPosition += 4;
+      }
 
       // Handle MCQ options - display on separate lines
       if (isMCQ) {
@@ -1242,7 +1363,8 @@ export async function generateExamPDF(
         }
       }
       // Regular question - draw answer lines IMMEDIATELY after question text
-      else if (includeWorkingSpace && question.question_type?.toLowerCase() !== 'mcq') {
+      // SKIP answer lines for fill-in-the-blank questions (answers are inline)
+      else if (includeWorkingSpace && question.question_type?.toLowerCase() !== 'mcq' && !isFillInBlank) {
         // Handle graph requirement
         if (question.requires_graph) {
           if (getRemainingSpace() < GRID_HEIGHT + 15) {
@@ -1275,6 +1397,10 @@ export async function generateExamPDF(
           yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, lineCount, question.marks);
         }
         
+        yPosition += BIOLOGY_QUESTION_GAP;
+      }
+      // For fill-in-blank questions, just add a small gap
+      else if (isFillInBlank) {
         yPosition += BIOLOGY_QUESTION_GAP;
       }
     }
@@ -1393,28 +1519,43 @@ export async function generateExamPDF(
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
 
-      // Question text - with consistent font and safe width, null-safe
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      setColor(COLORS.primary);
+      // Check if this is a fill-in-the-blank question
+      const isFillInBlank = isFillInBlankQuestion(cleanedText);
       
+      // Question text - with consistent font and safe width, null-safe
       const textWidth = getSafeTextWidth(baseTextWidth);
       const safeCleanedText = cleanedText || '';
-      const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
       
-      textLines.forEach((line: string) => {
-        if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
-          addNewPage();
-        }
+      if (isFillInBlank) {
+        // Render with inline answer boxes
+        yPosition = renderTextWithBlanks(safeCleanedText, textIndent, yPosition, textWidth, question.marks);
+      } else {
+        // Standard text rendering
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         setColor(COLORS.primary);
-        doc.text(line || '', textIndent, yPosition);
-        yPosition += LINE_HEIGHT;
-      });
-      
-      yPosition += 3;
+        
+        const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
+        
+        textLines.forEach((line: string) => {
+          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+            addNewPage();
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          setColor(COLORS.primary);
+          doc.text(line || '', textIndent, yPosition);
+          yPosition += LINE_HEIGHT;
+        });
+        
+        yPosition += 3;
+      }
       hasDrawnAnyQuestions = true;
+      
+      // Track if question has fill-in-blank (for skipping answer area later)
+      if (isFillInBlank) {
+        (question as any)._isFillInBlank = true;
+      }
 
       // Handle MCQ options - clean format matching real exam papers
       if (isMCQ) {
@@ -1533,8 +1674,10 @@ export async function generateExamPDF(
       const allMCQ = group.questions.every(q => q.question_type?.toLowerCase() === "mcq");
       // Skip if questions had graphs/diagrams (already drawn)
       const hadSpecialElements = group.questions.some(q => q.requires_graph || q.requires_diagram);
+      // Skip if all questions were fill-in-blank (answers are inline)
+      const allFillInBlank = group.questions.every(q => (q as any)._isFillInBlank === true);
       
-      if (!allMCQ && !hadSpecialElements) {
+      if (!allMCQ && !hadSpecialElements && !allFillInBlank) {
         const subjectType = getSubjectType(examData.subject);
         const areaType = answerStyle || getAnswerAreaType(examData.subject, totalSubMarks, 'written');
         
@@ -1670,6 +1813,7 @@ export async function generateExamPDF(
 }
 
 // ============= Text Sanitization for PDF Compatibility =============
+// Note: We now allow Unicode superscripts/subscripts and math symbols for proper notation
 function sanitizeForPDF(text: string): string {
   let safe = text;
   
@@ -1684,48 +1828,22 @@ function sanitizeForPDF(text: string): string {
       '&apos;': "'",
       '&#39;': "'",
       '&#x27;': "'",
-      '&mdash;': '-',
-      '&ndash;': '-',
-      '&hellip;': '...',
+      '&mdash;': '—',
+      '&ndash;': '–',
+      '&hellip;': '…',
       '&lsquo;': "'",
       '&rsquo;': "'",
       '&ldquo;': '"',
       '&rdquo;': '"',
-      '&deg;': ' degrees',
-      '&times;': 'x',
-      '&divide;': '/',
-      '&plusmn;': '+/-',
-      '&frac12;': '1/2',
-      '&frac14;': '1/4',
-      '&frac34;': '3/4',
+      '&deg;': '°',
+      '&times;': '×',
+      '&divide;': '÷',
+      '&plusmn;': '±',
+      '&frac12;': '½',
+      '&frac14;': '¼',
+      '&frac34;': '¾',
     };
     return entityMap[entity] || '';
-  });
-  
-  // Map common Unicode characters to ASCII equivalents
-  const unicodeMap: Record<string, string> = {
-    'Ø': 'O', 'ø': 'o',
-    'Ü': 'U', 'ü': 'u',
-    'Ö': 'O', 'ö': 'o',
-    'Ä': 'A', 'ä': 'a',
-    '×': 'x', '÷': '/',
-    '±': '+/-', '°': ' degrees',
-    '²': '^2', '³': '^3',
-    '¹': '^1', '⁴': '^4', '⁵': '^5',
-    '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3',
-    '→': '->', '←': '<-', '↔': '<->',
-    '≤': '<=', '≥': '>=', '≠': '!=', '≈': '~=',
-    '∞': 'infinity', '√': 'sqrt',
-    'µ': 'mu', 'π': 'pi', 'Σ': 'Sum', 'Δ': 'Delta',
-    'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'θ': 'theta',
-    '•': '*', '·': '.',
-    '′': "'", '″': '"',
-    '…': '...',
-    '\u00A0': ' ', // Non-breaking space
-  };
-  
-  safe = safe.replace(/[^\x00-\x7F]/g, (char) => {
-    return unicodeMap[char] || '';
   });
   
   // Remove zero-width characters that cause spacing issues in jsPDF
@@ -1738,22 +1856,48 @@ function sanitizeForPDF(text: string): string {
   safe = safe.replace(/[""„‟]/g, '"');
   safe = safe.replace(/[''‚‛]/g, "'");
   
-  // Replace em/en dashes with regular hyphen
-  safe = safe.replace(/[–—―]/g, '-');
-  
-  // Replace ellipsis with dots
-  safe = safe.replace(/…/g, '...');
-  
-  // Replace non-breaking spaces with regular spaces
-  safe = safe.replace(/[\u00A0\u2007\u202F]/g, ' ');
-  
   // Normalize multiple spaces to single space
   safe = safe.replace(/\s+/g, ' ');
   
   return safe.trim();
 }
 
-// ============= ASCII-Safe LaTeX Conversion (No Unicode Symbols) =============
+// ============= Unicode Maps for Proper Notation Rendering =============
+const SUPERSCRIPT_MAP: Record<string, string> = {
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+  '-': '⁻', '+': '⁺', '=': '⁼', '(': '⁽', ')': '⁾',
+  'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ', 'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ',
+  'd': 'ᵈ', 'e': 'ᵉ', 'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'j': 'ʲ', 'k': 'ᵏ',
+  'l': 'ˡ', 'm': 'ᵐ', 'o': 'ᵒ', 'p': 'ᵖ', 'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ',
+  'u': 'ᵘ', 'v': 'ᵛ', 'w': 'ʷ', 'z': 'ᶻ',
+};
+
+const SUBSCRIPT_MAP: Record<string, string> = {
+  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+  '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+  '-': '₋', '+': '₊', '=': '₌', '(': '₍', ')': '₎',
+  'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ', 'k': 'ₖ',
+  'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ', 'p': 'ₚ', 'r': 'ᵣ',
+  's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ', 'v': 'ᵥ', 'x': 'ₓ',
+};
+
+// Convert a string to superscript characters
+function toSuperscript(str: string): string {
+  return str.split('').map(c => SUPERSCRIPT_MAP[c.toLowerCase()] || c).join('');
+}
+
+// Convert a string to subscript characters
+function toSubscript(str: string): string {
+  return str.split('').map(c => SUBSCRIPT_MAP[c.toLowerCase()] || c).join('');
+}
+
+// ============= Check if question has fill-in-the-blank placeholders =============
+function hasFillInBlanks(text: string): boolean {
+  return /\[\s*BLANK\s*\]/i.test(text);
+}
+
+// ============= Clean LaTeX for PDF with proper Unicode notation =============
 function cleanLatexForPDF(text: string): string {
   if (!text) return "";
 
@@ -1785,96 +1929,120 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)");
   
   // Roots - use ASCII notation
-  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
-  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
+  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
+  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1√($2)");
   
-  // Exponents - use caret notation (ASCII-safe)
-  cleaned = cleaned.replace(/\^{([^}]+)}/g, "^($1)");
-  cleaned = cleaned.replace(/\^(\d+)/g, "^$1");
-  cleaned = cleaned.replace(/\^([a-z])/gi, "^$1");
+  // ============= SUPERSCRIPTS - Convert to proper Unicode =============
+  // Handle ^{...} notation
+  cleaned = cleaned.replace(/\^{([^}]+)}/g, (_, content) => toSuperscript(content));
+  // Handle ^digit or ^letter (single char)
+  cleaned = cleaned.replace(/\^([0-9a-zA-Z\-+])/g, (_, char) => toSuperscript(char));
   
-  // Subscripts - use underscore notation (ASCII-safe)
-  cleaned = cleaned.replace(/_{([^}]+)}/g, "_($1)");
-  cleaned = cleaned.replace(/_(\d+)/g, "_$1");
-  cleaned = cleaned.replace(/_([a-z])/gi, "_$1");
+  // ============= SUBSCRIPTS - Convert to proper Unicode =============
+  // Handle _{...} notation
+  cleaned = cleaned.replace(/_{([^}]+)}/g, (_, content) => toSubscript(content));
+  // Handle _digit or _letter (single char) - but not in BLANK patterns
+  cleaned = cleaned.replace(/(?<!\[|\s)_([0-9a-zA-Z])(?!\s*BLANK)/g, (_, char) => toSubscript(char));
   
-  // Operators - use ASCII equivalents
-  cleaned = cleaned.replace(/\\times/g, " x ");
-  cleaned = cleaned.replace(/\\div/g, " / ");
-  cleaned = cleaned.replace(/\\pm/g, "+/-");
-  cleaned = cleaned.replace(/\\mp/g, "-/+");
-  cleaned = cleaned.replace(/\\cdot/g, " . ");
+  // ============= CHEMICAL FORMULAE - Common patterns =============
+  // Handle common chemical formulae like CO2, H2O, O2, etc.
+  cleaned = cleaned.replace(/\b([A-Z][a-z]?)(\d+)\b/g, (match, element, num) => {
+    // Only convert if it looks like a chemical formula (capital letter followed by number)
+    if (/^[A-Z][a-z]?\d+$/.test(match)) {
+      return element + toSubscript(num);
+    }
+    return match;
+  });
   
-  // Comparisons - use ASCII equivalents
-  cleaned = cleaned.replace(/\\leq/g, "<=");
-  cleaned = cleaned.replace(/\\geq/g, ">=");
-  cleaned = cleaned.replace(/\\neq/g, "!=");
-  cleaned = cleaned.replace(/\\approx/g, "~=");
-  cleaned = cleaned.replace(/\\equiv/g, "===");
+  // ============= UNITS - Common patterns =============
+  // Handle units like cm3, dm3, m3, etc. (convert trailing digit to superscript for volume units)
+  cleaned = cleaned.replace(/\b(cm|dm|m|km)(\d)\b/g, (_, unit, num) => unit + toSuperscript(num));
+  // Handle mol dm-3, m s-1, etc. (negative exponents in units)
+  cleaned = cleaned.replace(/\b(dm|m|s|kg|mol)(\s*-\s*\d+)\b/g, (_, unit, exp) => {
+    const cleanExp = exp.replace(/\s/g, '');
+    return unit + toSuperscript(cleanExp);
+  });
+  
+  // ============= Q10 pattern (biology) =============
+  cleaned = cleaned.replace(/\bQ(\d+)\b/g, (_, num) => 'Q' + toSubscript(num));
+  
+  // Operators - use proper Unicode where available
+  cleaned = cleaned.replace(/\\times/g, "×");
+  cleaned = cleaned.replace(/\\div/g, "÷");
+  cleaned = cleaned.replace(/\\pm/g, "±");
+  cleaned = cleaned.replace(/\\mp/g, "∓");
+  cleaned = cleaned.replace(/\\cdot/g, "·");
+  
+  // Comparisons - use proper Unicode
+  cleaned = cleaned.replace(/\\leq/g, "≤");
+  cleaned = cleaned.replace(/\\geq/g, "≥");
+  cleaned = cleaned.replace(/\\neq/g, "≠");
+  cleaned = cleaned.replace(/\\approx/g, "≈");
+  cleaned = cleaned.replace(/\\equiv/g, "≡");
   cleaned = cleaned.replace(/\\lt/g, "<");
   cleaned = cleaned.replace(/\\gt/g, ">");
   
-  // Greek letters - spell out for maximum compatibility
-  cleaned = cleaned.replace(/\\pi/g, "pi");
-  cleaned = cleaned.replace(/\\alpha/g, "alpha");
-  cleaned = cleaned.replace(/\\beta/g, "beta");
-  cleaned = cleaned.replace(/\\gamma/g, "gamma");
-  cleaned = cleaned.replace(/\\delta/g, "delta");
-  cleaned = cleaned.replace(/\\epsilon/g, "epsilon");
-  cleaned = cleaned.replace(/\\theta/g, "theta");
-  cleaned = cleaned.replace(/\\lambda/g, "lambda");
-  cleaned = cleaned.replace(/\\mu/g, "mu");
-  cleaned = cleaned.replace(/\\sigma/g, "sigma");
-  cleaned = cleaned.replace(/\\omega/g, "omega");
-  cleaned = cleaned.replace(/\\phi/g, "phi");
-  cleaned = cleaned.replace(/\\psi/g, "psi");
-  cleaned = cleaned.replace(/\\rho/g, "rho");
-  cleaned = cleaned.replace(/\\tau/g, "tau");
-  cleaned = cleaned.replace(/\\chi/g, "chi");
-  cleaned = cleaned.replace(/\\Delta/g, "Delta");
-  cleaned = cleaned.replace(/\\Sigma/g, "Sigma");
-  cleaned = cleaned.replace(/\\Omega/g, "Omega");
-  cleaned = cleaned.replace(/\\Pi/g, "Pi");
-  cleaned = cleaned.replace(/\\Gamma/g, "Gamma");
-  cleaned = cleaned.replace(/\\Theta/g, "Theta");
-  cleaned = cleaned.replace(/\\Lambda/g, "Lambda");
+  // Greek letters - use proper Unicode
+  cleaned = cleaned.replace(/\\pi\b/g, "π");
+  cleaned = cleaned.replace(/\\alpha\b/g, "α");
+  cleaned = cleaned.replace(/\\beta\b/g, "β");
+  cleaned = cleaned.replace(/\\gamma\b/g, "γ");
+  cleaned = cleaned.replace(/\\delta\b/g, "δ");
+  cleaned = cleaned.replace(/\\epsilon\b/g, "ε");
+  cleaned = cleaned.replace(/\\theta\b/g, "θ");
+  cleaned = cleaned.replace(/\\lambda\b/g, "λ");
+  cleaned = cleaned.replace(/\\mu\b/g, "μ");
+  cleaned = cleaned.replace(/\\sigma\b/g, "σ");
+  cleaned = cleaned.replace(/\\omega\b/g, "ω");
+  cleaned = cleaned.replace(/\\phi\b/g, "φ");
+  cleaned = cleaned.replace(/\\psi\b/g, "ψ");
+  cleaned = cleaned.replace(/\\rho\b/g, "ρ");
+  cleaned = cleaned.replace(/\\tau\b/g, "τ");
+  cleaned = cleaned.replace(/\\chi\b/g, "χ");
+  cleaned = cleaned.replace(/\\Delta\b/g, "Δ");
+  cleaned = cleaned.replace(/\\Sigma\b/g, "Σ");
+  cleaned = cleaned.replace(/\\Omega\b/g, "Ω");
+  cleaned = cleaned.replace(/\\Pi\b/g, "Π");
+  cleaned = cleaned.replace(/\\Gamma\b/g, "Γ");
+  cleaned = cleaned.replace(/\\Theta\b/g, "Θ");
+  cleaned = cleaned.replace(/\\Lambda\b/g, "Λ");
   
-  // Math symbols - use ASCII equivalents
-  cleaned = cleaned.replace(/\\sum/g, "Sum");
-  cleaned = cleaned.replace(/\\prod/g, "Product");
-  cleaned = cleaned.replace(/\\infty/g, "infinity");
-  cleaned = cleaned.replace(/\\partial/g, "d");
-  cleaned = cleaned.replace(/\\nabla/g, "nabla");
-  cleaned = cleaned.replace(/\\int/g, "integral");
-  cleaned = cleaned.replace(/\\forall/g, "for all");
-  cleaned = cleaned.replace(/\\exists/g, "exists");
-  cleaned = cleaned.replace(/\\in/g, " in ");
-  cleaned = cleaned.replace(/\\notin/g, " not in ");
-  cleaned = cleaned.replace(/\\subset/g, " subset ");
-  cleaned = cleaned.replace(/\\supset/g, " superset ");
-  cleaned = cleaned.replace(/\\cup/g, " union ");
-  cleaned = cleaned.replace(/\\cap/g, " intersect ");
-  cleaned = cleaned.replace(/\\emptyset/g, "empty set");
-  cleaned = cleaned.replace(/\\angle/g, "angle ");
-  cleaned = cleaned.replace(/\\triangle/g, "triangle ");
-  cleaned = cleaned.replace(/\\perp/g, " perpendicular ");
-  cleaned = cleaned.replace(/\\parallel/g, " parallel ");
-  cleaned = cleaned.replace(/\\rightarrow/g, " -> ");
-  cleaned = cleaned.replace(/\\leftarrow/g, " <- ");
-  cleaned = cleaned.replace(/\\Rightarrow/g, " => ");
-  cleaned = cleaned.replace(/\\Leftarrow/g, " <= ");
-  cleaned = cleaned.replace(/\\leftrightarrow/g, " <-> ");
-  cleaned = cleaned.replace(/\\therefore/g, "therefore");
-  cleaned = cleaned.replace(/\\because/g, "because");
+  // Math symbols - use proper Unicode
+  cleaned = cleaned.replace(/\\sum\b/g, "Σ");
+  cleaned = cleaned.replace(/\\prod\b/g, "Π");
+  cleaned = cleaned.replace(/\\infty\b/g, "∞");
+  cleaned = cleaned.replace(/\\partial\b/g, "∂");
+  cleaned = cleaned.replace(/\\nabla\b/g, "∇");
+  cleaned = cleaned.replace(/\\int\b/g, "∫");
+  cleaned = cleaned.replace(/\\forall\b/g, "∀");
+  cleaned = cleaned.replace(/\\exists\b/g, "∃");
+  cleaned = cleaned.replace(/\\in\b/g, "∈");
+  cleaned = cleaned.replace(/\\notin\b/g, "∉");
+  cleaned = cleaned.replace(/\\subset\b/g, "⊂");
+  cleaned = cleaned.replace(/\\supset\b/g, "⊃");
+  cleaned = cleaned.replace(/\\cup\b/g, "∪");
+  cleaned = cleaned.replace(/\\cap\b/g, "∩");
+  cleaned = cleaned.replace(/\\emptyset\b/g, "∅");
+  cleaned = cleaned.replace(/\\angle\b/g, "∠");
+  cleaned = cleaned.replace(/\\triangle\b/g, "△");
+  cleaned = cleaned.replace(/\\perp\b/g, "⊥");
+  cleaned = cleaned.replace(/\\parallel\b/g, "∥");
+  cleaned = cleaned.replace(/\\rightarrow\b/g, "→");
+  cleaned = cleaned.replace(/\\leftarrow\b/g, "←");
+  cleaned = cleaned.replace(/\\Rightarrow\b/g, "⇒");
+  cleaned = cleaned.replace(/\\Leftarrow\b/g, "⇐");
+  cleaned = cleaned.replace(/\\leftrightarrow\b/g, "↔");
+  cleaned = cleaned.replace(/\\therefore\b/g, "∴");
+  cleaned = cleaned.replace(/\\because\b/g, "∵");
   
   // Functions
-  cleaned = cleaned.replace(/\\sin/g, "sin");
-  cleaned = cleaned.replace(/\\cos/g, "cos");
-  cleaned = cleaned.replace(/\\tan/g, "tan");
-  cleaned = cleaned.replace(/\\log/g, "log");
-  cleaned = cleaned.replace(/\\ln/g, "ln");
-  cleaned = cleaned.replace(/\\exp/g, "exp");
-  cleaned = cleaned.replace(/\\lim/g, "lim");
+  cleaned = cleaned.replace(/\\sin\b/g, "sin");
+  cleaned = cleaned.replace(/\\cos\b/g, "cos");
+  cleaned = cleaned.replace(/\\tan\b/g, "tan");
+  cleaned = cleaned.replace(/\\log\b/g, "log");
+  cleaned = cleaned.replace(/\\ln\b/g, "ln");
+  cleaned = cleaned.replace(/\\exp\b/g, "exp");
+  cleaned = cleaned.replace(/\\lim\b/g, "lim");
   
   // Text in math mode
   cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, "$1");
@@ -1899,9 +2067,6 @@ function cleanLatexForPDF(text: string): string {
   
   // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, " ");
-  
-  // Final sanitization for PDF compatibility
-  cleaned = sanitizeForPDF(cleaned);
   
   return cleaned.trim();
 }
