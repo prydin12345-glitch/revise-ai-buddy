@@ -16,6 +16,7 @@ import {
   Globe,
   FileText,
   Clock,
+  Download,
   LucideIcon
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -49,6 +50,7 @@ interface PracticeSetCardProps {
   onToggleFavourite: (setId: string) => void;
   isFavourite: boolean;
   isRecovered?: boolean;
+  onDownloadPDF?: (setId: string) => void;
 }
 
 const getSubjectIcon = (subject: string): LucideIcon => {
@@ -80,7 +82,8 @@ export const PracticeSetCard = ({
   onDelete, 
   onToggleFavourite, 
   isFavourite,
-  isRecovered = false
+  isRecovered = false,
+  onDownloadPDF
 }: PracticeSetCardProps) => {
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
@@ -268,6 +271,21 @@ export const PracticeSetCard = ({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Preview questions</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onDownloadPDF?.(set.id)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Download PDF</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
