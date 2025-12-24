@@ -41,6 +41,12 @@ interface QuestionGroup {
   totalMarks: number;
 }
 
+// ============= Math Text Segment Types =============
+interface TextSegment {
+  type: 'normal' | 'superscript' | 'subscript';
+  text: string;
+}
+
 // ============= Constants =============
 const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
@@ -69,6 +75,12 @@ const GRID_CELL_SIZE = 5;
 const GRID_WIDTH = 100;
 const GRID_HEIGHT = 80;
 
+// Baseline shift constants for superscript/subscript rendering
+const SUPERSCRIPT_SCALE = 0.7;  // 70% of base font size
+const SUBSCRIPT_SCALE = 0.7;    // 70% of base font size
+const SUPERSCRIPT_RISE = 2.0;   // mm above baseline
+const SUBSCRIPT_DROP = 1.2;     // mm below baseline
+
 // Colors (RGB values)
 const COLORS = {
   primary: [30, 30, 30] as const,
@@ -81,6 +93,223 @@ const COLORS = {
   linedBg: [254, 254, 255] as const,
   tableHeader: [235, 235, 240] as const,
 };
+
+// ============= Parse Math Text into Segments =============
+// Parses text containing ^ and _ notation into segments for baseline-shift rendering
+function parseMathSegments(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  let i = 0;
+  let currentNormal = '';
+  
+  while (i < text.length) {
+    const char = text[i];
+    
+    // Check for superscript (^)
+    if (char === '^' && i + 1 < text.length) {
+      // Save any accumulated normal text
+      if (currentNormal) {
+        segments.push({ type: 'normal', text: currentNormal });
+        currentNormal = '';
+      }
+      
+      i++; // Move past ^
+      let superContent = '';
+      
+      // Check for braced content: ^{...}
+      if (text[i] === '{') {
+        i++; // Move past {
+        let braceDepth = 1;
+        while (i < text.length && braceDepth > 0) {
+          if (text[i] === '{') braceDepth++;
+          else if (text[i] === '}') braceDepth--;
+          if (braceDepth > 0) superContent += text[i];
+          i++;
+        }
+      }
+      // Check for parenthesized content: ^(...)
+      else if (text[i] === '(') {
+        i++; // Move past (
+        let parenDepth = 1;
+        while (i < text.length && parenDepth > 0) {
+          if (text[i] === '(') parenDepth++;
+          else if (text[i] === ')') parenDepth--;
+          if (parenDepth > 0) superContent += text[i];
+          i++;
+        }
+      }
+      // Single character or sequence of digits/letters/minus
+      else {
+        // Capture contiguous alphanumeric and minus signs
+        while (i < text.length && /[0-9a-zA-Z\-+]/.test(text[i])) {
+          superContent += text[i];
+          i++;
+        }
+      }
+      
+      if (superContent) {
+        segments.push({ type: 'superscript', text: superContent });
+      }
+      continue;
+    }
+    
+    // Check for subscript (_) - but not in BLANK patterns
+    if (char === '_' && i + 1 < text.length) {
+      // Check if this is part of [ BLANK ] pattern
+      const before = text.substring(Math.max(0, i - 10), i);
+      const after = text.substring(i, Math.min(text.length, i + 10));
+      if (before.includes('[') && after.includes('BLANK')) {
+        currentNormal += char;
+        i++;
+        continue;
+      }
+      
+      // Save any accumulated normal text
+      if (currentNormal) {
+        segments.push({ type: 'normal', text: currentNormal });
+        currentNormal = '';
+      }
+      
+      i++; // Move past _
+      let subContent = '';
+      
+      // Check for braced content: _{...}
+      if (text[i] === '{') {
+        i++; // Move past {
+        let braceDepth = 1;
+        while (i < text.length && braceDepth > 0) {
+          if (text[i] === '{') braceDepth++;
+          else if (text[i] === '}') braceDepth--;
+          if (braceDepth > 0) subContent += text[i];
+          i++;
+        }
+      }
+      // Check for parenthesized content: _(...)
+      else if (text[i] === '(') {
+        i++; // Move past (
+        let parenDepth = 1;
+        while (i < text.length && parenDepth > 0) {
+          if (text[i] === '(') parenDepth++;
+          else if (text[i] === ')') parenDepth--;
+          if (parenDepth > 0) subContent += text[i];
+          i++;
+        }
+      }
+      // Single character
+      else if (/[0-9a-zA-Z]/.test(text[i])) {
+        subContent = text[i];
+        i++;
+      }
+      
+      if (subContent) {
+        segments.push({ type: 'subscript', text: subContent });
+      }
+      continue;
+    }
+    
+    // Normal character
+    currentNormal += char;
+    i++;
+  }
+  
+  // Add any remaining normal text
+  if (currentNormal) {
+    segments.push({ type: 'normal', text: currentNormal });
+  }
+  
+  return segments;
+}
+
+// ============= Measure Math Text Width =============
+// Calculates the width of text with superscripts/subscripts using baseline shifting
+function measureMathText(doc: jsPDF, text: string, baseFontSize: number): number {
+  const segments = parseMathSegments(text);
+  let totalWidth = 0;
+  
+  for (const segment of segments) {
+    if (segment.type === 'normal') {
+      doc.setFontSize(baseFontSize);
+      totalWidth += doc.getTextWidth(segment.text);
+    } else {
+      // Superscript and subscript use smaller font
+      const scale = segment.type === 'superscript' ? SUPERSCRIPT_SCALE : SUBSCRIPT_SCALE;
+      doc.setFontSize(baseFontSize * scale);
+      totalWidth += doc.getTextWidth(segment.text);
+    }
+  }
+  
+  // Restore base font size
+  doc.setFontSize(baseFontSize);
+  return totalWidth;
+}
+
+// ============= Render Math Text with Baseline Shifting =============
+// Renders text with proper visual superscripts and subscripts using Y-offset
+function renderMathText(
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  baseFontSize: number,
+  color: readonly number[]
+): number {
+  const segments = parseMathSegments(text);
+  let currentX = x;
+  
+  // Ensure character spacing is reset to avoid corruption
+  doc.setCharSpace(0);
+  
+  for (const segment of segments) {
+    doc.setTextColor(color[0], color[1], color[2]);
+    
+    if (segment.type === 'normal') {
+      doc.setFontSize(baseFontSize);
+      doc.text(segment.text, currentX, y);
+      currentX += doc.getTextWidth(segment.text);
+    } else if (segment.type === 'superscript') {
+      // Smaller font, raised position
+      const fontSize = baseFontSize * SUPERSCRIPT_SCALE;
+      doc.setFontSize(fontSize);
+      doc.text(segment.text, currentX, y - SUPERSCRIPT_RISE);
+      currentX += doc.getTextWidth(segment.text);
+    } else if (segment.type === 'subscript') {
+      // Smaller font, lowered position
+      const fontSize = baseFontSize * SUBSCRIPT_SCALE;
+      doc.setFontSize(fontSize);
+      doc.text(segment.text, currentX, y + SUBSCRIPT_DROP);
+      currentX += doc.getTextWidth(segment.text);
+    }
+  }
+  
+  // Restore base font size
+  doc.setFontSize(baseFontSize);
+  return currentX;
+}
+
+// ============= Word-Wrap Math Text =============
+// Splits text into lines respecting max width, keeping math expressions together
+function wrapMathText(doc: jsPDF, text: string, maxWidth: number, baseFontSize: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word;
+    const testWidth = measureMathText(doc, testLine, baseFontSize);
+    
+    if (testWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines;
+}
 
 // ============= Extract Embedded Table from Question Text =============
 function extractEmbeddedTable(questionText: string): { 
@@ -99,7 +328,6 @@ function extractEmbeddedTable(questionText: string): {
   }
   
   // Enhanced table detection - look for lines containing pipe characters
-  // This handles both standard markdown tables and tables with alignment markers
   const lines = questionText.split('\n');
   let tableStartIdx = -1;
   let tableEndIdx = -1;
@@ -107,8 +335,6 @@ function extractEmbeddedTable(questionText: string): {
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    // Check if line contains pipe characters (table row indicator)
-    // Also handle separator rows that might start with : instead of |
     const hasPipes = line.includes('|') && (line.split('|').length >= 3);
     const isSeparatorRow = /^[|:\s-]+$/.test(line) && line.includes('-');
     
@@ -117,12 +343,11 @@ function extractEmbeddedTable(questionText: string): {
       tableEndIdx = i;
       if (hasPipes && !isSeparatorRow) pipeLineCount++;
     } else if (tableStartIdx !== -1 && tableEndIdx !== -1) {
-      // We've exited the table
       break;
     }
   }
   
-  // Need at least 2 data rows (header + one content row) to be considered a table
+  // Need at least 2 data rows to be considered a table
   if (pipeLineCount < 2) {
     // Fallback: check for inline tables with || as row separator
     if (questionText.includes('||') && questionText.includes('|')) {
@@ -156,7 +381,6 @@ function extractEmbeddedTable(questionText: string): {
   const afterTable = lines.slice(tableEndIdx + 1).join('\n').trim();
   let cleanText = (beforeTable + ' ' + afterTable).trim();
   
-  // Remove caption from clean text if found
   if (tableCaption) {
     cleanText = cleanText.replace(tableCaption, '').trim();
   }
@@ -171,8 +395,6 @@ function parseEmbeddedMCQOptions(questionText: string): {
 } {
   if (!questionText) return { cleanText: '', options: [] };
   
-  // Find where options start - match A) / A. / A: after whitespace, punctuation, or start.
-  // Handles inline options like "...? A) ... B) ..." and multi-line formats.
   const optionStartPattern = /(?:^|[\s?.!])\s*([A-E])\s*[\).:]\s*/i;
   const firstMatch = questionText.match(optionStartPattern);
   
@@ -180,18 +402,11 @@ function parseEmbeddedMCQOptions(questionText: string): {
     return { cleanText: questionText, options: [] };
   }
   
-  // Find the actual position of the first option letter
   const matchIndex = questionText.indexOf(firstMatch[0]);
   const firstOptionIndex = matchIndex + firstMatch[0].toUpperCase().indexOf(firstMatch[1].toUpperCase());
-  
-  // Get clean question stem (everything before first option)
   const cleanText = questionText.substring(0, firstOptionIndex).trim();
-  
-  // Extract the options portion
   const optionsPortion = questionText.substring(firstOptionIndex).trim();
   
-  // Split options reliably by detecting new option labels at the beginning of the remaining string.
-  // We intentionally avoid excluding letters in the option text (previous regex did that and broke).
   const parts: string[] = [];
   let currentPart = '';
   let i = 0;
@@ -234,7 +449,6 @@ function normalizeMCQOptions(rawOptions: unknown): NormalizedMCQOption[] {
   const labels = ["A", "B", "C", "D", "E"];
 
   if (Array.isArray(rawOptions)) {
-    // Common case from DB: string[] (no labels)
     if (rawOptions.every((o) => typeof o === "string")) {
       return (rawOptions as string[])
         .map((text, idx) => ({
@@ -244,7 +458,6 @@ function normalizeMCQOptions(rawOptions: unknown): NormalizedMCQOption[] {
         .filter((o) => o.text.length > 0);
     }
 
-    // Already structured
     if (rawOptions.every((o) => typeof o === "object" && o !== null)) {
       return (rawOptions as any[])
         .map((o) => ({
@@ -257,7 +470,6 @@ function normalizeMCQOptions(rawOptions: unknown): NormalizedMCQOption[] {
     return [];
   }
 
-  // Object like {A: "...", B: "..."}
   if (typeof rawOptions === "object") {
     const obj = rawOptions as Record<string, unknown>;
     const out: NormalizedMCQOption[] = [];
@@ -338,14 +550,12 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'ess
   if (['maths', 'mathematics', 'math', 'algebra', 'calculus', 'geometry', 'statistics'].some(k => s.includes(k))) {
     return 'math';
   }
-  // Biology gets its own type - dotted lines like real OCR exams
   if (['biology', 'human biology'].some(k => s.includes(k))) {
     return 'biology';
   }
   if (['physics', 'chemistry'].some(k => s.includes(k))) {
     return 'science';
   }
-  // True essay subjects get lined paper
   if (['english', 'history', 'literature', 'essay', 'geography', 'sociology', 'psychology', 'religious'].some(k => s.includes(k))) {
     return 'essay';
   }
@@ -353,7 +563,6 @@ function getSubjectType(subject?: string): 'math' | 'science' | 'biology' | 'ess
 }
 
 function getAnswerAreaType(subject?: string, marks?: number, questionType?: string): 'blank' | 'lined' | 'grid' | 'none' | 'mcq_box' | 'dotted_lines' {
-  // Case-insensitive MCQ check - MCQs get a small answer checkbox
   if (questionType?.toLowerCase() === 'mcq') return 'mcq_box';
   
   const subjectType = getSubjectType(subject);
@@ -362,7 +571,7 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
     case 'math':
       return 'blank';
     case 'biology':
-      return 'dotted_lines'; // Biology uses dotted lines like real OCR papers
+      return 'dotted_lines';
     case 'essay':
       return 'lined';
     case 'science':
@@ -373,7 +582,7 @@ function getAnswerAreaType(subject?: string, marks?: number, questionType?: stri
 }
 
 function getAnswerBoxHeight(marks: number): number {
-  if (marks <= 1) return 15; // MCQ or 1-mark - minimal
+  if (marks <= 1) return 15;
   if (marks <= 2) return ANSWER_HEIGHT_1_2_MARKS;
   if (marks <= 4) return ANSWER_HEIGHT_3_4_MARKS;
   if (marks <= 7) return ANSWER_HEIGHT_5_PLUS_MARKS;
@@ -382,12 +591,12 @@ function getAnswerBoxHeight(marks: number): number {
 
 // ============= Calculate dotted line count based on marks =============
 function getDottedLineCount(marks: number): number {
-  if (marks <= 1) return 3;   // MCQ - minimal lines
-  if (marks <= 2) return 5;   // Short answer
-  if (marks <= 3) return 8;   // Medium 
-  if (marks <= 4) return 10;  // Extended
-  if (marks <= 6) return 14;  // Long answer
-  return Math.min(marks * 2 + 4, 24); // 8+ marks, cap at 24 lines
+  if (marks <= 1) return 3;
+  if (marks <= 2) return 5;
+  if (marks <= 3) return 8;
+  if (marks <= 4) return 10;
+  if (marks <= 6) return 14;
+  return Math.min(marks * 2 + 4, 24);
 }
 
 // ============= Main PDF Generation Function =============
@@ -408,6 +617,9 @@ export async function generateExamPDF(
     format: "a4",
   });
 
+  // Ensure character spacing is always 0 to prevent corruption
+  doc.setCharSpace(0);
+
   let yPosition = MARGIN;
   let currentPage = 1;
 
@@ -425,6 +637,7 @@ export async function generateExamPDF(
     doc.addPage();
     currentPage++;
     yPosition = MARGIN;
+    doc.setCharSpace(0); // Reset on new page
   };
 
   const getRemainingSpace = (): number => {
@@ -438,17 +651,22 @@ export async function generateExamPDF(
       doc.setFontSize(9);
       setColor(COLORS.muted);
       doc.setFont("helvetica", "normal");
+      doc.setCharSpace(0);
       
-      // Footer line
       setColor(COLORS.separator, "draw");
       doc.setLineWidth(0.3);
       doc.line(MARGIN, A4_HEIGHT - 15, A4_WIDTH - MARGIN, A4_HEIGHT - 15);
       
-      // Page number (skip page 1 - instructions page)
       if (i > 1) {
         doc.text(`${i - 1}`, A4_WIDTH / 2, A4_HEIGHT - 10, { align: "center" });
       }
     }
+  };
+
+  // ============= Render Math Text Helper (uses baseline shifting) =============
+  const drawMathText = (text: string, x: number, y: number, fontSize: number = 10): number => {
+    doc.setFont("helvetica", "normal");
+    return renderMathText(doc, text, x, y, fontSize, COLORS.primary);
   };
 
   // ============= Instructions Page (Page 1) =============
@@ -487,13 +705,11 @@ export async function generateExamPDF(
     doc.setFont("helvetica", "normal");
     setColor(COLORS.primary);
 
-    // Name field
     doc.text("Candidate Name:", MARGIN, yPosition);
     setColor(COLORS.border, "draw");
     doc.setLineWidth(0.5);
     doc.line(MARGIN + 35, yPosition + 1, A4_WIDTH / 2 - 5, yPosition + 1);
 
-    // Centre/ID field
     setColor(COLORS.primary);
     doc.text("Candidate Number:", A4_WIDTH / 2 + 5, yPosition);
     setColor(COLORS.border, "draw");
@@ -611,22 +827,18 @@ export async function generateExamPDF(
     for (let i = 0; i < numLines; i++) {
       const lineY = y + (i * lineSpacing);
       
-      // Check if we need a new page
       if (lineY > A4_HEIGHT - FOOTER_HEIGHT - 5) {
         addNewPage();
-        // Continue drawing on new page
         return drawDottedLines(x, yPosition, width, numLines - i, i === numLines - 1 ? marks : undefined);
       }
       
-      // Draw dotted line
       doc.setLineDashPattern([1, 2], 0);
       setColor(COLORS.border, "draw");
       doc.setLineWidth(0.3);
       doc.line(x, lineY, x + width - 15, lineY);
       
-      // On the LAST line, add marks at the end
       if (i === numLines - 1 && marks) {
-        doc.setLineDashPattern([], 0); // Reset to solid
+        doc.setLineDashPattern([], 0);
         setColor(COLORS.primary);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
@@ -634,7 +846,7 @@ export async function generateExamPDF(
       }
     }
     
-    doc.setLineDashPattern([], 0); // Reset dash pattern
+    doc.setLineDashPattern([], 0);
     return y + (numLines * lineSpacing) + 5;
   };
 
@@ -642,10 +854,8 @@ export async function generateExamPDF(
   const renderTable = (tableData: string, x: number, y: number, caption?: string | null): number => {
     if (!tableData) return y;
     
-    // Add pre-table spacing for visual separation
     let currentY = y + 10;
     
-    // Try to parse as JSON first
     let rows: string[][] = [];
     try {
       const parsed = JSON.parse(tableData);
@@ -655,15 +865,12 @@ export async function generateExamPDF(
         );
       }
     } catch {
-      // Parse as simple pipe-delimited or newline-delimited format
       let lines = tableData.split('\n').filter(line => line.trim());
       
-      // If only one line but has multiple || patterns, split into rows
       if (lines.length === 1 && tableData.includes('||')) {
         const parts = tableData.split('||').map(p => p.trim());
         rows = parts.map(part => {
           const cells = part.split('|');
-          // Remove empty strings from start/end only (from leading/trailing pipes)
           if (cells.length > 0 && cells[0] === '') cells.shift();
           if (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
           return cells.map(cell => cell.trim());
@@ -672,7 +879,6 @@ export async function generateExamPDF(
         rows = lines.map(line => {
           if (line.includes('|')) {
             const cells = line.split('|');
-            // Remove empty strings from start/end only (preserve empty cells in middle)
             if (cells.length > 0 && cells[0].trim() === '') cells.shift();
             if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop();
             return cells.map(cell => cell.trim());
@@ -681,7 +887,6 @@ export async function generateExamPDF(
         });
       }
       
-      // Filter out separator rows like |---|---| or rows with only dashes/colons
       rows = rows.filter(row => 
         row.length > 0 && !row.every(cell => /^[-:]*$/.test(cell))
       );
@@ -689,27 +894,27 @@ export async function generateExamPDF(
     
     if (rows.length === 0) return y;
     
-    // ============= HEADER SHORTENING ALIASES =============
+    // Header shortening aliases
     const HEADER_ALIASES: Record<string, string> = {
-      "desired concentration of diluted sample": "Conc (mol/dm³)",
-      "volume of stock solution required": "Stock Vol (cm³)",
-      "volume of distilled water required": "Water Vol (cm³)",
+      "desired concentration of diluted sample": "Conc (mol/dm^3)",
+      "volume of stock solution required": "Stock Vol (cm^3)",
+      "volume of distilled water required": "Water Vol (cm^3)",
       "section of quadrat": "Quadrat",
       "beetles count": "Count",
       "beetles counted": "Count",
       "number of beetles": "Count",
       "concentration": "Conc",
-      "temperature": "Temp (°C)",
+      "temperature": "Temp (C)",
       "time / s": "Time (s)",
       "time (s)": "Time (s)",
-      "velocity / m s⁻¹": "Vel (m/s)",
+      "velocity / m s^-1": "Vel (m/s)",
       "velocity": "Vel (m/s)",
       "distance / m": "Dist (m)",
       "mass / g": "Mass (g)",
-      "volume / cm³": "Vol (cm³)",
-      "volume / cm3": "Vol (cm³)",
-      "titre / cm³": "Titre (cm³)",
-      "titre / cm3": "Titre (cm³)",
+      "volume / cm^3": "Vol (cm^3)",
+      "volume / cm3": "Vol (cm^3)",
+      "titre / cm^3": "Titre (cm^3)",
+      "titre / cm3": "Titre (cm^3)",
     };
     
     const shortenHeader = (header: string): string => {
@@ -717,41 +922,31 @@ export async function generateExamPDF(
       for (const [long, short] of Object.entries(HEADER_ALIASES)) {
         if (lower.includes(long)) return short;
       }
-      // If still too long (>16 chars), truncate intelligently
       if (header.length > 16) {
-        // Try to find a natural break point
         const words = header.split(/\s+/);
         if (words.length > 2) {
           return words.slice(0, 2).join(' ');
         }
-        return header.substring(0, 14) + '…';
+        return header.substring(0, 14) + '...';
       }
       return header;
     };
     
-    // ============= CLEAN LaTeX FROM CELLS =============
-    // Use the global cleanLatexForPDF function for consistent typography across tables
     const cleanCellContent = (cellText: string): string => {
-      // Apply the same LaTeX cleaning used for question text
-      // This ensures consistent superscript/subscript rendering in tables
       return cleanLatexForPDF(cellText);
     };
     
-    // Apply header shortening and content cleaning to all cells
     rows = rows.map((row, rowIndex) => 
       row.map(cell => {
         const cleaned = cleanCellContent(cell);
-        // Apply header shortening only to first row
         return rowIndex === 0 ? shortenHeader(cleaned) : cleaned;
       })
     );
     
-    // ============= TABLE ROTATION FOR NARROW/TALL TABLES =============
     const maxCols = Math.max(...rows.map(row => row.length));
     const shouldRotate = maxCols <= 3 && rows.length > 5;
     
     if (shouldRotate && rows.length > 1) {
-      // Transpose the table (swap rows and columns)
       const transposed: string[][] = [];
       for (let j = 0; j < maxCols; j++) {
         const newRow: string[] = [];
@@ -763,13 +958,11 @@ export async function generateExamPDF(
       rows = transposed;
     }
     
-    // Recalculate maxCols after potential rotation
     const finalMaxCols = Math.max(...rows.map(row => row.length));
     
-    const cellPadding = 4; // Increased padding for better readability
-    const rowHeight = 12; // Taller rows for better visibility
+    const cellPadding = 4;
+    const rowHeight = 12;
     
-    // Calculate dynamic column widths based on content
     const colWidths: number[] = [];
     const maxTableWidth = CONTENT_WIDTH - 20;
     const minColWidth = 25;
@@ -779,13 +972,12 @@ export async function generateExamPDF(
       for (const row of rows) {
         const cellText = row[j] || '';
         doc.setFontSize(9);
-        const textWidth = doc.getTextWidth(cellText) + cellPadding * 2;
+        const textWidth = measureMathText(doc, cellText, 9) + cellPadding * 2;
         maxWidth = Math.max(maxWidth, textWidth);
       }
       colWidths.push(maxWidth);
     }
     
-    // Scale columns if they exceed max width
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     if (totalWidth > maxTableWidth) {
       const scale = maxTableWidth / totalWidth;
@@ -796,15 +988,13 @@ export async function generateExamPDF(
     
     const tableWidth = colWidths.reduce((a, b) => a + b, 0);
     const tableX = x;
-    const totalTableHeight = (rows.length * rowHeight) + (caption ? 18 : 0) + 24; // Include caption and spacing
+    const totalTableHeight = (rows.length * rowHeight) + (caption ? 18 : 0) + 24;
     
-    // Page break prevention: if table won't fit, start new page
     if (currentY + totalTableHeight > A4_HEIGHT - FOOTER_HEIGHT - 20) {
       addNewPage();
       currentY = yPosition + 10;
     }
     
-    // Render table caption if present
     if (caption) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
@@ -813,14 +1003,11 @@ export async function generateExamPDF(
       currentY += LINE_HEIGHT + 4;
     }
     
-    // Function to draw a single row with enhanced styling
     const drawRow = (rowData: string[], rowY: number, isHeader: boolean): number => {
-      // Check page break BEFORE drawing row
       if (rowY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 10) {
         addNewPage();
         rowY = yPosition + 5;
         
-        // Re-draw header on new page if this isn't the header
         if (!isHeader && rows.length > 0) {
           drawRow(rows[0], rowY, true);
           rowY += rowHeight;
@@ -832,39 +1019,25 @@ export async function generateExamPDF(
         const cellText = rowData[j] || '';
         const colWidth = colWidths[j];
         
-        // Draw cell background for header with shaded color
         if (isHeader) {
-          setColor([230, 235, 245], "fill"); // Light blue-gray header
+          setColor([230, 235, 245], "fill");
           doc.rect(cellX, rowY, colWidth, rowHeight, "F");
         } else {
-          // Alternate row coloring for better readability
           setColor([255, 255, 255], "fill");
           doc.rect(cellX, rowY, colWidth, rowHeight, "F");
         }
         
-        // Draw cell border with clear grid lines
         setColor(COLORS.border, "draw");
-        doc.setLineWidth(isHeader ? 0.5 : 0.3); // Thicker border for header
+        doc.setLineWidth(isHeader ? 0.5 : 0.3);
         doc.rect(cellX, rowY, colWidth, rowHeight, "D");
         
-        // Cell text with proper alignment
         doc.setFont("helvetica", isHeader ? "bold" : "normal");
         doc.setFontSize(9);
-        setColor(COLORS.primary);
         
-        // Text already cleaned and shortened - just ensure it fits
-        const maxTextWidth = colWidth - cellPadding * 2;
-        let displayText = cellText;
-        if (doc.getTextWidth(displayText) > maxTextWidth) {
-          // Use ellipsis for overflow
-          while (doc.getTextWidth(displayText + '…') > maxTextWidth && displayText.length > 0) {
-            displayText = displayText.slice(0, -1);
-          }
-          displayText = displayText + '…';
-        }
+        // Use baseline-shift rendering for table cells
+        const textY = rowY + rowHeight / 2 + 3;
+        renderMathText(doc, cellText, cellX + cellPadding, textY, 9, COLORS.primary);
         
-        // Center text vertically in cell
-        doc.text(displayText, cellX + cellPadding, rowY + rowHeight / 2 + 3);
         cellX += colWidth;
       }
       
@@ -873,19 +1046,16 @@ export async function generateExamPDF(
     
     const tableStartY = currentY;
     
-    // Draw all rows
     for (let i = 0; i < rows.length; i++) {
       const isHeader = i === 0;
       currentY = drawRow(rows[i], currentY, isHeader);
     }
     
-    // Draw outer border (thicker) for the entire table
     doc.setLineWidth(0.6);
     setColor(COLORS.border, "draw");
     const tableHeight = currentY - tableStartY;
     doc.rect(tableX, tableStartY, tableWidth, tableHeight, "D");
     
-    // Add post-table spacing for visual separation
     return currentY + 12;
   };
 
@@ -893,19 +1063,16 @@ export async function generateExamPDF(
   const drawAnswerBox = (x: number, y: number, width: number, height: number, areaType: 'blank' | 'lined' | 'grid' | 'none' | 'minimal' | 'mcq_box' | 'dotted_lines', marks?: number) => {
     if (areaType === 'none' || areaType === 'minimal') return y;
 
-    // MCQ answer box - clean "Your answer [marks]" with checkbox
     if (areaType === 'mcq_box') {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       setColor(COLORS.primary);
       doc.text("Your answer", x, y + 5);
       
-      // Draw answer box
       setColor(COLORS.border, "draw");
       doc.setLineWidth(0.5);
       doc.rect(x + 26, y, 12, 8, "D");
       
-      // Marks in brackets after the box
       if (marks) {
         doc.setFontSize(10);
         setColor(COLORS.primary);
@@ -915,29 +1082,24 @@ export async function generateExamPDF(
       return y + 14;
     }
 
-    // Dotted lines for Biology-style answers
     if (areaType === 'dotted_lines') {
       const lineCount = getDottedLineCount(marks || 3);
       return drawDottedLines(x, y, width, lineCount, marks);
     }
 
-    // Shaded background
     setColor(COLORS.answerBoxBg, "fill");
     doc.rect(x, y, width, height, "F");
 
-    // Border
     setColor(COLORS.answerBoxBorder, "draw");
     doc.setLineWidth(0.4);
     doc.rect(x, y, width, height, "D");
 
-    // "Working space / Answer:" label with marks
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     setColor(COLORS.muted);
     const answerLabel = marks ? `Working space / Answer ${formatMarks(marks)}` : "Working space / Answer:";
     doc.text(answerLabel, x + 3, y + 5);
 
-    // Draw internal lines/grid if needed
     if (areaType === 'lined') {
       const lineSpacing = 8;
       const startY = y + 12;
@@ -974,11 +1136,9 @@ export async function generateExamPDF(
   const drawCoordinateGrid = (x: number, y: number, width: number, height: number) => {
     const cellSize = GRID_CELL_SIZE;
     
-    // Background
     setColor([255, 255, 255], "fill");
     doc.rect(x, y, width, height, "F");
     
-    // Light grid lines
     setColor([220, 220, 220], "draw");
     doc.setLineWidth(0.1);
 
@@ -989,15 +1149,14 @@ export async function generateExamPDF(
       doc.line(x, y + i * cellSize, x + width, y + i * cellSize);
     }
 
-    // Axes
-    doc.setLineWidth(0.5);
-    setColor([60, 60, 60], "draw");
     const centerX = x + width / 2;
     const centerY = y + height / 2;
+    
+    setColor(COLORS.primary, "draw");
+    doc.setLineWidth(0.3);
     doc.line(x, centerY, x + width, centerY);
     doc.line(centerX, y, centerX, y + height);
 
-    // Axis labels
     doc.setFontSize(8);
     setColor(COLORS.secondary);
     doc.text("x", x + width - 3, centerY - 2);
@@ -1005,7 +1164,6 @@ export async function generateExamPDF(
 
     doc.setLineWidth(0.2);
     
-    // Border
     setColor(COLORS.answerBoxBorder, "draw");
     doc.rect(x, y, width, height, "D");
   };
@@ -1016,9 +1174,8 @@ export async function generateExamPDF(
   };
 
   // ============= Fill-in-the-Blank Rendering =============
-  // Renders text with inline answer boxes for [ BLANK ] placeholders
-  const BLANK_BOX_WIDTH = 30; // Width of answer box in mm
-  const BLANK_BOX_HEIGHT = 6; // Height of answer box in mm
+  const BLANK_BOX_WIDTH = 30;
+  const BLANK_BOX_HEIGHT = 6;
   
   const renderTextWithBlanks = (
     text: string, 
@@ -1028,22 +1185,19 @@ export async function generateExamPDF(
     marks?: number
   ): number => {
     if (!text || !hasFillInBlanks(text)) {
-      // No blanks - render normally
-      const lines = doc.splitTextToSize(text || '', maxWidth);
+      // No blanks - render using math text
+      const lines = wrapMathText(doc, text || '', maxWidth, 10);
       lines.forEach((line: string) => {
         if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
           addNewPage();
         }
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setColor(COLORS.primary);
-        doc.text(line || '', startX, startY);
+        renderMathText(doc, line || '', startX, startY, 10, COLORS.primary);
         startY += LINE_HEIGHT;
       });
       return startY;
     }
     
-    // Split text by blank placeholders
     const BLANK_REGEX = /\[\s*BLANK\s*\]/gi;
     const parts = text.split(BLANK_REGEX);
     const blankCount = (text.match(BLANK_REGEX) || []).length;
@@ -1059,33 +1213,26 @@ export async function generateExamPDF(
       const part = parts[i];
       
       if (part) {
-        // Render text parts - word by word for proper wrapping
         const words = part.split(/\s+/).filter(w => w);
         
         for (const word of words) {
-          const wordWidth = doc.getTextWidth(word + ' ');
+          const wordWidth = measureMathText(doc, word + ' ', 10);
           
-          // Check if we need to wrap to next line
           if (currentX + wordWidth > lineStartX + maxWidth) {
             currentX = lineStartX;
             currentY += LINE_HEIGHT;
             
-            // Page break check
             if (currentY > A4_HEIGHT - FOOTER_HEIGHT - 15) {
               addNewPage();
               currentY = yPosition;
             }
           }
           
-          setColor(COLORS.primary);
-          doc.text(word, currentX, currentY);
-          currentX += wordWidth;
+          currentX = renderMathText(doc, word + ' ', currentX, currentY, 10, COLORS.primary);
         }
       }
       
-      // Draw blank box (except after last part)
       if (i < blankCount) {
-        // Check if box fits on current line
         if (currentX + BLANK_BOX_WIDTH + 5 > lineStartX + maxWidth) {
           currentX = lineStartX;
           currentY += LINE_HEIGHT;
@@ -1096,13 +1243,11 @@ export async function generateExamPDF(
           }
         }
         
-        // Draw the answer box
         const boxY = currentY - BLANK_BOX_HEIGHT + 1.5;
         setColor(COLORS.answerBoxBorder, "draw");
         doc.setLineWidth(0.4);
         doc.rect(currentX, boxY, BLANK_BOX_WIDTH, BLANK_BOX_HEIGHT, "D");
         
-        // Light fill for visibility
         setColor([250, 250, 252], "fill");
         doc.rect(currentX + 0.2, boxY + 0.2, BLANK_BOX_WIDTH - 0.4, BLANK_BOX_HEIGHT - 0.4, "F");
         
@@ -1110,7 +1255,6 @@ export async function generateExamPDF(
       }
     }
     
-    // Add marks at end of line if provided
     if (marks) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -1121,22 +1265,36 @@ export async function generateExamPDF(
     return currentY + LINE_HEIGHT + 2;
   };
   
-  // Check if question is fill-in-the-blank type
   const isFillInBlankQuestion = (questionText: string): boolean => {
     return hasFillInBlanks(questionText);
   };
 
+  // ============= Render Question Lines with Math Support =============
+  const renderQuestionLines = (text: string, x: number, startY: number, maxWidth: number): number => {
+    const lines = wrapMathText(doc, text, maxWidth, 10);
+    let currentY = startY;
+    
+    for (const line of lines) {
+      if (currentY > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+        addNewPage();
+        currentY = yPosition;
+      }
+      doc.setFont("helvetica", "normal");
+      renderMathText(doc, line || '', x, currentY, 10, COLORS.primary);
+      currentY += LINE_HEIGHT;
+    }
+    
+    return currentY;
+  };
+
   // ============= Biology-Specific Question Rendering =============
-  // Renders each sub-question IMMEDIATELY followed by its answer lines
   const drawBiologyQuestionGroup = (group: QuestionGroup) => {
-    // Main question header
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     setColor(COLORS.primary);
     
     doc.text(`${group.mainNumber}.`, MARGIN, yPosition);
     
-    // Total marks for this question on the right
     if (showMarks && group.totalMarks) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -1146,31 +1304,25 @@ export async function generateExamPDF(
     
     yPosition += 3;
     
-    // Separator line
     setColor(COLORS.separator, "draw");
     doc.setLineWidth(0.3);
     doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
     yPosition += 8;
 
-    // Process each question in the group
     for (let i = 0; i < group.questions.length; i++) {
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQuestion = parsed.sub !== '';
       
-      // Extract embedded tables FIRST from raw text (before LaTeX cleaning destroys newlines)
       const tableExtract = extractEmbeddedTable(question.question_text);
       const embeddedTableData = tableExtract.tableData;
       const embeddedTableCaption = tableExtract.tableCaption;
       
-      // Now apply LaTeX cleaning to the text with tables removed
       let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
       
-      // Check if we need a new page
-      const estimatedHeight = 50; // Estimate for text + answer lines
+      const estimatedHeight = 50;
       if (getRemainingSpace() < estimatedHeight) {
         addNewPage();
-        // Re-draw question number header on continuation
         doc.setFontSize(10);
         doc.setFont("helvetica", "italic");
         setColor(COLORS.muted);
@@ -1178,7 +1330,6 @@ export async function generateExamPDF(
         yPosition += 10;
       }
 
-      // Sub-question label (a), (b), etc.
       const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
       const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
       
@@ -1190,7 +1341,6 @@ export async function generateExamPDF(
         yPosition += 6;
       }
 
-      // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
       let mcqOptions = normalizeMCQOptions(question.options);
       const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
       if (parsedMCQ.options.length >= 3) {
@@ -1200,49 +1350,25 @@ export async function generateExamPDF(
 
       const isMCQ = mcqOptions.length >= 3;
 
-      // Render embedded table (extracted from question text) with caption
       if (embeddedTableData) {
         yPosition = renderTable(embeddedTableData, textIndent, yPosition, embeddedTableCaption);
       }
 
-      // Render table data if present in DB field
       if (question.table_data) {
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
 
-      // Check if this is a fill-in-the-blank question
       const isFillInBlank = isFillInBlankQuestion(cleanedText);
-      
-      // Question text - use fill-in-blank renderer if applicable
       const textWidth = getSafeTextWidth(baseTextWidth);
       const safeCleanedText = cleanedText || '';
       
       if (isFillInBlank) {
-        // Render with inline answer boxes
         yPosition = renderTextWithBlanks(safeCleanedText, textIndent, yPosition, textWidth, question.marks);
       } else {
-        // Standard text rendering
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setColor(COLORS.primary);
-        
-        const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
-        
-        textLines.forEach((line: string) => {
-          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
-            addNewPage();
-          }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setColor(COLORS.primary);
-          doc.text(line || '', textIndent, yPosition);
-          yPosition += LINE_HEIGHT;
-        });
-        
+        yPosition = renderQuestionLines(safeCleanedText, textIndent, yPosition, textWidth);
         yPosition += 4;
       }
 
-      // Handle MCQ options - display on separate lines
       if (isMCQ) {
         yPosition += 2;
 
@@ -1261,62 +1387,45 @@ export async function generateExamPDF(
 
           if (!optionLetter || !optionTextRaw.trim()) continue;
 
-          // Option label (A) with bracket style "A)"
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
           doc.text(`${optionLetter})`, textIndent + 5, yPosition);
 
-          // Option text
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
           const optionText = cleanLatexForPDF(optionTextRaw);
           const optionWidth = getSafeTextWidth(baseTextWidth - 20);
-          const optionLines = doc.splitTextToSize(optionText, optionWidth);
+          const optionLines = wrapMathText(doc, optionText, optionWidth, 10);
 
           optionLines.forEach((line: string, idx: number) => {
-            doc.text(line || "", textIndent + 15, yPosition + (idx * LINE_HEIGHT));
+            renderMathText(doc, line || "", textIndent + 15, yPosition + (idx * LINE_HEIGHT), 10, COLORS.primary);
           });
 
-          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 4; // more spacing between options
+          yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 4;
         }
 
-        // MCQ answer box IMMEDIATELY after options
         yPosition += 2;
         drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, "mcq_box", question.marks);
         yPosition += 8;
       }
-      // Handle embedded sub_questions - BIOLOGY STYLE: each gets answer lines immediately
       else if (question.sub_questions && question.sub_questions.length > 0) {
         for (const sub of question.sub_questions) {
           if (getRemainingSpace() < 40) {
             addNewPage();
           }
           
-          // Sub label
           doc.setFontSize(10);
           doc.setFont("helvetica", "bold");
           setColor(COLORS.primary);
           doc.text(`(${sub.label})`, textIndent, yPosition);
           yPosition += 6;
           
-          // Sub question text
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setColor(COLORS.primary);
           const subText = cleanLatexForPDF(sub.text || '');
           const subTextWidth = getSafeTextWidth(baseTextWidth - 10);
-          const subLines = doc.splitTextToSize(subText, subTextWidth);
-          subLines.forEach((line: string) => {
-            if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
-              addNewPage();
-            }
-            doc.text(line || '', textIndent + 10, yPosition);
-            yPosition += LINE_HEIGHT;
-          });
+          yPosition = renderQuestionLines(subText, textIndent + 10, yPosition, subTextWidth);
           yPosition += 4;
           
-          // IMMEDIATELY draw answer lines for this sub-question
           if (includeWorkingSpace) {
             const lineCount = getDottedLineCount(sub.marks);
             yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, lineCount, sub.marks);
@@ -1324,10 +1433,7 @@ export async function generateExamPDF(
           }
         }
       }
-      // Regular question - draw answer lines IMMEDIATELY after question text
-      // SKIP answer lines for fill-in-the-blank questions (answers are inline)
       else if (includeWorkingSpace && question.question_type?.toLowerCase() !== 'mcq' && !isFillInBlank) {
-        // Handle graph requirement
         if (question.requires_graph) {
           if (getRemainingSpace() < GRID_HEIGHT + 15) {
             addNewPage();
@@ -1336,7 +1442,6 @@ export async function generateExamPDF(
           drawCoordinateGrid(graphX, yPosition, GRID_WIDTH, GRID_HEIGHT);
           yPosition += GRID_HEIGHT + 10;
         }
-        // Handle diagram requirement
         else if (question.requires_diagram) {
           const diagramHeight = 60;
           if (getRemainingSpace() < diagramHeight + 15) {
@@ -1353,7 +1458,6 @@ export async function generateExamPDF(
           doc.text("Space for diagram", MARGIN + CONTENT_WIDTH / 2, yPosition + diagramHeight / 2, { align: "center" });
           yPosition += diagramHeight + 8;
         }
-        // Standard dotted lines answer area
         else {
           const lineCount = getDottedLineCount(question.marks);
           yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, lineCount, question.marks);
@@ -1361,13 +1465,11 @@ export async function generateExamPDF(
         
         yPosition += BIOLOGY_QUESTION_GAP;
       }
-      // For fill-in-blank questions, just add a small gap
       else if (isFillInBlank) {
         yPosition += BIOLOGY_QUESTION_GAP;
       }
     }
 
-    // Total for question X is Y marks (at the end of multi-part questions)
     if (group.questions.length > 1) {
       if (getRemainingSpace() < 15) {
         addNewPage();
@@ -1387,14 +1489,12 @@ export async function generateExamPDF(
       group.questions[0].sub_questions?.length || 
       parseQuestionNumber(group.questions[0].question_number).sub !== '';
     
-    // Main question header
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     setColor(COLORS.primary);
     
     doc.text(`${group.mainNumber}.`, MARGIN, yPosition);
     
-    // Total marks for this question on the right - use [marks] format
     if (showMarks && group.totalMarks) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -1404,35 +1504,28 @@ export async function generateExamPDF(
     
     yPosition += 3;
     
-    // Separator line
     setColor(COLORS.separator, "draw");
     doc.setLineWidth(0.3);
     doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
     yPosition += 8;
 
-    // Track total marks for unified answer box
     let totalSubMarks = 0;
     let hasDrawnAnyQuestions = false;
 
-    // ============= PHASE 1: Draw ALL question text first (NO answer boxes) =============
     for (let i = 0; i < group.questions.length; i++) {
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQuestion = parsed.sub !== '';
       
-      // Extract embedded tables FIRST from raw text (before LaTeX cleaning destroys newlines)
       const tableExtract = extractEmbeddedTable(question.question_text);
       const embeddedTableData = tableExtract.tableData;
       const embeddedTableCaption = tableExtract.tableCaption;
       
-      // Now apply LaTeX cleaning to the text with tables removed
       let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
       
-      // Check if we need a new page for text only
-      const estimatedTextHeight = 30; // Rough estimate for question text
+      const estimatedTextHeight = 30;
       if (i > 0 && getRemainingSpace() < estimatedTextHeight) {
         addNewPage();
-        // Re-draw question number header on continuation
         doc.setFontSize(10);
         doc.setFont("helvetica", "italic");
         setColor(COLORS.muted);
@@ -1440,7 +1533,6 @@ export async function generateExamPDF(
         yPosition += 10;
       }
 
-      // Sub-question label and marks
       if (isSubQuestion) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
@@ -1458,7 +1550,6 @@ export async function generateExamPDF(
         totalSubMarks += question.marks;
       }
 
-      // ALWAYS attempt MCQ parsing regardless of question_type - if options are detected, use them
       let mcqOptions = normalizeMCQOptions(question.options);
       const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
       if (parsedMCQ.options.length >= 3) {
@@ -1467,59 +1558,33 @@ export async function generateExamPDF(
       }
 
       const isMCQ = mcqOptions.length >= 3;
-
       const textIndent = isSubQuestion ? MARGIN + 10 : MARGIN + 8;
       const baseTextWidth = CONTENT_WIDTH - (isSubQuestion ? 20 : 15);
 
-      // Render embedded table (extracted from question text) with caption
       if (embeddedTableData) {
         yPosition = renderTable(embeddedTableData, textIndent, yPosition, embeddedTableCaption);
       }
 
-      // Render table data if present in DB field
       if (question.table_data) {
         yPosition = renderTable(question.table_data, textIndent, yPosition);
       }
 
-      // Check if this is a fill-in-the-blank question
       const isFillInBlank = isFillInBlankQuestion(cleanedText);
-      
-      // Question text - with consistent font and safe width, null-safe
       const textWidth = getSafeTextWidth(baseTextWidth);
       const safeCleanedText = cleanedText || '';
-      
+
       if (isFillInBlank) {
-        // Render with inline answer boxes
         yPosition = renderTextWithBlanks(safeCleanedText, textIndent, yPosition, textWidth, question.marks);
       } else {
-        // Standard text rendering
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setColor(COLORS.primary);
-        
-        const textLines = doc.splitTextToSize(safeCleanedText, textWidth);
-        
-        textLines.forEach((line: string) => {
-          if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) {
-            addNewPage();
-          }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setColor(COLORS.primary);
-          doc.text(line || '', textIndent, yPosition);
-          yPosition += LINE_HEIGHT;
-        });
-        
+        yPosition = renderQuestionLines(safeCleanedText, textIndent, yPosition, textWidth);
         yPosition += 3;
       }
       hasDrawnAnyQuestions = true;
       
-      // Track if question has fill-in-blank (for skipping answer area later)
       if (isFillInBlank) {
         (question as any)._isFillInBlank = true;
       }
 
-      // Handle MCQ options - clean format matching real exam papers
       if (isMCQ) {
         yPosition += 4;
 
@@ -1538,39 +1603,33 @@ export async function generateExamPDF(
 
           if (!optionLetter || !optionTextRaw.trim()) continue;
 
-          // Option label
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           setColor(COLORS.primary);
           doc.text(`${optionLetter})`, textIndent + 3, yPosition);
 
-          // Option text
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
           const optionText = cleanLatexForPDF(optionTextRaw);
           const optionWidth = getSafeTextWidth(baseTextWidth - 18);
-          const optionLines = doc.splitTextToSize(optionText, optionWidth);
+          const optionLines = wrapMathText(doc, optionText, optionWidth, 10);
 
           optionLines.forEach((line: string, idx: number) => {
-            doc.text(line || "", textIndent + 12, yPosition + (idx * LINE_HEIGHT));
+            renderMathText(doc, line || "", textIndent + 12, yPosition + (idx * LINE_HEIGHT), 10, COLORS.primary);
           });
 
           yPosition += Math.max(optionLines.length, 1) * LINE_HEIGHT + 4;
         }
 
-        // Draw MCQ answer box with marks after options
         yPosition += 2;
         drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, "mcq_box", question.marks);
         yPosition += 8;
       }
-      // Handle embedded sub_questions - draw ALL text first, NO individual answer boxes
       else if (question.sub_questions && question.sub_questions.length > 0) {
         for (const sub of question.sub_questions) {
           if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 25) {
             addNewPage();
           }
           
-          // Sub label - consistent font
           doc.setFontSize(10);
           doc.setFont("helvetica", "bold");
           setColor(COLORS.primary);
@@ -1584,25 +1643,15 @@ export async function generateExamPDF(
           }
           yPosition += 6;
           
-          // Sub question text - consistent font and safe width, null-safe
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setColor(COLORS.primary);
           const subText = cleanLatexForPDF(sub.text || '');
           const subTextWidth = getSafeTextWidth(baseTextWidth - 10);
-          const subLines = doc.splitTextToSize(subText, subTextWidth);
-          subLines.forEach((line: string) => {
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            doc.text(line || '', textIndent + 10, yPosition);
-            yPosition += LINE_HEIGHT;
-          });
+          yPosition = renderQuestionLines(subText, textIndent + 10, yPosition, subTextWidth);
           yPosition += 4;
           
           totalSubMarks += sub.marks;
         }
       }
-      // Handle graph requirement - draw immediately as it's specific to this question
       else if (question.requires_graph && includeWorkingSpace) {
         if (getRemainingSpace() < GRID_HEIGHT + 15) {
           addNewPage();
@@ -1611,7 +1660,6 @@ export async function generateExamPDF(
         drawCoordinateGrid(graphX, yPosition, GRID_WIDTH, GRID_HEIGHT);
         yPosition += GRID_HEIGHT + 10;
       }
-      // Handle diagram requirement - draw immediately
       else if (question.requires_diagram && includeWorkingSpace) {
         const diagramHeight = 60;
         if (getRemainingSpace() < diagramHeight + 15) {
@@ -1630,13 +1678,9 @@ export async function generateExamPDF(
       }
     }
 
-    // ============= PHASE 2: Draw answer space after questions =============
     if (includeWorkingSpace && hasDrawnAnyQuestions) {
-      // Skip if all questions were MCQ (case-insensitive check)
       const allMCQ = group.questions.every(q => q.question_type?.toLowerCase() === "mcq");
-      // Skip if questions had graphs/diagrams (already drawn)
       const hadSpecialElements = group.questions.some(q => q.requires_graph || q.requires_diagram);
-      // Skip if all questions were fill-in-blank (answers are inline)
       const allFillInBlank = group.questions.every(q => (q as any)._isFillInBlank === true);
       
       if (!allMCQ && !hadSpecialElements && !allFillInBlank) {
@@ -1646,7 +1690,6 @@ export async function generateExamPDF(
         if (areaType !== 'none' && areaType !== 'mcq_box') {
           const remainingSpace = getRemainingSpace();
           
-          // MATH: Fill remaining page with answer space (one question per page style)
           if (subjectType === 'math') {
             const mathBoxHeight = Math.max(remainingSpace - 15, 60);
             if (mathBoxHeight > 30) {
@@ -1654,12 +1697,10 @@ export async function generateExamPDF(
               yPosition += mathBoxHeight + 5;
             }
           } 
-          // BIOLOGY: Use dotted lines (shouldn't get here with new logic, but fallback)
           else if (subjectType === 'biology') {
             yPosition = drawAnswerBox(MARGIN, yPosition, CONTENT_WIDTH, 0, 'dotted_lines', totalSubMarks);
           }
           else {
-            // OTHER SUBJECTS: Compact answer boxes based on marks
             const baseHeight = getAnswerBoxHeight(totalSubMarks);
             const actualHeight = Math.min(baseHeight, remainingSpace - 15);
             
@@ -1672,7 +1713,6 @@ export async function generateExamPDF(
       }
     }
 
-    // Total for question X is Y marks (at the end of the group if it has multiple parts)
     if (hasSubQuestions && group.questions.length > 1) {
       if (getRemainingSpace() < 15) {
         addNewPage();
@@ -1718,9 +1758,9 @@ export async function generateExamPDF(
       
       doc.setFont("helvetica", "normal");
       const answerText = cleanLatexForPDF(question.correct_answer);
-      const answerLines = doc.splitTextToSize(answerText, CONTENT_WIDTH - 20);
+      const answerLines = wrapMathText(doc, answerText, CONTENT_WIDTH - 20, 10);
       answerLines.forEach((line: string, idx: number) => {
-        doc.text(line || '', MARGIN + 15, yPosition + (idx * LINE_HEIGHT));
+        renderMathText(doc, line || '', MARGIN + 15, yPosition + (idx * LINE_HEIGHT), 10, COLORS.primary);
       });
       
       yPosition += Math.max(answerLines.length, 1) * LINE_HEIGHT + 4;
@@ -1729,23 +1769,18 @@ export async function generateExamPDF(
 
   // ============= Generate PDF =============
   
-  // Instructions page (Page 1)
   drawInstructionsPage();
-
-  // Questions start on page 2
   addNewPage();
   
   const subjectType = getSubjectType(examData.subject);
   
   for (let i = 0; i < questionGroups.length; i++) {
-    // MATH: Each question group gets its own page (one question per page)
     if (subjectType === 'math') {
       if (i > 0) {
         addNewPage();
       }
       drawQuestionGroup(questionGroups[i]);
     } 
-    // BIOLOGY: Use Biology-specific rendering with immediate answer lines
     else if (subjectType === 'biology') {
       if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
         addNewPage();
@@ -1754,7 +1789,6 @@ export async function generateExamPDF(
       yPosition += BIOLOGY_SECTION_GAP;
     }
     else {
-      // OTHER SUBJECTS: Multiple questions per page (compact layout)
       if (i > 0 && getRemainingSpace() < MIN_SPACE_FOR_QUESTION) {
         addNewPage();
       }
@@ -1763,19 +1797,16 @@ export async function generateExamPDF(
     }
   }
 
-  // Add answer key if requested
   if (includeAnswerKey) {
     drawAnswerKey();
   }
 
-  // Add page numbers to all pages
   addPageNumbers();
 
   return doc;
 }
 
 // ============= Text Sanitization for PDF Compatibility =============
-// Note: We now allow Unicode superscripts/subscripts and math symbols for proper notation
 function sanitizeForPDF(text: string): string {
   let safe = text;
   
@@ -1790,20 +1821,20 @@ function sanitizeForPDF(text: string): string {
       '&apos;': "'",
       '&#39;': "'",
       '&#x27;': "'",
-      '&mdash;': '—',
-      '&ndash;': '–',
-      '&hellip;': '…',
+      '&mdash;': '-',
+      '&ndash;': '-',
+      '&hellip;': '...',
       '&lsquo;': "'",
       '&rsquo;': "'",
       '&ldquo;': '"',
       '&rdquo;': '"',
-      '&deg;': '°',
-      '&times;': '×',
-      '&divide;': '÷',
-      '&plusmn;': '±',
-      '&frac12;': '½',
-      '&frac14;': '¼',
-      '&frac34;': '¾',
+      '&deg;': ' degrees',
+      '&times;': 'x',
+      '&divide;': '/',
+      '&plusmn;': '+/-',
+      '&frac12;': '1/2',
+      '&frac14;': '1/4',
+      '&frac34;': '3/4',
     };
     return entityMap[entity] || '';
   });
@@ -1824,45 +1855,9 @@ function sanitizeForPDF(text: string): string {
   return safe.trim();
 }
 
-// ============= Unicode Maps for Proper Notation Rendering =============
-const SUPERSCRIPT_MAP: Record<string, string> = {
-  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-  '-': '⁻', '+': '⁺', '=': '⁼', '(': '⁽', ')': '⁾',
-  'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ', 'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ',
-  'd': 'ᵈ', 'e': 'ᵉ', 'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'j': 'ʲ', 'k': 'ᵏ',
-  'l': 'ˡ', 'm': 'ᵐ', 'o': 'ᵒ', 'p': 'ᵖ', 'r': 'ʳ', 's': 'ˢ', 't': 'ᵗ',
-  'u': 'ᵘ', 'v': 'ᵛ', 'w': 'ʷ', 'z': 'ᶻ',
-};
-
-const SUBSCRIPT_MAP: Record<string, string> = {
-  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-  '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
-  '-': '₋', '+': '₊', '=': '₌', '(': '₍', ')': '₎',
-  'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ⱼ', 'k': 'ₖ',
-  'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ', 'p': 'ₚ', 'r': 'ᵣ',
-  's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ', 'v': 'ᵥ', 'x': 'ₓ',
-};
-
-// Convert a string to superscript characters
-function toSuperscript(str: string): string {
-  return str.split('').map(c => SUPERSCRIPT_MAP[c.toLowerCase()] || c).join('');
-}
-
-// Convert a string to subscript characters
-function toSubscript(str: string): string {
-  return str.split('').map(c => SUBSCRIPT_MAP[c.toLowerCase()] || c).join('');
-}
-
 // ============= Check if question has fill-in-the-blank placeholders =============
 function hasFillInBlanks(text: string): boolean {
-  // Check for our normalized [ BLANK ] pattern
   if (/\[\s*BLANK\s*\]/i.test(text)) return true;
-  
-  // Also check for original patterns that may not have been normalized yet:
-  // - Long underscores (5+)
-  // - Multiple backslashes used as blanks
-  // - Underline LaTeX commands
   if (/_{5,}/.test(text)) return true;
   if (/(?:[\\\/L_]{5,})/.test(text)) return true;
   if (/\\underline\{[^}]*\}/.test(text)) return true;
@@ -1870,34 +1865,18 @@ function hasFillInBlanks(text: string): boolean {
   return false;
 }
 
-// ============= Convert any remaining BLANK text to underscore placeholders =============
-// This is a SAFETY fallback - ensures no "[ BLANK ]" text ever appears in PDF output
-function convertBlanksToUnderscores(text: string): string {
-  // Replace any [ BLANK ] patterns with a clean underscore line
-  return text.replace(/\[\s*BLANK\s*\]/gi, '_____________');
-}
-
-// ============= Clean LaTeX for PDF with proper Unicode notation =============
+// ============= Clean LaTeX for PDF - NO UNICODE CONVERSION =============
+// This function preserves ^ and _ notation for baseline-shift rendering
 function cleanLatexForPDF(text: string): string {
   if (!text) return "";
 
   let cleaned = text;
   
-  // CRITICAL: Normalize fill-in-the-blank patterns FIRST before any other processing
-  // This prevents backslashes and underscores from being misinterpreted
-  
-  // Pattern to detect backslash-style blanks (5+ backslashes/slashes, with or without underscores)
-  // Matches: \\\\\\, \\_\\_\\_, L\\L\\L, /////, etc. (common OCR artifacts)
+  // CRITICAL: Normalize fill-in-the-blank patterns FIRST
   const backslashBlankPattern = /(?:[\\\/L_]{5,}|(?:[\\\/L]+[_\\\/L]*){5,})/g;
   cleaned = cleaned.replace(backslashBlankPattern, '[ BLANK ]');
-  
-  // Pattern for 5+ underscores (standalone blank indicators)
   cleaned = cleaned.replace(/_{5,}/g, '[ BLANK ]');
-  
-  // Pattern for LaTeX underline commands used as blanks
   cleaned = cleaned.replace(/\\underline\{[^}]*\}/g, '[ BLANK ]');
-  
-  // Clean up any double blanks created by multiple patterns
   cleaned = cleaned.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
   
   // Remove math mode delimiters
@@ -1909,152 +1888,142 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)");
   
   // Roots - use ASCII notation
-  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
-  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1√($2)");
+  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
+  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
   
-  // ============= SUPERSCRIPTS - Convert to proper Unicode =============
-  // Handle ^{...} notation (multi-character)
-  cleaned = cleaned.replace(/\^{([^}]+)}/g, (_, content) => toSuperscript(content));
+  // ============= PRESERVE ^ and _ NOTATION =============
+  // DO NOT convert to Unicode - the baseline-shift renderer handles these
+  // Just clean up LaTeX-specific formatting
   
-  // Handle ^(...) notation for grouped exponents like ^(-3) or ^(2n)
-  cleaned = cleaned.replace(/\^\(([^)]+)\)/g, (_, content) => toSuperscript(content));
+  // Remove \^ and \_ escape sequences, replace with plain ^ and _
+  cleaned = cleaned.replace(/\\\^/g, '^');
+  cleaned = cleaned.replace(/\\_/g, '_');
   
-  // Handle ^digit or ^letter (single or multiple chars) - e.g. ^3, ^-3, ^2n, ^3b
-  // Match sequences of digits, letters, + and - signs after ^
-  cleaned = cleaned.replace(/\^([0-9a-zA-Z\-+]+)/g, (_, chars) => toSuperscript(chars));
+  // ============= SYMBOL SAFETY - ASCII FALLBACKS =============
+  // Greek letters - use ASCII fallbacks for jsPDF compatibility
+  cleaned = cleaned.replace(/\\pi\b/g, "pi");
+  cleaned = cleaned.replace(/\\alpha\b/g, "alpha");
+  cleaned = cleaned.replace(/\\beta\b/g, "beta");
+  cleaned = cleaned.replace(/\\gamma\b/g, "gamma");
+  cleaned = cleaned.replace(/\\delta\b/g, "delta");
+  cleaned = cleaned.replace(/\\epsilon\b/g, "epsilon");
+  cleaned = cleaned.replace(/\\theta\b/g, "theta");
+  cleaned = cleaned.replace(/\\lambda\b/g, "lambda");
+  cleaned = cleaned.replace(/\\mu\b/g, "mu");
+  cleaned = cleaned.replace(/\\sigma\b/g, "sigma");
+  cleaned = cleaned.replace(/\\omega\b/g, "omega");
+  cleaned = cleaned.replace(/\\phi\b/g, "phi");
+  cleaned = cleaned.replace(/\\psi\b/g, "psi");
+  cleaned = cleaned.replace(/\\rho\b/g, "rho");
+  cleaned = cleaned.replace(/\\tau\b/g, "tau");
+  cleaned = cleaned.replace(/\\chi\b/g, "chi");
+  cleaned = cleaned.replace(/\\Delta\b/g, "Delta");
+  cleaned = cleaned.replace(/\\Sigma\b/g, "Sigma");
+  cleaned = cleaned.replace(/\\Omega\b/g, "Omega");
+  cleaned = cleaned.replace(/\\Pi\b/g, "Pi");
+  cleaned = cleaned.replace(/\\Gamma\b/g, "Gamma");
+  cleaned = cleaned.replace(/\\Theta\b/g, "Theta");
+  cleaned = cleaned.replace(/\\Lambda\b/g, "Lambda");
   
-  // ============= SUBSCRIPTS - Convert to proper Unicode =============
-  // Handle _{...} notation
-  cleaned = cleaned.replace(/_{([^}]+)}/g, (_, content) => toSubscript(content));
+  // Also convert Unicode Greek to ASCII for consistency
+  cleaned = cleaned.replace(/π/g, "pi");
+  cleaned = cleaned.replace(/α/g, "alpha");
+  cleaned = cleaned.replace(/β/g, "beta");
+  cleaned = cleaned.replace(/γ/g, "gamma");
+  cleaned = cleaned.replace(/δ/g, "delta");
+  cleaned = cleaned.replace(/ε/g, "epsilon");
+  cleaned = cleaned.replace(/θ/g, "theta");
+  cleaned = cleaned.replace(/λ/g, "lambda");
+  cleaned = cleaned.replace(/μ/g, "mu");
+  cleaned = cleaned.replace(/σ/g, "sigma");
+  cleaned = cleaned.replace(/ω/g, "omega");
+  cleaned = cleaned.replace(/φ/g, "phi");
+  cleaned = cleaned.replace(/ψ/g, "psi");
+  cleaned = cleaned.replace(/ρ/g, "rho");
+  cleaned = cleaned.replace(/τ/g, "tau");
+  cleaned = cleaned.replace(/χ/g, "chi");
   
-  // Handle _(...) notation for grouped subscripts
-  cleaned = cleaned.replace(/_\(([^)]+)\)/g, (_, content) => toSubscript(content));
+  // Math operators
+  cleaned = cleaned.replace(/\\times\b/g, "x");
+  cleaned = cleaned.replace(/×/g, "x");
+  cleaned = cleaned.replace(/\\div\b/g, "/");
+  cleaned = cleaned.replace(/÷/g, "/");
+  cleaned = cleaned.replace(/\\pm\b/g, "+/-");
+  cleaned = cleaned.replace(/±/g, "+/-");
+  cleaned = cleaned.replace(/\\cdot\b/g, ".");
+  cleaned = cleaned.replace(/·/g, ".");
+  cleaned = cleaned.replace(/\\leq\b/g, "<=");
+  cleaned = cleaned.replace(/≤/g, "<=");
+  cleaned = cleaned.replace(/\\geq\b/g, ">=");
+  cleaned = cleaned.replace(/≥/g, ">=");
+  cleaned = cleaned.replace(/\\neq\b/g, "!=");
+  cleaned = cleaned.replace(/≠/g, "!=");
+  cleaned = cleaned.replace(/\\approx\b/g, "~");
+  cleaned = cleaned.replace(/≈/g, "~");
+  cleaned = cleaned.replace(/\\equiv\b/g, "===");
+  cleaned = cleaned.replace(/≡/g, "===");
+  cleaned = cleaned.replace(/\\lt\b/g, "<");
+  cleaned = cleaned.replace(/\\gt\b/g, ">");
   
-  // Handle _digit or _letter (single char) - but not in BLANK patterns
-  cleaned = cleaned.replace(/(?<!\[|\s)_([0-9a-zA-Z])(?!\s*BLANK)/g, (_, char) => toSubscript(char));
+  // Degree symbol - use word
+  cleaned = cleaned.replace(/°/g, " degrees");
+  cleaned = cleaned.replace(/\\degree\b/g, " degrees");
   
-  // ============= SCIENTIFIC NOTATION =============
-  // Handle patterns like 7.2 × 10^3, 1.5 x 10^-6, etc.
-  // The ^ should already be converted above, but ensure × and x are consistent
-  cleaned = cleaned.replace(/\bx\s+10/gi, '× 10');
-  cleaned = cleaned.replace(/\*\s*10/g, '× 10');
+  // Math symbols - use ASCII
+  cleaned = cleaned.replace(/\\sum\b/g, "SUM");
+  cleaned = cleaned.replace(/Σ/g, "SUM");
+  cleaned = cleaned.replace(/\\prod\b/g, "PROD");
+  cleaned = cleaned.replace(/Π/g, "PROD");
+  cleaned = cleaned.replace(/\\infty\b/g, "infinity");
+  cleaned = cleaned.replace(/∞/g, "infinity");
+  cleaned = cleaned.replace(/\\partial\b/g, "d");
+  cleaned = cleaned.replace(/∂/g, "d");
+  cleaned = cleaned.replace(/\\nabla\b/g, "nabla");
+  cleaned = cleaned.replace(/∇/g, "nabla");
+  cleaned = cleaned.replace(/\\int\b/g, "integral");
+  cleaned = cleaned.replace(/∫/g, "integral");
+  cleaned = cleaned.replace(/\\forall\b/g, "for all");
+  cleaned = cleaned.replace(/∀/g, "for all");
+  cleaned = cleaned.replace(/\\exists\b/g, "exists");
+  cleaned = cleaned.replace(/∃/g, "exists");
+  cleaned = cleaned.replace(/\\in\b/g, "in");
+  cleaned = cleaned.replace(/∈/g, "in");
+  cleaned = cleaned.replace(/\\notin\b/g, "not in");
+  cleaned = cleaned.replace(/∉/g, "not in");
+  cleaned = cleaned.replace(/\\subset\b/g, "subset");
+  cleaned = cleaned.replace(/⊂/g, "subset");
+  cleaned = cleaned.replace(/\\supset\b/g, "superset");
+  cleaned = cleaned.replace(/⊃/g, "superset");
+  cleaned = cleaned.replace(/\\cup\b/g, "union");
+  cleaned = cleaned.replace(/∪/g, "union");
+  cleaned = cleaned.replace(/\\cap\b/g, "intersect");
+  cleaned = cleaned.replace(/∩/g, "intersect");
+  cleaned = cleaned.replace(/\\emptyset\b/g, "{}");
+  cleaned = cleaned.replace(/∅/g, "{}");
+  cleaned = cleaned.replace(/\\angle\b/g, "angle");
+  cleaned = cleaned.replace(/∠/g, "angle");
+  cleaned = cleaned.replace(/\\triangle\b/g, "triangle");
+  cleaned = cleaned.replace(/△/g, "triangle");
+  cleaned = cleaned.replace(/\\perp\b/g, "perpendicular");
+  cleaned = cleaned.replace(/⊥/g, "perpendicular");
+  cleaned = cleaned.replace(/\\parallel\b/g, "parallel");
+  cleaned = cleaned.replace(/∥/g, "parallel");
+  cleaned = cleaned.replace(/\\rightarrow\b/g, "->");
+  cleaned = cleaned.replace(/→/g, "->");
+  cleaned = cleaned.replace(/\\leftarrow\b/g, "<-");
+  cleaned = cleaned.replace(/←/g, "<-");
+  cleaned = cleaned.replace(/\\Rightarrow\b/g, "=>");
+  cleaned = cleaned.replace(/⇒/g, "=>");
+  cleaned = cleaned.replace(/\\Leftarrow\b/g, "<=");
+  cleaned = cleaned.replace(/⇐/g, "<=");
+  cleaned = cleaned.replace(/\\leftrightarrow\b/g, "<->");
+  cleaned = cleaned.replace(/↔/g, "<->");
+  cleaned = cleaned.replace(/\\therefore\b/g, "therefore");
+  cleaned = cleaned.replace(/∴/g, "therefore");
+  cleaned = cleaned.replace(/\\because\b/g, "because");
+  cleaned = cleaned.replace(/∵/g, "because");
   
-  // ============= CHEMICAL FORMULAE - Common patterns =============
-  // Handle common chemical formulae like CO2, H2O, O2, Na2SO4, etc.
-  // Pattern: Capital letter (optional lowercase) followed by digit(s)
-  // But NOT if it's part of a larger alphanumeric string that looks like a code
-  cleaned = cleaned.replace(/\b([A-Z][a-z]?)(\d+)(?=[A-Z]|$|\s|[.,;:!?)}\]])/g, (_, element, num) => {
-    return element + toSubscript(num);
-  });
-  
-  // Handle H2O, CO2, O2, N2 specifically (common molecules)
-  cleaned = cleaned.replace(/\b(H|C|O|N|S|P|Cl|Br|I|F)(\d)(?=O|H|C|N|S|\s|$|[.,;:!?)}\]])/g, (_, el, num) => {
-    return el + toSubscript(num);
-  });
-  
-  // ============= UNITS - Common patterns =============
-  // Handle volume units: cm3, dm3, m3, km3, mm3, µm3
-  cleaned = cleaned.replace(/\b(cm|dm|mm|µm|m|km)(\d)\b/g, (_, unit, num) => unit + toSuperscript(num));
-  
-  // Handle rate units with negative exponents: dm-3, s-1, mol-1, etc.
-  // Pattern: unit followed by optional space and negative number
-  cleaned = cleaned.replace(/\b(dm|cm|m|s|kg|mol|min|hr|L|l)\s*-(\d+)\b/g, (_, unit, num) => {
-    return unit + toSuperscript('-' + num);
-  });
-  
-  // Handle compound units like "mol dm^-3", "m s^-1", "kg m^-2"
-  cleaned = cleaned.replace(/\b(mol|kg|g|m|s|L|l|J|W|N|Pa)\s+(dm|cm|m|s|kg)\s*-(\d+)/g, (_, unit1, unit2, num) => {
-    return unit1 + ' ' + unit2 + toSuperscript('-' + num);
-  });
-  
-  // ============= TEMPERATURE & DEGREES =============
-  // Handle degree Celsius: °C (ensure proper rendering)
-  cleaned = cleaned.replace(/\bdegrees?\s*C\b/gi, '°C');
-  cleaned = cleaned.replace(/\bdeg\s*C\b/gi, '°C');
-  
-  // Handle microliters, micrometers: uL -> µL, um -> µm
-  cleaned = cleaned.replace(/\b([uμ])([LlMm])\b/g, (_, u, unit) => 'µ' + unit.toUpperCase());
-  
-  // ============= Q10 pattern (biology) =============
-  cleaned = cleaned.replace(/\bQ(\d+)\b/g, (_, num) => 'Q' + toSubscript(num));
-  
-  // ============= MATHEMATICAL VARIABLES =============
-  // Handle patterns like t2, r3, v2 (variable with power) when clearly mathematical
-  // Only apply after explicit operators or at word boundaries
-  cleaned = cleaned.replace(/(?<=[\s(=+\-×÷·])([a-z])(\d)(?=[\s)=+\-×÷·,]|$)/gi, (_, variable, num) => {
-    return variable + toSuperscript(num);
-  });
-  
-  // Operators - use proper Unicode where available
-  cleaned = cleaned.replace(/\\times/g, "×");
-  cleaned = cleaned.replace(/\\div/g, "÷");
-  cleaned = cleaned.replace(/\\pm/g, "±");
-  cleaned = cleaned.replace(/\\mp/g, "∓");
-  cleaned = cleaned.replace(/\\cdot/g, "·");
-  
-  // Comparisons - use proper Unicode
-  cleaned = cleaned.replace(/\\leq/g, "≤");
-  cleaned = cleaned.replace(/\\geq/g, "≥");
-  cleaned = cleaned.replace(/\\neq/g, "≠");
-  cleaned = cleaned.replace(/\\approx/g, "≈");
-  cleaned = cleaned.replace(/\\equiv/g, "≡");
-  cleaned = cleaned.replace(/\\lt/g, "<");
-  cleaned = cleaned.replace(/\\gt/g, ">");
-  
-  // Greek letters - use proper Unicode
-  cleaned = cleaned.replace(/\\pi\b/g, "π");
-  cleaned = cleaned.replace(/\\alpha\b/g, "α");
-  cleaned = cleaned.replace(/\\beta\b/g, "β");
-  cleaned = cleaned.replace(/\\gamma\b/g, "γ");
-  cleaned = cleaned.replace(/\\delta\b/g, "δ");
-  cleaned = cleaned.replace(/\\epsilon\b/g, "ε");
-  cleaned = cleaned.replace(/\\theta\b/g, "θ");
-  cleaned = cleaned.replace(/\\lambda\b/g, "λ");
-  cleaned = cleaned.replace(/\\mu\b/g, "μ");
-  cleaned = cleaned.replace(/\\sigma\b/g, "σ");
-  cleaned = cleaned.replace(/\\omega\b/g, "ω");
-  cleaned = cleaned.replace(/\\phi\b/g, "φ");
-  cleaned = cleaned.replace(/\\psi\b/g, "ψ");
-  cleaned = cleaned.replace(/\\rho\b/g, "ρ");
-  cleaned = cleaned.replace(/\\tau\b/g, "τ");
-  cleaned = cleaned.replace(/\\chi\b/g, "χ");
-  cleaned = cleaned.replace(/\\Delta\b/g, "Δ");
-  cleaned = cleaned.replace(/\\Sigma\b/g, "Σ");
-  cleaned = cleaned.replace(/\\Omega\b/g, "Ω");
-  cleaned = cleaned.replace(/\\Pi\b/g, "Π");
-  cleaned = cleaned.replace(/\\Gamma\b/g, "Γ");
-  cleaned = cleaned.replace(/\\Theta\b/g, "Θ");
-  cleaned = cleaned.replace(/\\Lambda\b/g, "Λ");
-  
-  // Math symbols - use proper Unicode
-  cleaned = cleaned.replace(/\\sum\b/g, "Σ");
-  cleaned = cleaned.replace(/\\prod\b/g, "Π");
-  cleaned = cleaned.replace(/\\infty\b/g, "∞");
-  cleaned = cleaned.replace(/\\partial\b/g, "∂");
-  cleaned = cleaned.replace(/\\nabla\b/g, "∇");
-  cleaned = cleaned.replace(/\\int\b/g, "∫");
-  cleaned = cleaned.replace(/\\forall\b/g, "∀");
-  cleaned = cleaned.replace(/\\exists\b/g, "∃");
-  cleaned = cleaned.replace(/\\in\b/g, "∈");
-  cleaned = cleaned.replace(/\\notin\b/g, "∉");
-  cleaned = cleaned.replace(/\\subset\b/g, "⊂");
-  cleaned = cleaned.replace(/\\supset\b/g, "⊃");
-  cleaned = cleaned.replace(/\\cup\b/g, "∪");
-  cleaned = cleaned.replace(/\\cap\b/g, "∩");
-  cleaned = cleaned.replace(/\\emptyset\b/g, "∅");
-  cleaned = cleaned.replace(/\\angle\b/g, "∠");
-  cleaned = cleaned.replace(/\\triangle\b/g, "△");
-  cleaned = cleaned.replace(/\\perp\b/g, "⊥");
-  cleaned = cleaned.replace(/\\parallel\b/g, "∥");
-  cleaned = cleaned.replace(/\\rightarrow\b/g, "→");
-  cleaned = cleaned.replace(/\\leftarrow\b/g, "←");
-  cleaned = cleaned.replace(/\\Rightarrow\b/g, "⇒");
-  cleaned = cleaned.replace(/\\Leftarrow\b/g, "⇐");
-  cleaned = cleaned.replace(/\\leftrightarrow\b/g, "↔");
-  cleaned = cleaned.replace(/\\therefore\b/g, "∴");
-  cleaned = cleaned.replace(/\\because\b/g, "∵");
-  
-  // Functions
+  // Functions - just remove backslash
   cleaned = cleaned.replace(/\\sin\b/g, "sin");
   cleaned = cleaned.replace(/\\cos\b/g, "cos");
   cleaned = cleaned.replace(/\\tan\b/g, "tan");
@@ -2081,18 +2050,49 @@ function cleanLatexForPDF(text: string): string {
   // Remove remaining LaTeX commands
   cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
   
-  // Clean up curly braces
-  cleaned = cleaned.replace(/[{}]/g, "");
+  // Clean up curly braces (but preserve ^ and _ with their braces for parsing)
+  // Only remove standalone braces, not those part of ^{} or _{}
+  cleaned = cleaned.replace(/(?<![_^])\{([^{}]*)\}/g, "$1");
+  
+  // ============= REMOVE UNICODE SUPERSCRIPTS/SUBSCRIPTS =============
+  // These cause corruption in jsPDF - convert back to ^ and _ notation
+  const unicodeSuperMap: Record<string, string> = {
+    '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+    '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+    '⁻': '-', '⁺': '+', '⁼': '=', '⁽': '(', '⁾': ')',
+    'ⁿ': 'n', 'ⁱ': 'i', 'ˣ': 'x', 'ʸ': 'y', 'ᵃ': 'a', 'ᵇ': 'b', 'ᶜ': 'c',
+    'ᵈ': 'd', 'ᵉ': 'e', 'ᶠ': 'f', 'ᵍ': 'g', 'ʰ': 'h', 'ʲ': 'j', 'ᵏ': 'k',
+    'ˡ': 'l', 'ᵐ': 'm', 'ᵒ': 'o', 'ᵖ': 'p', 'ʳ': 'r', 'ˢ': 's', 'ᵗ': 't',
+    'ᵘ': 'u', 'ᵛ': 'v', 'ʷ': 'w', 'ᶻ': 'z',
+  };
+  
+  const unicodeSubMap: Record<string, string> = {
+    '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4',
+    '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+    '₋': '-', '₊': '+', '₌': '=', '₍': '(', '₎': ')',
+    'ₐ': 'a', 'ₑ': 'e', 'ₕ': 'h', 'ᵢ': 'i', 'ⱼ': 'j', 'ₖ': 'k',
+    'ₗ': 'l', 'ₘ': 'm', 'ₙ': 'n', 'ₒ': 'o', 'ₚ': 'p', 'ᵣ': 'r',
+    'ₛ': 's', 'ₜ': 't', 'ᵤ': 'u', 'ᵥ': 'v', 'ₓ': 'x',
+  };
+  
+  // Convert Unicode superscripts to ^{...} notation
+  const superRegex = new RegExp(`[${Object.keys(unicodeSuperMap).join('')}]+`, 'g');
+  cleaned = cleaned.replace(superRegex, (match) => {
+    const converted = match.split('').map(c => unicodeSuperMap[c] || c).join('');
+    return `^{${converted}}`;
+  });
+  
+  // Convert Unicode subscripts to _{...} notation
+  const subRegex = new RegExp(`[${Object.keys(unicodeSubMap).join('')}]+`, 'g');
+  cleaned = cleaned.replace(subRegex, (match) => {
+    const converted = match.split('').map(c => unicodeSubMap[c] || c).join('');
+    return `_{${converted}}`;
+  });
   
   // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, " ");
   
-  // NOTE: We intentionally DO NOT convert [ BLANK ] to underscores here.
-  // The renderTextWithBlanks function needs the [ BLANK ] markers to render proper answer boxes.
-  // The hasFillInBlanks check ensures questions with blanks go through the special renderer.
-  
-  // FINAL STEP: Apply sanitization to remove zero-width characters and spacing artifacts
-  // This ensures clean, professional text rendering without letter-spacing issues
+  // FINAL STEP: Apply sanitization to remove zero-width characters
   cleaned = sanitizeForPDF(cleaned);
   
   return cleaned;
