@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play, Beaker, Calculator, BookOpen, Globe, FileText, RotateCcw } from "lucide-react";
+import { Upload, Settings, Calendar, Loader2, Edit2, Trash2, GripVertical, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, Play, Beaker, Calculator, BookOpen, Globe, FileText, RotateCcw, Download } from "lucide-react";
+import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
+import { useStudentPDF } from "@/hooks/useStudentPDF";
 import { ExamCard } from "@/components/exam/ExamCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -53,9 +55,10 @@ interface SortableExamCardProps {
   isFavourite: boolean;
   examState: 'not-started' | 'in-progress' | 'completed';
   getExamButtonConfig: (exam: Exam) => any;
+  onDownloadPDF: (exam: Exam) => void;
 }
 
-const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig }: SortableExamCardProps) => {
+const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig, onDownloadPDF }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -111,6 +114,9 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
             </div>
 
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onDownloadPDF(exam); }} className="h-7 w-7" title="Download PDF">
+                <Download className="w-3.5 h-3.5" />
+              </Button>
               <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }} className="h-7 w-7">
                 <Star className={`w-3.5 h-3.5 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
               </Button>
@@ -173,7 +179,7 @@ const SortableExamCard = ({ exam, onEdit, onDelete, onView, onBeginExam, subject
   );
 };
 
-const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig }: SortableExamCardProps) => {
+const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, subjectColor, onToggleFavourite, isFavourite, examState, getExamButtonConfig, onDownloadPDF }: SortableExamCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: exam.id });
 
   const style = {
@@ -265,6 +271,15 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
               <Button 
                 size="icon" 
                 variant="ghost" 
+                onClick={(e) => { e.stopPropagation(); onDownloadPDF(exam); }}
+                className="h-8 w-8"
+                title="Download PDF"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="icon" 
+                variant="ghost" 
                 onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
                 className="h-8 w-8"
               >
@@ -287,6 +302,7 @@ const SortableExamListItem = ({ exam, onEdit, onDelete, onView, onBeginExam, sub
 const MyExams = () => {
   const navigate = useNavigate();
   const { subjects, getSubjectColor } = useUserSubjects();
+  const { generateStudentPDF, isGenerating: isPDFGenerating } = useStudentPDF();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -295,6 +311,11 @@ const MyExams = () => {
   const [retakeExamDialogOpen, setRetakeExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
+  
+  // PDF Download Modal State
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfExam, setPdfExam] = useState<Exam | null>(null);
+  const [hasAnswersForPdfExam, setHasAnswersForPdfExam] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'published' | 'completed' | 'favourite' | 'all' | 'archive'>('published');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -534,6 +555,31 @@ const MyExams = () => {
           icon: null
         };
     }
+  };
+
+  const handleDownloadPDF = async (exam: Exam) => {
+    // Check if student has answers for this exam
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { count } = await supabase
+      .from('student_answers')
+      .select('*', { count: 'exact', head: true })
+      .eq('exam_id', exam.id)
+      .eq('student_id', user.id);
+    
+    setHasAnswersForPdfExam((count || 0) > 0);
+    setPdfExam(exam);
+    setPdfModalOpen(true);
+  };
+
+  const handlePDFDownload = async (includeAnswers: boolean) => {
+    if (!pdfExam) return;
+    await generateStudentPDF({
+      contentType: 'exam',
+      contentId: pdfExam.id,
+      includeAnswers,
+    });
   };
 
   const handleRetakeExam = (exam: Exam) => {
@@ -1284,6 +1330,17 @@ const MyExams = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Download Modal */}
+      <StudentPDFDownloadModal
+        open={pdfModalOpen}
+        onOpenChange={setPdfModalOpen}
+        contentType="exam"
+        contentId={pdfExam?.id || ''}
+        contentTitle={pdfExam?.title || ''}
+        hasAnswers={hasAnswersForPdfExam}
+        onDownload={handlePDFDownload}
+      />
     </DashboardLayout>
   );
 };
