@@ -16,6 +16,7 @@ import {
   BookOpen,
   Globe,
   FileText,
+  Download,
   LucideIcon
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -48,6 +49,7 @@ interface ExamCardProps {
   onEdit: (exam: Exam) => void;
   onDelete: (exam: Exam) => void;
   onToggleFavourite: (examId: string) => void;
+  onDownloadPDF?: (exam: Exam) => void;
   isFavourite: boolean;
   isArchived?: boolean;
 }
@@ -77,7 +79,8 @@ export const ExamCard = ({
   subjectColor, 
   onEdit, 
   onDelete, 
-  onToggleFavourite, 
+  onToggleFavourite,
+  onDownloadPDF,
   isFavourite,
   isArchived = false
 }: ExamCardProps) => {
@@ -210,6 +213,26 @@ export const ExamCard = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+
+              {onDownloadPDF && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={(e) => { e.stopPropagation(); onDownloadPDF(exam); }}
+                        className="h-7 w-7"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Download PDF</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               <TooltipProvider>
                 <Tooltip>
