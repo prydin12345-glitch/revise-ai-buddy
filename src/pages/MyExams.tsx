@@ -947,6 +947,7 @@ const MyExams = () => {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onToggleFavourite={handleToggleFavourite}
+                        onDownloadPDF={handleDownloadPDF}
                         isFavourite={favouriteExamIds.includes(exam.id)}
                         isArchived={activeTab === 'archive'}
                       />
@@ -974,6 +975,7 @@ const MyExams = () => {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onToggleFavourite={handleToggleFavourite}
+                        onDownloadPDF={handleDownloadPDF}
                         isFavourite={favouriteExamIds.includes(exam.id)}
                         isArchived={activeTab === 'archive'}
                       />
