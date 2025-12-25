@@ -114,7 +114,7 @@ export const ExamCard = ({
         return {
           icon: Play,
           tooltip: 'Begin Exam',
-          action: () => navigate(`/exam/${exam.id}/timer-setup`),
+          action: () => navigate(`/exam/${exam.id}/preview`),
           bgColor: `bg-[${subjectColor}] hover:opacity-90`,
         };
     }
