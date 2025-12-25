@@ -315,7 +315,7 @@ const MyExams = () => {
   // PDF Download Modal State
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfExam, setPdfExam] = useState<Exam | null>(null);
-  const [hasAnswersForPdfExam, setHasAnswersForPdfExam] = useState(false);
+  
   
   const [activeTab, setActiveTab] = useState<'published' | 'completed' | 'favourite' | 'all' | 'archive'>('published');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -558,27 +558,15 @@ const MyExams = () => {
   };
 
   const handleDownloadPDF = async (exam: Exam) => {
-    // Check if student has answers for this exam
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    
-    const { count } = await supabase
-      .from('student_answers')
-      .select('*', { count: 'exact', head: true })
-      .eq('exam_id', exam.id)
-      .eq('student_id', user.id);
-    
-    setHasAnswersForPdfExam((count || 0) > 0);
     setPdfExam(exam);
     setPdfModalOpen(true);
   };
 
-  const handlePDFDownload = async (includeAnswers: boolean) => {
+  const handlePDFDownload = async () => {
     if (!pdfExam) return;
     await generateStudentPDF({
       contentType: 'exam',
       contentId: pdfExam.id,
-      includeAnswers,
     });
   };
 
@@ -1340,7 +1328,6 @@ const MyExams = () => {
         contentType="exam"
         contentId={pdfExam?.id || ''}
         contentTitle={pdfExam?.title || ''}
-        hasAnswers={hasAnswersForPdfExam}
         onDownload={handlePDFDownload}
       />
     </DashboardLayout>

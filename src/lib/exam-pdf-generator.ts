@@ -1865,31 +1865,114 @@ function hasFillInBlanks(text: string): boolean {
   return false;
 }
 
-// ============= Clean LaTeX for PDF - NO UNICODE CONVERSION =============
-// This function preserves ^ and _ notation for baseline-shift rendering
-function cleanLatexForPDF(text: string): string {
+// ============= PDF_RENDER_GATE: Central Sanitization for ALL PDF Text =============
+// This function MUST be called on ALL text before writing to jsPDF
+// It strips raw LaTeX, converts math notation, and ensures clean output
+function PDF_RENDER_GATE(text: string): string {
   if (!text) return "";
 
   let cleaned = text;
   
-  // CRITICAL: Normalize fill-in-the-blank patterns FIRST
+  // ============= DEBUG: Log forbidden tokens =============
+  const forbiddenTokens = ['\\begin{', '\\end{', '$aligned', 'aligned$', '\\\\'];
+  for (const token of forbiddenTokens) {
+    if (cleaned.includes(token)) {
+      console.warn(`[PDF_RENDER_GATE] Forbidden token detected: "${token}" in text`);
+    }
+  }
+  
+  // ============= STEP 1: Strip math wrappers =============
+  // Remove leading/trailing $...$ (both inline and display)
+  cleaned = cleaned.replace(/^\$\$(.+)\$\$$/s, "$1");
+  cleaned = cleaned.replace(/^\$(.+)\$$/s, "$1");
+  cleaned = cleaned.replace(/\$\$(.*?)\$\$/gs, "$1");
+  cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
+  
+  // Remove \(...\) and \[...\] delimiters
+  cleaned = cleaned.replace(/\\\((.*?)\\\)/g, "$1");
+  cleaned = cleaned.replace(/\\\[(.*?)\\\]/g, "$1");
+  
+  // ============= STEP 2: Convert aligned/equation blocks to plain lines =============
+  // Handle \begin{aligned} ... \end{aligned}
+  cleaned = cleaned.replace(/\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g, (_, content) => {
+    // Replace \\ with newline, & with space
+    return content
+      .replace(/\\\\/g, '  ')
+      .replace(/&/g, ' ')
+      .trim();
+  });
+  
+  // Handle \begin{equation} ... \end{equation}
+  cleaned = cleaned.replace(/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g, "$1");
+  
+  // Handle \begin{array} ... \end{array}
+  cleaned = cleaned.replace(/\\begin\{array\}(\{[^}]*\})?([\s\S]*?)\\end\{array\}/g, (_, cols, content) => {
+    return content
+      .replace(/\\\\/g, '  ')
+      .replace(/&/g, ' ')
+      .trim();
+  });
+  
+  // Handle other \begin{...} \end{...} blocks
+  cleaned = cleaned.replace(/\\begin\{[^}]+\}([\s\S]*?)\\end\{[^}]+\}/g, "$1");
+  
+  // ============= STEP 3: Handle fractions =============
+  // Convert \frac{A}{B} to stacked notation (A)/(B)
+  cleaned = cleaned.replace(/\\frac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g, "($1)/($2)");
+  // Simplified version for simple fractions
+  cleaned = cleaned.replace(/\\frac\{(\d+)\}\{(\d+)\}/g, "$1/$2");
+  
+  // ============= STEP 4: Normalize sqrt patterns =============
+  // Convert \sqrt{X} → √(X)
+  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
+  // Convert \sqrt[n]{X} → n√(X)
+  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1√($2)");
+  // Convert sqrt(X) → √(X)
+  cleaned = cleaned.replace(/\bsqrt\(([^)]+)\)/g, "√($1)");
+  // Convert 5sqrt(27) or ksqrt(m) patterns → 5√(27)
+  cleaned = cleaned.replace(/(\d+)\s*sqrt\s*\(([^)]+)\)/gi, "$1√($2)");
+  cleaned = cleaned.replace(/(\d+)\s*√\s*\(([^)]+)\)/g, "$1√($2)");
+  
+  // ============= STEP 5: Remove unsupported LaTeX commands =============
+  // Remove \left and \right
+  cleaned = cleaned.replace(/\\left\s*/g, "");
+  cleaned = cleaned.replace(/\\right\s*/g, "");
+  
+  // Remove spacing commands
+  cleaned = cleaned.replace(/\\,/g, " ");
+  cleaned = cleaned.replace(/\\;/g, " ");
+  cleaned = cleaned.replace(/\\:/g, " ");
+  cleaned = cleaned.replace(/\\!/g, "");
+  cleaned = cleaned.replace(/\\quad/g, "  ");
+  cleaned = cleaned.replace(/\\qquad/g, "    ");
+  cleaned = cleaned.replace(/\\ /g, " ");
+  
+  // Replace raw \\ with space (from line breaks in LaTeX)
+  cleaned = cleaned.replace(/\\\\/g, "  ");
+  
+  // ============= STEP 6: Normalize fill-in-the-blank patterns =============
   const backslashBlankPattern = /(?:[\\\/L_]{5,}|(?:[\\\/L]+[_\\\/L]*){5,})/g;
   cleaned = cleaned.replace(backslashBlankPattern, '[ BLANK ]');
   cleaned = cleaned.replace(/_{5,}/g, '[ BLANK ]');
   cleaned = cleaned.replace(/\\underline\{[^}]*\}/g, '[ BLANK ]');
   cleaned = cleaned.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
   
-  // Remove math mode delimiters
-  cleaned = cleaned.replace(/\$\$(.*?)\$\$/g, "$1");
-  cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
-  
-  // Fractions - use ASCII notation
-  cleaned = cleaned.replace(/\\frac\{(\d)\}\{(\d+)\}/g, "$1/$2");
-  cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)");
-  
-  // Roots - use ASCII notation
-  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
-  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
+  // Now continue with existing cleanLatexForPDF logic
+  return cleanLatexForPDFInternal(cleaned);
+}
+
+// ============= Clean LaTeX for PDF - Public API wrapper =============
+// Routes all text through PDF_RENDER_GATE for proper sanitization
+function cleanLatexForPDF(text: string): string {
+  return PDF_RENDER_GATE(text);
+}
+
+// ============= Clean LaTeX for PDF - Internal implementation =============
+// This function preserves ^ and _ notation for baseline-shift rendering
+function cleanLatexForPDFInternal(text: string): string {
+  if (!text) return "";
+
+  let cleaned = text;
   
   // ============= PRESERVE ^ and _ NOTATION =============
   // DO NOT convert to Unicode - the baseline-shift renderer handles these
