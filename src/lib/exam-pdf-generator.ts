@@ -1874,64 +1874,88 @@ function PDF_RENDER_GATE(text: string): string {
   let cleaned = text;
   
   // ============= DEBUG: Log forbidden tokens =============
-  const forbiddenTokens = ['\\begin{', '\\end{', '$aligned', 'aligned$', '\\\\'];
+  const forbiddenTokens = ['\\begin{', '\\end{', '$aligned', 'aligned$', '\\\\', '\\frac'];
   for (const token of forbiddenTokens) {
     if (cleaned.includes(token)) {
       console.warn(`[PDF_RENDER_GATE] Forbidden token detected: "${token}" in text`);
     }
   }
   
-  // ============= STEP 1: Strip math wrappers =============
-  // Remove leading/trailing $...$ (both inline and display)
+  // ============= STEP 1: Handle aligned/equation blocks FIRST (before stripping $) =============
+  // These are the main source of raw LaTeX leaks
+  
+  // Handle $\begin{aligned} ... \end{aligned}$ pattern
+  cleaned = cleaned.replace(/\$\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}\$/g, (_, content) => {
+    return content.replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle standalone \begin{aligned} ... \end{aligned}
+  cleaned = cleaned.replace(/\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g, (_, content) => {
+    return content.replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle $aligned ... $ pattern (malformed but sometimes occurs)
+  cleaned = cleaned.replace(/\$aligned([\s\S]*?)\$/g, (_, content) => {
+    return content.replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle aligned ... aligned pattern (malformed)
+  cleaned = cleaned.replace(/aligned([\s\S]*?)aligned/g, (_, content) => {
+    return content.replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle \begin{equation} ... \end{equation}
+  cleaned = cleaned.replace(/\\begin\{equation\*?\}([\s\S]*?)\\end\{equation\*?\}/g, "$1");
+  
+  // Handle \begin{array} ... \end{array}
+  cleaned = cleaned.replace(/\\begin\{array\}(\{[^}]*\})?([\s\S]*?)\\end\{array\}/g, (_, cols, content) => {
+    return (content || '').replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle \begin{cases} ... \end{cases}
+  cleaned = cleaned.replace(/\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g, (_, content) => {
+    return content.replace(/\\\\/g, '  ').replace(/&/g, ' ').trim();
+  });
+  
+  // Handle other \begin{...} \end{...} blocks
+  cleaned = cleaned.replace(/\\begin\{[^}]+\}([\s\S]*?)\\end\{[^}]+\}/g, "$1");
+  
+  // ============= STEP 2: Strip math wrappers =============
+  // Remove leading/trailing $$...$$ (display math)
   cleaned = cleaned.replace(/^\$\$(.+)\$\$$/s, "$1");
-  cleaned = cleaned.replace(/^\$(.+)\$$/s, "$1");
   cleaned = cleaned.replace(/\$\$(.*?)\$\$/gs, "$1");
+  // Remove leading/trailing $...$ (inline math)
+  cleaned = cleaned.replace(/^\$(.+)\$$/s, "$1");
   cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
   
   // Remove \(...\) and \[...\] delimiters
   cleaned = cleaned.replace(/\\\((.*?)\\\)/g, "$1");
   cleaned = cleaned.replace(/\\\[(.*?)\\\]/g, "$1");
   
-  // ============= STEP 2: Convert aligned/equation blocks to plain lines =============
-  // Handle \begin{aligned} ... \end{aligned}
-  cleaned = cleaned.replace(/\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g, (_, content) => {
-    // Replace \\ with newline, & with space
-    return content
-      .replace(/\\\\/g, '  ')
-      .replace(/&/g, ' ')
-      .trim();
-  });
-  
-  // Handle \begin{equation} ... \end{equation}
-  cleaned = cleaned.replace(/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g, "$1");
-  
-  // Handle \begin{array} ... \end{array}
-  cleaned = cleaned.replace(/\\begin\{array\}(\{[^}]*\})?([\s\S]*?)\\end\{array\}/g, (_, cols, content) => {
-    return content
-      .replace(/\\\\/g, '  ')
-      .replace(/&/g, ' ')
-      .trim();
-  });
-  
-  // Handle other \begin{...} \end{...} blocks
-  cleaned = cleaned.replace(/\\begin\{[^}]+\}([\s\S]*?)\\end\{[^}]+\}/g, "$1");
-  
   // ============= STEP 3: Handle fractions =============
-  // Convert \frac{A}{B} to stacked notation (A)/(B)
-  cleaned = cleaned.replace(/\\frac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g, "($1)/($2)");
+  // Convert \frac{A}{B} to (A)/(B) - handle nested braces
+  let prevCleaned = '';
+  while (prevCleaned !== cleaned) {
+    prevCleaned = cleaned;
+    cleaned = cleaned.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)");
+  }
   // Simplified version for simple fractions
-  cleaned = cleaned.replace(/\\frac\{(\d+)\}\{(\d+)\}/g, "$1/$2");
+  cleaned = cleaned.replace(/\\frac(\d+)(\d+)/g, "$1/$2");
   
   // ============= STEP 4: Normalize sqrt patterns =============
-  // Convert \sqrt{X} → √(X)
-  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
-  // Convert \sqrt[n]{X} → n√(X)
-  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1√($2)");
-  // Convert sqrt(X) → √(X)
-  cleaned = cleaned.replace(/\bsqrt\(([^)]+)\)/g, "√($1)");
-  // Convert 5sqrt(27) or ksqrt(m) patterns → 5√(27)
-  cleaned = cleaned.replace(/(\d+)\s*sqrt\s*\(([^)]+)\)/gi, "$1√($2)");
-  cleaned = cleaned.replace(/(\d+)\s*√\s*\(([^)]+)\)/g, "$1√($2)");
+  // DO NOT use Unicode √ - jsPDF default fonts cannot render it!
+  // Use ASCII "sqrt(...)" consistently for safe rendering
+  
+  // Convert \sqrt{X} → sqrt(X)
+  cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
+  // Convert \sqrt[n]{X} → n-root(X)
+  cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
+  // Normalize existing sqrt patterns to consistent format
+  cleaned = cleaned.replace(/(\d+)\s*sqrt\s*\(([^)]+)\)/gi, "$1*sqrt($2)");
+  // Remove any Unicode √ that may have leaked through (convert to sqrt)
+  cleaned = cleaned.replace(/√\(([^)]+)\)/g, "sqrt($1)");
+  cleaned = cleaned.replace(/(\d+)\s*√\s*\(([^)]+)\)/g, "$1*sqrt($2)");
+  cleaned = cleaned.replace(/√/g, "sqrt");
   
   // ============= STEP 5: Remove unsupported LaTeX commands =============
   // Remove \left and \right
@@ -1956,6 +1980,13 @@ function PDF_RENDER_GATE(text: string): string {
   cleaned = cleaned.replace(/_{5,}/g, '[ BLANK ]');
   cleaned = cleaned.replace(/\\underline\{[^}]*\}/g, '[ BLANK ]');
   cleaned = cleaned.replace(/\[\s*BLANK\s*\]\s*\[\s*BLANK\s*\]/g, '[ BLANK ]');
+  
+  // ============= STEP 7: Final cleanup of any remaining LaTeX artifacts =============
+  // Remove any remaining $ signs that weren't caught
+  cleaned = cleaned.replace(/\$/g, "");
+  // Remove any remaining backslash commands
+  cleaned = cleaned.replace(/\\[a-zA-Z]+\{[^}]*\}/g, "");
+  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
   
   // Now continue with existing cleanLatexForPDF logic
   return cleanLatexForPDFInternal(cleaned);
