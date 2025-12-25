@@ -10,7 +10,6 @@ const corsHeaders = {
 interface StudentPDFRequest {
   contentType: "exam" | "practice";
   contentId: string;
-  includeAnswers: boolean;
 }
 
 serve(async (req) => {
@@ -48,9 +47,9 @@ serve(async (req) => {
 
     // Parse request body
     const body: StudentPDFRequest = await req.json();
-    const { contentType, contentId, includeAnswers } = body;
+    const { contentType, contentId } = body;
 
-    console.log(`PDF request: type=${contentType}, id=${contentId}, includeAnswers=${includeAnswers}, user=${user.id}`);
+    console.log(`PDF request: type=${contentType}, id=${contentId}, user=${user.id}`);
 
     if (!contentType || !contentId) {
       return new Response(
@@ -106,22 +105,6 @@ serve(async (req) => {
         );
       }
 
-      // Optionally fetch student answers
-      let studentAnswers: Record<string, any> = {};
-      if (includeAnswers) {
-        const { data: answers, error: answersError } = await supabase
-          .from("student_answers")
-          .select("*")
-          .eq("exam_id", contentId)
-          .eq("student_id", user.id);
-
-        if (!answersError && answers) {
-          answers.forEach((answer) => {
-            studentAnswers[answer.question_id] = answer;
-          });
-        }
-      }
-
       pdfData = {
         type: "student_exam",
         title: exam.title,
@@ -129,11 +112,7 @@ serve(async (req) => {
         difficulty: exam.qualification_level || "Standard",
         totalQuestions: questions?.length || 0,
         dateGenerated: new Date().toISOString(),
-        questions: questions?.map((q) => ({
-          ...q,
-          studentAnswer: includeAnswers ? studentAnswers[q.id] : null,
-        })) || [],
-        includeAnswers,
+        questions: questions || [],
       };
 
     } else if (contentType === "practice") {
@@ -179,22 +158,6 @@ serve(async (req) => {
         );
       }
 
-      // Optionally fetch student answers
-      let studentAnswers: Record<string, any> = {};
-      if (includeAnswers) {
-        const { data: answers, error: answersError } = await supabase
-          .from("practice_question_answers")
-          .select("*")
-          .eq("set_id", contentId)
-          .eq("user_id", user.id);
-
-        if (!answersError && answers) {
-          answers.forEach((answer) => {
-            studentAnswers[answer.question_id] = answer;
-          });
-        }
-      }
-
       pdfData = {
         type: "student_practice",
         title: practiceSet.set_name,
@@ -203,11 +166,7 @@ serve(async (req) => {
         subtopics: practiceSet.subtopics,
         totalQuestions: questions?.length || 0,
         dateGenerated: new Date().toISOString(),
-        questions: questions?.map((q) => ({
-          ...q,
-          studentAnswer: includeAnswers ? studentAnswers[q.id] : null,
-        })) || [],
-        includeAnswers,
+        questions: questions || [],
       };
     } else {
       return new Response(
@@ -217,7 +176,7 @@ serve(async (req) => {
     }
 
     // Log the download for audit
-    console.log(`PDF generated successfully: contentType=${contentType}, contentId=${contentId}, studentId=${user.id}, includeAnswers=${includeAnswers}`);
+    console.log(`PDF generated successfully: contentType=${contentType}, contentId=${contentId}, studentId=${user.id}`);
 
     // Return the PDF data for client-side generation
     return new Response(
@@ -230,7 +189,6 @@ serve(async (req) => {
           studentId: user.id,
           contentType,
           contentId,
-          includeAnswers,
           generatedAt: new Date().toISOString(),
         },
       }),

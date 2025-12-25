@@ -6,7 +6,6 @@ import { generateExamPDF, downloadPDF } from "@/lib/exam-pdf-generator";
 interface StudentPDFOptions {
   contentType: "exam" | "practice";
   contentId: string;
-  includeAnswers: boolean;
 }
 
 interface PDFQuestion {
@@ -19,12 +18,6 @@ interface PDFQuestion {
   correct_answer?: string | null;
   topic_tag?: string | null;
   table_data?: string | null;
-  studentAnswer?: {
-    answer_text?: string;
-    table_answers?: any;
-    is_correct?: boolean;
-    score?: number;
-  } | null;
 }
 
 interface PDFData {
@@ -36,7 +29,6 @@ interface PDFData {
   totalQuestions: number;
   dateGenerated: string;
   questions: PDFQuestion[];
-  includeAnswers: boolean;
 }
 
 export const useStudentPDF = () => {
@@ -49,7 +41,7 @@ export const useStudentPDF = () => {
       const { data, error } = await supabase.functions.invoke(
         "generate-student-pdf",
         {
-          body: options,
+          body: { ...options, includeAnswers: false },
         }
       );
 
@@ -71,7 +63,7 @@ export const useStudentPDF = () => {
         questions: pdfData.questions.map((q) => ({
           id: q.id,
           question_number: q.question_number,
-          question_text: formatQuestionWithAnswer(q, pdfData.includeAnswers),
+          question_text: q.question_text,
           question_type: q.question_type,
           marks: q.marks,
           options: q.options,
@@ -91,7 +83,7 @@ export const useStudentPDF = () => {
         includeAnswerKey: false,
         includeWorkingSpace: true,
         showMarks: true,
-        answerStyle: pdfData.includeAnswers ? "minimal" : "lined",
+        answerStyle: "lined",
       });
 
       // Add student-created label to first page
@@ -107,9 +99,7 @@ export const useStudentPDF = () => {
       const sanitizedTitle = pdfData.title
         .replace(/[^a-zA-Z0-9]/g, "_")
         .substring(0, 50);
-      const filename = `${sanitizedTitle}_${
-        pdfData.includeAnswers ? "with_answers" : "questions_only"
-      }.pdf`;
+      const filename = `${sanitizedTitle}_questions.pdf`;
 
       // Download PDF
       downloadPDF(doc, filename);
@@ -138,21 +128,3 @@ export const useStudentPDF = () => {
     isGenerating,
   };
 };
-
-// Helper to format question text with student answer if applicable
-function formatQuestionWithAnswer(
-  question: PDFQuestion,
-  includeAnswers: boolean
-): string {
-  let text = question.question_text;
-
-  if (includeAnswers && question.studentAnswer?.answer_text) {
-    // For MCQ, append the selected answer
-    if (question.question_type === "mcq" || question.question_type === "multiple_choice") {
-      text += `\n\n[Your Answer: ${question.studentAnswer.answer_text}]`;
-    }
-    // For other types, the answer will be rendered in the answer space
-  }
-
-  return text;
-}
