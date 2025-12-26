@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, Loader2, CheckCircle, CheckCheck, Star, Grid3x3, Archive, LayoutGrid, List, Filter, X, Plus, Eye, RotateCcw, Settings } from "lucide-react";
+import { Upload, Loader2, CheckCircle, CheckCheck, Star, Archive, Filter, Plus, Eye, RotateCcw, Search, ArrowUpDown, X, Settings, LayoutList } from "lucide-react";
 import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
 import { useStudentPDF } from "@/hooks/useStudentPDF";
 import { ExamCard } from "@/components/exam/ExamCard";
@@ -14,12 +14,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 
 interface Exam {
@@ -42,10 +40,28 @@ interface ExamProgress {
   examState: 'not-started' | 'in-progress' | 'completed';
 }
 
+type TabType = 'published' | 'completed' | 'favourite' | 'all' | 'archive';
+type SortType = 'last-accessed' | 'created' | 'title' | 'progress';
+
+const TABS: { value: TabType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'published', label: 'Published', icon: CheckCircle },
+  { value: 'completed', label: 'Completed', icon: CheckCheck },
+  { value: 'favourite', label: 'Favourite', icon: Star },
+  { value: 'all', label: 'All', icon: LayoutList },
+  { value: 'archive', label: 'Archive', icon: Archive },
+];
+
+const SORT_OPTIONS: { value: SortType; label: string }[] = [
+  { value: 'last-accessed', label: 'Last accessed' },
+  { value: 'created', label: 'Created date' },
+  { value: 'title', label: 'Title (A–Z)' },
+  { value: 'progress', label: 'Progress (high → low)' },
+];
+
 const MyExams = () => {
   const navigate = useNavigate();
   const { subjects, getSubjectColor } = useUserSubjects();
-  const { generateStudentPDF, isGenerating: isPDFGenerating } = useStudentPDF();
+  const { generateStudentPDF } = useStudentPDF();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -59,9 +75,11 @@ const MyExams = () => {
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfExam, setPdfExam] = useState<Exam | null>(null);
   
-  
-  const [activeTab, setActiveTab] = useState<'published' | 'completed' | 'favourite' | 'all' | 'archive'>('published');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  // Tab, sort, search state
+  const [activeTab, setActiveTab] = useState<TabType>('published');
+  const [sortBy, setSortBy] = useState<SortType>('last-accessed');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [completedExamIds, setCompletedExamIds] = useState<string[]>([]);
   const [favouriteExamIds, setFavouriteExamIds] = useState<string[]>([]);
@@ -75,14 +93,13 @@ const MyExams = () => {
   });
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     loadExams();
@@ -103,7 +120,6 @@ const MyExams = () => {
       const { data, error } = await supabase
         .from('exams')
         .select('*, exam_topics(topic_name)')
-        .order('display_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -252,52 +268,9 @@ const MyExams = () => {
     }
   };
 
-  const handleView = (exam: Exam) => {
-    // Container click routes to preview page
-    navigate(`/exam/${exam.id}/preview`);
-  };
-
   const handleBeginExam = (exam: Exam) => {
     setSelectedExam(exam);
     setBeginExamDialogOpen(true);
-  };
-
-  const getExamButtonConfig = (exam: Exam) => {
-    const state = examStates.get(exam.id);
-    
-    if (exam.status !== 'published') {
-      return null;
-    }
-    
-    switch (state) {
-      case 'completed':
-        return {
-          label: 'Review',
-          action: () => navigate(`/exam/${exam.id}/review`),
-          className: 'bg-green-600 hover:bg-green-700',
-          icon: Eye,
-          secondaryButton: {
-            label: 'Retake',
-            action: () => handleRetakeExam(exam),
-            icon: RotateCcw,
-          }
-        };
-      case 'in-progress':
-        return {
-          label: 'Continue',
-          action: () => navigate(`/exam/${exam.id}/in-progress?mode=student`),
-          className: 'bg-orange-600 hover:bg-orange-700',
-          icon: null
-        };
-      case 'not-started':
-      default:
-        return {
-          label: 'Begin Exam',
-          action: () => handleBeginExam(exam),
-          className: 'bg-blue-600 hover:bg-blue-700',
-          icon: null
-        };
-    }
   };
 
   const handleDownloadPDF = async (exam: Exam) => {
@@ -325,7 +298,6 @@ const MyExams = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Delete existing submission and answers to allow retake
       await supabase
         .from('exam_submissions')
         .delete()
@@ -339,13 +311,8 @@ const MyExams = () => {
         .eq('student_id', user.id);
 
       setRetakeExamDialogOpen(false);
-      
-      // Reload exams to update state
       await loadExams();
-      
-      // Navigate to fresh exam
       navigate(`/exam/${selectedExam.id}/live?mode=student`);
-      
       toast({ title: "Success", description: "Starting fresh exam session" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -362,7 +329,6 @@ const MyExams = () => {
         return;
       }
 
-      // Check if student has already submitted this exam
       const { data: submission } = await supabase
         .from('exam_submissions')
         .select('id')
@@ -439,39 +405,6 @@ const MyExams = () => {
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = filteredExams.findIndex((exam) => exam.id === active.id);
-    const newIndex = filteredExams.findIndex((exam) => exam.id === over.id);
-
-    const reorderedExams = arrayMove(filteredExams, oldIndex, newIndex);
-    
-    // Update local state immediately for smooth UX
-    const updatedExams = exams.map(exam => {
-      const reorderedIndex = reorderedExams.findIndex(e => e.id === exam.id);
-      if (reorderedIndex !== -1) {
-        return { ...exam, display_order: reorderedIndex };
-      }
-      return exam;
-    });
-    setExams(updatedExams);
-
-    // Persist to database
-    try {
-      const updates = reorderedExams.map((exam, index) => 
-        supabase.from('exams').update({ display_order: index }).eq('id', exam.id)
-      );
-      await Promise.all(updates);
-      toast({ title: "Success", description: "Exam order updated" });
-    } catch (error: any) {
-      toast({ title: "Reorder Failed", description: error.message, variant: "destructive" });
-      loadExams(); // Reload to restore correct order
-    }
-  };
-
   const handleToggleFavourite = async (examId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -497,7 +430,7 @@ const MyExams = () => {
     }
   };
 
-  const getFilteredExamsByTab = () => {
+  const getFilteredExamsByTab = useCallback(() => {
     switch (activeTab) {
       case 'published':
         return exams.filter(e => e.status === 'published');
@@ -511,10 +444,20 @@ const MyExams = () => {
       default:
         return exams;
     }
-  };
+  }, [activeTab, exams, completedExamIds, favouriteExamIds]);
 
-  const applyFilters = (examsToFilter: Exam[]) => {
+  const applyFilters = useCallback((examsToFilter: Exam[]) => {
     let filtered = examsToFilter;
+
+    // Apply search
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
+      filtered = filtered.filter(e =>
+        e.title.toLowerCase().includes(query) ||
+        e.subject_id.toLowerCase().includes(query) ||
+        e.exam_topics.some(t => t.topic_name.toLowerCase().includes(query))
+      );
+    }
 
     if (filters.subjects.length > 0) {
       filtered = filtered.filter(e => 
@@ -546,176 +489,196 @@ const MyExams = () => {
     }
 
     return filtered;
-  };
+  }, [debouncedSearch, filters, completedExamIds]);
 
-  const filteredExams = applyFilters(getFilteredExamsByTab());
+  const sortedExams = useMemo(() => {
+    const filtered = applyFilters(getFilteredExamsByTab());
+    
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'last-accessed': {
+          const aProgress = examProgress.get(a.id);
+          const bProgress = examProgress.get(b.id);
+          const aDate = aProgress?.lastAccessed === 'Never' ? new Date(0) : new Date(aProgress?.lastAccessed || 0);
+          const bDate = bProgress?.lastAccessed === 'Never' ? new Date(0) : new Date(bProgress?.lastAccessed || 0);
+          return bDate.getTime() - aDate.getTime();
+        }
+        case 'created':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'progress': {
+          const aPercent = examProgress.get(a.id)?.percentComplete || 0;
+          const bPercent = examProgress.get(b.id)?.percentComplete || 0;
+          return bPercent - aPercent;
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [applyFilters, getFilteredExamsByTab, sortBy, examProgress]);
+
+  const getSortLabel = () => {
+    return SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort';
+  };
 
   return (
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6">
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="icon"
-                    className="bg-blue-500 hover:bg-blue-600 h-12 w-12 rounded-full shadow-lg"
-                    onClick={() => setNewExamDialogOpen(true)}
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>
+          
+          {/* Create Button - compact pill */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="gap-2" aria-label="Create new exam or practice set">
+                <Plus className="w-4 h-4" />
+                Create
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => navigate("/upload")} className="gap-2 cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Create Mock Exam
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/practice-questions/new")} className="gap-2 cursor-pointer">
+                <Settings className="w-4 h-4" />
+                Create Practice Questions
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Controls Bar */}
+        <div className="flex flex-col gap-4">
+          {/* Top Row: Segmented Control + Right Controls */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Segmented Control */}
+            <div className="flex-shrink-0 overflow-x-auto scrollbar-hide">
+              <div className="inline-flex p-1 bg-muted rounded-lg gap-1">
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === tab.value
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                      }`}
+                      aria-label={`Filter by ${tab.label}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Search + Sort + Filter */}
+            <div className="flex flex-1 items-center gap-2">
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search exams…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-10"
+                  aria-label="Search exams"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
                   >
-                    <Plus className="w-6 h-6 text-white" />
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 h-10 shrink-0" aria-label="Sort exams">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sort: {getSortLabel()}</span>
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Create New Exam</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SORT_OPTIONS.map((option) => (
+                    <DropdownMenuItem 
+                      key={option.value}
+                      onClick={() => setSortBy(option.value)}
+                      className={`cursor-pointer ${sortBy === option.value ? 'bg-accent' : ''}`}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Filter Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilterPanelOpen(true)}
+                className="gap-2 h-10 shrink-0"
+                aria-label="Open filter panel"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden sm:inline">Filter</span>
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-x-auto scrollbar-hide">
-            <TabsList className="inline-flex h-12 items-center justify-start rounded-none border-0 bg-transparent p-0 overflow-x-auto scrollbar-hide">
-              <TabsTrigger 
-                value="published" 
-                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Published
-              </TabsTrigger>
-              <TabsTrigger 
-                value="completed" 
-                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-              >
-                <CheckCheck className="w-4 h-4 mr-2" />
-                Completed
-              </TabsTrigger>
-              <TabsTrigger 
-                value="favourite" 
-                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-              >
-                <Star className="w-4 h-4 mr-2" />
-                Favourite
-              </TabsTrigger>
-              <TabsTrigger 
-                value="all" 
-                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-              >
-                <Grid3x3 className="w-4 h-4 mr-2" />
-                All
-              </TabsTrigger>
-              <TabsTrigger 
-                value="archive" 
-                className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium transition-all data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-blue-600"
-              >
-                <Archive className="w-4 h-4 mr-2" />
-                Archive
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <div className="flex items-center justify-end gap-2 py-2 md:py-0 md:pl-4 md:border-l h-auto md:h-12">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-              className="h-8 w-8"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-              className="h-8 w-8"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setFilterPanelOpen(true)}
-              className="h-8"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-          </div>
-        </div>
-
+        {/* Content */}
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : filteredExams.length === 0 ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : sortedExams.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-2xl font-semibold mb-2">No exams yet</h3>
             <p className="text-muted-foreground mb-6">Upload your first exam to get started</p>
-            <Button onClick={() => navigate("/upload")}><Upload className="mr-2" />Upload Exam</Button>
+            <Button onClick={() => navigate("/upload")}>
+              <Upload className="mr-2" />
+              Upload Exam
+            </Button>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={filteredExams.map(e => e.id)} strategy={verticalListSortingStrategy}>
-              {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredExams.map((exam) => {
-                    const progress = examProgress.get(exam.id) || {
-                      questionsCompleted: 0,
-                      totalQuestions: 0,
-                      percentComplete: 0,
-                      timeRemaining: "No timer",
-                      lastAccessed: "Never",
-                      examState: 'not-started',
-                    };
-                    
-                    return (
-                      <ExamCard 
-                        key={exam.id} 
-                        exam={exam}
-                        progress={progress}
-                        subjectColor={getSubjectColor(exam.subject_id)}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onToggleFavourite={handleToggleFavourite}
-                        onDownloadPDF={handleDownloadPDF}
-                        isFavourite={favouriteExamIds.includes(exam.id)}
-                        isArchived={activeTab === 'archive'}
-                      />
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredExams.map((exam) => {
-                    const progress = examProgress.get(exam.id) || {
-                      questionsCompleted: 0,
-                      totalQuestions: 0,
-                      percentComplete: 0,
-                      timeRemaining: "No timer",
-                      lastAccessed: "Never",
-                      examState: 'not-started',
-                    };
-                    
-                    return (
-                      <ExamCard 
-                        key={exam.id} 
-                        exam={exam}
-                        progress={progress}
-                        subjectColor={getSubjectColor(exam.subject_id)}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onToggleFavourite={handleToggleFavourite}
-                        onDownloadPDF={handleDownloadPDF}
-                        isFavourite={favouriteExamIds.includes(exam.id)}
-                        isArchived={activeTab === 'archive'}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </SortableContext>
-          </DndContext>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {sortedExams.map((exam) => {
+              const progress = examProgress.get(exam.id) || {
+                questionsCompleted: 0,
+                totalQuestions: 0,
+                percentComplete: 0,
+                timeRemaining: "No timer",
+                lastAccessed: "Never",
+                examState: 'not-started' as const,
+              };
+              
+              return (
+                <ExamCard 
+                  key={exam.id} 
+                  exam={exam}
+                  progress={progress}
+                  subjectColor={getSubjectColor(exam.subject_id)}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggleFavourite={handleToggleFavourite}
+                  onDownloadPDF={handleDownloadPDF}
+                  isFavourite={favouriteExamIds.includes(exam.id)}
+                  isArchived={activeTab === 'archive'}
+                />
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -1019,50 +982,6 @@ const MyExams = () => {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-
-      {/* New Exam Modal */}
-      <Dialog open={newExamDialogOpen} onOpenChange={setNewExamDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Exam</DialogTitle>
-            <DialogDescription>
-              Choose how you'd like to create your exam
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <Button
-              variant="outline"
-              className="h-24 flex-col gap-2 hover:bg-blue-50 hover:border-blue-600 transition-all"
-              onClick={() => {
-                setNewExamDialogOpen(false);
-                navigate("/upload");
-              }}
-            >
-              <Upload className="w-8 h-8 text-blue-600" />
-              <div className="text-center">
-                <div className="font-semibold">Create Mock Exam</div>
-                <div className="text-xs text-muted-foreground">Upload and format exam papers</div>
-              </div>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="h-24 flex-col gap-2 hover:bg-blue-50 hover:border-blue-600 transition-all"
-              onClick={() => {
-                setNewExamDialogOpen(false);
-                navigate("/practice-questions/new");
-              }}
-            >
-              <Settings className="w-8 h-8 text-blue-600" />
-              <div className="text-center">
-                <div className="font-semibold">Create Practice Questions</div>
-                <div className="text-xs text-muted-foreground">Generate custom question sets</div>
-              </div>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* PDF Download Modal */}
       <StudentPDFDownloadModal
