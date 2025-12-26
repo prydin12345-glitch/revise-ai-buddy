@@ -1,13 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Clock, Trophy, Flame, Eye, Play, Users } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Upload, FileText, Clock, Trophy, Flame, Eye, Play, Users, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useExamStats } from "@/hooks/useExamStats";
+import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { AnnouncementsFeed } from "./AnnouncementsFeed";
+import { StatsDrilldownDrawer, DrilldownType } from "./StatsDrilldownDrawer";
+import { getExamState, getExamButtonConfig } from "@/lib/exam-navigation";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -22,15 +26,17 @@ interface ExamWithSubmission {
   assigned_by?: string;
   deadline?: string;
   submission?: {
+    id: string;
     total_score: number;
     total_marks: number;
-    status: 'in_progress' | 'submitted' | 'graded';
+    status: 'in_progress' | 'submitted' | 'graded' | 'completed';
   };
 }
 
 export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const { studyActivityData } = useExamStats();
+  const drilldown = useStatsDrilldown();
   
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,31 +51,52 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     }, 0);
   }, [studyActivityData]);
 
+  // Count completed exams (submitted, completed, or graded status)
+  const completedExamsCount = useMemo(() => {
+    return exams.filter(e => 
+      e.submission?.status === 'graded' || 
+      e.submission?.status === 'submitted' || 
+      e.submission?.status === 'completed'
+    ).length;
+  }, [exams]);
+
+  // Calculate average score from released/graded exams only
+  const averageScore = useMemo(() => {
+    const gradedExams = exams.filter(e => e.submission?.status === 'graded' && e.submission.total_marks > 0);
+    if (gradedExams.length === 0) return null;
+    
+    const total = gradedExams.reduce((acc, e) => {
+      const score = (e.submission!.total_score / e.submission!.total_marks) * 100;
+      return acc + score;
+    }, 0);
+    
+    return Math.round(total / gradedExams.length);
+  }, [exams]);
+
   const stats = [
     { 
       label: "Exams Taken", 
-      value: exams.filter(e => e.submission?.status === 'graded').length.toString(), 
-      emoji: "📄" 
+      value: completedExamsCount.toString(), 
+      emoji: "📄",
+      drilldown: 'exams' as DrilldownType,
     },
     { 
       label: "Average Score", 
-      value: exams.filter(e => e.submission?.status === 'graded').length > 0 
-        ? `${Math.round(exams.filter(e => e.submission?.status === 'graded').reduce((acc, e) => {
-            const score = (e.submission!.total_score / e.submission!.total_marks) * 100;
-            return acc + score;
-          }, 0) / exams.filter(e => e.submission?.status === 'graded').length)}%`
-        : "-", 
-      emoji: "📊" 
+      value: averageScore !== null ? `${averageScore}%` : "-", 
+      emoji: "📊",
+      drilldown: 'scores' as DrilldownType,
     },
     { 
       label: "Study Hours", 
       value: studyActivityData.length === 0 ? "..." : (totalStudyHours > 0 ? `${totalStudyHours.toFixed(1)}h` : "0h"), 
-      emoji: "⏰" 
+      emoji: "⏰",
+      drilldown: 'study-hours' as DrilldownType,
     },
     { 
       label: "Day Streak", 
       value: loading ? "..." : currentStreak.toString(), 
-      emoji: "🔥" 
+      emoji: "🔥",
+      drilldown: 'streak' as DrilldownType,
     },
   ];
 
@@ -91,7 +118,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       if (streakData?.last_exam_submitted_at) {
         const hoursSince = (Date.now() - new Date(streakData.last_exam_submitted_at).getTime()) / (1000 * 60 * 60);
-        setCurrentStreak(hoursSince <= 24 ? streakData.current_streak : 0);
+        setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
       }
 
       // Load user's own exams and assigned exams
@@ -100,7 +127,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(3);
+        .limit(5);
 
       // Load assigned exams
       const { data: assignments } = await supabase
@@ -113,7 +140,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         .eq("assignment_type", "all_students")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(3);
+        .limit(5);
 
       const assignedExams = assignments?.map(a => ({
         ...(a.exams as any),
@@ -127,7 +154,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         (examsData || []).map(async (exam) => {
           const { data: submission } = await supabase
             .from("exam_submissions")
-            .select("total_score, total_marks, status")
+            .select("id, total_score, total_marks, status")
             .eq("exam_id", exam.id)
             .eq("student_id", user.id)
             .maybeSingle();
@@ -136,19 +163,77 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             ...exam,
             submission: submission ? {
               ...submission,
-              status: submission.status as 'in_progress' | 'submitted' | 'graded'
+              status: submission.status as 'in_progress' | 'submitted' | 'graded' | 'completed'
             } : undefined,
           };
         })
       );
 
-      setExams(examsWithSubmissions);
+      // Sort by most recent and limit to 5
+      const sortedExams = examsWithSubmissions
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+
+      setExams(sortedExams);
     } catch (error) {
       console.error("Error loading student data:", error);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExamAction = (exam: ExamWithSubmission) => {
+    const state = getExamState(
+      exam.submission 
+        ? { id: exam.submission.id, status: exam.submission.status } 
+        : null
+    );
+    const config = getExamButtonConfig(exam.id, state);
+    navigate(config.url);
+  };
+
+  const getExamActionButton = (exam: ExamWithSubmission) => {
+    const state = getExamState(
+      exam.submission 
+        ? { id: exam.submission.id, status: exam.submission.status } 
+        : null
+    );
+    const config = getExamButtonConfig(exam.id, state);
+
+    // Check if we can navigate (has valid submission for in-progress)
+    if (state === 'in-progress' && !exam.submission?.id) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" disabled className="opacity-50">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Continue
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Unable to resume (missing session)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <Button
+        size="sm"
+        variant={config.variant}
+        onClick={() => navigate(config.url)}
+      >
+        {state === 'completed' || state === 'graded' ? (
+          <Eye className="w-4 h-4 mr-1" />
+        ) : (
+          <Play className="w-4 h-4 mr-1" />
+        )}
+        {config.label}
+      </Button>
+    );
   };
 
   if (loading) {
@@ -183,10 +268,23 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         </Button>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Now Clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <Card key={index} className="shadow-lg rounded-2xl hover:shadow-xl transition-shadow">
+          <Card 
+            key={index} 
+            className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-primary/50 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-primary"
+            tabIndex={0}
+            role="button"
+            aria-label={`View ${stat.label} details`}
+            onClick={() => drilldown.openDrawer(stat.drilldown)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                drilldown.openDrawer(stat.drilldown);
+              }
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -264,7 +362,13 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           ) : (
             <div className="space-y-3">
               {exams.map((exam) => {
-                const isCompleted = exam.submission?.status === 'graded';
+                const state = getExamState(
+                  exam.submission 
+                    ? { id: exam.submission.id, status: exam.submission.status } 
+                    : null
+                );
+                const isCompleted = state === 'completed' || state === 'graded';
+                
                 return (
                   <div
                     key={exam.id}
@@ -272,7 +376,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   >
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{exam.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="outline">{exam.subject_id}</Badge>
                         {exam.assigned_by && (
                           <Badge variant="secondary">Assigned by Teacher</Badge>
@@ -285,32 +389,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                             Due: {new Date(exam.deadline).toLocaleDateString()}
                           </Badge>
                         )}
-                        {isCompleted && exam.submission && (
+                        {state === 'in-progress' && (
+                          <Badge variant="secondary" className="bg-orange-500/20 text-orange-600 border-orange-500/30">
+                            In Progress
+                          </Badge>
+                        )}
+                        {isCompleted && exam.submission && exam.submission.total_marks > 0 && (
                           <Badge variant="default">
                             Score: {Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)}%
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {isCompleted ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/exam/${exam.id}/review`)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Review
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/exam/${exam.id}/take`)}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          {exam.submission ? 'Continue' : 'Start'}
-                        </Button>
-                      )}
+                    <div className="flex gap-2 ml-4">
+                      {getExamActionButton(exam)}
                     </div>
                   </div>
                 );
@@ -319,6 +411,21 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           )}
         </CardContent>
       </Card>
+
+      {/* Stats Drilldown Drawer */}
+      <StatsDrilldownDrawer
+        type={drilldown.activeDrawer}
+        onClose={drilldown.closeDrawer}
+        loading={drilldown.loading}
+        completedExams={drilldown.completedExams}
+        averageScore={drilldown.averageScore}
+        scoreBreakdown={drilldown.scoreBreakdown}
+        excludedCount={drilldown.excludedCount}
+        totalHours={drilldown.totalHours}
+        studySessions={drilldown.studySessions}
+        weeklyBreakdown={drilldown.weeklyBreakdown}
+        streakData={drilldown.streakData}
+      />
     </div>
   );
 };

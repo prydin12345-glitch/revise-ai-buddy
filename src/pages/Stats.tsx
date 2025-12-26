@@ -8,9 +8,12 @@ import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { BestSubjectCard } from "@/components/stats/BestSubjectCard";
 import { useExamStats } from "@/hooks/useExamStats";
+import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
+import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { Card, CardContent } from "@/components/ui/card";
 
 const Stats = () => {
+  const drilldown = useStatsDrilldown();
   const {
     loading,
     totalExams,
@@ -78,6 +81,7 @@ const Stats = () => {
               inProgressExams={inProgressExams}
               currentStreak={currentStreak}
               longestStreak={longestStreak}
+              onCardClick={drilldown.openDrawer}
             />
 
             {/* Best Subject Highlight */}
@@ -132,6 +136,21 @@ const Stats = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Stats Drilldown Drawer */}
+        <StatsDrilldownDrawer
+          type={drilldown.activeDrawer}
+          onClose={drilldown.closeDrawer}
+          loading={drilldown.loading}
+          completedExams={drilldown.completedExams}
+          averageScore={drilldown.averageScore}
+          scoreBreakdown={drilldown.scoreBreakdown}
+          excludedCount={drilldown.excludedCount}
+          totalHours={drilldown.totalHours}
+          studySessions={drilldown.studySessions}
+          weeklyBreakdown={drilldown.weeklyBreakdown}
+          streakData={drilldown.streakData}
+        />
       </div>
     </DashboardLayout>
   );
