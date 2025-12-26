@@ -7,14 +7,37 @@ interface TopStatsCardsProps {
   inProgressExams: number;
   currentStreak: number;
   longestStreak: number;
+  onCardClick?: (type: 'exams' | 'scores' | 'study-hours' | 'streak') => void;
 }
 
-export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, currentStreak, longestStreak }: TopStatsCardsProps) => {
+export const TopStatsCards = ({ 
+  totalExams, 
+  completedExams, 
+  inProgressExams, 
+  currentStreak, 
+  longestStreak,
+  onCardClick 
+}: TopStatsCardsProps) => {
   const percentageComplete = totalExams > 0 ? (completedExams / totalExams) * 100 : 0;
+
+  const cardClass = onCardClick 
+    ? "shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary"
+    : "shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <Card 
+        className={cardClass}
+        tabIndex={onCardClick ? 0 : undefined}
+        role={onCardClick ? "button" : undefined}
+        onClick={() => onCardClick?.('exams')}
+        onKeyDown={(e) => {
+          if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onCardClick('exams');
+          }
+        }}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 rounded-xl bg-primary/10">
@@ -33,11 +56,22 @@ export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, cur
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <Card 
+        className={cardClass}
+        tabIndex={onCardClick ? 0 : undefined}
+        role={onCardClick ? "button" : undefined}
+        onClick={() => onCardClick?.('scores')}
+        onKeyDown={(e) => {
+          if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onCardClick('scores');
+          }
+        }}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-success/10">
-              <CheckCircle2 className="h-6 w-6 text-success" />
+            <div className="p-3 rounded-xl bg-green-500/10">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-muted-foreground">Completed</p>
@@ -47,7 +81,7 @@ export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, cur
           <div className="space-y-1">
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div 
-                className="h-full bg-success rounded-full transition-all duration-500"
+                className="h-full bg-green-500 rounded-full transition-all duration-500"
                 style={{ width: `${percentageComplete}%` }}
               />
             </div>
@@ -58,11 +92,22 @@ export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, cur
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <Card 
+        className={cardClass}
+        tabIndex={onCardClick ? 0 : undefined}
+        role={onCardClick ? "button" : undefined}
+        onClick={() => onCardClick?.('study-hours')}
+        onKeyDown={(e) => {
+          if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onCardClick('study-hours');
+          }
+        }}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-warning/10">
-              <Clock className="h-6 w-6 text-warning" />
+            <div className="p-3 rounded-xl bg-orange-500/10">
+              <Clock className="h-6 w-6 text-orange-500" />
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-muted-foreground">In Progress</p>
@@ -77,7 +122,18 @@ export const TopStatsCards = ({ totalExams, completedExams, inProgressExams, cur
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <Card 
+        className={cardClass}
+        tabIndex={onCardClick ? 0 : undefined}
+        role={onCardClick ? "button" : undefined}
+        onClick={() => onCardClick?.('streak')}
+        onKeyDown={(e) => {
+          if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onCardClick('streak');
+          }
+        }}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 rounded-xl bg-orange-500/10">
