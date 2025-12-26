@@ -52,6 +52,9 @@ interface ExamCardProps {
   isArchived?: boolean;
 }
 
+// Format progress to integer percentage
+const formatProgress = (value: number): string => `${Math.round(value)}%`;
+
 export const ExamCard = ({ 
   exam, 
   progress, 
@@ -85,7 +88,7 @@ export const ExamCard = ({
       case 'in-progress':
         return {
           label: 'Continue',
-          icon: Play,
+          icon: ChevronRight,
           action: () => navigate(`/exam/${exam.id}/in-progress?mode=student`),
         };
       default:
@@ -108,43 +111,21 @@ export const ExamCard = ({
     });
   };
 
-  const getStatusConfig = () => {
-    switch (progress.examState) {
-      case 'completed':
-        return {
-          label: 'Completed',
-          className: 'text-success bg-success/10',
-        };
-      case 'in-progress':
-        return {
-          label: 'In Progress',
-          className: 'text-warning bg-warning/10',
-        };
-      default:
-        return {
-          label: 'Not Started',
-          className: 'text-muted-foreground bg-muted',
-        };
-    }
-  };
-
-  const statusConfig = getStatusConfig();
-
   return (
     <div ref={setNodeRef} style={style}>
       <Card 
-        className={`group relative overflow-hidden transition-all duration-200 hover:shadow-lg ${
+        className={`group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col ${
           isArchived ? 'pointer-events-none opacity-60' : ''
         }`}
         style={{
           borderLeft: `3px solid ${subjectColor}`,
         }}
       >
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex flex-col flex-1">
           {/* ========== HEADER SECTION ========== */}
-          <div className="p-5 pb-4">
+          <div className="p-6 pb-5 flex-1">
             {/* Title Row with Drag Handle */}
-            <div className="flex items-start gap-2 mb-3">
+            <div className="flex items-start gap-2 mb-5">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -164,45 +145,45 @@ export const ExamCard = ({
 
               <div className="flex-1 min-w-0">
                 {/* Subject + Title */}
-                <h3 className="font-semibold text-lg leading-tight text-foreground mb-1">
+                <h3 className="font-semibold text-lg leading-tight text-foreground mb-2">
                   <span className="text-muted-foreground font-normal">{exam.subject_id}</span>
                   <span className="mx-2 text-muted-foreground/50">–</span>
                   <span>{exam.title}</span>
                 </h3>
                 
-                {/* Progress indicator */}
-                <div className="flex items-center gap-3 mt-2">
+                {/* Progress indicator - wider bar with percentage on same row */}
+                <div className="flex items-center gap-3 mt-3">
                   <Progress 
                     value={progress.percentComplete} 
-                    className="h-1.5 flex-1 max-w-32 bg-muted"
+                    className="h-1.5 flex-1 bg-muted"
                     indicatorColor={progress.examState === 'completed' ? 'hsl(var(--success))' : subjectColor}
                   />
-                  <span className="text-xs text-muted-foreground">
-                    {progress.percentComplete}% completed
+                  <span className="text-xs text-muted-foreground font-medium shrink-0">
+                    {formatProgress(progress.percentComplete)}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* ========== METADATA SECTION ========== */}
-            <div className="space-y-1.5 text-sm text-muted-foreground pl-7">
+            <div className="space-y-3 text-sm text-muted-foreground pl-7 mt-5">
               {/* Topic */}
               {exam.exam_topics.length > 0 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <BookOpen className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{exam.exam_topics[0].topic_name}</span>
                 </div>
               )}
               
               {/* Created date */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <Calendar className="w-3.5 h-3.5 shrink-0" />
                 <span>Created: {formatDate(exam.created_at)}</span>
               </div>
 
               {/* Last accessed */}
               {progress.lastAccessed && progress.lastAccessed !== 'Never' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Clock className="w-3.5 h-3.5 shrink-0" />
                   <span>Last accessed: {progress.lastAccessed}</span>
                 </div>
@@ -210,7 +191,7 @@ export const ExamCard = ({
 
               {/* Time remaining (if timer active) */}
               {progress.timeRemaining && progress.timeRemaining !== 'No timer' && progress.timeRemaining !== 'Completed' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Clock className="w-3.5 h-3.5 shrink-0" />
                   <span>Time remaining: {progress.timeRemaining}</span>
                 </div>
@@ -222,7 +203,7 @@ export const ExamCard = ({
           <Separator />
 
           {/* ========== ACTION ROW ========== */}
-          <div className="px-5 py-3 flex items-center justify-between">
+          <div className="px-6 py-4 flex items-center justify-between">
             {/* Left: Secondary Actions (icon-only, subtle) */}
             <div className="flex items-center gap-1">
               <TooltipProvider>
@@ -300,20 +281,28 @@ export const ExamCard = ({
               </TooltipProvider>
             </div>
 
-            {/* Right: Primary Action Button */}
+            {/* Right: Primary Action - Circular Icon Button */}
             {exam.status === 'published' && (
-              <Button
-                size="sm"
-                className="h-9 px-4 gap-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  buttonConfig.action();
-                }}
-              >
-                <ButtonIcon className="w-4 h-4" />
-                {buttonConfig.label}
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      className="h-10 w-10 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        buttonConfig.action();
+                      }}
+                      aria-label={buttonConfig.label}
+                    >
+                      <ButtonIcon className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{buttonConfig.label}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </CardContent>
