@@ -43,29 +43,58 @@ export const TutorDashboardContent = () => {
       if (examsError) throw examsError;
       setRecentExams(exams || []);
 
-      // Load student groups
+      // Load student groups with ONLY active members
       const { data: groups, error: groupsError } = await supabase
         .from("student_groups")
-        .select("*, group_members(*)")
+        .select("*, group_members!inner(*)")
+        .eq("tutor_id", user.id)
+        .eq("is_active", true)
+        .eq("group_members.is_active", true);
+
+      if (groupsError && groupsError.code !== 'PGRST116') throw groupsError;
+      
+      // Also get groups with no members (the inner join above excludes them)
+      const { data: allGroups, error: allGroupsError } = await supabase
+        .from("student_groups")
+        .select("id, name, description, created_at, invite_code")
         .eq("tutor_id", user.id)
         .eq("is_active", true);
 
-      if (groupsError) throw groupsError;
-      setStudentGroups(groups || []);
+      if (allGroupsError) throw allGroupsError;
 
-      // Load exam assignments
+      // Get active member counts for each group
+      const groupsWithActiveCounts = await Promise.all(
+        (allGroups || []).map(async (group) => {
+          const { count } = await supabase
+            .from("group_members")
+            .select("*", { count: "exact", head: true })
+            .eq("group_id", group.id)
+            .eq("is_active", true);
+          
+          return {
+            ...group,
+            group_members: Array(count || 0).fill(null), // Placeholder array for count
+            active_member_count: count || 0,
+          };
+        })
+      );
+
+      setStudentGroups(groupsWithActiveCounts);
+
+      // Load ACTIVE exam assignments only
       const { data: assignments, error: assignmentsError } = await supabase
         .from("exam_assignments")
         .select("*")
-        .eq("assigned_by", user.id);
+        .eq("assigned_by", user.id)
+        .eq("is_active", true);
 
       if (assignmentsError) throw assignmentsError;
 
-      // Calculate stats
-      const totalStudents = groups?.reduce((sum, group) => sum + (group.group_members?.length || 0), 0) || 0;
+      // Calculate stats - use active member counts
+      const totalStudents = groupsWithActiveCounts.reduce((sum, group) => sum + (group.active_member_count || 0), 0);
 
       setStats({
-        totalGroups: groups?.length || 0,
+        totalGroups: allGroups?.length || 0,
         totalStudents,
         totalExamsCreated: exams?.length || 0,
         totalAssignments: assignments?.length || 0,
@@ -192,7 +221,7 @@ export const TutorDashboardContent = () => {
                     )}
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">
-                        {group.group_members?.length || 0} students
+                        {group.active_member_count || 0} students
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         Created {new Date(group.created_at).toLocaleDateString()}
