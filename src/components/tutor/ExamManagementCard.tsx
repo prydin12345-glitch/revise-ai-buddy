@@ -113,57 +113,67 @@ export const ExamManagementCard = ({
     : 0;
 
   const isNotAssigned = exam.assigned_groups.length === 0;
+  const isComplete = exam.total_students > 0 && exam.completed_students === exam.total_students;
+  
+  // Check if overdue
+  const isOverdue = exam.deadline && isPast(new Date(exam.deadline)) && !isComplete;
+
+  // Progress bar color based on status
+  const getProgressColor = () => {
+    if (isComplete) return "#22c55e"; // green
+    if (isOverdue) return "#ef4444"; // red
+    if (progressPercent > 0) return "#f59e0b"; // amber
+    return subjectColor;
+  };
 
   return (
     <div 
       className={cn(
-        "group relative rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm",
-        "p-5 transition-all duration-200",
-        "hover:border-border/60 hover:bg-card/70 hover:shadow-lg hover:shadow-black/5"
+        "group relative rounded-2xl border bg-card/60 backdrop-blur-sm",
+        "p-6 transition-all duration-300 flex flex-col h-full",
+        "hover:bg-card/80 hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5",
+        isOverdue ? "border-red-500/30" : "border-border/40 hover:border-border/60"
       )}
     >
       {/* Subject color accent */}
       <div 
-        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+        className="absolute left-0 top-4 bottom-4 w-1 rounded-full"
         style={{ backgroundColor: subjectColor }}
       />
 
       {/* Main Content */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 flex-1">
         {/* Header Row */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="font-semibold text-lg text-foreground truncate">
-                {exam.title}
-              </h3>
-              <StatusBadge status={exam.status} />
-            </div>
-            
-            {/* Metadata Row */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge 
-                variant="secondary" 
-                className="text-xs font-medium"
-                style={{ 
-                  backgroundColor: `${subjectColor}20`,
-                  color: subjectColor,
-                  borderColor: `${subjectColor}40`
-                }}
-              >
-                {exam.subject_id}
-              </Badge>
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(exam.created_at), "MMM d, yyyy")}
-              </span>
-              {exam.deadline && <DeadlineBadge deadline={exam.deadline} />}
-            </div>
+            <h3 className="font-semibold text-lg text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+              {exam.title}
+            </h3>
           </div>
+          <StatusBadge status={exam.status} />
+        </div>
+        
+        {/* Metadata Row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge 
+            variant="secondary" 
+            className="text-xs font-medium px-2.5 py-0.5"
+            style={{ 
+              backgroundColor: `${subjectColor}15`,
+              color: subjectColor,
+              borderColor: `${subjectColor}30`
+            }}
+          >
+            {exam.subject_id}
+          </Badge>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {format(new Date(exam.created_at), "MMM d, yyyy")}
+          </span>
         </div>
 
         {/* Assignment Info */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap min-h-[28px]">
           {isNotAssigned ? (
             <Badge 
               variant="outline" 
@@ -173,74 +183,79 @@ export const ExamManagementCard = ({
               Not assigned
             </Badge>
           ) : (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground">Assigned to:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-muted-foreground">Assigned:</span>
               {exam.assigned_groups.slice(0, 2).map((group, idx) => (
                 <Badge 
                   key={idx} 
                   variant="outline" 
-                  className="text-xs bg-background/50"
+                  className="text-xs bg-background/50 py-0"
                 >
                   {group}
                 </Badge>
               ))}
               {exam.assigned_groups.length > 2 && (
-                <Badge variant="outline" className="text-xs bg-background/50">
-                  +{exam.assigned_groups.length - 2} more
+                <Badge variant="outline" className="text-xs bg-background/50 py-0">
+                  +{exam.assigned_groups.length - 2}
                 </Badge>
               )}
             </div>
           )}
         </div>
 
-        {/* Progress Section */}
-        {exam.total_students > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {exam.completed_students} / {exam.total_students} completed
-              </span>
-              <span className="text-xs font-medium text-muted-foreground">
-                {progressPercent}%
-              </span>
-            </div>
-            <Progress 
-              value={progressPercent} 
-              className="h-1.5 bg-muted/30"
-              indicatorColor={`${subjectColor}80`}
-            />
+        {/* Deadline */}
+        {exam.deadline && (
+          <div className="flex items-center">
+            <DeadlineBadge deadline={exam.deadline} />
           </div>
         )}
 
-        {/* Actions Row */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/30">
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary"
-                  onClick={() => onAssign(exam.id, exam.title)}
-                >
-                  <Users className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Assign to students</TooltipContent>
-            </Tooltip>
+        {/* Progress Section */}
+        <div className="mt-auto pt-2 space-y-2.5">
+          {exam.total_students > 0 ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {isComplete ? (
+                    <span className="text-emerald-400">All students completed</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {exam.completed_students} / {exam.total_students} completed
+                    </span>
+                  )}
+                </span>
+              </div>
+              <Progress 
+                value={progressPercent} 
+                className="h-2 bg-muted/30"
+                indicatorColor={getProgressColor()}
+              />
+            </>
+          ) : (
+            <div className="h-8 flex items-center">
+              <span className="text-xs text-muted-foreground/70">No submissions yet</span>
+            </div>
+          )}
+        </div>
 
+        {/* Divider */}
+        <div className="h-px bg-border/30 my-1" />
+
+        {/* Actions Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary"
+                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
                   onClick={() => navigate(`/tutor/exams/${exam.id}/edit`)}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Preview exam</TooltipContent>
+              <TooltipContent>View / Edit</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -248,13 +263,27 @@ export const ExamManagementCard = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary"
+                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  onClick={() => onAssign(exam.id, exam.title)}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Assign</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
                   onClick={() => navigate(`/tutor/exams/${exam.id}/dashboard`)}
                 >
                   <BarChart3 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>View results</TooltipContent>
+              <TooltipContent>Results</TooltipContent>
             </Tooltip>
 
             <PrintExamButton
@@ -270,13 +299,13 @@ export const ExamManagementCard = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                className="h-9 w-9 rounded-xl text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => onDelete(exam.id, exam.title, exam.status)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Delete exam</TooltipContent>
+            <TooltipContent>Delete</TooltipContent>
           </Tooltip>
         </div>
       </div>
