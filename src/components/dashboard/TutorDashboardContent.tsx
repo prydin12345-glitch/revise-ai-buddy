@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useTutorStatsDrilldown, TutorDrilldownType } from "@/hooks/useTutorStatsDrilldown";
+import { TutorStatsDrilldownDrawer } from "@/components/tutor/TutorStatsDrilldownDrawer";
 
 export const TutorDashboardContent = () => {
   const navigate = useNavigate();
@@ -18,6 +20,8 @@ export const TutorDashboardContent = () => {
   });
   const [recentExams, setRecentExams] = useState<any[]>([]);
   const [studentGroups, setStudentGroups] = useState<any[]>([]);
+  
+  const drilldown = useTutorStatsDrilldown();
 
   useEffect(() => {
     loadTutorData();
@@ -75,10 +79,10 @@ export const TutorDashboardContent = () => {
   };
 
   const statCards = [
-    { label: "Student Groups", value: stats.totalGroups, icon: Users, color: "text-blue-500" },
-    { label: "Total Students", value: stats.totalStudents, icon: UserPlus, color: "text-green-500" },
-    { label: "Exams Created", value: stats.totalExamsCreated, icon: ClipboardList, color: "text-purple-500" },
-    { label: "Active Assignments", value: stats.totalAssignments, icon: Calendar, color: "text-orange-500" },
+    { label: "Student Groups", value: stats.totalGroups, icon: Users, color: "text-blue-500", drilldown: 'studentGroups' as TutorDrilldownType },
+    { label: "Total Students", value: stats.totalStudents, icon: UserPlus, color: "text-green-500", drilldown: 'totalStudents' as TutorDrilldownType },
+    { label: "Exams Created", value: stats.totalExamsCreated, icon: ClipboardList, color: "text-purple-500", drilldown: 'examsCreated' as TutorDrilldownType },
+    { label: "Active Assignments", value: stats.totalAssignments, icon: Calendar, color: "text-orange-500", drilldown: 'activeAssignments' as TutorDrilldownType },
   ];
 
   if (loading) {
@@ -90,6 +94,7 @@ export const TutorDashboardContent = () => {
   }
 
   return (
+    <>
     <div className="max-w-[1600px] mx-auto space-y-6">
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -130,7 +135,20 @@ export const TutorDashboardContent = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
-          <Card key={index} className="shadow-lg rounded-2xl hover:shadow-xl transition-shadow">
+          <Card 
+            key={index} 
+            className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-primary/50"
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${stat.label} details`}
+            onClick={() => drilldown.openDrawer(stat.drilldown)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                drilldown.openDrawer(stat.drilldown);
+              }
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -234,5 +252,17 @@ export const TutorDashboardContent = () => {
         </CardContent>
       </Card>
     </div>
+
+      {/* Stats Drilldown Drawer */}
+      <TutorStatsDrilldownDrawer
+        type={drilldown.activeDrawer}
+        onClose={drilldown.closeDrawer}
+        loading={drilldown.loading}
+        groups={drilldown.groups}
+        students={drilldown.students}
+        exams={drilldown.exams}
+        assignments={drilldown.assignments}
+      />
+    </>
   );
 };
