@@ -22,19 +22,20 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Search,
-  X,
   ArrowRight,
   Eye,
   Users,
   Plus,
   ChevronDown,
+  ChevronRight,
   Calendar,
   Clock,
   GraduationCap,
   FileText,
   Settings,
+  AlertTriangle,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, differenceInDays, isToday, isTomorrow, isPast } from "date-fns";
 import {
   TutorDrilldownType,
   StudentGroup,
@@ -42,6 +43,7 @@ import {
   ExamItem,
   AssignmentItem,
 } from "@/hooks/useTutorStatsDrilldown";
+import { cn } from "@/lib/utils";
 
 // Subtle divider component
 const SubtleDivider = () => (
@@ -90,6 +92,99 @@ const EmptyState = ({
   </div>
 );
 
+// Clickable row wrapper with hover animation
+const ClickableRow = ({
+  children,
+  onClick,
+  className,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  className?: string;
+}) => (
+  <div
+    role="button"
+    tabIndex={0}
+    onClick={onClick}
+    onKeyDown={(e) => e.key === 'Enter' && onClick()}
+    className={cn(
+      "group flex items-center justify-between p-3 rounded-lg border border-border/10",
+      "hover:bg-muted/30 hover:border-border/20 transition-all cursor-pointer",
+      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+      className
+    )}
+  >
+    {children}
+    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all ml-2 shrink-0" />
+  </div>
+);
+
+// Due badge with severity-based styling
+const DueBadge = ({ deadline }: { deadline: string | null }) => {
+  if (!deadline) {
+    return (
+      <Badge variant="outline" className="text-xs border-border/30 text-muted-foreground">
+        No due date
+      </Badge>
+    );
+  }
+
+  const dueDate = new Date(deadline);
+  const now = new Date();
+  const isOverdue = isPast(dueDate) && !isToday(dueDate);
+  const isDueToday = isToday(dueDate);
+  const isDueTomorrow = isTomorrow(dueDate);
+  const daysUntilDue = differenceInDays(dueDate, now);
+
+  if (isOverdue) {
+    return (
+      <Badge className="text-xs bg-destructive/20 text-destructive border-destructive/30 hover:bg-destructive/30">
+        <AlertTriangle className="h-3 w-3 mr-1" />
+        Overdue
+      </Badge>
+    );
+  }
+
+  if (isDueToday) {
+    return (
+      <Badge className="text-xs bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30">
+        <Clock className="h-3 w-3 mr-1" />
+        Due today
+      </Badge>
+    );
+  }
+
+  if (isDueTomorrow) {
+    return (
+      <Badge className="text-xs bg-yellow-500/15 text-yellow-400 border-yellow-500/25 hover:bg-yellow-500/25">
+        Due tomorrow
+      </Badge>
+    );
+  }
+
+  if (daysUntilDue <= 3) {
+    return (
+      <Badge className="text-xs bg-yellow-500/10 text-yellow-400/80 border-yellow-500/20 hover:bg-yellow-500/20">
+        Due in {daysUntilDue} days
+      </Badge>
+    );
+  }
+
+  if (daysUntilDue <= 7) {
+    return (
+      <Badge variant="outline" className="text-xs border-border/30 text-muted-foreground">
+        Due in {daysUntilDue} days
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="text-xs border-border/20 text-muted-foreground/70">
+      {format(dueDate, "MMM d")}
+    </Badge>
+  );
+};
+
 interface TutorStatsDrilldownDrawerProps {
   type: TutorDrilldownType;
   onClose: () => void;
@@ -101,7 +196,7 @@ interface TutorStatsDrilldownDrawerProps {
 }
 
 type GroupSortOption = 'newest' | 'oldest' | 'az';
-type StudentSortOption = 'recent' | 'az' | 'za';
+type StudentSortOption = 'az' | 'za' | 'recent';
 type ExamSortOption = 'newest' | 'oldest' | 'most_assigned';
 type AssignmentSortOption = 'due_soon' | 'recent';
 
@@ -116,21 +211,21 @@ export const TutorStatsDrilldownDrawer = ({
 }: TutorStatsDrilldownDrawerProps) => {
   const navigate = useNavigate();
   
-  // Groups state
+  // Groups state - default sort: newest
   const [groupSearch, setGroupSearch] = useState("");
   const [groupSort, setGroupSort] = useState<GroupSortOption>('newest');
   
-  // Students state
+  // Students state - default sort: A-Z
   const [studentSearch, setStudentSearch] = useState("");
   const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
-  const [studentSort, setStudentSort] = useState<StudentSortOption>('recent');
+  const [studentSort, setStudentSort] = useState<StudentSortOption>('az');
   
-  // Exams state
+  // Exams state - default sort: newest
   const [examSearch, setExamSearch] = useState("");
   const [examSubjectFilter, setExamSubjectFilter] = useState<string>("all");
   const [examSort, setExamSort] = useState<ExamSortOption>('newest');
   
-  // Assignments state
+  // Assignments state - default sort: due soon
   const [assignmentSearch, setAssignmentSearch] = useState("");
   const [assignmentGroupFilter, setAssignmentGroupFilter] = useState<string>("all");
   const [assignmentSort, setAssignmentSort] = useState<AssignmentSortOption>('due_soon');
@@ -232,14 +327,14 @@ export const TutorStatsDrilldownDrawer = ({
     });
     
     switch (studentSort) {
-      case 'recent':
-        result.sort((a, b) => new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime());
-        break;
       case 'az':
         result.sort((a, b) => formatStudentName(a).localeCompare(formatStudentName(b)));
         break;
       case 'za':
         result.sort((a, b) => formatStudentName(b).localeCompare(formatStudentName(a)));
+        break;
+      case 'recent':
+        result.sort((a, b) => new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime());
         break;
     }
     
@@ -314,7 +409,7 @@ export const TutorStatsDrilldownDrawer = ({
       case 'studentGroups':
         return `${groups.length} group${groups.length !== 1 ? 's' : ''}`;
       case 'totalStudents':
-        return `${students.length} total student${students.length !== 1 ? 's' : ''}`;
+        return `${students.length} active student${students.length !== 1 ? 's' : ''}`;
       case 'examsCreated':
         return `${exams.length} total`;
       case 'activeAssignments':
@@ -365,18 +460,18 @@ export const TutorStatsDrilldownDrawer = ({
       ) : filteredGroups.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No groups found"
-          description={groupSearch ? "Try a different search term" : "Create your first student group"}
-          action={!groupSearch ? "Create group" : undefined}
+          title={debouncedGroupSearch ? "No results found" : "No groups yet"}
+          description={debouncedGroupSearch ? "Try a different search term" : "Create your first student group to get started"}
+          action={!debouncedGroupSearch ? "Create group" : undefined}
           onAction={() => navigate("/tutor/students")}
         />
       ) : (
         <ScrollArea className="h-[calc(100vh-320px)]">
           <div className="space-y-2 pr-4">
             {filteredGroups.map((group) => (
-              <div
+              <ClickableRow
                 key={group.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/10 hover:bg-muted/30 transition-colors"
+                onClick={() => navigate("/tutor/students")}
               >
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium truncate">{group.name}</h4>
@@ -389,20 +484,7 @@ export const TutorStatsDrilldownDrawer = ({
                     </span>
                   </div>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 h-8 w-8"
-                      onClick={() => navigate("/tutor/students")}
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Open group</TooltipContent>
-                </Tooltip>
-              </div>
+              </ClickableRow>
             ))}
           </div>
         </ScrollArea>
@@ -457,14 +539,14 @@ export const TutorStatsDrilldownDrawer = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={() => setStudentSort('recent')}>
-                Recently added
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStudentSort('az')}>
                 Name A–Z
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStudentSort('za')}>
                 Name Z–A
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStudentSort('recent')}>
+                Recently added
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -477,16 +559,16 @@ export const TutorStatsDrilldownDrawer = ({
       ) : filteredStudents.length === 0 ? (
         <EmptyState
           icon={GraduationCap}
-          title="No students found"
-          description={studentSearch ? "Try a different search term" : "Students will appear here when they join your groups"}
+          title={debouncedStudentSearch ? "No results found" : "No active students"}
+          description={debouncedStudentSearch ? "Try a different search term" : "Students will appear here when they join your groups"}
         />
       ) : (
         <ScrollArea className="h-[calc(100vh-380px)]">
           <div className="space-y-2 pr-4">
             {filteredStudents.map((student) => (
-              <div
+              <ClickableRow
                 key={student.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/10 hover:bg-muted/30 transition-colors"
+                onClick={() => navigate(`/tutor/progress`)}
               >
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium truncate">{formatStudentName(student)}</h4>
@@ -494,20 +576,7 @@ export const TutorStatsDrilldownDrawer = ({
                     <span className="text-xs text-muted-foreground">{student.group_name}</span>
                   </div>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 h-8 w-8"
-                      onClick={() => navigate(`/tutor/progress`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>View student</TooltipContent>
-                </Tooltip>
-              </div>
+              </ClickableRow>
             ))}
           </div>
         </ScrollArea>
@@ -576,18 +645,18 @@ export const TutorStatsDrilldownDrawer = ({
       ) : filteredExams.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="No exams found"
-          description={examSearch ? "Try a different search term" : "Create your first exam to get started"}
-          action={!examSearch ? "Create exam" : undefined}
+          title={debouncedExamSearch ? "No results found" : "No exams created yet"}
+          description={debouncedExamSearch ? "Try a different search term" : "Create your first exam to get started"}
+          action={!debouncedExamSearch ? "Create exam" : undefined}
           onAction={() => navigate("/tutor/exams/create")}
         />
       ) : (
         <ScrollArea className="h-[calc(100vh-380px)]">
           <div className="space-y-2 pr-4">
             {filteredExams.map((exam) => (
-              <div
+              <ClickableRow
                 key={exam.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/10 hover:bg-muted/30 transition-colors"
+                onClick={() => navigate(`/tutor/exams/${exam.id}/edit`)}
               >
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium truncate">{exam.title}</h4>
@@ -598,35 +667,7 @@ export const TutorStatsDrilldownDrawer = ({
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 h-8 w-8"
-                        onClick={() => navigate(`/tutor/exams/${exam.id}/edit`)}
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Manage exam</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 h-8 w-8"
-                        onClick={() => navigate(`/tutor/exams/${exam.id}/edit`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Preview</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
+              </ClickableRow>
             ))}
           </div>
         </ScrollArea>
@@ -648,132 +689,98 @@ export const TutorStatsDrilldownDrawer = ({
   );
 
   // Render Assignments content
-  const renderAssignmentsContent = () => {
-    const getDueBadge = (deadline: string | null) => {
-      if (!deadline) {
-        return <Badge variant="secondary" className="text-xs">No due date</Badge>;
-      }
-      const dueDate = new Date(deadline);
-      const now = new Date();
-      const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 0) {
-        return <Badge variant="destructive" className="text-xs">Overdue</Badge>;
-      } else if (diffDays <= 3) {
-        return <Badge variant="destructive" className="text-xs">Due in {diffDays} day{diffDays !== 1 ? 's' : ''}</Badge>;
-      } else if (diffDays <= 7) {
-        return <Badge variant="secondary" className="text-xs">Due in {diffDays} days</Badge>;
-      } else {
-        return <Badge variant="outline" className="text-xs">{format(dueDate, "MMM d")}</Badge>;
-      }
-    };
-
-    return (
-      <>
-        {/* Controls */}
-        <div className="space-y-2 mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search assignments…"
-              value={assignmentSearch}
-              onChange={(e) => setAssignmentSearch(e.target.value)}
-              className="pl-9 bg-background/50"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select value={assignmentGroupFilter} onValueChange={setAssignmentGroupFilter}>
-              <SelectTrigger className="flex-1 bg-background/50">
-                <SelectValue placeholder="Filter by group" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="all">All groups</SelectItem>
-                {assignmentGroupNames.map((name) => (
-                  <SelectItem key={name} value={name!}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="shrink-0">
-                  Sort
-                  <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuItem onClick={() => setAssignmentSort('due_soon')}>
-                  Due soon
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setAssignmentSort('recent')}>
-                  Recently created
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <ListSkeleton />
-        ) : filteredAssignments.length === 0 ? (
-          <EmptyState
-            icon={Calendar}
-            title="No active assignments"
-            description={assignmentSearch ? "Try a different search term" : "Assign an exam to a group to get started"}
-            action={!assignmentSearch ? "Create assignment" : undefined}
-            onAction={() => navigate("/tutor/exams")}
+  const renderAssignmentsContent = () => (
+    <>
+      {/* Controls */}
+      <div className="space-y-2 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search assignments…"
+            value={assignmentSearch}
+            onChange={(e) => setAssignmentSearch(e.target.value)}
+            className="pl-9 bg-background/50"
           />
-        ) : (
-          <ScrollArea className="h-[calc(100vh-380px)]">
-            <div className="space-y-2 pr-4">
-              {filteredAssignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/10 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate">{assignment.exam_title}</h4>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {assignment.group_name && (
-                        <span className="text-xs text-muted-foreground">{assignment.group_name}</span>
-                      )}
-                      {getDueBadge(assignment.deadline)}
-                    </div>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 h-8 w-8"
-                        onClick={() => navigate(`/tutor/exams/${assignment.exam_id}/dashboard`)}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Open dashboard</TooltipContent>
-                  </Tooltip>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-
-        <SubtleDivider />
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button className="flex-1" onClick={() => navigate("/tutor/exams")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create assignment
-          </Button>
-          <Button variant="outline" className="flex-1" onClick={() => navigate("/tutor/exams")}>
-            View all exams
-          </Button>
         </div>
-      </>
-    );
-  };
+        <div className="flex gap-2">
+          <Select value={assignmentGroupFilter} onValueChange={setAssignmentGroupFilter}>
+            <SelectTrigger className="flex-1 bg-background/50">
+              <SelectValue placeholder="Filter by group" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover">
+              <SelectItem value="all">All groups</SelectItem>
+              {assignmentGroupNames.map((name) => (
+                <SelectItem key={name} value={name!}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0">
+                Sort
+                <ChevronDown className="ml-1 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => setAssignmentSort('due_soon')}>
+                Due soon
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setAssignmentSort('recent')}>
+                Recently created
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <ListSkeleton />
+      ) : filteredAssignments.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title={debouncedAssignmentSearch ? "No results found" : "No active assignments"}
+          description={debouncedAssignmentSearch ? "Try a different search term" : "Assign an exam to a group to get started"}
+          action={!debouncedAssignmentSearch ? "Create assignment" : undefined}
+          onAction={() => navigate("/tutor/exams")}
+        />
+      ) : (
+        <ScrollArea className="h-[calc(100vh-380px)]">
+          <div className="space-y-2 pr-4">
+            {filteredAssignments.map((assignment) => (
+              <ClickableRow
+                key={assignment.id}
+                onClick={() => navigate(`/tutor/exams/${assignment.exam_id}/dashboard`)}
+              >
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium truncate">{assignment.exam_title}</h4>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {assignment.group_name && (
+                      <span className="text-xs text-muted-foreground">{assignment.group_name}</span>
+                    )}
+                    <DueBadge deadline={assignment.deadline} />
+                  </div>
+                </div>
+              </ClickableRow>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      <SubtleDivider />
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button className="flex-1" onClick={() => navigate("/tutor/exams")}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create assignment
+        </Button>
+        <Button variant="outline" className="flex-1" onClick={() => navigate("/tutor/exams")}>
+          View all exams
+        </Button>
+      </div>
+    </>
+  );
 
   const renderContent = () => {
     switch (type) {
@@ -795,19 +802,9 @@ export const TutorStatsDrilldownDrawer = ({
       <SheetContent className="w-full sm:max-w-md border-l-border/10 bg-background p-0">
         {/* Header */}
         <div className="p-6 pb-4">
-          <SheetHeader className="flex flex-row items-start justify-between space-y-0">
-            <div>
-              <SheetTitle className="text-xl font-semibold">{getTitle()}</SheetTitle>
-              <p className="text-sm text-muted-foreground mt-1">{getSubtitle()}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          <SheetHeader>
+            <SheetTitle className="text-xl font-semibold">{getTitle()}</SheetTitle>
+            <p className="text-sm text-muted-foreground mt-1">{getSubtitle()}</p>
           </SheetHeader>
         </div>
 
