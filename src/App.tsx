@@ -28,7 +28,7 @@ import AdminVerifications from "./pages/AdminVerifications";
 import NotFound from "./pages/NotFound";
 import ManageExams from "./pages/tutor/ManageExams";
 import ManagePracticeSets from "./pages/tutor/ManagePracticeSets";
-import StudentPlanner from "./pages/tutor/StudentPlanner";
+
 import StudentProgress from "./pages/tutor/StudentProgress";
 import CreateTutorExam from "./pages/tutor/CreateTutorExam";
 import EditExam from "./pages/tutor/EditExam";
@@ -97,7 +97,7 @@ const App = () => {
             <Route path="/tutor/exams/:examId/student/:studentId" element={<TutorLayout><StudentExamReview /></TutorLayout>} />
             <Route path="/tutor/practice" element={<TutorLayout><ManagePracticeSets /></TutorLayout>} />
             <Route path="/tutor/students" element={<TutorLayout><ManageStudents /></TutorLayout>} />
-            <Route path="/tutor/planner" element={<TutorLayout><StudentPlanner /></TutorLayout>} />
+            
             <Route path="/tutor/progress" element={<TutorLayout><StudentProgress /></TutorLayout>} />
             <Route path="/tutor/feedback" element={<TutorLayout><ManageFeedback /></TutorLayout>} />
             

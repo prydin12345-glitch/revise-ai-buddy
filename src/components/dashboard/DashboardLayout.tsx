@@ -48,7 +48,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: CheckSquare, label: "Practice Sets", path: "/tutor/practice" },
     { icon: User, label: "Students", path: "/tutor/students" },
     { icon: MessageCircle, label: "Feedback", path: "/tutor/feedback" },
-    { icon: Calendar, label: "Student Planner", path: "/tutor/planner" },
+    
     { icon: BarChart3, label: "Student Progress", path: "/tutor/progress" },
   ];
 
