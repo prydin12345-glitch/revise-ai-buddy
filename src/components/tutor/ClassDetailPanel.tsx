@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, isPast, differenceInDays } from "date-fns";
+import { format, isPast } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +35,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EditDeadlineModal } from "./EditDeadlineModal";
+import { ExamResultsModal } from "./ExamResultsModal";
+import { DestructiveConfirmationModal } from "./DestructiveConfirmationModal";
+import { getDeadlineStatus } from "@/lib/deadline-utils";
 
 interface GroupMember {
   id: string;
@@ -87,7 +89,6 @@ export const ClassDetailPanel = ({
   onDeleteGroup,
 }: ClassDetailPanelProps) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("students");
   
   // Students state
@@ -108,9 +109,9 @@ export const ClassDetailPanel = ({
   // Assignment actions state
   const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<GroupAssignment | null>(null);
-  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [resultsModalOpen, setResultsModalOpen] = useState(false);
+  const [unassignModalOpen, setUnassignModalOpen] = useState(false);
   const [assignmentToUnassign, setAssignmentToUnassign] = useState<GroupAssignment | null>(null);
-  const [unassigning, setUnassigning] = useState(false);
   
   // Announcements state
   const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
@@ -125,7 +126,7 @@ export const ClassDetailPanel = ({
   const [editName, setEditName] = useState(groupName);
   const [savingSettings, setSavingSettings] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
   // Fetch members
@@ -474,26 +475,10 @@ export const ClassDetailPanel = ({
     toast({ title: "Exported", description: "Member list downloaded" });
   };
 
-  const getDeadlineStatus = (deadline: string | null) => {
-    if (!deadline) return { text: "No deadline", variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
-    const days = differenceInDays(new Date(deadline), new Date());
-    if (days < 0) {
-      const overdueDays = Math.abs(days);
-      return { 
-        text: overdueDays === 1 ? "Overdue by 1 day" : `Overdue by ${overdueDays}d`, 
-        variant: "destructive" as const, 
-        className: "bg-destructive/10 text-destructive border-destructive/20" 
-      };
-    }
-    if (days === 0) return { text: "Due today", variant: "default" as const, className: "bg-amber-500/10 text-amber-500 border-amber-500/20" };
-    if (days <= 3) return { text: `Due in ${days} day${days === 1 ? '' : 's'}`, variant: "default" as const, className: "bg-amber-500/10 text-amber-500 border-amber-500/20" };
-    return { text: `Due ${format(new Date(deadline), "MMM d")}`, variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
-  };
-
   // Assignment action handlers
   const handleViewResults = (assignment: GroupAssignment) => {
-    onOpenChange(false);
-    navigate(`/tutor/exam/${assignment.exam_id}/dashboard`);
+    setSelectedAssignment(assignment);
+    setResultsModalOpen(true);
   };
 
   const handleExtendDeadline = (assignment: GroupAssignment) => {
@@ -508,7 +493,7 @@ export const ClassDetailPanel = ({
 
   const handleUnassignClick = (assignment: GroupAssignment) => {
     setAssignmentToUnassign(assignment);
-    setUnassignDialogOpen(true);
+    setUnassignModalOpen(true);
   };
 
   const handleUnassign = async () => {
@@ -517,7 +502,6 @@ export const ClassDetailPanel = ({
     // Optimistic update
     const previousAssignments = [...assignments];
     setAssignments(prev => prev.filter(a => a.id !== assignmentToUnassign.id));
-    setUnassigning(true);
 
     try {
       const { error } = await supabase
@@ -528,7 +512,6 @@ export const ClassDetailPanel = ({
       if (error) throw error;
 
       toast({ title: "Unassigned", description: `"${assignmentToUnassign.exam_title}" has been unassigned from this class` });
-      setUnassignDialogOpen(false);
       setAssignmentToUnassign(null);
       
       // Background re-fetch for consistency
@@ -537,9 +520,12 @@ export const ClassDetailPanel = ({
       // Rollback on error
       setAssignments(previousAssignments);
       toast({ title: "Error", description: "Failed to unassign exam", variant: "destructive" });
-    } finally {
-      setUnassigning(false);
+      throw error;
     }
+  };
+
+  const handleArchiveClass = async () => {
+    onDeleteGroup();
   };
 
   // Calculate stats for header
@@ -1038,7 +1024,7 @@ export const ClassDetailPanel = ({
                     variant="outline"
                     size="sm"
                     className="text-destructive hover:bg-destructive/10 border-destructive/30"
-                    onClick={() => setDeleteDialogOpen(true)}
+                    onClick={() => setArchiveModalOpen(true)}
                   >
                     Archive Class
                   </Button>
@@ -1086,50 +1072,39 @@ export const ClassDetailPanel = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Archive Class Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archive Class?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will archive "{groupName}" and remove access for all members.
-              The data will be preserved and can be restored later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { onDeleteGroup(); setDeleteDialogOpen(false); onOpenChange(false); }}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Archive
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Unassign Exam Confirmation Modal */}
+      <DestructiveConfirmationModal
+        open={unassignModalOpen}
+        onOpenChange={setUnassignModalOpen}
+        title="Unassign Exam"
+        description={`Remove "${assignmentToUnassign?.exam_title}" from ${groupName}?`}
+        impactItems={[
+          "Students will lose access to this exam",
+          "In-progress attempts will be preserved",
+          "Completed submissions are not affected"
+        ]}
+        confirmText={assignmentToUnassign?.exam_title || ""}
+        confirmPlaceholder="Type exam title to confirm"
+        onConfirm={handleUnassign}
+        actionLabel="Unassign"
+      />
 
-      {/* Unassign Confirmation Dialog */}
-      <AlertDialog open={unassignDialogOpen} onOpenChange={setUnassignDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unassign Exam?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove "{assignmentToUnassign?.exam_title}" from this class? 
-              Students who haven't completed it will lose access.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={unassigning}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleUnassign} 
-              disabled={unassigning}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {unassigning ? "Removing..." : "Unassign"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Archive Class Confirmation Modal */}
+      <DestructiveConfirmationModal
+        open={archiveModalOpen}
+        onOpenChange={setArchiveModalOpen}
+        title="Archive Class"
+        description={`Archive "${groupName}"? This action hides the class from all members.`}
+        impactItems={[
+          "All students will lose access",
+          "Assignments remain but are hidden",
+          "Data is preserved and can be restored"
+        ]}
+        confirmText={groupName}
+        confirmPlaceholder="Type class name to confirm"
+        onConfirm={handleArchiveClass}
+        actionLabel="Archive Class"
+      />
 
       {/* Edit Deadline Modal */}
       {selectedAssignment && (
@@ -1143,6 +1118,21 @@ export const ClassDetailPanel = ({
           examTitle={selectedAssignment.exam_title}
           currentDeadline={selectedAssignment.deadline}
           onUpdated={handleDeadlineUpdated}
+        />
+      )}
+
+      {/* Exam Results Modal */}
+      {selectedAssignment && (
+        <ExamResultsModal
+          open={resultsModalOpen}
+          onOpenChange={(open) => {
+            setResultsModalOpen(open);
+            if (!open) setSelectedAssignment(null);
+          }}
+          examId={selectedAssignment.exam_id}
+          examTitle={selectedAssignment.exam_title}
+          groupId={groupId}
+          groupName={groupName}
         />
       )}
     </>
