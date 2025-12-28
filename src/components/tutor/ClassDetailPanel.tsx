@@ -474,12 +474,18 @@ export const ClassDetailPanel = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent 
-          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm max-w-[1100px] w-[92vw] max-h-[86vh] md:max-w-[960px] md:w-[94vw] sm:w-[96vw] sm:max-h-[90vh] flex flex-col"
+          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[88px_56px_1fr]"
+          style={{ 
+            width: 'min(980px, 92vw)', 
+            height: 'min(720px, 86vh)',
+            maxWidth: 'none',
+            maxHeight: 'none'
+          }}
           hideCloseButton
         >
-          {/* Sticky Header */}
-          <div className="flex items-start justify-between px-6 py-5 border-b border-border/50 bg-card/80 backdrop-blur-sm shrink-0">
-            <div className="space-y-1">
+          {/* Fixed Header - 88px */}
+          <div className="flex items-center justify-between px-6 border-b border-border/50 bg-card h-full">
+            <div className="space-y-1.5">
               <DialogTitle className="text-xl font-semibold tracking-tight">{groupName}</DialogTitle>
               <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-normal">{subjectDisplay}</Badge>
@@ -493,15 +499,15 @@ export const ClassDetailPanel = ({
               variant="ghost" 
               size="icon" 
               onClick={() => onOpenChange(false)}
-              className="rounded-full hover:bg-muted/50 -mr-2 -mt-1"
+              className="rounded-full hover:bg-muted/50"
             >
               <X className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Sticky Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 pt-3 pb-0 border-b border-border/30 bg-card/50 shrink-0">
+          {/* Fixed Tabs Bar - 56px */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
+            <div className="px-6 flex items-end border-b border-border/30 bg-card/50 h-full">
               <TabsList className="bg-transparent p-0 h-auto gap-1">
                 <TabsTrigger 
                   value="students" 
@@ -534,10 +540,10 @@ export const ClassDetailPanel = ({
               </TabsList>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto min-h-0">
+            {/* Scrollable Content Body - 1fr */}
+            <div className="overflow-y-auto overflow-x-hidden">
               {/* STUDENTS TAB */}
-              <TabsContent value="students" className="m-0 p-5 space-y-4 h-full">
+              <TabsContent value="students" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Controls Row */}
                 <div className="flex gap-2 flex-wrap">
                   <div className="relative flex-1 min-w-[200px]">
@@ -574,11 +580,19 @@ export const ClassDetailPanel = ({
 
                 {/* Student List */}
                 {membersLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 animate-pulse">
+                        <div className="w-10 h-10 rounded-full bg-muted/50" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-32 bg-muted/50 rounded" />
+                          <div className="h-3 w-24 bg-muted/40 rounded" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredMembers.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">{searchQuery ? "No students match your search" : "No students yet"}</p>
                     {!searchQuery && inviteCode && (
@@ -646,7 +660,7 @@ export const ClassDetailPanel = ({
               </TabsContent>
 
               {/* ASSIGNMENTS TAB */}
-              <TabsContent value="assignments" className="m-0 p-5 space-y-4 h-full">
+              <TabsContent value="assignments" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Controls */}
                 <div className="flex gap-2 flex-wrap">
                   <div className="relative flex-1 min-w-[200px]">
@@ -691,11 +705,19 @@ export const ClassDetailPanel = ({
 
                 {/* Assignment List */}
                 {assignmentsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-4 rounded-xl bg-muted/20 animate-pulse">
+                        <div className="h-4 w-48 bg-muted/50 rounded mb-3" />
+                        <div className="flex gap-3">
+                          <div className="h-5 w-20 bg-muted/40 rounded" />
+                          <div className="h-5 w-32 bg-muted/40 rounded" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredAssignments.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground">
                     <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">No {assignmentFilter} assignments</p>
                     <p className="text-sm mt-1">Assign exams from the Exams page</p>
@@ -758,7 +780,7 @@ export const ClassDetailPanel = ({
               </TabsContent>
 
               {/* ANNOUNCEMENTS TAB */}
-              <TabsContent value="announcements" className="m-0 p-5 space-y-4 h-full">
+              <TabsContent value="announcements" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Composer */}
                 <div className="space-y-3 p-4 rounded-xl bg-muted/20 border border-border/30">
                   <Input
@@ -798,8 +820,20 @@ export const ClassDetailPanel = ({
 
                 {/* Announcement List */}
                 {announcementsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  <div className="space-y-3">
+                    {[1, 2].map(i => (
+                      <div key={i} className="p-4 rounded-xl bg-muted/20 animate-pulse">
+                        <div className="flex justify-between mb-2">
+                          <div className="h-4 w-40 bg-muted/50 rounded" />
+                          <div className="h-6 w-6 bg-muted/40 rounded" />
+                        </div>
+                        <div className="h-3 w-24 bg-muted/40 rounded mb-3" />
+                        <div className="space-y-2">
+                          <div className="h-3 w-full bg-muted/30 rounded" />
+                          <div className="h-3 w-3/4 bg-muted/30 rounded" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredAnnouncements.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
@@ -854,7 +888,7 @@ export const ClassDetailPanel = ({
               </TabsContent>
 
               {/* SETTINGS TAB */}
-              <TabsContent value="settings" className="m-0 p-5 space-y-6 h-full">
+              <TabsContent value="settings" className="m-0 p-5 space-y-5 data-[state=inactive]:hidden">
                 {/* Class Name */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Class Name</Label>
