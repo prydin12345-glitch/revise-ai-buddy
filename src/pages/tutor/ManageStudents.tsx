@@ -1,34 +1,22 @@
 import { useState } from "react";
-import { Users, Copy, Eye, Megaphone, Trash2, Plus, Download } from "lucide-react";
+import { Users, Plus, Download, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CreateGroupModal } from "@/components/tutor/CreateGroupModal";
-import { GroupMembersModal } from "@/components/tutor/GroupMembersModal";
+import { ClassCard } from "@/components/tutor/ClassCard";
+import { ClassDetailPanel } from "@/components/tutor/ClassDetailPanel";
 import { AnnouncementModal } from "@/components/tutor/AnnouncementModal";
-import { AnnouncementsHistory } from "@/components/tutor/AnnouncementsHistory";
 import { useManageGroups } from "@/hooks/useManageGroups";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export default function ManageStudents() {
   const { toast } = useToast();
   const { groups, loading, deleteGroup, refetch } = useManageGroups();
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+
+  const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
   const handleCopyInviteCode = (code: string | null) => {
     if (!code) {
@@ -50,12 +38,13 @@ export default function ManageStudents() {
 
   const handleExportAnalytics = () => {
     const csv = [
-      ["Group Name", "Invite Code", "Members", "Subjects"],
+      ["Group Name", "Invite Code", "Members", "Active Assignments", "Subjects"],
       ...groups.map(g => [
         g.name,
         g.invite_code || "N/A",
         g.member_count?.toString() || "0",
-        Array.isArray(g.subjects_covered) ? (g.subjects_covered as string[]).join("; ") : ""
+        g.assignment_count?.toString() || "0",
+        g.subjects_covered.join("; ")
       ])
     ].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
 
@@ -63,7 +52,7 @@ export default function ManageStudents() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `group-analytics-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `class-analytics-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 
@@ -73,9 +62,9 @@ export default function ManageStudents() {
     });
   };
 
-  const handleViewMembers = (groupId: string) => {
+  const handleViewClass = (groupId: string) => {
     setSelectedGroupId(groupId);
-    setMembersModalOpen(true);
+    setDetailPanelOpen(true);
   };
 
   const handlePostAnnouncement = (groupId: string) => {
@@ -83,34 +72,31 @@ export default function ManageStudents() {
     setAnnouncementModalOpen(true);
   };
 
-  const handleDeleteClick = (groupId: string) => {
-    setGroupToDelete(groupId);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!groupToDelete) return;
+  const handleDeleteGroup = async () => {
+    if (!selectedGroupId) return;
     
-    const success = await deleteGroup(groupToDelete);
+    const success = await deleteGroup(selectedGroupId);
     if (success) {
       toast({
-        title: "Group deleted",
-        description: "The group has been successfully deleted",
+        title: "Class archived",
+        description: "The class has been successfully archived",
       });
       refetch();
     }
-    setDeleteDialogOpen(false);
-    setGroupToDelete(null);
   };
+
+  // Stats
+  const totalStudents = groups.reduce((sum, g) => sum + g.member_count, 0);
+  const totalAssignments = groups.reduce((sum, g) => sum + g.assignment_count, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">My Student Groups</h1>
+          <h1 className="text-3xl font-bold text-foreground">My Classes</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your student groups, share invite codes, and post announcements
+            Manage your student classes, assignments, and announcements
           </p>
         </div>
         <div className="flex gap-2">
@@ -122,110 +108,71 @@ export default function ManageStudents() {
           )}
           <Button onClick={() => setCreateModalOpen(true)} className="shadow-lg">
             <Plus className="w-4 h-4 mr-2" />
-            Create Group
+            Create Class
           </Button>
         </div>
       </div>
 
-      {/* Groups List */}
+      {/* Quick Stats */}
+      {groups.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <GraduationCap className="w-4 h-4" />
+              <span className="text-xs font-medium">Classes</span>
+            </div>
+            <p className="text-2xl font-bold">{groups.length}</p>
+          </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Users className="w-4 h-4" />
+              <span className="text-xs font-medium">Students</span>
+            </div>
+            <p className="text-2xl font-bold">{totalStudents}</p>
+          </div>
+          <div className="bg-card rounded-lg border border-border/50 p-4 col-span-2 sm:col-span-2">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <span className="text-xs font-medium">Active Assignments</span>
+            </div>
+            <p className="text-2xl font-bold">{totalAssignments}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Classes Grid */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : groups.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Groups Yet</h3>
-          <p className="text-muted-foreground mb-6">
-            Create your first student group to get started
+        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-12 text-center">
+          <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Classes Yet</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Create your first class to start managing students, assignments, and announcements
           </p>
-          <Button onClick={() => setCreateModalOpen(true)}>
+          <Button onClick={() => setCreateModalOpen(true)} size="lg">
             <Plus className="w-4 h-4 mr-2" />
-            Create Your First Group
+            Create Your First Class
           </Button>
-        </Card>
+        </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {groups.map((group) => (
-            <Card key={group.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                {/* Group Info */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-semibold">{group.name}</h3>
-                    {group.subjects_covered && Array.isArray(group.subjects_covered) && group.subjects_covered.length > 0 && (
-                      <div className="flex gap-1">
-                        {(group.subjects_covered as string[]).map((subject, idx) => (
-                          <Badge key={idx} variant="secondary">
-                            {subject}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Invite Code:</span>
-                      <code className="px-2 py-1 bg-muted rounded font-mono text-xs">
-                        {group.invite_code || "N/A"}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{group.member_count || 0} students</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopyInviteCode(group.invite_code)}
-                    className="gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy Link
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewMembers(group.id)}
-                    className="gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Members
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePostAnnouncement(group.id)}
-                    className="gap-2"
-                  >
-                    <Megaphone className="w-4 h-4" />
-                    Announce
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteClick(group.id)}
-                    className="gap-2 text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <ClassCard
+              key={group.id}
+              id={group.id}
+              name={group.name}
+              subjects={group.subjects_covered}
+              studentCount={group.member_count}
+              assignmentCount={group.assignment_count}
+              inviteCode={group.invite_code}
+              onViewClass={() => handleViewClass(group.id)}
+              onCopyInvite={() => handleCopyInviteCode(group.invite_code)}
+              onAnnounce={() => handlePostAnnouncement(group.id)}
+            />
           ))}
         </div>
-      )}
-
-      {/* Announcements History */}
-      {groups.length > 0 && (
-        <AnnouncementsHistory />
       )}
 
       {/* Modals */}
@@ -237,10 +184,14 @@ export default function ManageStudents() {
 
       {selectedGroupId && (
         <>
-          <GroupMembersModal
-            open={membersModalOpen}
-            onOpenChange={setMembersModalOpen}
+          <ClassDetailPanel
+            open={detailPanelOpen}
+            onOpenChange={setDetailPanelOpen}
             groupId={selectedGroupId}
+            groupName={selectedGroup?.name || ""}
+            inviteCode={selectedGroup?.invite_code || null}
+            onGroupUpdated={refetch}
+            onDeleteGroup={handleDeleteGroup}
           />
           <AnnouncementModal
             open={announcementModalOpen}
@@ -256,24 +207,6 @@ export default function ManageStudents() {
           />
         </>
       )}
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Group?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the group and remove all members. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
