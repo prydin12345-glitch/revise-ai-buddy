@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive } from "lucide-react";
+import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,10 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, isPast, differenceInDays } from "date-fns";
@@ -30,6 +29,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface GroupMember {
   id: string;
@@ -65,6 +69,7 @@ interface ClassDetailPanelProps {
   groupId: string;
   groupName: string;
   inviteCode: string | null;
+  subjectsTaught?: string[];
   onGroupUpdated: () => void;
   onDeleteGroup: () => void;
 }
@@ -75,6 +80,7 @@ export const ClassDetailPanel = ({
   groupId,
   groupName,
   inviteCode,
+  subjectsTaught = [],
   onGroupUpdated,
   onDeleteGroup,
 }: ClassDetailPanelProps) => {
@@ -85,7 +91,7 @@ export const ClassDetailPanel = ({
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "joined" | "activity">("name");
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "joined">("name-asc");
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
   
@@ -93,6 +99,8 @@ export const ClassDetailPanel = ({
   const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [assignmentFilter, setAssignmentFilter] = useState<"active" | "past">("active");
+  const [assignmentSearch, setAssignmentSearch] = useState("");
+  const [assignmentSort, setAssignmentSort] = useState<"due-soonest" | "due-latest" | "completion">("due-soonest");
   
   // Announcements state
   const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
@@ -101,6 +109,7 @@ export const ClassDetailPanel = ({
   const [newAnnouncementMessage, setNewAnnouncementMessage] = useState("");
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+  const [announcementSearch, setAnnouncementSearch] = useState("");
   
   // Settings state
   const [editName, setEditName] = useState(groupName);
@@ -217,6 +226,8 @@ export const ClassDetailPanel = ({
       fetchAnnouncements();
       setEditName(groupName);
       setSearchQuery("");
+      setAssignmentSearch("");
+      setAnnouncementSearch("");
     }
   }, [open, groupId, groupName]);
 
@@ -237,16 +248,47 @@ export const ClassDetailPanel = ({
       );
     })
     .sort((a, b) => {
-      if (sortBy === "name") {
+      if (sortBy === "name-asc") {
         return (a.display_name || "").localeCompare(b.display_name || "");
+      }
+      if (sortBy === "name-desc") {
+        return (b.display_name || "").localeCompare(a.display_name || "");
       }
       return new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime();
     });
 
-  // Filter assignments
-  const filteredAssignments = assignments.filter(a => {
-    if (assignmentFilter === "active") return a.is_active;
-    return !a.is_active || (a.deadline && isPast(new Date(a.deadline)));
+  // Filter and sort assignments
+  const filteredAssignments = assignments
+    .filter(a => {
+      // Filter by status
+      if (assignmentFilter === "active" && !a.is_active) return false;
+      if (assignmentFilter === "past" && (a.is_active && (!a.deadline || !isPast(new Date(a.deadline))))) return false;
+      // Filter by search
+      if (assignmentSearch && !a.exam_title.toLowerCase().includes(assignmentSearch.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (assignmentSort === "due-soonest") {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      }
+      if (assignmentSort === "due-latest") {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(b.deadline).getTime() - new Date(a.deadline).getTime();
+      }
+      // completion ratio
+      const ratioA = a.total_students > 0 ? a.completion_count / a.total_students : 0;
+      const ratioB = b.total_students > 0 ? b.completion_count / b.total_students : 0;
+      return ratioB - ratioA;
+    });
+
+  // Filter announcements
+  const filteredAnnouncements = announcements.filter(a => {
+    if (!announcementSearch) return true;
+    const q = announcementSearch.toLowerCase();
+    return a.title.toLowerCase().includes(q) || a.message.toLowerCase().includes(q);
   });
 
   // Handlers
@@ -416,103 +458,151 @@ export const ClassDetailPanel = ({
   };
 
   const getDeadlineStatus = (deadline: string | null) => {
-    if (!deadline) return { text: "No deadline", color: "text-muted-foreground" };
+    if (!deadline) return { text: "No deadline", variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
     const days = differenceInDays(new Date(deadline), new Date());
-    if (days < 0) return { text: "Overdue", color: "text-destructive" };
-    if (days === 0) return { text: "Due today", color: "text-warning" };
-    if (days <= 3) return { text: `Due in ${days}d`, color: "text-warning" };
-    return { text: format(new Date(deadline), "MMM d"), color: "text-muted-foreground" };
+    if (days < 0) return { text: "Overdue", variant: "destructive" as const, className: "bg-destructive/10 text-destructive border-destructive/20" };
+    if (days === 0) return { text: "Due today", variant: "default" as const, className: "bg-warning/10 text-warning border-warning/20" };
+    if (days <= 3) return { text: `Due in ${days}d`, variant: "default" as const, className: "bg-warning/10 text-warning border-warning/20" };
+    return { text: format(new Date(deadline), "MMM d"), variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
   };
+
+  // Calculate stats for header
+  const activeAssignmentsCount = assignments.filter(a => a.is_active).length;
+  const subjectDisplay = subjectsTaught.length > 0 ? subjectsTaught[0] : "General";
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
-          <SheetHeader className="px-6 py-4 border-b bg-muted/30">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-xl">{groupName}</SheetTitle>
-              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
-                <X className="w-4 h-4" />
-              </Button>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent 
+          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm max-w-[1100px] w-[92vw] max-h-[86vh] md:max-w-[960px] md:w-[94vw] sm:w-[96vw] sm:max-h-[90vh] flex flex-col"
+          hideCloseButton
+        >
+          {/* Sticky Header */}
+          <div className="flex items-start justify-between px-6 py-5 border-b border-border/50 bg-card/80 backdrop-blur-sm shrink-0">
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight">{groupName}</DialogTitle>
+              <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="font-normal">{subjectDisplay}</Badge>
+                <span className="text-muted-foreground/60">•</span>
+                <span>{members.length} student{members.length !== 1 ? "s" : ""}</span>
+                <span className="text-muted-foreground/60">•</span>
+                <span>{activeAssignmentsCount} active assignment{activeAssignmentsCount !== 1 ? "s" : ""}</span>
+              </p>
             </div>
-          </SheetHeader>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => onOpenChange(false)}
+              className="rounded-full hover:bg-muted/50 -mr-2 -mt-1"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid grid-cols-4 mx-4 mt-4">
-              <TabsTrigger value="students" className="gap-1.5">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Students</span>
-              </TabsTrigger>
-              <TabsTrigger value="assignments" className="gap-1.5">
-                <ClipboardList className="w-4 h-4" />
-                <span className="hidden sm:inline">Tasks</span>
-              </TabsTrigger>
-              <TabsTrigger value="announcements" className="gap-1.5">
-                <Megaphone className="w-4 h-4" />
-                <span className="hidden sm:inline">News</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-1.5">
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Settings</span>
-              </TabsTrigger>
-            </TabsList>
+          {/* Sticky Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 pt-3 pb-0 border-b border-border/30 bg-card/50 shrink-0">
+              <TabsList className="bg-transparent p-0 h-auto gap-1">
+                <TabsTrigger 
+                  value="students" 
+                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
+                >
+                  <Users className="w-4 h-4" />
+                  Students
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="assignments" 
+                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Tasks
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="announcements" 
+                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
+                >
+                  <Megaphone className="w-4 h-4" />
+                  News
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="settings" 
+                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            {/* STUDENTS TAB */}
-            <TabsContent value="students" className="flex-1 flex flex-col mt-0 px-4 pb-4">
-              <div className="flex gap-2 my-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search students..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {/* STUDENTS TAB */}
+              <TabsContent value="students" className="m-0 p-5 space-y-4 h-full">
+                {/* Controls Row */}
+                <div className="flex gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search students..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 bg-muted/30 border-border/50"
+                    />
+                  </div>
+                  <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                    <SelectTrigger className="w-[140px] bg-muted/30 border-border/50">
+                      <ArrowUpDown className="w-3.5 h-3.5 mr-2 opacity-50" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name-asc">Name A–Z</SelectItem>
+                      <SelectItem value="name-desc">Name Z–A</SelectItem>
+                      <SelectItem value="joined">Recently Joined</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {members.length > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={handleExportMembers} className="border-border/50">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Export to CSV</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
-                <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">By Name</SelectItem>
-                    <SelectItem value="joined">By Joined</SelectItem>
-                  </SelectContent>
-                </Select>
-                {members.length > 0 && (
-                  <Button variant="outline" size="icon" onClick={handleExportMembers}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
 
-              <ScrollArea className="flex-1">
+                {/* Student List */}
                 {membersLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                   </div>
                 ) : filteredMembers.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>{searchQuery ? "No students match your search" : "No students yet"}</p>
+                  <div className="text-center py-16 text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">{searchQuery ? "No students match your search" : "No students yet"}</p>
+                    {!searchQuery && inviteCode && (
+                      <p className="text-sm mt-1">Share your invite code <span className="font-mono text-primary">{inviteCode}</span> to add students</p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {filteredMembers.map((member) => (
                       <div
                         key={member.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30 group"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                              {member.display_name?.[0]?.toUpperCase() || "S"}
+                          <Avatar className="h-10 w-10 border border-border/50">
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                              {member.display_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || "S"}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium text-sm">
+                            <p className="font-medium text-sm flex items-center gap-2">
                               {member.display_name || "Student"}
                               {member.student_code && (
-                                <span className="text-muted-foreground ml-1.5 font-mono text-xs">
+                                <span className="text-muted-foreground font-mono text-xs bg-muted/50 px-1.5 py-0.5 rounded">
                                   {member.student_code}
                                 </span>
                               )}
@@ -522,68 +612,125 @@ export const ClassDetailPanel = ({
                             </p>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setMemberToRemove(member); setRemoveDialogOpen(true); }}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View profile</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => { setMemberToRemove(member); setRemoveDialogOpen(true); }}
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove from class</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </ScrollArea>
-            </TabsContent>
+              </TabsContent>
 
-            {/* ASSIGNMENTS TAB */}
-            <TabsContent value="assignments" className="flex-1 flex flex-col mt-0 px-4 pb-4">
-              <div className="flex gap-2 my-4">
-                <div className="flex bg-muted rounded-lg p-1 flex-1">
-                  <button
-                    onClick={() => setAssignmentFilter("active")}
-                    className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      assignmentFilter === "active" ? "bg-background shadow-sm" : "text-muted-foreground"
-                    }`}
-                  >
-                    Active
-                  </button>
-                  <button
-                    onClick={() => setAssignmentFilter("past")}
-                    className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      assignmentFilter === "past" ? "bg-background shadow-sm" : "text-muted-foreground"
-                    }`}
-                  >
-                    Past
-                  </button>
+              {/* ASSIGNMENTS TAB */}
+              <TabsContent value="assignments" className="m-0 p-5 space-y-4 h-full">
+                {/* Controls */}
+                <div className="flex gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search assignments..."
+                      value={assignmentSearch}
+                      onChange={(e) => setAssignmentSearch(e.target.value)}
+                      className="pl-9 bg-muted/30 border-border/50"
+                    />
+                  </div>
+                  <div className="flex bg-muted/30 rounded-lg p-1 border border-border/50">
+                    <button
+                      onClick={() => setAssignmentFilter("active")}
+                      className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                        assignmentFilter === "active" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      onClick={() => setAssignmentFilter("past")}
+                      className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                        assignmentFilter === "past" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Past
+                    </button>
+                  </div>
+                  <Select value={assignmentSort} onValueChange={(v: any) => setAssignmentSort(v)}>
+                    <SelectTrigger className="w-[150px] bg-muted/30 border-border/50">
+                      <ArrowUpDown className="w-3.5 h-3.5 mr-2 opacity-50" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="due-soonest">Due soonest</SelectItem>
+                      <SelectItem value="due-latest">Due latest</SelectItem>
+                      <SelectItem value="completion">Most completed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
 
-              <ScrollArea className="flex-1">
+                {/* Assignment List */}
                 {assignmentsLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                   </div>
                 ) : filteredAssignments.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No {assignmentFilter} assignments</p>
+                  <div className="text-center py-16 text-muted-foreground">
+                    <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No {assignmentFilter} assignments</p>
+                    <p className="text-sm mt-1">Assign exams from the Exams page</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {filteredAssignments.map((assignment) => {
                       const deadlineStatus = getDeadlineStatus(assignment.deadline);
+                      const completionPercent = assignment.total_students > 0 
+                        ? Math.round((assignment.completion_count / assignment.total_students) * 100) 
+                        : 0;
                       return (
                         <div
                           key={assignment.id}
-                          className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                          className="p-4 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30"
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-sm">{assignment.exam_title}</h4>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm truncate">{assignment.exam_title}</h4>
+                              <div className="flex items-center gap-3 mt-2 text-xs">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs font-normal ${deadlineStatus.className}`}
+                                >
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {deadlineStatus.text}
+                                </Badge>
+                                <span className="text-muted-foreground">
+                                  {assignment.completion_count}/{assignment.total_students} completed ({completionPercent}%)
+                                </span>
+                              </div>
+                            </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -596,94 +743,105 @@ export const ClassDetailPanel = ({
                                   <Calendar className="w-4 h-4 mr-2" />
                                   Extend Deadline
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
+                                <DropdownMenuItem className="text-destructive focus:text-destructive">
                                   <CalendarX className="w-4 h-4 mr-2" />
                                   Unassign
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className={deadlineStatus.color}>
-                              <Clock className="w-3 h-3 inline mr-1" />
-                              {deadlineStatus.text}
-                            </span>
-                            <span>
-                              {assignment.completion_count}/{assignment.total_students} completed
-                            </span>
-                          </div>
                         </div>
                       );
                     })}
                   </div>
                 )}
-              </ScrollArea>
-            </TabsContent>
+              </TabsContent>
 
-            {/* ANNOUNCEMENTS TAB */}
-            <TabsContent value="announcements" className="flex-1 flex flex-col mt-0 px-4 pb-4">
-              <div className="my-4 space-y-3">
-                <Input
-                  placeholder="Announcement title..."
-                  value={newAnnouncementTitle}
-                  onChange={(e) => setNewAnnouncementTitle(e.target.value)}
-                />
-                <Textarea
-                  placeholder="Write your message..."
-                  value={newAnnouncementMessage}
-                  onChange={(e) => setNewAnnouncementMessage(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
-                <Button 
-                  onClick={handlePostAnnouncement} 
-                  disabled={postingAnnouncement || !newAnnouncementTitle.trim() || !newAnnouncementMessage.trim()}
-                  className="w-full"
-                >
-                  {postingAnnouncement ? "Posting..." : "Post Announcement"}
-                </Button>
-              </div>
+              {/* ANNOUNCEMENTS TAB */}
+              <TabsContent value="announcements" className="m-0 p-5 space-y-4 h-full">
+                {/* Composer */}
+                <div className="space-y-3 p-4 rounded-xl bg-muted/20 border border-border/30">
+                  <Input
+                    placeholder="Announcement title..."
+                    value={newAnnouncementTitle}
+                    onChange={(e) => setNewAnnouncementTitle(e.target.value)}
+                    className="bg-background/50 border-border/50"
+                  />
+                  <Textarea
+                    placeholder="Write your message..."
+                    value={newAnnouncementMessage}
+                    onChange={(e) => setNewAnnouncementMessage(e.target.value)}
+                    rows={3}
+                    className="resize-none bg-background/50 border-border/50"
+                  />
+                  <Button 
+                    onClick={handlePostAnnouncement} 
+                    disabled={postingAnnouncement || !newAnnouncementTitle.trim() || !newAnnouncementMessage.trim()}
+                    className="w-full"
+                  >
+                    {postingAnnouncement ? "Posting..." : "Post Announcement"}
+                  </Button>
+                </div>
 
-              <Separator className="my-2" />
+                {/* Search for announcements */}
+                {announcements.length > 3 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search announcements..."
+                      value={announcementSearch}
+                      onChange={(e) => setAnnouncementSearch(e.target.value)}
+                      className="pl-9 bg-muted/30 border-border/50"
+                    />
+                  </div>
+                )}
 
-              <ScrollArea className="flex-1">
+                {/* Announcement List */}
                 {announcementsLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                   </div>
-                ) : announcements.length === 0 ? (
+                ) : filteredAnnouncements.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
-                    <Megaphone className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No announcements yet</p>
+                    <Megaphone className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">{announcementSearch ? "No announcements match your search" : "No announcements yet"}</p>
+                    <p className="text-sm mt-1">Post your first announcement above</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 py-2">
-                    {announcements.map((announcement) => (
+                  <div className="space-y-3">
+                    {filteredAnnouncements.map((announcement) => (
                       <div
                         key={announcement.id}
-                        className="p-3 rounded-lg bg-muted/30"
+                        className="p-4 rounded-xl bg-muted/20 border border-border/30"
                       >
-                        <div className="flex items-start justify-between mb-1">
-                          <h4 className="font-medium text-sm">{announcement.title}</h4>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setAnnouncementToDelete(announcement.id)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div>
+                            <h4 className="font-medium text-sm">{announcement.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(announcement.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                onClick={() => setAnnouncementToDelete(announcement.id)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete announcement</TooltipContent>
+                          </Tooltip>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {format(new Date(announcement.created_at), "MMM d, yyyy 'at' h:mm a")}
-                        </p>
                         <p className="text-sm text-muted-foreground">{announcement.message}</p>
                         {announcement.attachment_url && (
                           <a
                             href={announcement.attachment_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1"
+                            className="text-xs text-primary hover:underline mt-3 inline-flex items-center gap-1"
                           >
                             <ExternalLink className="w-3 h-3" />
                             View Attachment
@@ -693,54 +851,67 @@ export const ClassDetailPanel = ({
                     ))}
                   </div>
                 )}
-              </ScrollArea>
-            </TabsContent>
+              </TabsContent>
 
-            {/* SETTINGS TAB */}
-            <TabsContent value="settings" className="flex-1 flex flex-col mt-0 px-4 pb-4">
-              <div className="space-y-6 py-4">
-                {/* Rename */}
-                <div className="space-y-2">
-                  <Label>Class Name</Label>
+              {/* SETTINGS TAB */}
+              <TabsContent value="settings" className="m-0 p-5 space-y-6 h-full">
+                {/* Class Name */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Class Name</Label>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="Enter class name"
+                    className="bg-muted/30 border-border/50"
                   />
-                  <Button onClick={handleSaveSettings} disabled={savingSettings} className="w-full mt-2">
+                  <Button 
+                    onClick={handleSaveSettings} 
+                    disabled={savingSettings || editName === groupName} 
+                    className="w-full sm:w-auto"
+                  >
                     {savingSettings ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
 
-                <Separator />
+                <Separator className="bg-border/30" />
 
                 {/* Invite Code */}
-                <div className="space-y-2">
-                  <Label>Invite Code</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Invite Code</Label>
                   <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2 bg-muted rounded-md font-mono text-sm">
+                    <div className="flex-1 px-4 py-2.5 bg-muted/30 rounded-lg font-mono text-sm border border-border/50 flex items-center">
                       {inviteCode || "N/A"}
                     </div>
-                    <Button variant="outline" size="icon" onClick={handleCopyInvite}>
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={handleRegenerateCode} disabled={regeneratingCode}>
-                      <RefreshCw className={`w-4 h-4 ${regeneratingCode ? "animate-spin" : ""}`} />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={handleCopyInvite} className="border-border/50">
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy invite link</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={handleRegenerateCode} disabled={regeneratingCode} className="border-border/50">
+                          <RefreshCw className={`w-4 h-4 ${regeneratingCode ? "animate-spin" : ""}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Regenerate code</TooltipContent>
+                    </Tooltip>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Regenerating will invalidate the old code. Existing members will not be affected.
                   </p>
                 </div>
 
-                <Separator />
+                <Separator className="bg-border/30" />
 
                 {/* Danger Zone */}
-                <div className="space-y-2">
-                  <Label className="text-destructive">Danger Zone</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-destructive">Danger Zone</Label>
                   <Button
                     variant="outline"
-                    className="w-full text-destructive hover:bg-destructive/10 border-destructive/30"
+                    className="w-full sm:w-auto text-destructive hover:bg-destructive/10 border-destructive/30"
                     onClick={() => setDeleteDialogOpen(true)}
                   >
                     <Archive className="w-4 h-4 mr-2" />
@@ -750,11 +921,11 @@ export const ClassDetailPanel = ({
                     Archiving will hide this class. Members will lose access but data is preserved.
                   </p>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            </div>
           </Tabs>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Remove Member Dialog */}
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
@@ -793,7 +964,7 @@ export const ClassDetailPanel = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Class Dialog */}
+      {/* Archive Class Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
