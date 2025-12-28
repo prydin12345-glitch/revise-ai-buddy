@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { EditDeadlineModal } from "./EditDeadlineModal";
 
 interface GroupMember {
   id: string;
@@ -85,6 +87,7 @@ export const ClassDetailPanel = ({
   onDeleteGroup,
 }: ClassDetailPanelProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("students");
   
   // Students state
@@ -102,6 +105,13 @@ export const ClassDetailPanel = ({
   const [assignmentSearch, setAssignmentSearch] = useState("");
   const [assignmentSort, setAssignmentSort] = useState<"due-soonest" | "due-latest" | "completion">("due-soonest");
   
+  // Assignment actions state
+  const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<GroupAssignment | null>(null);
+  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [assignmentToUnassign, setAssignmentToUnassign] = useState<GroupAssignment | null>(null);
+  const [unassigning, setUnassigning] = useState(false);
+  
   // Announcements state
   const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
@@ -116,6 +126,7 @@ export const ClassDetailPanel = ({
   const [savingSettings, setSavingSettings] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
 
   // Fetch members
   const fetchMembers = async () => {
@@ -228,6 +239,7 @@ export const ClassDetailPanel = ({
       setSearchQuery("");
       setAssignmentSearch("");
       setAnnouncementSearch("");
+      setSettingsDirty(false);
     }
   }, [open, groupId, groupName]);
 
@@ -236,6 +248,11 @@ export const ClassDetailPanel = ({
       fetchAssignments();
     }
   }, [open, members.length]);
+
+  // Track settings dirty state
+  useEffect(() => {
+    setSettingsDirty(editName !== groupName);
+  }, [editName, groupName]);
 
   // Filter and sort members
   const filteredMembers = members
@@ -460,10 +477,69 @@ export const ClassDetailPanel = ({
   const getDeadlineStatus = (deadline: string | null) => {
     if (!deadline) return { text: "No deadline", variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
     const days = differenceInDays(new Date(deadline), new Date());
-    if (days < 0) return { text: "Overdue", variant: "destructive" as const, className: "bg-destructive/10 text-destructive border-destructive/20" };
-    if (days === 0) return { text: "Due today", variant: "default" as const, className: "bg-warning/10 text-warning border-warning/20" };
-    if (days <= 3) return { text: `Due in ${days}d`, variant: "default" as const, className: "bg-warning/10 text-warning border-warning/20" };
-    return { text: format(new Date(deadline), "MMM d"), variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
+    if (days < 0) {
+      const overdueDays = Math.abs(days);
+      return { 
+        text: overdueDays === 1 ? "Overdue by 1 day" : `Overdue by ${overdueDays}d`, 
+        variant: "destructive" as const, 
+        className: "bg-destructive/10 text-destructive border-destructive/20" 
+      };
+    }
+    if (days === 0) return { text: "Due today", variant: "default" as const, className: "bg-amber-500/10 text-amber-500 border-amber-500/20" };
+    if (days <= 3) return { text: `Due in ${days} day${days === 1 ? '' : 's'}`, variant: "default" as const, className: "bg-amber-500/10 text-amber-500 border-amber-500/20" };
+    return { text: `Due ${format(new Date(deadline), "MMM d")}`, variant: "secondary" as const, className: "bg-muted/50 text-muted-foreground border-transparent" };
+  };
+
+  // Assignment action handlers
+  const handleViewResults = (assignment: GroupAssignment) => {
+    onOpenChange(false);
+    navigate(`/tutor/exam/${assignment.exam_id}/dashboard`);
+  };
+
+  const handleExtendDeadline = (assignment: GroupAssignment) => {
+    setSelectedAssignment(assignment);
+    setDeadlineModalOpen(true);
+  };
+
+  const handleDeadlineUpdated = () => {
+    fetchAssignments();
+    toast({ title: "Deadline updated", description: "Students will be notified of the change" });
+  };
+
+  const handleUnassignClick = (assignment: GroupAssignment) => {
+    setAssignmentToUnassign(assignment);
+    setUnassignDialogOpen(true);
+  };
+
+  const handleUnassign = async () => {
+    if (!assignmentToUnassign) return;
+
+    // Optimistic update
+    const previousAssignments = [...assignments];
+    setAssignments(prev => prev.filter(a => a.id !== assignmentToUnassign.id));
+    setUnassigning(true);
+
+    try {
+      const { error } = await supabase
+        .from("exam_assignments")
+        .update({ is_active: false })
+        .eq("id", assignmentToUnassign.id);
+
+      if (error) throw error;
+
+      toast({ title: "Unassigned", description: `"${assignmentToUnassign.exam_title}" has been unassigned from this class` });
+      setUnassignDialogOpen(false);
+      setAssignmentToUnassign(null);
+      
+      // Background re-fetch for consistency
+      fetchAssignments();
+    } catch (error) {
+      // Rollback on error
+      setAssignments(previousAssignments);
+      toast({ title: "Error", description: "Failed to unassign exam", variant: "destructive" });
+    } finally {
+      setUnassigning(false);
+    }
   };
 
   // Calculate stats for header
@@ -752,20 +828,23 @@ export const ClassDetailPanel = ({
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hover:bg-muted/60">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                              <DropdownMenuContent align="end" className="z-[60]">
+                                <DropdownMenuItem onClick={() => handleViewResults(assignment)}>
                                   <Eye className="w-4 h-4 mr-2" />
                                   View Results
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExtendDeadline(assignment)}>
                                   <Calendar className="w-4 h-4 mr-2" />
                                   Extend Deadline
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                <DropdownMenuItem 
+                                  onClick={() => handleUnassignClick(assignment)}
+                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
                                   <CalendarX className="w-4 h-4 mr-2" />
                                   Unassign
                                 </DropdownMenuItem>
@@ -888,28 +967,31 @@ export const ClassDetailPanel = ({
               </TabsContent>
 
               {/* SETTINGS TAB */}
-              <TabsContent value="settings" className="m-0 p-5 space-y-5 data-[state=inactive]:hidden">
-                {/* Class Name */}
+              <TabsContent value="settings" className="m-0 p-5 space-y-6 data-[state=inactive]:hidden">
+                {/* Class Name Section */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Class Name</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Class Name</Label>
+                    <Button 
+                      onClick={handleSaveSettings} 
+                      disabled={savingSettings || !settingsDirty} 
+                      size="sm"
+                      className={!settingsDirty ? "opacity-50" : ""}
+                    >
+                      {savingSettings ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="Enter class name"
                     className="bg-muted/30 border-border/50"
                   />
-                  <Button 
-                    onClick={handleSaveSettings} 
-                    disabled={savingSettings || editName === groupName} 
-                    className="w-full sm:w-auto"
-                  >
-                    {savingSettings ? "Saving..." : "Save Changes"}
-                  </Button>
                 </div>
 
                 <Separator className="bg-border/30" />
 
-                {/* Invite Code */}
+                {/* Invite Code Section */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Invite Code</Label>
                   <div className="flex gap-2">
@@ -938,22 +1020,28 @@ export const ClassDetailPanel = ({
                   </p>
                 </div>
 
+                {/* Spacer to push danger zone to bottom */}
+                <div className="flex-1" />
+
                 <Separator className="bg-border/30" />
 
                 {/* Danger Zone */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium text-destructive">Danger Zone</Label>
+                <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 space-y-3">
+                  <Label className="text-sm font-medium text-destructive flex items-center gap-2">
+                    <Archive className="w-4 h-4" />
+                    Danger Zone
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Archiving hides this class. Members lose access but data is preserved.
+                  </p>
                   <Button
                     variant="outline"
-                    className="w-full sm:w-auto text-destructive hover:bg-destructive/10 border-destructive/30"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 border-destructive/30"
                     onClick={() => setDeleteDialogOpen(true)}
                   >
-                    <Archive className="w-4 h-4 mr-2" />
                     Archive Class
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Archiving will hide this class. Members will lose access but data is preserved.
-                  </p>
                 </div>
               </TabsContent>
             </div>
@@ -1019,6 +1107,44 @@ export const ClassDetailPanel = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Unassign Confirmation Dialog */}
+      <AlertDialog open={unassignDialogOpen} onOpenChange={setUnassignDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unassign Exam?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove "{assignmentToUnassign?.exam_title}" from this class? 
+              Students who haven't completed it will lose access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unassigning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleUnassign} 
+              disabled={unassigning}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {unassigning ? "Removing..." : "Unassign"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Deadline Modal */}
+      {selectedAssignment && (
+        <EditDeadlineModal
+          open={deadlineModalOpen}
+          onOpenChange={(open) => {
+            setDeadlineModalOpen(open);
+            if (!open) setSelectedAssignment(null);
+          }}
+          examId={selectedAssignment.exam_id}
+          examTitle={selectedAssignment.exam_title}
+          currentDeadline={selectedAssignment.deadline}
+          onUpdated={handleDeadlineUpdated}
+        />
+      )}
     </>
   );
 };
