@@ -163,7 +163,8 @@ export const ClassDetailPanel = ({
     }
   };
 
-  // Fetch assignments
+  // Fetch assignments with CORRECT completion counts
+  // Must match the same dataset used in ExamResultsModal
   const fetchAssignments = async () => {
     setAssignmentsLoading(true);
     try {
@@ -183,14 +184,34 @@ export const ClassDetailPanel = ({
 
       if (error) throw error;
 
-      // Get completion counts
+      // Get active member IDs for this group - this is the assigned student list
+      const activeMemberIds = members.map(m => m.student_id);
+      
+      // Get completion counts - ONLY count submissions from active group members
       const assignmentsWithCounts = await Promise.all(
         (data || []).map(async (assignment) => {
-          const { count } = await supabase
+          if (activeMemberIds.length === 0) {
+            return {
+              id: assignment.id,
+              exam_id: assignment.exam_id,
+              exam_title: (assignment.exams as any)?.title || "Untitled",
+              deadline: assignment.deadline,
+              created_at: assignment.created_at,
+              is_active: assignment.is_active,
+              completion_count: 0,
+              total_students: 0,
+            };
+          }
+
+          // Count submissions from ONLY active group members with status submitted or graded
+          const { data: submissions } = await supabase
             .from("exam_submissions")
-            .select("*", { count: "exact", head: true })
+            .select("student_id, status")
             .eq("exam_id", assignment.exam_id)
-            .eq("status", "completed");
+            .in("student_id", activeMemberIds)
+            .in("status", ["submitted", "graded"]);
+
+          const completedCount = submissions?.length || 0;
 
           return {
             id: assignment.id,
@@ -199,8 +220,8 @@ export const ClassDetailPanel = ({
             deadline: assignment.deadline,
             created_at: assignment.created_at,
             is_active: assignment.is_active,
-            completion_count: count || 0,
-            total_students: members.length,
+            completion_count: completedCount,
+            total_students: activeMemberIds.length,
           };
         })
       );

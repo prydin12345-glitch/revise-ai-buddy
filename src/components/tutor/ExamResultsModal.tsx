@@ -672,6 +672,30 @@ export const ExamResultsModal = ({
                       filteredQuestions.map((q) => {
                         const isExpanded = expandedQuestionId === q.id;
                         
+                        // Create a clean preview for collapsed state - strip LaTeX for readability
+                        const getCleanPreview = (text: string): string => {
+                          let preview = text;
+                          // Replace LaTeX fractions with readable text: $\frac{a}{b}$ → (a)/(b)
+                          preview = preview.replace(/\$\\frac\{([^}]+)\}\{([^}]+)\}\$/g, '($1)/($2)');
+                          // Replace inline math delimiters but keep content readable
+                          preview = preview.replace(/\$([^$]+)\$/g, '$1');
+                          // Replace display math delimiters
+                          preview = preview.replace(/\$\$([^$]+)\$\$/g, '$1');
+                          // Convert superscripts: ^{n} or ^n → ⁿ (simplified)
+                          preview = preview.replace(/\^{?([0-9\-]+)}?/g, (_, num) => {
+                            const superscripts: Record<string, string> = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+                            return num.split('').map((c: string) => superscripts[c] || c).join('');
+                          });
+                          // Remove remaining LaTeX commands like \text{}, \mathrm{}, etc.
+                          preview = preview.replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1');
+                          preview = preview.replace(/\\[a-zA-Z]+/g, '');
+                          // Clean up extra whitespace
+                          preview = preview.replace(/\s+/g, ' ').trim();
+                          return preview;
+                        };
+
+                        const cleanPreview = getCleanPreview(q.questionText);
+                        
                         return (
                           <div
                             key={q.id}
@@ -703,9 +727,11 @@ export const ExamResultsModal = ({
                                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{q.difficultyLevel}</Badge>
                                     )}
                                   </div>
-                                  {/* Preview - only show when collapsed */}
+                                  {/* Preview - only show when collapsed, use cleaned text */}
                                   {!isExpanded && (
-                                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{q.questionText.slice(0, 150)}{q.questionText.length > 150 ? "..." : ""}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                                      {cleanPreview.slice(0, 150)}{cleanPreview.length > 150 ? "..." : ""}
+                                    </p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
