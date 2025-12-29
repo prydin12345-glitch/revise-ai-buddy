@@ -47,19 +47,25 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
   const deadlineDate = new Date(deadline);
   const now = new Date();
   
-  // Get local versions for comparison
+  // Convert both to the user's local timezone for accurate comparison
   const localDeadline = toLocalTime(deadlineDate, tz);
   const localNow = toLocalTime(now, tz);
   
-  // Get start and end of today in local time
+  // Get start of today in local time (midnight)
   const todayStart = startOfDay(localNow);
   const todayEnd = endOfDay(localNow);
+  
+  // Get start of deadline day in local time
+  const deadlineDayStart = startOfDay(localDeadline);
 
-  // Check if deadline is in the past
-  if (isBefore(deadlineDate, now)) {
-    const daysPast = Math.abs(differenceInDays(deadlineDate, now));
+  // CRITICAL: Check if deadline has passed by comparing actual timestamps in local time
+  // Deadline is overdue if the deadline datetime is before the current datetime
+  if (isBefore(localDeadline, localNow)) {
+    // Calculate days past based on calendar days difference
+    const daysPast = differenceInDays(todayStart, deadlineDayStart);
+    
     return {
-      text: daysPast === 0 ? "Overdue" : daysPast === 1 ? "Overdue by 1 day" : `Overdue by ${daysPast}d`,
+      text: daysPast === 0 ? "Overdue" : daysPast === 1 ? "Overdue by 1 day" : `Overdue by ${daysPast} days`,
       variant: "destructive",
       className: "bg-destructive/10 text-destructive border-destructive/20",
       isOverdue: true,
@@ -67,9 +73,9 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     };
   }
 
-  // Check if deadline is today (using local time)
-  const localDeadlineDay = startOfDay(localDeadline);
-  if (localDeadlineDay.getTime() === todayStart.getTime()) {
+  // Now we know deadline is in the future (or exactly now)
+  // Check if deadline is today (same calendar day in local time)
+  if (deadlineDayStart.getTime() === todayStart.getTime()) {
     return {
       text: "Due today",
       variant: "default",
@@ -80,8 +86,10 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
   }
 
   // Check if deadline is tomorrow
-  const tomorrowStart = startOfDay(new Date(todayStart.getTime() + 24 * 60 * 60 * 1000));
-  if (localDeadlineDay.getTime() === tomorrowStart.getTime()) {
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  
+  if (deadlineDayStart.getTime() === tomorrowStart.getTime()) {
     return {
       text: "Due tomorrow",
       variant: "default",
@@ -91,8 +99,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     };
   }
 
-  // Calculate days until deadline
-  const daysUntil = differenceInDays(localDeadline, localNow);
+  // Calculate days until deadline based on calendar days
+  const daysUntil = differenceInDays(deadlineDayStart, todayStart);
 
   if (daysUntil <= 3) {
     return {
