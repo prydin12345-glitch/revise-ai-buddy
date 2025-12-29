@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, BarChart3, Users, FileQuestion, TrendingUp, Search, ArrowUpDown, ChevronRight, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { X, BarChart3, Users, FileQuestion, TrendingUp, Search, ArrowUpDown, ChevronRight, Clock, CheckCircle, AlertCircle, Loader2, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { MathRenderer } from "@/components/MathRenderer";
 import {
   ResponsiveContainer,
   BarChart,
@@ -37,11 +38,17 @@ interface QuestionStats {
   id: string;
   questionNumber: string;
   questionText: string;
+  questionLatex: string | null;
+  hasMath: boolean;
+  questionType: string;
+  options: any[] | null;
+  correctAnswer: string | null;
   correctCount: number;
   totalAnswers: number;
   correctPercentage: number;
   topicTag: string | null;
   difficultyLevel: string | null;
+  marks: number;
 }
 
 interface ExamResultsModalProps {
@@ -69,6 +76,7 @@ export const ExamResultsModal = ({
   const [studentSort, setStudentSort] = useState<"score-high" | "score-low" | "name-asc" | "status">("score-high");
   const [questionSort, setQuestionSort] = useState<"accuracy-low" | "accuracy-high" | "number">("accuracy-low");
   const [selectedStudent, setSelectedStudent] = useState<StudentResult | null>(null);
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && examId) {
@@ -163,10 +171,10 @@ export const ExamResultsModal = ({
 
       setResults(studentResults);
 
-      // Get questions and calculate stats
+      // Get questions and calculate stats - fetch full question data for proper rendering
       const { data: examQuestions } = await supabase
         .from("exam_questions")
-        .select("id, question_number, question_text, topic_tag, difficulty_level")
+        .select("id, question_number, question_text, question_latex, has_math, question_type, options, correct_answer, topic_tag, difficulty_level, marks")
         .eq("exam_id", examId)
         .order("question_number");
 
@@ -183,11 +191,17 @@ export const ExamResultsModal = ({
           id: q.id,
           questionNumber: q.question_number,
           questionText: q.question_text,
+          questionLatex: q.question_latex,
+          hasMath: q.has_math || false,
+          questionType: q.question_type,
+          options: q.options as any[] | null,
+          correctAnswer: q.correct_answer,
           correctCount,
           totalAnswers: questionAnswers.length,
           correctPercentage: questionAnswers.length > 0 ? Math.round((correctCount / questionAnswers.length) * 100) : 0,
           topicTag: q.topic_tag,
           difficultyLevel: q.difficulty_level,
+          marks: q.marks || 1,
         };
       });
 
@@ -647,7 +661,7 @@ export const ExamResultsModal = ({
                     </Select>
                   </div>
 
-                  {/* Questions List */}
+                  {/* Questions List - Accordion Cards */}
                   <div className="space-y-2">
                     {filteredQuestions.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
@@ -655,38 +669,135 @@ export const ExamResultsModal = ({
                         <p className="font-medium">No questions found</p>
                       </div>
                     ) : (
-                      filteredQuestions.map((q) => (
-                        <div
-                          key={q.id}
-                          className="p-4 rounded-xl bg-muted/20 border border-border/30"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-sm">Q{q.questionNumber}</span>
-                                {q.topicTag && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{q.topicTag}</Badge>
+                      filteredQuestions.map((q) => {
+                        const isExpanded = expandedQuestionId === q.id;
+                        
+                        return (
+                          <div
+                            key={q.id}
+                            className="rounded-xl bg-muted/20 border border-border/30 overflow-hidden transition-all duration-200"
+                          >
+                            {/* Clickable header - entire card expands/collapses */}
+                            <button
+                              type="button"
+                              onClick={() => setExpandedQuestionId(isExpanded ? null : q.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setExpandedQuestionId(isExpanded ? null : q.id);
+                                }
+                              }}
+                              aria-expanded={isExpanded}
+                              aria-controls={`question-content-${q.id}`}
+                              className="w-full p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span className="font-medium text-sm">Q{q.questionNumber}</span>
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{q.marks} mark{q.marks !== 1 ? "s" : ""}</Badge>
+                                    {q.topicTag && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/10">{q.topicTag}</Badge>
+                                    )}
+                                    {q.difficultyLevel && (
+                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{q.difficultyLevel}</Badge>
+                                    )}
+                                  </div>
+                                  {/* Preview - only show when collapsed */}
+                                  {!isExpanded && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{q.questionText.slice(0, 150)}{q.questionText.length > 150 ? "..." : ""}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <div className="text-right">
+                                    <p className={`font-semibold ${q.correctPercentage >= 70 ? "text-emerald-500" : q.correctPercentage >= 50 ? "text-amber-500" : "text-destructive"}`}>
+                                      {q.correctPercentage}%
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {q.correctCount}/{q.totalAnswers} correct
+                                    </p>
+                                  </div>
+                                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                                </div>
+                              </div>
+                              {/* Progress bar always visible */}
+                              <div className="mt-3">
+                                <Progress value={q.correctPercentage} className="h-1.5" />
+                              </div>
+                            </button>
+                            
+                            {/* Expanded content - full question rendering */}
+                            {isExpanded && (
+                              <div 
+                                id={`question-content-${q.id}`}
+                                className="px-4 pb-4 pt-2 border-t border-border/30 bg-background/50"
+                              >
+                                {/* Full question text with MathRenderer */}
+                                <div className="prose prose-sm prose-invert max-w-none">
+                                  <MathRenderer 
+                                    content={q.questionText}
+                                    latex={q.questionLatex}
+                                    hasMath={q.hasMath}
+                                    className="text-foreground"
+                                  />
+                                </div>
+                                
+                                {/* MCQ Options */}
+                                {q.questionType === "mcq" && q.options && Array.isArray(q.options) && q.options.length > 0 && (
+                                  <div className="mt-4 space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Options</p>
+                                    <div className="space-y-1.5">
+                                      {q.options.map((option, idx) => {
+                                        const optionLetter = String.fromCharCode(65 + idx);
+                                        const isCorrect = q.correctAnswer?.toUpperCase() === optionLetter;
+                                        const optionText = typeof option === "string" ? option : (option?.text || option?.label || String(option));
+                                        
+                                        return (
+                                          <div 
+                                            key={idx}
+                                            className={`flex items-start gap-2 p-2.5 rounded-lg border ${
+                                              isCorrect 
+                                                ? "border-emerald-500/50 bg-emerald-500/10" 
+                                                : "border-border/30 bg-muted/20"
+                                            }`}
+                                          >
+                                            <span className={`font-medium text-sm shrink-0 ${isCorrect ? "text-emerald-500" : "text-muted-foreground"}`}>
+                                              {optionLetter})
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                              <MathRenderer 
+                                                content={optionText}
+                                                hasMath={q.hasMath}
+                                                inline
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                            {isCorrect && (
+                                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
                                 )}
-                                {q.difficultyLevel && (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{q.difficultyLevel}</Badge>
+                                
+                                {/* Correct answer for non-MCQ */}
+                                {q.questionType !== "mcq" && q.correctAnswer && (
+                                  <div className="mt-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Correct Answer</p>
+                                    <MathRenderer 
+                                      content={q.correctAnswer}
+                                      hasMath={q.hasMath}
+                                      className="text-sm text-foreground"
+                                    />
+                                  </div>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{q.questionText}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className={`font-semibold ${q.correctPercentage >= 70 ? "text-emerald-500" : q.correctPercentage >= 50 ? "text-amber-500" : "text-destructive"}`}>
-                                {q.correctPercentage}%
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {q.correctCount}/{q.totalAnswers} correct
-                              </p>
-                            </div>
+                            )}
                           </div>
-                          <div className="mt-2">
-                            <Progress value={q.correctPercentage} className="h-1.5" />
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </TabsContent>
