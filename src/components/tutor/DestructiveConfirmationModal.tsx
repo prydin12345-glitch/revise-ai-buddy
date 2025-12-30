@@ -87,8 +87,8 @@ export const DestructiveConfirmationModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[hsl(0_80%_65%)]">
-            <AlertTriangle className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-[hsl(0_70%_75%)]">
+            <AlertTriangle className="h-5 w-5 text-[hsl(0_75%_65%)]" />
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -97,15 +97,15 @@ export const DestructiveConfirmationModal = ({
         {step === "explain" && (
           <>
             <div className="space-y-4 py-2">
-              <DialogDescription>{description}</DialogDescription>
+              <DialogDescription className="text-muted-foreground">{description}</DialogDescription>
               
               {impactItems.length > 0 && (
-                <div className="p-3 rounded-lg bg-[hsl(0_60%_12%)] border-2 border-[hsl(0_70%_40%)] space-y-2">
-                  <p className="text-sm font-medium text-[hsl(0_80%_70%)]">This action will:</p>
-                  <ul className="text-sm text-[hsl(0_20%_80%)] space-y-1">
+                <div className="p-3 rounded-lg bg-[hsl(0_50%_15%)] border-2 border-[hsl(0_65%_55%)] space-y-2">
+                  <p className="text-sm font-medium text-[hsl(0_70%_80%)]">This action will:</p>
+                  <ul className="text-sm text-[hsl(0_15%_85%)] space-y-1">
                     {impactItems.map((item, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-[hsl(0_80%_65%)] mt-0.5">•</span>
+                        <span className="text-[hsl(0_75%_70%)] mt-0.5">•</span>
                         {item}
                       </li>
                     ))}
@@ -118,7 +118,7 @@ export const DestructiveConfirmationModal = ({
                 Cancel
               </Button>
               <Button 
-                className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
+                className="bg-[hsl(0_75%_55%)] hover:bg-[hsl(0_70%_48%)] text-white border border-[hsl(0_70%_50%)] shadow-[0_0_8px_hsl(0_75%_55%/0.4)]" 
                 onClick={handleNext}
               >
                 Continue
@@ -163,7 +163,7 @@ export const DestructiveConfirmationModal = ({
                   Cancel
                 </Button>
                 <Button 
-                  className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
+                  className="bg-[hsl(0_75%_55%)] hover:bg-[hsl(0_70%_48%)] text-white border border-[hsl(0_70%_50%)] shadow-[0_0_8px_hsl(0_75%_55%/0.4)]" 
                   onClick={handleNext} 
                   disabled={!isMatch}
                 >
@@ -178,10 +178,10 @@ export const DestructiveConfirmationModal = ({
         {step === "final" && (
           <>
             <div className="space-y-4 py-4 text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-[hsl(0_60%_15%)] border-2 border-[hsl(0_70%_45%)] flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-[hsl(0_80%_65%)]" />
+              <div className="mx-auto w-12 h-12 rounded-full bg-[hsl(0_50%_18%)] border-2 border-[hsl(0_65%_55%)] flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-[hsl(0_75%_70%)]" />
               </div>
-              <DialogDescription className="text-base">
+              <DialogDescription className="text-base text-muted-foreground">
                 Are you absolutely sure? This action cannot be undone.
               </DialogDescription>
             </div>
@@ -194,7 +194,7 @@ export const DestructiveConfirmationModal = ({
                   Cancel
                 </Button>
                 <Button 
-                  className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
+                  className="bg-[hsl(0_75%_55%)] hover:bg-[hsl(0_70%_48%)] text-white border border-[hsl(0_70%_50%)] shadow-[0_0_8px_hsl(0_75%_55%/0.4)]" 
                   onClick={handleFinalConfirm} 
                   disabled={isProcessing}
                 >

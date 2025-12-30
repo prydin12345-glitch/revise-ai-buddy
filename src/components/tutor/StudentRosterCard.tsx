@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Eye, TrendingDown, Users } from "lucide-react";
+import { Eye, Users } from "lucide-react";
 
 interface StudentRosterCardProps {
   student: {
@@ -32,81 +32,82 @@ export const StudentRosterCard = ({ student, onViewProgress, animationDelay = 0 
   const examsCompleted = student.exams_completed || 0;
   const examsAssigned = student.exams_assigned || 0;
 
-  // Determine performance ring color
-  const getPerformanceRingColor = () => {
-    if (averageScore >= 80) return "ring-emerald-500/50";
-    if (averageScore >= 60) return "ring-amber-500/50";
-    if (averageScore > 0) return "ring-rose-500/50";
-    return "ring-border";
+  // Determine performance indicator color
+  const getPerformanceColor = () => {
+    if (averageScore >= 80) return { ring: "ring-emerald-500/40", text: "text-emerald-500", bg: "bg-emerald-500" };
+    if (averageScore >= 60) return { ring: "ring-amber-500/40", text: "text-amber-500", bg: "bg-amber-500" };
+    if (averageScore > 0) return { ring: "ring-rose-500/40", text: "text-rose-500", bg: "bg-rose-500" };
+    return { ring: "ring-border", text: "text-muted-foreground", bg: "bg-muted" };
   };
 
-  // Determine score color
-  const getScoreColor = () => {
-    if (averageScore >= 80) return "text-emerald-600 dark:text-emerald-400";
-    if (averageScore >= 60) return "text-amber-600 dark:text-amber-400";
-    if (averageScore > 0) return "text-rose-600 dark:text-rose-400";
-    return "text-muted-foreground";
-  };
+  const performanceColors = getPerformanceColor();
 
   return (
     <Card 
-      className="group bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 animate-fade-in"
+      className="group bg-card/40 border-border/40 hover:border-primary/30 hover:bg-card/60 transition-all duration-200 animate-fade-in"
       style={{ animationDelay: `${animationDelay}ms` }}
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <Avatar className={`h-12 w-12 ring-2 ${getPerformanceRingColor()} transition-all duration-300 group-hover:ring-primary/50`}>
-            <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+          {/* Avatar with performance ring */}
+          <Avatar className={`h-11 w-11 ring-2 ${performanceColors.ring} transition-all shrink-0`}>
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold text-base">
               {initials}
             </AvatarFallback>
           </Avatar>
 
-          {/* Student Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-base font-semibold truncate">
-                {firstName} <span className="text-muted-foreground font-normal">({studentId})</span>
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="text-xs font-normal gap-1">
-                <Users className="h-3 w-3" />
-                {student.group_name}
-              </Badge>
-              {student.weakest_subject && (
-                <Badge variant="outline" className="text-xs font-normal gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30">
-                  <TrendingDown className="h-3 w-3" />
-                  {student.weakest_subject}
-                </Badge>
-              )}
-            </div>
+          {/* Student Name + ID (Primary info) */}
+          <div className="min-w-0 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-foreground truncate leading-tight">
+              {firstName}
+            </h3>
+            <p className="text-xs text-muted-foreground/70 truncate">
+              {studentId}
+            </p>
           </div>
 
-          {/* Progress Stats */}
-          <div className="hidden sm:flex flex-col items-end gap-1 min-w-[120px]">
+          {/* Class Badge (Secondary info) */}
+          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+            <Badge 
+              variant="outline" 
+              className="text-xs font-normal bg-muted/30 border-border/50 text-muted-foreground gap-1 px-2 py-0.5"
+            >
+              <Users className="h-3 w-3 opacity-70" />
+              {student.group_name}
+            </Badge>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Progress Stats (Tertiary info) - Desktop */}
+          <div className="hidden md:flex flex-col items-end gap-1.5 min-w-[130px]">
             <div className="flex items-center gap-2 w-full">
-              <span className="text-xs text-muted-foreground">Progress</span>
+              <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider w-14">Progress</span>
               <Progress 
                 value={completionRate} 
-                className="h-2 flex-1 bg-muted/50" 
+                className="h-1.5 flex-1 bg-muted/40" 
               />
-              <span className="text-xs font-medium w-8 text-right">{examsCompleted}/{examsAssigned}</span>
+              <span className="text-xs font-medium text-muted-foreground w-10 text-right tabular-nums">
+                {examsCompleted}/{examsAssigned}
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Avg Score:</span>
-              <span className={`text-sm font-bold ${getScoreColor()}`}>
+              <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">Avg</span>
+              <span className={`text-sm font-bold tabular-nums ${performanceColors.text}`}>
                 {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
               </span>
             </div>
           </div>
 
           {/* Mobile Stats */}
-          <div className="flex sm:hidden flex-col items-end gap-0.5">
-            <span className={`text-lg font-bold ${getScoreColor()}`}>
+          <div className="flex md:hidden flex-col items-end gap-0.5 min-w-[50px]">
+            <span className={`text-base font-bold tabular-nums ${performanceColors.text}`}>
               {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
             </span>
-            <span className="text-xs text-muted-foreground">{examsCompleted}/{examsAssigned} done</span>
+            <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+              {examsCompleted}/{examsAssigned}
+            </span>
           </div>
 
           {/* View Progress Button */}
@@ -114,10 +115,10 @@ export const StudentRosterCard = ({ student, onViewProgress, animationDelay = 0 
             variant="outline"
             size="sm"
             onClick={() => onViewProgress(student.id)}
-            className="gap-2 bg-primary/5 border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 active:scale-95"
+            className="gap-1.5 bg-primary/5 border-primary/25 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all active:scale-95 shrink-0"
           >
-            <Eye className="h-4 w-4" />
-            <span className="hidden sm:inline">View Progress</span>
+            <Eye className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline text-xs">View</span>
           </Button>
         </div>
       </CardContent>

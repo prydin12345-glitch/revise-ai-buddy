@@ -1,5 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, TrendingUp, CheckCircle, AlertTriangle, Info, ChevronRight } from "lucide-react";
+import { Users, TrendingUp, CheckCircle, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -26,177 +25,152 @@ export const StudentStatsCards = ({
   onCompletionRateClick,
   onWeakestTopicsClick,
 }: StudentStatsCardsProps) => {
+  
+  // Helper text based on performance
+  const getScoreHelper = () => {
+    if (averageScore >= 80) return "Excellent";
+    if (averageScore >= 60) return "Good progress";
+    if (averageScore > 0) return "Needs work";
+    return "No data";
+  };
+
+  const getCompletionHelper = () => {
+    if (completionRate >= 90) return "Outstanding";
+    if (completionRate >= 70) return "On track";
+    if (completionRate > 0) return "Below target";
+    return "No tasks";
+  };
+
+  const getWeakestTopicsDisplay = () => {
+    if (weakestTopics.length === 0) return { value: "0", helper: "No issues" };
+    return { 
+      value: String(weakestTopics.length), 
+      helper: weakestTopics.length === 1 ? "Needs attention" : "Need attention" 
+    };
+  };
+
+  const weakestDisplay = getWeakestTopicsDisplay();
+
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex flex-wrap items-center gap-6 py-2">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="min-h-[140px]">
-            <CardHeader className="pb-2">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
-              <Skeleton className="h-3 w-32" />
-            </CardContent>
-          </Card>
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-lg" />
+            <div className="space-y-1">
+              <Skeleton className="h-6 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <TooltipProvider>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:gap-8 py-2">
         {/* Total Students */}
-        <Card className="min-h-[140px] bg-gradient-to-br from-card to-primary/5 border-border/50 hover:shadow-lg hover:border-primary/20 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Students
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Number of students in {selectedGroup === "all" ? "all groups" : "selected group"}</p>
-                </TooltipContent>
-              </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div 
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/30 border border-border/30 hover:border-primary/30 hover:bg-card/50 transition-all cursor-default"
+              role="group"
+              aria-label={`Total Students: ${totalStudents}`}
+            >
+              <div className="p-2 rounded-lg bg-primary/15">
+                <Users className="h-5 w-5 text-primary" aria-hidden="true" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold tracking-tight">{totalStudents}</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {selectedGroup === "all" ? "All groups" : "In group"}
+                </span>
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Users className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="text-3xl font-bold tracking-tight">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {selectedGroup === "all" ? "Across all groups" : "In selected group"}
-            </p>
-          </CardContent>
-        </Card>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Total Students</p>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Average Score */}
-        <Card 
-          className={`min-h-[140px] bg-gradient-to-br from-card to-emerald-500/5 border-border/50 hover:shadow-lg hover:border-emerald-500/20 transition-all duration-300 ${onAverageScoreClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
-          onClick={onAverageScoreClick}
-        >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Average Score
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Average score across all completed exams and practice sets. Click for details.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onAverageScoreClick}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/30 border border-border/30 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              aria-label={`Average Score: ${averageScore > 0 ? Math.round(averageScore) + '%' : 'No data'}. Click for details.`}
+            >
+              <div className="p-2 rounded-lg bg-emerald-500/15">
+                <TrendingUp className="h-5 w-5 text-emerald-500" aria-hidden="true" />
               </div>
-              {onAverageScoreClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="text-3xl font-bold tracking-tight">
-              {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {averageScore >= 80 ? "Excellent performance" : 
-               averageScore >= 60 ? "Good progress" : 
-               averageScore > 0 ? "Needs improvement" : "No data yet"}
-            </p>
-          </CardContent>
-        </Card>
+              <div className="flex flex-col items-start">
+                <span className="text-2xl font-bold tracking-tight text-emerald-500">
+                  {averageScore > 0 ? `${Math.round(averageScore)}%` : "--"}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {getScoreHelper()}
+                </span>
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Average Score — Click for details</p>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Completion Rate */}
-        <Card 
-          className={`min-h-[140px] bg-gradient-to-br from-card to-blue-500/5 border-border/50 hover:shadow-lg hover:border-blue-500/20 transition-all duration-300 ${onCompletionRateClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
-          onClick={onCompletionRateClick}
-        >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Completion Rate
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Tasks completed ÷ tasks assigned × 100. Click for breakdown.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <CheckCircle className="h-4 w-4 text-blue-500" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onCompletionRateClick}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/30 border border-border/30 hover:border-blue-500/40 hover:bg-blue-500/5 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              aria-label={`Completion Rate: ${completionRate > 0 ? Math.round(completionRate) + '%' : 'No data'}. Click for breakdown.`}
+            >
+              <div className="p-2 rounded-lg bg-blue-500/15">
+                <CheckCircle className="h-5 w-5 text-blue-500" aria-hidden="true" />
               </div>
-              {onCompletionRateClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="text-3xl font-bold tracking-tight">
-              {completionRate > 0 ? `${Math.round(completionRate)}%` : "--"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {completionRate >= 90 ? "Outstanding" : 
-               completionRate >= 70 ? "On track" : 
-               completionRate > 0 ? "Below target" : "No assignments yet"}
-            </p>
-          </CardContent>
-        </Card>
+              <div className="flex flex-col items-start">
+                <span className="text-2xl font-bold tracking-tight text-blue-500">
+                  {completionRate > 0 ? `${Math.round(completionRate)}%` : "--"}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {getCompletionHelper()}
+                </span>
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Completion Rate — Click for breakdown</p>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Weakest Topics */}
-        <Card 
-          className={`min-h-[140px] bg-gradient-to-br from-card to-amber-500/5 border-border/50 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300 ${onWeakestTopicsClick ? "cursor-pointer hover:scale-[1.01]" : ""}`}
-          onClick={onWeakestTopicsClick}
-        >
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Weakest Topics
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[200px]">
-                  <p>Topics with lowest average scores. Click for detailed analysis.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onWeakestTopicsClick}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/30 border border-border/30 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+              aria-label={`${weakestDisplay.value} Weakest Topics. Click for analysis.`}
+            >
+              <div className="p-2 rounded-lg bg-amber-500/15">
+                <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />
               </div>
-              {onWeakestTopicsClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {weakestTopics.length > 0 ? (
-              <div className="space-y-1">
-                {weakestTopics.slice(0, 3).map((topic, index) => (
-                  <div
-                    key={topic}
-                    className="text-sm font-medium truncate"
-                    style={{ opacity: 1 - index * 0.2 }}
-                  >
-                    {topic}
-                  </div>
-                ))}
+              <div className="flex flex-col items-start">
+                <span className="text-2xl font-bold tracking-tight text-amber-500">
+                  {weakestDisplay.value}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {weakestDisplay.helper}
+                </span>
               </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Insufficient data
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Weakest Topics — Click for analysis</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </TooltipProvider>
   );
