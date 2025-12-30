@@ -43,6 +43,12 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Danger - High visibility for overdue/critical */
+    --danger: 0 80% 55%;
+    --danger-foreground: 0 0% 100%;
+    --danger-muted: 0 80% 95%;
+    --danger-border: 0 70% 50%;
+
     /* Border and input */
     --border: 210 30% 90%;
     --input: 210 30% 90%;
@@ -117,12 +123,20 @@ All colors MUST be HSL.
     --accent: 222 47% 18%;
     --accent-foreground: 210 85% 70%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 65% 18%;
+    --destructive-border: 0 62% 40%;
 
     --border: 222 30% 25%;
     --input: 222 30% 25%;
     --ring: 210 85% 55%;
+
+    /* Danger/Overdue - high contrast for dark theme */
+    --danger: 0 80% 60%;
+    --danger-foreground: 0 0% 100%;
+    --danger-muted: 0 60% 15%;
+    --danger-border: 0 70% 45%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;

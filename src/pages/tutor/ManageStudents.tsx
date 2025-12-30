@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, Download, GraduationCap } from "lucide-react";
+import { Users, Plus, Download, GraduationCap, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CreateGroupModal } from "@/components/tutor/CreateGroupModal";
@@ -7,6 +7,11 @@ import { ClassCard } from "@/components/tutor/ClassCard";
 import { ClassDetailPanel } from "@/components/tutor/ClassDetailPanel";
 import { AnnouncementModal } from "@/components/tutor/AnnouncementModal";
 import { useManageGroups } from "@/hooks/useManageGroups";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function ManageStudents() {
   const { toast } = useToast();
@@ -85,7 +90,7 @@ export default function ManageStudents() {
     }
   };
 
-  // Stats
+  // Stats - only count active members (already filtered in useManageGroups)
   const totalStudents = groups.reduce((sum, g) => sum + g.member_count, 0);
   const totalAssignments = groups.reduce((sum, g) => sum + g.assignment_count, 0);
 
@@ -113,29 +118,51 @@ export default function ManageStudents() {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Icon + Number with Tooltips */}
       {groups.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-card rounded-lg border border-border/50 p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <GraduationCap className="w-4 h-4" />
-              <span className="text-xs font-medium">Classes</span>
-            </div>
-            <p className="text-2xl font-bold">{groups.length}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border/50 p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Users className="w-4 h-4" />
-              <span className="text-xs font-medium">Students</span>
-            </div>
-            <p className="text-2xl font-bold">{totalStudents}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border/50 p-4 col-span-2 sm:col-span-2">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <span className="text-xs font-medium">Active Assignments</span>
-            </div>
-            <p className="text-2xl font-bold">{totalAssignments}</p>
-          </div>
+        <div className="flex items-center gap-6 py-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                className="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md p-1 -m-1"
+                aria-label={`${groups.length} Classes`}
+              >
+                <GraduationCap className="w-5 h-5 text-primary" />
+                <span className="text-xl font-bold tabular-nums">{groups.length}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Classes</TooltipContent>
+          </Tooltip>
+          
+          <div className="w-px h-6 bg-border/50" />
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                className="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md p-1 -m-1"
+                aria-label={`${totalStudents} Students`}
+              >
+                <Users className="w-5 h-5 text-primary" />
+                <span className="text-xl font-bold tabular-nums">{totalStudents}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Students</TooltipContent>
+          </Tooltip>
+          
+          <div className="w-px h-6 bg-border/50" />
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                className="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md p-1 -m-1"
+                aria-label={`${totalAssignments} Active assignments`}
+              >
+                <ClipboardCheck className="w-5 h-5 text-primary" />
+                <span className="text-xl font-bold tabular-nums">{totalAssignments}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Active assignments</TooltipContent>
+          </Tooltip>
         </div>
       )}
 

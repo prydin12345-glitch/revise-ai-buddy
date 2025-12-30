@@ -87,7 +87,7 @@ export const DestructiveConfirmationModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
+          <DialogTitle className="flex items-center gap-2 text-[hsl(0_80%_65%)]">
             <AlertTriangle className="h-5 w-5" />
             {title}
           </DialogTitle>
@@ -100,12 +100,12 @@ export const DestructiveConfirmationModal = ({
               <DialogDescription>{description}</DialogDescription>
               
               {impactItems.length > 0 && (
-                <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20 space-y-2">
-                  <p className="text-sm font-medium text-destructive">This action will:</p>
-                  <ul className="text-sm text-muted-foreground space-y-1">
+                <div className="p-3 rounded-lg bg-[hsl(0_60%_12%)] border-2 border-[hsl(0_70%_40%)] space-y-2">
+                  <p className="text-sm font-medium text-[hsl(0_80%_70%)]">This action will:</p>
+                  <ul className="text-sm text-[hsl(0_20%_80%)] space-y-1">
                     {impactItems.map((item, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-destructive mt-0.5">•</span>
+                        <span className="text-[hsl(0_80%_65%)] mt-0.5">•</span>
                         {item}
                       </li>
                     ))}
@@ -117,7 +117,10 @@ export const DestructiveConfirmationModal = ({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleNext}>
+              <Button 
+                className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
+                onClick={handleNext}
+              >
                 Continue
               </Button>
             </DialogFooter>
@@ -159,7 +162,11 @@ export const DestructiveConfirmationModal = ({
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleNext} disabled={!isMatch}>
+                <Button 
+                  className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
+                  onClick={handleNext} 
+                  disabled={!isMatch}
+                >
                   Continue
                 </Button>
               </div>
@@ -171,8 +178,8 @@ export const DestructiveConfirmationModal = ({
         {step === "final" && (
           <>
             <div className="space-y-4 py-4 text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
+              <div className="mx-auto w-12 h-12 rounded-full bg-[hsl(0_60%_15%)] border-2 border-[hsl(0_70%_45%)] flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-[hsl(0_80%_65%)]" />
               </div>
               <DialogDescription className="text-base">
                 Are you absolutely sure? This action cannot be undone.
@@ -187,7 +194,7 @@ export const DestructiveConfirmationModal = ({
                   Cancel
                 </Button>
                 <Button 
-                  variant="destructive" 
+                  className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0" 
                   onClick={handleFinalConfirm} 
                   disabled={isProcessing}
                 >

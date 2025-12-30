@@ -67,7 +67,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: daysPast === 0 ? "Overdue" : daysPast === 1 ? "Overdue by 1 day" : `Overdue by ${daysPast} days`,
       variant: "destructive",
-      className: "bg-destructive/10 text-destructive border-destructive/20",
+      // High contrast danger styling - bright red bg with white text for dark theme visibility
+      className: "bg-[hsl(0_80%_55%)] text-white border-[hsl(0_70%_45%)] shadow-[0_0_6px_hsl(0_80%_55%/0.4)]",
       isOverdue: true,
       isUrgent: true,
     };
