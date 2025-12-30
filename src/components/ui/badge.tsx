@@ -12,10 +12,10 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        // Status variants with high contrast for dark themes
-        danger: "bg-[hsl(0_80%_60%)] text-white border-[hsl(0_70%_45%)] shadow-[0_0_8px_hsl(0_80%_60%/0.3)]",
-        warning: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_92%_55%)]",
-        success: "bg-[hsl(142_71%_45%)] text-white border-[hsl(142_71%_50%)]",
+        // High-contrast status variants for dark themes
+        danger: "bg-[hsl(0_72%_51%)] text-white border-[hsl(0_72%_45%)] shadow-[0_0_8px_hsl(0_72%_51%/0.4)] font-semibold",
+        warning: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_8px_hsl(38_92%_50%/0.3)] font-semibold",
+        success: "bg-[hsl(142_71%_45%)] text-white border-[hsl(142_71%_40%)] shadow-[0_0_8px_hsl(142_71%_45%/0.3)]",
         neutral: "bg-muted text-muted-foreground border-border",
       },
     },

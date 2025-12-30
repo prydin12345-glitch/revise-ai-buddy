@@ -80,7 +80,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: "Due today",
       variant: "default",
-      className: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      // High contrast warning - amber/orange bg with dark text
+      className: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_6px_hsl(38_92%_50%/0.3)]",
       isOverdue: false,
       isUrgent: true,
     };
@@ -94,7 +95,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: "Due tomorrow",
       variant: "default",
-      className: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      // High contrast warning - amber/orange bg with dark text
+      className: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_6px_hsl(38_92%_50%/0.3)]",
       isOverdue: false,
       isUrgent: true,
     };
@@ -107,7 +109,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: `Due in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`,
       variant: "default",
-      className: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      // Softer warning for 2-3 days out
+      className: "bg-[hsl(38_92%_50%/0.15)] text-[hsl(38_92%_50%)] border-[hsl(38_92%_50%/0.3)]",
       isOverdue: false,
       isUrgent: true,
     };
