@@ -12,10 +12,13 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        // High-contrast status variants for dark themes
-        danger: "bg-[hsl(0_72%_51%)] text-white border-[hsl(0_72%_45%)] shadow-[0_0_8px_hsl(0_72%_51%/0.4)] font-semibold",
-        warning: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_8px_hsl(38_92%_50%/0.3)] font-semibold",
-        success: "bg-[hsl(142_71%_45%)] text-white border-[hsl(142_71%_40%)] shadow-[0_0_8px_hsl(142_71%_45%/0.3)]",
+        // High-contrast danger variant - bright red background, white text, glow effect
+        danger: "bg-[hsl(0_75%_55%)] text-white border-[hsl(0_70%_50%)] shadow-[0_0_10px_hsl(0_75%_55%/0.5),inset_0_1px_0_hsl(0_75%_70%/0.3)] font-semibold",
+        // High-contrast warning variant - bright orange background, dark text for contrast
+        warning: "bg-[hsl(35_95%_55%)] text-[hsl(35_100%_8%)] border-[hsl(35_90%_48%)] shadow-[0_0_10px_hsl(35_95%_55%/0.4),inset_0_1px_0_hsl(35_95%_70%/0.3)] font-semibold",
+        // Success variant - green with white text
+        success: "bg-[hsl(142_70%_45%)] text-white border-[hsl(142_65%_40%)] shadow-[0_0_8px_hsl(142_70%_45%/0.4)]",
+        // Neutral variant - muted styling
         neutral: "bg-muted text-muted-foreground border-border",
       },
     },

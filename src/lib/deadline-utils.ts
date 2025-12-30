@@ -67,8 +67,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: daysPast === 0 ? "Overdue" : daysPast === 1 ? "Overdue by 1 day" : `Overdue by ${daysPast} days`,
       variant: "destructive",
-      // High contrast danger styling - bright red bg with white text for dark theme visibility
-      className: "bg-[hsl(0_80%_55%)] text-white border-[hsl(0_70%_45%)] shadow-[0_0_6px_hsl(0_80%_55%/0.4)]",
+      // High contrast danger - bright red with glow, white text for visibility on dark theme
+      className: "bg-[hsl(0_75%_55%)] text-white border-[hsl(0_70%_50%)] shadow-[0_0_10px_hsl(0_75%_55%/0.5),inset_0_1px_0_hsl(0_75%_70%/0.3)] font-semibold",
       isOverdue: true,
       isUrgent: true,
     };
@@ -80,8 +80,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: "Due today",
       variant: "default",
-      // High contrast warning - amber/orange bg with dark text
-      className: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_6px_hsl(38_92%_50%/0.3)]",
+      // High contrast orange - bright background with dark text and glow
+      className: "bg-[hsl(35_95%_55%)] text-[hsl(35_100%_8%)] border-[hsl(35_90%_48%)] shadow-[0_0_10px_hsl(35_95%_55%/0.4),inset_0_1px_0_hsl(35_95%_70%/0.3)] font-semibold",
       isOverdue: false,
       isUrgent: true,
     };
@@ -95,8 +95,8 @@ export const getDeadlineStatus = (deadline: string | null, timezone?: string): D
     return {
       text: "Due tomorrow",
       variant: "default",
-      // High contrast warning - amber/orange bg with dark text
-      className: "bg-[hsl(38_92%_50%)] text-[hsl(38_100%_10%)] border-[hsl(38_85%_45%)] shadow-[0_0_6px_hsl(38_92%_50%/0.3)]",
+      // Bright orange, slightly less intense than "due today" but still visible
+      className: "bg-[hsl(38_90%_52%)] text-[hsl(38_100%_8%)] border-[hsl(38_85%_45%)] shadow-[0_0_8px_hsl(38_90%_52%/0.4)] font-semibold",
       isOverdue: false,
       isUrgent: true,
     };
