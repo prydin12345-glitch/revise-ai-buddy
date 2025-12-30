@@ -9,11 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
-  Loader2, MessageCircle, Send, CheckCircle, ChevronLeft, Clock, 
+  Loader2, MessageCircle, Send, CheckCircle, Clock, 
   ChevronDown, ChevronUp, ExternalLink, FileText, History, 
-  Bell, Moon, Sun, ChevronRight
+  Bell, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
@@ -23,7 +22,7 @@ import { FeedbackPriorityTags, FeedbackTag, TAG_CONFIG } from "@/components/tuto
 import { StudentProfileTooltip } from "@/components/tutor/StudentProfileTooltip";
 import { StudentFeedbackHistory } from "@/components/tutor/StudentFeedbackHistory";
 import { checkTone, ToneCheckerDisplay } from "@/components/tutor/ToneChecker";
-import { useTheme } from "next-themes";
+
 
 interface FeedbackThread {
   id: string;
@@ -77,7 +76,6 @@ const formatFeedbackDate = (dateStr: string): string => {
 
 const ManageFeedback = () => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const [threads, setThreads] = useState<FeedbackThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedThread, setSelectedThread] = useState<FeedbackThread | null>(null);
@@ -428,36 +426,43 @@ const ManageFeedback = () => {
           </div>
         </div>
 
-        {/* Collapsible Question Content */}
-        <Collapsible open={isExpanded} onOpenChange={() => toggleCardExpanded(thread.id)}>
-          <CollapsibleTrigger asChild>
-            <button className="w-full text-left">
-              <div className="flex items-start justify-between gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</span>
-                  <p className="text-sm mt-0.5 line-clamp-2">
-                    {thread.question?.question_text?.slice(0, 150)}
-                    {(thread.question?.question_text?.length || 0) > 150 && "..."}
-                  </p>
-                </div>
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-4" />
-                )}
+        {/* Accordion Question Content - Click anywhere to expand */}
+        <button
+          type="button"
+          onClick={() => toggleCardExpanded(thread.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleCardExpanded(thread.id);
+            }
+          }}
+          aria-expanded={isExpanded}
+          aria-controls={`feedback-question-${thread.id}`}
+          className="w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</span>
+              {/* Always render with MathRenderer for consistent formatting */}
+              <div className={`text-sm mt-0.5 ${!isExpanded ? "line-clamp-2" : ""}`}>
+                <MathRenderer
+                  content={thread.question?.question_text || ""}
+                  hasMath={thread.question?.has_math}
+                  className="text-sm"
+                  inline={!isExpanded}
+                />
               </div>
-            </button>
-          </CollapsibleTrigger>
-
-          <CollapsibleContent className="space-y-2 mt-2">
-            <div className="p-3 rounded-md bg-muted/50">
-              <MathRenderer
-                content={thread.question?.question_text || ""}
-                hasMath={thread.question?.has_math}
-                className="text-sm"
-              />
             </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground flex-shrink-0 mt-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+          </div>
+        </button>
 
+        {/* Expanded content - only show mark scheme, question already visible above */}
+        {isExpanded && (
+          <div 
+            id={`feedback-question-${thread.id}`}
+            className="space-y-2 mt-2 pl-2"
+          >
             {thread.question?.correct_answer && (
               <div>
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
@@ -469,8 +474,8 @@ const ManageFeedback = () => {
                 </div>
               </div>
             )}
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        )}
 
         {/* Student's Question */}
         <div className="mt-3">
@@ -506,28 +511,9 @@ const ManageFeedback = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1100px] mx-auto px-4 py-4 sm:px-6 sm:py-6">
-        {/* Title Row with Back Button & Theme Toggle */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => navigate(-1)}
-              className="h-8 px-2 text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Back
-            </Button>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Student Feedback</h1>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="h-8 w-8 p-0"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+        {/* Title Row */}
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Student Feedback</h1>
         </div>
 
         {/* Filter Bar */}
