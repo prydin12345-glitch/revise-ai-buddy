@@ -65,6 +65,12 @@ export default {
           light: "hsl(var(--info-light))",
           border: "hsl(var(--info-border))",
         },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          foreground: "hsl(var(--danger-foreground))",
+          muted: "hsl(var(--danger-muted))",
+          border: "hsl(var(--danger-border))",
+        },
         coral: {
           500: "#FF7F6A",
         },

@@ -1032,19 +1032,19 @@ export const ClassDetailPanel = ({
 
                 <Separator className="bg-border/30" />
 
-                {/* Danger Zone */}
-                <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 space-y-3">
-                  <Label className="text-sm font-medium text-destructive flex items-center gap-2">
-                    <Archive className="w-4 h-4" />
-                    Danger Zone
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
+                {/* Danger Zone - High contrast styling */}
+                <div className="p-4 rounded-xl border-2 border-[hsl(0_70%_45%)] bg-[hsl(0_60%_12%)] space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Archive className="w-4 h-4 text-[hsl(0_80%_65%)]" />
+                    <span className="text-sm font-semibold text-[hsl(0_80%_70%)]">Danger Zone</span>
+                  </div>
+                  <p className="text-sm text-[hsl(0_20%_75%)]">
                     Archiving hides this class. Members lose access but data is preserved.
                   </p>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="text-destructive hover:bg-destructive/10 border-destructive/30"
+                    className="bg-[hsl(0_72%_51%)] hover:bg-[hsl(0_72%_45%)] text-white border-0"
                     onClick={() => setArchiveModalOpen(true)}
                   >
                     Archive Class
