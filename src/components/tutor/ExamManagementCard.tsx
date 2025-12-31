@@ -32,7 +32,7 @@ interface ExamManagementCardProps {
     grade_released: boolean;
   };
   subjectColor?: string;
-  onAssign: (examId: string, examTitle: string) => void;
+  onAssign?: (examId: string, examTitle: string) => void;
   onDelete: (examId: string, examTitle: string, examStatus: string) => void;
 }
 
@@ -146,9 +146,14 @@ export const ExamManagementCard = ({
         {/* Header Row */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-              {exam.title}
-            </h3>
+            <button
+              onClick={() => navigate(`/tutor/exams/${exam.id}?tab=results`)}
+              className="text-left w-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+            >
+              <h3 className="font-semibold text-lg text-foreground leading-tight line-clamp-2 hover:text-primary group-hover:text-primary transition-colors cursor-pointer">
+                {exam.title}
+              </h3>
+            </button>
           </div>
           <StatusBadge status={exam.status} />
         </div>
@@ -250,12 +255,12 @@ export const ExamManagementCard = ({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                  onClick={() => navigate(`/tutor/exams/${exam.id}/edit`)}
+                  onClick={() => navigate(`/tutor/exams/${exam.id}?tab=questions`)}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>View / Edit</TooltipContent>
+              <TooltipContent>View Questions</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -264,12 +269,12 @@ export const ExamManagementCard = ({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                  onClick={() => onAssign(exam.id, exam.title)}
+                  onClick={() => navigate(`/tutor/exams/${exam.id}?tab=assignments`)}
                 >
                   <Users className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Assign</TooltipContent>
+              <TooltipContent>Assignments</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -278,7 +283,7 @@ export const ExamManagementCard = ({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                  onClick={() => navigate(`/tutor/exams/${exam.id}/dashboard`)}
+                  onClick={() => navigate(`/tutor/exams/${exam.id}?tab=results`)}
                 >
                   <BarChart3 className="h-4 w-4" />
                 </Button>
