@@ -1,17 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Users, ClipboardList, Calendar, UserPlus, BookOpen, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  Upload, Users, ClipboardList, Calendar, UserPlus, BookOpen, 
+  TrendingUp, ChevronRight, BarChart3, FileText
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTutorStatsDrilldown, TutorDrilldownType } from "@/hooks/useTutorStatsDrilldown";
 import { TutorStatsDrilldownDrawer } from "@/components/tutor/TutorStatsDrilldownDrawer";
+import { CreateGroupModal } from "@/components/tutor/CreateGroupModal";
 
 export const TutorDashboardContent = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [stats, setStats] = useState({
     totalGroups: 0,
     totalStudents: 0,
@@ -73,7 +79,7 @@ export const TutorDashboardContent = () => {
           
           return {
             ...group,
-            group_members: Array(count || 0).fill(null), // Placeholder array for count
+            group_members: Array(count || 0).fill(null),
             active_member_count: count || 0,
           };
         })
@@ -107,11 +113,18 @@ export const TutorDashboardContent = () => {
     }
   };
 
-  const statCards = [
-    { label: "Student Groups", value: stats.totalGroups, icon: Users, color: "text-blue-500", drilldown: 'studentGroups' as TutorDrilldownType },
-    { label: "Total Students", value: stats.totalStudents, icon: UserPlus, color: "text-green-500", drilldown: 'totalStudents' as TutorDrilldownType },
-    { label: "Exams Created", value: stats.totalExamsCreated, icon: ClipboardList, color: "text-purple-500", drilldown: 'examsCreated' as TutorDrilldownType },
-    { label: "Active Assignments", value: stats.totalAssignments, icon: Calendar, color: "text-orange-500", drilldown: 'activeAssignments' as TutorDrilldownType },
+  const statItems = [
+    { label: "Student Groups", value: stats.totalGroups, icon: Users, drilldown: 'studentGroups' as TutorDrilldownType },
+    { label: "Total Students", value: stats.totalStudents, icon: UserPlus, drilldown: 'totalStudents' as TutorDrilldownType },
+    { label: "Exams Created", value: stats.totalExamsCreated, icon: ClipboardList, drilldown: 'examsCreated' as TutorDrilldownType },
+    { label: "Active Assignments", value: stats.totalAssignments, icon: Calendar, drilldown: 'activeAssignments' as TutorDrilldownType },
+  ];
+
+  const quickActions = [
+    { label: "Create Exam", icon: Upload, onClick: () => navigate("/upload") },
+    { label: "Create Practice", icon: BookOpen, onClick: () => navigate("/create-practice-questions") },
+    { label: "Manage Exams", icon: FileText, onClick: () => navigate("/tutor/exams") },
+    { label: "View Progress", icon: TrendingUp, onClick: () => navigate("/tutor/progress") },
   ];
 
   if (loading) {
@@ -125,78 +138,48 @@ export const TutorDashboardContent = () => {
   return (
     <>
     <div className="max-w-[1600px] mx-auto space-y-6">
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Button 
-          onClick={() => navigate("/upload")} 
-          className="h-24 flex flex-col gap-2"
-          variant="outline"
-        >
-          <Upload className="h-6 w-6" />
-          <span>Create Exam</span>
-        </Button>
-        <Button 
-          onClick={() => navigate("/create-practice-questions")} 
-          className="h-24 flex flex-col gap-2"
-          variant="outline"
-        >
-          <BookOpen className="h-6 w-6" />
-          <span>Create Practice</span>
-        </Button>
-        <Button 
-          onClick={() => navigate("/tutor/exams")} 
-          className="h-24 flex flex-col gap-2"
-          variant="outline"
-        >
-          <Users className="h-6 w-6" />
-          <span>Manage Exams</span>
-        </Button>
-        <Button 
-          onClick={() => navigate("/tutor/progress")} 
-          className="h-24 flex flex-col gap-2"
-          variant="outline"
-        >
-          <TrendingUp className="h-6 w-6" />
-          <span>View Progress</span>
-        </Button>
+      {/* Stats Row - Compact icon+number style */}
+      <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-card/30 border border-border/50">
+        {statItems.map((stat, index) => (
+          <Tooltip key={index}>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                onClick={() => drilldown.openDrawer(stat.drilldown)}
+                aria-label={`${stat.label}: ${stat.value}`}
+              >
+                <stat.icon className="h-5 w-5 text-muted-foreground" />
+                <span className="text-2xl font-bold">{stat.value}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{stat.label}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => (
-          <Card 
-            key={index} 
-            className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-primary/50"
-            role="button"
-            tabIndex={0}
-            aria-label={`View ${stat.label} details`}
-            onClick={() => drilldown.openDrawer(stat.drilldown)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                drilldown.openDrawer(stat.drilldown);
-              }
-            }}
+      {/* Quick Actions - Icon-first compact style */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {quickActions.map((action, index) => (
+          <Button 
+            key={index}
+            onClick={action.onClick} 
+            className="h-16 flex items-center justify-center gap-3 rounded-xl"
+            variant="outline"
           >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </div>
-                <stat.icon className={`w-10 h-10 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
+            <action.icon className="h-5 w-5" />
+            <span className="text-sm font-medium">{action.label}</span>
+          </Button>
         ))}
       </div>
 
       {/* Student Groups */}
       <Card className="shadow-lg rounded-2xl">
         <CardHeader className="border-b border-border">
-          <CardTitle className="flex items-center justify-between text-2xl font-bold">
+          <CardTitle className="flex items-center justify-between text-xl font-bold">
             <span>Your Student Groups</span>
-            <Button variant="ghost" size="sm" onClick={() => toast.info("Create group coming soon!")}>
+            <Button variant="ghost" size="sm" onClick={() => setCreateGroupOpen(true)}>
               Create Group
             </Button>
           </CardTitle>
@@ -209,11 +192,18 @@ export const TutorDashboardContent = () => {
               <p className="text-sm text-muted-foreground mt-2">
                 Create a group to organize your students
               </p>
+              <Button className="mt-4" onClick={() => setCreateGroupOpen(true)}>
+                Create Your First Group
+              </Button>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {studentGroups.map((group) => (
-                <Card key={group.id} className="hover:border-primary/50 transition-colors cursor-pointer">
+                <Card 
+                  key={group.id} 
+                  className="hover:border-primary/50 transition-colors cursor-pointer"
+                  onClick={() => navigate("/tutor/students")}
+                >
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-lg mb-2">{group.name}</h3>
                     {group.description && (
@@ -235,12 +225,12 @@ export const TutorDashboardContent = () => {
         </CardContent>
       </Card>
 
-      {/* Recent Exams */}
+      {/* Recent Exams - Improved UI */}
       <Card className="shadow-lg rounded-2xl">
         <CardHeader className="border-b border-border">
-          <CardTitle className="flex items-center justify-between text-2xl font-bold">
+          <CardTitle className="flex items-center justify-between text-xl font-bold">
             <span>Your Exams</span>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/my-exams")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/tutor/exams")}>
               View All
             </Button>
           </CardTitle>
@@ -255,26 +245,37 @@ export const TutorDashboardContent = () => {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentExams.map((exam) => (
-                <div
+                <button
                   key={exam.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/exam/${exam.id}`)}
+                  className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group text-left focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  onClick={() => navigate(`/tutor/exams/${exam.id}?tab=results`)}
+                  aria-label={`View ${exam.title}`}
                 >
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{exam.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline">{exam.subject_id}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(exam.created_at).toLocaleDateString()}
-                      </span>
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base truncate">{exam.title}</h3>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {exam.subject_id}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(exam.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
-                    {exam.status}
-                  </Badge>
-                </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
+                      {exam.status}
+                    </Badge>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                </button>
               ))}
             </div>
           )}
@@ -291,6 +292,13 @@ export const TutorDashboardContent = () => {
         students={drilldown.students}
         exams={drilldown.exams}
         assignments={drilldown.assignments}
+      />
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onSuccess={loadTutorData}
       />
     </>
   );
