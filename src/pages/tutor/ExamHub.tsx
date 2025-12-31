@@ -10,7 +10,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
-  ArrowLeft, Users, Clock, CheckCircle, AlertCircle, 
+  Users, Clock, CheckCircle, AlertCircle, 
   Eye, Loader2, Calendar, BarChart3, FileText, 
   Settings, Share2, Download, Trash2, AlertTriangle
 } from "lucide-react";
@@ -309,23 +309,18 @@ const ExamHub = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
+      {/* Header - No back button, rely on tab navigation and sidebar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/tutor/exams")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{examDetails.title}</h1>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="outline">{examDetails.subject_id}</Badge>
-              <Badge variant={examDetails.status === "published" ? "default" : "secondary"}>
-                {examDetails.status}
-              </Badge>
-              {examDetails.gradeReleased && (
-                <Badge variant="success">Grades Released</Badge>
-              )}
-            </div>
+        <div>
+          <h1 className="text-2xl font-bold">{examDetails.title}</h1>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <Badge variant="outline">{examDetails.subject_id}</Badge>
+            <Badge variant={examDetails.status === "published" ? "default" : "secondary"}>
+              {examDetails.status}
+            </Badge>
+            {examDetails.gradeReleased && (
+              <Badge variant="success">Grades Released</Badge>
+            )}
           </div>
         </div>
       </div>
