@@ -550,12 +550,32 @@ const MyExams = () => {
           </DropdownMenu>
         </div>
 
-        {/* Controls Bar */}
+        {/* Controls Bar - Order: Search → Tabs → Sort/Filter */}
         <div className="flex flex-col gap-4">
-          {/* Top Row: Segmented Control + Right Controls */}
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-            {/* Segmented Control */}
-            <div className="flex-shrink-0 overflow-x-auto scrollbar-hide">
+            {/* Search Bar (First) */}
+            <div className="relative flex-1 max-w-md order-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search exams…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10"
+                aria-label="Search exams"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Segmented Control Tabs (Second) */}
+            <div className="flex-shrink-0 overflow-x-auto scrollbar-hide order-2">
               <div className="inline-flex p-1 bg-muted rounded-lg gap-1">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
@@ -578,29 +598,8 @@ const MyExams = () => {
               </div>
             </div>
 
-            {/* Search + Sort + Filter */}
-            <div className="flex flex-1 items-center gap-2">
-              {/* Search Bar */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search exams…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-10"
-                  aria-label="Search exams"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label="Clear search"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
+            {/* Sort + Filter Controls (Third) */}
+            <div className="flex items-center gap-2 order-3">
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
