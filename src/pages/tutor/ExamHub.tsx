@@ -110,72 +110,130 @@ const ExamHub = () => {
 
       setQuestions(questionsData || []);
 
-      // Load assignments
-      const { data: assignmentsData } = await supabase
+      // Load assignments (avoid embedded joins; relationship may not exist in backend schema)
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("exam_assignments")
-        .select(`
-          *,
-          student_groups:target_id(name)
-        `)
+        .select("*")
         .eq("exam_id", examId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-      setAssignments(assignmentsData || []);
+      if (assignmentsError) throw assignmentsError;
 
-      const deadline = assignmentsData?.[0]?.deadline || null;
+      const rawAssignments = assignmentsData || [];
 
-      // Get all assigned students
-      const studentIds: string[] = [];
-      
-      if (assignmentsData) {
-        for (const assignment of assignmentsData) {
-          if (assignment.assignment_type === "group" && assignment.target_id) {
-            const { data: members } = await supabase
-              .from("group_members")
-              .select("student_id")
-              .eq("group_id", assignment.target_id)
-              .eq("is_active", true);
-            
-            if (members) {
-              studentIds.push(...members.map(m => m.student_id));
-            }
-          } else if (assignment.assignment_type === "individual" && assignment.target_id) {
-            studentIds.push(assignment.target_id);
-          }
+      // Resolve group names for display (best-effort)
+      const groupTargetIds = rawAssignments
+        .filter((a) => a.assignment_type === "group" && a.target_id)
+        .map((a) => a.target_id as string);
+
+      const { data: groupsData, error: groupsError } = groupTargetIds.length
+        ? await supabase
+            .from("student_groups")
+            .select("id, name")
+            .in("id", groupTargetIds)
+        : { data: [], error: null };
+
+      if (groupsError) throw groupsError;
+
+      const groupNameById = new Map<string, string>(
+        (groupsData || []).map((g) => [g.id, g.name])
+      );
+
+      const normalizedAssignments = rawAssignments.map((a) => {
+        if (a.assignment_type === "group" && a.target_id) {
+          const groupName = groupNameById.get(a.target_id);
+          return {
+            ...a,
+            // Keep existing UI contract: assignment.student_groups?.name
+            student_groups: groupName ? { name: groupName } : null,
+          };
         }
+        return { ...a, student_groups: null };
+      });
+
+      setAssignments(normalizedAssignments);
+
+      const deadline = rawAssignments[0]?.deadline || null;
+
+      // Collect assigned students (groups/classes/individuals)
+      const assignedStudentIdSet = new Set<string>();
+
+      if (groupTargetIds.length) {
+        const { data: members, error: membersError } = await supabase
+          .from("group_members")
+          .select("student_id")
+          .in("group_id", groupTargetIds)
+          .eq("is_active", true);
+
+        if (membersError) throw membersError;
+        (members || []).forEach((m) => assignedStudentIdSet.add(m.student_id));
       }
 
-      const uniqueStudentIds = [...new Set(studentIds)];
+      const classNames = rawAssignments
+        .map((a) => a.class_name)
+        .filter(Boolean) as string[];
 
-      // Get student profiles
-      const { data: profiles } = uniqueStudentIds.length > 0 
-        ? await supabase
-            .from("user_profiles")
-            .select("id, first_name, last_name, display_name, student_code")
-            .in("id", uniqueStudentIds)
-        : { data: [] };
+      if (classNames.length) {
+        const { data: classMembers, error: classMembersError } = await supabase
+          .from("class_assignments")
+          .select("student_id")
+          .eq("teacher_id", user.id)
+          .in("class_name", classNames)
+          .eq("is_active", true);
 
-      // Get submissions
-      const { data: examSubmissions } = await supabase
+        if (classMembersError) throw classMembersError;
+        (classMembers || []).forEach((m) => assignedStudentIdSet.add(m.student_id));
+      }
+
+      rawAssignments.forEach((a) => {
+        if (a.assignment_type === "individual" && a.target_id) {
+          assignedStudentIdSet.add(a.target_id);
+        }
+      });
+
+      const assignedStudentIds = [...assignedStudentIdSet];
+
+      // Get submissions (authoritative for results)
+      const { data: examSubmissions, error: submissionsError } = await supabase
         .from("exam_submissions")
         .select("*")
         .eq("exam_id", examId);
 
+      if (submissionsError) throw submissionsError;
+
+      // Include students with submissions even if assignment membership changed
+      const submissionStudentIds = (examSubmissions || []).map((s) => s.student_id);
+      const allStudentIds = [...new Set([...assignedStudentIds, ...submissionStudentIds])];
+
+      // Get student profiles
+      const { data: profiles, error: profilesError } = allStudentIds.length
+        ? await supabase
+            .from("user_profiles")
+            .select("id, first_name, last_name, display_name, student_code")
+            .in("id", allStudentIds)
+        : { data: [], error: null };
+
+      if (profilesError) throw profilesError;
+
       // Build submission data
-      const submissionsData: StudentSubmission[] = uniqueStudentIds.map(studentId => {
-        const profile = profiles?.find(p => p.id === studentId);
-        const submission = examSubmissions?.find(s => s.student_id === studentId);
+      const submissionsData: StudentSubmission[] = allStudentIds.map((studentId) => {
+        const profile = profiles?.find((p) => p.id === studentId);
+        const submission = examSubmissions?.find((s) => s.student_id === studentId);
 
         let status: "not_started" | "in_progress" | "submitted" = "not_started";
         if (submission) {
-          status = submission.status === "submitted" || submission.status === "graded" 
-            ? "submitted" 
+          status = submission.status === "submitted" || submission.status === "graded"
+            ? "submitted"
             : "in_progress";
         }
 
         return {
           studentId,
-          studentName: profile?.display_name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Unknown",
+          studentName:
+            profile?.display_name ||
+            `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
+            "Unknown",
           studentCode: profile?.student_code || "-",
           status,
           isLate: submission?.is_late || false,
@@ -186,13 +244,20 @@ const ExamHub = () => {
         };
       });
 
-      const completedSubmissions = submissionsData.filter(s => s.status === "submitted");
-      const lateCount = submissionsData.filter(s => s.isLate).length;
-      
+      const primaryStudentIds = assignedStudentIds.length ? assignedStudentIds : allStudentIds;
+      const primarySet = new Set(primaryStudentIds);
+
+      const completedSubmissions = submissionsData.filter(
+        (s) => primarySet.has(s.studentId) && s.status === "submitted"
+      );
+      const lateCount = submissionsData.filter(
+        (s) => primarySet.has(s.studentId) && s.isLate
+      ).length;
+
       let avgScore: number | null = null;
-      const scoresWithMarks = completedSubmissions.filter(s => s.score !== null && s.totalMarks);
+      const scoresWithMarks = completedSubmissions.filter((s) => s.score !== null && s.totalMarks);
       if (scoresWithMarks.length > 0) {
-        const percentages = scoresWithMarks.map(s => (s.score! / s.totalMarks!) * 100);
+        const percentages = scoresWithMarks.map((s) => (s.score! / s.totalMarks!) * 100);
         avgScore = percentages.reduce((a, b) => a + b, 0) / percentages.length;
       }
 
@@ -203,7 +268,7 @@ const ExamHub = () => {
         status: exam.status,
         gradeReleased: exam.grade_released || false,
         deadline,
-        totalStudents: uniqueStudentIds.length,
+        totalStudents: primaryStudentIds.length,
         completedStudents: completedSubmissions.length,
         averageScore: avgScore,
         lateSubmissions: lateCount,

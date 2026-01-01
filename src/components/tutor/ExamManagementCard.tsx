@@ -62,40 +62,39 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const DeadlineBadge = ({ deadline }: { deadline: string | null }) => {
+const DeadlineBadge = ({
+  deadline,
+  gradeReleased,
+}: {
+  deadline: string | null;
+  gradeReleased: boolean;
+}) => {
   if (!deadline) return null;
 
   const deadlineDate = new Date(deadline);
-  const isOverdue = isPast(deadlineDate) && !isToday(deadlineDate);
+  const hasPassed = isPast(deadlineDate) && !isToday(deadlineDate);
   const isDueToday = isToday(deadlineDate);
   const isDueTomorrow = isTomorrow(deadlineDate);
   const daysUntil = differenceInDays(deadlineDate, new Date());
 
-  const getDeadlineStyles = () => {
-    if (isOverdue) return "bg-red-500/15 text-red-400 border-red-500/30";
-    if (isDueToday) return "bg-orange-500/15 text-orange-400 border-orange-500/30";
-    if (isDueTomorrow) return "bg-amber-500/15 text-amber-400 border-amber-500/30";
-    if (daysUntil <= 3) return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
-    if (daysUntil <= 7) return "bg-muted/50 text-muted-foreground border-border/50";
-    return "bg-muted/30 text-muted-foreground border-border/30";
-  };
-
   const getDeadlineText = () => {
-    if (isOverdue) return "Overdue";
+    if (hasPassed) return gradeReleased ? "Results released" : "Results not released";
     if (isDueToday) return "Due today";
     if (isDueTomorrow) return "Due tomorrow";
     if (daysUntil <= 7) return `Due in ${daysUntil} days`;
     return format(deadlineDate, "MMM d");
   };
 
+  const getVariant = () => {
+    if (hasPassed) return gradeReleased ? "success" : "danger";
+    if (isDueToday || isDueTomorrow) return "warning";
+    if (daysUntil <= 3) return "warning";
+    return "secondary";
+  };
+
   return (
-    <Badge 
-      variant="outline" 
-      className={cn("font-medium border text-xs", getDeadlineStyles())}
-    >
-      {(isOverdue || isDueToday) && (
-        <Clock className="h-3 w-3 mr-1" />
-      )}
+    <Badge variant={getVariant() as any} className="font-medium border text-xs">
+      {(isDueToday || (hasPassed && !gradeReleased)) && <Clock className="h-3 w-3 mr-1" />}
       {getDeadlineText()}
     </Badge>
   );
