@@ -210,7 +210,7 @@ export const ExamManagementCard = ({
         {/* Deadline */}
         {exam.deadline && (
           <div className="flex items-center">
-            <DeadlineBadge deadline={exam.deadline} />
+            <DeadlineBadge deadline={exam.deadline} gradeReleased={exam.grade_released} />
           </div>
         )}
 
