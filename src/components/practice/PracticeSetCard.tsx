@@ -1,23 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { 
   Play, 
   Eye, 
   Trash2, 
   Star, 
-  GripVertical,
-  Calculator,
-  Beaker,
-  BookOpen,
-  Globe,
-  FileText,
-  Clock,
   Download,
-  LucideIcon
+  Clock,
+  Calendar,
+  BookOpen,
+  ChevronRight,
+  FileText
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -53,19 +50,8 @@ interface PracticeSetCardProps {
   onDownloadPDF?: (setId: string) => void;
 }
 
-const getSubjectIcon = (subject: string): LucideIcon => {
-  const iconMap: Record<string, LucideIcon> = {
-    'Mathematics': Calculator,
-    'Math': Calculator,
-    'Maths': Calculator,
-    'Physics': Beaker,
-    'Chemistry': Beaker,
-    'Biology': BookOpen,
-    'English': BookOpen,
-    'Geography': Globe,
-  };
-  return iconMap[subject] || FileText;
-};
+// Format progress to integer percentage
+const formatProgress = (value: number): string => `${Math.round(value)}%`;
 
 const formatTimeSpent = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -73,6 +59,22 @@ const formatTimeSpent = (seconds: number) => {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}h ${remainingMinutes}m`;
+};
+
+const formatDate = (dateStr: string | undefined | null) => {
+  if (!dateStr) return null;
+  
+  const date = new Date(dateStr);
+  // Check for invalid date or epoch (01/01/1970)
+  if (isNaN(date.getTime()) || date.getTime() < 86400000) {
+    return null;
+  }
+  
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
 };
 
 export const PracticeSetCard = ({ 
@@ -96,212 +98,218 @@ export const PracticeSetCard = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const SubjectIcon = getSubjectIcon(set.subject_id);
-  const percentComplete = (progress.questions_attempted / set.question_count) * 100;
-  const isCompleted = progress.completed_at !== undefined;
+  const percentComplete = set.question_count > 0 
+    ? (progress.questions_attempted / set.question_count) * 100 
+    : 0;
+  const isCompleted = !!progress.completed_at && formatDate(progress.completed_at);
   const estimatedTime = set.question_count * 2; // 2 minutes per question
 
+  const getButtonConfig = () => {
+    if (isCompleted) {
+      return {
+        label: 'Review',
+        icon: Eye,
+        action: () => navigate(`/practice-questions/${set.id}/preview`),
+      };
+    }
+    if (progress.questions_attempted > 0) {
+      return {
+        label: 'Continue',
+        icon: ChevronRight,
+        action: () => navigate(`/practice-questions/${set.id}/take`),
+      };
+    }
+    return {
+      label: 'Start',
+      icon: Play,
+      action: () => navigate(`/practice-questions/${set.id}/take`),
+    };
+  };
+
+  const buttonConfig = getButtonConfig();
+  const ButtonIcon = buttonConfig.icon;
+
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} {...attributes}>
       <Card 
-        className="group relative overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
+        className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col"
         style={{
-          borderWidth: '2px',
-          borderColor: subjectColor,
-          boxShadow: `0 2px 8px ${subjectColor}26`,
+          borderLeft: `3px solid ${subjectColor}`,
         }}
       >
-        <CardContent className="p-4">
-          {/* Top Section: Subject Badge + Date */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge 
-                style={{ 
-                  backgroundColor: `${subjectColor}20`, 
-                  color: subjectColor,
-                  borderColor: subjectColor 
-                }} 
-                variant="outline" 
-                className="text-xs font-medium"
-              >
-                <SubjectIcon className="h-3 w-3 mr-1" />
-                {set.subject_id}
-              </Badge>
-              {isRecovered && (
-                <Badge variant="secondary" className="text-xs">
-                  Recovered
-                </Badge>
+        <CardContent className="p-0 flex flex-col flex-1">
+          {/* ========== HEADER SECTION ========== */}
+          <div className="p-6 pb-5 flex-1">
+            {/* Title Row */}
+            <div className="flex-1 min-w-0 mb-5">
+              {/* Main Title */}
+              <h3 className="font-semibold text-lg leading-tight text-foreground mb-1.5">
+                {set.set_name}
+              </h3>
+              {/* Subject */}
+              <p className="text-sm text-muted-foreground">{set.subject_id}</p>
+              
+              {/* Progress indicator */}
+              <div className="flex items-center gap-3 mt-4">
+                <Progress 
+                  value={percentComplete} 
+                  className="h-1.5 flex-1 bg-muted"
+                  indicatorColor={isCompleted ? 'hsl(var(--success))' : subjectColor}
+                />
+                <span className="text-xs text-muted-foreground font-medium shrink-0">
+                  {formatProgress(percentComplete)}
+                </span>
+              </div>
+            </div>
+
+            {/* ========== METADATA SECTION ========== */}
+            <div className="space-y-3 text-sm text-muted-foreground mt-5">
+              {/* Questions count */}
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span>{set.question_count} questions</span>
+              </div>
+
+              {/* Estimated time */}
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>~{estimatedTime} min</span>
+              </div>
+
+              {/* Difficulty */}
+              <div className="flex items-center gap-2.5">
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span>Difficulty: <span className="capitalize">{set.difficulty_level || set.difficulty_mode || 'Medium'}</span></span>
+              </div>
+
+              {/* Time spent (if any) */}
+              {progress.time_spent_seconds > 0 && (
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Time spent: {formatTimeSpent(progress.time_spent_seconds)}</span>
+                </div>
               )}
+
+              {/* Created date */}
+              <div className="flex items-center gap-2.5">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>Created: {formatDate(set.created_at) || 'Unknown'}</span>
+              </div>
+
+              {/* Completion status */}
+              {isCompleted ? (
+                <div className="flex items-center gap-2.5 text-green-600 dark:text-green-400 font-medium">
+                  <span>✓ Completed {formatDate(progress.completed_at)}</span>
+                </div>
+              ) : progress.questions_attempted > 0 ? (
+                <div className="flex items-center gap-2.5">
+                  <span>{progress.questions_attempted} / {set.question_count} answered</span>
+                </div>
+              ) : null}
             </div>
-            <span className="text-xs text-muted-foreground">
-              {new Date(set.created_at).toLocaleDateString()}
-            </span>
           </div>
 
-          {/* Title + Drag Handle + Star */}
-          <div className="flex items-start gap-3 mb-4">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Drag to reorder</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          {/* ========== DIVIDER ========== */}
+          <Separator />
 
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-lg truncate mb-1">{set.set_name}</h3>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {set.subtopics.slice(0, 3).map((topic, idx) => (
-                  <Badge 
-                    key={idx}
-                    variant="secondary"
-                    className="text-xs"
-                    style={{ backgroundColor: `${subjectColor}15`, color: subjectColor }}
-                  >
-                    {topic}
-                  </Badge>
-                ))}
-                {set.subtopics.length > 3 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{set.subtopics.length - 3}
-                  </Badge>
-                )}
-              </div>
+          {/* ========== ACTION ROW ========== */}
+          <div className="px-6 py-4 flex items-center justify-between">
+            {/* Left: Secondary Actions */}
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={(e) => { e.stopPropagation(); onToggleFavourite(set.id); }}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                      <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isFavourite ? 'Remove from favourites' : 'Add to favourites'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/practice-questions/${set.id}/preview`); }}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Preview questions</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {onDownloadPDF && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={(e) => { e.stopPropagation(); onDownloadPDF(set.id); }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Download PDF</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={(e) => { e.stopPropagation(); onDelete(set.id); }}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete set</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
+            {/* Right: Primary Action - Circular Icon Button */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
                     size="icon"
-                    onClick={() => onToggleFavourite(set.id)}
-                    className="h-8 w-8"
+                    className="h-10 w-10 rounded-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      buttonConfig.action();
+                    }}
+                    aria-label={buttonConfig.label}
                   >
-                    <Star className={`h-4 w-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                    <ButtonIcon className="w-5 h-5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isFavourite ? 'Remove from favorites' : 'Add to favorites'}
+                  <p>{buttonConfig.label}</p>
                 </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <FileText className="h-3 w-3" />
-              <span>{set.question_count} questions</span>
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>~{estimatedTime} min</span>
-            </div>
-            <div className="text-muted-foreground">
-              Difficulty: <span className="font-medium capitalize">{set.difficulty_level || set.difficulty_mode}</span>
-            </div>
-            {progress.time_spent_seconds > 0 && (
-              <div className="text-muted-foreground">
-                Time spent: <span className="font-medium">{formatTimeSpent(progress.time_spent_seconds)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium" style={{ color: subjectColor }}>
-                {progress.questions_attempted} / {set.question_count}
-              </span>
-            </div>
-            <Progress 
-              value={percentComplete} 
-              indicatorColor={subjectColor}
-              className="h-2"
-            />
-          </div>
-
-          {/* Last Accessed */}
-          <div className="text-xs text-muted-foreground mb-4">
-            {isCompleted ? (
-              <span className="text-green-600 dark:text-green-400 font-medium">
-                ✓ Completed {new Date(progress.completed_at!).toLocaleDateString()}
-              </span>
-            ) : (
-              <span>
-                Last accessed: {new Date(progress.last_accessed_at).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="flex-1"
-                    style={{ backgroundColor: subjectColor }}
-                    onClick={() => navigate(`/practice-questions/${set.id}/take`)}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    {progress.questions_attempted > 0 ? 'Continue' : 'Start Quiz'}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {progress.questions_attempted > 0 ? 'Continue where you left off' : 'Begin practice quiz'}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Preview questions</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => onDownloadPDF?.(set.id)}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Download PDF</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => onDelete(set.id)}
-                    className="hover:bg-destructive hover:text-destructive-foreground"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete set</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

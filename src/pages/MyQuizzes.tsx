@@ -4,12 +4,12 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Grid3x3, List, Filter, Loader2, Star } from "lucide-react";
+import { Plus, Grid3x3, List, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
 import { PracticeSetCard } from "@/components/practice/PracticeSetCard";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -34,16 +34,33 @@ interface PracticeSetProgress {
   time_spent_seconds: number;
 }
 
+type TabType = 'all' | 'favourites' | 'completed';
+type SortType = 'date_created' | 'last_accessed' | 'progress' | 'name';
+
+const TABS: { value: TabType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'all', label: 'All Sets', icon: LayoutList },
+  { value: 'favourites', label: 'Favorites', icon: Star },
+  { value: 'completed', label: 'Completed', icon: CheckCheck },
+];
+
+const SORT_OPTIONS: { value: SortType; label: string }[] = [
+  { value: 'date_created', label: 'Date Created' },
+  { value: 'last_accessed', label: 'Last Accessed' },
+  { value: 'progress', label: 'Progress' },
+  { value: 'name', label: 'Name (A–Z)' },
+];
+
 const MyQuizzes = () => {
   const navigate = useNavigate();
   const { subjects } = useUserSubjects();
   const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [filterSubject, setFilterSubject] = useState('all');
-  const [sortBy, setSortBy] = useState('date_created');
+  const [sortBy, setSortBy] = useState<SortType>('date_created');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [favourites, setFavourites] = useState<Set<string>>(new Set());
   const [progressMap, setProgressMap] = useState<Record<string, PracticeSetProgress>>({});
   const [recoveredCount, setRecoveredCount] = useState(0);
@@ -54,6 +71,14 @@ const MyQuizzes = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     loadPracticeSets();
@@ -118,10 +143,10 @@ const MyQuizzes = () => {
       const progressLookup: Record<string, PracticeSetProgress> = {};
       progressData?.forEach(p => {
         progressLookup[p.set_id] = {
-          questions_attempted: p.questions_attempted,
-          last_accessed_at: p.last_accessed_at,
-          completed_at: p.completed_at,
-          time_spent_seconds: p.time_spent_seconds,
+          questions_attempted: p.questions_attempted || 0,
+          last_accessed_at: p.last_accessed_at || p.created_at,
+          completed_at: p.completed_at || undefined,
+          time_spent_seconds: p.time_spent_seconds || 0,
         };
       });
 
@@ -216,7 +241,7 @@ const MyQuizzes = () => {
     if (activeTab === 'favourites' && !favourites.has(set.id)) return false;
     if (activeTab === 'completed' && !progressMap[set.id]?.completed_at) return false;
     if (filterSubject !== 'all' && set.subject_id !== filterSubject) return false;
-    if (searchQuery && !set.set_name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (debouncedSearch && !set.set_name.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
     return true;
   });
 
@@ -239,6 +264,10 @@ const MyQuizzes = () => {
     }
   });
 
+  const getSortLabel = () => {
+    return SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort';
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -251,84 +280,133 @@ const MyQuizzes = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="max-w-[1600px] mx-auto space-y-6 p-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">My Quizzes</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Quizzes</h1>
             <p className="text-muted-foreground">Practice question sets you've created</p>
           </div>
-          <Button onClick={() => navigate('/create-practice-questions')} size="lg">
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={() => navigate('/create-practice-questions')} className="gap-2">
+            <Plus className="w-4 h-4" />
             Create New Set
           </Button>
         </div>
 
-        {/* Filters & Controls */}
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:w-auto">
-            <TabsList>
-              <TabsTrigger value="all">All Sets</TabsTrigger>
-              <TabsTrigger value="favourites">
-                <Star className="h-4 w-4 mr-1" />
-                Favorites
-              </TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        {/* Controls Bar - Order: Search → Tabs → Sort/Filter */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Search Bar (First) */}
+            <div className="relative flex-1 max-w-md order-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search quizzes…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10"
+                aria-label="Search quizzes"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-            <Input
-              placeholder="Search sets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-48"
-            />
-            <Select value={filterSubject} onValueChange={setFilterSubject}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Filter by subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {subjects.map(s => (
-                  <SelectItem key={s.id} value={s.subject_name}>{s.subject_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date_created">Date Created</SelectItem>
-                <SelectItem value="last_accessed">Last Accessed</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-1">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid3x3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
+            {/* Segmented Control Tabs (Second) */}
+            <div className="flex-shrink-0 overflow-x-auto scrollbar-hide order-2">
+              <div className="inline-flex p-1 bg-muted rounded-lg gap-1">
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === tab.value
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                      }`}
+                      aria-label={`Filter by ${tab.label}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sort/Filter Controls (Third) */}
+            <div className="flex items-center gap-2 order-3">
+              {/* Subject Filter */}
+              <Select value={filterSubject} onValueChange={setFilterSubject}>
+                <SelectTrigger className="w-40 h-10">
+                  <SelectValue placeholder="All Subjects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjects.map(s => (
+                    <SelectItem key={s.id} value={s.subject_name}>{s.subject_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 h-10 shrink-0" aria-label="Sort quizzes">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sort: {getSortLabel()}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SORT_OPTIONS.map((option) => (
+                    <DropdownMenuItem 
+                      key={option.value}
+                      onClick={() => setSortBy(option.value)}
+                      className={`cursor-pointer ${sortBy === option.value ? 'bg-accent' : ''}`}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* View Mode Toggles */}
+              <div className="flex gap-1">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setViewMode('grid')}
+                  aria-label="Grid view"
+                >
+                  <Grid3x3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setViewMode('list')}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Practice Sets Grid/List */}
         {sortedSets.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">No practice sets found</p>
+          <div className="text-center py-20">
+            <h3 className="text-2xl font-semibold mb-2">No quizzes found</h3>
+            <p className="text-muted-foreground mb-6">Create your first practice set to get started</p>
             <Button onClick={() => navigate('/create-practice-questions')}>
               <Plus className="mr-2 h-4 w-4" />
               Create Your First Set
@@ -337,7 +415,7 @@ const MyQuizzes = () => {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sortedSets.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
                 {sortedSets.map(set => (
                   <PracticeSetCard
                     key={set.id}
