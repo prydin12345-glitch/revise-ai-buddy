@@ -504,24 +504,38 @@ const TakePracticeQuiz = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background w-full">
-      <div className={`sticky top-0 z-50 border-b bg-card/95 backdrop-blur transition-transform duration-300 ${hideNavigation ? '-translate-y-full' : 'translate-y-0'}`}>
-        <div className="container grid grid-cols-3 items-center h-16 px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
+      {/* Sticky Header - reorganized layout */}
+      <header className={`sticky top-0 z-50 border-b bg-card/95 backdrop-blur transition-transform duration-300 ${hideNavigation ? '-translate-y-full' : 'translate-y-0'}`}>
+        <div className="flex items-center justify-between h-14 px-4 lg:px-6 w-full">
+          {/* Left: Hamburger + Title */}
+          <div className="flex items-center gap-3 min-w-0 flex-shrink">
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden flex-shrink-0">
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="font-semibold text-lg truncate">{quizTitle}</h1>
+            <h1 className="font-semibold text-base lg:text-lg truncate max-w-[200px] lg:max-w-[300px]">{quizTitle}</h1>
           </div>
-          <div className="flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
-              <Clock className="w-5 h-5" />
-              <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
+
+          {/* Center: Question X of Y */}
+          <div className="flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
+            <Badge variant="outline" className="text-sm lg:text-base px-3 py-1.5 whitespace-nowrap">
+              Question {currentIndex + 1} of {questions.length}
+            </Badge>
+            {flaggedQuestions.has(currentQuestion.id) && (
+              <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600 hidden sm:flex">
+                <Flag className="w-3 h-3" />Flagged
+              </Badge>
+            )}
+          </div>
+
+          {/* Right: Timer + Menu */}
+          <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-sm">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono">{formatTime(timeElapsed)}</span>
             </div>
-          </div>
-          <div className="flex justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={toggleHideNavigation}>
@@ -545,7 +559,12 @@ const TakePracticeQuiz = () => {
             </DropdownMenu>
           </div>
         </div>
-      </div>
+
+        {/* Progress bar directly under header */}
+        <div className="px-4 lg:px-6 pb-2">
+          <Progress value={(answeredCount / questions.length) * 100} className="h-2" />
+        </div>
+      </header>
 
       {hideNavigation && (
         <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-[60] bg-card shadow-lg" onClick={toggleHideNavigation}>
@@ -554,22 +573,23 @@ const TakePracticeQuiz = () => {
       )}
 
       <div className="flex flex-1 w-full">
-        <div className={`${hideNavigation ? 'w-0' : sidebarOpen ? 'w-64' : 'w-0'} lg:block ${sidebarOpen && !hideNavigation ? 'fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto' : ''} transition-all duration-300 border-r bg-card/30 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto`}>
+        {/* Sidebar - fixed width, scrollable */}
+        <aside className={`${hideNavigation ? 'w-0 overflow-hidden' : sidebarOpen ? 'w-56 lg:w-60' : 'w-0 overflow-hidden'} lg:block ${sidebarOpen && !hideNavigation ? 'fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto' : ''} transition-all duration-300 border-r bg-card/50 flex-shrink-0`}>
           {sidebarOpen && !hideNavigation && (
             <div className="fixed inset-0 bg-black/50 lg:hidden z-30" onClick={() => setSidebarOpen(false)} />
           )}
-          <div className="relative z-40 bg-card h-full">
-            <div className="p-6 flex flex-col gap-6 h-full">
+          <div className="relative z-40 bg-card h-full sticky top-[4.5rem] max-h-[calc(100vh-4.5rem)] overflow-y-auto">
+            <div className="p-4 lg:p-5 flex flex-col gap-5 h-full">
               <div>
-                <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
-                <div className="grid grid-cols-4 gap-2">
+                <h2 className="text-xs font-semibold mb-3 text-muted-foreground tracking-wide">QUESTIONS</h2>
+                <div className="grid grid-cols-4 gap-1.5">
                   {questions.map((q) => {
                     const { className, style } = getQuestionButtonStyle(q);
                     return (
                       <button key={q.id} onClick={() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); }} className={className} style={style}>
                         {q.question_number}
                         {flaggedQuestions.has(q.id) && (
-                          <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
+                          <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
                             <Flag className="w-2 h-2 text-white" fill="white" />
                           </div>
                         )}
@@ -578,63 +598,129 @@ const TakePracticeQuiz = () => {
                   })}
                 </div>
               </div>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Answered:</span> {answeredCount}/{questions.length}</div>
-                <div><span className="font-medium">Flagged:</span> {flaggedQuestions.size}</div>
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                <div><span className="font-medium text-foreground">Answered:</span> {answeredCount}/{questions.length}</div>
+                <div><span className="font-medium text-foreground">Flagged:</span> {flaggedQuestions.size}</div>
               </div>
-              <Button variant="destructive" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+              <Button variant="destructive" size="sm" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
             </div>
           </div>
-        </div>
+        </aside>
 
-        <main className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 p-4 bg-card rounded-lg border">
-                <Badge variant="outline" className="text-lg px-4 py-2">Question {currentIndex + 1} of {questions.length}</Badge>
-                {flaggedQuestions.has(currentQuestion.id) && <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600"><Flag className="w-3 h-3" />Flagged</Badge>}
-              </div>
-              <Progress value={(answeredCount / questions.length) * 100} className="h-2" />
-            </div>
+        {/* Main content - takes remaining space, with bottom nav */}
+        <main className="flex-1 flex flex-col min-h-[calc(100vh-4.5rem)] min-w-0">
+          {/* Scrollable question area */}
+          <div className="flex-1 p-4 lg:p-6 xl:p-8 overflow-y-auto">
+            <div className="max-w-5xl mx-auto w-full">
+              {/* Question Card */}
+              <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
+                <CardContent className="p-5 lg:p-8 space-y-5 lg:space-y-6">
+                  {/* Question header - removed redundant number display */}
+                  <div className="flex justify-end items-center">
+                    <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1">
+                      {currentQuestion.marks} marks
+                    </Badge>
+                  </div>
 
-            <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
-              <CardContent className="p-8 space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold">{currentQuestion.question_number}</h2>
-                  <Badge style={{ backgroundColor: subjectColor, color: 'white' }}>{currentQuestion.marks} marks</Badge>
-                </div>
-                <div className="text-base leading-relaxed">
-                  <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
-                </div>
-                <Textarea value={currentAnswer.answer} onChange={(e) => setUserAnswers({ ...userAnswers, [currentQuestion.id]: { ...currentAnswer, answer: e.target.value }})} disabled={currentAnswer.submitted} className="min-h-[120px]" placeholder="Type your answer here..." />
-                {currentAnswer.submitted && (
-                  <Card className="border-l-4" style={{ borderLeftColor: (currentAnswer.score || 0) === currentQuestion.marks ? '#22c55e' : (currentAnswer.score || 0) > 0 ? '#f59e0b' : '#ef4444' }}>
-                    <CardContent className="p-6 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-lg">{currentAnswer.score?.toFixed(1)} / {currentQuestion.marks} marks</span>
-                        {currentAnswer.methodMarks !== undefined && <Badge variant="outline">M: {currentAnswer.methodMarks?.toFixed(1)} | A: {currentAnswer.accuracyMarks?.toFixed(1)}</Badge>}
-                      </div>
-                      <div className="text-sm"><MathRenderer content={currentAnswer.feedback || ""} /></div>
-                      {workedSolutionVisible && currentQuestion.worked_solution && (
-                        <div className="mt-4 pt-4 border-t">
-                          <div className="flex items-center gap-2 mb-2">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            <p className="font-medium text-sm">Worked Solution:</p>
-                          </div>
-                          <MathRenderer content={currentQuestion.worked_solution} />
+                  {/* Question text */}
+                  <div className="text-base lg:text-lg leading-relaxed">
+                    <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
+                  </div>
+
+                  {/* Answer textarea */}
+                  <Textarea 
+                    value={currentAnswer.answer} 
+                    onChange={(e) => setUserAnswers({ ...userAnswers, [currentQuestion.id]: { ...currentAnswer, answer: e.target.value }})} 
+                    disabled={currentAnswer.submitted} 
+                    className="min-h-[140px] lg:min-h-[160px] text-base" 
+                    placeholder="Type your answer here..." 
+                  />
+
+                  {/* Feedback section after submission */}
+                  {currentAnswer.submitted && (
+                    <Card className="border-l-4 mt-4" style={{ borderLeftColor: (currentAnswer.score || 0) === currentQuestion.marks ? '#22c55e' : (currentAnswer.score || 0) > 0 ? '#f59e0b' : '#ef4444' }}>
+                      <CardContent className="p-5 lg:p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-lg">{currentAnswer.score?.toFixed(1)} / {currentQuestion.marks} marks</span>
+                          {/* Hidden M/A marks - kept in DOM for debugging but not visible */}
+                          {currentAnswer.methodMarks !== undefined && (
+                            <span className="sr-only" data-method-marks={currentAnswer.methodMarks?.toFixed(1)} data-accuracy-marks={currentAnswer.accuracyMarks?.toFixed(1)}>
+                              M: {currentAnswer.methodMarks?.toFixed(1)} | A: {currentAnswer.accuracyMarks?.toFixed(1)}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-                {isGrading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" />Grading your answer...</div>}
-              </CardContent>
-            </Card>
+                        <div className="border-t pt-4">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Feedback</p>
+                          <div className="text-sm lg:text-base leading-relaxed">
+                            <MathRenderer content={currentAnswer.feedback || ""} />
+                          </div>
+                        </div>
+                        {workedSolutionVisible && currentQuestion.worked_solution && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              <p className="font-medium text-sm">Worked Solution</p>
+                            </div>
+                            <div className="text-sm lg:text-base leading-relaxed">
+                              <MathRenderer content={currentQuestion.worked_solution} />
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
 
-            <div className="flex gap-4 p-4 border-t bg-card/50 rounded-lg">
-              <Button onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} disabled={currentIndex === 0} variant="outline" size="lg" className="flex-1"><ChevronLeft className="w-4 h-4 mr-2" />Previous</Button>
-              <Button onClick={handleSubmitAnswer} disabled={currentAnswer.submitted || isGrading || !currentAnswer.answer.trim()} size="lg" className="flex-1" style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}>{isGrading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Grading...</> : 'Submit Answer'}</Button>
-              <Button onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} disabled={currentIndex === questions.length - 1} variant="outline" size="lg" className="flex-1">Next<ChevronRight className="w-4 h-4 ml-2" /></Button>
+                  {isGrading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Grading your answer...
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Sticky bottom navigation */}
+          <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
+            <div className="max-w-5xl mx-auto flex gap-3">
+              <Button 
+                onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                disabled={currentIndex === 0} 
+                variant="outline" 
+                size="lg" 
+                className="flex-1"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </Button>
+              <Button 
+                onClick={handleSubmitAnswer} 
+                disabled={currentAnswer.submitted || isGrading || !currentAnswer.answer.trim()} 
+                size="lg" 
+                className="flex-1 min-w-0" 
+                style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}
+              >
+                {isGrading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Grading...</span>
+                  </>
+                ) : (
+                  <span className="truncate">Submit Answer</span>
+                )}
+              </Button>
+              <Button 
+                onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                disabled={currentIndex === questions.length - 1} 
+                variant="outline" 
+                size="lg" 
+                className="flex-1"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
+              </Button>
             </div>
           </div>
         </main>
