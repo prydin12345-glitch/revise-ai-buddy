@@ -590,19 +590,9 @@ const TakePracticeQuiz = () => {
         <main className="flex-1 p-8">
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-card rounded-lg border">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-lg px-4 py-2">Question {currentIndex + 1} of {questions.length}</Badge>
-                  {flaggedQuestions.has(currentQuestion.id) && <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600"><Flag className="w-3 h-3" />Flagged</Badge>}
-                </div>
-                <div className="flex gap-1">
-                  {questions.map((q, idx) => {
-                    const answer = userAnswers[q.id];
-                    return (
-                      <button key={q.id} onClick={() => { setCurrentIndex(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`w-2 h-2 rounded-full transition-all ${idx === currentIndex ? 'bg-primary w-6' : answer?.submitted ? (answer.score === q.marks ? 'bg-green-500' : (answer.score || 0) > 0 ? 'bg-orange-500' : 'bg-red-500') : answer?.answer ? 'bg-blue-500' : 'bg-muted'}`} title={`Question ${idx + 1}`} />
-                    );
-                  })}
-                </div>
+              <div className="flex items-center gap-2 p-4 bg-card rounded-lg border">
+                <Badge variant="outline" className="text-lg px-4 py-2">Question {currentIndex + 1} of {questions.length}</Badge>
+                {flaggedQuestions.has(currentQuestion.id) && <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600"><Flag className="w-3 h-3" />Flagged</Badge>}
               </div>
               <Progress value={(answeredCount / questions.length) * 100} className="h-2" />
             </div>
