@@ -283,7 +283,7 @@ export const useExamStats = () => {
         setRecentExams(recent);
       }
 
-      // Fetch study activity (revision tasks + exam time)
+      // Fetch study activity (revision tasks + exam time + practice quizzes)
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
@@ -309,7 +309,20 @@ export const useExamStats = () => {
         .gte('submitted_at', weekStart.toISOString())
         .lte('submitted_at', weekEnd.toISOString());
 
-      // 3. Combine both sources
+      // 3. Fetch practice quiz completions for the week
+      const { data: practiceProgress } = await supabase
+        .from('practice_set_progress')
+        .select(`
+          time_spent_seconds,
+          completed_at,
+          practice_question_sets!inner(subject_id)
+        `)
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null)
+        .gte('completed_at', weekStart.toISOString())
+        .lte('completed_at', weekEnd.toISOString());
+
+      // 4. Combine all sources
       const studyMap = new Map<string, Map<string, number>>();
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
@@ -337,7 +350,7 @@ export const useExamStats = () => {
         weekSubmissions.forEach(sub => {
           const submittedDate = new Date(sub.submitted_at);
           const dayName = format(submittedDate, 'EEEE');
-          const subject = sub.exams.subject_id;
+          const subject = (sub.exams as any).subject_id;
           const hours = (sub.time_taken_seconds || 0) / 3600; // Convert seconds to hours
           
           if (!studyMap.get(dayName)!.has(subject)) {
@@ -347,6 +360,26 @@ export const useExamStats = () => {
             subject, 
             studyMap.get(dayName)!.get(subject)! + hours
           );
+        });
+      }
+
+      // Add practice quiz time hours
+      if (practiceProgress && practiceProgress.length > 0) {
+        practiceProgress.forEach(progress => {
+          const completedDate = new Date(progress.completed_at!);
+          const dayName = format(completedDate, 'EEEE');
+          const subject = (progress.practice_question_sets as any).subject_id;
+          const hours = (progress.time_spent_seconds || 0) / 3600; // Convert seconds to hours
+          
+          if (studyMap.has(dayName)) {
+            if (!studyMap.get(dayName)!.has(subject)) {
+              studyMap.get(dayName)!.set(subject, 0);
+            }
+            studyMap.get(dayName)!.set(
+              subject, 
+              studyMap.get(dayName)!.get(subject)! + hours
+            );
+          }
         });
       }
 

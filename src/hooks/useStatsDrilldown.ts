@@ -122,6 +122,20 @@ export const useStatsDrilldown = () => {
       .gte('submitted_at', weekStart.toISOString())
       .lte('submitted_at', weekEnd.toISOString());
 
+    // Fetch practice quiz completions
+    const { data: practiceProgress } = await supabase
+      .from('practice_set_progress')
+      .select(`
+        id,
+        time_spent_seconds,
+        completed_at,
+        practice_question_sets!inner(subject_id, set_name)
+      `)
+      .eq('user_id', userId)
+      .not('completed_at', 'is', null)
+      .gte('completed_at', weekStart.toISOString())
+      .lte('completed_at', weekEnd.toISOString());
+
     // Build sessions list
     const sessions: StudySession[] = [];
     
@@ -149,6 +163,18 @@ export const useStatsDrilldown = () => {
       });
     }
 
+    if (practiceProgress) {
+      practiceProgress.forEach(progress => {
+        sessions.push({
+          id: progress.id,
+          date: format(new Date(progress.completed_at || ''), 'MMM d'),
+          duration: Math.round((progress.time_spent_seconds || 0) / 60), // Convert to minutes
+          source: 'practice quiz',
+          subject: (progress.practice_question_sets as any).subject_id,
+        });
+      });
+    }
+
     setStudySessions(sessions);
 
     // Calculate weekly breakdown
@@ -167,6 +193,15 @@ export const useStatsDrilldown = () => {
       examSessions.forEach(sub => {
         const dayName = format(new Date(sub.submitted_at || ''), 'EEEE');
         dayHours[dayName] += (sub.time_taken_seconds || 0) / 3600; // Convert seconds to hours
+      });
+    }
+
+    if (practiceProgress) {
+      practiceProgress.forEach(progress => {
+        const dayName = format(new Date(progress.completed_at || ''), 'EEEE');
+        if (dayHours[dayName] !== undefined) {
+          dayHours[dayName] += (progress.time_spent_seconds || 0) / 3600; // Convert seconds to hours
+        }
       });
     }
 

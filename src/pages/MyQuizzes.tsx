@@ -284,7 +284,7 @@ const MyQuizzes = () => {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Quizzes</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Practice Quizzes</h1>
             <p className="text-muted-foreground">Practice question sets you've created</p>
           </div>
           <Button onClick={() => navigate('/create-practice-questions')} className="gap-2">
@@ -405,7 +405,7 @@ const MyQuizzes = () => {
         {/* Practice Sets Grid/List */}
         {sortedSets.length === 0 ? (
           <div className="text-center py-20">
-            <h3 className="text-2xl font-semibold mb-2">No quizzes found</h3>
+            <h3 className="text-2xl font-semibold mb-2">No practice quizzes found</h3>
             <p className="text-muted-foreground mb-6">Create your first practice set to get started</p>
             <Button onClick={() => navigate('/create-practice-questions')}>
               <Plus className="mr-2 h-4 w-4" />

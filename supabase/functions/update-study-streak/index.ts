@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
     const userId = user.id;
     const today = new Date().toISOString().split('T')[0];
 
-    // Check if user completed any task today
-    const { data: completedToday } = await supabase
+    // Check if user completed any revision task today
+    const { data: completedTasksToday } = await supabase
       .from('revision_tasks')
       .select('id')
       .eq('user_id', userId)
@@ -46,9 +46,32 @@ Deno.serve(async (req) => {
       .gte('updated_at', `${today}T00:00:00`)
       .limit(1);
 
-    if (!completedToday || completedToday.length === 0) {
+    // Check if user completed any practice quiz today
+    const { data: completedQuizzesToday } = await supabase
+      .from('practice_set_progress')
+      .select('id')
+      .eq('user_id', userId)
+      .not('completed_at', 'is', null)
+      .gte('completed_at', `${today}T00:00:00`)
+      .limit(1);
+
+    // Check if user submitted any exam today
+    const { data: submittedExamsToday } = await supabase
+      .from('exam_submissions')
+      .select('id')
+      .eq('student_id', userId)
+      .in('status', ['submitted', 'completed', 'graded'])
+      .gte('submitted_at', `${today}T00:00:00`)
+      .limit(1);
+
+    const hasActivityToday = 
+      (completedTasksToday && completedTasksToday.length > 0) ||
+      (completedQuizzesToday && completedQuizzesToday.length > 0) ||
+      (submittedExamsToday && submittedExamsToday.length > 0);
+
+    if (!hasActivityToday) {
       return new Response(
-        JSON.stringify({ message: 'No tasks completed today, streak not updated' }),
+        JSON.stringify({ message: 'No activity completed today, streak not updated' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -70,6 +93,22 @@ Deno.serve(async (req) => {
         : null;
 
       if (lastActivity) {
+        // Check if last activity was today (same day)
+        const lastActivityDate = lastActivity.toISOString().split('T')[0];
+        
+        if (lastActivityDate === today) {
+          // Already recorded activity today, don't increment
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: 'Streak already updated today',
+              current_streak: existingStreak.current_streak,
+              longest_streak: existingStreak.longest_streak 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         const hoursSince = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
         
         // If activity within 48 hours, continue streak
