@@ -771,6 +771,53 @@ const TakePracticeQuiz = () => {
                 }, {
                   onConflict: 'user_id,set_id'
                 });
+
+                // Update daily goals with study time
+                const today = new Date().toISOString().split('T')[0];
+                const studyMinutes = Math.round(timeElapsed / 60);
+                
+                const { data: existingGoal } = await supabase
+                  .from('daily_goals')
+                  .select('*')
+                  .eq('user_id', user.id)
+                  .eq('date', today)
+                  .maybeSingle();
+
+                if (existingGoal) {
+                  await supabase
+                    .from('daily_goals')
+                    .update({
+                      completed_minutes: (existingGoal.completed_minutes || 0) + studyMinutes,
+                      blocks_completed: (existingGoal.blocks_completed || 0) + 1,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingGoal.id);
+                } else {
+                  await supabase
+                    .from('daily_goals')
+                    .insert({
+                      user_id: user.id,
+                      date: today,
+                      completed_minutes: studyMinutes,
+                      blocks_completed: 1,
+                      target_minutes: 60
+                    });
+                }
+
+                // Update study streak
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session?.access_token) {
+                    await supabase.functions.invoke('update-study-streak', {
+                      headers: {
+                        Authorization: `Bearer ${session.access_token}`
+                      }
+                    });
+                  }
+                } catch (streakError) {
+                  console.error("Streak update error:", streakError);
+                  // Don't fail the whole submission if streak update fails
+                }
               } catch (error) {
                 console.error("Submission error:", error);
                 toast.error("Failed to submit quiz");
@@ -814,7 +861,7 @@ const TakePracticeQuiz = () => {
             </div>
             <AlertDialogFooter className="flex gap-2">
               <Button variant="outline" onClick={() => { setShowResults(false); setCurrentIndex(0); }}>Review Answers</Button>
-              <Button onClick={() => navigate('/quizzes')}>Back to My Quizzes</Button>
+              <Button onClick={() => navigate('/quizzes')}>Back to Practice Quizzes</Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

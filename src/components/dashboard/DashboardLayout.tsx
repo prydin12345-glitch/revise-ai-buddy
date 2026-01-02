@@ -37,7 +37,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const studentNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "My Exams", path: "/my-exams" },
-    { icon: CheckSquare, label: "My Quizzes", path: "/quizzes" },
+    { icon: CheckSquare, label: "Practice Quizzes", path: "/quizzes" },
     { icon: Users, label: "My Classes", path: "/my-classes" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
   ];
