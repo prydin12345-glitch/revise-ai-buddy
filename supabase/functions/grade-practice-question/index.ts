@@ -28,7 +28,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { questionId, setId, answerText, workingOut } = await req.json();
+    const { questionId, setId, answerText, answerLatex, workingOut } = await req.json();
 
     // Fetch question details
     const { data: question, error: questionError } = await supabase
@@ -46,6 +46,13 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
+    // Determine the best answer representation to send to AI
+    // Priority: answerLatex (if present) > answerText
+    const hasLatex = answerLatex && answerLatex.trim();
+    const answerForGrading = hasLatex 
+      ? `LaTeX: ${answerLatex}\nPlain text interpretation: ${answerText || 'N/A'}`
+      : answerText || '(No answer provided)';
+
     // Prepare grading prompt
     const systemPrompt = `You are a supportive mathematics tutor grading student work. Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
@@ -53,6 +60,14 @@ serve(async (req) => {
 - Format LaTeX expressions clearly and include decimal equivalents where helpful
 - Explain what was done correctly and what needs adjustment
 - Use a warm, educational tone - never harsh or discouraging
+
+IMPORTANT: The student's answer may be provided in LaTeX format. Interpret LaTeX notation correctly:
+- \\frac{a}{b} means a/b (fraction)
+- ^{n} means "to the power of n"
+- \\sqrt{x} means square root of x
+- \\pi means π (pi)
+- \\theta means θ (theta)
+- \\sin, \\cos, \\tan are trigonometric functions
 
 FEEDBACK TONE GUIDELINES:
 - Full marks (100%): "Excellent! Your answer is completely correct."
@@ -64,7 +79,7 @@ FEEDBACK TONE GUIDELINES:
 NEVER use: "Incorrect", "Wrong", "You failed", "This is incorrect"
 ALWAYS use: "Almost there", "Good effort", "Let's refine this", "You're close"
 
-For mathematical expressions:
+For mathematical expressions in feedback:
 - Render LaTeX when appropriate but also provide decimal/simplified forms
 - Example: "x = π/6 (or 0.524 radians)"
 - Include brief explanations like "These values satisfy the equation within 0 ≤ x < 2π"`;
@@ -73,7 +88,7 @@ For mathematical expressions:
 
 Correct Answer: ${question.correct_answer || 'See worked solution'}
 
-Student's Answer: ${answerText || '(No answer provided)'}
+Student's Answer: ${answerForGrading}
 
 ${workingOut ? `Student's Working:\n${workingOut}` : ''}
 
@@ -155,14 +170,15 @@ Return your grading using the grade_practice_answer function.`;
 
     const gradingResult = JSON.parse(toolCall.function.arguments);
 
-    // Save answer to database
+    // Save answer to database (with both latex and text)
     const { error: saveError } = await supabase
       .from('practice_question_answers')
       .upsert({
         user_id: user.id,
         set_id: setId,
         question_id: questionId,
-        answer_text: answerText,
+        answer_text: answerText || '',
+        answer_latex: answerLatex || null,
         working_out: workingOut,
         score: gradingResult.score,
         method_marks: gradingResult.method_marks || null,

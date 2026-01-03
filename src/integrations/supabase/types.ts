@@ -979,6 +979,7 @@ export type Database = {
       practice_question_answers: {
         Row: {
           accuracy_marks: number | null
+          answer_latex: string | null
           answer_text: string | null
           created_at: string | null
           feedback: string | null
@@ -995,6 +996,7 @@ export type Database = {
         }
         Insert: {
           accuracy_marks?: number | null
+          answer_latex?: string | null
           answer_text?: string | null
           created_at?: string | null
           feedback?: string | null
@@ -1011,6 +1013,7 @@ export type Database = {
         }
         Update: {
           accuracy_marks?: number | null
+          answer_latex?: string | null
           answer_text?: string | null
           created_at?: string | null
           feedback?: string | null
