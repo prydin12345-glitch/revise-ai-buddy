@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send } from "lucide-react";
+import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send, Flag } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
@@ -93,6 +94,8 @@ const ExamInProgress = () => {
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
+  const [hideNavigation, setHideNavigation] = useState(false);
   const [existingAnswers, setExistingAnswers] = useState<any[]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
@@ -431,6 +434,7 @@ const ExamInProgress = () => {
       const savedSet = new Set<string>();
       
       // First, load answers from database
+      const flaggedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
         
@@ -451,8 +455,16 @@ const ExamInProgress = () => {
         if (ans.table_answers && typeof ans.table_answers === 'object') {
           tableAnswersMap[ans.question_id] = ans.table_answers;
         }
+        
+        // Load flagged status
+        if (ans.is_flagged) {
+          flaggedSet.add(ans.question_id);
+        }
+        
         savedSet.add(ans.question_id);
       });
+      
+      setFlaggedQuestions(flaggedSet);
       
       // Then, check sessionStorage for any unsaved drafts (fallback for network failures)
       try {
@@ -823,6 +835,41 @@ const ExamInProgress = () => {
     };
   });
 
+  // Toggle flag for a question and persist to backend
+  const toggleFlag = async (questionId: string) => {
+    const newFlagged = !flaggedQuestions.has(questionId);
+    
+    // Optimistic update
+    setFlaggedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newFlagged) {
+        newSet.add(questionId);
+      } else {
+        newSet.delete(questionId);
+      }
+      return newSet;
+    });
+    
+    // Persist to backend
+    try {
+      await supabase.functions.invoke('submit-student-answer', {
+        body: { 
+          examId, 
+          questionId, 
+          answerText: userAnswers[questionId]?.finalAnswer || userAnswers[questionId]?.workingOut || '',
+          isFlagged: newFlagged
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save flag state:', error);
+    }
+  };
+
+  const toggleNavigation = () => {
+    setHideNavigation(!hideNavigation);
+    setSidebarOpen(hideNavigation);
+  };
+
   const currentGroup = questionGroups[currentPage] || { parent: '1', questions: [] };
   const hasNextPage = currentPage < questionGroups.length - 1;
   const hasPrevPage = currentPage > 0;
@@ -922,18 +969,17 @@ const ExamInProgress = () => {
               </div>
             )}
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Exam options">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-                <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                {isReadOnly ? (
-                  isTeacher && !treatAsStudent ? (
+            {isReadOnly ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Exam options">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                  <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {isTeacher && !treatAsStudent && (
                     <DropdownMenuItem
                       onClick={() => {
                         if (!examId) return;
@@ -943,40 +989,23 @@ const ExamInProgress = () => {
                     >
                       Student Mode
                     </DropdownMenuItem>
-                  ) : null
-                ) : (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => setShowMathKeypad(prev => !prev)}
-                      className="cursor-pointer"
-                    >
-                      <Calculator className="mr-2 h-4 w-4" />
-                      {showMathKeypad ? 'Hide Math Keyboard' : 'Math Keyboard'}
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-
-                    <DropdownMenuItem
-                      onClick={() => setShowQuitDialog(true)}
-                      className="cursor-pointer"
-                    >
-                      <ChevronLeft className="mr-2 h-4 w-4" />
-                      Quit Exam
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-
-                    <DropdownMenuItem 
-                      onClick={() => setShowSubmitDialog(true)}
-                      className="cursor-pointer text-destructive focus:text-destructive"
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      Submit Exam
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <QuestionOptionsMenu
+                mode="exam"
+                showMathKeypad={showMathKeypad}
+                onToggleMathKeypad={() => setShowMathKeypad(prev => !prev)}
+                hideNavigation={hideNavigation}
+                onToggleNavigation={toggleNavigation}
+                isFlagged={flaggedQuestions.has(currentGroup.questions[0]?.id)}
+                onToggleFlag={() => currentGroup.questions[0] && toggleFlag(currentGroup.questions[0].id)}
+                onQuitAndSave={() => setShowQuitDialog(true)}
+                onSubmitAll={() => setShowSubmitDialog(true)}
+                isReadOnly={isReadOnly}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1017,6 +1046,8 @@ const ExamInProgress = () => {
                     colorClass = 'bg-muted text-muted-foreground hover:bg-muted/80';
                   }
                   
+                  const isFlagged = flaggedQuestions.has(q.id);
+                  
                   return (
                     <button
                       key={q.id}
@@ -1031,16 +1062,20 @@ const ExamInProgress = () => {
                         }
                       }}
                       style={inlineStyle}
-                      className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass}`}
-                      title={`Question ${q.question_number}`}
+                      className={`relative aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass} ${isFlagged ? 'ring-2 ring-yellow-500 ring-offset-2' : ''}`}
+                      title={`Question ${q.question_number}${isFlagged ? ' (Flagged)' : ''}`}
                     >
                       {q.question_number}
+                      {isFlagged && (
+                        <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
+                          <Flag className="w-2 h-2 text-white" fill="white" />
+                        </div>
+                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
-
 
             {!isTeacher && (
               <Button 
@@ -1244,21 +1279,20 @@ const ExamInProgress = () => {
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-medium">Your Answer</Label>
                         <Button
-                          variant={activeQuestionForMath === question.id ? "secondary" : "outline"}
-                          size="sm"
+                          variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
+                          size="icon"
                           onClick={() => setActiveQuestionForMath(
                             activeQuestionForMath === question.id ? null : question.id
                           )}
                           disabled={isReadOnly}
-                          className="gap-1.5"
+                          title="Math symbols"
                         >
                           <Calculator className="w-4 h-4" />
-                          Math
                         </Button>
                       </div>
                       <Textarea 
                         ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
-                        placeholder="Show your working and final answer here... Use the Math button for symbols like ², √, π"
+                        placeholder="Show your working and final answer here… (use the calculator icon for symbols)"
                         value={userAnswers[question.id]?.workingOut || ''}
                         onChange={(e) => {
                           updateAnswer(question.id, { workingOut: e.target.value });
@@ -1368,21 +1402,20 @@ const ExamInProgress = () => {
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-medium">Your Answer</Label>
                         <Button
-                          variant={activeQuestionForMath === question.id ? "secondary" : "outline"}
-                          size="sm"
+                          variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
+                          size="icon"
                           onClick={() => setActiveQuestionForMath(
                             activeQuestionForMath === question.id ? null : question.id
                           )}
                           disabled={isReadOnly}
-                          className="gap-1.5"
+                          title="Math symbols"
                         >
                           <Calculator className="w-4 h-4" />
-                          Math
                         </Button>
                       </div>
                       <Textarea 
                         ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
-                        placeholder="Your Answer... Use the Math button for symbols like ², √, π"
+                        placeholder="Type your answer here…"
                         value={userAnswers[question.id]?.finalAnswer || ''}
                         onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                         onFocus={(e) => {

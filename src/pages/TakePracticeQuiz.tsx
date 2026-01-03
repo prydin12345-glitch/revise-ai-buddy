@@ -26,13 +26,7 @@ import {
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { useTextareaInsert } from "@/hooks/useTextareaInsert";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -650,38 +644,20 @@ const TakePracticeQuiz = () => {
               <Clock className="w-4 h-4" />
               <span className="font-mono">{formatTime(timeElapsed)}</span>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={() => setShowMathKeypad(prev => !prev)}
-                  disabled={currentAnswer.submitted}
-                >
-                  <Calculator className="w-4 h-4 mr-2" />
-                  {showMathKeypad ? 'Hide Math Keyboard' : 'Math Keyboard'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={toggleHideNavigation}>
-                  {hideNavigation ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                  {hideNavigation ? 'Show' : 'Hide'} Navigation
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleFlag}>
-                  <Flag className="w-4 h-4 mr-2" />
-                  {flaggedQuestions.has(currentQuestion.id) ? 'Unflag' : 'Flag'} Question
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setWorkedSolutionVisible(!workedSolutionVisible)}>
-                  {workedSolutionVisible ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                  {workedSolutionVisible ? 'Hide' : 'Show'} Solution
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowQuitDialog(true)}>
-                  <Save className="w-4 h-4 mr-2" />Quit & Save
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowSubmitDialog(true)}>Submit All</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <QuestionOptionsMenu
+              mode="practice"
+              showMathKeypad={showMathKeypad}
+              onToggleMathKeypad={() => setShowMathKeypad(prev => !prev)}
+              hideNavigation={hideNavigation}
+              onToggleNavigation={toggleHideNavigation}
+              isFlagged={flaggedQuestions.has(currentQuestion.id)}
+              onToggleFlag={toggleFlag}
+              onShowSolution={() => setWorkedSolutionVisible(!workedSolutionVisible)}
+              solutionVisible={workedSolutionVisible}
+              onQuitAndSave={() => setShowQuitDialog(true)}
+              onSubmitAll={() => setShowSubmitDialog(true)}
+              disabled={currentAnswer.submitted}
+            />
           </div>
         </div>
 
@@ -757,14 +733,13 @@ const TakePracticeQuiz = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
                       <Button
-                        variant={showMathKeypad ? "secondary" : "outline"}
-                        size="sm"
+                        variant={showMathKeypad ? "secondary" : "ghost"}
+                        size="icon"
                         onClick={() => setShowMathKeypad(prev => !prev)}
                         disabled={currentAnswer.submitted}
-                        className="gap-1.5"
+                        title="Math symbols"
                       >
                         <Calculator className="w-4 h-4" />
-                        Math
                       </Button>
                     </div>
                     <Textarea 
@@ -780,7 +755,7 @@ const TakePracticeQuiz = () => {
                       }}
                       disabled={currentAnswer.submitted} 
                       className="min-h-[140px] lg:min-h-[160px] text-base text-foreground" 
-                      placeholder="Type your answer here... Use the Math button above for symbols like ², √, π" 
+                      placeholder={currentQuestion.has_math ? "Type your answer here… (use the calculator icon for symbols)" : "Type your answer here…"}
                     />
                     
                     {/* Docked Math Insert Keypad (below textarea) */}

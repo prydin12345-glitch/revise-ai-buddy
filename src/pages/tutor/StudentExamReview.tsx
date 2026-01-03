@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Clock, CheckCircle, XCircle, User } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, CheckCircle, XCircle, User, Flag } from "lucide-react";
 import { format } from "date-fns";
 
 interface Question {
@@ -24,6 +24,7 @@ interface Answer {
   score: number | null;
   isCorrect: boolean | null;
   feedback: string | null;
+  isFlagged: boolean;
 }
 
 interface StudentData {
@@ -118,6 +119,7 @@ const StudentExamReview = () => {
             score: a.score ? Number(a.score) : null,
             isCorrect: a.is_correct,
             feedback: a.feedback,
+            isFlagged: a.is_flagged || false,
           })));
         }
       } catch (error) {
@@ -238,6 +240,12 @@ const StudentExamReview = () => {
                       </Badge>
                     </CardTitle>
                     <div className="flex items-center gap-2">
+                      {answer?.isFlagged && (
+                        <Badge variant="outline" className="gap-1 border-yellow-500 text-yellow-600">
+                          <Flag className="h-3 w-3" />
+                          Flagged
+                        </Badge>
+                      )}
                       {answer?.isCorrect !== null && (
                         answer.isCorrect ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
