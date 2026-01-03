@@ -857,55 +857,69 @@ const ExamInProgress = () => {
               </div>
             )}
             
-            {!isReadOnly && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-                  <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem
-                    onClick={() => {
-                      // Toggle math input for all questions in current group
-                      const updates: Record<string, boolean> = {};
-                      const currentlyEnabled = currentGroup.questions.some(q => mathInputEnabled[q.id]);
-                      currentGroup.questions.forEach(q => {
-                        updates[q.id] = !currentlyEnabled;
-                      });
-                      setMathInputEnabled(prev => ({ ...prev, ...updates }));
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <Calculator className="mr-2 h-4 w-4" />
-                    {currentGroup.questions.some(q => mathInputEnabled[q.id]) ? 'Switch to Text Input' : 'Math Keyboard'}
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem
-                    onClick={() => setShowQuitDialog(true)}
-                    className="cursor-pointer"
-                  >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Quit Exam
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem 
-                    onClick={() => setShowSubmitDialog(true)}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Exam
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Exam options">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                <DropdownMenuLabel>Exam Options</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {isReadOnly ? (
+                  isTeacher && !treatAsStudent ? (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (!examId) return;
+                        navigate(`/exam/${examId}/live?mode=student`);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      Student Mode
+                    </DropdownMenuItem>
+                  ) : null
+                ) : (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // Toggle math input for all questions in current group
+                        const updates: Record<string, boolean> = {};
+                        const currentlyEnabled = currentGroup.questions.some(q => mathInputEnabled[q.id]);
+                        currentGroup.questions.forEach(q => {
+                          updates[q.id] = !currentlyEnabled;
+                        });
+                        setMathInputEnabled(prev => ({ ...prev, ...updates }));
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Calculator className="mr-2 h-4 w-4" />
+                      {currentGroup.questions.some(q => mathInputEnabled[q.id]) ? 'Switch to Text Input' : 'Math Keyboard'}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      onClick={() => setShowQuitDialog(true)}
+                      className="cursor-pointer"
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Quit Exam
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem 
+                      onClick={() => setShowSubmitDialog(true)}
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Submit Exam
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
