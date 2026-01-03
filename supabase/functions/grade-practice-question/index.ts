@@ -28,7 +28,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { questionId, setId, answerText, answerLatex, workingOut } = await req.json();
+    const { questionId, setId, answerText, normalizedAnswer, workingOut } = await req.json();
 
     // Fetch question details
     const { data: question, error: questionError } = await supabase
@@ -46,12 +46,12 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Determine the best answer representation to send to AI
-    // Priority: answerLatex (if present) > answerText
-    const hasLatex = answerLatex && answerLatex.trim();
-    const answerForGrading = hasLatex 
-      ? `LaTeX: ${answerLatex}\nPlain text interpretation: ${answerText || 'N/A'}`
-      : answerText || '(No answer provided)';
+    // Use normalized answer for grading (Unicode math symbols converted to plain text)
+    // Fall back to original answerText if no normalized version provided
+    const answerForGrading = normalizedAnswer || answerText || '(No answer provided)';
+    
+    // Also include original answer with Unicode symbols for context
+    const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
     const systemPrompt = `You are a supportive mathematics tutor grading student work. Your role is to:
@@ -178,7 +178,6 @@ Return your grading using the grade_practice_answer function.`;
         set_id: setId,
         question_id: questionId,
         answer_text: answerText || '',
-        answer_latex: answerLatex || null,
         working_out: workingOut,
         score: gradingResult.score,
         method_marks: gradingResult.method_marks || null,
