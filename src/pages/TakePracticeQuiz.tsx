@@ -24,8 +24,8 @@ import {
   Calculator
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathAnswerField, latexToPlainText } from "@/components/quiz/MathAnswerField";
-import { MathKeypad } from "@/components/quiz/MathKeypad";
+import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
+import { useTextareaInsert } from "@/hooks/useTextareaInsert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,9 +90,8 @@ const TakePracticeQuiz = () => {
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
   const [showMathKeypad, setShowMathKeypad] = useState(false);
-  const mathFieldRef = useRef<any>(null);
+  const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -158,8 +157,7 @@ const TakePracticeQuiz = () => {
         set_id: setId,
         session_data: { 
           draft_answers: draftAnswers,
-          timer_elapsed: timeElapsed,
-          math_input_enabled: mathInputEnabled
+          timer_elapsed: timeElapsed
         },
         time_spent_seconds: timeElapsed,
         last_accessed_at: new Date().toISOString(),
@@ -180,13 +178,13 @@ const TakePracticeQuiz = () => {
 
       console.log("Debounce-saved answer for question:", questionId);
     }, 1500); // 1.5 second debounce
-  }, [userAnswers, timeElapsed, setId, mathInputEnabled]);
+  }, [userAnswers, timeElapsed, setId]);
 
   // Auto-save draft answers every 30 seconds
   useEffect(() => {
     const autoSaveInterval = setInterval(async () => {
       const hasDrafts = Object.values(userAnswers).some(
-        a => !a.submitted && (a.answer.trim() || a.answerLatex?.trim())
+        a => !a.submitted && a.answer.trim()
       );
       
       if (!hasDrafts && timeElapsed === 0) return;
@@ -194,13 +192,10 @@ const TakePracticeQuiz = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const draftAnswers: Record<string, { text: string; latex?: string }> = {};
+      const draftAnswers: Record<string, { text: string }> = {};
       Object.entries(userAnswers).forEach(([questionId, answer]) => {
-        if (!answer.submitted && (answer.answer.trim() || answer.answerLatex?.trim())) {
-          draftAnswers[questionId] = { 
-            text: answer.answer, 
-            latex: answer.answerLatex 
-          };
+        if (!answer.submitted && answer.answer.trim()) {
+          draftAnswers[questionId] = { text: answer.answer };
         }
       });
 
@@ -217,8 +212,7 @@ const TakePracticeQuiz = () => {
         set_id: setId,
         session_data: { 
           draft_answers: draftAnswers,
-          timer_elapsed: timeElapsed,
-          math_input_enabled: mathInputEnabled
+          timer_elapsed: timeElapsed
         },
         time_spent_seconds: timeElapsed,
         last_accessed_at: new Date().toISOString(),
@@ -314,10 +308,8 @@ const TakePracticeQuiz = () => {
 
       // 3. Initialize blank answers first
       const initialAnswers: Record<string, UserAnswer> = {};
-      const initialMathEnabled: Record<string, boolean> = {};
       sortedQuestions.forEach((q) => {
-        initialAnswers[q.id] = { answer: "", answerLatex: "", workingOut: "", submitted: false, useMathInput: false };
-        initialMathEnabled[q.id] = false;
+        initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
       });
 
       // 4. Load submitted answers from database (BEFORE restoring drafts)
@@ -329,11 +321,9 @@ const TakePracticeQuiz = () => {
       
       if (savedAnswers?.length) {
         savedAnswers.forEach((ans: any) => {
-          // If answer_latex exists, use it; otherwise fall back to answer_text
-          const hasLatex = ans.answer_latex && ans.answer_latex.trim();
+          // Use answer_text directly - no LaTeX conversion needed
           initialAnswers[ans.question_id] = {
-            answer: ans.answer_text || (hasLatex ? latexToPlainText(ans.answer_latex) : ""),
-            answerLatex: ans.answer_latex || "",
+            answer: ans.answer_text || "",
             workingOut: ans.working_out || "",
             submitted: true,
             score: Number(ans.score),
@@ -341,12 +331,7 @@ const TakePracticeQuiz = () => {
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
             feedback: ans.feedback || "",
             isCorrect: ans.is_correct || false,
-            useMathInput: !!hasLatex
           };
-          // If the saved answer had LaTeX, enable math input for that question
-          if (hasLatex) {
-            initialMathEnabled[ans.question_id] = true;
-          }
         });
       }
 
@@ -381,25 +366,12 @@ const TakePracticeQuiz = () => {
             Object.entries(sessionData.draft_answers).forEach(([questionId, draft]: [string, any]) => {
               // Only restore draft if question hasn't been submitted
               if (initialAnswers[questionId] && !initialAnswers[questionId].submitted) {
-                // Handle new format (object with text/latex) or old format (string)
+                // Handle new format (object with text) or old format (string)
                 if (typeof draft === 'object' && draft !== null) {
                   initialAnswers[questionId].answer = draft.text || "";
-                  initialAnswers[questionId].answerLatex = draft.latex || "";
-                  if (draft.latex) {
-                    initialMathEnabled[questionId] = true;
-                  }
                 } else if (typeof draft === 'string') {
                   initialAnswers[questionId].answer = draft;
                 }
-              }
-            });
-          }
-          
-          // Restore math input enabled states
-          if (sessionData.math_input_enabled) {
-            Object.entries(sessionData.math_input_enabled).forEach(([qId, enabled]) => {
-              if (typeof enabled === 'boolean') {
-                initialMathEnabled[qId] = enabled;
               }
             });
           }
@@ -428,15 +400,11 @@ const TakePracticeQuiz = () => {
             const draft = JSON.parse(draftStr);
             // Only use draft if question hasn't been submitted
             if (initialAnswers[question.id] && !initialAnswers[question.id].submitted) {
-              // Check if sessionStorage draft is newer or DB has no answer
-              const hasDbAnswer = initialAnswers[question.id].answer?.trim() || initialAnswers[question.id].answerLatex?.trim();
+              // Check if sessionStorage draft has content and DB has no answer
+              const hasDbAnswer = initialAnswers[question.id].answer?.trim();
               if (!hasDbAnswer) {
                 console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
                 initialAnswers[question.id].answer = draft.text || '';
-                initialAnswers[question.id].answerLatex = draft.latex || '';
-                if (draft.latex) {
-                  initialMathEnabled[question.id] = true;
-                }
               }
             }
           }
@@ -445,9 +413,8 @@ const TakePracticeQuiz = () => {
         console.warn('[Draft] Failed to restore from sessionStorage:', e);
       }
 
-      // 8. Set all answers and math enabled states at once
+      // 8. Set all answers at once
       setUserAnswers(initialAnswers);
-      setMathInputEnabled(initialMathEnabled);
 
     } catch (error) {
       console.error("Error:", error);
@@ -461,27 +428,25 @@ const TakePracticeQuiz = () => {
   const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIndex];
     const currentAnswer = userAnswers[currentQuestion.id];
-    const isMathMode = mathInputEnabled[currentQuestion.id];
 
-    // Check if there's an answer (either plain text or latex)
-    const hasAnswer = isMathMode 
-      ? (currentAnswer.answerLatex?.trim() || currentAnswer.answer.trim())
-      : currentAnswer.answer.trim();
-
-    if (!hasAnswer) {
+    // Check if there's an answer
+    if (!currentAnswer.answer.trim()) {
       toast.error("Please provide an answer");
       return;
     }
 
     setIsGrading(true);
     try {
-      // Send both latex and plain text to the grader
+      // Normalize the answer for AI grading (convert Unicode math to plain text)
+      const normalizedAnswer = normalizeUnicodeForGrading(currentAnswer.answer);
+      
+      // Send both original and normalized answer to the grader
       const { data, error } = await supabase.functions.invoke('grade-practice-question', {
         body: {
           questionId: currentQuestion.id,
           setId: setId,
           answerText: currentAnswer.answer,
-          answerLatex: currentAnswer.answerLatex || "",
+          normalizedAnswer: normalizedAnswer,
           workingOut: currentAnswer.workingOut || ''
         }
       });
@@ -691,14 +656,11 @@ const TakePracticeQuiz = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem 
-                  onClick={() => {
-                    const qId = currentQuestion.id;
-                    setMathInputEnabled(prev => ({ ...prev, [qId]: !prev[qId] }));
-                  }}
+                  onClick={() => setShowMathKeypad(prev => !prev)}
                   disabled={currentAnswer.submitted}
                 >
                   <Calculator className="w-4 h-4 mr-2" />
-                  {mathInputEnabled[currentQuestion.id] ? 'Switch to Text' : 'Math Keyboard'}
+                  {showMathKeypad ? 'Hide Math Keyboard' : 'Math Keyboard'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={toggleHideNavigation}>
@@ -790,53 +752,23 @@ const TakePracticeQuiz = () => {
                     <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
                   </div>
 
-                  {/* Answer input - Math or Text mode */}
-                  {mathInputEnabled[currentQuestion.id] ? (
-                    <div className="space-y-2">
-                      <MathAnswerField
-                        ref={mathFieldRef}
-                        valueLatex={currentAnswer.answerLatex || ""}
-                        mode="math"
-                        onChange={({ valueLatex, valuePlain }) => {
-                          const newAnswer = {
-                            ...currentAnswer,
-                            answerLatex: valueLatex,
-                            answer: valuePlain,
-                            useMathInput: true
-                          };
-                          setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                          debouncedSave(currentQuestion.id, { answer: valuePlain, answerLatex: valueLatex });
-                        }}
-                        onFocus={() => setShowMathKeypad(true)}
-                        onBlur={() => {
-                          // Save on blur
-                          debouncedSave(currentQuestion.id, { 
-                            answer: currentAnswer.answer, 
-                            answerLatex: currentAnswer.answerLatex 
-                          });
-                        }}
+                  {/* Answer input - Single textarea with optional Math Insert Keypad */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
+                      <Button
+                        variant={showMathKeypad ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => setShowMathKeypad(prev => !prev)}
                         disabled={currentAnswer.submitted}
-                        questionId={currentQuestion.id}
-                        subjectColor={subjectColor}
-                        placeholder="Enter your mathematical answer..."
-                      />
-                      {/* Docked Math Keypad */}
-                      {showMathKeypad && !currentAnswer.submitted && (
-                        <MathKeypad
-                          isOpen={true}
-                          onClose={() => setShowMathKeypad(false)}
-                          onInsertLatex={(latex) => {
-                            mathFieldRef.current?.insertLatex(latex);
-                          }}
-                          onExecuteCommand={(cmd) => {
-                            mathFieldRef.current?.executeCommand(cmd);
-                          }}
-                          subjectColor={subjectColor}
-                        />
-                      )}
+                        className="gap-1.5"
+                      >
+                        <Calculator className="w-4 h-4" />
+                        Math
+                      </Button>
                     </div>
-                  ) : (
                     <Textarea 
+                      ref={answerTextareaRef}
                       value={currentAnswer.answer} 
                       onChange={(e) => {
                         const newAnswer = { ...currentAnswer, answer: e.target.value };
@@ -847,20 +779,80 @@ const TakePracticeQuiz = () => {
                         debouncedSave(currentQuestion.id, { answer: currentAnswer.answer });
                       }}
                       disabled={currentAnswer.submitted} 
-                      className="min-h-[140px] lg:min-h-[160px] text-base" 
-                      placeholder="Type your answer here..." 
+                      className="min-h-[140px] lg:min-h-[160px] text-base text-foreground" 
+                      placeholder="Type your answer here... Use the Math button above for symbols like ², √, π" 
                     />
-                  )}
-
-                  {/* Submitted answer display with LaTeX rendering */}
-                  {currentAnswer.submitted && currentAnswer.answerLatex && (
-                    <div className="p-3 bg-muted/50 rounded-lg border">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Your Answer:</p>
-                      <div className="text-base">
-                        <MathRenderer content={`$${currentAnswer.answerLatex}$`} hasMath={true} />
-                      </div>
-                    </div>
-                  )}
+                    
+                    {/* Docked Math Insert Keypad (below textarea) */}
+                    {showMathKeypad && !currentAnswer.submitted && (
+                      <MathInsertKeypad
+                        isOpen={true}
+                        onClose={() => setShowMathKeypad(false)}
+                        onInsert={(text) => {
+                          const textarea = answerTextareaRef.current;
+                          if (!textarea) return;
+                          
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const before = currentAnswer.answer.substring(0, start);
+                          const after = currentAnswer.answer.substring(end);
+                          const newValue = before + text + after;
+                          
+                          const newAnswer = { ...currentAnswer, answer: newValue };
+                          setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                          debouncedSave(currentQuestion.id, { answer: newValue });
+                          
+                          // Restore focus and cursor position
+                          requestAnimationFrame(() => {
+                            textarea.focus();
+                            const newPos = start + text.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                          });
+                        }}
+                        onNavigate={(direction) => {
+                          const textarea = answerTextareaRef.current;
+                          if (!textarea) return;
+                          const pos = textarea.selectionStart;
+                          const newPos = direction === 'left' 
+                            ? Math.max(0, pos - 1) 
+                            : Math.min(currentAnswer.answer.length, pos + 1);
+                          textarea.focus();
+                          textarea.setSelectionRange(newPos, newPos);
+                        }}
+                        onDelete={() => {
+                          const textarea = answerTextareaRef.current;
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          
+                          if (start === end && start > 0) {
+                            const before = currentAnswer.answer.substring(0, start - 1);
+                            const after = currentAnswer.answer.substring(end);
+                            const newValue = before + after;
+                            const newAnswer = { ...currentAnswer, answer: newValue };
+                            setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                            debouncedSave(currentQuestion.id, { answer: newValue });
+                            requestAnimationFrame(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start - 1, start - 1);
+                            });
+                          } else if (start !== end) {
+                            const before = currentAnswer.answer.substring(0, start);
+                            const after = currentAnswer.answer.substring(end);
+                            const newValue = before + after;
+                            const newAnswer = { ...currentAnswer, answer: newValue };
+                            setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                            debouncedSave(currentQuestion.id, { answer: newValue });
+                            requestAnimationFrame(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start, start);
+                            });
+                          }
+                        }}
+                        subjectColor={subjectColor}
+                      />
+                    )}
+                  </div>
 
                   {/* Feedback section after submission */}
                   {currentAnswer.submitted && (

@@ -13,8 +13,7 @@ import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronR
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathAnswerField, latexToPlainText } from "@/components/quiz/MathAnswerField";
-import { MathKeypad } from "@/components/quiz/MathKeypad";
+import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
@@ -74,14 +73,13 @@ const ExamInProgress = () => {
   const modeParam = searchParams.get('mode');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
   const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
-  const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
   const [showMathKeypad, setShowMathKeypad] = useState(false);
   const [activeQuestionForMath, setActiveQuestionForMath] = useState<string | null>(null);
-  const mathFieldRefs = useRef<Record<string, any>>({});
+  const answerTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
   const isReadOnly = isTeacher && !treatAsStudent;
@@ -120,9 +118,9 @@ const ExamInProgress = () => {
   }, [examSubject]);
 
   // Helper to update answers in a structured way
-  const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string; answerLatex: string }>) => {
+  const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string }>) => {
     setUserAnswers(prev => {
-      const existing = prev[questionId] || { workingOut: '', finalAnswer: '', answerLatex: '' };
+      const existing = prev[questionId] || { workingOut: '', finalAnswer: '' };
       const next = { ...existing, ...patch };
       // Keep the ref in sync immediately to avoid stale saves
       answersRef.current = { ...answersRef.current, [questionId]: next };
@@ -431,31 +429,22 @@ const ExamInProgress = () => {
       const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
       const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
       const savedSet = new Set<string>();
-      const mathEnabledMap: Record<string, boolean> = {};
       
       // First, load answers from database
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
-        const answerLatex = ans.answer_latex || '';
         
         // For math exams, text goes to workingOut; for others, to finalAnswer
         if (isMathExam) {
           answersMap[ans.question_id] = { 
             workingOut: answerText, 
-            finalAnswer: '', 
-            answerLatex: answerLatex 
+            finalAnswer: ''
           };
         } else {
           answersMap[ans.question_id] = { 
             workingOut: '', 
-            finalAnswer: answerText, 
-            answerLatex: answerLatex 
+            finalAnswer: answerText
           };
-        }
-        
-        // Enable math input if there was latex stored
-        if (answerLatex) {
-          mathEnabledMap[ans.question_id] = true;
         }
         
         // Load table answers if present
@@ -478,18 +467,13 @@ const ExamInProgress = () => {
               if (isMathExam) {
                 answersMap[question.id] = {
                   workingOut: draft.answerText || '',
-                  finalAnswer: '',
-                  answerLatex: draft.answerLatex || ''
+                  finalAnswer: ''
                 };
               } else {
                 answersMap[question.id] = {
                   workingOut: '',
-                  finalAnswer: draft.answerText || '',
-                  answerLatex: draft.answerLatex || ''
+                  finalAnswer: draft.answerText || ''
                 };
-              }
-              if (draft.answerLatex) {
-                mathEnabledMap[question.id] = true;
               }
             }
           }
@@ -501,7 +485,6 @@ const ExamInProgress = () => {
       setUserAnswers(answersMap);
       setTableAnswers(tableAnswersMap);
       setSavedAnswers(savedSet);
-      setMathInputEnabled(prev => ({ ...prev, ...mathEnabledMap }));
 
       // Create initial session if none exists (for non-timed exams too)
       const shouldCreateSession = !data.submission && !(Boolean(data.isTeacher) && !treatAsStudent);
@@ -563,17 +546,15 @@ const ExamInProgress = () => {
       answerText = answerData.finalAnswer || answerData.workingOut || '';
     }
     
-    // Get the latex answer if present
-    const answerLatex = answerData.answerLatex || '';
-    const answerFormat = answerLatex ? 'latex' : 'text';
+    // Normalize the answer for grading (convert Unicode math to plain text)
+    const normalizedAnswer = normalizeUnicodeForGrading(answerText);
     
     // Always save to sessionStorage as fallback (before network call)
     try {
       const draftKey = `exam:${examId}:draft:${questionId}`;
       sessionStorage.setItem(draftKey, JSON.stringify({
         answerText,
-        answerLatex,
-        answerFormat,
+        normalizedAnswer,
         timestamp: Date.now()
       }));
     } catch (e) {
@@ -602,8 +583,7 @@ const ExamInProgress = () => {
           examId, 
           questionId, 
           answerText: finalAnswerText,
-          answerLatex: answerLatex || undefined,
-          answerFormat: answerFormat,
+          normalizedAnswer: normalizedAnswer,
           tableAnswers: questionTableAnswers || undefined
         }
       });
@@ -967,19 +947,11 @@ const ExamInProgress = () => {
                 ) : (
                   <>
                     <DropdownMenuItem
-                      onClick={() => {
-                        // Toggle math input for all questions in current group
-                        const updates: Record<string, boolean> = {};
-                        const currentlyEnabled = currentGroup.questions.some(q => mathInputEnabled[q.id]);
-                        currentGroup.questions.forEach(q => {
-                          updates[q.id] = !currentlyEnabled;
-                        });
-                        setMathInputEnabled(prev => ({ ...prev, ...updates }));
-                      }}
+                      onClick={() => setShowMathKeypad(prev => !prev)}
                       className="cursor-pointer"
                     >
                       <Calculator className="mr-2 h-4 w-4" />
-                      {currentGroup.questions.some(q => mathInputEnabled[q.id]) ? 'Switch to Text Input' : 'Math Keyboard'}
+                      {showMathKeypad ? 'Hide Math Keyboard' : 'Math Keyboard'}
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
@@ -1269,157 +1241,232 @@ const ExamInProgress = () => {
                     </RadioGroup>
                   ) : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-2">
-                      <Label className="text-base font-medium block">Your Answer</Label>
-                      {mathInputEnabled[question.id] ? (
-                        <>
-                          <MathAnswerField
-                            ref={(el) => { if (el) mathFieldRefs.current[question.id] = el; }}
-                            valueLatex={userAnswers[question.id]?.answerLatex || ''}
-                            mode="math"
-                            onChange={({ valueLatex, valuePlain }) => {
-                              updateAnswer(question.id, { 
-                                workingOut: valuePlain, 
-                                answerLatex: valueLatex 
-                              });
-                              // Trigger debounced save
-                              if (saveTimeouts.current[question.id]) {
-                                clearTimeout(saveTimeouts.current[question.id]);
-                              }
-                              saveTimeouts.current[question.id] = setTimeout(() => {
-                                handleSaveAnswer(question.id);
-                              }, 500);
-                            }}
-                            onFocus={() => setActiveQuestionForMath(question.id)}
-                            onBlur={async () => {
-                              if (saveTimeouts.current[question.id]) {
-                                clearTimeout(saveTimeouts.current[question.id]);
-                              }
-                              await handleSaveAnswer(question.id);
-                            }}
-                            disabled={isReadOnly}
-                            questionId={question.id}
-                            subjectColor={subjectColor}
-                            placeholder="Enter your mathematical answer..."
-                          />
-                          {/* Docked Math Keypad */}
-                          {activeQuestionForMath === question.id && (
-                            <MathKeypad
-                              isOpen={true}
-                              onClose={() => setActiveQuestionForMath(null)}
-                              onInsertLatex={(latex) => {
-                                mathFieldRefs.current[question.id]?.insertLatex(latex);
-                              }}
-                              onExecuteCommand={(cmd) => {
-                                mathFieldRefs.current[question.id]?.executeCommand(cmd);
-                              }}
-                              subjectColor={subjectColor}
-                            />
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">Your Answer</Label>
+                        <Button
+                          variant={activeQuestionForMath === question.id ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setActiveQuestionForMath(
+                            activeQuestionForMath === question.id ? null : question.id
                           )}
-                        </>
-                      ) : (
-                        <Textarea 
-                          placeholder="Show your working and final answer here..."
-                          value={userAnswers[question.id]?.workingOut || ''}
-                          onChange={(e) => {
-                            updateAnswer(question.id, { workingOut: e.target.value });
-                            // Trigger debounced save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1000);
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.borderColor = subjectColor;
-                            e.target.style.borderWidth = '2px';
-                            e.target.style.outline = 'none';
-                            e.target.style.boxShadow = 'none';
-                          }}
-                          onBlur={async (e) => {
-                            e.target.style.borderColor = '';
-                            e.target.style.borderWidth = '';
-                            e.target.style.outline = '';
-                            e.target.style.boxShadow = '';
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            await handleSaveAnswer(question.id);
-                          }}
-                          className="min-h-[300px] resize-y text-base font-mono transition-all"
                           disabled={isReadOnly}
-                        />
-                      )}
-                    </div>
-                  ) : mathInputEnabled[question.id] ? (
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium block">Your Answer</Label>
-                      <MathAnswerField
-                        ref={(el) => { if (el) mathFieldRefs.current[question.id] = el; }}
-                        valueLatex={userAnswers[question.id]?.answerLatex || ''}
-                        mode="math"
-                        onChange={({ valueLatex, valuePlain }) => {
-                          updateAnswer(question.id, { 
-                            finalAnswer: valuePlain, 
-                            answerLatex: valueLatex 
-                          });
+                          className="gap-1.5"
+                        >
+                          <Calculator className="w-4 h-4" />
+                          Math
+                        </Button>
+                      </div>
+                      <Textarea 
+                        ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
+                        placeholder="Show your working and final answer here... Use the Math button for symbols like ², √, π"
+                        value={userAnswers[question.id]?.workingOut || ''}
+                        onChange={(e) => {
+                          updateAnswer(question.id, { workingOut: e.target.value });
                           // Trigger debounced save
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           saveTimeouts.current[question.id] = setTimeout(() => {
                             handleSaveAnswer(question.id);
-                          }, 500);
+                          }, 1000);
                         }}
-                        onFocus={() => setActiveQuestionForMath(question.id)}
-                        onBlur={async () => {
+                        onFocus={(e) => {
+                          e.target.style.borderColor = subjectColor;
+                          e.target.style.borderWidth = '2px';
+                          e.target.style.outline = 'none';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onBlur={async (e) => {
+                          e.target.style.borderColor = '';
+                          e.target.style.borderWidth = '';
+                          e.target.style.outline = '';
+                          e.target.style.boxShadow = '';
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           await handleSaveAnswer(question.id);
                         }}
+                        className="min-h-[300px] resize-y text-base font-mono transition-all text-foreground"
                         disabled={isReadOnly}
-                        questionId={question.id}
-                        subjectColor={subjectColor}
-                        placeholder="Enter your answer..."
                       />
-                      {/* Docked Math Keypad */}
-                      {activeQuestionForMath === question.id && (
-                        <MathKeypad
+                      {/* Docked Math Insert Keypad */}
+                      {activeQuestionForMath === question.id && !isReadOnly && (
+                        <MathInsertKeypad
                           isOpen={true}
                           onClose={() => setActiveQuestionForMath(null)}
-                          onInsertLatex={(latex) => {
-                            mathFieldRefs.current[question.id]?.insertLatex(latex);
+                          onInsert={(text) => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const currentValue = userAnswers[question.id]?.workingOut || '';
+                            const before = currentValue.substring(0, start);
+                            const after = currentValue.substring(end);
+                            const newValue = before + text + after;
+                            
+                            updateAnswer(question.id, { workingOut: newValue });
+                            
+                            // Trigger save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1000);
+                            
+                            // Restore focus and cursor
+                            requestAnimationFrame(() => {
+                              textarea.focus();
+                              const newPos = start + text.length;
+                              textarea.setSelectionRange(newPos, newPos);
+                            });
                           }}
-                          onExecuteCommand={(cmd) => {
-                            mathFieldRefs.current[question.id]?.executeCommand(cmd);
+                          onNavigate={(direction) => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            const currentValue = userAnswers[question.id]?.workingOut || '';
+                            const pos = textarea.selectionStart;
+                            const newPos = direction === 'left' 
+                              ? Math.max(0, pos - 1) 
+                              : Math.min(currentValue.length, pos + 1);
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
+                          }}
+                          onDelete={() => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const currentValue = userAnswers[question.id]?.workingOut || '';
+                            
+                            if (start === end && start > 0) {
+                              const before = currentValue.substring(0, start - 1);
+                              const after = currentValue.substring(end);
+                              updateAnswer(question.id, { workingOut: before + after });
+                              requestAnimationFrame(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(start - 1, start - 1);
+                              });
+                            } else if (start !== end) {
+                              const before = currentValue.substring(0, start);
+                              const after = currentValue.substring(end);
+                              updateAnswer(question.id, { workingOut: before + after });
+                              requestAnimationFrame(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(start, start);
+                              });
+                            }
                           }}
                           subjectColor={subjectColor}
                         />
                       )}
                     </div>
                   ) : (
-                    <Textarea 
-                      placeholder="Your Answer"
-                      value={userAnswers[question.id]?.finalAnswer || ''}
-                      onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = subjectColor;
-                        e.target.style.borderWidth = '2px';
-                        e.target.style.outline = 'none';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                      onBlur={async (e) => {
-                        e.target.style.borderColor = '';
-                        e.target.style.borderWidth = '';
-                        e.target.style.outline = '';
-                        e.target.style.boxShadow = '';
-                        if (e.target.value) {
-                          await handleSaveAnswer(question.id);
-                        }
-                      }}
-                      className="min-h-[200px] resize-y text-base transition-all"
-                    />
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">Your Answer</Label>
+                        <Button
+                          variant={activeQuestionForMath === question.id ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setActiveQuestionForMath(
+                            activeQuestionForMath === question.id ? null : question.id
+                          )}
+                          disabled={isReadOnly}
+                          className="gap-1.5"
+                        >
+                          <Calculator className="w-4 h-4" />
+                          Math
+                        </Button>
+                      </div>
+                      <Textarea 
+                        ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
+                        placeholder="Your Answer... Use the Math button for symbols like ², √, π"
+                        value={userAnswers[question.id]?.finalAnswer || ''}
+                        onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = subjectColor;
+                          e.target.style.borderWidth = '2px';
+                          e.target.style.outline = 'none';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onBlur={async (e) => {
+                          e.target.style.borderColor = '';
+                          e.target.style.borderWidth = '';
+                          e.target.style.outline = '';
+                          e.target.style.boxShadow = '';
+                          if (e.target.value) {
+                            await handleSaveAnswer(question.id);
+                          }
+                        }}
+                        className="min-h-[200px] resize-y text-base transition-all text-foreground"
+                        disabled={isReadOnly}
+                      />
+                      {/* Docked Math Insert Keypad */}
+                      {activeQuestionForMath === question.id && !isReadOnly && (
+                        <MathInsertKeypad
+                          isOpen={true}
+                          onClose={() => setActiveQuestionForMath(null)}
+                          onInsert={(text) => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
+                            const before = currentValue.substring(0, start);
+                            const after = currentValue.substring(end);
+                            const newValue = before + text + after;
+                            
+                            handleAnswerChange(question.id, newValue);
+                            
+                            // Restore focus and cursor
+                            requestAnimationFrame(() => {
+                              textarea.focus();
+                              const newPos = start + text.length;
+                              textarea.setSelectionRange(newPos, newPos);
+                            });
+                          }}
+                          onNavigate={(direction) => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
+                            const pos = textarea.selectionStart;
+                            const newPos = direction === 'left' 
+                              ? Math.max(0, pos - 1) 
+                              : Math.min(currentValue.length, pos + 1);
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
+                          }}
+                          onDelete={() => {
+                            const textarea = answerTextareaRefs.current[question.id];
+                            if (!textarea) return;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
+                            
+                            if (start === end && start > 0) {
+                              const before = currentValue.substring(0, start - 1);
+                              const after = currentValue.substring(end);
+                              handleAnswerChange(question.id, before + after);
+                              requestAnimationFrame(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(start - 1, start - 1);
+                              });
+                            } else if (start !== end) {
+                              const before = currentValue.substring(0, start);
+                              const after = currentValue.substring(end);
+                              handleAnswerChange(question.id, before + after);
+                              requestAnimationFrame(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(start, start);
+                              });
+                            }
+                          }}
+                          subjectColor={subjectColor}
+                        />
+                      )}
+                    </div>
                   )}
                 </Card>
               ))}
