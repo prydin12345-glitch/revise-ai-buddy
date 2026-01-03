@@ -433,6 +433,7 @@ const ExamInProgress = () => {
       const savedSet = new Set<string>();
       const mathEnabledMap: Record<string, boolean> = {};
       
+      // First, load answers from database
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
         const answerLatex = ans.answer_latex || '';
@@ -463,6 +464,40 @@ const ExamInProgress = () => {
         }
         savedSet.add(ans.question_id);
       });
+      
+      // Then, check sessionStorage for any unsaved drafts (fallback for network failures)
+      try {
+        for (const question of sortedQuestions) {
+          const draftKey = `exam:${examId}:draft:${question.id}`;
+          const draftStr = sessionStorage.getItem(draftKey);
+          if (draftStr) {
+            const draft = JSON.parse(draftStr);
+            // Only use draft if it's newer than what we have from DB or DB has no answer
+            if (!savedSet.has(question.id) || !answersMap[question.id]) {
+              console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
+              if (isMathExam) {
+                answersMap[question.id] = {
+                  workingOut: draft.answerText || '',
+                  finalAnswer: '',
+                  answerLatex: draft.answerLatex || ''
+                };
+              } else {
+                answersMap[question.id] = {
+                  workingOut: '',
+                  finalAnswer: draft.answerText || '',
+                  answerLatex: draft.answerLatex || ''
+                };
+              }
+              if (draft.answerLatex) {
+                mathEnabledMap[question.id] = true;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Draft] Failed to restore from sessionStorage:', e);
+      }
+      
       setUserAnswers(answersMap);
       setTableAnswers(tableAnswersMap);
       setSavedAnswers(savedSet);
@@ -512,7 +547,7 @@ const ExamInProgress = () => {
   }, []);
 
   const handleSaveAnswer = async (questionId: string) => {
-    const answerData = answersRef.current[questionId] || { workingOut: '', finalAnswer: '' };
+    const answerData = answersRef.current[questionId] || { workingOut: '', finalAnswer: '', answerLatex: '' };
     
     // Use ref to get current subject (avoids stale closure)
     const currentSubject = examSubjectRef.current;
@@ -528,42 +563,62 @@ const ExamInProgress = () => {
       answerText = answerData.finalAnswer || answerData.workingOut || '';
     }
     
-      console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
-      setAutoSaveStatus('saving');
-      try {
-        console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
-        
-        // Include table answers if present for this question
-        const questionTableAnswers = tableAnswers[questionId];
-        
-        // Include blank answers if present for this question
-        // Serialize blank answers into answerText if they exist
-        const questionBlankAnswers = blankAnswers[questionId];
-        let finalAnswerText = answerText;
-        if (questionBlankAnswers && Object.keys(questionBlankAnswers).length > 0) {
-          // For fill-in-blank, serialize the blanks as JSON in the answer
-          finalAnswerText = JSON.stringify(questionBlankAnswers);
+    // Get the latex answer if present
+    const answerLatex = answerData.answerLatex || '';
+    const answerFormat = answerLatex ? 'latex' : 'text';
+    
+    // Always save to sessionStorage as fallback (before network call)
+    try {
+      const draftKey = `exam:${examId}:draft:${questionId}`;
+      sessionStorage.setItem(draftKey, JSON.stringify({
+        answerText,
+        answerLatex,
+        answerFormat,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('[Draft] Failed to save to sessionStorage:', e);
+    }
+    
+    console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
+    setAutoSaveStatus('saving');
+    try {
+      console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
+      
+      // Include table answers if present for this question
+      const questionTableAnswers = tableAnswers[questionId];
+      
+      // Include blank answers if present for this question
+      // Serialize blank answers into answerText if they exist
+      const questionBlankAnswers = blankAnswers[questionId];
+      let finalAnswerText = answerText;
+      if (questionBlankAnswers && Object.keys(questionBlankAnswers).length > 0) {
+        // For fill-in-blank, serialize the blanks as JSON in the answer
+        finalAnswerText = JSON.stringify(questionBlankAnswers);
+      }
+      
+      const { error } = await supabase.functions.invoke('submit-student-answer', {
+        body: { 
+          examId, 
+          questionId, 
+          answerText: finalAnswerText,
+          answerLatex: answerLatex || undefined,
+          answerFormat: answerFormat,
+          tableAnswers: questionTableAnswers || undefined
         }
-        
-        // Get the latex answer if present
-        const answerLatex = answerData.answerLatex || '';
-        const answerFormat = answerLatex ? 'latex' : 'text';
-        
-        const { error } = await supabase.functions.invoke('submit-student-answer', {
-          body: { 
-            examId, 
-            questionId, 
-            answerText: finalAnswerText,
-            answerLatex: answerLatex || undefined,
-            answerFormat: answerFormat,
-            tableAnswers: questionTableAnswers || undefined
-          }
-        });
+      });
 
       if (error) throw error;
 
       // Save timer state after answer saved
       await saveTimerState();
+      
+      // Clear sessionStorage draft on successful save
+      try {
+        sessionStorage.removeItem(`exam:${examId}:draft:${questionId}`);
+      } catch (e) {
+        // Ignore
+      }
 
       setSavedAnswers(prev => new Set(prev).add(questionId));
       setAutoSaveStatus('saved');
@@ -574,6 +629,7 @@ const ExamInProgress = () => {
     } catch (error: any) {
       setAutoSaveStatus('error');
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
+      // Keep sessionStorage draft on failure - it will be used on reload
     }
   };
   

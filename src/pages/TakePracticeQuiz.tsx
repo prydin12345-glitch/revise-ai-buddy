@@ -112,6 +112,18 @@ const TakePracticeQuiz = () => {
       clearTimeout(saveTimeoutRef.current);
     }
     
+    // Always save to sessionStorage as fallback immediately
+    try {
+      const draftKey = `practice:${setId}:draft:${questionId}`;
+      sessionStorage.setItem(draftKey, JSON.stringify({
+        text: answerData.answer,
+        latex: answerData.answerLatex,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('[Draft] Failed to save to sessionStorage:', e);
+    }
+    
     saveTimeoutRef.current = setTimeout(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -141,7 +153,7 @@ const TakePracticeQuiz = () => {
         .eq('set_id', setId)
         .single();
 
-      await supabase.from('practice_set_progress').upsert({
+      const { error } = await supabase.from('practice_set_progress').upsert({
         user_id: user.id,
         set_id: setId,
         session_data: { 
@@ -156,6 +168,15 @@ const TakePracticeQuiz = () => {
       }, {
         onConflict: 'user_id,set_id'
       });
+
+      if (!error) {
+        // Clear sessionStorage draft on successful save
+        try {
+          sessionStorage.removeItem(`practice:${setId}:draft:${questionId}`);
+        } catch (e) {
+          // Ignore
+        }
+      }
 
       console.log("Debounce-saved answer for question:", questionId);
     }, 1500); // 1.5 second debounce
@@ -397,8 +418,34 @@ const TakePracticeQuiz = () => {
           });
         }
       }
+      
+      // 7. Check sessionStorage for any unsaved drafts (fallback for network failures)
+      try {
+        for (const question of sortedQuestions) {
+          const draftKey = `practice:${setId}:draft:${question.id}`;
+          const draftStr = sessionStorage.getItem(draftKey);
+          if (draftStr) {
+            const draft = JSON.parse(draftStr);
+            // Only use draft if question hasn't been submitted
+            if (initialAnswers[question.id] && !initialAnswers[question.id].submitted) {
+              // Check if sessionStorage draft is newer or DB has no answer
+              const hasDbAnswer = initialAnswers[question.id].answer?.trim() || initialAnswers[question.id].answerLatex?.trim();
+              if (!hasDbAnswer) {
+                console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
+                initialAnswers[question.id].answer = draft.text || '';
+                initialAnswers[question.id].answerLatex = draft.latex || '';
+                if (draft.latex) {
+                  initialMathEnabled[question.id] = true;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Draft] Failed to restore from sessionStorage:', e);
+      }
 
-      // 7. Set all answers and math enabled states at once
+      // 8. Set all answers and math enabled states at once
       setUserAnswers(initialAnswers);
       setMathInputEnabled(initialMathEnabled);
 
