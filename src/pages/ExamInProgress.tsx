@@ -13,6 +13,7 @@ import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronR
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
+import { MathAnswerInput, latexToPlainText } from "@/components/quiz/MathAnswerInput";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
@@ -72,10 +73,11 @@ const ExamInProgress = () => {
   const modeParam = searchParams.get('mode');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }>>({});
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
   const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
+  const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
   const isReadOnly = isTeacher && !treatAsStudent;
@@ -114,9 +116,9 @@ const ExamInProgress = () => {
   }, [examSubject]);
 
   // Helper to update answers in a structured way
-  const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string }>) => {
+  const updateAnswer = (questionId: string, patch: Partial<{ workingOut: string; finalAnswer: string; answerLatex: string }>) => {
     setUserAnswers(prev => {
-      const existing = prev[questionId] || { workingOut: '', finalAnswer: '' };
+      const existing = prev[questionId] || { workingOut: '', finalAnswer: '', answerLatex: '' };
       const next = { ...existing, ...patch };
       // Keep the ref in sync immediately to avoid stale saves
       answersRef.current = { ...answersRef.current, [questionId]: next };
@@ -867,6 +869,24 @@ const ExamInProgress = () => {
                   <DropdownMenuSeparator />
                   
                   <DropdownMenuItem
+                    onClick={() => {
+                      // Toggle math input for all questions in current group
+                      const updates: Record<string, boolean> = {};
+                      const currentlyEnabled = currentGroup.questions.some(q => mathInputEnabled[q.id]);
+                      currentGroup.questions.forEach(q => {
+                        updates[q.id] = !currentlyEnabled;
+                      });
+                      setMathInputEnabled(prev => ({ ...prev, ...updates }));
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Calculator className="mr-2 h-4 w-4" />
+                    {currentGroup.questions.some(q => mathInputEnabled[q.id]) ? 'Switch to Text Input' : 'Math Keyboard'}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem
                     onClick={() => setShowQuitDialog(true)}
                     className="cursor-pointer"
                   >
@@ -1151,37 +1171,94 @@ const ExamInProgress = () => {
                   ) : examSubject.toLowerCase().includes('math') ? (
                     <div>
                       <Label className="text-base font-medium mb-2 block">Your Answer</Label>
-                      <Textarea 
-                        placeholder="Show your working and final answer here..."
-                        value={userAnswers[question.id]?.workingOut || ''}
-                        onChange={(e) => {
-                          updateAnswer(question.id, { workingOut: e.target.value });
+                      {mathInputEnabled[question.id] ? (
+                        <MathAnswerInput
+                          value={userAnswers[question.id]?.answerLatex || ''}
+                          onChange={(latex, plainText) => {
+                            updateAnswer(question.id, { 
+                              workingOut: plainText, 
+                              answerLatex: latex 
+                            });
+                            // Trigger debounced save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1500);
+                          }}
+                          onBlur={async () => {
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            await handleSaveAnswer(question.id);
+                          }}
+                          disabled={isReadOnly}
+                          questionId={question.id}
+                          placeholder="Enter your mathematical answer..."
+                        />
+                      ) : (
+                        <Textarea 
+                          placeholder="Show your working and final answer here..."
+                          value={userAnswers[question.id]?.workingOut || ''}
+                          onChange={(e) => {
+                            updateAnswer(question.id, { workingOut: e.target.value });
+                            // Trigger debounced save
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            saveTimeouts.current[question.id] = setTimeout(() => {
+                              handleSaveAnswer(question.id);
+                            }, 1000);
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = subjectColor;
+                            e.target.style.borderWidth = '2px';
+                            e.target.style.outline = 'none';
+                            e.target.style.boxShadow = 'none';
+                          }}
+                          onBlur={async (e) => {
+                            e.target.style.borderColor = '';
+                            e.target.style.borderWidth = '';
+                            e.target.style.outline = '';
+                            e.target.style.boxShadow = '';
+                            if (saveTimeouts.current[question.id]) {
+                              clearTimeout(saveTimeouts.current[question.id]);
+                            }
+                            await handleSaveAnswer(question.id);
+                          }}
+                          className="min-h-[300px] resize-y text-base font-mono transition-all"
+                          disabled={isReadOnly}
+                        />
+                      )}
+                    </div>
+                  ) : mathInputEnabled[question.id] ? (
+                    <div>
+                      <Label className="text-base font-medium mb-2 block">Your Answer</Label>
+                      <MathAnswerInput
+                        value={userAnswers[question.id]?.answerLatex || ''}
+                        onChange={(latex, plainText) => {
+                          updateAnswer(question.id, { 
+                            finalAnswer: plainText, 
+                            answerLatex: latex 
+                          });
                           // Trigger debounced save
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           saveTimeouts.current[question.id] = setTimeout(() => {
                             handleSaveAnswer(question.id);
-                          }, 1000);
+                          }, 1500);
                         }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = subjectColor;
-                          e.target.style.borderWidth = '2px';
-                          e.target.style.outline = 'none';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                        onBlur={async (e) => {
-                          e.target.style.borderColor = '';
-                          e.target.style.borderWidth = '';
-                          e.target.style.outline = '';
-                          e.target.style.boxShadow = '';
+                        onBlur={async () => {
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           await handleSaveAnswer(question.id);
                         }}
-                        className="min-h-[300px] resize-y text-base font-mono transition-all"
                         disabled={isReadOnly}
+                        questionId={question.id}
+                        placeholder="Enter your answer..."
                       />
                     </div>
                   ) : (
