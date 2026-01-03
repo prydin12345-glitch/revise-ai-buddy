@@ -13,7 +13,8 @@ import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronR
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathAnswerInput, latexToPlainText } from "@/components/quiz/MathAnswerInput";
+import { MathAnswerField, latexToPlainText } from "@/components/quiz/MathAnswerField";
+import { MathKeypad } from "@/components/quiz/MathKeypad";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
@@ -78,6 +79,9 @@ const ExamInProgress = () => {
   const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
+  const [showMathKeypad, setShowMathKeypad] = useState(false);
+  const [activeQuestionForMath, setActiveQuestionForMath] = useState<string | null>(null);
+  const mathFieldRefs = useRef<Record<string, any>>({});
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
   const isReadOnly = isTeacher && !treatAsStudent;
@@ -424,17 +428,35 @@ const ExamInProgress = () => {
       const isMathExam = examData?.subject_id?.toLowerCase().includes('math');
       console.log('[Load] Subject:', examData?.subject_id, 'isMathExam:', isMathExam);
       
-      const answersMap: Record<string, { workingOut: string; finalAnswer: string }> = {};
+      const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
       const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
       const savedSet = new Set<string>();
+      const mathEnabledMap: Record<string, boolean> = {};
+      
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
+        const answerLatex = ans.answer_latex || '';
+        
         // For math exams, text goes to workingOut; for others, to finalAnswer
         if (isMathExam) {
-          answersMap[ans.question_id] = { workingOut: answerText, finalAnswer: '' };
+          answersMap[ans.question_id] = { 
+            workingOut: answerText, 
+            finalAnswer: '', 
+            answerLatex: answerLatex 
+          };
         } else {
-          answersMap[ans.question_id] = { workingOut: '', finalAnswer: answerText };
+          answersMap[ans.question_id] = { 
+            workingOut: '', 
+            finalAnswer: answerText, 
+            answerLatex: answerLatex 
+          };
         }
+        
+        // Enable math input if there was latex stored
+        if (answerLatex) {
+          mathEnabledMap[ans.question_id] = true;
+        }
+        
         // Load table answers if present
         if (ans.table_answers && typeof ans.table_answers === 'object') {
           tableAnswersMap[ans.question_id] = ans.table_answers;
@@ -444,6 +466,7 @@ const ExamInProgress = () => {
       setUserAnswers(answersMap);
       setTableAnswers(tableAnswersMap);
       setSavedAnswers(savedSet);
+      setMathInputEnabled(prev => ({ ...prev, ...mathEnabledMap }));
 
       // Create initial session if none exists (for non-timed exams too)
       const shouldCreateSession = !data.submission && !(Boolean(data.isTeacher) && !treatAsStudent);
@@ -522,11 +545,17 @@ const ExamInProgress = () => {
           finalAnswerText = JSON.stringify(questionBlankAnswers);
         }
         
+        // Get the latex answer if present
+        const answerLatex = answerData.answerLatex || '';
+        const answerFormat = answerLatex ? 'latex' : 'text';
+        
         const { error } = await supabase.functions.invoke('submit-student-answer', {
           body: { 
             examId, 
             questionId, 
             answerText: finalAnswerText,
+            answerLatex: answerLatex || undefined,
+            answerFormat: answerFormat,
             tableAnswers: questionTableAnswers || undefined
           }
         });
@@ -1183,34 +1212,54 @@ const ExamInProgress = () => {
                       })}
                     </RadioGroup>
                   ) : examSubject.toLowerCase().includes('math') ? (
-                    <div>
-                      <Label className="text-base font-medium mb-2 block">Your Answer</Label>
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium block">Your Answer</Label>
                       {mathInputEnabled[question.id] ? (
-                        <MathAnswerInput
-                          value={userAnswers[question.id]?.answerLatex || ''}
-                          onChange={(latex, plainText) => {
-                            updateAnswer(question.id, { 
-                              workingOut: plainText, 
-                              answerLatex: latex 
-                            });
-                            // Trigger debounced save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1500);
-                          }}
-                          onBlur={async () => {
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            await handleSaveAnswer(question.id);
-                          }}
-                          disabled={isReadOnly}
-                          questionId={question.id}
-                          placeholder="Enter your mathematical answer..."
-                        />
+                        <>
+                          <MathAnswerField
+                            ref={(el) => { if (el) mathFieldRefs.current[question.id] = el; }}
+                            valueLatex={userAnswers[question.id]?.answerLatex || ''}
+                            mode="math"
+                            onChange={({ valueLatex, valuePlain }) => {
+                              updateAnswer(question.id, { 
+                                workingOut: valuePlain, 
+                                answerLatex: valueLatex 
+                              });
+                              // Trigger debounced save
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 500);
+                            }}
+                            onFocus={() => setActiveQuestionForMath(question.id)}
+                            onBlur={async () => {
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              await handleSaveAnswer(question.id);
+                            }}
+                            disabled={isReadOnly}
+                            questionId={question.id}
+                            subjectColor={subjectColor}
+                            placeholder="Enter your mathematical answer..."
+                          />
+                          {/* Docked Math Keypad */}
+                          {activeQuestionForMath === question.id && (
+                            <MathKeypad
+                              isOpen={true}
+                              onClose={() => setActiveQuestionForMath(null)}
+                              onInsertLatex={(latex) => {
+                                mathFieldRefs.current[question.id]?.insertLatex(latex);
+                              }}
+                              onExecuteCommand={(cmd) => {
+                                mathFieldRefs.current[question.id]?.executeCommand(cmd);
+                              }}
+                              subjectColor={subjectColor}
+                            />
+                          )}
+                        </>
                       ) : (
                         <Textarea 
                           placeholder="Show your working and final answer here..."
@@ -1247,14 +1296,16 @@ const ExamInProgress = () => {
                       )}
                     </div>
                   ) : mathInputEnabled[question.id] ? (
-                    <div>
-                      <Label className="text-base font-medium mb-2 block">Your Answer</Label>
-                      <MathAnswerInput
-                        value={userAnswers[question.id]?.answerLatex || ''}
-                        onChange={(latex, plainText) => {
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium block">Your Answer</Label>
+                      <MathAnswerField
+                        ref={(el) => { if (el) mathFieldRefs.current[question.id] = el; }}
+                        valueLatex={userAnswers[question.id]?.answerLatex || ''}
+                        mode="math"
+                        onChange={({ valueLatex, valuePlain }) => {
                           updateAnswer(question.id, { 
-                            finalAnswer: plainText, 
-                            answerLatex: latex 
+                            finalAnswer: valuePlain, 
+                            answerLatex: valueLatex 
                           });
                           // Trigger debounced save
                           if (saveTimeouts.current[question.id]) {
@@ -1262,8 +1313,9 @@ const ExamInProgress = () => {
                           }
                           saveTimeouts.current[question.id] = setTimeout(() => {
                             handleSaveAnswer(question.id);
-                          }, 1500);
+                          }, 500);
                         }}
+                        onFocus={() => setActiveQuestionForMath(question.id)}
                         onBlur={async () => {
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
@@ -1272,8 +1324,23 @@ const ExamInProgress = () => {
                         }}
                         disabled={isReadOnly}
                         questionId={question.id}
+                        subjectColor={subjectColor}
                         placeholder="Enter your answer..."
                       />
+                      {/* Docked Math Keypad */}
+                      {activeQuestionForMath === question.id && (
+                        <MathKeypad
+                          isOpen={true}
+                          onClose={() => setActiveQuestionForMath(null)}
+                          onInsertLatex={(latex) => {
+                            mathFieldRefs.current[question.id]?.insertLatex(latex);
+                          }}
+                          onExecuteCommand={(cmd) => {
+                            mathFieldRefs.current[question.id]?.executeCommand(cmd);
+                          }}
+                          subjectColor={subjectColor}
+                        />
+                      )}
                     </div>
                   ) : (
                     <Textarea 

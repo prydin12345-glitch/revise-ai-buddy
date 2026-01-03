@@ -27,7 +27,7 @@ serve(async (req) => {
       });
     }
 
-    const { examId, questionId, answerText, tableAnswers } = await req.json();
+    const { examId, questionId, answerText, answerLatex, answerFormat, tableAnswers } = await req.json();
 
     if (!examId || !questionId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -36,13 +36,23 @@ serve(async (req) => {
       });
     }
 
-    // Build upsert data, only include table_answers if provided
+    // Build upsert data, only include optional fields if provided
     const upsertData: Record<string, any> = {
       exam_id: examId,
       question_id: questionId,
       student_id: user.id,
       answer_text: answerText,
     };
+    
+    // Add answer_latex if provided (for math input)
+    if (answerLatex !== undefined) {
+      upsertData.answer_latex = answerLatex;
+    }
+    
+    // Add answer_format if provided
+    if (answerFormat !== undefined) {
+      upsertData.answer_format = answerFormat;
+    }
     
     // Add table_answers if provided (for interactive table questions)
     if (tableAnswers !== undefined) {

@@ -92,10 +92,10 @@ serve(async (req) => {
       }
     }
 
-    // Fetch student's existing answers (including table_answers for interactive tables)
+    // Fetch student's existing answers (including table_answers and answer_latex for math input)
     const { data: existingAnswers } = await supabase
       .from('student_answers')
-      .select('question_id, answer_text, score, feedback, is_correct, table_answers')
+      .select('question_id, answer_text, answer_latex, answer_format, score, feedback, is_correct, table_answers')
       .eq('exam_id', examId)
       .eq('student_id', user.id);
 

@@ -1605,6 +1605,8 @@ export type Database = {
       }
       student_answers: {
         Row: {
+          answer_format: string | null
+          answer_latex: string | null
           answer_text: string | null
           exam_id: string
           feedback: string | null
@@ -1617,6 +1619,8 @@ export type Database = {
           table_answers: Json | null
         }
         Insert: {
+          answer_format?: string | null
+          answer_latex?: string | null
           answer_text?: string | null
           exam_id: string
           feedback?: string | null
@@ -1629,6 +1633,8 @@ export type Database = {
           table_answers?: Json | null
         }
         Update: {
+          answer_format?: string | null
+          answer_latex?: string | null
           answer_text?: string | null
           exam_id?: string
           feedback?: string | null

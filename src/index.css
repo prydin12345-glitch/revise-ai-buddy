@@ -309,3 +309,56 @@ All colors MUST be HSL.
     box-shadow: 0 0 30px rgba(239, 68, 68, 1);
   }
 }
+
+/* MathLive field styling */
+math-field {
+  display: block;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+math-field::part(virtual-keyboard-toggle) {
+  display: none;
+}
+
+math-field::part(content) {
+  padding: 12px 16px;
+  min-height: 100px;
+}
+
+/* MathLive placeholder styling */
+math-field::part(placeholder) {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* MathLive focused state */
+math-field:focus-within {
+  outline: none;
+}
+
+/* MathLive selection colors */
+math-field::part(selection) {
+  background: hsl(var(--primary) / 0.25);
+}
+
+/* Math Answer Field container styling */
+.math-answer-field-container {
+  width: 100%;
+}
+
+/* Math keypad animation */
+.math-keypad {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

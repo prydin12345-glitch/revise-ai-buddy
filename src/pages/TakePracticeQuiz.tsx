@@ -24,7 +24,8 @@ import {
   Calculator
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MathAnswerInput, latexToPlainText } from "@/components/quiz/MathAnswerInput";
+import { MathAnswerField, latexToPlainText } from "@/components/quiz/MathAnswerField";
+import { MathKeypad } from "@/components/quiz/MathKeypad";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +91,8 @@ const TakePracticeQuiz = () => {
   const [isGrading, setIsGrading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
+  const [showMathKeypad, setShowMathKeypad] = useState(false);
+  const mathFieldRef = useRef<any>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -742,29 +745,49 @@ const TakePracticeQuiz = () => {
 
                   {/* Answer input - Math or Text mode */}
                   {mathInputEnabled[currentQuestion.id] ? (
-                    <MathAnswerInput
-                      value={currentAnswer.answerLatex || ""}
-                      onChange={(latex, plainText) => {
-                        const newAnswer = {
-                          ...currentAnswer,
-                          answerLatex: latex,
-                          answer: plainText,
-                          useMathInput: true
-                        };
-                        setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                        debouncedSave(currentQuestion.id, { answer: plainText, answerLatex: latex });
-                      }}
-                      onBlur={() => {
-                        // Save on blur
-                        debouncedSave(currentQuestion.id, { 
-                          answer: currentAnswer.answer, 
-                          answerLatex: currentAnswer.answerLatex 
-                        });
-                      }}
-                      disabled={currentAnswer.submitted}
-                      questionId={currentQuestion.id}
-                      placeholder="Enter your mathematical answer..."
-                    />
+                    <div className="space-y-2">
+                      <MathAnswerField
+                        ref={mathFieldRef}
+                        valueLatex={currentAnswer.answerLatex || ""}
+                        mode="math"
+                        onChange={({ valueLatex, valuePlain }) => {
+                          const newAnswer = {
+                            ...currentAnswer,
+                            answerLatex: valueLatex,
+                            answer: valuePlain,
+                            useMathInput: true
+                          };
+                          setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                          debouncedSave(currentQuestion.id, { answer: valuePlain, answerLatex: valueLatex });
+                        }}
+                        onFocus={() => setShowMathKeypad(true)}
+                        onBlur={() => {
+                          // Save on blur
+                          debouncedSave(currentQuestion.id, { 
+                            answer: currentAnswer.answer, 
+                            answerLatex: currentAnswer.answerLatex 
+                          });
+                        }}
+                        disabled={currentAnswer.submitted}
+                        questionId={currentQuestion.id}
+                        subjectColor={subjectColor}
+                        placeholder="Enter your mathematical answer..."
+                      />
+                      {/* Docked Math Keypad */}
+                      {showMathKeypad && !currentAnswer.submitted && (
+                        <MathKeypad
+                          isOpen={true}
+                          onClose={() => setShowMathKeypad(false)}
+                          onInsertLatex={(latex) => {
+                            mathFieldRef.current?.insertLatex(latex);
+                          }}
+                          onExecuteCommand={(cmd) => {
+                            mathFieldRef.current?.executeCommand(cmd);
+                          }}
+                          subjectColor={subjectColor}
+                        />
+                      )}
+                    </div>
                   ) : (
                     <Textarea 
                       value={currentAnswer.answer} 
