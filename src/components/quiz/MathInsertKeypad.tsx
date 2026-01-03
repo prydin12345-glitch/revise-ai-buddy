@@ -76,8 +76,8 @@ const SYMBOL_CATEGORIES: Record<string, { label: string; symbols: SymbolDef[] }>
   functions: {
     label: "Functions",
     symbols: [
-      { label: "√()", value: "√()", caretOffset: 1 },
-      { label: "ⁿ√()", value: "ⁿ√()", caretOffset: 1 },
+      { label: "√", value: "√()", caretOffset: 1 },
+      { label: "ⁿ√", value: "root(, )", caretOffset: 4 },
       { label: "|x|", value: "|()|", caretOffset: 2 },
       { label: "n!", value: "!" },
       { label: "a/b", value: "/" },
@@ -329,11 +329,13 @@ export function normalizeUnicodeForGrading(text: string): string {
   normalized = normalized.replace(/log_(\w+)\(/g, 'log_$1('); // keep log base notation
   normalized = normalized.replace(/ln\(/g, 'ln(');
   
-  // Symbols
+  // Symbols and roots
+  // Handle root(n, x) template format → nthroot(n, x)
+  normalized = normalized.replace(/root\((\d+),\s*([^)]+)\)/g, 'nthroot($1, $2)');
+  normalized = normalized.replace(/√\(([^)]*)\)/g, 'sqrt($1)');
   normalized = normalized.replace(/√/g, 'sqrt');
   normalized = normalized.replace(/∛/g, 'cbrt');
   normalized = normalized.replace(/∜/g, '4thrt');
-  normalized = normalized.replace(/ⁿ√/g, 'nthrt');
   normalized = normalized.replace(/π/g, 'pi');
   normalized = normalized.replace(/θ/g, 'theta');
   normalized = normalized.replace(/∞/g, 'infinity');
