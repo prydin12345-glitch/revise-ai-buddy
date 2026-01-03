@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,9 +20,11 @@ import {
   EyeOff,
   Save,
   AlertCircle,
-  Loader2
+  Loader2,
+  Calculator
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
+import { MathAnswerInput, latexToPlainText } from "@/components/quiz/MathAnswerInput";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,7 +58,8 @@ interface Question {
 }
 
 interface UserAnswer {
-  answer: string;
+  answer: string; // Plain text or converted from latex
+  answerLatex?: string; // LaTeX representation (canonical for math)
   workingOut?: string;
   submitted: boolean;
   isCorrect?: boolean;
@@ -64,6 +67,7 @@ interface UserAnswer {
   methodMarks?: number;
   accuracyMarks?: number;
   feedback?: string;
+  useMathInput?: boolean; // Track if user is using math input
 }
 
 const TakePracticeQuiz = () => {
@@ -85,6 +89,8 @@ const TakePracticeQuiz = () => {
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [mathInputEnabled, setMathInputEnabled] = useState<Record<string, boolean>>({});
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadQuiz();
@@ -97,11 +103,66 @@ const TakePracticeQuiz = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Debounced save function for answer changes
+  const debouncedSave = useCallback(async (questionId: string, answerData: { answer: string; answerLatex?: string }) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Build draft answers from current state plus this update
+      const draftAnswers: Record<string, { text: string; latex?: string }> = {};
+      Object.entries(userAnswers).forEach(([qId, answer]) => {
+        if (!answer.submitted && (answer.answer.trim() || answer.answerLatex?.trim())) {
+          draftAnswers[qId] = { 
+            text: answer.answer, 
+            latex: answer.answerLatex 
+          };
+        }
+      });
+      // Add current update
+      if (answerData.answer.trim() || answerData.answerLatex?.trim()) {
+        draftAnswers[questionId] = { 
+          text: answerData.answer, 
+          latex: answerData.answerLatex 
+        };
+      }
+
+      const { data: currentProgress } = await supabase
+        .from('practice_set_progress')
+        .select('questions_attempted, questions_correct')
+        .eq('user_id', user.id)
+        .eq('set_id', setId)
+        .single();
+
+      await supabase.from('practice_set_progress').upsert({
+        user_id: user.id,
+        set_id: setId,
+        session_data: { 
+          draft_answers: draftAnswers,
+          timer_elapsed: timeElapsed,
+          math_input_enabled: mathInputEnabled
+        },
+        time_spent_seconds: timeElapsed,
+        last_accessed_at: new Date().toISOString(),
+        questions_attempted: currentProgress?.questions_attempted || 0,
+        questions_correct: currentProgress?.questions_correct || 0
+      }, {
+        onConflict: 'user_id,set_id'
+      });
+
+      console.log("Debounce-saved answer for question:", questionId);
+    }, 1500); // 1.5 second debounce
+  }, [userAnswers, timeElapsed, setId, mathInputEnabled]);
+
   // Auto-save draft answers every 30 seconds
   useEffect(() => {
     const autoSaveInterval = setInterval(async () => {
       const hasDrafts = Object.values(userAnswers).some(
-        a => !a.submitted && a.answer.trim()
+        a => !a.submitted && (a.answer.trim() || a.answerLatex?.trim())
       );
       
       if (!hasDrafts && timeElapsed === 0) return;
@@ -109,10 +170,13 @@ const TakePracticeQuiz = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const draftAnswers: Record<string, string> = {};
+      const draftAnswers: Record<string, { text: string; latex?: string }> = {};
       Object.entries(userAnswers).forEach(([questionId, answer]) => {
-        if (!answer.submitted && answer.answer.trim()) {
-          draftAnswers[questionId] = answer.answer;
+        if (!answer.submitted && (answer.answer.trim() || answer.answerLatex?.trim())) {
+          draftAnswers[questionId] = { 
+            text: answer.answer, 
+            latex: answer.answerLatex 
+          };
         }
       });
 
@@ -129,7 +193,8 @@ const TakePracticeQuiz = () => {
         set_id: setId,
         session_data: { 
           draft_answers: draftAnswers,
-          timer_elapsed: timeElapsed
+          timer_elapsed: timeElapsed,
+          math_input_enabled: mathInputEnabled
         },
         time_spent_seconds: timeElapsed,
         last_accessed_at: new Date().toISOString(),
@@ -225,8 +290,10 @@ const TakePracticeQuiz = () => {
 
       // 3. Initialize blank answers first
       const initialAnswers: Record<string, UserAnswer> = {};
+      const initialMathEnabled: Record<string, boolean> = {};
       sortedQuestions.forEach((q) => {
-        initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
+        initialAnswers[q.id] = { answer: "", answerLatex: "", workingOut: "", submitted: false, useMathInput: false };
+        initialMathEnabled[q.id] = false;
       });
 
       // 4. Load submitted answers from database (BEFORE restoring drafts)
@@ -237,17 +304,25 @@ const TakePracticeQuiz = () => {
         .eq('set_id', setId);
       
       if (savedAnswers?.length) {
-        savedAnswers.forEach(ans => {
+        savedAnswers.forEach((ans: any) => {
+          // If answer_latex exists, use it; otherwise fall back to answer_text
+          const hasLatex = ans.answer_latex && ans.answer_latex.trim();
           initialAnswers[ans.question_id] = {
-            answer: ans.answer_text || "",
+            answer: ans.answer_text || (hasLatex ? latexToPlainText(ans.answer_latex) : ""),
+            answerLatex: ans.answer_latex || "",
             workingOut: ans.working_out || "",
             submitted: true,
             score: Number(ans.score),
             methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
             feedback: ans.feedback || "",
-            isCorrect: ans.is_correct || false
+            isCorrect: ans.is_correct || false,
+            useMathInput: !!hasLatex
           };
+          // If the saved answer had LaTeX, enable math input for that question
+          if (hasLatex) {
+            initialMathEnabled[ans.question_id] = true;
+          }
         });
       }
 
@@ -279,10 +354,28 @@ const TakePracticeQuiz = () => {
         if (progress.session_data && typeof progress.session_data === 'object' && progress.session_data !== null) {
           const sessionData = progress.session_data as any;
           if (sessionData.draft_answers) {
-            Object.entries(sessionData.draft_answers).forEach(([questionId, draftText]) => {
+            Object.entries(sessionData.draft_answers).forEach(([questionId, draft]: [string, any]) => {
               // Only restore draft if question hasn't been submitted
               if (initialAnswers[questionId] && !initialAnswers[questionId].submitted) {
-                initialAnswers[questionId].answer = draftText as string;
+                // Handle new format (object with text/latex) or old format (string)
+                if (typeof draft === 'object' && draft !== null) {
+                  initialAnswers[questionId].answer = draft.text || "";
+                  initialAnswers[questionId].answerLatex = draft.latex || "";
+                  if (draft.latex) {
+                    initialMathEnabled[questionId] = true;
+                  }
+                } else if (typeof draft === 'string') {
+                  initialAnswers[questionId].answer = draft;
+                }
+              }
+            });
+          }
+          
+          // Restore math input enabled states
+          if (sessionData.math_input_enabled) {
+            Object.entries(sessionData.math_input_enabled).forEach(([qId, enabled]) => {
+              if (typeof enabled === 'boolean') {
+                initialMathEnabled[qId] = enabled;
               }
             });
           }
@@ -302,8 +395,9 @@ const TakePracticeQuiz = () => {
         }
       }
 
-      // 7. Set all answers at once
+      // 7. Set all answers and math enabled states at once
       setUserAnswers(initialAnswers);
+      setMathInputEnabled(initialMathEnabled);
 
     } catch (error) {
       console.error("Error:", error);
@@ -317,19 +411,27 @@ const TakePracticeQuiz = () => {
   const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIndex];
     const currentAnswer = userAnswers[currentQuestion.id];
+    const isMathMode = mathInputEnabled[currentQuestion.id];
 
-    if (!currentAnswer.answer.trim()) {
+    // Check if there's an answer (either plain text or latex)
+    const hasAnswer = isMathMode 
+      ? (currentAnswer.answerLatex?.trim() || currentAnswer.answer.trim())
+      : currentAnswer.answer.trim();
+
+    if (!hasAnswer) {
       toast.error("Please provide an answer");
       return;
     }
 
     setIsGrading(true);
     try {
+      // Send both latex and plain text to the grader
       const { data, error } = await supabase.functions.invoke('grade-practice-question', {
         body: {
           questionId: currentQuestion.id,
           setId: setId,
           answerText: currentAnswer.answer,
+          answerLatex: currentAnswer.answerLatex || "",
           workingOut: currentAnswer.workingOut || ''
         }
       });
@@ -351,7 +453,6 @@ const TakePracticeQuiz = () => {
       });
 
       // Update session state (timer, index) but NOT counts
-      // The edge function already updated questions_attempted and questions_correct
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('practice_set_progress').upsert({
@@ -360,7 +461,6 @@ const TakePracticeQuiz = () => {
           time_spent_seconds: timeElapsed,
           current_question_index: currentIndex,
           last_accessed_at: new Date().toISOString()
-          // Don't include questions_attempted or questions_correct - edge function handles them
         }, {
           onConflict: 'user_id,set_id'
         });
@@ -459,7 +559,8 @@ const TakePracticeQuiz = () => {
 
   const getQuestionButtonStyle = (question: Question) => {
     const answer = userAnswers[question.id];
-    const hasAnswer = Boolean(answer?.answer?.trim());
+    // Check both plain text and latex for having an answer
+    const hasAnswer = Boolean(answer?.answer?.trim() || answer?.answerLatex?.trim());
     const isFlagged = flaggedQuestions.has(question.id);
     const isCurrent = questions[currentIndex].id === question.id;
 
@@ -493,8 +594,9 @@ const TakePracticeQuiz = () => {
   if (!questions.length) return <div className="p-8 text-center">No questions available</div>;
 
   const currentQuestion = questions[currentIndex];
-  const currentAnswer = userAnswers[currentQuestion.id] || { answer: "", submitted: false };
-  const answeredCount = Object.values(userAnswers).filter(a => a.answer.trim()).length;
+  const currentAnswer = userAnswers[currentQuestion.id] || { answer: "", answerLatex: "", submitted: false };
+  // Count answers including those with LaTeX
+  const answeredCount = Object.values(userAnswers).filter(a => a.answer.trim() || a.answerLatex?.trim()).length;
   const unansweredCount = questions.length - answeredCount;
   const totalScore = Object.values(userAnswers).reduce((sum, ans) => sum + (ans.score || 0), 0);
   const totalPossible = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -538,6 +640,17 @@ const TakePracticeQuiz = () => {
                 <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => {
+                    const qId = currentQuestion.id;
+                    setMathInputEnabled(prev => ({ ...prev, [qId]: !prev[qId] }));
+                  }}
+                  disabled={currentAnswer.submitted}
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  {mathInputEnabled[currentQuestion.id] ? 'Switch to Text' : 'Math Keyboard'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={toggleHideNavigation}>
                   {hideNavigation ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                   {hideNavigation ? 'Show' : 'Hide'} Navigation
@@ -627,14 +740,57 @@ const TakePracticeQuiz = () => {
                     <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
                   </div>
 
-                  {/* Answer textarea */}
-                  <Textarea 
-                    value={currentAnswer.answer} 
-                    onChange={(e) => setUserAnswers({ ...userAnswers, [currentQuestion.id]: { ...currentAnswer, answer: e.target.value }})} 
-                    disabled={currentAnswer.submitted} 
-                    className="min-h-[140px] lg:min-h-[160px] text-base" 
-                    placeholder="Type your answer here..." 
-                  />
+                  {/* Answer input - Math or Text mode */}
+                  {mathInputEnabled[currentQuestion.id] ? (
+                    <MathAnswerInput
+                      value={currentAnswer.answerLatex || ""}
+                      onChange={(latex, plainText) => {
+                        const newAnswer = {
+                          ...currentAnswer,
+                          answerLatex: latex,
+                          answer: plainText,
+                          useMathInput: true
+                        };
+                        setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                        debouncedSave(currentQuestion.id, { answer: plainText, answerLatex: latex });
+                      }}
+                      onBlur={() => {
+                        // Save on blur
+                        debouncedSave(currentQuestion.id, { 
+                          answer: currentAnswer.answer, 
+                          answerLatex: currentAnswer.answerLatex 
+                        });
+                      }}
+                      disabled={currentAnswer.submitted}
+                      questionId={currentQuestion.id}
+                      placeholder="Enter your mathematical answer..."
+                    />
+                  ) : (
+                    <Textarea 
+                      value={currentAnswer.answer} 
+                      onChange={(e) => {
+                        const newAnswer = { ...currentAnswer, answer: e.target.value };
+                        setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                        debouncedSave(currentQuestion.id, { answer: e.target.value });
+                      }}
+                      onBlur={() => {
+                        debouncedSave(currentQuestion.id, { answer: currentAnswer.answer });
+                      }}
+                      disabled={currentAnswer.submitted} 
+                      className="min-h-[140px] lg:min-h-[160px] text-base" 
+                      placeholder="Type your answer here..." 
+                    />
+                  )}
+
+                  {/* Submitted answer display with LaTeX rendering */}
+                  {currentAnswer.submitted && currentAnswer.answerLatex && (
+                    <div className="p-3 bg-muted/50 rounded-lg border">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Your Answer:</p>
+                      <div className="text-base">
+                        <MathRenderer content={`$${currentAnswer.answerLatex}$`} hasMath={true} />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Feedback section after submission */}
                   {currentAnswer.submitted && (
