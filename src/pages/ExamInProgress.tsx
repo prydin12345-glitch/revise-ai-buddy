@@ -1294,7 +1294,7 @@ const ExamInProgress = () => {
                         <MathInsertKeypad
                           isOpen={true}
                           onClose={() => setActiveQuestionForMath(null)}
-                          onInsert={(text) => {
+                          onInsert={(text, caretOffset) => {
                             const textarea = answerTextareaRefs.current[question.id];
                             if (!textarea) return;
                             
@@ -1315,10 +1315,11 @@ const ExamInProgress = () => {
                               handleSaveAnswer(question.id);
                             }, 1000);
                             
-                            // Restore focus and cursor
+                            // Restore focus and cursor (inside template if caretOffset provided)
                             requestAnimationFrame(() => {
                               textarea.focus();
-                              const newPos = start + text.length;
+                              const insertEnd = start + text.length;
+                              const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
                               textarea.setSelectionRange(newPos, newPos);
                             });
                           }}
@@ -1407,7 +1408,7 @@ const ExamInProgress = () => {
                         <MathInsertKeypad
                           isOpen={true}
                           onClose={() => setActiveQuestionForMath(null)}
-                          onInsert={(text) => {
+                          onInsert={(text, caretOffset) => {
                             const textarea = answerTextareaRefs.current[question.id];
                             if (!textarea) return;
                             
@@ -1420,10 +1421,11 @@ const ExamInProgress = () => {
                             
                             handleAnswerChange(question.id, newValue);
                             
-                            // Restore focus and cursor
+                            // Restore focus and cursor (inside template if caretOffset provided)
                             requestAnimationFrame(() => {
                               textarea.focus();
-                              const newPos = start + text.length;
+                              const insertEnd = start + text.length;
+                              const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
                               textarea.setSelectionRange(newPos, newPos);
                             });
                           }}
