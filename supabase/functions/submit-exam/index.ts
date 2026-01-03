@@ -86,10 +86,10 @@ serve(async (req) => {
       });
     }
 
-    // Fetch student answers including table_answers
+    // Fetch student answers including table_answers and answer_latex for math input
     const { data: studentAnswers, error: answersError } = await supabase
       .from('student_answers')
-      .select('question_id, answer_text, table_answers')
+      .select('question_id, answer_text, answer_latex, answer_format, table_answers')
       .eq('exam_id', examId)
       .eq('student_id', user.id);
 
@@ -97,8 +97,10 @@ serve(async (req) => {
       console.error('Error fetching answers:', answersError);
     }
 
-    // Create maps for both text answers and table answers
+    // Create maps for text answers, latex answers, and table answers
     const answerMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_text]) || []);
+    const latexAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_latex]) || []);
+    const answerFormatMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_format]) || []);
     const tableAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.table_answers]) || []);
     
     // Helper function to format table answers for AI grading
@@ -125,20 +127,23 @@ serve(async (req) => {
     for (const question of questions || []) {
       totalMarks += question.marks;
       const studentAnswer = answerMap.get(question.id) || '';
+      const studentLatex = latexAnswerMap.get(question.id) || '';
+      const answerFormat = answerFormatMap.get(question.id) || 'text';
       const tableAnswers = tableAnswerMap.get(question.id);
       const formattedTableAnswers = formatTableAnswersForGrading(tableAnswers);
       
       // Determine if this question has table answers
       const hasTableAnswers = formattedTableAnswers.length > 0;
+      const hasLatexAnswer = studentLatex && studentLatex.trim() !== '';
       const hasTextAnswer = studentAnswer && studentAnswer.trim() !== '';
-      const hasAnyAnswer = hasTableAnswers || hasTextAnswer;
+      const hasAnyAnswer = hasTableAnswers || hasLatexAnswer || hasTextAnswer;
 
       let score = 0;
       let feedback = '';
       let isCorrect = false;
 
       if (!hasAnyAnswer) {
-        // No answer provided (neither text nor table)
+        // No answer provided (neither text nor table nor latex)
         feedback = 'No answer provided';
         isCorrect = false;
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
@@ -152,12 +157,16 @@ serve(async (req) => {
         // Use Lovable AI to score written answers
         const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
         
-        // Parse math answer if it's JSON
+        // Use LaTeX answer if available (preferred), otherwise use text answer
         let workingOut = '';
-        let finalAnswer = studentAnswer;
+        let finalAnswer = hasLatexAnswer ? studentLatex : studentAnswer;
         let parsedAnswer: any = null;
         
-        if (isMathExam) {
+        // For display purposes, include both if available
+        const normalizedPlain = studentAnswer; // Plain text version for fallback
+        const canonicalLatex = studentLatex; // LaTeX for AI grading (preferred)
+        
+        if (isMathExam && !hasLatexAnswer) {
           try {
             parsedAnswer = JSON.parse(studentAnswer);
             workingOut = parsedAnswer.workingOut || '';
@@ -222,13 +231,19 @@ GRADING INSTRUCTIONS:
 4. Provide cell-by-cell feedback (e.g., "Row 1, Column 2: Correct", "Row 2, Column 3: Incorrect, should be X")
 5. Calculate total score based on correct entries`;
           } else if (isMathQuestion) {
+            // Prefer LaTeX for math grading (canonical representation)
+            const answerToGrade = canonicalLatex || finalAnswer;
+            const isLatexFormat = !!canonicalLatex;
+            
             userPrompt = `You are grading a MATHEMATICS exam question. Award partial credit appropriately.
 
 Question: ${question.question_text}
-${question.question_latex ? `LaTeX: ${question.question_latex}` : ''}
+${question.question_latex ? `Question LaTeX: ${question.question_latex}` : ''}
 Correct Answer: ${question.correct_answer}
 
-${parsedAnswer ? `Student's Working Out: ${workingOut || 'Not provided'}
+${isLatexFormat ? `Student's Answer (LaTeX): ${canonicalLatex}
+Student's Answer (Plain text): ${normalizedPlain || 'Not provided'}` : 
+parsedAnswer ? `Student's Working Out: ${workingOut || 'Not provided'}
 Student's Final Answer: ${finalAnswer}` : `Student Answer: ${studentAnswer}`}
 
 Total Marks: ${question.marks}
