@@ -131,6 +131,15 @@ const cleanOptionText = (text: string): string => {
   return text.replace(/^[A-Da-d]\)\s*/, '').trim();
 };
 
+// Remove standalone "Marks: n" lines since marks are shown in the badge
+const removeMarksLine = (content: string): string => {
+  // Remove lines that are just "Marks: n" or similar patterns
+  return content
+    .split('\n')
+    .filter(line => !/^\s*Marks:\s*\d+\s*$/i.test(line.trim()))
+    .join('\n');
+};
+
 // Convert various blank formats to standardized [ BLANK ] format
 const normalizeBlankFormat = (content: string): string => {
   let normalized = content;
@@ -159,8 +168,11 @@ const styleBlankPlaceholders = (content: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
-  // First normalize blank formats (convert underscores to [ BLANK ])
-  const contentWithNormalizedBlanks = normalizeBlankFormat(content);
+  // First remove any standalone "Marks: n" lines
+  const contentWithoutMarks = removeMarksLine(content);
+  
+  // Then normalize blank formats (convert underscores to [ BLANK ])
+  const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarks);
   
   // Then convert any markdown tables to HTML tables
   const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);
