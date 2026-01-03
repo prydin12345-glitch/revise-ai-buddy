@@ -27,7 +27,7 @@ serve(async (req) => {
       });
     }
 
-    const { examId, questionId, answerText, answerLatex, answerFormat, tableAnswers } = await req.json();
+    const { examId, questionId, answerText, answerLatex, answerFormat, tableAnswers, isFlagged } = await req.json();
 
     if (!examId || !questionId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -57,6 +57,16 @@ serve(async (req) => {
     // Add table_answers if provided (for interactive table questions)
     if (tableAnswers !== undefined) {
       upsertData.table_answers = tableAnswers;
+    }
+    
+    // Add is_flagged if provided
+    if (isFlagged !== undefined) {
+      upsertData.is_flagged = isFlagged;
+      if (isFlagged) {
+        upsertData.flagged_at = new Date().toISOString();
+      } else {
+        upsertData.flagged_at = null;
+      }
     }
 
     // Upsert answer (insert or update)

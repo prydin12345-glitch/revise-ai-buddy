@@ -1610,8 +1610,10 @@ export type Database = {
           answer_text: string | null
           exam_id: string
           feedback: string | null
+          flagged_at: string | null
           id: string
           is_correct: boolean | null
+          is_flagged: boolean | null
           question_id: string
           score: number | null
           student_id: string
@@ -1624,8 +1626,10 @@ export type Database = {
           answer_text?: string | null
           exam_id: string
           feedback?: string | null
+          flagged_at?: string | null
           id?: string
           is_correct?: boolean | null
+          is_flagged?: boolean | null
           question_id: string
           score?: number | null
           student_id: string
@@ -1638,8 +1642,10 @@ export type Database = {
           answer_text?: string | null
           exam_id?: string
           feedback?: string | null
+          flagged_at?: string | null
           id?: string
           is_correct?: boolean | null
+          is_flagged?: boolean | null
           question_id?: string
           score?: number | null
           student_id?: string
