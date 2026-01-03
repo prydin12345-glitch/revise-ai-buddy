@@ -788,7 +788,7 @@ const TakePracticeQuiz = () => {
                       <MathInsertKeypad
                         isOpen={true}
                         onClose={() => setShowMathKeypad(false)}
-                        onInsert={(text) => {
+                        onInsert={(text, caretOffset) => {
                           const textarea = answerTextareaRef.current;
                           if (!textarea) return;
                           
@@ -802,10 +802,11 @@ const TakePracticeQuiz = () => {
                           setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
                           debouncedSave(currentQuestion.id, { answer: newValue });
                           
-                          // Restore focus and cursor position
+                          // Restore focus and cursor position (inside template if caretOffset provided)
                           requestAnimationFrame(() => {
                             textarea.focus();
-                            const newPos = start + text.length;
+                            const insertEnd = start + text.length;
+                            const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
                             textarea.setSelectionRange(newPos, newPos);
                           });
                         }}

@@ -4,17 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface MathInsertKeypadProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onInsert: (text: string) => void;
-  onNavigate?: (direction: 'left' | 'right') => void;
-  onDelete?: () => void;
-  subjectColor?: string;
+
+// Symbol type: simple insert vs template with caret position
+interface SymbolDef {
+  label: string;
+  value: string;
+  caretOffset?: number; // If set, place caret this many chars back from end
 }
 
 // Unicode math symbols organized by category
-const SYMBOL_CATEGORIES = {
+const SYMBOL_CATEGORIES: Record<string, { label: string; symbols: SymbolDef[] }> = {
   superscripts: {
     label: "Powers",
     symbols: [
@@ -28,7 +27,7 @@ const SYMBOL_CATEGORIES = {
       { label: "x⁹", value: "⁹" },
       { label: "x⁰", value: "⁰" },
       { label: "x¹", value: "¹" },
-      { label: "xⁿ", value: "^()" },
+      { label: "xⁿ", value: "^()", caretOffset: 1 },
       { label: "x⁻¹", value: "⁻¹" },
     ]
   },
@@ -47,6 +46,42 @@ const SYMBOL_CATEGORIES = {
       { label: "<", value: "<" },
       { label: ">", value: ">" },
       { label: "≈", value: "≈" },
+      { label: "·", value: "·" },
+    ]
+  },
+  trig: {
+    label: "Trig",
+    symbols: [
+      { label: "sin", value: "sin()", caretOffset: 1 },
+      { label: "cos", value: "cos()", caretOffset: 1 },
+      { label: "tan", value: "tan()", caretOffset: 1 },
+      { label: "sec", value: "sec()", caretOffset: 1 },
+      { label: "csc", value: "csc()", caretOffset: 1 },
+      { label: "cot", value: "cot()", caretOffset: 1 },
+      { label: "sin⁻¹", value: "sin⁻¹()", caretOffset: 1 },
+      { label: "cos⁻¹", value: "cos⁻¹()", caretOffset: 1 },
+      { label: "tan⁻¹", value: "tan⁻¹()", caretOffset: 1 },
+    ]
+  },
+  logs: {
+    label: "Logs",
+    symbols: [
+      { label: "log", value: "log()", caretOffset: 1 },
+      { label: "ln", value: "ln()", caretOffset: 1 },
+      { label: "eˣ", value: "e^()", caretOffset: 1 },
+      { label: "10ˣ", value: "10^()", caretOffset: 1 },
+      { label: "logₐ", value: "log_()", caretOffset: 1 },
+    ]
+  },
+  functions: {
+    label: "Functions",
+    symbols: [
+      { label: "√()", value: "√()", caretOffset: 1 },
+      { label: "ⁿ√()", value: "ⁿ√()", caretOffset: 1 },
+      { label: "|x|", value: "|()|", caretOffset: 2 },
+      { label: "n!", value: "!" },
+      { label: "a/b", value: "/" },
+      { label: "()", value: "()", caretOffset: 1 },
     ]
   },
   symbols: {
@@ -84,7 +119,6 @@ const SYMBOL_CATEGORIES = {
       { label: "⅜", value: "⅜" },
       { label: "⅝", value: "⅝" },
       { label: "⅞", value: "⅞" },
-      { label: "a/b", value: "/" },
     ]
   },
   brackets: {
@@ -118,6 +152,15 @@ const SYMBOL_CATEGORIES = {
   },
 };
 
+interface MathInsertKeypadProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onInsert: (text: string, caretOffset?: number) => void;
+  onNavigate?: (direction: 'left' | 'right') => void;
+  onDelete?: () => void;
+  subjectColor?: string;
+}
+
 export function MathInsertKeypad({ 
   isOpen, 
   onClose, 
@@ -128,8 +171,8 @@ export function MathInsertKeypad({
 }: MathInsertKeypadProps) {
   if (!isOpen) return null;
 
-  const handleSymbolClick = useCallback((value: string) => {
-    onInsert(value);
+  const handleSymbolClick = useCallback((value: string, caretOffset?: number) => {
+    onInsert(value, caretOffset);
   }, [onInsert]);
 
   return (
@@ -218,8 +261,8 @@ export function MathInsertKeypad({
                 <Button
                   key={idx}
                   variant="outline"
-                  onClick={() => handleSymbolClick(symbol.value)}
-                  className="h-10 text-lg font-medium hover:bg-accent active:scale-95 transition-transform"
+                  onClick={() => handleSymbolClick(symbol.value, symbol.caretOffset)}
+                  className="h-10 text-sm sm:text-lg font-medium hover:bg-accent active:scale-95 transition-transform"
                   title={`Insert ${symbol.label}`}
                 >
                   {symbol.label}
@@ -275,11 +318,22 @@ export function normalizeUnicodeForGrading(text: string): string {
   normalized = normalized.replace(/÷/g, '/');
   normalized = normalized.replace(/−/g, '-');
   normalized = normalized.replace(/±/g, '+-');
+  normalized = normalized.replace(/·/g, '*');
+  
+  // Trig functions - normalize inverse notation
+  normalized = normalized.replace(/sin⁻¹/g, 'arcsin');
+  normalized = normalized.replace(/cos⁻¹/g, 'arccos');
+  normalized = normalized.replace(/tan⁻¹/g, 'arctan');
+  
+  // Log functions
+  normalized = normalized.replace(/log_(\w+)\(/g, 'log_$1('); // keep log base notation
+  normalized = normalized.replace(/ln\(/g, 'ln(');
   
   // Symbols
   normalized = normalized.replace(/√/g, 'sqrt');
   normalized = normalized.replace(/∛/g, 'cbrt');
   normalized = normalized.replace(/∜/g, '4thrt');
+  normalized = normalized.replace(/ⁿ√/g, 'nthrt');
   normalized = normalized.replace(/π/g, 'pi');
   normalized = normalized.replace(/θ/g, 'theta');
   normalized = normalized.replace(/∞/g, 'infinity');

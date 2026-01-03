@@ -8,7 +8,8 @@ interface UseTextareaInsertOptions {
 
 export function useTextareaInsert({ textareaRef, value, onChange }: UseTextareaInsertOptions) {
   // Insert text at current cursor position, replacing selection if any
-  const insertAtCursor = useCallback((textToInsert: string) => {
+  // caretOffset: if provided, place caret this many chars back from end of inserted text
+  const insertAtCursor = useCallback((textToInsert: string, caretOffset?: number) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -23,10 +24,12 @@ export function useTextareaInsert({ textareaRef, value, onChange }: UseTextareaI
     // Update value
     onChange(newValue);
     
-    // Restore focus and set cursor position after the inserted text
+    // Restore focus and set cursor position
     requestAnimationFrame(() => {
       textarea.focus();
-      const newCursorPos = start + textToInsert.length;
+      // If caretOffset is provided, place cursor inside the template
+      const insertEnd = start + textToInsert.length;
+      const newCursorPos = caretOffset ? insertEnd - caretOffset : insertEnd;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     });
   }, [textareaRef, value, onChange]);
