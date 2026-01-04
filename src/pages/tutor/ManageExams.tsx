@@ -225,43 +225,44 @@ const ManageExams = () => {
   }
 
   return (
-    <div className="min-h-screen pb-12">
-      <div className="container mx-auto py-8 px-4 lg:px-8 space-y-6 max-w-7xl">
+    <div className="min-h-screen pb-16">
+      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-10 space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Manage Exams</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Manage Exams</h1>
+            <p className="text-muted-foreground mt-2 text-base">
               Create, assign, and track student exams
             </p>
           </div>
           <Button 
             onClick={() => navigate("/tutor/exams/create")}
+            size="lg"
             className="gap-2 rounded-xl shadow-lg shadow-primary/20"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
             Create Exam
           </Button>
         </div>
 
         {/* Stats Row */}
         {exams.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-xl bg-card/40 border border-border/30 p-4 backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Exams</p>
-              <p className="text-2xl font-bold mt-1">{stats.totalExams}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
+              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Total Exams</p>
+              <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.totalExams}</p>
             </div>
-            <div className="rounded-xl bg-card/40 border border-border/30 p-4 backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Active</p>
-              <p className="text-2xl font-bold mt-1 text-blue-400">{stats.activeExams}</p>
+            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
+              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Active</p>
+              <p className="text-3xl lg:text-4xl font-bold mt-2 text-blue-400">{stats.activeExams}</p>
             </div>
-            <div className="rounded-xl bg-card/40 border border-border/30 p-4 backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Due This Week</p>
-              <p className="text-2xl font-bold mt-1 text-amber-400">{stats.upcomingDeadlines}</p>
+            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
+              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Due This Week</p>
+              <p className="text-3xl lg:text-4xl font-bold mt-2 text-amber-400">{stats.upcomingDeadlines}</p>
             </div>
-            <div className="rounded-xl bg-card/40 border border-border/30 p-4 backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Avg Completion</p>
-              <p className="text-2xl font-bold mt-1 text-emerald-400">{stats.avgCompletion}%</p>
+            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
+              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Avg Completion</p>
+              <p className="text-3xl lg:text-4xl font-bold mt-2 text-emerald-400">{stats.avgCompletion}%</p>
             </div>
           </div>
         )}
@@ -461,16 +462,16 @@ const ManageExams = () => {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Results count */}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm lg:text-base text-muted-foreground">
                 Showing {filteredExams.length} of {exams.length} exam{exams.length !== 1 ? 's' : ''}
               </span>
             </div>
 
-            {/* Cards - responsive grid */}
-            <div className="grid gap-5 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {/* Cards - responsive grid with better spacing */}
+            <div className="grid gap-5 lg:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filteredExams.map((exam) => (
                 <ExamManagementCard
                   key={exam.id}
