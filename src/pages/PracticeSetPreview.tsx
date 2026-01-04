@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, Play, ArrowLeft } from "lucide-react";
+import { Loader2, Eye, Play, ArrowLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
 
@@ -33,12 +33,20 @@ interface PracticeSet {
   exam_board?: string;
 }
 
+interface Progress {
+  current_question_index: number | null;
+  questions_attempted: number | null;
+  session_data: any;
+}
+
 const PracticeSetPreview = () => {
   const { setId } = useParams();
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [practiceSet, setPracticeSet] = useState<PracticeSet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasProgress, setHasProgress] = useState(false);
+  const [savedQuestionIndex, setSavedQuestionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     loadPreview();
@@ -46,6 +54,7 @@ const PracticeSetPreview = () => {
 
   const loadPreview = async () => {
     try {
+      // Fetch practice set data
       const { data: setData, error: setError } = await supabase
         .from('practice_question_sets')
         .select('*')
@@ -55,6 +64,7 @@ const PracticeSetPreview = () => {
       if (setError) throw setError;
       setPracticeSet(setData);
 
+      // Fetch questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('practice_questions')
         .select('*')
@@ -63,11 +73,37 @@ const PracticeSetPreview = () => {
 
       if (questionsError) throw questionsError;
       setQuestions(questionsData || []);
+
+      // Check for existing progress
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: progress } = await supabase
+          .from('practice_set_progress')
+          .select('current_question_index, questions_attempted, session_data')
+          .eq('user_id', user.id)
+          .eq('set_id', setId)
+          .single();
+
+        if (progress) {
+          const sessionData = progress.session_data as { draft_answers?: Record<string, any> } | null;
+          const hasAttempted = (progress.questions_attempted && progress.questions_attempted > 0) ||
+            (sessionData?.draft_answers && Object.keys(sessionData.draft_answers).length > 0);
+          
+          if (hasAttempted) {
+            setHasProgress(true);
+            setSavedQuestionIndex(progress.current_question_index);
+          }
+        }
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStartOrContinue = () => {
+    navigate(`/practice-questions/${setId}/take`);
   };
 
   if (loading) {
@@ -88,29 +124,49 @@ const PracticeSetPreview = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-card border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      {/* Header - 3-zone layout */}
+      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur border-b">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center">
+          {/* Left: Back button */}
+          <div className="flex-1 flex justify-start">
             <Button variant="ghost" size="icon" onClick={() => navigate('/quizzes')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <Badge variant="outline" className="bg-muted">
+          </div>
+
+          {/* Center: Preview Mode + Set name */}
+          <div className="flex-1 flex justify-center items-center gap-3">
+            <Badge variant="outline" className="bg-muted whitespace-nowrap">
               <Eye className="w-3 h-3 mr-1" />
               Preview Mode
             </Badge>
-            <h1 className="text-xl font-bold">{practiceSet.set_name}</h1>
+            <h1 className="text-lg font-semibold truncate max-w-[200px] lg:max-w-[400px]">
+              {practiceSet.set_name}
+            </h1>
           </div>
-          <Button onClick={() => navigate(`/practice-questions/${setId}/take`)} size="lg">
-            <Play className="h-4 w-4 mr-2" />
-            Start Quiz
-          </Button>
+
+          {/* Right: Start/Continue button */}
+          <div className="flex-1 flex justify-end">
+            <Button onClick={handleStartOrContinue} size="lg">
+              {hasProgress ? (
+                <>
+                  <ChevronRight className="h-4 w-4 mr-2" />
+                  Continue
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Quiz
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
       {/* Metadata */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">Subject</p>
@@ -149,34 +205,43 @@ const PracticeSetPreview = () => {
 
         {/* Questions */}
         <div className="space-y-6">
-          {questions.map((question, idx) => (
-            <Card key={question.id}>
+          {questions.map((question) => (
+            <Card key={question.id} className="overflow-hidden">
               <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline">{question.question_number}</Badge>
+                {/* Question header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="font-mono">Q{question.question_number}</Badge>
                     <Badge variant="secondary">{question.subtopic}</Badge>
                     {question.difficulty_level && (
                       <Badge variant="outline" className="capitalize">{question.difficulty_level}</Badge>
                     )}
+                    <Badge variant="outline" className="capitalize">{question.question_type}</Badge>
                   </div>
-                  <Badge>{question.marks} {question.marks === 1 ? 'mark' : 'marks'}</Badge>
+                  <Badge className="ml-2 shrink-0">
+                    {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
+                  </Badge>
                 </div>
 
-                <div className="prose dark:prose-invert max-w-none mb-4">
-                  {question.has_math && question.question_latex ? (
-                    <MathRenderer content={question.question_text} latex={question.question_latex} hasMath={true} />
-                  ) : (
-                    <p>{question.question_text}</p>
-                  )}
+                {/* Question text - always use MathRenderer */}
+                <div className="text-base leading-relaxed mb-4 overflow-x-auto">
+                  <MathRenderer content={question.question_text} hasMath={true} />
                 </div>
 
-                {question.options && Array.isArray(question.options) && (
-                  <div className="space-y-2 mt-4">
+                {/* MCQ Options - match quiz attempt styling */}
+                {question.options && Array.isArray(question.options) && question.options.length > 0 && (
+                  <div className="space-y-3 mt-4">
                     {question.options.map((option: any, optIdx: number) => (
-                      <div key={optIdx} className="flex items-start gap-2 p-3 rounded border bg-muted/30">
-                        <span className="font-medium">{option.key})</span>
-                        <span>{option.text}</span>
+                      <div 
+                        key={optIdx} 
+                        className="flex items-start gap-3 p-4 rounded-lg border bg-muted/40 hover:bg-muted/60 transition-colors"
+                      >
+                        <span className="font-semibold text-primary shrink-0 w-6">
+                          {option.key || String.fromCharCode(65 + optIdx)})
+                        </span>
+                        <div className="flex-1 overflow-x-auto">
+                          <MathRenderer content={option.text} hasMath={true} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -185,6 +250,25 @@ const PracticeSetPreview = () => {
             </Card>
           ))}
         </div>
+
+        {/* Bottom CTA */}
+        {questions.length > 0 && (
+          <div className="mt-8 flex justify-center pb-8">
+            <Button onClick={handleStartOrContinue} size="lg" className="px-8">
+              {hasProgress ? (
+                <>
+                  <ChevronRight className="h-4 w-4 mr-2" />
+                  Continue Quiz
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Quiz
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
