@@ -4,6 +4,7 @@ import { differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Select, 
   SelectContent, 
@@ -196,7 +197,7 @@ const ManageExams = () => {
 
   const hasActiveFilters = statusFilter !== "all" || subjectFilter !== "all" || groupFilter !== "all" || searchQuery;
 
-  // Calculate stats - MUST be before any early returns
+  // Calculate stats
   const stats = useMemo(() => {
     const totalExams = exams.length;
     const activeExams = exams.filter(e => e.status.toLowerCase() === "published").length;
@@ -215,181 +216,188 @@ const ManageExams = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading exams...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-16">
-      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-10 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Manage Exams</h1>
-            <p className="text-muted-foreground mt-2 text-base">
-              Create, assign, and track student exams
-            </p>
-          </div>
-          <Button 
-            onClick={() => navigate("/tutor/exams/create")}
-            size="lg"
-            className="gap-2 rounded-xl shadow-lg shadow-primary/20"
-          >
-            <Plus className="h-5 w-5" />
-            Create Exam
-          </Button>
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header - matches Practice Sets */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Manage Exams</h1>
+          <p className="text-muted-foreground">Create, assign, and track student exams</p>
         </div>
+        <Button onClick={() => navigate("/tutor/exams/create")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Exam
+        </Button>
+      </div>
 
-        {/* Stats Row */}
-        {exams.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
-              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Total Exams</p>
-              <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.totalExams}</p>
-            </div>
-            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
-              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Active</p>
-              <p className="text-3xl lg:text-4xl font-bold mt-2 text-blue-400">{stats.activeExams}</p>
-            </div>
-            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
-              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Due This Week</p>
-              <p className="text-3xl lg:text-4xl font-bold mt-2 text-amber-400">{stats.upcomingDeadlines}</p>
-            </div>
-            <div className="rounded-2xl bg-card/50 border border-border/40 p-5 lg:p-6 backdrop-blur-sm">
-              <p className="text-xs lg:text-sm text-muted-foreground font-medium uppercase tracking-wider">Avg Completion</p>
-              <p className="text-3xl lg:text-4xl font-bold mt-2 text-emerald-400">{stats.avgCompletion}%</p>
-            </div>
-          </div>
-        )}
+      {/* Stats Row - styled consistently */}
+      {exams.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Total Exams</p>
+              <p className="text-2xl font-bold">{stats.totalExams}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold text-blue-500">{stats.activeExams}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Due This Week</p>
+              <p className="text-2xl font-bold text-amber-500">{stats.upcomingDeadlines}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Avg Completion</p>
+              <p className="text-2xl font-bold text-emerald-500">{stats.avgCompletion}%</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        {/* Controls Bar */}
-        <div className="flex flex-col gap-4">
-          {/* Search and primary controls */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search exams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-xl bg-background/50 border-border/50"
-              />
+      {/* Main Content Card - matches Practice Sets pattern */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Your Exams</CardTitle>
+              <CardDescription>Manage all your exam papers</CardDescription>
             </div>
             
-            <div className="flex gap-2">
-              {/* Sort Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 rounded-xl">
-                    <ArrowUpDown className="h-4 w-4" />
-                    <span className="hidden sm:inline">Sort</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {SORT_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => setSortBy(option.value as SortOption)}
-                      className={sortBy === option.value ? "bg-accent" : ""}
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Search and Controls - inside card header */}
+            {exams.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search exams..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full sm:w-64"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  {/* Sort Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <ArrowUpDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {SORT_OPTIONS.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          onClick={() => setSortBy(option.value as SortOption)}
+                          className={sortBy === option.value ? "bg-accent" : ""}
+                        >
+                          {option.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-              {/* Filters Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2 rounded-xl relative"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    <span className="hidden sm:inline">Filters</span>
-                    {hasActiveFilters && (
-                      <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 p-4 space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">Status</label>
-                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_FILTERS.map((filter) => (
-                          <SelectItem key={filter.value} value={filter.value}>
-                            {filter.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Filters Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        className="relative"
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        {hasActiveFilters && (
+                          <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 p-4 space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">Status</label>
+                        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_FILTERS.map((filter) => (
+                              <SelectItem key={filter.value} value={filter.value}>
+                                {filter.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  {uniqueSubjects.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Subject</label>
-                      <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All subjects</SelectItem>
-                          {uniqueSubjects.map((subject) => (
-                            <SelectItem key={subject} value={subject}>
-                              {subject}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                      {uniqueSubjects.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground">Subject</label>
+                          <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All subjects</SelectItem>
+                              {uniqueSubjects.map((subject) => (
+                                <SelectItem key={subject} value={subject}>
+                                  {subject}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
-                  {uniqueGroups.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Assigned Group</label>
-                      <Select value={groupFilter} onValueChange={setGroupFilter}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All groups</SelectItem>
-                          {uniqueGroups.map((group) => (
-                            <SelectItem key={group} value={group}>
-                              {group}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                      {uniqueGroups.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground">Assigned Group</label>
+                          <Select value={groupFilter} onValueChange={setGroupFilter}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All groups</SelectItem>
+                              {uniqueGroups.map((group) => (
+                                <SelectItem key={group} value={group}>
+                                  {group}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
-                  {hasActiveFilters && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full" 
-                      onClick={clearFilters}
-                    >
-                      Clear all filters
-                    </Button>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                      {hasActiveFilters && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full" 
+                          onClick={clearFilters}
+                        >
+                          Clear all filters
+                        </Button>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Active filters pills */}
           {hasActiveFilters && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap mt-4">
               <span className="text-xs text-muted-foreground">Active filters:</span>
               {statusFilter !== "all" && (
                 <Badge variant="secondary" className="text-xs gap-1">
@@ -426,65 +434,60 @@ const ManageExams = () => {
               )}
             </div>
           )}
-        </div>
+        </CardHeader>
 
-        {/* Exam Cards Grid */}
-        {exams.length === 0 ? (
-          // Empty state - no exams at all
-          <div className="flex flex-col items-center justify-center py-20 px-4">
-            <div className="rounded-full bg-muted/30 p-6 mb-6">
-              <FileText className="h-12 w-12 text-muted-foreground" />
+        <CardContent>
+          {exams.length === 0 ? (
+            // Empty state - no exams at all
+            <div className="text-center py-12">
+              <div className="rounded-full bg-muted/30 p-6 mb-6 mx-auto w-fit">
+                <FileText className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground mb-4">No exams created yet</p>
+              <Button onClick={() => navigate("/tutor/exams/create")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Exam
+              </Button>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Create your first exam</h3>
-            <p className="text-muted-foreground text-center max-w-md mb-6">
-              Get started by creating an exam. You can upload past papers or create new questions from scratch.
-            </p>
-            <Button 
-              onClick={() => navigate("/tutor/exams/create")}
-              className="gap-2 rounded-xl"
-            >
-              <Plus className="h-4 w-4" />
-              Create Exam
-            </Button>
-          </div>
-        ) : filteredExams.length === 0 ? (
-          // Empty state - no results matching filters
-          <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className="rounded-full bg-muted/30 p-5 mb-4">
-              <Search className="h-8 w-8 text-muted-foreground" />
+          ) : filteredExams.length === 0 ? (
+            // Empty state - no results matching filters
+            <div className="text-center py-12">
+              <div className="rounded-full bg-muted/30 p-5 mb-4 mx-auto w-fit">
+                <Search className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No exams match your filters</h3>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your search or filter criteria
+              </p>
+              <Button variant="outline" onClick={clearFilters}>
+                Clear all filters
+              </Button>
             </div>
-            <h3 className="text-lg font-semibold mb-2">No exams match your filters</h3>
-            <p className="text-muted-foreground text-center max-w-md mb-4">
-              Try adjusting your search or filter criteria
-            </p>
-            <Button variant="outline" onClick={clearFilters} className="rounded-xl">
-              Clear all filters
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Results count */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm lg:text-base text-muted-foreground">
-                Showing {filteredExams.length} of {exams.length} exam{exams.length !== 1 ? 's' : ''}
-              </span>
-            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Results count */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Showing {filteredExams.length} of {exams.length} exam{exams.length !== 1 ? 's' : ''}
+                </span>
+              </div>
 
-            {/* Cards - responsive grid with better spacing */}
-            <div className="grid gap-5 lg:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {filteredExams.map((exam) => (
-                <ExamManagementCard
-                  key={exam.id}
-                  exam={exam}
-                  subjectColor={getSubjectColor(exam.subject_id)}
-                  onAssign={handleAssignClick}
-                  onDelete={handleDeleteClick}
-                />
-              ))}
+              {/* Cards grid */}
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {filteredExams.map((exam) => (
+                  <ExamManagementCard
+                    key={exam.id}
+                    exam={exam}
+                    subjectColor={getSubjectColor(exam.subject_id)}
+                    onAssign={handleAssignClick}
+                    onDelete={handleDeleteClick}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Assign Modal */}
       {selectedExam && (
@@ -499,7 +502,7 @@ const ManageExams = () => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Exam</AlertDialogTitle>
             <AlertDialogDescription>
@@ -513,13 +516,13 @@ const ManageExams = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting} className="rounded-xl">
+            <AlertDialogCancel disabled={isDeleting}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
                 <>
