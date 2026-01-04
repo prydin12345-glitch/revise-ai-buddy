@@ -150,6 +150,8 @@ const Stats = () => {
           studySessions={drilldown.studySessions}
           weeklyBreakdown={drilldown.weeklyBreakdown}
           streakData={drilldown.streakData}
+          studyTimeRange={drilldown.studyTimeRange}
+          onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
         />
       </div>
     </DashboardLayout>

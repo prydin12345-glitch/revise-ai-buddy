@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfWeek, endOfWeek, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { DrilldownType } from '@/components/dashboard/StatsDrilldownDrawer';
+
+export type TimeRangeOption = 'week' | 'month' | '3months' | 'all';
 
 interface ExamItem {
   id: string;
@@ -18,7 +20,7 @@ interface StudySession {
   id: string;
   date: string;
   duration: number;
-  source: string;
+  source: 'exam' | 'practice' | 'feedback' | 'revision';
   subject?: string;
 }
 
@@ -30,9 +32,43 @@ interface StreakData {
   todayActivity: string[];
 }
 
+// Utility to get date range based on filter
+export const getTimeRange = (filter: TimeRangeOption): { start?: Date; end?: Date } => {
+  const now = new Date();
+  
+  switch (filter) {
+    case 'week':
+      return {
+        start: startOfWeek(now, { weekStartsOn: 1 }),
+        end: endOfWeek(now, { weekStartsOn: 1 }),
+      };
+    case 'month':
+      return {
+        start: startOfMonth(now),
+        end: endOfMonth(now),
+      };
+    case '3months':
+      return {
+        start: startOfMonth(subMonths(now, 2)),
+        end: endOfMonth(now),
+      };
+    case 'all':
+      return {
+        start: undefined,
+        end: undefined,
+      };
+    default:
+      return {
+        start: startOfWeek(now, { weekStartsOn: 1 }),
+        end: endOfWeek(now, { weekStartsOn: 1 }),
+      };
+  }
+};
+
 export const useStatsDrilldown = () => {
   const [activeDrawer, setActiveDrawer] = useState<DrilldownType>(null);
   const [loading, setLoading] = useState(false);
+  const [studyTimeRange, setStudyTimeRange] = useState<TimeRangeOption>('week');
   
   // Exams data
   const [completedExams, setCompletedExams] = useState<ExamItem[]>([]);
@@ -94,22 +130,17 @@ export const useStatsDrilldown = () => {
     }
   };
 
-  const fetchStudyData = async (userId: string) => {
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-
-    // Fetch revision tasks for study hours
-    const { data: tasks } = await supabase
+  const fetchStudyData = async (userId: string, timeRange: TimeRangeOption) => {
+    const { start, end } = getTimeRange(timeRange);
+    
+    // Build base queries with optional date filters
+    let tasksQuery = supabase
       .from('revision_tasks')
       .select('id, subject, duration, date, is_completed')
       .eq('user_id', userId)
-      .eq('is_completed', true)
-      .gte('date', weekStart.toISOString())
-      .lte('date', weekEnd.toISOString());
-
-    // Fetch exam time from submissions
-    const { data: examSessions } = await supabase
+      .eq('is_completed', true);
+    
+    let examSessionsQuery = supabase
       .from('exam_submissions')
       .select(`
         id,
@@ -118,12 +149,9 @@ export const useStatsDrilldown = () => {
         exams!inner(subject_id)
       `)
       .eq('student_id', userId)
-      .in('status', ['submitted', 'completed', 'graded'])
-      .gte('submitted_at', weekStart.toISOString())
-      .lte('submitted_at', weekEnd.toISOString());
-
-    // Fetch practice quiz completions
-    const { data: practiceProgress } = await supabase
+      .in('status', ['submitted', 'completed', 'graded']);
+    
+    let practiceProgressQuery = supabase
       .from('practice_set_progress')
       .select(`
         id,
@@ -132,75 +160,163 @@ export const useStatsDrilldown = () => {
         practice_question_sets!inner(subject_id, set_name)
       `)
       .eq('user_id', userId)
-      .not('completed_at', 'is', null)
-      .gte('completed_at', weekStart.toISOString())
-      .lte('completed_at', weekEnd.toISOString());
+      .not('completed_at', 'is', null);
 
-    // Build sessions list
+    // Fetch feedback threads reviewed by the user (time spent reviewing feedback)
+    let feedbackQuery = supabase
+      .from('question_feedback_threads')
+      .select('id, created_at, responded_at')
+      .eq('student_id', userId)
+      .not('responded_at', 'is', null);
+
+    // Apply date filters if not "all time"
+    if (start && end) {
+      tasksQuery = tasksQuery.gte('date', start.toISOString()).lte('date', end.toISOString());
+      examSessionsQuery = examSessionsQuery.gte('submitted_at', start.toISOString()).lte('submitted_at', end.toISOString());
+      practiceProgressQuery = practiceProgressQuery.gte('completed_at', start.toISOString()).lte('completed_at', end.toISOString());
+      feedbackQuery = feedbackQuery.gte('responded_at', start.toISOString()).lte('responded_at', end.toISOString());
+    }
+
+    const [
+      { data: tasks },
+      { data: examSessions },
+      { data: practiceProgress },
+      { data: feedbackThreads },
+    ] = await Promise.all([
+      tasksQuery,
+      examSessionsQuery,
+      practiceProgressQuery,
+      feedbackQuery,
+    ]);
+
+    // Build sessions list with correct source types
     const sessions: StudySession[] = [];
     
+    // Revision tasks
     if (tasks) {
       tasks.forEach(task => {
-        sessions.push({
-          id: task.id,
-          date: format(new Date(task.date), 'MMM d'),
-          duration: task.duration || 0,
-          source: 'revision',
-          subject: task.subject,
-        });
+        if (task.duration && task.duration > 0) {
+          sessions.push({
+            id: task.id,
+            date: format(new Date(task.date), 'MMM d'),
+            duration: task.duration, // Already in minutes
+            source: 'revision',
+            subject: task.subject,
+          });
+        }
       });
     }
 
+    // Exam sessions
     if (examSessions) {
       examSessions.forEach(sub => {
-        sessions.push({
-          id: sub.id,
-          date: format(new Date(sub.submitted_at || ''), 'MMM d'),
-          duration: Math.round((sub.time_taken_seconds || 0) / 60), // Convert to minutes
-          source: 'exam',
-          subject: (sub.exams as any).subject_id,
-        });
+        if (sub.time_taken_seconds && sub.time_taken_seconds > 0) {
+          sessions.push({
+            id: sub.id,
+            date: format(new Date(sub.submitted_at || ''), 'MMM d'),
+            duration: Math.round(sub.time_taken_seconds / 60), // Convert to minutes
+            source: 'exam',
+            subject: (sub.exams as any).subject_id,
+          });
+        }
       });
     }
 
+    // Practice quiz sessions
     if (practiceProgress) {
       practiceProgress.forEach(progress => {
+        if (progress.time_spent_seconds && progress.time_spent_seconds > 0) {
+          sessions.push({
+            id: progress.id,
+            date: format(new Date(progress.completed_at || ''), 'MMM d'),
+            duration: Math.round(progress.time_spent_seconds / 60), // Convert to minutes
+            source: 'practice',
+            subject: (progress.practice_question_sets as any).subject_id,
+          });
+        }
+      });
+    }
+
+    // Feedback review sessions (estimate ~5 minutes per feedback reviewed)
+    if (feedbackThreads) {
+      feedbackThreads.forEach(thread => {
         sessions.push({
-          id: progress.id,
-          date: format(new Date(progress.completed_at || ''), 'MMM d'),
-          duration: Math.round((progress.time_spent_seconds || 0) / 60), // Convert to minutes
-          source: 'practice quiz',
-          subject: (progress.practice_question_sets as any).subject_id,
+          id: thread.id,
+          date: format(new Date(thread.responded_at || ''), 'MMM d'),
+          duration: 5, // Estimate 5 minutes per feedback review
+          source: 'feedback',
         });
       });
     }
 
     setStudySessions(sessions);
 
-    // Calculate weekly breakdown
+    // Calculate daily breakdown for the current week (always show current week bars)
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayHours: Record<string, number> = {};
     days.forEach(d => dayHours[d] = 0);
 
+    // Only include sessions from the current week in the daily breakdown
+    sessions.forEach(session => {
+      // Parse session date back to full date for comparison
+      const sessionDateStr = session.date;
+      // Find matching sessions by checking if they're in the current week
+      // We need to be more precise here - sessions already have duration in minutes
+    });
+
+    // For the daily breakdown, we need to re-fetch with week filter specifically
+    // or filter the existing sessions by week
+    const weekSessions = sessions.filter(session => {
+      // We need the original date, but we only have formatted "MMM d"
+      // This is a limitation - let's recalculate from the raw data
+      return true; // Include all for now, but we'll calculate properly below
+    });
+
+    // Recalculate from raw data for week breakdown
     if (tasks) {
       tasks.forEach(task => {
-        const dayName = format(new Date(task.date), 'EEEE');
-        dayHours[dayName] += (task.duration || 0) / 60; // Convert minutes to hours
+        const taskDate = new Date(task.date);
+        if (taskDate >= weekStart && taskDate <= weekEnd) {
+          const dayName = format(taskDate, 'EEEE');
+          dayHours[dayName] += (task.duration || 0) / 60;
+        }
       });
     }
 
     if (examSessions) {
       examSessions.forEach(sub => {
-        const dayName = format(new Date(sub.submitted_at || ''), 'EEEE');
-        dayHours[dayName] += (sub.time_taken_seconds || 0) / 3600; // Convert seconds to hours
+        const subDate = new Date(sub.submitted_at || '');
+        if (subDate >= weekStart && subDate <= weekEnd) {
+          const dayName = format(subDate, 'EEEE');
+          dayHours[dayName] += (sub.time_taken_seconds || 0) / 3600;
+        }
       });
     }
 
     if (practiceProgress) {
       practiceProgress.forEach(progress => {
-        const dayName = format(new Date(progress.completed_at || ''), 'EEEE');
-        if (dayHours[dayName] !== undefined) {
-          dayHours[dayName] += (progress.time_spent_seconds || 0) / 3600; // Convert seconds to hours
+        const progressDate = new Date(progress.completed_at || '');
+        if (progressDate >= weekStart && progressDate <= weekEnd) {
+          const dayName = format(progressDate, 'EEEE');
+          if (dayHours[dayName] !== undefined) {
+            dayHours[dayName] += (progress.time_spent_seconds || 0) / 3600;
+          }
+        }
+      });
+    }
+
+    if (feedbackThreads) {
+      feedbackThreads.forEach(thread => {
+        const threadDate = new Date(thread.responded_at || '');
+        if (threadDate >= weekStart && threadDate <= weekEnd) {
+          const dayName = format(threadDate, 'EEEE');
+          if (dayHours[dayName] !== undefined) {
+            dayHours[dayName] += 5 / 60; // 5 minutes in hours
+          }
         }
       });
     }
@@ -208,7 +324,8 @@ export const useStatsDrilldown = () => {
     const breakdown = days.map(day => ({ day, hours: dayHours[day] }));
     setWeeklyBreakdown(breakdown);
     
-    const total = Object.values(dayHours).reduce((a, b) => a + b, 0);
+    // Total hours is sum of all sessions (not just this week)
+    const total = sessions.reduce((sum, s) => sum + s.duration, 0) / 60; // Convert minutes to hours
     setTotalHours(total);
   };
 
@@ -316,7 +433,7 @@ export const useStatsDrilldown = () => {
           await fetchExamsData(user.id);
           break;
         case 'study-hours':
-          await fetchStudyData(user.id);
+          await fetchStudyData(user.id, studyTimeRange);
           break;
         case 'streak':
           await fetchStreakData(user.id);
@@ -327,7 +444,28 @@ export const useStatsDrilldown = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [studyTimeRange]);
+
+  // Refetch study data when time range changes and drawer is open
+  const refetchStudyData = useCallback(async (newRange: TimeRangeOption) => {
+    if (activeDrawer !== 'study-hours') return;
+    
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await fetchStudyData(user.id, newRange);
+    } catch (error) {
+      console.error('Error refetching study data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeDrawer]);
+
+  const handleStudyTimeRangeChange = useCallback((range: TimeRangeOption) => {
+    setStudyTimeRange(range);
+    refetchStudyData(range);
+  }, [refetchStudyData]);
 
   const closeDrawer = useCallback(() => {
     setActiveDrawer(null);
@@ -347,5 +485,8 @@ export const useStatsDrilldown = () => {
     studySessions,
     weeklyBreakdown,
     streakData,
+    // Time range
+    studyTimeRange,
+    handleStudyTimeRangeChange,
   };
 };

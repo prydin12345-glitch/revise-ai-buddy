@@ -79,6 +79,8 @@ interface StatsDrilldownDrawerProps {
   studySessions?: StudySession[];
   weeklyBreakdown?: { day: string; hours: number }[];
   streakData?: StreakData;
+  studyTimeRange?: TimeRangeOption;
+  onStudyTimeRangeChange?: (range: TimeRangeOption) => void;
 }
 
 type ExamSortOption = 'recent' | 'oldest' | 'highest' | 'lowest' | 'subject';
@@ -124,6 +126,8 @@ export const StatsDrilldownDrawer = ({
   studySessions = [],
   weeklyBreakdown = [],
   streakData,
+  studyTimeRange = 'week',
+  onStudyTimeRangeChange,
 }: StatsDrilldownDrawerProps) => {
   const navigate = useNavigate();
   const isOpen = type !== null;
@@ -136,9 +140,6 @@ export const StatsDrilldownDrawer = ({
   // Scores drawer state
   const [scoreTimeRange, setScoreTimeRange] = useState<TimeRangeOption>('all');
   const [scoreSubjectFilter, setScoreSubjectFilter] = useState<string>('all');
-  
-  // Study hours drawer state
-  const [studyTimeRange, setStudyTimeRange] = useState<TimeRangeOption>('week');
 
   // Get unique subjects from exams
   const uniqueSubjects = useMemo(() => {
@@ -511,7 +512,7 @@ export const StatsDrilldownDrawer = ({
     return (
       <div className="space-y-4">
         {/* Time Range Selector */}
-        <Select value={studyTimeRange} onValueChange={(v) => setStudyTimeRange(v as TimeRangeOption)}>
+        <Select value={studyTimeRange} onValueChange={(v) => onStudyTimeRangeChange?.(v as TimeRangeOption)}>
           <SelectTrigger className="w-full bg-muted/20 border-border/20">
             <Calendar className="w-3.5 h-3.5 mr-1.5" />
             <SelectValue />
