@@ -133,6 +133,7 @@ const cleanOptionText = (text: string): string => {
 
 // Remove standalone "Marks: n" lines since marks are shown in the badge
 const removeMarksLine = (content: string): string => {
+  if (!content) return '';
   // Remove lines that are just "Marks: n" or similar patterns
   return content
     .split('\n')
