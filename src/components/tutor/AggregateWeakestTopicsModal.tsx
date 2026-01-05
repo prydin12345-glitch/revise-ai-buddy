@@ -41,7 +41,7 @@ export const AggregateWeakestTopicsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden border-border/50 bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-amber-500/10">
@@ -54,7 +54,7 @@ export const AggregateWeakestTopicsModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[450px] pr-4">
+        <ScrollArea className="h-[400px] pr-4 -mr-4">
           {sortedTopics.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />

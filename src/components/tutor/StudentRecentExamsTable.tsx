@@ -157,7 +157,7 @@ export const StudentRecentExamsTable = ({ exams, studentId, subjectColors }: Stu
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/tutor/student-exam-review/${exam.exam_id}/${studentId}`)}
+                          onClick={() => navigate(`/tutor/exams/${exam.exam_id}/student/${studentId}`)}
                           className="gap-1"
                         >
                           Review
