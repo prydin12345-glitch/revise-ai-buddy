@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown } from "lucide-react";
+import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,7 @@ interface GroupAssignment {
   deadline: string | null;
   created_at: string;
   is_active: boolean;
+  is_grades_released: boolean;
   completion_count: number;
   total_students: number;
 }
@@ -176,6 +177,7 @@ export const ClassDetailPanel = ({
           deadline,
           created_at,
           is_active,
+          is_grades_released,
           exams!exam_assignments_exam_id_fkey(title)
         `)
         .eq("target_id", groupId)
@@ -198,6 +200,7 @@ export const ClassDetailPanel = ({
               deadline: assignment.deadline,
               created_at: assignment.created_at,
               is_active: assignment.is_active,
+              is_grades_released: assignment.is_grades_released ?? false,
               completion_count: 0,
               total_students: 0,
             };
@@ -220,6 +223,7 @@ export const ClassDetailPanel = ({
             deadline: assignment.deadline,
             created_at: assignment.created_at,
             is_active: assignment.is_active,
+            is_grades_released: assignment.is_grades_released ?? false,
             completion_count: completedCount,
             total_students: activeMemberIds.length,
           };
@@ -812,6 +816,21 @@ export const ClassDetailPanel = ({
                       const completionPercent = assignment.total_students > 0 
                         ? Math.round((assignment.completion_count / assignment.total_students) * 100) 
                         : 0;
+                      
+                      // Determine badge display: Results released takes priority over overdue
+                      const showResultsReleased = assignment.is_grades_released;
+                      const badgeConfig = showResultsReleased
+                        ? {
+                            text: "Results released",
+                            className: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+                            icon: <CheckCircle2 className="w-3 h-3 mr-1" />
+                          }
+                        : {
+                            text: deadlineStatus.text,
+                            className: deadlineStatus.className,
+                            icon: <Clock className="w-3 h-3 mr-1" />
+                          };
+                      
                       return (
                         <div
                           key={assignment.id}
@@ -823,10 +842,10 @@ export const ClassDetailPanel = ({
                               <div className="flex items-center gap-3 mt-2 text-xs">
                                 <Badge 
                                   variant="outline" 
-                                  className={`text-xs font-normal ${deadlineStatus.className}`}
+                                  className={`text-xs font-normal ${badgeConfig.className}`}
                                 >
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  {deadlineStatus.text}
+                                  {badgeConfig.icon}
+                                  {badgeConfig.text}
                                 </Badge>
                                 <span className="text-muted-foreground">
                                   {assignment.completion_count}/{assignment.total_students} completed ({completionPercent}%)
