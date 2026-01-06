@@ -22,6 +22,7 @@ import { FeedbackPriorityTags, FeedbackTag, TAG_CONFIG } from "@/components/tuto
 import { StudentProfileTooltip } from "@/components/tutor/StudentProfileTooltip";
 import { StudentFeedbackHistory } from "@/components/tutor/StudentFeedbackHistory";
 import { checkTone, ToneCheckerDisplay } from "@/components/tutor/ToneChecker";
+import { useNotifications } from "@/hooks/useNotifications";
 
 
 interface FeedbackThread {
@@ -78,6 +79,7 @@ const formatFeedbackDate = (dateStr: string): string => {
 
 const ManageFeedback = () => {
   const navigate = useNavigate();
+  const { markAsReadByMetadata } = useNotifications();
   const [threads, setThreads] = useState<FeedbackThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedThread, setSelectedThread] = useState<FeedbackThread | null>(null);
@@ -278,6 +280,9 @@ const ManageFeedback = () => {
         .eq("id", selectedThread.id);
 
       if (error) throw error;
+
+      // Mark related feedback_request notifications as read
+      await markAsReadByMetadata("threadId", selectedThread.id);
 
       // Notification is handled by database trigger
       toast({ title: "Response sent", description: "The student has been notified." });

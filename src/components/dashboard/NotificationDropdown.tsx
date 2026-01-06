@@ -107,12 +107,17 @@ export const NotificationDropdown = () => {
     });
   };
 
-  const examReminders = notifications.filter((n) => n.type === "exam_reminder" || n.type === "grades_released");
+  const examReminders = notifications.filter((n) => n.type === "exam_reminder" || n.type === "grades_released" || n.type === "exam_assigned");
   const suggestions = notifications.filter((n) => n.type === "ai_suggestion");
   const announcements = notifications.filter((n) => n.type === "announcement");
   const feedback = notifications.filter((n) => 
-    n.type === "feedback_request" || n.type === "feedback_response"
+    n.type === "feedback_request" || n.type === "feedback_response" || n.type === "feedback_resolved"
   );
+
+  // Unread counts per category
+  const unreadExams = examReminders.filter(n => !n.is_read).length;
+  const unreadAnnouncements = announcements.filter(n => !n.is_read).length;
+  const unreadFeedback = feedback.filter(n => !n.is_read).length;
 
   return (
     <DropdownMenu>
@@ -175,9 +180,9 @@ export const NotificationDropdown = () => {
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
               >
                 All
-                {notifications.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {notifications.length}
+                {unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {unreadCount}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -186,9 +191,9 @@ export const NotificationDropdown = () => {
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
               >
                 Exams
-                {examReminders.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {examReminders.length}
+                {unreadExams > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {unreadExams}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -197,9 +202,9 @@ export const NotificationDropdown = () => {
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
               >
                 Classes
-                {announcements.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {announcements.length}
+                {unreadAnnouncements > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {unreadAnnouncements}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -208,9 +213,9 @@ export const NotificationDropdown = () => {
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
               >
                 Feedback
-                {feedback.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {feedback.length}
+                {unreadFeedback > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {unreadFeedback}
                   </Badge>
                 )}
               </TabsTrigger>
