@@ -82,8 +82,6 @@ export const FeedbackThreadModal = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      console.log("Submitting feedback:", { examId, questionId, userId: user.id, existingThread: existingThread?.id });
-
       if (existingThread && existingThread.status === "pending") {
         // Update existing pending thread
         const { error } = await supabase
@@ -91,13 +89,10 @@ export const FeedbackThreadModal = ({
           .update({ student_comment: comment, created_at: new Date().toISOString() })
           .eq("id", existingThread.id);
 
-        if (error) {
-          console.error("Update feedback error:", error);
-          throw error;
-        }
+        if (error) throw error;
       } else {
         // Create new thread - notification is handled by database trigger
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("question_feedback_threads")
           .insert({
             exam_id: examId,
@@ -105,15 +100,9 @@ export const FeedbackThreadModal = ({
             student_id: user.id,
             student_comment: comment,
             status: "pending"
-          })
-          .select();
+          });
 
-        console.log("Insert feedback result:", { data, error });
-
-        if (error) {
-          console.error("Insert feedback error:", error);
-          throw error;
-        }
+        if (error) throw error;
       }
 
       toast({ title: "Feedback submitted", description: "Your tutor will respond soon." });
@@ -121,7 +110,6 @@ export const FeedbackThreadModal = ({
       setComment("");
       setExistingThread(null);
     } catch (error: any) {
-      console.error("Feedback submission error:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
