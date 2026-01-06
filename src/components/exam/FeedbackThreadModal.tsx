@@ -3,9 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageCircle, CheckCircle } from "lucide-react";
+import { Loader2, MessageCircle, CheckCircle, ThumbsUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ResolveConfirmationModal } from "./ResolveConfirmationModal";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface FeedbackThread {
   id: string;
@@ -14,6 +16,8 @@ interface FeedbackThread {
   status: string;
   created_at: string;
   responded_at: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
 }
 
 interface FeedbackThreadModalProps {
@@ -35,6 +39,10 @@ export const FeedbackThreadModal = ({
   const [existingThread, setExistingThread] = useState<FeedbackThread | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [showResolveConfirm, setShowResolveConfirm] = useState(false);
+  
+  const { preferences, updatePreference } = useUserPreferences();
 
   useEffect(() => {
     if (open) {
@@ -139,111 +147,202 @@ export const FeedbackThreadModal = ({
     }
   };
 
+  const handleResolveClick = () => {
+    // Check user preference for confirmation
+    const shouldConfirm = preferences?.confirm_resolve_feedback !== false;
+    
+    if (shouldConfirm) {
+      setShowResolveConfirm(true);
+    } else {
+      performResolve(false);
+    }
+  };
+
+  const performResolve = async (dontShowAgain: boolean) => {
+    if (!existingThread) return;
+
+    try {
+      setResolving(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Update preference if "don't show again" was checked
+      if (dontShowAgain) {
+        await updatePreference({ confirm_resolve_feedback: false });
+      }
+
+      const { error } = await supabase
+        .from("question_feedback_threads")
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+          resolved_by: user.id
+        })
+        .eq("id", existingThread.id);
+
+      if (error) throw error;
+
+      toast({ title: "Marked as resolved", description: "Your tutor has been notified." });
+      
+      // Update local state
+      setExistingThread({
+        ...existingThread,
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.id
+      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setResolving(false);
+      setShowResolveConfirm(false);
+    }
+  };
+
+  const isResolved = existingThread?.status === "resolved";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" />
-            Question {questionNumber} Feedback
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Question {questionNumber} Feedback
+            </DialogTitle>
+          </DialogHeader>
 
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {existingThread && existingThread.status === "responded" ? (
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline">Your Question</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(existingThread.created_at).toLocaleDateString()}
-                    </span>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {existingThread && (existingThread.status === "responded" || isResolved) ? (
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline">Your Question</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(existingThread.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted">
+                      {existingThread.student_comment}
+                    </div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted">
-                    {existingThread.student_comment}
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className="bg-green-500">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Tutor Response
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {existingThread.responded_at && new Date(existingThread.responded_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      {existingThread.tutor_response}
+                    </div>
                   </div>
+
+                  {/* Resolved status or resolve action */}
+                  {isResolved ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        Resolved
+                      </span>
+                      {existingThread.resolved_at && (
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {new Date(existingThread.resolved_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={handleResolveClick}
+                      variant="outline"
+                      className="w-full gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      disabled={resolving}
+                    >
+                      {resolving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ThumbsUp className="w-4 h-4" />
+                      )}
+                      Mark as resolved
+                    </Button>
+                  )}
+
+                  <Button 
+                    onClick={() => {
+                      setExistingThread(null);
+                      setComment("");
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Ask a follow-up question
+                  </Button>
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      What do you need help with?
+                    </label>
+                    <Textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Explain what you're confused about or what you'd like clarification on..."
+                      rows={5}
+                      disabled={submitting}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your tutor will be notified and respond to your question.
+                    </p>
+                  </div>
 
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="bg-green-500">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Tutor Response
+                  {existingThread && existingThread.status === "pending" && (
+                    <Badge variant="secondary" className="w-fit">
+                      Pending tutor response
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {existingThread.responded_at && new Date(existingThread.responded_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                    {existingThread.tutor_response}
-                  </div>
-                </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
-                <Button 
-                  onClick={() => {
-                    setExistingThread(null);
-                    setComment("");
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Ask Another Question
-                </Button>
-              </div>
-            ) : (
+          <DialogFooter>
+            {existingThread && existingThread.status === "pending" ? (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    What do you need help with?
-                  </label>
-                  <Textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Explain what you're confused about or what you'd like clarification on..."
-                    rows={5}
-                    disabled={submitting}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Your tutor will be notified and respond to your question.
-                  </p>
-                </div>
-
-                {existingThread && existingThread.status === "pending" && (
-                  <Badge variant="secondary" className="w-fit">
-                    Pending tutor response
-                  </Badge>
-                )}
+                <Button onClick={handleDelete} variant="outline" disabled={submitting}>
+                  Delete
+                </Button>
+                <Button onClick={handleSubmit} disabled={submitting}>
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Update
+                </Button>
               </>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
-          {existingThread && existingThread.status === "pending" ? (
-            <>
-              <Button onClick={handleDelete} variant="outline" disabled={submitting}>
-                Delete
-              </Button>
+            ) : existingThread && (existingThread.status === "responded" || isResolved) ? (
+              <Button onClick={() => onOpenChange(false)}>Close</Button>
+            ) : (
               <Button onClick={handleSubmit} disabled={submitting}>
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Update
+                Submit Feedback
               </Button>
-            </>
-          ) : existingThread && existingThread.status === "responded" ? (
-            <Button onClick={() => onOpenChange(false)}>Close</Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Submit Feedback
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ResolveConfirmationModal
+        open={showResolveConfirm}
+        onOpenChange={setShowResolveConfirm}
+        onConfirm={performResolve}
+      />
+    </>
   );
 };

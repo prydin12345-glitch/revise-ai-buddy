@@ -19,6 +19,7 @@ export interface UserPreferences {
   beta_features_enabled: boolean;
   font_size: 'small' | 'medium' | 'large';
   high_contrast_mode: boolean;
+  confirm_resolve_feedback: boolean;
 }
 
 const defaultPreferences: UserPreferences = {
@@ -35,6 +36,7 @@ const defaultPreferences: UserPreferences = {
   beta_features_enabled: false,
   font_size: 'medium',
   high_contrast_mode: false,
+  confirm_resolve_feedback: true,
 };
 
 export const useUserPreferences = () => {
@@ -66,12 +68,13 @@ export const useUserPreferences = () => {
             .single();
 
           if (insertError) throw insertError;
-          setPreferences(newPrefs as UserPreferences);
+          setPreferences({ ...defaultPreferences, ...newPrefs } as UserPreferences);
         } else {
           throw fetchError;
         }
       } else {
-        setPreferences(data as UserPreferences);
+        // Merge with defaults to handle null values from DB
+        setPreferences({ ...defaultPreferences, ...data } as UserPreferences);
       }
     } catch (err) {
       console.error('Error loading preferences:', err);
