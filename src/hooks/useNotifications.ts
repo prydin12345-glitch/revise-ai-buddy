@@ -7,7 +7,7 @@ export interface Notification {
   user_id: string;
   title: string;
   body: string | null;
-  type: "exam_reminder" | "ai_suggestion" | "task_completion" | "missed_task" | "feedback_request" | "feedback_response" | "announcement" | "grades_released" | "verification_approved" | "exam_assigned" | "deadline_changed" | "exam_submitted";
+  type: "exam_reminder" | "ai_suggestion" | "task_completion" | "missed_task" | "feedback_request" | "feedback_response" | "feedback_resolved" | "announcement" | "grades_released" | "verification_approved" | "exam_assigned" | "deadline_changed" | "exam_submitted";
   is_read: boolean;
   is_pinned: boolean;
   snoozed_until: string | null;
@@ -242,12 +242,41 @@ export const useNotifications = () => {
     }
   }, [callApi, toast, fetchNotifications, fetchUnreadCount, notifications]);
 
+  // Mark notifications as read by matching metadata (e.g., threadId)
+  const markAsReadByMetadata = useCallback(async (metadataKey: string, metadataValue: string) => {
+    try {
+      // Find matching unread notifications
+      const matchingIds = notifications
+        .filter(n => !n.is_read && n.metadata?.[metadataKey] === metadataValue)
+        .map(n => n.id);
+      
+      if (matchingIds.length === 0) return;
+      
+      // Optimistic update
+      setNotifications((prev) =>
+        prev.map((n) => 
+          matchingIds.includes(n.id) 
+            ? { ...n, is_read: true, read_at: new Date().toISOString() } 
+            : n
+        )
+      );
+      setUnreadCount((prev) => Math.max(0, prev - matchingIds.length));
+
+      await callApi("mark-read", "POST", { notificationIds: matchingIds });
+    } catch (error) {
+      console.error("Error marking notifications as read by metadata:", error);
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [callApi, fetchNotifications, fetchUnreadCount, notifications]);
+
   return {
     notifications,
     loading,
     unreadCount,
     markAsRead,
     markAllAsRead,
+    markAsReadByMetadata,
     pinNotification,
     snoozeNotification,
     deleteNotification,

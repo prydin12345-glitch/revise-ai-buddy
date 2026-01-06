@@ -27,6 +27,7 @@ const getNotificationIcon = (type: Notification["type"]) => {
       return <Megaphone className="w-4 h-4 text-orange-400" />;
     case "feedback_request":
     case "feedback_response":
+    case "feedback_resolved":
       return <MessageCircle className="w-4 h-4 text-cyan-400" />;
     case "grades_released":
       return <Award className="w-4 h-4 text-emerald-400" />;
@@ -57,6 +58,7 @@ const getNotificationColor = (type: Notification["type"]) => {
       return "border-l-orange-500";
     case "feedback_request":
     case "feedback_response":
+    case "feedback_resolved":
       return "border-l-cyan-500";
     case "grades_released":
       return "border-l-emerald-500";
@@ -93,9 +95,10 @@ export const NotificationCard = ({
   return (
     <div
       className={cn(
-        "group relative border-l-4 bg-card hover:bg-accent/50 transition-colors p-4 cursor-pointer",
-        getNotificationColor(notification.type),
-        !notification.is_read && "bg-accent/20"
+        "group relative border-l-4 transition-colors p-4 cursor-pointer",
+        notification.is_read 
+          ? "bg-card/50 border-l-muted-foreground/30 opacity-75 hover:opacity-100 hover:bg-accent/30" 
+          : cn("bg-accent/20 hover:bg-accent/40", getNotificationColor(notification.type))
       )}
       onClick={handleClick}
     >
