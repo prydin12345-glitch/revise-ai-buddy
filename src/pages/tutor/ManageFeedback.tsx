@@ -34,6 +34,8 @@ interface FeedbackThread {
   status: string;
   created_at: string;
   responded_at: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
   notify_on_reply?: boolean;
   notify_on_resolve?: boolean;
   exam?: { title: string; subject_id?: string };
@@ -231,7 +233,7 @@ const ManageFeedback = () => {
   }, [threads, filters]);
 
   const pendingThreads = filteredThreads.filter(t => t.status === "pending");
-  const respondedThreads = filteredThreads.filter(t => t.status === "responded");
+  const respondedThreads = filteredThreads.filter(t => t.status === "responded" || t.status === "resolved");
   
   const currentThreads = activeTab === "pending" ? pendingThreads : respondedThreads;
   const totalPages = Math.ceil(currentThreads.length / ITEMS_PER_PAGE);
@@ -368,12 +370,17 @@ const ManageFeedback = () => {
           )}
           <Badge 
             variant={isPending ? "secondary" : "default"}
-            className={`ml-auto ${!isPending ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}
+            className={`ml-auto ${thread.status === "resolved" ? "bg-emerald-600 hover:bg-emerald-700" : !isPending ? "bg-green-500 hover:bg-green-600" : ""}`}
           >
             {isPending ? (
               <>
                 <Clock className="w-3 h-3 mr-1" />
                 Pending
+              </>
+            ) : thread.status === "resolved" ? (
+              <>
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Resolved
               </>
             ) : (
               <>
@@ -394,9 +401,16 @@ const ManageFeedback = () => {
 
         {/* Timestamp & Quick Actions */}
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-muted-foreground">
-            {isPending ? dateStr : `Responded ${thread.responded_at ? formatFeedbackDate(thread.responded_at) : ""}`}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">
+              {isPending ? dateStr : `Responded ${thread.responded_at ? formatFeedbackDate(thread.responded_at) : ""}`}
+            </p>
+            {thread.status === "resolved" && thread.resolved_at && (
+              <Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+                Resolved {formatFeedbackDate(thread.resolved_at)}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"

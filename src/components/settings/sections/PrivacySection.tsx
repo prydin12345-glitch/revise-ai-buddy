@@ -47,6 +47,18 @@ export const PrivacySection = () => {
             />
           </div>
 
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="confirm-resolve">Confirm before resolving feedback</Label>
+              <p className="text-sm text-muted-foreground">Show confirmation when marking help threads as resolved</p>
+            </div>
+            <Switch
+              id="confirm-resolve"
+              checked={preferences?.confirm_resolve_feedback !== false}
+              onCheckedChange={(checked) => updatePreference({ confirm_resolve_feedback: checked })}
+            />
+          </div>
+
           <div className="pt-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>

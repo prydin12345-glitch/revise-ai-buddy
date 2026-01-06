@@ -1240,6 +1240,8 @@ export type Database = {
           notify_on_reply: boolean | null
           notify_on_resolve: boolean | null
           question_id: string
+          resolved_at: string | null
+          resolved_by: string | null
           responded_at: string | null
           status: string
           student_comment: string
@@ -1254,6 +1256,8 @@ export type Database = {
           notify_on_reply?: boolean | null
           notify_on_resolve?: boolean | null
           question_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           responded_at?: string | null
           status?: string
           student_comment: string
@@ -1268,6 +1272,8 @@ export type Database = {
           notify_on_reply?: boolean | null
           notify_on_resolve?: boolean | null
           question_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           responded_at?: string | null
           status?: string
           student_comment?: string
@@ -1928,6 +1934,7 @@ export type Database = {
           accent_color: string | null
           ai_feedback_detail: string | null
           beta_features_enabled: boolean | null
+          confirm_resolve_feedback: boolean | null
           created_at: string | null
           display_name: string | null
           email_notifications: boolean | null
@@ -1948,6 +1955,7 @@ export type Database = {
           accent_color?: string | null
           ai_feedback_detail?: string | null
           beta_features_enabled?: boolean | null
+          confirm_resolve_feedback?: boolean | null
           created_at?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
@@ -1968,6 +1976,7 @@ export type Database = {
           accent_color?: string | null
           ai_feedback_detail?: string | null
           beta_features_enabled?: boolean | null
+          confirm_resolve_feedback?: boolean | null
           created_at?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
