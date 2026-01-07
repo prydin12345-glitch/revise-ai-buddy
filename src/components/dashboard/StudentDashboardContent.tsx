@@ -219,7 +219,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           size="lg" 
           variant="outline"
           className="flex-1 h-14 sm:h-16 text-base sm:text-lg font-semibold border-2 hover:bg-accent transition-all duration-300 rounded-xl"
-          onClick={() => navigate("/practice-questions/new")}
+          onClick={() => navigate("/create-practice-questions")}
         >
           <FileText className="w-5 h-5 mr-2 sm:mr-3" />
           Create Practice Questions
