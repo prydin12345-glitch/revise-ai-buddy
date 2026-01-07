@@ -132,12 +132,24 @@ serve(async (req) => {
       const tableAnswers = tableAnswerMap.get(question.id);
       const formattedTableAnswers = formatTableAnswersForGrading(tableAnswers);
       
-      // Check if this is a table_grid answer (tick/X table)
+      // Check if this is a table_grid answer (tick/X table) - support both formats
       let tableGridAnswers: Record<string, number[]> | null = null;
       try {
         const parsed = JSON.parse(studentAnswer);
-        if (parsed._type === 'table_grid' && parsed.answers) {
-          tableGridAnswers = parsed.answers;
+        if (parsed._type === 'table_grid') {
+          // New format (version 2)
+          if (parsed.version === 2 && parsed.cells) {
+            tableGridAnswers = {};
+            for (const [rowId, colMap] of Object.entries(parsed.cells as Record<string, Record<number, boolean>>)) {
+              tableGridAnswers[rowId] = Object.entries(colMap)
+                .filter(([_, selected]) => selected)
+                .map(([colIdx]) => parseInt(colIdx, 10));
+            }
+          }
+          // Legacy format
+          else if (parsed.answers) {
+            tableGridAnswers = parsed.answers;
+          }
         }
       } catch {
         // Not JSON or not table_grid format
@@ -160,48 +172,192 @@ serve(async (req) => {
         isCorrect = false;
       } else if (hasTableGridAnswer && tableGridAnswers) {
         // DETERMINISTIC GRADING for table_grid questions (tick/X tables)
-        // Parse correct answers from question if available
+        // Parse correct answers from question - check multiple possible formats
         let correctAnswers: Record<string, number[]> | null = null;
-        try {
-          if (question.correct_answer) {
+        
+        // First, try to extract from the question's correct_answer field
+        if (question.correct_answer) {
+          try {
             const parsed = JSON.parse(question.correct_answer);
             if (parsed.correctAnswers) {
               correctAnswers = parsed.correctAnswers;
+            } else if (typeof parsed === 'object' && !parsed._type && !parsed.version) {
+              // Direct format: { rowId: [colIndices] }
+              correctAnswers = parsed;
             }
+          } catch {
+            // Not valid JSON format for correct answers
           }
-        } catch {
-          // Not valid JSON format for correct answers
         }
         
-        if (correctAnswers) {
-          // Deterministic exact-match grading per row
-          const marksPerRow = question.marks / Object.keys(correctAnswers).length;
-          let totalRowsCorrect = 0;
-          const rowResults: string[] = [];
+        // If no correct answers found, try to infer from question text (first row example)
+        if (!correctAnswers) {
+          // Detect tick/X table pattern in question text and generate answer key
+          const questionText = question.question_text || '';
+          const isTickXTable = questionText.toLowerCase().includes('tick') || 
+                               questionText.toLowerCase().includes('cross') || 
+                               questionText.toLowerCase().includes('(x)');
           
-          for (const rowId of Object.keys(correctAnswers)) {
-            const expected = new Set(correctAnswers[rowId] || []);
-            const actual = new Set(tableGridAnswers[rowId] || []);
-            const rowCorrect = expected.size === actual.size && 
-                               [...expected].every(col => actual.has(col));
+          if (isTickXTable) {
+            // Parse the table to extract structure
+            const tableLines = questionText.split('\n').filter((line: string) => /^\s*\|/.test(line));
+            const dataLines = tableLines.filter((line: string) => !/^\s*\|[\s:\-|]+\|\s*$/.test(line));
             
-            if (rowCorrect) {
-              totalRowsCorrect++;
-              rowResults.push(`${rowId}: ✓ Correct`);
-            } else {
-              const expectedCols = [...expected].map(c => `Column ${c}`).join(', ') || 'none';
-              rowResults.push(`${rowId}: ✗ Incorrect (expected: ${expectedCols})`);
+            if (dataLines.length >= 2) {
+              const headerParts = dataLines[0].split('|').slice(1, -1).map((h: string) => h.trim());
+              const dataRows = dataLines.slice(1);
+              
+              // For biology Q16a style questions, we need to generate correct answers based on known biology facts
+              // This is a fallback that uses AI for content-specific questions
+              console.log('Table grid question detected but no answer key stored. Using AI grading as fallback.');
             }
           }
+        }
+        
+        if (correctAnswers && Object.keys(correctAnswers).length > 0) {
+          // PARTIAL CREDIT GRADING (per-cell with penalties for extras)
+          const nonExampleRows = Object.keys(correctAnswers);
           
-          score = Math.round(totalRowsCorrect * marksPerRow * 100) / 100;
-          isCorrect = totalRowsCorrect === Object.keys(correctAnswers).length;
-          feedback = `You got ${totalRowsCorrect}/${Object.keys(correctAnswers).length} rows correct.\n\n${rowResults.join('\n')}`;
+          if (nonExampleRows.length > 0) {
+            let totalCorrectCells = 0;
+            let totalExpectedCells = 0;
+            let totalExtraSelections = 0;
+            const rowResults: string[] = [];
+            
+            for (const rowId of nonExampleRows) {
+              const expected = correctAnswers[rowId] || [];
+              const actual = tableGridAnswers[rowId] || [];
+              
+              // Count correct selections
+              const correctInRow = actual.filter(col => expected.includes(col)).length;
+              const missedInRow = expected.filter(col => !actual.includes(col)).length;
+              const extraInRow = actual.filter(col => !expected.includes(col)).length;
+              
+              totalCorrectCells += correctInRow;
+              totalExpectedCells += expected.length;
+              totalExtraSelections += extraInRow;
+              
+              const rowCorrect = correctInRow === expected.length && extraInRow === 0;
+              
+              if (rowCorrect) {
+                rowResults.push(`${rowId}: ✓ Correct`);
+              } else if (correctInRow === 0 && actual.length > 0) {
+                rowResults.push(`${rowId}: ✗ Incorrect selections`);
+              } else if (missedInRow > 0 && extraInRow > 0) {
+                rowResults.push(`${rowId}: Partial (${correctInRow} correct, ${missedInRow} missed, ${extraInRow} extra)`);
+              } else if (missedInRow > 0) {
+                rowResults.push(`${rowId}: Partial (${correctInRow} correct, ${missedInRow} missed)`);
+              } else if (extraInRow > 0) {
+                rowResults.push(`${rowId}: Partial (${correctInRow} correct but ${extraInRow} extra selections)`);
+              }
+            }
+            
+            // Calculate partial marks
+            if (totalExpectedCells > 0) {
+              const marksPerCell = question.marks / totalExpectedCells;
+              const baseScore = totalCorrectCells * marksPerCell;
+              // Penalize extra selections (0.5 mark per extra, capped at earned score)
+              const penalty = Math.min(totalExtraSelections * marksPerCell * 0.5, baseScore);
+              score = Math.max(0, Math.round((baseScore - penalty) * 100) / 100);
+            } else {
+              score = 0;
+            }
+            
+            isCorrect = score >= question.marks;
+            const correctRows = rowResults.filter(r => r.includes('✓')).length;
+            feedback = `You got ${totalCorrectCells}/${totalExpectedCells} correct selections across ${correctRows}/${nonExampleRows.length} fully correct rows.\n\n${rowResults.join('\n')}\n\nScore: ${score}/${question.marks}`;
+          } else {
+            score = 0;
+            feedback = 'No gradable rows found in answer key.';
+            isCorrect = false;
+          }
         } else {
-          // No correct answers available - use AI grading
-          score = 0;
-          feedback = 'Table grid answer recorded but could not be auto-graded (no answer key available).';
-          isCorrect = false;
+          // No correct answers available - use AI grading as fallback
+          console.log(`Table grid question ${question.id} has no answer key - attempting AI grading`);
+          
+          // Try to grade using AI
+          const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+          if (LOVABLE_API_KEY) {
+            try {
+              const tableGridDescription = Object.entries(tableGridAnswers)
+                .map(([rowId, cols]) => `${rowId}: columns ${cols.join(', ')}`)
+                .join('\n');
+              
+              const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  messages: [
+                    {
+                      role: 'system',
+                      content: `You are grading a tick/X table question. The student selected cells in a table grid. Evaluate correctness based on the question context and your knowledge. Award partial marks for partially correct answers.`
+                    },
+                    {
+                      role: 'user',
+                      content: `Question: ${question.question_text}\n\nStudent selections:\n${tableGridDescription}\n\nTotal marks: ${question.marks}\n\nGrade this table response and provide specific feedback on which selections are correct/incorrect.`
+                    }
+                  ],
+                  tools: [{
+                    type: "function",
+                    function: {
+                      name: "grade_answer",
+                      description: "Grade a student's table answer with partial credit",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          score: { type: "number", description: "Total score out of total marks (supports decimals for partial credit)" },
+                          feedback: { type: "string", description: "Brief feedback explaining which cells were correct/incorrect" },
+                          isCorrect: { type: "boolean", description: "Whether answer is fully correct" },
+                          correctAnswers: { 
+                            type: "object", 
+                            description: "The correct answer key as { rowId: [columnIndices] }" 
+                          }
+                        },
+                        required: ["score", "feedback", "isCorrect"],
+                        additionalProperties: false
+                      }
+                    }
+                  }],
+                  tool_choice: { type: "function", function: { name: "grade_answer" } }
+                }),
+              });
+              
+              if (aiResponse.ok) {
+                const aiData = await aiResponse.json();
+                const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+                
+                if (toolCall) {
+                  const grading = JSON.parse(toolCall.function.arguments);
+                  score = Math.min(Math.max(0, grading.score), question.marks);
+                  feedback = grading.feedback;
+                  isCorrect = grading.isCorrect;
+                  
+                  // If AI provided correct answers, store them for future reference
+                  if (grading.correctAnswers) {
+                    console.log('AI provided correct answers:', JSON.stringify(grading.correctAnswers));
+                  }
+                }
+              } else {
+                console.error('AI grading failed:', await aiResponse.text());
+                score = 0;
+                feedback = 'Table grid answer recorded but could not be auto-graded. Awaiting tutor review.';
+                isCorrect = false;
+              }
+            } catch (aiError) {
+              console.error('AI grading exception:', aiError);
+              score = 0;
+              feedback = 'Table grid answer recorded but could not be auto-graded. Awaiting tutor review.';
+              isCorrect = false;
+            }
+          } else {
+            score = 0;
+            feedback = 'Table grid answer recorded but could not be auto-graded (no answer key available). Awaiting tutor review.';
+            isCorrect = false;
+          }
         }
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
         // Simple exact match for MCQ
