@@ -85,20 +85,17 @@ serve(async (req) => {
           }
           
           // Parse correct answers and table metadata from question
-          let correctAnswers: Record<string, number[]> | null = null;
-          let correctInputs: Record<string, Record<number, string | number>> | null = null;
+          // Toggle tables: correctAnswers = { rowId: [colIndex, ...] }
+          let correctToggleAnswers: Record<string, number[]> | null = null;
+          // Text/numeric tables: correctInputs = { rowId: { colIndex: "value" } }
+          let correctInputs: Record<string, Record<number, string | string[]>> | null = null;
           let tableType: 'tf_single' | 'grid_single' | 'grid_multi' | 'text_entry' | 'numeric_entry' = 'grid_multi';
           let columnKinds: string[] = [];
           
           if (question.correct_answer) {
             try {
               const ca = JSON.parse(question.correct_answer);
-              if (ca.correctAnswers) {
-                correctAnswers = ca.correctAnswers;
-              }
-              if (ca.correctInputs) {
-                correctInputs = ca.correctInputs;
-              }
+              
               if (ca.table_data?.tableType) {
                 const tt = ca.table_data.tableType;
                 if (tt === 'tf_single' || tt === 'tick_cross' || tt === 'tf') {
@@ -114,13 +111,49 @@ serve(async (req) => {
                   tableType = 'numeric_entry';
                 }
               }
+              
               // Extract column kinds for input tables
               if (ca.table_data?.columns) {
                 columnKinds = ca.table_data.columns.map((c: any) => c.kind || c.type || 'toggle');
               }
-              // Detect single-select from selectionMode
-              if (ca.table_data?.selectionMode === 'single') {
+              
+              // Detect text mode from selectionMode
+              if (ca.table_data?.selectionMode === 'text') {
+                tableType = 'text_entry';
+              } else if (ca.table_data?.selectionMode === 'single') {
                 tableType = tableType === 'tf_single' ? 'tf_single' : 'grid_single';
+              }
+              
+              // Check column types to detect text-entry tables
+              if (ca.table_data?.columns?.some((c: any) => c.type === 'text' || c.kind === 'text')) {
+                tableType = 'text_entry';
+              }
+              
+              // Parse correctAnswers based on table type
+              if (ca.correctAnswers) {
+                if (tableType === 'text_entry' || tableType === 'numeric_entry') {
+                  // Text tables: correctAnswers is { rowId: ["value1", "value2", ...] }
+                  // Convert to correctInputs format: { rowId: { 1: "value1", 2: "value2" } }
+                  correctInputs = {};
+                  for (const [rowId, values] of Object.entries(ca.correctAnswers)) {
+                    if (Array.isArray(values) && values.length > 0) {
+                      correctInputs[rowId] = {};
+                      for (let i = 0; i < values.length; i++) {
+                        // Column index starts at 1 (column 0 is typically the row label)
+                        correctInputs[rowId][i + 1] = values[i] as string;
+                      }
+                    }
+                  }
+                  console.log('[table-grading] Converted text correctAnswers to correctInputs:', correctInputs);
+                } else {
+                  // Toggle tables: correctAnswers is { rowId: [colIndex, ...] }
+                  correctToggleAnswers = ca.correctAnswers as Record<string, number[]>;
+                }
+              }
+              
+              // Use correctInputs directly if provided
+              if (ca.correctInputs) {
+                correctInputs = ca.correctInputs;
               }
             } catch {
               // Failed to parse correct answer
@@ -160,9 +193,8 @@ serve(async (req) => {
                 if (studentVal !== undefined && studentVal !== '' && studentVal !== null) {
                   hasAnyAnswer = true;
                   
-                  // Normalize and compare
+                  // Normalize student answer
                   const normalizedStudent = String(studentVal).trim().toLowerCase().replace(/\s+/g, ' ');
-                  const normalizedCorrect = String(correctVal || '').trim().toLowerCase().replace(/\s+/g, ' ');
                   
                   if (tableType === 'numeric_entry') {
                     // Numeric comparison with tolerance
@@ -176,8 +208,26 @@ serve(async (req) => {
                       }
                     }
                   } else {
-                    // Text comparison (case-insensitive)
-                    if (normalizedStudent === normalizedCorrect) {
+                    // Text comparison (case-insensitive) - support array of acceptable answers
+                    let isCorrect = false;
+                    
+                    if (Array.isArray(correctVal)) {
+                      // correctVal is an array of acceptable synonyms
+                      isCorrect = correctVal.some((acceptable: string) => {
+                        const normalizedAcceptable = String(acceptable).trim().toLowerCase().replace(/\s+/g, ' ');
+                        return normalizedStudent === normalizedAcceptable || 
+                               normalizedStudent.includes(normalizedAcceptable) ||
+                               normalizedAcceptable.includes(normalizedStudent);
+                      });
+                    } else if (correctVal) {
+                      // Single correct value
+                      const normalizedCorrect = String(correctVal).trim().toLowerCase().replace(/\s+/g, ' ');
+                      isCorrect = normalizedStudent === normalizedCorrect ||
+                                  normalizedStudent.includes(normalizedCorrect) ||
+                                  normalizedCorrect.includes(normalizedStudent);
+                    }
+                    
+                    if (isCorrect) {
                       cellsCorrect++;
                     }
                   }
@@ -225,9 +275,9 @@ serve(async (req) => {
             };
           }
           // Handle TOGGLE tables (TF, grid_single, grid_multi)
-          else if (correctAnswers && Object.keys(correctAnswers).length > 0) {
+          else if (correctToggleAnswers && Object.keys(correctToggleAnswers).length > 0) {
             // DETERMINISTIC GRADING based on table type
-            const nonExampleRows = Object.keys(correctAnswers);
+            const nonExampleRows = Object.keys(correctToggleAnswers);
             const marksPerRow = question.marks / nonExampleRows.length;
             let totalScore = 0;
             const rowResults: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }> = {};
@@ -244,7 +294,7 @@ serve(async (req) => {
             }
             
             for (const rowId of nonExampleRows) {
-              const expected = correctAnswers[rowId] || [];
+              const expected = correctToggleAnswers[rowId] || [];
               const actual = sanitizedAnswers[rowId] || [];
               
               if (tableType === 'tf_single' || tableType === 'grid_single') {
@@ -304,7 +354,7 @@ serve(async (req) => {
             const correctRows = Object.values(rowResults).filter(r => r.correct).length;
             
             // Build feedback with embedded marking data for UI hydration
-            const markingDataJson = JSON.stringify({ perRowResults: rowResults, correctAnswers });
+            const markingDataJson = JSON.stringify({ perRowResults: rowResults, correctAnswers: correctToggleAnswers });
             const feedback = `${correctRows}/${nonExampleRows.length} rows correct.\n\n${feedbackLines.join('\n')}\n\n<!--MARKING_DATA:${markingDataJson}-->`;
             
             tableGridResult = {
@@ -312,7 +362,7 @@ serve(async (req) => {
               feedback,
               isCorrect: totalScore >= question.marks,
               perRowResults: rowResults,
-              correctAnswers // Include for direct response
+              correctAnswers: correctToggleAnswers // Include for direct response
             };
           }
         }
