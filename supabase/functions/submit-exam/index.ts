@@ -132,11 +132,23 @@ serve(async (req) => {
       const tableAnswers = tableAnswerMap.get(question.id);
       const formattedTableAnswers = formatTableAnswersForGrading(tableAnswers);
       
+      // Check if this is a table_grid answer (tick/X table)
+      let tableGridAnswers: Record<string, number[]> | null = null;
+      try {
+        const parsed = JSON.parse(studentAnswer);
+        if (parsed._type === 'table_grid' && parsed.answers) {
+          tableGridAnswers = parsed.answers;
+        }
+      } catch {
+        // Not JSON or not table_grid format
+      }
+      
       // Determine if this question has table answers
       const hasTableAnswers = formattedTableAnswers.length > 0;
       const hasLatexAnswer = studentLatex && studentLatex.trim() !== '';
-      const hasTextAnswer = studentAnswer && studentAnswer.trim() !== '';
-      const hasAnyAnswer = hasTableAnswers || hasLatexAnswer || hasTextAnswer;
+      const hasTextAnswer = studentAnswer && studentAnswer.trim() !== '' && !tableGridAnswers;
+      const hasTableGridAnswer = tableGridAnswers !== null && Object.keys(tableGridAnswers).length > 0;
+      const hasAnyAnswer = hasTableAnswers || hasLatexAnswer || hasTextAnswer || hasTableGridAnswer;
 
       let score = 0;
       let feedback = '';
@@ -146,6 +158,51 @@ serve(async (req) => {
         // No answer provided (neither text nor table nor latex)
         feedback = 'No answer provided';
         isCorrect = false;
+      } else if (hasTableGridAnswer && tableGridAnswers) {
+        // DETERMINISTIC GRADING for table_grid questions (tick/X tables)
+        // Parse correct answers from question if available
+        let correctAnswers: Record<string, number[]> | null = null;
+        try {
+          if (question.correct_answer) {
+            const parsed = JSON.parse(question.correct_answer);
+            if (parsed.correctAnswers) {
+              correctAnswers = parsed.correctAnswers;
+            }
+          }
+        } catch {
+          // Not valid JSON format for correct answers
+        }
+        
+        if (correctAnswers) {
+          // Deterministic exact-match grading per row
+          const marksPerRow = question.marks / Object.keys(correctAnswers).length;
+          let totalRowsCorrect = 0;
+          const rowResults: string[] = [];
+          
+          for (const rowId of Object.keys(correctAnswers)) {
+            const expected = new Set(correctAnswers[rowId] || []);
+            const actual = new Set(tableGridAnswers[rowId] || []);
+            const rowCorrect = expected.size === actual.size && 
+                               [...expected].every(col => actual.has(col));
+            
+            if (rowCorrect) {
+              totalRowsCorrect++;
+              rowResults.push(`${rowId}: ✓ Correct`);
+            } else {
+              const expectedCols = [...expected].map(c => `Column ${c}`).join(', ') || 'none';
+              rowResults.push(`${rowId}: ✗ Incorrect (expected: ${expectedCols})`);
+            }
+          }
+          
+          score = Math.round(totalRowsCorrect * marksPerRow * 100) / 100;
+          isCorrect = totalRowsCorrect === Object.keys(correctAnswers).length;
+          feedback = `You got ${totalRowsCorrect}/${Object.keys(correctAnswers).length} rows correct.\n\n${rowResults.join('\n')}`;
+        } else {
+          // No correct answers available - use AI grading
+          score = 0;
+          feedback = 'Table grid answer recorded but could not be auto-graded (no answer key available).';
+          isCorrect = false;
+        }
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
         // Simple exact match for MCQ
         const correctAnswer = question.correct_answer?.toLowerCase().trim() || '';
