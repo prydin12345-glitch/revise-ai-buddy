@@ -20,10 +20,11 @@ export interface TableGridData {
   headers: string[];
   rows: TableGridRow[];
   columns?: TableGridColumn[]; // Enhanced column definitions
-  selectionMode: 'single' | 'multi';
-  markStyle: 'x' | 'tick' | 'either';
+  selectionMode: 'single' | 'multi' | 'text' | 'number' | 'number_text';
+  markStyle?: 'x' | 'tick' | 'either';
+  tableType?: 'tick_cross' | 'text_entry' | 'number_entry' | 'mixed'; // Explicit table type
   prefilled?: { rowId: string; colIndex: number; value: string; locked?: boolean }[];
-  correctAnswers?: Record<string, number[]>; // For toggle columns (backward compat)
+  correctAnswers?: Record<string, number[] | string[]>; // For toggle columns (number[]) or text columns (string[])
   answerKey?: Record<string, Record<string, boolean | string | number>>; // New format: rowId -> colId -> value
   marksPerRow?: number;
   marks?: number;
@@ -341,7 +342,16 @@ export function TableGridQuestion({
   correctAnswers,
   answerKey
 }: TableGridQuestionProps) {
-  const { headers, rows, columns, selectionMode, markStyle, prefilled } = tableData;
+  const { headers, rows, columns, selectionMode, prefilled, tableType } = tableData;
+  
+  // Determine if this is a toggle table or input table
+  const isInputTable = tableType === 'text_entry' || tableType === 'number_entry' || tableType === 'mixed' ||
+    selectionMode === 'text' || selectionMode === 'number' || selectionMode === 'number_text' ||
+    (columns && columns.some(c => c.kind === 'text' || c.kind === 'number'));
+  
+  // Determine mark style - default to 'tick' for True/False tables
+  const isTrueFalseTable = headers.some(h => h.toLowerCase() === 'true' || h.toLowerCase() === 'false');
+  const markStyle = tableData.markStyle || (isTrueFalseTable ? 'tick' : 'x');
   
   // Create a map of locked cells from prefilled data
   const lockedCells = useMemo(() => {
@@ -356,12 +366,21 @@ export function TableGridQuestion({
   
   // Determine column types
   const columnKinds = useMemo(() => {
-    if (columns) {
-      return columns.map(c => c.kind);
+    if (columns && columns.length > 0) {
+      // Map columns to kinds, with first column being the label
+      const kinds: Array<'label' | 'toggle' | 'text' | 'number'> = ['label'];
+      columns.forEach(c => {
+        kinds.push(c.kind || 'toggle');
+      });
+      return kinds;
     }
-    // Default: first column is label, rest are toggles
-    return headers.map((_, idx) => idx === 0 ? 'label' : 'toggle');
-  }, [columns, headers]);
+    // Default: first column is label, rest depend on tableType/selectionMode
+    return headers.map((_, idx) => {
+      if (idx === 0) return 'label';
+      if (isInputTable) return 'text';
+      return 'toggle';
+    });
+  }, [columns, headers, isInputTable]);
   
   // Get display mark based on style
   const getMark = () => {
@@ -465,9 +484,13 @@ export function TableGridQuestion({
       {/* Legend - only show if not read-only */}
       {!readOnly && (
         <div className="mb-3 text-sm text-muted-foreground flex items-center gap-4">
-          <span>
-            Tap a cell to add/remove {markStyle === 'tick' ? 'a tick (✓)' : 'an X'}
-          </span>
+          {isInputTable ? (
+            <span>Complete the table by typing your answers in the cells.</span>
+          ) : (
+            <span>
+              Tap a cell to add/remove {markStyle === 'tick' ? 'a tick (✓)' : 'an X'}
+            </span>
+          )}
           {prefilled && prefilled.some(p => p.locked) && (
             <span className="text-xs bg-muted px-2 py-1 rounded">
               Shaded cells are examples

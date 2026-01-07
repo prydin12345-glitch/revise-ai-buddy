@@ -760,13 +760,18 @@ const TakePracticeQuiz = () => {
                     if (isTableGrid) {
                       // Try to get table data from correct_answer (new format) or parse from question text
                       let tableData: TableGridData | null = null;
+                      let correctAnswersData: Record<string, number[]> | undefined = undefined;
                       
-                      // First try parsing from correct_answer (which may contain table_data)
+                      // First try parsing from correct_answer (which contains table_data)
                       if (currentQuestion.correct_answer) {
                         try {
                           const parsed = JSON.parse(currentQuestion.correct_answer);
                           if (parsed.table_data) {
                             tableData = parsed.table_data;
+                            // Also extract correctAnswers for review mode
+                            if (parsed.correctAnswers) {
+                              correctAnswersData = parsed.correctAnswers;
+                            }
                           }
                         } catch {
                           // Not JSON, try parsing from question text
@@ -779,9 +784,19 @@ const TakePracticeQuiz = () => {
                       }
                       
                       if (tableData) {
+                        // Determine the instruction text based on table type
+                        const isInputTable = tableData.tableType === 'text_entry' || 
+                          tableData.tableType === 'number_entry' || 
+                          tableData.tableType === 'mixed' ||
+                          tableData.selectionMode === 'text' || 
+                          tableData.selectionMode === 'number' ||
+                          (tableData.columns && tableData.columns.some(c => c.kind === 'text' || c.kind === 'number'));
+                        
                         return (
                           <div className="space-y-2">
-                            <span className="text-sm font-medium text-muted-foreground">Complete the table below:</span>
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {isInputTable ? 'Complete the table below:' : 'Complete the table below:'}
+                            </span>
                             <TableGridQuestion
                               tableData={tableData}
                               questionId={currentQuestion.id}
@@ -803,6 +818,7 @@ const TakePracticeQuiz = () => {
                               readOnly={currentAnswer.submitted}
                               subjectColor={subjectColor}
                               showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                              correctAnswers={correctAnswersData}
                             />
                           </div>
                         );
