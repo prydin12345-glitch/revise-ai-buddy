@@ -142,7 +142,7 @@ Requirements:
 - Educational Level: ${setData.educational_tier}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
-- Question types: Mix of short answer, extended response, and MCQ where appropriate
+- Question types: Mix of short answer, extended response, MCQ, and table_grid (for interactive tables) where appropriate
 - Include proper LaTeX notation for mathematical expressions using $ delimiters (e.g., $x^2$, $\\frac{1}{b^5}$)
 - Set has_math: true for questions with equations
 - Use lowercase variable names consistently (e.g., $x$ not $X$)
@@ -348,18 +348,38 @@ Return JSON with:
       "question_number": "1",
       "question_text": "The question text WITHOUT options (options go in options array for MCQ)",
       "question_latex": "Full LaTeX version if complex math",
-      "question_type": "short_answer" | "extended" | "mcq",
+      "question_type": "short_answer" | "extended" | "mcq" | "table_grid",
       "marks": 2-10,
       "subtopic": "...",
       "difficulty_level": "easy" | "medium" | "hard",
       "has_math": true/false,
       "equation_complexity": "simple" | "medium" | "complex",
-      "correct_answer": "The answer (for MCQ: just the letter A/B/C/D)",
+      "correct_answer": "The answer OR for table_grid: JSON object with row/cell answers",
       "options": ["Option text without letter prefix", "..."] (ONLY for MCQ, null otherwise),
-      "worked_solution": "Step-by-step solution"
+      "worked_solution": "Step-by-step solution",
+      "table_data": { // REQUIRED for table_grid questions
+        "headers": ["Column 1", "Column 2"],
+        "rows": [
+          { "id": "row1", "label": "Item A", "locked": false },
+          { "id": "row2", "label": "Item B (Example)", "locked": true }
+        ],
+        "columns": [
+          { "type": "toggle", "header": "Yes" },
+          { "type": "toggle", "header": "No" },
+          { "type": "text", "header": "Notes" }
+        ],
+        "selectionMode": "single" | "multi",
+        "prefilled": { "row2": [0] }
+      }
     }
   ]
-}`;
+}
+
+TABLE_GRID RULES:
+1. Set question_type to "table_grid" for tick/cross, classification, data entry tables
+2. MUST include "table_data" object with headers, rows, columns structure  
+3. MUST include "correct_answer" as JSON: {"correctAnswers": {"row1": [0], "row2": [1]}}
+4. Column types: "toggle" for tick/cross, "text" for short text, "number" for numeric`;
 
     console.log('Calling Lovable AI...');
 
@@ -405,9 +425,8 @@ Return JSON with:
       cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
     
-    // Fix improperly escaped LaTeX backslashes in JSON strings
-    // The AI sometimes outputs \mu, \frac etc. without proper JSON escaping
-    cleanedContent = cleanedContent.replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+    // NOTE: Removed aggressive regex that was corrupting table_grid data
+    // The AI should return properly escaped JSON - if parse fails, we log and fail cleanly
     
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
     
@@ -428,21 +447,48 @@ Return JSON with:
 
     console.log(`Generated ${questions.length} questions`);
 
-    // Insert questions into database
-    const questionsToInsert = questions.map((q: any) => ({
-      set_id: setId,
-      question_number: q.question_number,
-      question_text: q.question_text,
-      question_latex: q.question_latex || null,
-      question_type: q.question_type,
-      marks: q.marks,
-      subtopic: q.subtopic,
-      difficulty_level: q.difficulty_level,
-      has_math: q.has_math || false,
-      equation_complexity: q.equation_complexity || null,
-      correct_answer: q.correct_answer || null,
-      options: q.options || null,
-    }));
+    // Validate and transform questions
+    const questionsToInsert = questions.map((q: any, idx: number) => {
+      // Validate table_grid questions have required fields
+      if (q.question_type === 'table_grid') {
+        if (!q.table_data) {
+          console.warn(`Question ${q.question_number}: table_grid type but missing table_data, downgrading to short_answer`);
+          q.question_type = 'short_answer';
+        }
+        if (!q.correct_answer) {
+          console.warn(`Question ${q.question_number}: table_grid type but missing correct_answer for grading`);
+        }
+      }
+      
+      // Serialize table_data into correct_answer if it's a table_grid
+      let correctAnswer = q.correct_answer;
+      if (q.question_type === 'table_grid' && q.table_data) {
+        // Store table structure and answer key together
+        correctAnswer = JSON.stringify({
+          table_data: q.table_data,
+          ...(typeof q.correct_answer === 'object' ? q.correct_answer : { expected: q.correct_answer })
+        });
+      } else if (typeof correctAnswer === 'object') {
+        correctAnswer = JSON.stringify(correctAnswer);
+      }
+      
+      return {
+        set_id: setId,
+        question_number: q.question_number,
+        question_text: q.question_text,
+        question_latex: q.question_latex || null,
+        question_type: q.question_type,
+        marks: q.marks,
+        subtopic: q.subtopic,
+        difficulty_level: q.difficulty_level,
+        has_math: q.has_math || false,
+        equation_complexity: q.equation_complexity || null,
+        correct_answer: correctAnswer,
+        options: q.options || null,
+      };
+    });
+    
+    console.log('Questions to insert:', questionsToInsert.map(q => ({ num: q.question_number, type: q.question_type })));
 
     const { error: insertError } = await supabaseClient
       .from('practice_questions')

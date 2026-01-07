@@ -27,6 +27,28 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { useTextareaInsert } from "@/hooks/useTextareaInsert";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
+import { 
+  TableGridQuestion, 
+  parseMarkdownToTableGrid, 
+  isTickXTable,
+  serializeTableGridAnswer,
+  deserializeTableGridAnswers,
+  type TableGridData 
+} from "@/components/exam/TableGridQuestion";
+
+// Helper to convert toggle answers from number[] to Record<number, boolean> format
+function convertTogglesForSerialization(
+  toggles: Record<string, number[]>
+): Record<string, Record<number, boolean>> {
+  const result: Record<string, Record<number, boolean>> = {};
+  for (const [rowId, colIndices] of Object.entries(toggles)) {
+    result[rowId] = {};
+    for (const idx of colIndices) {
+      result[rowId][idx] = true;
+    }
+  }
+  return result;
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +85,8 @@ interface UserAnswer {
   accuracyMarks?: number;
   feedback?: string;
   useMathInput?: boolean; // Track if user is using math input
+  tableGridAnswers?: Record<string, number[]>; // For table_grid questions
+  tableGridInputs?: Record<string, Record<number, string | number>>; // For table_grid input cells
 }
 
 const TakePracticeQuiz = () => {
@@ -728,107 +752,167 @@ const TakePracticeQuiz = () => {
                     <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
                   </div>
 
-                  {/* Answer input - Single textarea with optional Math Insert Keypad */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
-                      <Button
-                        variant={showMathKeypad ? "secondary" : "ghost"}
-                        size="icon"
-                        onClick={() => setShowMathKeypad(prev => !prev)}
-                        disabled={currentAnswer.submitted}
-                        title="Math symbols"
-                      >
-                        <Calculator className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <Textarea 
-                      ref={answerTextareaRef}
-                      value={currentAnswer.answer} 
-                      onChange={(e) => {
-                        const newAnswer = { ...currentAnswer, answer: e.target.value };
-                        setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                        debouncedSave(currentQuestion.id, { answer: e.target.value });
-                      }}
-                      onBlur={() => {
-                        debouncedSave(currentQuestion.id, { answer: currentAnswer.answer });
-                      }}
-                      disabled={currentAnswer.submitted} 
-                      className="min-h-[140px] lg:min-h-[160px] text-base text-foreground" 
-                      placeholder={currentQuestion.has_math ? "Type your answer here… (use the calculator icon for symbols)" : "Type your answer here…"}
-                    />
+                  {/* Answer input section - conditionally render based on question type */}
+                  {(() => {
+                    // Check if this is a table_grid question (explicit type or detected from content)
+                    const isTableGrid = currentQuestion.question_type === 'table_grid' || isTickXTable(currentQuestion.question_text);
                     
-                    {/* Docked Math Insert Keypad (below textarea) */}
-                    {showMathKeypad && !currentAnswer.submitted && (
-                      <MathInsertKeypad
-                        isOpen={true}
-                        onClose={() => setShowMathKeypad(false)}
-                        onInsert={(text, caretOffset) => {
-                          const textarea = answerTextareaRef.current;
-                          if (!textarea) return;
-                          
-                          const start = textarea.selectionStart;
-                          const end = textarea.selectionEnd;
-                          const before = currentAnswer.answer.substring(0, start);
-                          const after = currentAnswer.answer.substring(end);
-                          const newValue = before + text + after;
-                          
-                          const newAnswer = { ...currentAnswer, answer: newValue };
-                          setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                          debouncedSave(currentQuestion.id, { answer: newValue });
-                          
-                          // Restore focus and cursor position (inside template if caretOffset provided)
-                          requestAnimationFrame(() => {
-                            textarea.focus();
-                            const insertEnd = start + text.length;
-                            const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
-                            textarea.setSelectionRange(newPos, newPos);
-                          });
-                        }}
-                        onNavigate={(direction) => {
-                          const textarea = answerTextareaRef.current;
-                          if (!textarea) return;
-                          const pos = textarea.selectionStart;
-                          const newPos = direction === 'left' 
-                            ? Math.max(0, pos - 1) 
-                            : Math.min(currentAnswer.answer.length, pos + 1);
-                          textarea.focus();
-                          textarea.setSelectionRange(newPos, newPos);
-                        }}
-                        onDelete={() => {
-                          const textarea = answerTextareaRef.current;
-                          if (!textarea) return;
-                          const start = textarea.selectionStart;
-                          const end = textarea.selectionEnd;
-                          
-                          if (start === end && start > 0) {
-                            const before = currentAnswer.answer.substring(0, start - 1);
-                            const after = currentAnswer.answer.substring(end);
-                            const newValue = before + after;
-                            const newAnswer = { ...currentAnswer, answer: newValue };
-                            setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                            debouncedSave(currentQuestion.id, { answer: newValue });
-                            requestAnimationFrame(() => {
-                              textarea.focus();
-                              textarea.setSelectionRange(start - 1, start - 1);
-                            });
-                          } else if (start !== end) {
-                            const before = currentAnswer.answer.substring(0, start);
-                            const after = currentAnswer.answer.substring(end);
-                            const newValue = before + after;
-                            const newAnswer = { ...currentAnswer, answer: newValue };
-                            setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                            debouncedSave(currentQuestion.id, { answer: newValue });
-                            requestAnimationFrame(() => {
-                              textarea.focus();
-                              textarea.setSelectionRange(start, start);
-                            });
+                    if (isTableGrid) {
+                      // Try to get table data from correct_answer (new format) or parse from question text
+                      let tableData: TableGridData | null = null;
+                      
+                      // First try parsing from correct_answer (which may contain table_data)
+                      if (currentQuestion.correct_answer) {
+                        try {
+                          const parsed = JSON.parse(currentQuestion.correct_answer);
+                          if (parsed.table_data) {
+                            tableData = parsed.table_data;
                           }
-                        }}
-                        subjectColor={subjectColor}
-                      />
-                    )}
-                  </div>
+                        } catch {
+                          // Not JSON, try parsing from question text
+                        }
+                      }
+                      
+                      // Fallback: parse markdown table from question text
+                      if (!tableData) {
+                        tableData = parseMarkdownToTableGrid(currentQuestion.question_text);
+                      }
+                      
+                      if (tableData) {
+                        return (
+                          <div className="space-y-2">
+                            <span className="text-sm font-medium text-muted-foreground">Complete the table below:</span>
+                            <TableGridQuestion
+                              tableData={tableData}
+                              questionId={currentQuestion.id}
+                              answers={currentAnswer.tableGridAnswers || {}}
+                              inputAnswers={currentAnswer.tableGridInputs || {}}
+                              onAnswerChange={(toggleAnswers, inputAnswers) => {
+                                // Convert and serialize the answers for storage
+                                const cellsForStorage = convertTogglesForSerialization(toggleAnswers);
+                                const serialized = serializeTableGridAnswer(cellsForStorage, inputAnswers);
+                                const newAnswer = { 
+                                  ...currentAnswer, 
+                                  answer: serialized,
+                                  tableGridAnswers: toggleAnswers,
+                                  tableGridInputs: inputAnswers 
+                                };
+                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                debouncedSave(currentQuestion.id, { answer: serialized });
+                              }}
+                              readOnly={currentAnswer.submitted}
+                              subjectColor={subjectColor}
+                              showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                            />
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Default: standard text input with math keypad
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
+                          <Button
+                            variant={showMathKeypad ? "secondary" : "ghost"}
+                            size="icon"
+                            onClick={() => setShowMathKeypad(prev => !prev)}
+                            disabled={currentAnswer.submitted}
+                            title="Math symbols"
+                          >
+                            <Calculator className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Textarea 
+                          ref={answerTextareaRef}
+                          value={currentAnswer.answer} 
+                          onChange={(e) => {
+                            const newAnswer = { ...currentAnswer, answer: e.target.value };
+                            setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                            debouncedSave(currentQuestion.id, { answer: e.target.value });
+                          }}
+                          onBlur={() => {
+                            debouncedSave(currentQuestion.id, { answer: currentAnswer.answer });
+                          }}
+                          disabled={currentAnswer.submitted} 
+                          className="min-h-[140px] lg:min-h-[160px] text-base text-foreground" 
+                          placeholder={currentQuestion.has_math ? "Type your answer here… (use the calculator icon for symbols)" : "Type your answer here…"}
+                        />
+                        
+                        {/* Docked Math Insert Keypad (below textarea) */}
+                        {showMathKeypad && !currentAnswer.submitted && (
+                          <MathInsertKeypad
+                            isOpen={true}
+                            onClose={() => setShowMathKeypad(false)}
+                            onInsert={(text, caretOffset) => {
+                              const textarea = answerTextareaRef.current;
+                              if (!textarea) return;
+                              
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const before = currentAnswer.answer.substring(0, start);
+                              const after = currentAnswer.answer.substring(end);
+                              const newValue = before + text + after;
+                              
+                              const newAnswer = { ...currentAnswer, answer: newValue };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: newValue });
+                              
+                              // Restore focus and cursor position (inside template if caretOffset provided)
+                              requestAnimationFrame(() => {
+                                textarea.focus();
+                                const insertEnd = start + text.length;
+                                const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
+                                textarea.setSelectionRange(newPos, newPos);
+                              });
+                            }}
+                            onNavigate={(direction) => {
+                              const textarea = answerTextareaRef.current;
+                              if (!textarea) return;
+                              const pos = textarea.selectionStart;
+                              const newPos = direction === 'left' 
+                                ? Math.max(0, pos - 1) 
+                                : Math.min(currentAnswer.answer.length, pos + 1);
+                              textarea.focus();
+                              textarea.setSelectionRange(newPos, newPos);
+                            }}
+                            onDelete={() => {
+                              const textarea = answerTextareaRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              
+                              if (start === end && start > 0) {
+                                const before = currentAnswer.answer.substring(0, start - 1);
+                                const after = currentAnswer.answer.substring(end);
+                                const newValue = before + after;
+                                const newAnswer = { ...currentAnswer, answer: newValue };
+                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                debouncedSave(currentQuestion.id, { answer: newValue });
+                                requestAnimationFrame(() => {
+                                  textarea.focus();
+                                  textarea.setSelectionRange(start - 1, start - 1);
+                                });
+                              } else if (start !== end) {
+                                const before = currentAnswer.answer.substring(0, start);
+                                const after = currentAnswer.answer.substring(end);
+                                const newValue = before + after;
+                                const newAnswer = { ...currentAnswer, answer: newValue };
+                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                debouncedSave(currentQuestion.id, { answer: newValue });
+                                requestAnimationFrame(() => {
+                                  textarea.focus();
+                                  textarea.setSelectionRange(start, start);
+                                });
+                              }
+                            }}
+                            subjectColor={subjectColor}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Feedback section after submission */}
                   {currentAnswer.submitted && (
