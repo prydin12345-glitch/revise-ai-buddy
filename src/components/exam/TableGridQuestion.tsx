@@ -55,7 +55,13 @@ interface TableGridQuestionProps {
   subjectColor?: string;
   showCorrectAnswers?: boolean;
   correctAnswers?: Record<string, number[]>;
+  correctInputs?: Record<string, Record<number, string | number>>; // For text/numeric entry tables
   answerKey?: Record<string, Record<string, boolean | string | number>>;
+  markingData?: { // Persisted marking results for hydration
+    perRowResults?: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }>;
+    correctAnswers?: Record<string, number[]>;
+    correctInputs?: Record<string, Record<number, string | number>>;
+  };
 }
 
 // Parse markdown table to TableGridData
@@ -356,7 +362,9 @@ export function TableGridQuestion({
   subjectColor = '#3B82F6',
   showCorrectAnswers = false,
   correctAnswers,
-  answerKey
+  correctInputs,
+  answerKey,
+  markingData
 }: TableGridQuestionProps) {
   const { headers, rows, columns, selectionMode, prefilled, tableType, perRowMaxSelections } = tableData;
   
@@ -502,8 +510,21 @@ export function TableGridQuestion({
   }, [answers, inputAnswers, onAnswerChange, readOnly]);
   
   // Check if answer is correct for a cell (review mode)
-  const getCellStatus = (rowId: string, colIndex: number): 'correct' | 'incorrect' | 'missed' | null => {
+  const getCellStatus = (rowId: string, colIndex: number): 'correct' | 'incorrect' | 'missed' | 'partial' | null => {
     if (!showCorrectAnswers) return null;
+    
+    // Use markingData perRowResults for row-level status (handles both toggle and input)
+    if (markingData?.perRowResults?.[rowId]) {
+      const rowResult = markingData.perRowResults[rowId];
+      // For toggle cells, check if this specific cell is correct
+      const studentSelected = isCellSelected(rowId, colIndex);
+      const shouldBeSelected = (markingData.correctAnswers?.[rowId] || correctAnswers?.[rowId])?.includes(colIndex) || false;
+      
+      if (studentSelected && shouldBeSelected) return 'correct';
+      if (studentSelected && !shouldBeSelected) return 'incorrect';
+      if (!studentSelected && shouldBeSelected) return 'missed';
+      return null;
+    }
     
     const studentSelected = isCellSelected(rowId, colIndex);
     
@@ -526,6 +547,46 @@ export function TableGridQuestion({
       if (studentSelected && shouldBeSelected) return 'correct';
       if (studentSelected && !shouldBeSelected) return 'incorrect';
       if (!studentSelected && shouldBeSelected) return 'missed';
+    }
+    
+    return null;
+  };
+  
+  // Get input cell status for text/numeric entry tables
+  const getInputCellStatus = (rowId: string, colIndex: number): 'correct' | 'incorrect' | 'missed' | null => {
+    if (!showCorrectAnswers) return null;
+    
+    const studentValue = getInputValue(rowId, colIndex);
+    const hasAnswer = studentValue !== '' && studentValue !== null && studentValue !== undefined;
+    
+    // Use markingData for hydrated status
+    if (markingData?.perRowResults?.[rowId]) {
+      const rowResult = markingData.perRowResults[rowId];
+      // If row was marked, derive cell status
+      if (rowResult.status === 'correct') return hasAnswer ? 'correct' : null;
+      if (rowResult.status === 'missed') return 'missed';
+      if (rowResult.status === 'incorrect' || rowResult.status === 'partial') {
+        // Check against correct inputs
+        const expectedValue = (markingData.correctInputs || correctInputs)?.[rowId]?.[colIndex];
+        if (expectedValue !== undefined) {
+          const normalizedStudent = String(studentValue).trim().toLowerCase();
+          const normalizedExpected = String(expectedValue).trim().toLowerCase();
+          return normalizedStudent === normalizedExpected ? 'correct' : hasAnswer ? 'incorrect' : 'missed';
+        }
+      }
+      return hasAnswer ? 'incorrect' : null;
+    }
+    
+    // Check against correctInputs directly
+    if (correctInputs) {
+      const expectedValue = correctInputs[rowId]?.[colIndex];
+      if (expectedValue !== undefined) {
+        const normalizedStudent = String(studentValue).trim().toLowerCase();
+        const normalizedExpected = String(expectedValue).trim().toLowerCase();
+        if (normalizedStudent === normalizedExpected) return 'correct';
+        if (hasAnswer) return 'incorrect';
+        return 'missed';
+      }
     }
     
     return null;
@@ -594,6 +655,7 @@ export function TableGridQuestion({
                   
                   // Input cell
                   if (columnKind === 'text' || columnKind === 'number') {
+                    const inputStatus = getInputCellStatus(row.id, colIndex);
                     return (
                       <td 
                         key={`${row.id}-${colIndex}`}
@@ -608,8 +670,9 @@ export function TableGridQuestion({
                           disabled={readOnly || isExampleRow}
                           className={cn(
                             "h-10",
-                            cellStatus === 'correct' && "border-green-500 bg-green-50 dark:bg-green-900/20",
-                            cellStatus === 'incorrect' && "border-red-500 bg-red-50 dark:bg-red-900/20"
+                            inputStatus === 'correct' && "border-green-500 bg-green-50 dark:bg-green-900/20 border-2",
+                            inputStatus === 'incorrect' && "border-red-500 bg-red-50 dark:bg-red-900/20 border-2",
+                            inputStatus === 'missed' && "border-amber-500 bg-amber-50 dark:bg-amber-900/20 border-2 border-dashed"
                           )}
                         />
                       </td>

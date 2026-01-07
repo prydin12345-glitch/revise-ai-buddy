@@ -54,22 +54,41 @@ serve(async (req) => {
       try {
         const parsed = JSON.parse(answerText);
         if (parsed._type === 'table_grid') {
-          // Parse student answers
-          let studentAnswers: Record<string, number[]> = {};
+          console.log('[table-grading] Parsed table answer:', { 
+            version: parsed.version, 
+            hasCells: !!parsed.cells, 
+            hasInputs: !!parsed.inputs,
+            cellKeys: Object.keys(parsed.cells || {}),
+            inputKeys: Object.keys(parsed.inputs || {})
+          });
           
-          if (parsed.version === 2 && parsed.cells) {
-            for (const [rowId, colMap] of Object.entries(parsed.cells as Record<string, Record<number, boolean>>)) {
-              studentAnswers[rowId] = Object.entries(colMap)
-                .filter(([_, selected]) => selected)
-                .map(([colIdx]) => parseInt(colIdx, 10));
+          // Parse student answers (toggle selections)
+          let studentAnswers: Record<string, number[]> = {};
+          // Parse student inputs (text/numeric entries)
+          let studentInputs: Record<string, Record<number, string | number>> = {};
+          
+          if (parsed.version === 2) {
+            // Extract toggle cells
+            if (parsed.cells) {
+              for (const [rowId, colMap] of Object.entries(parsed.cells as Record<string, Record<number, boolean>>)) {
+                studentAnswers[rowId] = Object.entries(colMap)
+                  .filter(([_, selected]) => selected)
+                  .map(([colIdx]) => parseInt(colIdx, 10));
+              }
+            }
+            // Extract input cells (text/numeric)
+            if (parsed.inputs) {
+              studentInputs = parsed.inputs;
             }
           } else if (parsed.answers) {
             studentAnswers = parsed.answers;
           }
           
-          // Parse correct answers from question
+          // Parse correct answers and table metadata from question
           let correctAnswers: Record<string, number[]> | null = null;
-          let tableType: 'tf_single' | 'grid_single' | 'grid_multi' = 'grid_multi';
+          let correctInputs: Record<string, Record<number, string | number>> | null = null;
+          let tableType: 'tf_single' | 'grid_single' | 'grid_multi' | 'text_entry' | 'numeric_entry' = 'grid_multi';
+          let columnKinds: string[] = [];
           
           if (question.correct_answer) {
             try {
@@ -77,19 +96,29 @@ serve(async (req) => {
               if (ca.correctAnswers) {
                 correctAnswers = ca.correctAnswers;
               }
+              if (ca.correctInputs) {
+                correctInputs = ca.correctInputs;
+              }
               if (ca.table_data?.tableType) {
                 const tt = ca.table_data.tableType;
-                if (tt === 'tf_single' || tt === 'tick_cross') {
-                  // Check headers for True/False
+                if (tt === 'tf_single' || tt === 'tick_cross' || tt === 'tf') {
                   const headers = ca.table_data.headers || [];
                   const hasTrue = headers.some((h: string) => h.toLowerCase() === 'true');
                   const hasFalse = headers.some((h: string) => h.toLowerCase() === 'false');
                   tableType = hasTrue && hasFalse ? 'tf_single' : 'grid_multi';
-                } else if (tt === 'grid_single') {
+                } else if (tt === 'grid_single' || tt === 'single_select') {
                   tableType = 'grid_single';
+                } else if (tt === 'text_entry') {
+                  tableType = 'text_entry';
+                } else if (tt === 'numeric_entry') {
+                  tableType = 'numeric_entry';
                 }
               }
-              // Also detect single-select from selectionMode
+              // Extract column kinds for input tables
+              if (ca.table_data?.columns) {
+                columnKinds = ca.table_data.columns.map((c: any) => c.kind || c.type || 'toggle');
+              }
+              // Detect single-select from selectionMode
               if (ca.table_data?.selectionMode === 'single') {
                 tableType = tableType === 'tf_single' ? 'tf_single' : 'grid_single';
               }
@@ -98,7 +127,105 @@ serve(async (req) => {
             }
           }
           
-          if (correctAnswers && Object.keys(correctAnswers).length > 0) {
+          console.log('[table-grading] Detected tableType:', tableType, 'columnKinds:', columnKinds);
+          
+          // Handle TEXT_ENTRY and NUMERIC_ENTRY tables
+          if ((tableType === 'text_entry' || tableType === 'numeric_entry') || 
+              (Object.keys(studentInputs).length > 0 && Object.keys(studentAnswers).length === 0)) {
+            console.log('[table-grading] Grading as input table. studentInputs:', studentInputs);
+            
+            // Count filled cells and grade
+            const rowIds = Object.keys(studentInputs);
+            const totalRows = rowIds.length || Object.keys(correctInputs || {}).length || 1;
+            const marksPerRow = question.marks / Math.max(totalRows, 1);
+            let totalScore = 0;
+            const rowResults: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }> = {};
+            const feedbackLines: string[] = [];
+            const allRowIds = new Set([...Object.keys(studentInputs), ...Object.keys(correctInputs || {})]);
+            
+            for (const rowId of allRowIds) {
+              const studentRowInputs = studentInputs[rowId] || {};
+              const correctRowInputs = correctInputs?.[rowId] || {};
+              const colIndices = new Set([...Object.keys(studentRowInputs), ...Object.keys(correctRowInputs)]);
+              
+              let cellsCorrect = 0;
+              let cellsTotal = Object.keys(correctRowInputs).length || 1;
+              let hasAnyAnswer = false;
+              
+              for (const colIdx of colIndices) {
+                const studentVal = studentRowInputs[parseInt(colIdx)];
+                const correctVal = correctRowInputs[parseInt(colIdx)];
+                
+                // Check if student answered
+                if (studentVal !== undefined && studentVal !== '' && studentVal !== null) {
+                  hasAnyAnswer = true;
+                  
+                  // Normalize and compare
+                  const normalizedStudent = String(studentVal).trim().toLowerCase().replace(/\s+/g, ' ');
+                  const normalizedCorrect = String(correctVal || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                  
+                  if (tableType === 'numeric_entry') {
+                    // Numeric comparison with tolerance
+                    const numStudent = parseFloat(String(studentVal));
+                    const numCorrect = parseFloat(String(correctVal));
+                    const tolerance = 0.01; // 1% tolerance
+                    if (!isNaN(numStudent) && !isNaN(numCorrect)) {
+                      if (Math.abs(numStudent - numCorrect) <= Math.abs(numCorrect * tolerance) || 
+                          Math.abs(numStudent - numCorrect) < 0.001) {
+                        cellsCorrect++;
+                      }
+                    }
+                  } else {
+                    // Text comparison (case-insensitive)
+                    if (normalizedStudent === normalizedCorrect) {
+                      cellsCorrect++;
+                    }
+                  }
+                }
+              }
+              
+              const rowScore = cellsTotal > 0 ? (cellsCorrect / cellsTotal) * marksPerRow : 0;
+              totalScore += rowScore;
+              
+              const isFullyCorrect = cellsCorrect === cellsTotal && cellsTotal > 0;
+              const isPartial = cellsCorrect > 0 && cellsCorrect < cellsTotal;
+              const status = !hasAnyAnswer ? 'missed' : isFullyCorrect ? 'correct' : isPartial ? 'partial' : 'incorrect';
+              
+              rowResults[rowId] = {
+                correct: isFullyCorrect,
+                earned: Math.round(rowScore * 100) / 100,
+                max: marksPerRow,
+                details: !hasAnyAnswer ? 'No answer provided' : isFullyCorrect ? 'Correct' : `${cellsCorrect}/${cellsTotal} cells correct`,
+                status
+              };
+              
+              if (!hasAnyAnswer) {
+                feedbackLines.push(`• Row "${rowId}": Unanswered`);
+              } else if (isFullyCorrect) {
+                feedbackLines.push(`• Row "${rowId}": ✓ Correct`);
+              } else if (isPartial) {
+                feedbackLines.push(`• Row "${rowId}": Partial credit (${cellsCorrect}/${cellsTotal} correct)`);
+              } else {
+                feedbackLines.push(`• Row "${rowId}": ✗ Incorrect`);
+              }
+            }
+            
+            totalScore = Math.round(totalScore * 100) / 100;
+            const correctRows = Object.values(rowResults).filter(r => r.correct).length;
+            
+            const markingDataJson = JSON.stringify({ perRowResults: rowResults, correctInputs });
+            const feedback = `${correctRows}/${allRowIds.size} rows correct.\n\n${feedbackLines.join('\n')}\n\n<!--MARKING_DATA:${markingDataJson}-->`;
+            
+            tableGridResult = {
+              score: totalScore,
+              feedback,
+              isCorrect: totalScore >= question.marks,
+              perRowResults: rowResults,
+              correctInputs // Include for direct response
+            };
+          }
+          // Handle TOGGLE tables (TF, grid_single, grid_multi)
+          else if (correctAnswers && Object.keys(correctAnswers).length > 0) {
             // DETERMINISTIC GRADING based on table type
             const nonExampleRows = Object.keys(correctAnswers);
             const marksPerRow = question.marks / nonExampleRows.length;
@@ -184,12 +311,13 @@ serve(async (req) => {
               score: totalScore,
               feedback,
               isCorrect: totalScore >= question.marks,
-              perRowResults: rowResults
+              perRowResults: rowResults,
+              correctAnswers // Include for direct response
             };
           }
         }
       } catch (e) {
-        console.log('Not a table_grid answer or parse error:', e);
+        console.log('[table-grading] Not a table_grid answer or parse error:', e);
       }
     }
     
@@ -246,7 +374,11 @@ serve(async (req) => {
           score: tableGridResult.score,
           feedback: tableGridResult.feedback.replace(/<!--MARKING_DATA:.*?-->/g, ''),
           isCorrect: tableGridResult.isCorrect,
-          markingData: { perRowResults: tableGridResult.perRowResults }
+          markingData: { 
+            perRowResults: tableGridResult.perRowResults,
+            correctAnswers: tableGridResult.correctAnswers,
+            correctInputs: tableGridResult.correctInputs
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
