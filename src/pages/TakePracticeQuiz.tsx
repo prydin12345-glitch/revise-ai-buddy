@@ -91,6 +91,7 @@ interface UserAnswer {
   markingData?: { // Stored marking results for UI hydration
     perRowResults?: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }>;
     correctAnswers?: Record<string, number[]>;
+    correctInputs?: Record<string, Record<number, string | number>>;
   };
 }
 
@@ -807,6 +808,7 @@ const TakePracticeQuiz = () => {
                       // Try to get table data from correct_answer (new format) or parse from question text
                       let tableData: TableGridData | null = null;
                       let correctAnswersData: Record<string, number[]> | undefined = undefined;
+                      let correctInputsData: Record<string, Record<number, string | number>> | undefined = undefined;
                       
                       // First try parsing from correct_answer (which contains table_data)
                       if (currentQuestion.correct_answer) {
@@ -814,9 +816,13 @@ const TakePracticeQuiz = () => {
                           const parsed = JSON.parse(currentQuestion.correct_answer);
                           if (parsed.table_data) {
                             tableData = parsed.table_data;
-                            // Also extract correctAnswers for review mode
+                            // Also extract correctAnswers for review mode (toggle tables)
                             if (parsed.correctAnswers) {
                               correctAnswersData = parsed.correctAnswers;
+                            }
+                            // Extract correctInputs for text/numeric entry tables
+                            if (parsed.correctInputs) {
+                              correctInputsData = parsed.correctInputs;
                             }
                           }
                         } catch {
@@ -840,11 +846,12 @@ const TakePracticeQuiz = () => {
                         
                         // Use stored marking data if available, otherwise fall back to correctAnswersData
                         const effectiveCorrectAnswers = currentAnswer.markingData?.correctAnswers || correctAnswersData;
+                        const effectiveCorrectInputs = (currentAnswer.markingData as any)?.correctInputs || correctInputsData;
                         
                         return (
                           <div className="space-y-2">
                             <span className="text-sm font-medium text-muted-foreground">
-                              {isInputTable ? 'Complete the table below:' : 'Complete the table below:'}
+                              {isInputTable ? 'Complete the table by typing your answers:' : 'Complete the table below:'}
                             </span>
                             <TableGridQuestion
                               tableData={tableData}
@@ -868,6 +875,8 @@ const TakePracticeQuiz = () => {
                               subjectColor={subjectColor}
                               showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
                               correctAnswers={effectiveCorrectAnswers}
+                              correctInputs={effectiveCorrectInputs}
+                              markingData={currentAnswer.markingData}
                             />
                           </div>
                         );
