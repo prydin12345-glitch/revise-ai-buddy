@@ -369,8 +369,17 @@ export function TableGridQuestion({
     if (columns && columns.length > 0) {
       // Map columns to kinds, with first column being the label
       const kinds: Array<'label' | 'toggle' | 'text' | 'number'> = ['label'];
-      columns.forEach(c => {
-        kinds.push(c.kind || 'toggle');
+      columns.forEach((c: any) => {
+        // Support both 'kind' (new) and 'type' (from generator) properties
+        const kind = c.kind || c.type || 'toggle';
+        // Normalize kind value
+        if (kind === 'text' || kind === 'text_entry') {
+          kinds.push('text');
+        } else if (kind === 'number' || kind === 'number_entry') {
+          kinds.push('number');
+        } else {
+          kinds.push('toggle');
+        }
       });
       return kinds;
     }
