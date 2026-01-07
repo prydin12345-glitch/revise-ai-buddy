@@ -333,6 +333,51 @@ When generating questions that include tables for student completion:
    - Whether checkbox patterns are correct (for classification tables)
    - Whether the reasoning in free-text section adds partial credit
 
+8. ⚠️ CALCULATION TABLES (CRITICAL - PREFILLED DATA REQUIRED):
+   When creating a table where students must CALCULATE values from GIVEN data:
+   
+   Example scenario: "Calculate rate of reaction (1/time) from time values"
+   - Column 1: Label (Temperature)
+   - Column 2: GIVEN data (Time taken) - must be pre-filled and read-only
+   - Column 3: ANSWER (Rate of reaction) - empty, student calculates
+   
+   You MUST use the "prefilled" field to provide given values:
+   
+   "table_data": {
+     "tableType": "number_entry",
+     "headers": ["Temperature (°C)", "Time taken (s)", "Rate (s⁻¹)"],
+     "rows": [
+       { "id": "row1", "label": "20" },
+       { "id": "row2", "label": "30" },
+       { "id": "row3", "label": "40" }
+     ],
+     "columns": [
+       { "type": "display", "header": "Time taken (s)" },
+       { "type": "number", "header": "Rate (s⁻¹)" }
+     ],
+     "prefilled": [
+       { "rowId": "row1", "colIndex": 1, "value": "25", "locked": true },
+       { "rowId": "row2", "colIndex": 1, "value": "20", "locked": true },
+       { "rowId": "row3", "colIndex": 1, "value": "15", "locked": true }
+     ],
+     "selectionMode": "number"
+   },
+   "correct_answer": {
+     "correctAnswers": {
+       "row1": ["0.04"],
+       "row2": ["0.05"],
+       "row3": ["0.07"]
+     }
+   }
+   
+   RULES FOR CALCULATION TABLES:
+   - EVERY row MUST have a prefilled value for the "given" column(s)
+   - prefilled values MUST have "locked": true (read-only)
+   - The column with given data should have type: "display" (not "number" or "text")
+   - Only the ANSWER column(s) should have type: "number" or "text"
+   - correctAnswers must be the calculated result matching the given data
+   - If you cannot generate meaningful given data, DO NOT create the table
+
 ❌ INCORRECT FORMAT:
 {
   "question_text": "Which expression represents...? A) $b^{1/5}$ B) $b^{-5}$",
@@ -555,6 +600,7 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
           const questionLower = (q.question_text || '').toLowerCase();
           const needsTextInput = /complete|fill in|enter|write|calculate|identify|name|state|give|suggest/.test(questionLower);
           const needsToggle = /tick|cross|select|indicate|mark with|choose|true|false/.test(questionLower);
+          const isCalculationTable = /calculate|work out|find the|compute/.test(questionLower);
           
           const columns = q.table_data.columns || [];
           const hasOnlyToggles = columns.every((c: any) => c.type === 'toggle');
@@ -567,6 +613,33 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
             }));
             q.table_data.tableType = 'text_entry';
             q.table_data.table_interaction_type = 'text_entry';
+          }
+          
+          // CRITICAL VALIDATION: Calculation tables MUST have prefilled data
+          if (isCalculationTable && (q.table_data.tableType === 'number_entry' || tableInteractionType === 'number_entry')) {
+            const prefilled = q.table_data.prefilled || [];
+            const rows = q.table_data.rows || [];
+            const hasDisplayColumn = columns.some((c: any) => c.type === 'display');
+            
+            // Check if we have given data
+            const hasPrefilledData = prefilled.length > 0 && prefilled.some((p: any) => p.locked && p.value);
+            
+            if (!hasPrefilledData && !hasDisplayColumn && rows.length > 0) {
+              console.warn(`Question ${q.question_number}: Calculation table missing prefilled given data - flagging as invalid`);
+              q.table_data.validationError = 'MISSING_GIVEN_DATA';
+              q.table_data.validationMessage = 'Calculation tables require prefilled given values for students to calculate from';
+              
+              // Try to detect which column should have given data based on header patterns
+              const givenColumnPatterns = /time|distance|mass|volume|temperature|concentration|velocity|speed|force|current|voltage/i;
+              const answerColumnPatterns = /rate|result|answer|calculate|final|output/i;
+              
+              for (let i = 0; i < columns.length; i++) {
+                const header = headers[i + 1] || ''; // +1 because headers include label column
+                if (givenColumnPatterns.test(header) && !answerColumnPatterns.test(header)) {
+                  console.warn(`Question ${q.question_number}: Column "${header}" likely contains given data but has no prefilled values`);
+                }
+              }
+            }
           }
           
           // Sanitize LaTeX in headers - convert to plain text

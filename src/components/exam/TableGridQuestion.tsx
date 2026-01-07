@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 export interface TableGridColumn {
   id: string;
   label: string;
-  kind: 'toggle' | 'text' | 'number';
+  kind: 'toggle' | 'text' | 'number' | 'display'; // 'display' = read-only prefilled values
   toggleSymbol?: 'X' | '✓';
 }
 
@@ -410,7 +410,7 @@ export function TableGridQuestion({
   const columnKinds = useMemo(() => {
     if (columns && columns.length > 0) {
       // Map columns to kinds, with first column being the label
-      const kinds: Array<'label' | 'toggle' | 'text' | 'number'> = ['label'];
+      const kinds: Array<'label' | 'toggle' | 'text' | 'number' | 'display'> = ['label'];
       columns.forEach((c: any) => {
         // Support both 'kind' (new) and 'type' (from generator) properties
         const kind = c.kind || c.type || 'toggle';
@@ -419,6 +419,8 @@ export function TableGridQuestion({
           kinds.push('text');
         } else if (kind === 'number' || kind === 'number_entry') {
           kinds.push('number');
+        } else if (kind === 'display') {
+          kinds.push('display'); // Read-only prefilled values
         } else {
           kinds.push('toggle');
         }
@@ -653,7 +655,22 @@ export function TableGridQuestion({
                   const cellStatus = getCellStatus(row.id, colIndex);
                   const columnKind = columnKinds[colIndex] || 'toggle';
                   
-                  // Input cell
+                  // Display cell - read-only prefilled value (for given data in calculation tables)
+                  if (columnKind === 'display' || isLocked) {
+                    const displayValue = lockedValue || getInputValue(row.id, colIndex) || '';
+                    return (
+                      <td 
+                        key={`${row.id}-${colIndex}`}
+                        className="border border-border px-4 py-3 bg-muted/30"
+                      >
+                        <span className="text-sm font-medium text-foreground/90">
+                          {displayValue}
+                        </span>
+                      </td>
+                    );
+                  }
+                  
+                  // Input cell (text or number)
                   if (columnKind === 'text' || columnKind === 'number') {
                     const inputStatus = getInputCellStatus(row.id, colIndex);
                     return (
@@ -663,9 +680,10 @@ export function TableGridQuestion({
                       >
                         <Input
                           type={columnKind === 'number' ? 'number' : 'text'}
+                          step={columnKind === 'number' ? '0.01' : undefined}
                           value={getInputValue(row.id, colIndex)}
                           onChange={(e) => updateInputCell(row.id, colIndex, 
-                            columnKind === 'number' ? parseFloat(e.target.value) || 0 : e.target.value
+                            columnKind === 'number' ? e.target.value : e.target.value
                           )}
                           disabled={readOnly || isExampleRow}
                           className={cn(
@@ -674,6 +692,7 @@ export function TableGridQuestion({
                             inputStatus === 'incorrect' && "border-red-500 bg-red-50 dark:bg-red-900/20 border-2",
                             inputStatus === 'missed' && "border-amber-500 bg-amber-50 dark:bg-amber-900/20 border-2 border-dashed"
                           )}
+                          placeholder="..."
                         />
                       </td>
                     );
