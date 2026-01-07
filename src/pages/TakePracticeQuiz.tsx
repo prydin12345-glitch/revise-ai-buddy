@@ -33,6 +33,7 @@ import {
   isTickXTable,
   serializeTableGridAnswer,
   deserializeTableGridAnswers,
+  parseStoredTableGridAnswer,
   type TableGridData 
 } from "@/components/exam/TableGridQuestion";
 
@@ -85,8 +86,12 @@ interface UserAnswer {
   accuracyMarks?: number;
   feedback?: string;
   useMathInput?: boolean; // Track if user is using math input
-  tableGridAnswers?: Record<string, number[]>; // For table_grid questions
+  tableGridAnswers?: Record<string, number[]>; // For table_grid questions (toggle)
   tableGridInputs?: Record<string, Record<number, string | number>>; // For table_grid input cells
+  markingData?: { // Stored marking results for UI hydration
+    perRowResults?: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }>;
+    correctAnswers?: Record<string, number[]>;
+  };
 }
 
 const TakePracticeQuiz = () => {
@@ -339,7 +344,38 @@ const TakePracticeQuiz = () => {
       
       if (savedAnswers?.length) {
         savedAnswers.forEach((ans: any) => {
-          // Use answer_text directly - no LaTeX conversion needed
+          // Parse table grid answers from answer_text if it's a table_grid response
+          let tableGridAnswers: Record<string, number[]> | undefined;
+          let tableGridInputs: Record<string, Record<number, string | number>> | undefined;
+          let markingData: UserAnswer['markingData'] | undefined;
+          
+          if (ans.answer_text) {
+            const parsed = parseStoredTableGridAnswer(ans.answer_text);
+            if (parsed) {
+              // Convert cells (Record<string, Record<number, boolean>>) to number[] format
+              tableGridAnswers = {};
+              for (const [rowId, colMap] of Object.entries(parsed.cells)) {
+                tableGridAnswers[rowId] = Object.entries(colMap)
+                  .filter(([_, selected]) => selected)
+                  .map(([colIdx]) => parseInt(colIdx, 10));
+              }
+              tableGridInputs = parsed.inputs;
+            }
+          }
+          
+          // Try to extract marking data from feedback (stored as JSON metadata)
+          if (ans.feedback) {
+            try {
+              // Check if feedback contains embedded marking data
+              const feedbackMatch = ans.feedback.match(/<!--MARKING_DATA:(.*?)-->/);
+              if (feedbackMatch) {
+                markingData = JSON.parse(feedbackMatch[1]);
+              }
+            } catch {
+              // Feedback doesn't contain structured marking data
+            }
+          }
+          
           initialAnswers[ans.question_id] = {
             answer: ans.answer_text || "",
             workingOut: ans.working_out || "",
@@ -347,8 +383,11 @@ const TakePracticeQuiz = () => {
             score: Number(ans.score),
             methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
-            feedback: ans.feedback || "",
+            feedback: ans.feedback ? ans.feedback.replace(/<!--MARKING_DATA:.*?-->/g, '') : "",
             isCorrect: ans.is_correct || false,
+            tableGridAnswers,
+            tableGridInputs,
+            markingData,
           };
         });
       }
@@ -447,8 +486,13 @@ const TakePracticeQuiz = () => {
     const currentQuestion = questions[currentIndex];
     const currentAnswer = userAnswers[currentQuestion.id];
 
-    // Check if there's an answer
-    if (!currentAnswer.answer.trim()) {
+    // Check if there's an answer - for table_grid, check tableGridAnswers OR answer text
+    const hasTableGridAnswer = currentAnswer.tableGridAnswers && 
+      Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0);
+    const hasTableGridInputs = currentAnswer.tableGridInputs && 
+      Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0));
+    
+    if (!currentAnswer.answer.trim() && !hasTableGridAnswer && !hasTableGridInputs) {
       toast.error("Please provide an answer");
       return;
     }
@@ -481,7 +525,9 @@ const TakePracticeQuiz = () => {
           methodMarks: data.methodMarks,
           accuracyMarks: data.accuracyMarks,
           feedback: data.feedback,
-          isCorrect: data.isCorrect
+          isCorrect: data.isCorrect,
+          // Store marking data for table grid questions to persist UI state
+          markingData: data.markingData
         }
       });
 
@@ -792,6 +838,9 @@ const TakePracticeQuiz = () => {
                           tableData.selectionMode === 'number' ||
                           (tableData.columns && tableData.columns.some(c => c.kind === 'text' || c.kind === 'number'));
                         
+                        // Use stored marking data if available, otherwise fall back to correctAnswersData
+                        const effectiveCorrectAnswers = currentAnswer.markingData?.correctAnswers || correctAnswersData;
+                        
                         return (
                           <div className="space-y-2">
                             <span className="text-sm font-medium text-muted-foreground">
@@ -818,7 +867,7 @@ const TakePracticeQuiz = () => {
                               readOnly={currentAnswer.submitted}
                               subjectColor={subjectColor}
                               showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
-                              correctAnswers={correctAnswersData}
+                              correctAnswers={effectiveCorrectAnswers}
                             />
                           </div>
                         );
@@ -991,7 +1040,11 @@ const TakePracticeQuiz = () => {
               </Button>
               <Button 
                 onClick={handleSubmitAnswer} 
-                disabled={currentAnswer.submitted || isGrading || !currentAnswer.answer.trim()} 
+                disabled={currentAnswer.submitted || isGrading || (
+                  !currentAnswer.answer.trim() && 
+                  !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
+                  !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
+                )} 
                 size="lg" 
                 className="flex-1 min-w-0" 
                 style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}

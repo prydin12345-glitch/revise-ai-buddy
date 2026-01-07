@@ -517,44 +517,67 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
           q.question_type = 'short_answer';
         } else {
           // Validate headers aren't placeholders
-          const headers = q.table_data.headers || [];
+          const headers: string[] = q.table_data.headers || [];
           const placeholderPatterns = /^(Element|Option|Column|Item|Row|Cell)\s*\d+$/i;
           const hasPlaceholderHeaders = headers.some((h: string) => placeholderPatterns.test(h));
           
           if (hasPlaceholderHeaders) {
             console.warn(`Question ${q.question_number}: table_grid has placeholder headers, flagging for review`);
-            // Still allow but add a flag in the table_data
             q.table_data.hasPlaceholderHeaders = true;
           }
+          
+          // DETECT TABLE INTERACTION TYPE (CRITICAL FOR MARKING)
+          const headersLower = headers.map((h: string) => h.toLowerCase());
+          const hasTrue = headersLower.includes('true');
+          const hasFalse = headersLower.includes('false');
+          const hasYes = headersLower.includes('yes');
+          const hasNo = headersLower.includes('no');
+          
+          // Set table_interaction_type for deterministic validation/marking
+          let tableInteractionType: string = 'multi_select'; // default
+          
+          if (hasTrue && hasFalse) {
+            tableInteractionType = 'tf';
+            q.table_data.tableType = 'tf_single';
+            q.table_data.selectionMode = 'single';
+          } else if ((hasYes && hasNo) || headers.length === 3) {
+            // Binary choice table - might be single select
+            tableInteractionType = 'single_select';
+            q.table_data.tableType = 'grid_single';
+            q.table_data.selectionMode = 'single';
+          } else if (q.table_data.tableType === 'text_entry' || q.table_data.tableType === 'number_entry') {
+            tableInteractionType = q.table_data.tableType;
+          }
+          
+          q.table_data.table_interaction_type = tableInteractionType;
           
           // Validate column types match question intent
           const questionLower = (q.question_text || '').toLowerCase();
           const needsTextInput = /complete|fill in|enter|write|calculate|identify|name|state|give|suggest/.test(questionLower);
-          const needsToggle = /tick|cross|select|indicate|mark with|choose/.test(questionLower);
+          const needsToggle = /tick|cross|select|indicate|mark with|choose|true|false/.test(questionLower);
           
           const columns = q.table_data.columns || [];
           const hasOnlyToggles = columns.every((c: any) => c.type === 'toggle');
           
           if (needsTextInput && hasOnlyToggles && !needsToggle) {
             console.warn(`Question ${q.question_number}: Question needs text input but columns are all toggle type, converting`);
-            // Convert toggle columns to text
             q.table_data.columns = columns.map((c: any) => ({
               ...c,
               type: 'text'
             }));
             q.table_data.tableType = 'text_entry';
+            q.table_data.table_interaction_type = 'text_entry';
           }
           
           // Sanitize LaTeX in headers - convert to plain text
           q.table_data.headers = headers.map((h: string) => {
-            // Replace common LaTeX patterns with Unicode
             return h
               .replace(/\$?\s*s\^?\{?-1\}?\s*\$?/g, 's⁻¹')
               .replace(/\$?\s*cm\^?\{?3\}?\s*\$?/g, 'cm³')
               .replace(/\$?\s*m\^?\{?2\}?\s*\$?/g, 'm²')
               .replace(/\$?\s*dm\^?\{?-3\}?\s*\$?/g, 'dm⁻³')
               .replace(/\$?\s*mol\s*[·.]\s*dm\^?\{?-3\}?\s*\$?/g, 'mol·dm⁻³')
-              .replace(/\$([^$]+)\$/g, '$1'); // Remove remaining $ delimiters
+              .replace(/\$([^$]+)\$/g, '$1');
           });
         }
         

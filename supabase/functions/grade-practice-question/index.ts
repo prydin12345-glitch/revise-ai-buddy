@@ -46,6 +46,212 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
+    // Check if this is a table_grid question with deterministic grading
+    const isTableGrid = question.question_type === 'table_grid';
+    let tableGridResult: any = null;
+    
+    if (isTableGrid && answerText) {
+      try {
+        const parsed = JSON.parse(answerText);
+        if (parsed._type === 'table_grid') {
+          // Parse student answers
+          let studentAnswers: Record<string, number[]> = {};
+          
+          if (parsed.version === 2 && parsed.cells) {
+            for (const [rowId, colMap] of Object.entries(parsed.cells as Record<string, Record<number, boolean>>)) {
+              studentAnswers[rowId] = Object.entries(colMap)
+                .filter(([_, selected]) => selected)
+                .map(([colIdx]) => parseInt(colIdx, 10));
+            }
+          } else if (parsed.answers) {
+            studentAnswers = parsed.answers;
+          }
+          
+          // Parse correct answers from question
+          let correctAnswers: Record<string, number[]> | null = null;
+          let tableType: 'tf_single' | 'grid_single' | 'grid_multi' = 'grid_multi';
+          
+          if (question.correct_answer) {
+            try {
+              const ca = JSON.parse(question.correct_answer);
+              if (ca.correctAnswers) {
+                correctAnswers = ca.correctAnswers;
+              }
+              if (ca.table_data?.tableType) {
+                const tt = ca.table_data.tableType;
+                if (tt === 'tf_single' || tt === 'tick_cross') {
+                  // Check headers for True/False
+                  const headers = ca.table_data.headers || [];
+                  const hasTrue = headers.some((h: string) => h.toLowerCase() === 'true');
+                  const hasFalse = headers.some((h: string) => h.toLowerCase() === 'false');
+                  tableType = hasTrue && hasFalse ? 'tf_single' : 'grid_multi';
+                } else if (tt === 'grid_single') {
+                  tableType = 'grid_single';
+                }
+              }
+              // Also detect single-select from selectionMode
+              if (ca.table_data?.selectionMode === 'single') {
+                tableType = tableType === 'tf_single' ? 'tf_single' : 'grid_single';
+              }
+            } catch {
+              // Failed to parse correct answer
+            }
+          }
+          
+          if (correctAnswers && Object.keys(correctAnswers).length > 0) {
+            // DETERMINISTIC GRADING based on table type
+            const nonExampleRows = Object.keys(correctAnswers);
+            const marksPerRow = question.marks / nonExampleRows.length;
+            let totalScore = 0;
+            const rowResults: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }> = {};
+            const feedbackLines: string[] = [];
+            
+            // Validate and sanitize answers for single-select tables
+            const sanitizedAnswers: Record<string, number[]> = {};
+            for (const [rowId, selections] of Object.entries(studentAnswers)) {
+              if (tableType === 'tf_single' || tableType === 'grid_single') {
+                sanitizedAnswers[rowId] = selections.length > 0 ? [selections[0]] : [];
+              } else {
+                sanitizedAnswers[rowId] = selections;
+              }
+            }
+            
+            for (const rowId of nonExampleRows) {
+              const expected = correctAnswers[rowId] || [];
+              const actual = sanitizedAnswers[rowId] || [];
+              
+              if (tableType === 'tf_single' || tableType === 'grid_single') {
+                // Single selection: exact match or nothing
+                if (actual.length === 0) {
+                  rowResults[rowId] = { correct: false, earned: 0, max: marksPerRow, details: 'No selection made', status: 'missed' };
+                  feedbackLines.push(`• Row "${rowId}": Unanswered`);
+                } else if (expected.length === 1 && actual[0] === expected[0]) {
+                  totalScore += marksPerRow;
+                  rowResults[rowId] = { correct: true, earned: marksPerRow, max: marksPerRow, details: 'Correct', status: 'correct' };
+                  feedbackLines.push(`• Row "${rowId}": ✓ Correct`);
+                } else {
+                  rowResults[rowId] = { correct: false, earned: 0, max: marksPerRow, details: 'Incorrect selection', status: 'incorrect' };
+                  feedbackLines.push(`• Row "${rowId}": ✗ Incorrect`);
+                }
+              } else {
+                // Multi-select with F1-like scoring
+                const expectedSet = new Set(expected);
+                let correctCount = 0;
+                let incorrectCount = 0;
+                
+                for (const col of actual) {
+                  if (expectedSet.has(col)) correctCount++;
+                  else incorrectCount++;
+                }
+                
+                const rawScore = Math.max(0, correctCount - incorrectCount);
+                const rowScore = expected.length > 0 
+                  ? Math.min((rawScore / expected.length) * marksPerRow, marksPerRow) 
+                  : 0;
+                
+                totalScore += rowScore;
+                const isFullyCorrect = correctCount === expected.length && incorrectCount === 0;
+                const isPartial = correctCount > 0 && !isFullyCorrect;
+                
+                rowResults[rowId] = {
+                  correct: isFullyCorrect,
+                  earned: Math.round(rowScore * 100) / 100,
+                  max: marksPerRow,
+                  details: isFullyCorrect ? 'Correct' : isPartial ? `Partial (${correctCount}/${expected.length})` : actual.length === 0 ? 'Unanswered' : 'Incorrect',
+                  status: isFullyCorrect ? 'correct' : isPartial ? 'partial' : actual.length === 0 ? 'missed' : 'incorrect'
+                };
+                
+                if (isFullyCorrect) {
+                  feedbackLines.push(`• Row "${rowId}": ✓ Correct`);
+                } else if (isPartial) {
+                  feedbackLines.push(`• Row "${rowId}": Partial credit (${correctCount}/${expected.length} correct)`);
+                } else if (actual.length === 0) {
+                  feedbackLines.push(`• Row "${rowId}": Unanswered`);
+                } else {
+                  feedbackLines.push(`• Row "${rowId}": ✗ Incorrect`);
+                }
+              }
+            }
+            
+            totalScore = Math.round(totalScore * 100) / 100;
+            const correctRows = Object.values(rowResults).filter(r => r.correct).length;
+            
+            // Build feedback with embedded marking data for UI hydration
+            const markingDataJson = JSON.stringify({ perRowResults: rowResults, correctAnswers });
+            const feedback = `${correctRows}/${nonExampleRows.length} rows correct.\n\n${feedbackLines.join('\n')}\n\n<!--MARKING_DATA:${markingDataJson}-->`;
+            
+            tableGridResult = {
+              score: totalScore,
+              feedback,
+              isCorrect: totalScore >= question.marks,
+              perRowResults: rowResults
+            };
+          }
+        }
+      } catch (e) {
+        console.log('Not a table_grid answer or parse error:', e);
+      }
+    }
+    
+    // If we have a deterministic table grid result, use it directly
+    if (tableGridResult) {
+      // Save answer to database
+      const { error: saveError } = await supabase
+        .from('practice_question_answers')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          question_id: questionId,
+          answer_text: answerText || '',
+          working_out: workingOut,
+          score: tableGridResult.score,
+          is_correct: tableGridResult.isCorrect,
+          feedback: tableGridResult.feedback,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,question_id'
+        });
+
+      if (saveError) {
+        console.error('Error saving answer:', saveError);
+        throw saveError;
+      }
+
+      // Update progress
+      const { data: allAnswers } = await supabase
+        .from('practice_question_answers')
+        .select('score, is_correct')
+        .eq('user_id', user.id)
+        .eq('set_id', setId);
+
+      const questionsAttempted = allAnswers?.length || 0;
+      const questionsCorrect = allAnswers?.filter(a => a.is_correct).length || 0;
+
+      await supabase
+        .from('practice_set_progress')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          questions_attempted: questionsAttempted,
+          questions_correct: questionsCorrect,
+          last_accessed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,set_id'
+        });
+
+      return new Response(
+        JSON.stringify({
+          score: tableGridResult.score,
+          feedback: tableGridResult.feedback.replace(/<!--MARKING_DATA:.*?-->/g, ''),
+          isCorrect: tableGridResult.isCorrect,
+          markingData: { perRowResults: tableGridResult.perRowResults }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Use normalized answer for grading (Unicode math symbols converted to plain text)
     // Fall back to original answerText if no normalized version provided
     const answerForGrading = normalizedAnswer || answerText || '(No answer provided)';
