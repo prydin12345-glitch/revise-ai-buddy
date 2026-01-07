@@ -375,11 +375,72 @@ Return JSON with:
   ]
 }
 
-TABLE_GRID RULES:
-1. Set question_type to "table_grid" for tick/cross, classification, data entry tables
-2. MUST include "table_data" object with headers, rows, columns structure  
-3. MUST include "correct_answer" as JSON: {"correctAnswers": {"row1": [0], "row2": [1]}}
-4. Column types: "toggle" for tick/cross, "text" for short text, "number" for numeric`;
+TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
+
+1. **TABLE TYPES - Use the correct one:**
+   - "tick_cross": For true/false, yes/no, classification tables where students tap to select. Use columns with type="toggle".
+   - "text_entry": For tables where students type text answers. Use columns with type="text".
+   - "number_entry": For tables where students type numeric answers. Use columns with type="number".
+   - "mixed": For tables with a combination of types.
+
+2. **REQUIRED FIELDS:**
+   - question_type: "table_grid" (always for any table question)
+   - table_data: Object with headers, rows, columns, and tableType
+   - correct_answer: JSON object with correctAnswers keyed by row ID
+
+3. **COLUMN TYPE MUST MATCH QUESTION:**
+   - If question asks to "complete", "fill in", "enter", "write", "calculate" → type="text" or type="number"
+   - If question asks to "tick", "select", "indicate", "cross", "mark" → type="toggle"
+   - NEVER use type="toggle" for questions requiring written/typed answers!
+
+4. **HEADER VALIDATION (CRITICAL):**
+   - NEVER use placeholder headers like "Element 1", "Element 2", "Option A", "Option B", etc.
+   - Headers MUST be meaningful and specific: "Carbon", "Hydrogen", "Oxygen", "True", "False", "Monomer", "Polymer"
+   - For elements: Use actual element names (Carbon, Hydrogen, Oxygen, Nitrogen, Sulfur, Phosphorus)
+   - For True/False: Use headers "True", "False" (not "Column 1", "Column 2")
+
+5. **LATEX/UNITS IN TABLES:**
+   - NEVER use raw LaTeX like $s^{-1}$ in headers or cells
+   - Use plain text with Unicode: s⁻¹ (not $s^{-1}$), cm³ (not $cm^3$), mol·dm⁻³ (not $mol\\,dm^{-3}$)
+   - Common superscripts: ⁻¹ ⁻² ⁻³ ² ³ ⁴ ⁵
+   - Common subscripts: ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉
+
+6. **ANSWER KEY FORMAT:**
+   - For toggle tables: correctAnswers: { "rowId": [columnIndex, ...], ... } where columnIndex is 0-based for data columns
+   - For text/number tables: correctAnswers: { "rowId": ["value1", "value2", ...], ... }
+   
+7. **EXAMPLE - True/False table:**
+   {
+     "question_type": "table_grid",
+     "question_text": "Indicate whether each statement is true or false.",
+     "table_data": {
+       "tableType": "tick_cross",
+       "headers": ["Statement", "True", "False"],
+       "rows": [{"id": "stmt1", "label": "Proteins are polymers of amino acids."}],
+       "columns": [{"type": "toggle", "header": "True"}, {"type": "toggle", "header": "False"}],
+       "selectionMode": "single"
+     },
+     "correct_answer": { "correctAnswers": { "stmt1": [0] } }
+   }
+
+8. **EXAMPLE - Text entry table:**
+   {
+     "question_type": "table_grid",
+     "question_text": "Complete the table by identifying the monomer for each polymer.",
+     "table_data": {
+       "tableType": "text_entry",
+       "headers": ["Polymer", "Monomer"],
+       "rows": [{"id": "row1", "label": "Starch"}, {"id": "row2", "label": "Protein"}],
+       "columns": [{"type": "text", "header": "Monomer"}],
+       "selectionMode": "text"
+     },
+     "correct_answer": { "correctAnswers": { "row1": ["Glucose"], "row2": ["Amino acids"] } }
+   }
+
+⚠️ VALIDATION BEFORE OUTPUT: Reject any table where:
+- Headers contain "Element 1/2/3", "Option A/B/C", "Column 1/2/3", or similar placeholders
+- Column type is "toggle" but question asks for typed/written answers
+- Raw LaTeX appears in headers or cells`;
 
     console.log('Calling Lovable AI...');
 
@@ -454,7 +515,49 @@ TABLE_GRID RULES:
         if (!q.table_data) {
           console.warn(`Question ${q.question_number}: table_grid type but missing table_data, downgrading to short_answer`);
           q.question_type = 'short_answer';
+        } else {
+          // Validate headers aren't placeholders
+          const headers = q.table_data.headers || [];
+          const placeholderPatterns = /^(Element|Option|Column|Item|Row|Cell)\s*\d+$/i;
+          const hasPlaceholderHeaders = headers.some((h: string) => placeholderPatterns.test(h));
+          
+          if (hasPlaceholderHeaders) {
+            console.warn(`Question ${q.question_number}: table_grid has placeholder headers, flagging for review`);
+            // Still allow but add a flag in the table_data
+            q.table_data.hasPlaceholderHeaders = true;
+          }
+          
+          // Validate column types match question intent
+          const questionLower = (q.question_text || '').toLowerCase();
+          const needsTextInput = /complete|fill in|enter|write|calculate|identify|name|state|give|suggest/.test(questionLower);
+          const needsToggle = /tick|cross|select|indicate|mark with|choose/.test(questionLower);
+          
+          const columns = q.table_data.columns || [];
+          const hasOnlyToggles = columns.every((c: any) => c.type === 'toggle');
+          
+          if (needsTextInput && hasOnlyToggles && !needsToggle) {
+            console.warn(`Question ${q.question_number}: Question needs text input but columns are all toggle type, converting`);
+            // Convert toggle columns to text
+            q.table_data.columns = columns.map((c: any) => ({
+              ...c,
+              type: 'text'
+            }));
+            q.table_data.tableType = 'text_entry';
+          }
+          
+          // Sanitize LaTeX in headers - convert to plain text
+          q.table_data.headers = headers.map((h: string) => {
+            // Replace common LaTeX patterns with Unicode
+            return h
+              .replace(/\$?\s*s\^?\{?-1\}?\s*\$?/g, 's⁻¹')
+              .replace(/\$?\s*cm\^?\{?3\}?\s*\$?/g, 'cm³')
+              .replace(/\$?\s*m\^?\{?2\}?\s*\$?/g, 'm²')
+              .replace(/\$?\s*dm\^?\{?-3\}?\s*\$?/g, 'dm⁻³')
+              .replace(/\$?\s*mol\s*[·.]\s*dm\^?\{?-3\}?\s*\$?/g, 'mol·dm⁻³')
+              .replace(/\$([^$]+)\$/g, '$1'); // Remove remaining $ delimiters
+          });
         }
+        
         if (!q.correct_answer) {
           console.warn(`Question ${q.question_number}: table_grid type but missing correct_answer for grading`);
         }
