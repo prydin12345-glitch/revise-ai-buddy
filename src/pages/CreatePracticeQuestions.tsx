@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import {
@@ -23,8 +22,10 @@ import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PracticeSetCompleteModal } from "@/components/practice/PracticeSetCompleteModal";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
+import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ const CreatePracticeQuestions = () => {
   const [useAIInterpretation, setUseAIInterpretation] = useState(true);
   const [customEducationalTier, setCustomEducationalTier] = useState("");
   const [customExamBoard, setCustomExamBoard] = useState("");
-  const [showNotesExpanded, setShowNotesExpanded] = useState(false);
+  const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
 
   // Generation states
   const [generating, setGenerating] = useState(false);
@@ -90,6 +91,15 @@ const CreatePracticeQuestions = () => {
     if (examBoard === "other" && !customExamBoard.trim()) {
       toast.error("Please enter a custom exam board");
       return;
+    }
+
+    // Validate notes before generation
+    if (notes.trim()) {
+      const result = sanitizeNotes(notes);
+      if (!result.isValid) {
+        toast.error(result.blockedReasons[0] || "Please revise your notes");
+        return;
+      }
     }
 
     // Show advisory if no spec uploaded
@@ -274,25 +284,12 @@ const CreatePracticeQuestions = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
-                {!showNotesExpanded ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowNotesExpanded(true)}
-                    className="text-muted-foreground text-xs h-8 w-full justify-start"
-                  >
-                    + Add notes or instructions
-                  </Button>
-                ) : (
-                  <Textarea
-                    id="notes"
-                    placeholder="Add any additional notes or instructions..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={2}
-                    className="text-sm"
-                  />
-                )}
+                <NotesInput
+                  value={notes}
+                  onChange={setNotes}
+                  onValidationChange={setNotesValidation}
+                  placeholder="Add constraints like topics, style, difficulty, question types..."
+                />
               </div>
             </Card>
 

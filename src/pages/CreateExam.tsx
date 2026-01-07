@@ -15,8 +15,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
+import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 
 
 const examBoards = [
@@ -513,12 +515,14 @@ export default function CreateExam() {
             </div>
 
             {/* Row 2: Notes (Full Width) */}
-            <Textarea
-              placeholder="Notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[120px] bg-card border-border resize-none"
-            />
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <NotesInput
+                value={notes}
+                onChange={setNotes}
+                placeholder="Add constraints like topics, style, difficulty..."
+              />
+            </div>
 
             {/* Row 3: File Uploads & Exam Board */}
             <div className="grid lg:grid-cols-3 gap-4">
