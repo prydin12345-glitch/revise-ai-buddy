@@ -405,6 +405,10 @@ Return JSON with:
       cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
     
+    // Fix improperly escaped LaTeX backslashes in JSON strings
+    // The AI sometimes outputs \mu, \frac etc. without proper JSON escaping
+    cleanedContent = cleanedContent.replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+    
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
     
     let parsedContent;
