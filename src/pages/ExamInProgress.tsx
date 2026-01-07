@@ -18,6 +18,7 @@ import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
+import { TableGridQuestion, isTickXTable, parseMarkdownToTableGrid, extractTextBeforeTable, deserializeTableGridAnswers, serializeTableGridAnswers } from "@/components/exam/TableGridQuestion";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -77,6 +78,7 @@ const ExamInProgress = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
   const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [tableGridAnswers, setTableGridAnswers] = useState<Record<string, Record<string, number[]>>>({});
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [showMathKeypad, setShowMathKeypad] = useState(false);
   const [activeQuestionForMath, setActiveQuestionForMath] = useState<string | null>(null);
@@ -145,6 +147,11 @@ const ExamInProgress = () => {
         [blankId]: value
       }
     }));
+  };
+
+  // Helper to update table grid answers (for tick/X tables)
+  const updateTableGridAnswer = (questionId: string, answers: Record<string, number[]>) => {
+    setTableGridAnswers(prev => ({ ...prev, [questionId]: answers }));
   };
 
   // Save exam progress to backend - works for ALL exams (timed and non-timed)
@@ -431,12 +438,28 @@ const ExamInProgress = () => {
       
       const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
       const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
+      const tableGridAnswersMap: Record<string, Record<string, number[]>> = {};
       const savedSet = new Set<string>();
       
       // First, load answers from database
       const flaggedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
+        
+        // Check if this is a table_grid answer
+        try {
+          const parsed = JSON.parse(answerText);
+          if (parsed._type === 'table_grid' && parsed.answers) {
+            tableGridAnswersMap[ans.question_id] = parsed.answers;
+            savedSet.add(ans.question_id);
+            if (ans.is_flagged) {
+              flaggedSet.add(ans.question_id);
+            }
+            return; // Skip normal answer processing
+          }
+        } catch {
+          // Not JSON, continue with normal processing
+        }
         
         // For math exams, text goes to workingOut; for others, to finalAnswer
         if (isMathExam) {
@@ -465,6 +488,7 @@ const ExamInProgress = () => {
       });
       
       setFlaggedQuestions(flaggedSet);
+      setTableGridAnswers(tableGridAnswersMap);
       
       // Then, check sessionStorage for any unsaved drafts (fallback for network failures)
       try {
@@ -581,6 +605,9 @@ const ExamInProgress = () => {
       // Include table answers if present for this question
       const questionTableAnswers = tableAnswers[questionId];
       
+      // Include table grid answers if present for this question (tick/X tables)
+      const questionTableGridAnswers = tableGridAnswers[questionId];
+      
       // Include blank answers if present for this question
       // Serialize blank answers into answerText if they exist
       const questionBlankAnswers = blankAnswers[questionId];
@@ -588,6 +615,9 @@ const ExamInProgress = () => {
       if (questionBlankAnswers && Object.keys(questionBlankAnswers).length > 0) {
         // For fill-in-blank, serialize the blanks as JSON in the answer
         finalAnswerText = JSON.stringify(questionBlankAnswers);
+      } else if (questionTableGridAnswers && Object.keys(questionTableGridAnswers).length > 0) {
+        // For table grid, serialize the grid answers as JSON with a marker
+        finalAnswerText = JSON.stringify({ _type: 'table_grid', answers: questionTableGridAnswers });
       }
       
       const { error } = await supabase.functions.invoke('submit-student-answer', {
@@ -1178,8 +1208,40 @@ const ExamInProgress = () => {
                     </div>
                   </div>
 
-                  {/* Render question text - handle tables, fill-in-blanks, or standard */}
-                  {hasInteractiveTable(question.question_text) ? (
+                  {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
+                  {isTickXTable(question.question_text) ? (
+                    <>
+                      <MathRenderer 
+                        content={extractTextBeforeTable(question.question_text)}
+                        latex={(question as any).question_latex}
+                        hasMath={(question as any).has_math}
+                        className="mb-4 text-lg"
+                      />
+                      {(() => {
+                        const tableData = parseMarkdownToTableGrid(question.question_text);
+                        if (!tableData) return null;
+                        return (
+                          <TableGridQuestion
+                            tableData={tableData}
+                            questionId={question.id}
+                            answers={tableGridAnswers[question.id] || {}}
+                            onAnswerChange={(answers) => {
+                              updateTableGridAnswer(question.id, answers);
+                              // Trigger save after grid change
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            subjectColor={subjectColor}
+                          />
+                        );
+                      })()}
+                    </>
+                  ) : hasInteractiveTable(question.question_text) ? (
                     <>
                       <MathRenderer 
                         content={stripInlineMCQOptions(removeTableFromContent(question.question_text), question.question_type)}
