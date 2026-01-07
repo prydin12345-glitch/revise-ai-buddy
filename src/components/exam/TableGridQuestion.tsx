@@ -22,12 +22,13 @@ export interface TableGridData {
   columns?: TableGridColumn[]; // Enhanced column definitions
   selectionMode: 'single' | 'multi' | 'text' | 'number' | 'number_text';
   markStyle?: 'x' | 'tick' | 'either';
-  tableType?: 'tick_cross' | 'text_entry' | 'number_entry' | 'mixed'; // Explicit table type
+  tableType?: 'tf_single' | 'grid_single' | 'grid_multi' | 'tick_cross' | 'text_entry' | 'number_entry' | 'mixed'; // Explicit table type with validation rules
   prefilled?: { rowId: string; colIndex: number; value: string; locked?: boolean }[];
   correctAnswers?: Record<string, number[] | string[]>; // For toggle columns (number[]) or text columns (string[])
   answerKey?: Record<string, Record<string, boolean | string | number>>; // New format: rowId -> colId -> value
   marksPerRow?: number;
   marks?: number;
+  perRowMaxSelections?: number; // For grid_multi: max allowed selections per row
 }
 
 // New response format that supports both toggles and inputs
@@ -126,20 +127,35 @@ export function parseMarkdownToTableGrid(content: string): TableGridData | null 
     markStyle = 'x';
   }
   
+  // Detect True/False table (requires single selection per row)
+  const isTrueFalseTable = headerParts.some(h => 
+    h.toLowerCase() === 'true' || h.toLowerCase() === 'false'
+  );
+  
+  // Determine tableType based on structure
+  // tf_single: True/False columns (exactly one per row)
+  // grid_single: Other binary choice tables
+  // grid_multi: Multiple selections allowed (default for tick/cross)
+  const tableType: 'tf_single' | 'grid_single' | 'grid_multi' = 
+    isTrueFalseTable ? 'tf_single' : 
+    (headerParts.length === 3 && (headerParts[1].toLowerCase() === 'yes' || headerParts[1].toLowerCase() === 'no')) ? 'grid_single' :
+    'grid_multi';
+  
   // Generate columns with IDs
   const columns: TableGridColumn[] = headerParts.map((label, idx) => ({
     id: `col_${idx}`,
     label,
     kind: 'toggle' as const,
-    toggleSymbol: markStyle === 'tick' ? '✓' : 'X'
+    toggleSymbol: isTrueFalseTable || markStyle === 'tick' ? '✓' : 'X'
   }));
   
   return {
     headers: headerParts,
     rows,
     columns,
-    selectionMode: 'multi',
-    markStyle,
+    selectionMode: tableType === 'grid_multi' ? 'multi' : 'single',
+    tableType,
+    markStyle: isTrueFalseTable ? 'tick' : markStyle,
     prefilled: prefilled.length > 0 ? prefilled : undefined,
     marksPerRow: 1
   };
@@ -342,15 +358,33 @@ export function TableGridQuestion({
   correctAnswers,
   answerKey
 }: TableGridQuestionProps) {
-  const { headers, rows, columns, selectionMode, prefilled, tableType } = tableData;
+  const { headers, rows, columns, selectionMode, prefilled, tableType, perRowMaxSelections } = tableData;
   
   // Determine if this is a toggle table or input table
   const isInputTable = tableType === 'text_entry' || tableType === 'number_entry' || tableType === 'mixed' ||
     selectionMode === 'text' || selectionMode === 'number' || selectionMode === 'number_text' ||
     (columns && columns.some(c => c.kind === 'text' || c.kind === 'number'));
   
-  // Determine mark style - default to 'tick' for True/False tables
+  // Detect True/False table (requires exactly one selection per row - radio behavior)
   const isTrueFalseTable = headers.some(h => h.toLowerCase() === 'true' || h.toLowerCase() === 'false');
+  
+  // Determine effective selection mode with hard validation rules:
+  // - tf_single / grid_single: exactly ONE selection per row (radio)
+  // - grid_multi: multiple selections allowed (up to perRowMaxSelections if set)
+  const effectiveSelectionMode = useMemo(() => {
+    // Explicit tableType takes precedence
+    if (tableType === 'tf_single' || tableType === 'grid_single') return 'single';
+    if (tableType === 'grid_multi') return 'multi';
+    
+    // Infer from table structure
+    if (isTrueFalseTable) return 'single'; // True/False = radio behavior
+    if (selectionMode) return selectionMode;
+    
+    // Default to multi for generic tick/cross tables
+    return 'multi';
+  }, [tableType, isTrueFalseTable, selectionMode]);
+  
+  // Determine mark style - default to 'tick' for True/False tables
   const markStyle = tableData.markStyle || (isTrueFalseTable ? 'tick' : 'x');
   
   // Create a map of locked cells from prefilled data
@@ -416,23 +450,32 @@ export function TableGridQuestion({
     return inputAnswers[rowId]?.[colIndex] ?? '';
   };
   
-  // Toggle cell selection
+  // Toggle cell selection with hard validation
   const toggleCell = useCallback((rowId: string, colIndex: number) => {
     if (readOnly || isCellLocked(rowId, colIndex)) return;
     
     const currentSelections = answers[rowId] || [];
     let newSelections: number[];
     
-    if (selectionMode === 'single') {
+    // HARD VALIDATION: Enforce selection mode rules
+    if (effectiveSelectionMode === 'single') {
+      // Radio behavior: selecting any cell clears all others in that row
+      // Clicking already-selected cell deselects it
       if (currentSelections.includes(colIndex)) {
-        newSelections = [];
+        newSelections = []; // Allow deselection
       } else {
-        newSelections = [colIndex];
+        newSelections = [colIndex]; // Replace any existing selection
       }
     } else {
+      // Multi-select mode
       if (currentSelections.includes(colIndex)) {
         newSelections = currentSelections.filter(c => c !== colIndex);
       } else {
+        // Check perRowMaxSelections limit
+        if (perRowMaxSelections && currentSelections.length >= perRowMaxSelections) {
+          // At max - don't add more
+          return;
+        }
         newSelections = [...currentSelections, colIndex];
       }
     }
@@ -441,7 +484,7 @@ export function TableGridQuestion({
       ...answers,
       [rowId]: newSelections
     }, inputAnswers);
-  }, [answers, inputAnswers, onAnswerChange, readOnly, selectionMode]);
+  }, [answers, inputAnswers, onAnswerChange, readOnly, effectiveSelectionMode, perRowMaxSelections]);
   
   // Update input cell value
   const updateInputCell = useCallback((rowId: string, colIndex: number, value: string | number) => {
@@ -654,103 +697,232 @@ export function TableGridQuestion({
   );
 }
 
+// Table type definitions for validation
+export type TableQuestionType = 'tf_single' | 'grid_single' | 'grid_multi' | 'text_entry' | 'numeric_entry';
+
+// Validate and sanitize table grid answers based on table type
+// Returns sanitized answers and any validation errors
+export function validateTableGridAnswers(
+  answers: Record<string, number[]>,
+  tableType: TableQuestionType,
+  headers: string[]
+): { sanitized: Record<string, number[]>; errors: string[] } {
+  const sanitized: Record<string, number[]> = {};
+  const errors: string[] = [];
+  const numCols = headers.length - 1; // Exclude label column
+  
+  for (const [rowId, selections] of Object.entries(answers)) {
+    // Filter out invalid column indices
+    const validSelections = selections.filter(col => col >= 1 && col <= numCols);
+    
+    if (tableType === 'tf_single' || tableType === 'grid_single') {
+      // HARD VALIDATION: Only one selection allowed per row
+      if (validSelections.length > 1) {
+        errors.push(`Row "${rowId}": Multiple selections not allowed, keeping only first`);
+        sanitized[rowId] = [validSelections[0]]; // Keep only the first selection
+      } else {
+        sanitized[rowId] = validSelections;
+      }
+    } else {
+      // Multi-select: keep all valid selections
+      sanitized[rowId] = validSelections;
+    }
+  }
+  
+  return { sanitized, errors };
+}
+
+// Detect table type from question content and structure
+export function detectTableType(
+  headers: string[],
+  questionText: string
+): TableQuestionType {
+  const headerLower = headers.map(h => h.toLowerCase());
+  const questionLower = questionText.toLowerCase();
+  
+  // True/False detection
+  if (headerLower.includes('true') && headerLower.includes('false')) {
+    return 'tf_single';
+  }
+  
+  // Yes/No or other binary choices (2 data columns)
+  if (headers.length === 3) { // label + 2 options
+    const col1 = headerLower[1];
+    const col2 = headerLower[2];
+    if ((col1 === 'yes' && col2 === 'no') || 
+        (col1 === 'no' && col2 === 'yes') ||
+        (col1 === 'a' && col2 === 'b')) {
+      return 'grid_single';
+    }
+  }
+  
+  // Text entry detection
+  if (questionLower.includes('type your answer') || 
+      questionLower.includes('enter the') ||
+      questionLower.includes('write the')) {
+    return 'text_entry';
+  }
+  
+  // Numeric entry detection
+  if (questionLower.includes('calculate') || 
+      questionLower.includes('numerical')) {
+    return 'numeric_entry';
+  }
+  
+  // Default to grid_multi for tick/cross tables
+  return 'grid_multi';
+}
+
 // Deterministic grading for table_grid questions with partial marks
+// Supports different table types with appropriate scoring rules
 export function gradeTableGrid(
   studentAnswers: Record<string, number[]>,
   correctAnswers: Record<string, number[]>,
   totalMarks: number,
-  gradingMode: 'perCell' | 'perRow' = 'perCell'
+  options: {
+    tableType?: TableQuestionType;
+    gradingMode?: 'perCell' | 'perRow';
+    headers?: string[];
+  } = {}
 ): {
   totalScore: number;
   maxMarks: number;
-  perRowResults: Record<string, { correct: boolean; earned: number; max: number; details: string }>;
+  perRowResults: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }>;
   feedback: string;
 } {
-  const perRowResults: Record<string, { correct: boolean; earned: number; max: number; details: string }> = {};
+  const { tableType = 'grid_multi', gradingMode = 'perRow', headers = [] } = options;
+  const perRowResults: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }> = {};
   const nonExampleRows = Object.keys(correctAnswers);
   
   if (nonExampleRows.length === 0) {
     return { totalScore: 0, maxMarks: totalMarks, perRowResults, feedback: 'No gradable rows found' };
   }
   
-  if (gradingMode === 'perCell') {
-    // Count total cells to grade
-    let totalCells = 0;
-    let correctCells = 0;
-    
-    for (const rowId of nonExampleRows) {
-      const expected = correctAnswers[rowId] || [];
-      const actual = studentAnswers[rowId] || [];
-      
-      // Count correct selections and incorrect extras
-      for (const col of expected) {
-        totalCells++;
-        if (actual.includes(col)) {
-          correctCells++;
-        }
-      }
-      
-      // Penalize extra selections (false positives)
-      const extraSelections = actual.filter(col => !expected.includes(col));
-      // Don't count extra selections as cells, but they make the row incorrect
-      
-      const rowExpected = new Set(expected);
-      const rowActual = new Set(actual);
-      const rowCorrect = rowExpected.size === rowActual.size && 
-                         [...rowExpected].every(col => rowActual.has(col));
-      
-      perRowResults[rowId] = {
-        correct: rowCorrect,
-        earned: 0, // Will calculate later
-        max: 0,
-        details: rowCorrect ? 'Correct' : extraSelections.length > 0 
-          ? `Incorrect (${extraSelections.length} extra selection${extraSelections.length > 1 ? 's' : ''})` 
-          : `Incomplete (missing ${expected.filter(col => !actual.includes(col)).length} selection${expected.filter(col => !actual.includes(col)).length > 1 ? 's' : ''})`
-      };
-    }
-    
-    // Calculate score based on correct cells
-    const marksPerCell = totalCells > 0 ? totalMarks / totalCells : 0;
-    let totalScore = Math.round(correctCells * marksPerCell * 100) / 100;
-    
-    // Penalize for extra selections (reduce score)
-    for (const rowId of nonExampleRows) {
-      const expected = correctAnswers[rowId] || [];
-      const actual = studentAnswers[rowId] || [];
-      const extras = actual.filter(col => !expected.includes(col)).length;
-      if (extras > 0) {
-        // Deduct marks for false positives
-        const penalty = Math.min(extras * marksPerCell * 0.5, totalScore);
-        totalScore = Math.max(0, totalScore - penalty);
-      }
-    }
-    
-    const correctRowCount = Object.values(perRowResults).filter(r => r.correct).length;
-    const feedback = `${correctCells}/${totalCells} correct selections. ${correctRowCount}/${nonExampleRows.length} rows fully correct. Score: ${totalScore}/${totalMarks}`;
-    
-    return { totalScore, maxMarks: totalMarks, perRowResults, feedback };
+  // Validate and sanitize student answers first
+  const { sanitized: sanitizedAnswers, errors } = validateTableGridAnswers(
+    studentAnswers, 
+    tableType, 
+    headers.length > 0 ? headers : ['Label', 'Col1', 'Col2'] // Fallback
+  );
+  
+  if (errors.length > 0) {
+    console.warn('Table answer validation errors:', errors);
   }
   
-  // Per-row grading (original behavior with enhancements)
   const marksPerRow = totalMarks / nonExampleRows.length;
   let totalScore = 0;
   
-  for (const rowId of nonExampleRows) {
-    const expected = new Set(correctAnswers[rowId] || []);
-    const actual = new Set(studentAnswers[rowId] || []);
-    
-    const isCorrect = expected.size === actual.size && 
-                      [...expected].every(col => actual.has(col));
-    
-    const earned = isCorrect ? marksPerRow : 0;
-    totalScore += earned;
-    
-    perRowResults[rowId] = { 
-      correct: isCorrect, 
-      earned, 
-      max: marksPerRow,
-      details: isCorrect ? 'Correct' : `Expected columns: ${[...expected].join(', ')}`
-    };
+  // TF_SINGLE and GRID_SINGLE: Exactly one selection per row (radio behavior)
+  // Each row: correct = full marks, wrong = 0, unanswered = missed (0)
+  if (tableType === 'tf_single' || tableType === 'grid_single') {
+    for (const rowId of nonExampleRows) {
+      const expected = correctAnswers[rowId] || [];
+      const actual = sanitizedAnswers[rowId] || [];
+      
+      if (actual.length === 0) {
+        // Unanswered
+        perRowResults[rowId] = {
+          correct: false,
+          earned: 0,
+          max: marksPerRow,
+          details: 'No selection made',
+          status: 'missed'
+        };
+      } else if (expected.length === 1 && actual.length === 1 && expected[0] === actual[0]) {
+        // Correct single selection
+        totalScore += marksPerRow;
+        perRowResults[rowId] = {
+          correct: true,
+          earned: marksPerRow,
+          max: marksPerRow,
+          details: 'Correct',
+          status: 'correct'
+        };
+      } else {
+        // Wrong selection
+        perRowResults[rowId] = {
+          correct: false,
+          earned: 0,
+          max: marksPerRow,
+          details: 'Incorrect selection',
+          status: 'incorrect'
+        };
+      }
+    }
+  }
+  // GRID_MULTI: Multiple selections with anti-"select all" scoring
+  // score = max(0, correctSelected - incorrectSelected) / correctCount * rowMarks
+  else if (tableType === 'grid_multi') {
+    for (const rowId of nonExampleRows) {
+      const expected = new Set(correctAnswers[rowId] || []);
+      const actual = new Set(sanitizedAnswers[rowId] || []);
+      
+      if (actual.size === 0 && expected.size > 0) {
+        // Unanswered but expected selections
+        perRowResults[rowId] = {
+          correct: false,
+          earned: 0,
+          max: marksPerRow,
+          details: 'No selections made',
+          status: 'missed'
+        };
+        continue;
+      }
+      
+      // Count correct and incorrect selections
+      let correctCount = 0;
+      let incorrectCount = 0;
+      
+      for (const col of actual) {
+        if (expected.has(col)) {
+          correctCount++;
+        } else {
+          incorrectCount++;
+        }
+      }
+      
+      // F1-like scoring: penalize incorrect selections
+      const rawScore = Math.max(0, correctCount - incorrectCount);
+      const normalizedScore = expected.size > 0 ? (rawScore / expected.size) * marksPerRow : 0;
+      const cappedScore = Math.min(normalizedScore, marksPerRow);
+      const roundedScore = Math.round(cappedScore * 100) / 100;
+      
+      totalScore += roundedScore;
+      
+      const isFullyCorrect = correctCount === expected.size && incorrectCount === 0;
+      const isPartial = correctCount > 0 && (correctCount < expected.size || incorrectCount > 0);
+      
+      perRowResults[rowId] = {
+        correct: isFullyCorrect,
+        earned: roundedScore,
+        max: marksPerRow,
+        details: isFullyCorrect ? 'Correct' : 
+                 isPartial ? `Partial: ${correctCount} correct, ${incorrectCount} incorrect` :
+                 'Incorrect',
+        status: isFullyCorrect ? 'correct' : isPartial ? 'partial' : 'incorrect'
+      };
+    }
+  }
+  // Default per-row grading for other types
+  else {
+    for (const rowId of nonExampleRows) {
+      const expected = new Set(correctAnswers[rowId] || []);
+      const actual = new Set(sanitizedAnswers[rowId] || []);
+      
+      const isCorrect = expected.size === actual.size && 
+                        [...expected].every(col => actual.has(col));
+      
+      const earned = isCorrect ? marksPerRow : 0;
+      totalScore += earned;
+      
+      perRowResults[rowId] = { 
+        correct: isCorrect, 
+        earned, 
+        max: marksPerRow,
+        details: isCorrect ? 'Correct' : `Expected columns: ${[...expected].join(', ')}`,
+        status: isCorrect ? 'correct' : actual.size === 0 ? 'missed' : 'incorrect'
+      };
+    }
   }
   
   totalScore = Math.round(totalScore * 100) / 100;
