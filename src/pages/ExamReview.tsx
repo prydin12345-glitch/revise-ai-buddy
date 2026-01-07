@@ -8,6 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
+import { 
+  TableGridQuestion, 
+  parseMarkdownToTableGrid, 
+  isTickXTable, 
+  extractTextBeforeTable,
+  deserializeTableGridAnswers,
+  generateCorrectAnswerDisplay,
+  TableGridData
+} from "@/components/exam/TableGridQuestion";
 
 interface Question {
   id: string;
@@ -18,6 +27,8 @@ interface Question {
   options?: { text: string }[];
   figure_urls?: string[];
   correct_answer?: string;
+  has_math?: boolean;
+  question_latex?: string;
 }
 
 interface Answer {
@@ -328,8 +339,51 @@ const ExamReview = () => {
                   <div>
                     <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
                     <div className="p-3 rounded-lg bg-muted space-y-3">
-                      {/* Display table answers if present */}
-                      {answer?.table_answers && Object.keys(answer.table_answers).length > 0 && (
+                      {/* Check if this is a table_grid question and render visually */}
+                      {(() => {
+                        // Check if question contains a tick/X table
+                        const isTableGridQuestion = isTickXTable(question.question_text);
+                        
+                        if (isTableGridQuestion && answer?.answer_text) {
+                          // Parse the table data and student answers
+                          const tableData = parseMarkdownToTableGrid(question.question_text);
+                          const studentAnswers = deserializeTableGridAnswers(answer.answer_text);
+                          
+                          // Parse correct answers if available
+                          let correctAnswers: Record<string, number[]> | undefined;
+                          if (question.correct_answer && !scoresHidden) {
+                            try {
+                              const parsed = JSON.parse(question.correct_answer);
+                              correctAnswers = parsed.correctAnswers || parsed;
+                            } catch {
+                              // Not JSON
+                            }
+                          }
+                          
+                          if (tableData && Object.keys(studentAnswers).length > 0) {
+                            return (
+                              <div>
+                                <div className="text-xs font-semibold text-muted-foreground mb-2">Table completed:</div>
+                                <TableGridQuestion
+                                  tableData={tableData}
+                                  questionId={question.id}
+                                  answers={studentAnswers}
+                                  onAnswerChange={() => {}} // Read-only
+                                  readOnly={true}
+                                  showCorrectAnswers={!scoresHidden && !!correctAnswers}
+                                  correctAnswers={correctAnswers}
+                                />
+                              </div>
+                            );
+                          }
+                        }
+                        
+                        // Fall back to regular answer display
+                        return null;
+                      })()}
+                      
+                      {/* Display table answers if present (legacy format) */}
+                      {answer?.table_answers && Object.keys(answer.table_answers).length > 0 && !isTickXTable(question.question_text) && (
                         <div className="space-y-2">
                           <div className="text-xs font-semibold text-muted-foreground mb-1">Table Responses:</div>
                           <div className="grid gap-1 text-sm">
@@ -346,11 +400,17 @@ const ExamReview = () => {
                           </div>
                         </div>
                       )}
-                      {/* Display text answer */}
+                      
+                      {/* Display text answer - skip if already rendered as table grid */}
                       {answer?.answer_text ? (
                         (() => {
+                          // Skip if this was rendered as table grid
                           try {
                             const parsed = JSON.parse(answer.answer_text);
+                            if (parsed._type === 'table_grid') {
+                              // Already rendered above, skip
+                              return null;
+                            }
                             if (parsed.workingOut || parsed.finalAnswer) {
                               return (
                                 <>
@@ -359,7 +419,7 @@ const ExamReview = () => {
                                       <div className="text-xs font-semibold text-muted-foreground mb-1">Working Out:</div>
                                       <MathRenderer 
                                         content={parsed.workingOut}
-                                        hasMath={!!(question as any).has_math}
+                                        hasMath={!!question.has_math}
                                         className="font-mono text-sm"
                                       />
                                     </div>
@@ -369,7 +429,7 @@ const ExamReview = () => {
                                       <div className="text-xs font-semibold text-muted-foreground mb-1">Final Answer:</div>
                                       <MathRenderer 
                                         content={parsed.finalAnswer}
-                                        hasMath={!!(question as any).has_math}
+                                        hasMath={!!question.has_math}
                                         className="font-semibold"
                                       />
                                     </div>
@@ -383,7 +443,7 @@ const ExamReview = () => {
                           return (
                             <MathRenderer 
                               content={answer.answer_text}
-                              hasMath={!!(question as any).has_math}
+                              hasMath={!!question.has_math}
                             />
                           );
                         })()
@@ -397,14 +457,41 @@ const ExamReview = () => {
                     <div>
                       <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
                       <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        {question.correct_answer ? (
-                          <MathRenderer 
-                            content={question.correct_answer}
-                            hasMath={!!(question as any).has_math}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground italic">Not provided</span>
-                        )}
+                        {(() => {
+                          // For table_grid questions, show structured correct answer
+                          if (isTickXTable(question.question_text) && question.correct_answer) {
+                            try {
+                              const parsed = JSON.parse(question.correct_answer);
+                              const correctAnswers = parsed.correctAnswers || parsed;
+                              const tableData = parseMarkdownToTableGrid(question.question_text);
+                              
+                              if (tableData && correctAnswers && typeof correctAnswers === 'object') {
+                                const display = generateCorrectAnswerDisplay(tableData, undefined, correctAnswers);
+                                if (display) {
+                                  return (
+                                    <div className="space-y-1 text-sm">
+                                      {display.split('\n').map((line, idx) => (
+                                        <div key={idx}>{line}</div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                              }
+                            } catch {
+                              // Not JSON
+                            }
+                          }
+                          
+                          // Default display
+                          return question.correct_answer ? (
+                            <MathRenderer 
+                              content={question.correct_answer}
+                              hasMath={!!question.has_math}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground italic">Not provided</span>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
