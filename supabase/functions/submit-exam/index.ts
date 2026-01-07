@@ -172,105 +172,127 @@ serve(async (req) => {
         isCorrect = false;
       } else if (hasTableGridAnswer && tableGridAnswers) {
         // DETERMINISTIC GRADING for table_grid questions (tick/X tables)
-        // Parse correct answers from question - check multiple possible formats
+        
+        // Detect table type from question text for validation
+        const questionText = question.question_text || '';
+        const questionLower = questionText.toLowerCase();
+        const headerMatch = questionText.match(/^\s*\|([^|]+\|)+/m);
+        const headers: string[] = headerMatch 
+          ? headerMatch[0].split('|').filter((h: string) => h.trim()).map((h: string) => h.trim())
+          : [];
+        
+        // Determine table type for validation
+        let tableType: 'tf_single' | 'grid_single' | 'grid_multi' = 'grid_multi';
+        const headersLower = headers.map((h: string) => h.toLowerCase());
+        
+        if (headersLower.includes('true') && headersLower.includes('false')) {
+          tableType = 'tf_single';
+        } else if (headers.length === 3) {
+          const col1 = headersLower[1] || '';
+          const col2 = headersLower[2] || '';
+          if ((col1 === 'yes' && col2 === 'no') || (col1 === 'a' && col2 === 'b')) {
+            tableType = 'grid_single';
+          }
+        }
+        
+        // HARD VALIDATION: Sanitize answers based on table type
+        const sanitizedAnswers: Record<string, number[]> = {};
+        const validationErrors: string[] = [];
+        
+        for (const [rowId, selections] of Object.entries(tableGridAnswers)) {
+          if (tableType === 'tf_single' || tableType === 'grid_single') {
+            // Only one selection allowed per row
+            if (selections.length > 1) {
+              validationErrors.push(`Row "${rowId}": Multiple selections detected, keeping only first`);
+              sanitizedAnswers[rowId] = [selections[0]];
+            } else {
+              sanitizedAnswers[rowId] = selections;
+            }
+          } else {
+            sanitizedAnswers[rowId] = selections;
+          }
+        }
+        
+        if (validationErrors.length > 0) {
+          console.warn('Table grid validation errors:', validationErrors);
+        }
+        
+        // Parse correct answers from question
         let correctAnswers: Record<string, number[]> | null = null;
         
-        // First, try to extract from the question's correct_answer field
         if (question.correct_answer) {
           try {
             const parsed = JSON.parse(question.correct_answer);
             if (parsed.correctAnswers) {
               correctAnswers = parsed.correctAnswers;
             } else if (typeof parsed === 'object' && !parsed._type && !parsed.version) {
-              // Direct format: { rowId: [colIndices] }
               correctAnswers = parsed;
             }
           } catch {
-            // Not valid JSON format for correct answers
-          }
-        }
-        
-        // If no correct answers found, try to infer from question text (first row example)
-        if (!correctAnswers) {
-          // Detect tick/X table pattern in question text and generate answer key
-          const questionText = question.question_text || '';
-          const isTickXTable = questionText.toLowerCase().includes('tick') || 
-                               questionText.toLowerCase().includes('cross') || 
-                               questionText.toLowerCase().includes('(x)');
-          
-          if (isTickXTable) {
-            // Parse the table to extract structure
-            const tableLines = questionText.split('\n').filter((line: string) => /^\s*\|/.test(line));
-            const dataLines = tableLines.filter((line: string) => !/^\s*\|[\s:\-|]+\|\s*$/.test(line));
-            
-            if (dataLines.length >= 2) {
-              const headerParts = dataLines[0].split('|').slice(1, -1).map((h: string) => h.trim());
-              const dataRows = dataLines.slice(1);
-              
-              // For biology Q16a style questions, we need to generate correct answers based on known biology facts
-              // This is a fallback that uses AI for content-specific questions
-              console.log('Table grid question detected but no answer key stored. Using AI grading as fallback.');
-            }
+            // Not valid JSON format
           }
         }
         
         if (correctAnswers && Object.keys(correctAnswers).length > 0) {
-          // PARTIAL CREDIT GRADING (per-cell with penalties for extras)
+          // GRADING based on table type
           const nonExampleRows = Object.keys(correctAnswers);
+          const marksPerRow = question.marks / nonExampleRows.length;
+          let totalScore = 0;
+          const rowResults: string[] = [];
           
-          if (nonExampleRows.length > 0) {
-            let totalCorrectCells = 0;
-            let totalExpectedCells = 0;
-            let totalExtraSelections = 0;
-            const rowResults: string[] = [];
+          for (const rowId of nonExampleRows) {
+            const expected = correctAnswers[rowId] || [];
+            const actual = sanitizedAnswers[rowId] || [];
             
-            for (const rowId of nonExampleRows) {
-              const expected = correctAnswers[rowId] || [];
-              const actual = tableGridAnswers[rowId] || [];
-              
-              // Count correct selections
-              const correctInRow = actual.filter(col => expected.includes(col)).length;
-              const missedInRow = expected.filter(col => !actual.includes(col)).length;
-              const extraInRow = actual.filter(col => !expected.includes(col)).length;
-              
-              totalCorrectCells += correctInRow;
-              totalExpectedCells += expected.length;
-              totalExtraSelections += extraInRow;
-              
-              const rowCorrect = correctInRow === expected.length && extraInRow === 0;
-              
-              if (rowCorrect) {
+            if (tableType === 'tf_single' || tableType === 'grid_single') {
+              // Radio behavior: exactly one correct answer per row
+              if (actual.length === 0) {
+                rowResults.push(`${rowId}: ⚠ Unanswered`);
+              } else if (expected.length === 1 && actual.length === 1 && expected[0] === actual[0]) {
+                totalScore += marksPerRow;
                 rowResults.push(`${rowId}: ✓ Correct`);
-              } else if (correctInRow === 0 && actual.length > 0) {
-                rowResults.push(`${rowId}: ✗ Incorrect selections`);
-              } else if (missedInRow > 0 && extraInRow > 0) {
-                rowResults.push(`${rowId}: Partial (${correctInRow} correct, ${missedInRow} missed, ${extraInRow} extra)`);
-              } else if (missedInRow > 0) {
-                rowResults.push(`${rowId}: Partial (${correctInRow} correct, ${missedInRow} missed)`);
-              } else if (extraInRow > 0) {
-                rowResults.push(`${rowId}: Partial (${correctInRow} correct but ${extraInRow} extra selections)`);
+              } else {
+                rowResults.push(`${rowId}: ✗ Incorrect`);
+              }
+            } else {
+              // Multi-select with anti-"select all" scoring
+              const expectedSet = new Set(expected);
+              let correctCount = 0;
+              let incorrectCount = 0;
+              
+              for (const col of actual) {
+                if (expectedSet.has(col)) {
+                  correctCount++;
+                } else {
+                  incorrectCount++;
+                }
+              }
+              
+              // F1-like scoring
+              const rawScore = Math.max(0, correctCount - incorrectCount);
+              const rowScore = expected.length > 0 
+                ? Math.min((rawScore / expected.length) * marksPerRow, marksPerRow)
+                : 0;
+              
+              totalScore += rowScore;
+              
+              const isFullyCorrect = correctCount === expected.length && incorrectCount === 0;
+              if (isFullyCorrect) {
+                rowResults.push(`${rowId}: ✓ Correct`);
+              } else if (correctCount > 0) {
+                rowResults.push(`${rowId}: Partial (${correctCount} correct, ${incorrectCount} extra)`);
+              } else if (actual.length === 0) {
+                rowResults.push(`${rowId}: ⚠ Unanswered`);
+              } else {
+                rowResults.push(`${rowId}: ✗ Incorrect`);
               }
             }
-            
-            // Calculate partial marks
-            if (totalExpectedCells > 0) {
-              const marksPerCell = question.marks / totalExpectedCells;
-              const baseScore = totalCorrectCells * marksPerCell;
-              // Penalize extra selections (0.5 mark per extra, capped at earned score)
-              const penalty = Math.min(totalExtraSelections * marksPerCell * 0.5, baseScore);
-              score = Math.max(0, Math.round((baseScore - penalty) * 100) / 100);
-            } else {
-              score = 0;
-            }
-            
-            isCorrect = score >= question.marks;
-            const correctRows = rowResults.filter(r => r.includes('✓')).length;
-            feedback = `You got ${totalCorrectCells}/${totalExpectedCells} correct selections across ${correctRows}/${nonExampleRows.length} fully correct rows.\n\n${rowResults.join('\n')}\n\nScore: ${score}/${question.marks}`;
-          } else {
-            score = 0;
-            feedback = 'No gradable rows found in answer key.';
-            isCorrect = false;
           }
+          
+          score = Math.round(totalScore * 100) / 100;
+          isCorrect = score >= question.marks;
+          const correctRows = rowResults.filter(r => r.includes('✓')).length;
+          feedback = `${correctRows}/${nonExampleRows.length} rows correct.\n\n${rowResults.join('\n')}\n\nScore: ${score}/${question.marks}`;
         } else {
           // No correct answers available - use AI grading as fallback
           console.log(`Table grid question ${question.id} has no answer key - attempting AI grading`);
