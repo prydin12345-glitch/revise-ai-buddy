@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +61,30 @@ serve(async (req) => {
         specContent = await specFile.text();
       }
     }
+
+    // Validate and sanitize notes
+    const notesValidation = validateNotes(setData.notes);
+    logNotesModeration('generate-practice-questions', notesValidation.auditLog);
+
+    // Block if notes contain disallowed content
+    if (!notesValidation.valid) {
+      console.error('Notes validation failed:', notesValidation.auditLog.blockedPhrases);
+      await supabaseClient
+        .from('practice_question_sets')
+        .update({
+          extraction_status: 'failed',
+          extraction_error: 'Notes contain disallowed content. Please revise your notes.',
+        })
+        .eq('id', setId);
+      
+      return new Response(
+        JSON.stringify({ error: 'Notes validation failed', details: notesValidation.auditLog.blockedPhrases }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Format notes for safe inclusion in prompt
+    const notesSection = formatNotesForPrompt(notesValidation.sanitized);
 
     // Build AI prompt
     const difficultyInstructions = 
@@ -274,7 +299,7 @@ When generating questions that include tables for student completion:
 }
 
 ${specContent ? 'Align questions with the provided specification document:\n' + specContent.substring(0, 5000) : ''}
-
+${notesSection}
 Return JSON with:
 {
   "questions": [
