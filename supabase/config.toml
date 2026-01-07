@@ -43,7 +43,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.generate-practice-questions]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-student-pdf]
 verify_jwt = true

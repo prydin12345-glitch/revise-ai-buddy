@@ -114,8 +114,38 @@ const CreatePracticeQuestions = () => {
   const proceedWithGeneration = async () => {
     setGenerating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Check session first (faster, from cache)
+      let { data: { session } } = await supabase.auth.getSession();
+      
+      // If no session or expired, try to refresh
+      if (!session) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          toast.error("Your session has expired. Please refresh and try again.", {
+            action: {
+              label: "Refresh",
+              onClick: () => window.location.reload(),
+            },
+            duration: 10000,
+          });
+          setGenerating(false);
+          return;
+        }
+        session = refreshData.session;
+      }
+      
+      const user = session.user;
+      if (!user) {
+        toast.error("Please log in to generate practice questions.", {
+          action: {
+            label: "Log In",
+            onClick: () => window.location.href = "/auth",
+          },
+          duration: 10000,
+        });
+        setGenerating(false);
+        return;
+      }
 
       // Upload files if provided
       let specFileUrl = null;
@@ -173,7 +203,21 @@ const CreatePracticeQuestions = () => {
         }
       );
 
-      if (genError) throw genError;
+      if (genError) {
+        // Handle auth errors specifically
+        if (genError.message?.includes("JWT") || genError.message?.includes("auth") || genError.message?.includes("401")) {
+          toast.error("Your session has expired. Please refresh and try again.", {
+            action: {
+              label: "Refresh",
+              onClick: () => window.location.reload(),
+            },
+            duration: 10000,
+          });
+          setGenerating(false);
+          return;
+        }
+        throw genError;
+      }
 
       // Poll for completion
       const pollInterval = setInterval(async () => {
@@ -205,7 +249,20 @@ const CreatePracticeQuestions = () => {
       }, 300000);
     } catch (error: any) {
       console.error("Error generating practice set:", error);
-      toast.error(error.message || "Failed to generate practice set");
+      
+      // Better error messaging for common issues
+      const errorMessage = error.message?.toLowerCase() || "";
+      if (errorMessage.includes("auth") || errorMessage.includes("session") || errorMessage.includes("jwt")) {
+        toast.error("Your session has expired. Please refresh and try again.", {
+          action: {
+            label: "Refresh",
+            onClick: () => window.location.reload(),
+          },
+          duration: 10000,
+        });
+      } else {
+        toast.error(error.message || "Failed to generate practice set");
+      }
       setGenerating(false);
     }
   };
@@ -258,6 +315,7 @@ const CreatePracticeQuestions = () => {
 
         {/* Main Form */}
         <div className="grid grid-cols-1 lg:grid-cols-[65%_35%] gap-4 lg:gap-6">
+          {/* Left Column - Form Fields */}
           <div className="space-y-4">
             {/* Set Name & Subject */}
             <Card className="p-4 space-y-4">
@@ -384,10 +442,97 @@ const CreatePracticeQuestions = () => {
               </div>
             </Card>
 
+            {/* Educational Level & Exam Board - MOVED to left column for mobile */}
+            <Card className="p-4 lg:hidden">
+              <div className="space-y-4">
+                {/* Educational Level */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="educational-tier-mobile">Educational Level</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Select level or enter custom</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                    <SelectTrigger id="educational-tier-mobile">
+                      <SelectValue placeholder="Select level..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gcse">GCSE</SelectItem>
+                      <SelectItem value="a_level">A-Level</SelectItem>
+                      <SelectItem value="ib">IB</SelectItem>
+                      <SelectItem value="ks3">KS3</SelectItem>
+                      <SelectItem value="ks4">KS4</SelectItem>
+                      <SelectItem value="sat">SAT</SelectItem>
+                      <SelectItem value="act">ACT</SelectItem>
+                      <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                      <SelectItem value="other">Other (Custom)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {educationalTier === "other" && (
+                    <Input
+                      placeholder="Enter custom educational level..."
+                      value={customEducationalTier}
+                      onChange={(e) => setCustomEducationalTier(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
+                </div>
+
+                {/* Exam Board */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="exam-board-mobile">Exam Board</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Select board or enter custom</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Select value={examBoard} onValueChange={setExamBoard}>
+                    <SelectTrigger id="exam-board-mobile">
+                      <SelectValue placeholder="Select board..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aqa">AQA</SelectItem>
+                      <SelectItem value="edexcel">Edexcel</SelectItem>
+                      <SelectItem value="ocr">OCR</SelectItem>
+                      <SelectItem value="wjec">WJEC</SelectItem>
+                      <SelectItem value="cie">Cambridge (CIE)</SelectItem>
+                      <SelectItem value="ib">IB</SelectItem>
+                      <SelectItem value="college_board">College Board</SelectItem>
+                      <SelectItem value="other">Other (Custom)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {examBoard === "other" && (
+                    <Input
+                      placeholder="Enter custom exam board..."
+                      value={customExamBoard}
+                      onChange={(e) => setCustomExamBoard(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
+                </div>
+              </div>
+            </Card>
           </div>
 
-          {/* Configuration Summary */}
-          <div>
+          {/* Right Column - Summary (Desktop only uses sticky) */}
+          <div className="hidden lg:block space-y-6">
             <Card className="p-6 sticky top-24 space-y-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4" style={{ color: subjectColor }}>
@@ -478,11 +623,9 @@ const CreatePracticeQuestions = () => {
                   </div>
                 </div>
               </div>
-            </Card>
 
-            {/* Educational Level & Exam Board */}
-            <Card className="p-4 mt-6">
-              <div className="space-y-4">
+              {/* Educational Level & Exam Board - Desktop */}
+              <div className="border-t pt-6 space-y-4">
                 {/* Educational Level */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -568,7 +711,67 @@ const CreatePracticeQuestions = () => {
               </div>
             </Card>
           </div>
+
+          {/* Mobile Configuration Summary - Not sticky, appears at bottom */}
+          <div className="lg:hidden">
+            <Card className="p-4 space-y-4">
+              <h3 className="text-lg font-semibold" style={{ color: subjectColor }}>
+                Configuration Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Subject</p>
+                  <p className="font-medium">{subjectId || "Not selected"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Questions</p>
+                  <p className="font-medium">{questionCount}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Difficulty</p>
+                  <p className="font-medium capitalize">
+                    {difficultyMode === "increasing"
+                      ? "Increasing"
+                      : difficultyMode === "mixed"
+                      ? "Mixed"
+                      : difficultyLevel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Level</p>
+                  <p className="font-medium">
+                    {educationalTier === "other" ? customEducationalTier : educationalTier || "Not set"}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Mobile Questions Slider */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium">Questions</Label>
+                  <span className="text-xl font-bold" style={{ color: subjectColor }}>
+                    {questionCount}
+                  </span>
+                </div>
+                <Slider
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={[questionCount]}
+                  onValueChange={(values) => setQuestionCount(values[0])}
+                  className="w-full"
+                  style={{
+                    '--slider-track': '#D3D3D3',
+                    '--slider-range': subjectColor,
+                  } as React.CSSProperties}
+                />
+              </div>
+            </Card>
+          </div>
         </div>
+
+        {/* Bottom spacing for mobile */}
+        <div className="h-8 lg:hidden" />
       </div>
 
       {/* Modals */}
