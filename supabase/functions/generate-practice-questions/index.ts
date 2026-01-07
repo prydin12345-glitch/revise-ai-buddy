@@ -15,6 +15,38 @@ serve(async (req) => {
   let setId: string | null = null;
 
   try {
+    // Validate JWT token from request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required. Please log in and try again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Create client with user's auth to validate the token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Validate the JWT and get user claims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation failed:', claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Your session has expired. Please refresh and try again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log('Authenticated user:', userId);
+
     // Use service role key for server-side operations to bypass RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -40,6 +72,15 @@ serve(async (req) => {
     if (setError) throw setError;
     if (!setData) {
       throw new Error(`Practice set not found: ${setId}`);
+    }
+
+    // Verify the user owns this practice set
+    if (setData.user_id !== userId) {
+      console.error('User does not own this practice set:', { userId, setUserId: setData.user_id });
+      return new Response(
+        JSON.stringify({ error: 'You do not have permission to generate this practice set.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
     }
 
     console.log('Set data:', setData);
