@@ -92,42 +92,37 @@ export const QuestionOptionsMenu = ({
         )}
 
         {/* Retry Options - Practice only */}
-        {mode === "practice" && (
+        {mode === "practice" && (onRetryQuestion || onRegenerateQuestion || onRetryEntireSet) && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">Retry Options</DropdownMenuLabel>
             
-            {onRetryQuestion && (
-              <DropdownMenuItem 
-                onClick={onRetryQuestion} 
-                disabled={isRetrying}
-                className="cursor-pointer"
-              >
-                <RotateCcw className={`w-4 h-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
-                Retry Question
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem 
+              onClick={onRetryQuestion} 
+              disabled={isRetrying || !onRetryQuestion}
+              className="cursor-pointer"
+            >
+              <RotateCcw className={`w-4 h-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
+              Retry Question
+            </DropdownMenuItem>
             
-            {onRegenerateQuestion && (
-              <DropdownMenuItem 
-                onClick={onRegenerateQuestion}
-                disabled={isRegenerating}
-                className="cursor-pointer"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
-                Regenerate Question
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem 
+              onClick={onRegenerateQuestion}
+              disabled={isRegenerating || !onRegenerateQuestion}
+              className="cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+              Regenerate Question
+            </DropdownMenuItem>
             
-            {onRetryEntireSet && (
-              <DropdownMenuItem 
-                onClick={onRetryEntireSet}
-                className="cursor-pointer text-orange-600 dark:text-orange-400"
-              >
-                <ListRestart className="w-4 h-4 mr-2" />
-                Retry Entire Set
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem 
+              onClick={onRetryEntireSet}
+              disabled={!onRetryEntireSet}
+              className="cursor-pointer text-orange-600 dark:text-orange-400"
+            >
+              <ListRestart className="w-4 h-4 mr-2" />
+              Retry Entire Set
+            </DropdownMenuItem>
           </>
         )}
 
