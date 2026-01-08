@@ -512,15 +512,36 @@ export function TableGridQuestion({
   }, [answers, inputAnswers, onAnswerChange, readOnly]);
   
   // Check if answer is correct for a cell (review mode)
+  // CRITICAL: UI stores colIndex as 1-indexed (1 = first data column after label)
+  // Grader/correctAnswers uses 0-indexed (0 = first data column after label)
+  // We must align these for correct comparison
   const getCellStatus = (rowId: string, colIndex: number): 'correct' | 'incorrect' | 'missed' | 'partial' | null => {
     if (!showCorrectAnswers) return null;
     
-    // Use markingData perRowResults for row-level status (handles both toggle and input)
+    // Student selection uses 1-indexed colIndex (from UI)
+    const studentSelected = isCellSelected(rowId, colIndex);
+    
+    // Correct answers from grader are 0-indexed, but UI colIndex is 1-indexed
+    // Convert colIndex to 0-indexed for comparison with correctAnswers
+    const correctAnswerColIndex = colIndex - 1;
+    
+    // First check markingData.perRowResults for explicit cell-level status
     if (markingData?.perRowResults?.[rowId]) {
       const rowResult = markingData.perRowResults[rowId];
-      // For toggle cells, check if this specific cell is correct
-      const studentSelected = isCellSelected(rowId, colIndex);
-      const shouldBeSelected = (markingData.correctAnswers?.[rowId] || correctAnswers?.[rowId])?.includes(colIndex) || false;
+      
+      // Get correct answer indices (0-indexed from grader)
+      const correctCols = markingData.correctAnswers?.[rowId] || correctAnswers?.[rowId] || [];
+      const shouldBeSelected = correctCols.includes(correctAnswerColIndex);
+      
+      // Debug logging (remove after confirming fix)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[getCellStatus] Row:${rowId} Col:${colIndex} (0-idx:${correctAnswerColIndex})`, {
+          studentSelected,
+          shouldBeSelected,
+          correctCols,
+          rowStatus: rowResult.status
+        });
+      }
       
       if (studentSelected && shouldBeSelected) return 'correct';
       if (studentSelected && !shouldBeSelected) return 'incorrect';
@@ -528,11 +549,10 @@ export function TableGridQuestion({
       return null;
     }
     
-    const studentSelected = isCellSelected(rowId, colIndex);
-    
-    // Use answerKey if available
+    // Use answerKey if available (new format - typically uses 0-indexed)
     if (answerKey) {
-      const colId = `col_${colIndex}`;
+      // answerKey uses col_X format where X is 0-indexed
+      const colId = `col_${correctAnswerColIndex}`;
       const expected = answerKey[rowId]?.[colId];
       if (expected === true) {
         return studentSelected ? 'correct' : 'missed';
@@ -542,9 +562,9 @@ export function TableGridQuestion({
       return null;
     }
     
-    // Fall back to legacy correctAnswers
+    // Fall back to legacy correctAnswers (0-indexed from grader)
     if (correctAnswers) {
-      const shouldBeSelected = correctAnswers[rowId]?.includes(colIndex) || false;
+      const shouldBeSelected = correctAnswers[rowId]?.includes(correctAnswerColIndex) || false;
       
       if (studentSelected && shouldBeSelected) return 'correct';
       if (studentSelected && !shouldBeSelected) return 'incorrect';
@@ -555,8 +575,12 @@ export function TableGridQuestion({
   };
   
   // Get input cell status for text/numeric entry tables
+  // Same indexing fix: UI uses 1-indexed, grader uses 0-indexed
   const getInputCellStatus = (rowId: string, colIndex: number): 'correct' | 'incorrect' | 'missed' | null => {
     if (!showCorrectAnswers) return null;
+    
+    // UI colIndex is 1-indexed, correctInputs from grader is 0-indexed
+    const correctInputColIndex = colIndex - 1;
     
     const studentValue = getInputValue(rowId, colIndex);
     const hasAnswer = studentValue !== '' && studentValue !== null && studentValue !== undefined;
@@ -564,28 +588,57 @@ export function TableGridQuestion({
     // Use markingData for hydrated status
     if (markingData?.perRowResults?.[rowId]) {
       const rowResult = markingData.perRowResults[rowId];
-      // If row was marked, derive cell status
-      if (rowResult.status === 'correct') return hasAnswer ? 'correct' : null;
-      if (rowResult.status === 'missed') return 'missed';
-      if (rowResult.status === 'incorrect' || rowResult.status === 'partial') {
-        // Check against correct inputs
-        const expectedValue = (markingData.correctInputs || correctInputs)?.[rowId]?.[colIndex];
-        if (expectedValue !== undefined) {
-          const normalizedStudent = String(studentValue).trim().toLowerCase();
-          const normalizedExpected = String(expectedValue).trim().toLowerCase();
-          return normalizedStudent === normalizedExpected ? 'correct' : hasAnswer ? 'incorrect' : 'missed';
-        }
+      
+      // Check against correct inputs (0-indexed)
+      const expectedValue = (markingData.correctInputs || correctInputs)?.[rowId]?.[correctInputColIndex];
+      
+      // Debug logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[getInputCellStatus] Row:${rowId} Col:${colIndex} (0-idx:${correctInputColIndex})`, {
+          studentValue,
+          expectedValue,
+          hasAnswer,
+          rowStatus: rowResult.status
+        });
       }
-      return hasAnswer ? 'incorrect' : null;
+      
+      if (expectedValue !== undefined) {
+        // Normalize and compare
+        const normalizedStudent = String(studentValue).trim().toLowerCase();
+        const normalizedExpected = Array.isArray(expectedValue) 
+          ? expectedValue.map(v => String(v).trim().toLowerCase())
+          : [String(expectedValue).trim().toLowerCase()];
+        
+        const isMatch = normalizedExpected.some(exp => 
+          normalizedStudent === exp || 
+          normalizedStudent.includes(exp) || 
+          exp.includes(normalizedStudent)
+        );
+        
+        if (isMatch) return 'correct';
+        if (hasAnswer) return 'incorrect';
+        return 'missed';
+      }
+      
+      // If row is correct but no specific expected value for this cell, 
+      // and student has answer, consider it correct
+      if (rowResult.status === 'correct' && hasAnswer) return 'correct';
+      if (rowResult.status === 'missed' && !hasAnswer) return 'missed';
+      if (hasAnswer) return 'incorrect';
+      return null;
     }
     
-    // Check against correctInputs directly
+    // Check against correctInputs directly (0-indexed)
     if (correctInputs) {
-      const expectedValue = correctInputs[rowId]?.[colIndex];
+      const expectedValue = correctInputs[rowId]?.[correctInputColIndex];
       if (expectedValue !== undefined) {
         const normalizedStudent = String(studentValue).trim().toLowerCase();
-        const normalizedExpected = String(expectedValue).trim().toLowerCase();
-        if (normalizedStudent === normalizedExpected) return 'correct';
+        const normalizedExpected = Array.isArray(expectedValue)
+          ? expectedValue.map(v => String(v).trim().toLowerCase())
+          : [String(expectedValue).trim().toLowerCase()];
+        
+        const isMatch = normalizedExpected.some(exp => normalizedStudent === exp);
+        if (isMatch) return 'correct';
         if (hasAnswer) return 'incorrect';
         return 'missed';
       }
