@@ -29,13 +29,27 @@ import { useTextareaInsert } from "@/hooks/useTextareaInsert";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
 import { 
   TableGridQuestion, 
-  parseMarkdownToTableGrid, 
+  parseMarkdownToTableGrid,
   isTickXTable,
   serializeTableGridAnswer,
   deserializeTableGridAnswers,
   parseStoredTableGridAnswer,
   type TableGridData 
 } from "@/components/exam/TableGridQuestion";
+import {
+  GraphInterpretationQuestion,
+  GraphPlottingQuestion,
+  parseGraphQuestionData,
+  parseGraphResponse,
+  serializeGraphInterpretationResponse,
+  serializeGraphPlottingResponse,
+  type GraphQuestionData,
+  type GraphPoint,
+  type GraphInterpretationConfig,
+  type GraphPlottingConfig,
+  type GraphPlottingAnswer,
+  type GraphInterpretationField,
+} from "@/components/graph";
 
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
@@ -92,6 +106,13 @@ interface UserAnswer {
     perRowResults?: Record<string, { correct: boolean; earned: number; max: number; details: string; status: 'correct' | 'incorrect' | 'missed' | 'partial' }>;
     correctAnswers?: Record<string, number[]>;
     correctInputs?: Record<string, Record<number, string | number>>;
+  };
+  // Graph question answers
+  graphInterpretationAnswers?: Record<string, string | number | boolean>;
+  graphPlottedPoints?: GraphPoint[];
+  graphMarkingData?: {
+    perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
+    perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
   };
 }
 
@@ -353,10 +374,15 @@ const TakePracticeQuiz = () => {
           let tableGridInputs: Record<string, Record<number, string | number>> | undefined;
           let markingData: UserAnswer['markingData'] | undefined;
           
+          // Graph question answers
+          let graphInterpretationAnswers: Record<string, string | number | boolean> | undefined;
+          let graphPlottedPoints: GraphPoint[] | undefined;
+          let graphMarkingData: UserAnswer['graphMarkingData'] | undefined;
+          
           if (ans.answer_text) {
+            // Try parsing as table grid
             const parsed = parseStoredTableGridAnswer(ans.answer_text);
             if (parsed) {
-              // Convert cells (Record<string, Record<number, boolean>>) to number[] format
               tableGridAnswers = {};
               for (const [rowId, colMap] of Object.entries(parsed.cells)) {
                 tableGridAnswers[rowId] = Object.entries(colMap)
@@ -365,15 +391,30 @@ const TakePracticeQuiz = () => {
               }
               tableGridInputs = parsed.inputs;
             }
+            
+            // Try parsing as graph response
+            const graphResponse = parseGraphResponse(ans.answer_text);
+            if (graphResponse) {
+              if (graphResponse._type === 'graph_interpretation') {
+                graphInterpretationAnswers = graphResponse.answers;
+              } else if (graphResponse._type === 'graph_plotting') {
+                graphPlottedPoints = graphResponse.points;
+              }
+            }
           }
           
           // Try to extract marking data from feedback (stored as JSON metadata)
           if (ans.feedback) {
             try {
-              // Check if feedback contains embedded marking data
               const feedbackMatch = ans.feedback.match(/<!--MARKING_DATA:(.*?)-->/);
               if (feedbackMatch) {
-                markingData = JSON.parse(feedbackMatch[1]);
+                const parsedMarking = JSON.parse(feedbackMatch[1]);
+                // Check if it's graph marking data or table marking data
+                if (parsedMarking.perFieldResults || parsedMarking.perPointResults) {
+                  graphMarkingData = parsedMarking;
+                } else {
+                  markingData = parsedMarking;
+                }
               }
             } catch {
               // Feedback doesn't contain structured marking data
@@ -392,6 +433,9 @@ const TakePracticeQuiz = () => {
             tableGridAnswers,
             tableGridInputs,
             markingData,
+            graphInterpretationAnswers,
+            graphPlottedPoints,
+            graphMarkingData,
           };
         });
       }
@@ -810,7 +854,10 @@ const TakePracticeQuiz = () => {
           submitted: false,
           tableGridAnswers: undefined,
           tableGridInputs: undefined,
-          markingData: undefined
+          markingData: undefined,
+          graphInterpretationAnswers: undefined,
+          graphPlottedPoints: undefined,
+          graphMarkingData: undefined,
         };
       });
       setUserAnswers(resetAnswers);
@@ -1089,6 +1136,77 @@ const TakePracticeQuiz = () => {
                           </div>
                         );
                       }
+                    }
+                    
+                    // Check if this is a graph question
+                    const graphData = parseGraphQuestionData(currentQuestion.correct_answer);
+                    const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
+                    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
+                    
+                    if (isGraphInterpretation && graphData) {
+                      const config = graphData.graphConfig as GraphInterpretationConfig;
+                      const fields = graphData.interpretationFields || [];
+                      
+                      return (
+                        <div className="space-y-4">
+                          <GraphInterpretationQuestion
+                            config={config}
+                            fields={fields}
+                            answers={currentAnswer.graphInterpretationAnswers || {}}
+                            onAnswerChange={(newAnswers) => {
+                              const serialized = serializeGraphInterpretationResponse(newAnswers);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                graphInterpretationAnswers: newAnswers,
+                              };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            readOnly={currentAnswer.submitted}
+                            showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                            markingData={currentAnswer.graphMarkingData?.perFieldResults ? {
+                              perFieldResults: currentAnswer.graphMarkingData.perFieldResults,
+                              totalScore: currentAnswer.score || 0,
+                              totalMarks: currentQuestion.marks,
+                            } : undefined}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    if (isGraphPlotting && graphData) {
+                      const config = graphData.graphConfig as GraphPlottingConfig;
+                      const plottingAnswer = graphData.plottingAnswer;
+                      
+                      return (
+                        <div className="space-y-4">
+                          <GraphPlottingQuestion
+                            config={config}
+                            expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
+                            studentPoints={currentAnswer.graphPlottedPoints || []}
+                            onPointsChange={(points) => {
+                              const serialized = serializeGraphPlottingResponse(points);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                graphPlottedPoints: points,
+                              };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            readOnly={currentAnswer.submitted}
+                            showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                            markingData={currentAnswer.graphMarkingData?.perPointResults ? {
+                              perPointResults: currentAnswer.graphMarkingData.perPointResults,
+                              totalScore: currentAnswer.score || 0,
+                              totalMarks: currentQuestion.marks,
+                            } : undefined}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
                     }
                     
                     // Default: standard text input with math keypad
