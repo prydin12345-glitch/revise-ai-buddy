@@ -68,17 +68,24 @@ serve(async (req) => {
           let studentInputs: Record<string, Record<number, string | number>> = {};
           
           if (parsed.version === 2) {
-            // Extract toggle cells
+            // Extract toggle cells - NOTE: UI uses 1-indexed cols, correct_answer uses 0-indexed
+            // We convert student answers to 0-indexed to match correct_answer format
             if (parsed.cells) {
               for (const [rowId, colMap] of Object.entries(parsed.cells as Record<string, Record<number, boolean>>)) {
                 studentAnswers[rowId] = Object.entries(colMap)
                   .filter(([_, selected]) => selected)
-                  .map(([colIdx]) => parseInt(colIdx, 10));
+                  .map(([colIdx]) => parseInt(colIdx, 10) - 1); // Convert 1-indexed to 0-indexed
               }
             }
-            // Extract input cells (text/numeric)
+            // Extract input cells (text/numeric) - also convert to 0-indexed
             if (parsed.inputs) {
-              studentInputs = parsed.inputs;
+              for (const [rowId, colMap] of Object.entries(parsed.inputs as Record<string, Record<number, string>>)) {
+                studentInputs[rowId] = {};
+                for (const [colIdx, value] of Object.entries(colMap)) {
+                  // Convert 1-indexed to 0-indexed
+                  studentInputs[rowId][parseInt(colIdx, 10) - 1] = value;
+                }
+              }
             }
           } else if (parsed.answers) {
             studentAnswers = parsed.answers;
@@ -107,7 +114,7 @@ serve(async (req) => {
                   tableType = 'grid_single';
                 } else if (tt === 'text_entry') {
                   tableType = 'text_entry';
-                } else if (tt === 'numeric_entry') {
+                } else if (tt === 'numeric_entry' || tt === 'number_entry') {
                   tableType = 'numeric_entry';
                 }
               }
@@ -124,27 +131,31 @@ serve(async (req) => {
                 tableType = tableType === 'tf_single' ? 'tf_single' : 'grid_single';
               }
               
-              // Check column types to detect text-entry tables
+              // Check column types to detect text/number entry tables
               if (ca.table_data?.columns?.some((c: any) => c.type === 'text' || c.kind === 'text')) {
                 tableType = 'text_entry';
+              }
+              if (ca.table_data?.columns?.some((c: any) => c.type === 'number' || c.kind === 'number')) {
+                tableType = 'numeric_entry';
               }
               
               // Parse correctAnswers based on table type
               if (ca.correctAnswers) {
                 if (tableType === 'text_entry' || tableType === 'numeric_entry') {
-                  // Text tables: correctAnswers is { rowId: ["value1", "value2", ...] }
-                  // Convert to correctInputs format: { rowId: { 1: "value1", 2: "value2" } }
+                  // Text/number tables: correctAnswers is { rowId: ["value1", "value2", ...] }
+                  // Convert to correctInputs format: { rowId: { 0: "value1", 1: "value2" } }
+                  // Note: We use 0-indexed now since we convert student answers to 0-indexed
                   correctInputs = {};
                   for (const [rowId, values] of Object.entries(ca.correctAnswers)) {
                     if (Array.isArray(values) && values.length > 0) {
                       correctInputs[rowId] = {};
                       for (let i = 0; i < values.length; i++) {
-                        // Column index starts at 1 (column 0 is typically the row label)
-                        correctInputs[rowId][i + 1] = values[i] as string;
+                        // Column index is 0-indexed for input columns
+                        correctInputs[rowId][i] = values[i] as string;
                       }
                     }
                   }
-                  console.log('[table-grading] Converted text correctAnswers to correctInputs:', correctInputs);
+                  console.log('[table-grading] Converted correctAnswers to correctInputs:', correctInputs);
                 } else {
                   // Toggle tables: correctAnswers is { rowId: [colIndex, ...] }
                   correctToggleAnswers = ca.correctAnswers as Record<string, number[]>;
