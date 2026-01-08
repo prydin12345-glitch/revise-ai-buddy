@@ -63,6 +63,31 @@ export function GraphInterpretationQuestion({
     });
   };
 
+  // Get dynamic placeholder based on field type and metadata
+  const getPlaceholder = (field: GraphInterpretationField): string => {
+    // Use custom placeholder if provided
+    if ((field as any).placeholder) return (field as any).placeholder;
+    
+    // Infer from question text for common cases
+    const questionLower = field.question.toLowerCase();
+    
+    if (field.type === 'numeric') {
+      if (questionLower.includes('gradient') || questionLower.includes('slope')) {
+        return 'Enter gradient (e.g. 2 or y=2x)';
+      }
+      if (questionLower.includes('intercept')) {
+        return 'Enter y-intercept (e.g. 0 or (0,0))';
+      }
+      return 'Enter a number (e.g. 3.5)';
+    }
+    
+    if (field.type === 'text') {
+      return 'Enter your answer';
+    }
+    
+    return '';
+  };
+
   // Render a single answer field based on its type
   const renderField = (field: GraphInterpretationField) => {
     const status = getFieldStatus(field.id);
@@ -93,7 +118,7 @@ export function GraphInterpretationQuestion({
                   'max-w-[200px]',
                   status && statusTextClasses[status]
                 )}
-                placeholder={field.decimals ? `e.g., 3.${'0'.repeat(field.decimals)}` : 'Enter value (e.g. 2, y=2x)'}
+                placeholder={getPlaceholder(field)}
               />
               {showCorrectAnswers && status && markingResult && (
                 <span className={cn('text-sm font-medium', statusTextClasses[status])}>
@@ -126,7 +151,7 @@ export function GraphInterpretationQuestion({
                   'max-w-[250px]',
                   status && statusTextClasses[status]
                 )}
-                placeholder="Enter answer"
+                placeholder={getPlaceholder(field)}
               />
               {showCorrectAnswers && status && markingResult && (
                 <span className={cn('text-sm font-medium', statusTextClasses[status])}>
