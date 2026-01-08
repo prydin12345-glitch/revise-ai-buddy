@@ -57,11 +57,15 @@ export interface GraphInterpretationField {
   type: 'numeric' | 'text' | 'mcq' | 'boolean';
   question: string;
   correctAnswer: string | number | boolean;
-  tolerance?: number; // For numeric: ±tolerance
+  tolerance?: number; // For numeric: ±tolerance (default 0.01 = 1%)
   decimals?: number; // Expected decimal places
   synonyms?: string[]; // For text: acceptable alternatives
   options?: string[]; // For MCQ: list of options
   marks?: number;
+  // Multiple accepted answer formats for flexible grading
+  // e.g. for gradient: ["2", "y=2x", "m=2", "gradient=2"]
+  // e.g. for y-intercept: ["0", "(0,0)", "c=0", "intercept at 0"]
+  acceptedFormats?: string[];
 }
 
 // Expected points for plotting questions

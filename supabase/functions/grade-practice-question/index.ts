@@ -53,7 +53,93 @@ serve(async (req) => {
     let tableGridResult: any = null;
     let graphResult: any = null;
 
-    // Handle graph_interpretation deterministic grading
+    // ========================
+    // GRAPH ANSWER NORMALIZATION UTILITIES
+    // (Matches table question logic exactly)
+    // ========================
+    
+    // Extract numeric value from various formats: "2", "2.0", "y=2x", "m=2", "gradient = 2", "(0,0)" -> 0
+    function extractNumericValue(input: string | number | boolean): number | null {
+      if (typeof input === 'number') return input;
+      if (typeof input === 'boolean') return null;
+      
+      const str = String(input).trim().toLowerCase();
+      
+      // Direct number
+      const directNum = parseFloat(str);
+      if (!isNaN(directNum) && str === String(directNum)) {
+        return directNum;
+      }
+      
+      // Handle coordinate format: (0,0) or (x,y) - extract first number for y-intercept context
+      const coordMatch = str.match(/^\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)\s*$/);
+      if (coordMatch) {
+        // For y-intercept, we want the y value when x=0, so return first coordinate if it's the origin
+        const x = parseFloat(coordMatch[1]);
+        const y = parseFloat(coordMatch[2]);
+        if (x === 0) return y; // (0, y) means y-intercept is y
+        return y; // Default to y value
+      }
+      
+      // Handle expressions like "y = 2x", "m = 2", "gradient = 2", "intercept at 0"
+      // Extract the numeric coefficient or value
+      const patterns = [
+        /(?:y\s*=\s*)?(-?[\d.]+)\s*x/i,           // "y = 2x" or "2x" -> 2
+        /m\s*=\s*(-?[\d.]+)/i,                     // "m = 2" -> 2
+        /gradient\s*=?\s*(-?[\d.]+)/i,            // "gradient = 2" or "gradient 2" -> 2
+        /slope\s*=?\s*(-?[\d.]+)/i,               // "slope = 2" -> 2
+        /intercept\s*(?:at|=|:)?\s*(-?[\d.]+)/i,  // "intercept at 0" -> 0
+        /c\s*=\s*(-?[\d.]+)/i,                     // "c = 0" -> 0
+        /=\s*(-?[\d.]+)\s*$/,                      // "y = 0" -> 0
+        /^(-?[\d.]+)$/                             // Plain number
+      ];
+      
+      for (const pattern of patterns) {
+        const match = str.match(pattern);
+        if (match && match[1]) {
+          return parseFloat(match[1]);
+        }
+      }
+      
+      // Final attempt: just extract any number from the string
+      const anyNumber = str.match(/(-?[\d.]+)/);
+      if (anyNumber) {
+        return parseFloat(anyNumber[1]);
+      }
+      
+      return null;
+    }
+    
+    // Normalize boolean inputs: "true", "yes", "increasing" -> true
+    function normalizeBoolean(input: string | number | boolean): boolean | null {
+      if (typeof input === 'boolean') return input;
+      
+      const str = String(input).trim().toLowerCase();
+      
+      const trueValues = ['true', 'yes', 'y', '1', 'increasing', 'positive', 'correct', 'right'];
+      const falseValues = ['false', 'no', 'n', '0', 'decreasing', 'negative', 'incorrect', 'wrong'];
+      
+      if (trueValues.includes(str)) return true;
+      if (falseValues.includes(str)) return false;
+      
+      return null;
+    }
+    
+    // Normalize text inputs for comparison
+    function normalizeText(input: string): string {
+      return String(input).trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+    
+    // Check if two numeric values match within tolerance
+    function numericMatch(studentVal: number, correctVal: number, tolerance: number = 0.01): boolean {
+      // Use both relative (1%) and absolute (0.001) tolerance like table questions
+      const relativeTolerance = Math.abs(correctVal * tolerance);
+      const absoluteTolerance = 0.001;
+      return Math.abs(studentVal - correctVal) <= relativeTolerance || 
+             Math.abs(studentVal - correctVal) <= absoluteTolerance;
+    }
+    
+    // Handle graph_interpretation deterministic grading with robust normalization
     if (isGraphInterpretation && answerText) {
       try {
         const parsed = JSON.parse(answerText);
@@ -66,6 +152,8 @@ serve(async (req) => {
           const totalMarks = fields.reduce((sum: number, f: any) => sum + (f.marks || 1), 0);
           const perFieldResults: Record<string, any> = {};
           
+          console.log('[graph-grading] Starting interpretation grading with normalization');
+          
           for (const field of fields) {
             const studentVal = studentAnswers[field.id];
             const correctVal = field.correctAnswer;
@@ -73,20 +161,75 @@ serve(async (req) => {
             let isCorrect = false;
             const hasAnswer = studentVal !== undefined && studentVal !== '' && studentVal !== null;
             
+            console.log(`[graph-grading] Field ${field.id}: type=${field.type}, studentVal="${studentVal}", correctVal="${correctVal}"`);
+            
             if (hasAnswer) {
               if (field.type === 'numeric') {
+                // ROBUST NUMERIC MATCHING with normalization
                 const tolerance = field.tolerance || 0.01;
-                const numStudent = parseFloat(String(studentVal));
-                const numCorrect = parseFloat(String(correctVal));
-                isCorrect = !isNaN(numStudent) && !isNaN(numCorrect) && 
-                  Math.abs(numStudent - numCorrect) <= tolerance;
+                
+                // Try to extract numeric value from student answer (handles "y=2x", "(0,0)", etc.)
+                const numStudent = extractNumericValue(studentVal);
+                const numCorrect = typeof correctVal === 'number' ? correctVal : parseFloat(String(correctVal));
+                
+                console.log(`[graph-grading] Numeric: extracted student=${numStudent}, correct=${numCorrect}`);
+                
+                if (numStudent !== null && !isNaN(numCorrect)) {
+                  isCorrect = numericMatch(numStudent, numCorrect, tolerance);
+                }
+                
+                // Also check against acceptable answer formats if provided
+                if (!isCorrect && field.acceptedFormats) {
+                  for (const fmt of field.acceptedFormats) {
+                    const fmtNum = extractNumericValue(fmt);
+                    if (fmtNum !== null && numStudent !== null && numericMatch(numStudent, fmtNum, tolerance)) {
+                      isCorrect = true;
+                      break;
+                    }
+                  }
+                }
               } else if (field.type === 'text') {
-                const normalized = String(studentVal).trim().toLowerCase();
-                const correctNorm = String(correctVal).trim().toLowerCase();
+                // TEXT MATCHING with synonyms (like table questions)
+                const normalized = normalizeText(studentVal);
+                const correctNorm = normalizeText(correctVal);
                 const synonyms = field.synonyms || [];
-                isCorrect = normalized === correctNorm || 
-                  synonyms.some((s: string) => s.toLowerCase() === normalized);
+                
+                // Check exact match
+                if (normalized === correctNorm) {
+                  isCorrect = true;
+                } else {
+                  // Check synonyms
+                  isCorrect = synonyms.some((s: string) => {
+                    const synNorm = normalizeText(s);
+                    return normalized === synNorm || 
+                           normalized.includes(synNorm) ||
+                           synNorm.includes(normalized);
+                  });
+                }
+                
+                // Also try numeric extraction for text fields that might contain numbers
+                if (!isCorrect) {
+                  const numStudent = extractNumericValue(studentVal);
+                  const numCorrect = extractNumericValue(correctVal);
+                  if (numStudent !== null && numCorrect !== null) {
+                    isCorrect = numericMatch(numStudent, numCorrect);
+                  }
+                }
+              } else if (field.type === 'boolean') {
+                // BOOLEAN MATCHING with normalization
+                const normalizedStudent = normalizeBoolean(studentVal);
+                const normalizedCorrect = typeof correctVal === 'boolean' ? correctVal : normalizeBoolean(correctVal);
+                
+                console.log(`[graph-grading] Boolean: normalized student=${normalizedStudent}, correct=${normalizedCorrect}`);
+                
+                if (normalizedStudent !== null && normalizedCorrect !== null) {
+                  isCorrect = normalizedStudent === normalizedCorrect;
+                } else {
+                  // Fallback to string comparison
+                  isCorrect = String(studentVal).toLowerCase() === String(correctVal).toLowerCase();
+                }
               } else {
+                // MCQ or other types - direct comparison
                 isCorrect = studentVal === correctVal || String(studentVal) === String(correctVal);
               }
             }
@@ -101,6 +244,8 @@ serve(async (req) => {
               correctAnswer: correctVal,
               status: !hasAnswer ? 'missed' : isCorrect ? 'correct' : 'incorrect'
             };
+            
+            console.log(`[graph-grading] Field ${field.id} result: ${perFieldResults[field.id].status}`);
           }
           
           graphResult = {
@@ -109,6 +254,8 @@ serve(async (req) => {
             isCorrect: totalScore >= totalMarks,
             markingData: { perFieldResults, totalScore, totalMarks }
           };
+          
+          console.log('[graph-grading] Final result:', { totalScore, totalMarks, isCorrect: graphResult.isCorrect });
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
