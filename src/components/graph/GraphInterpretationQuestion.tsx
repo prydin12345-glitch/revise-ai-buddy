@@ -84,16 +84,16 @@ export function GraphInterpretationQuestion({
             </Label>
             <div className="flex items-center gap-2">
               <Input
-                type="number"
-                step={field.decimals ? Math.pow(10, -field.decimals) : 'any'}
-                value={typeof currentValue === 'boolean' ? '' : (currentValue ?? '')}
-                onChange={(e) => handleFieldChange(field.id, e.target.value === '' ? '' : parseFloat(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                value={typeof currentValue === 'boolean' ? '' : String(currentValue ?? '')}
+                onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 disabled={readOnly}
                 className={cn(
-                  'max-w-[150px]',
+                  'max-w-[200px]',
                   status && statusTextClasses[status]
                 )}
-                placeholder={field.decimals ? `e.g., 3.${'0'.repeat(field.decimals)}` : 'Enter number'}
+                placeholder={field.decimals ? `e.g., 3.${'0'.repeat(field.decimals)}` : 'Enter value (e.g. 2, y=2x)'}
               />
               {showCorrectAnswers && status && markingResult && (
                 <span className={cn('text-sm font-medium', statusTextClasses[status])}>
