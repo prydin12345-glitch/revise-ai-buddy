@@ -46,9 +46,150 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Check if this is a table_grid question with deterministic grading
+    // Check if this is a table_grid or graph question with deterministic grading
     const isTableGrid = question.question_type === 'table_grid';
+    const isGraphInterpretation = question.question_type === 'graph_interpretation';
+    const isGraphPlotting = question.question_type === 'graph_plotting';
     let tableGridResult: any = null;
+    let graphResult: any = null;
+
+    // Handle graph_interpretation deterministic grading
+    if (isGraphInterpretation && answerText) {
+      try {
+        const parsed = JSON.parse(answerText);
+        if (parsed._type === 'graph_interpretation') {
+          const questionData = JSON.parse(question.correct_answer || '{}');
+          const fields = questionData.interpretationFields || [];
+          const studentAnswers = parsed.answers || {};
+          
+          let totalScore = 0;
+          const totalMarks = fields.reduce((sum: number, f: any) => sum + (f.marks || 1), 0);
+          const perFieldResults: Record<string, any> = {};
+          
+          for (const field of fields) {
+            const studentVal = studentAnswers[field.id];
+            const correctVal = field.correctAnswer;
+            const marks = field.marks || 1;
+            let isCorrect = false;
+            const hasAnswer = studentVal !== undefined && studentVal !== '' && studentVal !== null;
+            
+            if (hasAnswer) {
+              if (field.type === 'numeric') {
+                const tolerance = field.tolerance || 0.01;
+                const numStudent = parseFloat(String(studentVal));
+                const numCorrect = parseFloat(String(correctVal));
+                isCorrect = !isNaN(numStudent) && !isNaN(numCorrect) && 
+                  Math.abs(numStudent - numCorrect) <= tolerance;
+              } else if (field.type === 'text') {
+                const normalized = String(studentVal).trim().toLowerCase();
+                const correctNorm = String(correctVal).trim().toLowerCase();
+                const synonyms = field.synonyms || [];
+                isCorrect = normalized === correctNorm || 
+                  synonyms.some((s: string) => s.toLowerCase() === normalized);
+              } else {
+                isCorrect = studentVal === correctVal || String(studentVal) === String(correctVal);
+              }
+            }
+            
+            const earned = isCorrect ? marks : 0;
+            totalScore += earned;
+            perFieldResults[field.id] = {
+              correct: isCorrect,
+              earned,
+              max: marks,
+              studentAnswer: studentVal,
+              correctAnswer: correctVal,
+              status: !hasAnswer ? 'missed' : isCorrect ? 'correct' : 'incorrect'
+            };
+          }
+          
+          graphResult = {
+            score: totalScore,
+            feedback: `${Object.values(perFieldResults).filter((r: any) => r.correct).length}/${fields.length} answers correct.`,
+            isCorrect: totalScore >= totalMarks,
+            markingData: { perFieldResults, totalScore, totalMarks }
+          };
+        }
+      } catch (e) {
+        console.log('[graph-grading] Parse error:', e);
+      }
+    }
+
+    // Handle graph_plotting deterministic grading
+    if (isGraphPlotting && answerText) {
+      try {
+        const parsed = JSON.parse(answerText);
+        if (parsed._type === 'graph_plotting') {
+          const questionData = JSON.parse(question.correct_answer || '{}');
+          const expected = questionData.plottingAnswer?.expectedPoints || [];
+          const tolerance = questionData.plottingAnswer?.toleranceUnits || 0.5;
+          const studentPoints = parsed.points || [];
+          const marksPerPoint = question.marks / Math.max(expected.length, 1);
+          
+          let totalScore = 0;
+          const perPointResults: any[] = [];
+          const matchedExpected = new Set<number>();
+          
+          // Match each student point to closest expected point
+          for (const sp of studentPoints) {
+            let bestMatch = -1;
+            let bestDist = Infinity;
+            expected.forEach((ep: any, idx: number) => {
+              if (matchedExpected.has(idx)) return;
+              const dist = Math.sqrt(Math.pow(sp.x - ep.x, 2) + Math.pow(sp.y - ep.y, 2));
+              if (dist < bestDist) { bestDist = dist; bestMatch = idx; }
+            });
+            
+            if (bestMatch >= 0 && bestDist <= tolerance) {
+              matchedExpected.add(bestMatch);
+              totalScore += marksPerPoint;
+              perPointResults.push({ studentPoint: sp, expectedPoint: expected[bestMatch], matched: true, distance: bestDist, status: 'correct' });
+            } else {
+              perPointResults.push({ studentPoint: sp, expectedPoint: null, matched: false, status: 'incorrect' });
+            }
+          }
+          
+          // Add missed expected points
+          expected.forEach((ep: any, idx: number) => {
+            if (!matchedExpected.has(idx)) {
+              perPointResults.push({ studentPoint: null, expectedPoint: ep, matched: false, status: 'missed' });
+            }
+          });
+          
+          graphResult = {
+            score: Math.round(totalScore * 100) / 100,
+            feedback: `${matchedExpected.size}/${expected.length} points correct.`,
+            isCorrect: matchedExpected.size === expected.length,
+            markingData: { perPointResults, totalScore: Math.round(totalScore * 100) / 100, totalMarks: question.marks }
+          };
+        }
+      } catch (e) {
+        console.log('[graph-grading] Parse error:', e);
+      }
+    }
+
+    // If we have a graph result, save and return
+    if (graphResult) {
+      await supabase.from('practice_question_answers').upsert({
+        user_id: user.id, set_id: setId, question_id: questionId,
+        answer_text: answerText || '', working_out: workingOut,
+        score: graphResult.score, is_correct: graphResult.isCorrect,
+        feedback: graphResult.feedback, submitted_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,question_id' });
+      
+      const { data: allAnswers } = await supabase.from('practice_question_answers').select('is_correct').eq('user_id', user.id).eq('set_id', setId);
+      await supabase.from('practice_set_progress').upsert({
+        user_id: user.id, set_id: setId,
+        questions_attempted: allAnswers?.length || 0,
+        questions_correct: allAnswers?.filter(a => a.is_correct).length || 0,
+        last_accessed_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,set_id' });
+      
+      return new Response(JSON.stringify({
+        score: graphResult.score, feedback: graphResult.feedback,
+        isCorrect: graphResult.isCorrect, markingData: graphResult.markingData
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     if (isTableGrid && answerText) {
       try {
