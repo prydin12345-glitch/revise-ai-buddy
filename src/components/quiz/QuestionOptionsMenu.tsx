@@ -1,6 +1,6 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Calculator, Eye, EyeOff, Flag, Save, ChevronLeft, Send } from "lucide-react";
+import { MoreVertical, Calculator, Eye, EyeOff, Flag, Save, ChevronLeft, Send, RotateCcw, RefreshCw, ListRestart } from "lucide-react";
 
 interface QuestionOptionsMenuProps {
   mode: "practice" | "exam";
@@ -16,6 +16,12 @@ interface QuestionOptionsMenuProps {
   onSubmitAll: () => void;
   disabled?: boolean;
   isReadOnly?: boolean;
+  // New retry props
+  onRetryQuestion?: () => void;
+  onRegenerateQuestion?: () => void;
+  onRetryEntireSet?: () => void;
+  isRetrying?: boolean;
+  isRegenerating?: boolean;
 }
 
 export const QuestionOptionsMenu = ({
@@ -32,6 +38,11 @@ export const QuestionOptionsMenu = ({
   onSubmitAll,
   disabled = false,
   isReadOnly = false,
+  onRetryQuestion,
+  onRegenerateQuestion,
+  onRetryEntireSet,
+  isRetrying = false,
+  isRegenerating = false,
 }: QuestionOptionsMenuProps) => {
   if (isReadOnly) {
     return null;
@@ -78,6 +89,46 @@ export const QuestionOptionsMenu = ({
             {solutionVisible ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {solutionVisible ? "Hide Solution" : "Show Solution"}
           </DropdownMenuItem>
+        )}
+
+        {/* Retry Options - Practice only */}
+        {mode === "practice" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Retry Options</DropdownMenuLabel>
+            
+            {onRetryQuestion && (
+              <DropdownMenuItem 
+                onClick={onRetryQuestion} 
+                disabled={isRetrying}
+                className="cursor-pointer"
+              >
+                <RotateCcw className={`w-4 h-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
+                Retry Question
+              </DropdownMenuItem>
+            )}
+            
+            {onRegenerateQuestion && (
+              <DropdownMenuItem 
+                onClick={onRegenerateQuestion}
+                disabled={isRegenerating}
+                className="cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+                Regenerate Question
+              </DropdownMenuItem>
+            )}
+            
+            {onRetryEntireSet && (
+              <DropdownMenuItem 
+                onClick={onRetryEntireSet}
+                className="cursor-pointer text-orange-600 dark:text-orange-400"
+              >
+                <ListRestart className="w-4 h-4 mr-2" />
+                Retry Entire Set
+              </DropdownMenuItem>
+            )}
+          </>
         )}
 
         <DropdownMenuSeparator />

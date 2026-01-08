@@ -115,6 +115,9 @@ const TakePracticeQuiz = () => {
   const [isGrading, setIsGrading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showMathKeypad, setShowMathKeypad] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showRetrySetDialog, setShowRetrySetDialog] = useState(false);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -637,6 +640,206 @@ const TakePracticeQuiz = () => {
     setSidebarOpen(hideNavigation);
   };
 
+  // Retry current question - clears answer and marking state, keeps question content
+  const handleRetryQuestion = async () => {
+    const currentQuestion = questions[currentIndex];
+    setIsRetrying(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Delete the saved answer from database
+      await supabase
+        .from('practice_question_answers')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('question_id', currentQuestion.id);
+
+      // Clear local state for this question
+      setUserAnswers(prev => ({
+        ...prev,
+        [currentQuestion.id]: {
+          answer: "",
+          workingOut: "",
+          submitted: false,
+          tableGridAnswers: undefined,
+          tableGridInputs: undefined,
+          markingData: undefined,
+          score: undefined,
+          feedback: undefined,
+          isCorrect: undefined
+        }
+      }));
+
+      // Clear sessionStorage draft
+      try {
+        sessionStorage.removeItem(`practice:${setId}:draft:${currentQuestion.id}`);
+      } catch (e) {
+        // Ignore
+      }
+
+      // Hide worked solution
+      setWorkedSolutionVisible(false);
+
+      toast.success("Question reset - try again!");
+    } catch (error: any) {
+      console.error("Retry error:", error);
+      toast.error("Failed to reset question");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Regenerate current question - creates new question with same constraints
+  const handleRegenerateQuestion = async () => {
+    const currentQuestion = questions[currentIndex];
+    setIsRegenerating(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Get the practice set details for regeneration constraints
+      const { data: quizSet } = await supabase
+        .from("practice_question_sets")
+        .select("*")
+        .eq("id", setId)
+        .single();
+
+      if (!quizSet) throw new Error("Practice set not found");
+
+      // Call the generation function to create a new question
+      const { data, error } = await supabase.functions.invoke('generate-practice-questions', {
+        body: {
+          setId: setId,
+          subjectId: quizSet.subject_id,
+          subtopics: [currentQuestion.subtopic],
+          difficultyLevel: quizSet.difficulty_level || 'medium',
+          questionCount: 1,
+          regenerateQuestionId: currentQuestion.id, // Flag to replace this specific question
+          examBoard: quizSet.exam_board,
+          educationalTier: quizSet.educational_tier
+        }
+      });
+
+      if (error) throw error;
+
+      // Delete old answer if exists
+      await supabase
+        .from('practice_question_answers')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('question_id', currentQuestion.id);
+
+      // Fetch the updated question
+      const { data: updatedQuestion } = await supabase
+        .from('practice_questions')
+        .select('*')
+        .eq('id', currentQuestion.id)
+        .single();
+
+      if (updatedQuestion) {
+        // Update questions list with new question
+        setQuestions(prev => prev.map(q => 
+          q.id === currentQuestion.id ? updatedQuestion : q
+        ));
+
+        // Clear answer state for this question
+        setUserAnswers(prev => ({
+          ...prev,
+          [currentQuestion.id]: {
+            answer: "",
+            workingOut: "",
+            submitted: false,
+            tableGridAnswers: undefined,
+            tableGridInputs: undefined,
+            markingData: undefined
+          }
+        }));
+      }
+
+      setWorkedSolutionVisible(false);
+      toast.success("New question generated!");
+    } catch (error: any) {
+      console.error("Regenerate error:", error);
+      toast.error(error.message || "Failed to regenerate question");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // Retry entire practice set - clears all answers and marking
+  const handleRetryEntireSet = async () => {
+    setIsRetrying(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Delete all saved answers for this set
+      await supabase
+        .from('practice_question_answers')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('set_id', setId);
+
+      // Reset progress
+      await supabase
+        .from('practice_set_progress')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          questions_attempted: 0,
+          questions_correct: 0,
+          current_question_index: 0,
+          time_spent_seconds: 0,
+          flagged_question_ids: [],
+          session_data: {},
+          last_accessed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,set_id'
+        });
+
+      // Clear all local answer state
+      const resetAnswers: Record<string, UserAnswer> = {};
+      questions.forEach(q => {
+        resetAnswers[q.id] = {
+          answer: "",
+          workingOut: "",
+          submitted: false,
+          tableGridAnswers: undefined,
+          tableGridInputs: undefined,
+          markingData: undefined
+        };
+      });
+      setUserAnswers(resetAnswers);
+
+      // Reset other state
+      setCurrentIndex(0);
+      setTimeElapsed(0);
+      setFlaggedQuestions(new Set());
+      setWorkedSolutionVisible(false);
+      setShowRetrySetDialog(false);
+
+      // Clear sessionStorage drafts
+      try {
+        questions.forEach(q => {
+          sessionStorage.removeItem(`practice:${setId}:draft:${q.id}`);
+        });
+      } catch (e) {
+        // Ignore
+      }
+
+      toast.success("Practice set reset - start fresh!");
+    } catch (error: any) {
+      console.error("Retry set error:", error);
+      toast.error("Failed to reset practice set");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const getQuestionButtonStyle = (question: Question) => {
     const answer = userAnswers[question.id];
     // Check both plain text and latex for having an answer
@@ -728,6 +931,11 @@ const TakePracticeQuiz = () => {
               onQuitAndSave={() => setShowQuitDialog(true)}
               onSubmitAll={() => setShowSubmitDialog(true)}
               disabled={currentAnswer.submitted}
+              onRetryQuestion={handleRetryQuestion}
+              onRegenerateQuestion={handleRegenerateQuestion}
+              onRetryEntireSet={() => setShowRetrySetDialog(true)}
+              isRetrying={isRetrying}
+              isRegenerating={isRegenerating}
             />
           </div>
         </div>
@@ -1088,6 +1296,29 @@ const TakePracticeQuiz = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleQuitAndSave} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Save & Quit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showRetrySetDialog} onOpenChange={setShowRetrySetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retry Entire Practice Set?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>This will clear all your answers and marks for this practice set.</p>
+              <p className="text-amber-600 font-medium">⚠️ This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRetryEntireSet} 
+              disabled={isRetrying}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isRetrying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Reset & Start Fresh
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
