@@ -540,15 +540,63 @@ const TakePracticeQuiz = () => {
     const hasTableGridInputs = currentAnswer.tableGridInputs && 
       Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0));
     
-    if (!currentAnswer.answer.trim() && !hasTableGridAnswer && !hasTableGridInputs) {
-      toast.error("Please provide an answer");
-      return;
+    // Check for graph interpretation answers
+    const graphData = parseGraphQuestionData(currentQuestion.correct_answer || null);
+    const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
+    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
+    
+    // Validate graph interpretation: check which fields are answered
+    if (isGraphInterpretation && graphData) {
+      const fields = graphData.interpretationFields || [];
+      const answers = currentAnswer.graphInterpretationAnswers || {};
+      const missingFields: string[] = [];
+      
+      // DEBUG: Log the full state before submit
+      console.log('[GraphSubmit] currentAnswer.graphInterpretationAnswers:', JSON.stringify(answers, null, 2));
+      console.log('[GraphSubmit] currentAnswer.answer (serialized):', currentAnswer.answer);
+      console.log('[GraphSubmit] Field IDs expected:', fields.map((f: any) => f.id));
+      
+      for (const field of fields) {
+        const val = answers[field.id];
+        if (val === undefined || val === null || val === '') {
+          missingFields.push(field.question.replace(/[:?].*$/, '').trim());
+        }
+      }
+      
+      if (missingFields.length > 0) {
+        toast.error(`You haven't answered: ${missingFields.join(', ')}`);
+        return;
+      }
+    }
+    
+    // Validate graph plotting
+    if (isGraphPlotting) {
+      const points = currentAnswer.graphPlottedPoints || [];
+      if (points.length === 0) {
+        toast.error("Please plot at least one point on the graph");
+        return;
+      }
+    }
+    
+    // Standard validation for non-graph questions
+    if (!isGraphInterpretation && !isGraphPlotting) {
+      if (!currentAnswer.answer.trim() && !hasTableGridAnswer && !hasTableGridInputs) {
+        toast.error("Please provide an answer");
+        return;
+      }
     }
 
     setIsGrading(true);
     try {
       // Normalize the answer for AI grading (convert Unicode math to plain text)
       const normalizedAnswer = normalizeUnicodeForGrading(currentAnswer.answer);
+      
+      // DEBUG: Log payload being sent
+      console.log('[GraphSubmit] Sending to grader:', {
+        questionId: currentQuestion.id,
+        answerText: currentAnswer.answer,
+        questionType: currentQuestion.question_type,
+      });
       
       // Send both original and normalized answer to the grader
       const { data, error } = await supabase.functions.invoke('grade-practice-question', {
@@ -575,7 +623,10 @@ const TakePracticeQuiz = () => {
           feedback: data.feedback,
           isCorrect: data.isCorrect,
           // Store marking data for table grid questions to persist UI state
-          markingData: data.markingData
+          markingData: data.markingData,
+          // Store graph marking data
+          graphMarkingData: data.markingData?.perFieldResults ? data.markingData : 
+                            data.markingData?.perPointResults ? data.markingData : currentAnswer.graphMarkingData
         }
       });
 
@@ -700,7 +751,7 @@ const TakePracticeQuiz = () => {
         .eq('user_id', user.id)
         .eq('question_id', currentQuestion.id);
 
-      // Clear local state for this question
+      // Clear local state for this question (including graph data)
       setUserAnswers(prev => ({
         ...prev,
         [currentQuestion.id]: {
@@ -710,6 +761,9 @@ const TakePracticeQuiz = () => {
           tableGridAnswers: undefined,
           tableGridInputs: undefined,
           markingData: undefined,
+          graphInterpretationAnswers: undefined,
+          graphPlottedPoints: undefined,
+          graphMarkingData: undefined,
           score: undefined,
           feedback: undefined,
           isCorrect: undefined
@@ -789,7 +843,7 @@ const TakePracticeQuiz = () => {
           q.id === currentQuestion.id ? updatedQuestion : q
         ));
 
-        // Clear answer state for this question
+        // Clear answer state for this question (including graph data)
         setUserAnswers(prev => ({
           ...prev,
           [currentQuestion.id]: {
@@ -798,7 +852,10 @@ const TakePracticeQuiz = () => {
             submitted: false,
             tableGridAnswers: undefined,
             tableGridInputs: undefined,
-            markingData: undefined
+            markingData: undefined,
+            graphInterpretationAnswers: undefined,
+            graphPlottedPoints: undefined,
+            graphMarkingData: undefined
           }
         }));
       }
