@@ -121,12 +121,21 @@ export interface GraphInterpretationResponse {
   answers: Record<string, string | number | boolean>; // fieldId -> value
 }
 
+// Line segment for connecting points
+export interface LineSegment {
+  id: string;
+  from: GraphPoint;
+  to: GraphPoint;
+  mode: 'straight' | 'curved';
+}
+
 // Student response for plotting
 export interface GraphPlottingResponse {
   _type: 'graph_plotting';
   version: 1;
   points: GraphPoint[];
   joinMode?: 'straight' | 'curved'; // Selected join mode (if enabled)
+  segments?: LineSegment[]; // Persisted line segments
 }
 
 // Marking result for interpretation fields
@@ -232,13 +241,15 @@ export function serializeGraphInterpretationResponse(
 // Helper to serialize graph plotting response
 export function serializeGraphPlottingResponse(
   points: GraphPoint[],
-  joinMode?: 'straight' | 'curved'
+  joinMode?: 'straight' | 'curved',
+  segments?: LineSegment[]
 ): string {
   const response: GraphPlottingResponse = {
     _type: 'graph_plotting',
     version: 1,
     points,
-    joinMode
+    joinMode,
+    segments
   };
   return JSON.stringify(response);
 }

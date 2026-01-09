@@ -122,6 +122,7 @@ interface UserAnswer {
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
   graphJoinMode?: 'straight' | 'curved'; // Join mode for plotting questions
+  graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }>; // Persisted line segments
   graphMarkingData?: {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
     perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
@@ -1279,12 +1280,9 @@ const TakePracticeQuiz = () => {
                           <GraphPlottingQuestion
                             config={{
                               ...config,
-                              // Ensure maxPoints doesn't limit to 1 - use 20 as sensible default
                               maxPoints: config.maxPoints === 1 ? undefined : config.maxPoints,
-                              // Always enable join mode for user flexibility
                               joinPointsMode: {
                                 enabled: true,
-                                // No defaultMode - user must select Straight or Curved
                                 graded: config.joinPointsMode?.graded,
                                 correctMode: config.joinPointsMode?.correctMode,
                               }
@@ -1293,7 +1291,8 @@ const TakePracticeQuiz = () => {
                             studentPoints={currentAnswer.graphPlottedPoints || []}
                             onPointsChange={(points) => {
                               const currentMode = currentAnswer.graphJoinMode;
-                              const serialized = serializeGraphPlottingResponse(points, currentMode);
+                              const currentSegments = currentAnswer.graphSegments;
+                              const serialized = serializeGraphPlottingResponse(points, currentMode, currentSegments);
                               const newAnswer = {
                                 ...currentAnswer,
                                 answer: serialized,
@@ -1305,11 +1304,25 @@ const TakePracticeQuiz = () => {
                             joinMode={currentAnswer.graphJoinMode}
                             onJoinModeChange={(mode) => {
                               const points = currentAnswer.graphPlottedPoints || [];
-                              const serialized = serializeGraphPlottingResponse(points, mode);
+                              const currentSegments = currentAnswer.graphSegments;
+                              const serialized = serializeGraphPlottingResponse(points, mode, currentSegments);
                               const newAnswer = {
                                 ...currentAnswer,
                                 answer: serialized,
                                 graphJoinMode: mode,
+                              };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            segments={currentAnswer.graphSegments}
+                            onSegmentsChange={(segments) => {
+                              const points = currentAnswer.graphPlottedPoints || [];
+                              const currentMode = currentAnswer.graphJoinMode;
+                              const serialized = serializeGraphPlottingResponse(points, currentMode, segments);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                graphSegments: segments,
                               };
                               setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
                               debouncedSave(currentQuestion.id, { answer: serialized });
