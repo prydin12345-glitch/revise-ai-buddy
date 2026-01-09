@@ -658,18 +658,81 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
       cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
     
-    // NOTE: Removed aggressive regex that was corrupting table_grid data
-    // The AI should return properly escaped JSON - if parse fails, we log and fail cleanly
-    
-    // Fix invalid JSON escape sequences (e.g., \degree, \alpha, \beta from LaTeX)
+    // NOTE: Removed aggressive regex that was corrupting table_grid data.
+    // The AI should return properly escaped JSON, but we still defensively repair common JSON-breaking artifacts.
+    const escapeControlCharsInJsonStrings = (input: string) => {
+      let out = '';
+      let inString = false;
+      let escaped = false;
+
+      for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+
+        if (inString) {
+          if (escaped) {
+            // If the model ends a line with a backslash, it can "escape" a real newline -> invalid JSON.
+            // Convert that specific case into a JSON newline escape.
+            if (ch === '\n') {
+              out += 'n';
+            } else if (ch === '\r') {
+              out += 'r';
+            } else {
+              out += ch;
+            }
+            escaped = false;
+            continue;
+          }
+
+          if (ch === '\\') {
+            escaped = true;
+            out += ch;
+            continue;
+          }
+
+          if (ch === '"') {
+            inString = false;
+            out += ch;
+            continue;
+          }
+
+          // Escape raw control characters inside strings (JSON allows them only as escapes)
+          if (ch === '\n') {
+            out += '\\n';
+            continue;
+          }
+          if (ch === '\r') {
+            out += '\\r';
+            continue;
+          }
+          if (ch === '\t') {
+            out += '\\t';
+            continue;
+          }
+
+          out += ch;
+        } else {
+          if (ch === '"') {
+            inString = true;
+          }
+          out += ch;
+        }
+      }
+
+      return out;
+    };
+
+    // 0) Repair backslash-newline artifacts before generic escape fixes
+    cleanedContent = cleanedContent.replace(/\\\r?\n/g, '\\n');
+
+    // 1) Escape control chars inside JSON strings
+    cleanedContent = escapeControlCharsInJsonStrings(cleanedContent);
+
+    // 2) Fix invalid JSON escape sequences (e.g., \degree, \alpha, \beta from LaTeX)
     // JSON only allows: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
-    // The regex handles:
-    // 1. \u NOT followed by 4 hex digits (e.g., \unit, \units) - escape it
-    // 2. Any backslash NOT followed by valid JSON escape chars
     cleanedContent = cleanedContent
       // First, fix \u followed by non-hex (like \unit, \underline, etc.)
       .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u')
-      // Then fix other invalid escapes (not ", \, /, b, f, n, r, t, or already-fixed \\)
+      // Then fix other invalid escapes (not \", \\, \/, b, f, n, r, t, u)
       .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
     
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
@@ -679,8 +742,18 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
       parsedContent = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      console.error('Failed to parse content:', cleanedContent.substring(0, 2000));
-      throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+
+      const msg = parseError instanceof Error ? parseError.message : String(parseError);
+      const posMatch = msg.match(/position\s+(\d+)/i);
+      if (posMatch) {
+        const pos = Number(posMatch[1]);
+        const start = Math.max(0, pos - 200);
+        const end = Math.min(cleanedContent.length, pos + 200);
+        console.error('Parse error context:', cleanedContent.slice(start, end));
+      }
+
+      console.error('Failed to parse content (first 2000 chars):', cleanedContent.substring(0, 2000));
+      throw new Error(`Failed to parse AI response: ${msg}`);
     }
     
     const questions = parsedContent.questions;
