@@ -231,6 +231,16 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
 - The "series.data" array MUST have at least 3 data points to render a visible graph.
 - NEVER create a graph question without complete graphConfig and data points.
 
+CRITICAL RULE FOR graph_interpretation interpretationFields:
+- The interpretationFields array MUST match the intent of question_text.
+- If the question asks "What is the temperature at 2 minutes?" => field should ask "Temperature at t=2 (read from graph)" with type "numeric".
+- If the question asks about a trend => field should be type "text" asking to describe the trend.
+- ONLY include gradient/y-intercept fields if the question_text EXPLICITLY asks for gradient, slope, m-value, y-intercept, or c-value.
+- DO NOT add gradient/y-intercept fields by default. Match the fields to the question intent.
+- Example read-value question fields: [{"id":"f1","type":"numeric","question":"What is the temperature when time = 2 minutes?","correctAnswer":15,"marks":1}]
+- Example trend question fields: [{"id":"f1","type":"text","question":"Describe the trend between x=2 and x=4","correctAnswer":"increasing","synonyms":["rising","goes up","increases"],"marks":1}]
+- Example gradient question (ONLY if question asks for it): [{"id":"f1","type":"numeric","question":"What is the gradient of the line?","correctAnswer":2,"marks":1}]
+
 Table_grid questions (interactive tables):
 - question_type MUST be "table_grid".
 - Provide table_data as an object with:

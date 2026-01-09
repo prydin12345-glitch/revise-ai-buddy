@@ -1284,7 +1284,7 @@ const TakePracticeQuiz = () => {
                               // Always enable join mode for user flexibility
                               joinPointsMode: {
                                 enabled: true,
-                                defaultMode: config.joinPointsMode?.defaultMode ?? 'straight',
+                                // No defaultMode - user must select Straight or Curved
                                 graded: config.joinPointsMode?.graded,
                                 correctMode: config.joinPointsMode?.correctMode,
                               }
@@ -1292,7 +1292,7 @@ const TakePracticeQuiz = () => {
                             expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
                             studentPoints={currentAnswer.graphPlottedPoints || []}
                             onPointsChange={(points) => {
-                              const currentMode = currentAnswer.graphJoinMode ?? 'straight';
+                              const currentMode = currentAnswer.graphJoinMode;
                               const serialized = serializeGraphPlottingResponse(points, currentMode);
                               const newAnswer = {
                                 ...currentAnswer,
@@ -1302,7 +1302,7 @@ const TakePracticeQuiz = () => {
                               setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
                               debouncedSave(currentQuestion.id, { answer: serialized });
                             }}
-                            joinMode={currentAnswer.graphJoinMode ?? 'straight'}
+                            joinMode={currentAnswer.graphJoinMode}
                             onJoinModeChange={(mode) => {
                               const points = currentAnswer.graphPlottedPoints || [];
                               const serialized = serializeGraphPlottingResponse(points, mode);
