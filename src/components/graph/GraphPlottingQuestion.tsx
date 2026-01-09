@@ -1,12 +1,10 @@
 // Graph Plotting Question Component
 // Interactive scatter plot where students can add/drag/remove points
-// With optional Join Points Mode (straight vs curved lines)
+// With segment-based joining: select two points to join them
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,11 +12,12 @@ import {
   ReferenceDot,
   ReferenceLine,
   Line,
-  ComposedChart
+  ComposedChart,
+  Scatter
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Trash2, Undo2, TrendingUp, Spline } from 'lucide-react';
+import { Trash2, Undo2, TrendingUp, Spline, X } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
   GraphPlottingConfig,
@@ -26,6 +25,14 @@ import type {
   GraphPlottingAnswer,
   GraphPlottingMarkingResult
 } from './types';
+
+// Line segment between two points
+interface LineSegment {
+  id: string;
+  from: GraphPoint;
+  to: GraphPoint;
+  mode: 'straight' | 'curved';
+}
 
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
@@ -39,6 +46,9 @@ interface GraphPlottingQuestionProps {
   // Join mode props
   joinMode?: 'straight' | 'curved';
   onJoinModeChange?: (mode: 'straight' | 'curved') => void;
+  // Segments state (for persistence)
+  segments?: LineSegment[];
+  onSegmentsChange?: (segments: LineSegment[]) => void;
 }
 
 // Status colors matching table logic
@@ -59,10 +69,20 @@ export function GraphPlottingQuestion({
   markingData,
   subjectColor = '#3B82F6',
   joinMode,
-  onJoinModeChange
+  onJoinModeChange,
+  segments: externalSegments,
+  onSegmentsChange
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const [history, setHistory] = useState<GraphPoint[][]>([]);
+  
+  // Internal segment state (if not controlled externally)
+  const [internalSegments, setInternalSegments] = useState<LineSegment[]>([]);
+  const segments = externalSegments ?? internalSegments;
+  const setSegments = onSegmentsChange ?? setInternalSegments;
+  
+  // Selected points for joining (max 2)
+  const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
   const {
     xLabel,
@@ -76,11 +96,12 @@ export function GraphPlottingQuestion({
     joinPointsMode
   } = config;
 
-  // Determine if join mode is enabled and get current mode
+  // Determine if join mode is enabled - default to "none" (no mode selected initially)
   const isJoinModeEnabled = joinPointsMode?.enabled ?? false;
-  const currentJoinMode = joinMode ?? joinPointsMode?.defaultMode ?? 'straight';
+  // Current join mode: 'none' | 'straight' | 'curved'
+  const currentJoinMode = joinMode ?? 'none';
 
-  // Sort points by x for line drawing
+  // Sort points by x for display
   const sortedPoints = useMemo(() => {
     return [...studentPoints].sort((a, b) => a.x - b.x);
   }, [studentPoints]);
@@ -94,17 +115,95 @@ export function GraphPlottingQuestion({
     };
   }, [snapToGrid, stepX, stepY]);
 
-  // Add or toggle a point (remove if already exists at same position)
+  // Check if a point is in the selected join points list
+  const isPointSelected = useCallback((point: GraphPoint): boolean => {
+    return selectedJoinPoints.some(p => p.x === point.x && p.y === point.y);
+  }, [selectedJoinPoints]);
+
+  // Handle point click - either toggle plot/unplot OR select for joining
+  const handlePointClick = useCallback((point: GraphPoint, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (readOnly) return;
+    
+    // If join mode is active (straight or curved), select points for joining
+    if (currentJoinMode !== 'none') {
+      // Check if point is already selected
+      const alreadySelected = selectedJoinPoints.findIndex(p => p.x === point.x && p.y === point.y);
+      
+      if (alreadySelected !== -1) {
+        // Deselect the point
+        setSelectedJoinPoints(prev => prev.filter((_, i) => i !== alreadySelected));
+      } else if (selectedJoinPoints.length < 2) {
+        // Add to selection
+        const newSelection = [...selectedJoinPoints, point];
+        setSelectedJoinPoints(newSelection);
+        
+        // If we now have 2 points, create a segment
+        if (newSelection.length === 2) {
+          const newSegment: LineSegment = {
+            id: `seg-${Date.now()}`,
+            from: newSelection[0],
+            to: newSelection[1],
+            mode: currentJoinMode as 'straight' | 'curved'
+          };
+          setSegments([...segments, newSegment]);
+          // Clear selection after creating segment
+          setSelectedJoinPoints([]);
+        }
+      }
+    } else {
+      // No join mode - toggle point (remove it)
+      const existingIndex = studentPoints.findIndex(p => p.x === point.x && p.y === point.y);
+      if (existingIndex !== -1) {
+        setHistory(prev => [...prev, studentPoints]);
+        const newPoints = studentPoints.filter((_, i) => i !== existingIndex);
+        onPointsChange(newPoints);
+        
+        // Remove any segments that reference this point
+        const newSegments = segments.filter(
+          seg => !(seg.from.x === point.x && seg.from.y === point.y) &&
+                 !(seg.to.x === point.x && seg.to.y === point.y)
+        );
+        if (newSegments.length !== segments.length) {
+          setSegments(newSegments);
+        }
+        
+        // If points become empty, clear selected join points too
+        if (newPoints.length === 0) {
+          setSelectedJoinPoints([]);
+        }
+      }
+    }
+  }, [readOnly, currentJoinMode, selectedJoinPoints, studentPoints, segments, onPointsChange, setSegments]);
+
+  // Add a point (only called when clicking empty space)
   const addPoint = useCallback((x: number, y: number) => {
     if (readOnly) return;
 
     const snapped = snapPoint(x, y);
     
-    // Check if point already exists at this position - if so, remove it (toggle behavior)
+    // Check if point already exists at this position
     const existingIndex = studentPoints.findIndex(p => p.x === snapped.x && p.y === snapped.y);
     if (existingIndex !== -1) {
-      setHistory(prev => [...prev, studentPoints]);
-      onPointsChange(studentPoints.filter((_, i) => i !== existingIndex));
+      // Point exists - if no join mode, remove it (toggle behavior)
+      if (currentJoinMode === 'none') {
+        setHistory(prev => [...prev, studentPoints]);
+        const newPoints = studentPoints.filter((_, i) => i !== existingIndex);
+        onPointsChange(newPoints);
+        
+        // Remove segments referencing this point
+        const newSegments = segments.filter(
+          seg => !(seg.from.x === snapped.x && seg.from.y === snapped.y) &&
+                 !(seg.to.x === snapped.x && seg.to.y === snapped.y)
+        );
+        if (newSegments.length !== segments.length) {
+          setSegments(newSegments);
+        }
+        
+        if (newPoints.length === 0) {
+          setSelectedJoinPoints([]);
+        }
+      }
       return;
     }
     
@@ -113,14 +212,30 @@ export function GraphPlottingQuestion({
 
     setHistory(prev => [...prev, studentPoints]);
     onPointsChange([...studentPoints, snapped]);
-  }, [readOnly, maxPoints, studentPoints, snapPoint, onPointsChange]);
+  }, [readOnly, maxPoints, studentPoints, snapPoint, onPointsChange, currentJoinMode, segments, setSegments]);
 
   // Remove a point by index
   const removePoint = useCallback((index: number) => {
     if (readOnly) return;
+    const point = studentPoints[index];
     setHistory(prev => [...prev, studentPoints]);
-    onPointsChange(studentPoints.filter((_, i) => i !== index));
-  }, [readOnly, studentPoints, onPointsChange]);
+    const newPoints = studentPoints.filter((_, i) => i !== index);
+    onPointsChange(newPoints);
+    
+    // Remove segments referencing this point
+    const newSegments = segments.filter(
+      seg => !(seg.from.x === point.x && seg.from.y === point.y) &&
+             !(seg.to.x === point.x && seg.to.y === point.y)
+    );
+    if (newSegments.length !== segments.length) {
+      setSegments(newSegments);
+    }
+    
+    // Clear all if empty
+    if (newPoints.length === 0) {
+      setSelectedJoinPoints([]);
+    }
+  }, [readOnly, studentPoints, onPointsChange, segments, setSegments]);
 
   // Undo last action
   const undo = useCallback(() => {
@@ -130,12 +245,14 @@ export function GraphPlottingQuestion({
     onPointsChange(previous);
   }, [history, readOnly, onPointsChange]);
 
-  // Clear all points
+  // Clear all points and segments
   const clearAll = useCallback(() => {
     if (readOnly || studentPoints.length === 0) return;
     setHistory(prev => [...prev, studentPoints]);
     onPointsChange([]);
-  }, [readOnly, studentPoints, onPointsChange]);
+    setSegments([]);
+    setSelectedJoinPoints([]);
+  }, [readOnly, studentPoints, onPointsChange, setSegments]);
 
   // Get point status from marking data
   const getPointStatus = (point: GraphPoint): 'correct' | 'incorrect' | null => {
@@ -156,7 +273,7 @@ export function GraphPlottingQuestion({
       .map(r => r.expectedPoint);
   }, [showCorrectAnswers, markingData]);
 
-  // Handle chart click for adding points - using native mouse/touch events for reliability
+  // Handle chart click for adding points
   const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (readOnly) return;
     
@@ -168,12 +285,10 @@ export function GraphPlottingQuestion({
     let clientY: number;
     
     if ('touches' in e) {
-      // Touch event
       if (e.touches.length === 0) return;
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
     } else {
-      // Mouse event
       clientX = e.clientX;
       clientY = e.clientY;
     }
@@ -194,9 +309,6 @@ export function GraphPlottingQuestion({
     // Check if click is within chart area
     if (relativeX < marginLeft || relativeX > rect.width - marginRight ||
         relativeY < marginTop || relativeY > rect.height - marginBottom) {
-      if (import.meta.env.DEV) {
-        console.log('[GraphPlotting] Click outside chart area');
-      }
       return;
     }
     
@@ -205,43 +317,54 @@ export function GraphPlottingQuestion({
     const yRange = domainY[1] - domainY[0];
     
     const xFraction = (relativeX - marginLeft) / chartWidth;
-    const yFraction = 1 - ((relativeY - marginTop) / chartHeight); // Invert Y
+    const yFraction = 1 - ((relativeY - marginTop) / chartHeight);
     
     const x = domainX[0] + xFraction * xRange;
     const y = domainY[0] + yFraction * yRange;
     
-    if (import.meta.env.DEV) {
-      console.log('[GraphPlotting] Adding point at:', { x: x.toFixed(2), y: y.toFixed(2), relativeX, relativeY });
-    }
-    
     addPoint(x, y);
   }, [readOnly, domainX, domainY, addPoint]);
 
-  // Custom dot renderer with status colors
+  // Custom dot renderer with status colors and selection highlighting
   const renderDot = (props: any) => {
     const { cx, cy, payload, index } = props;
     if (!payload) return null;
     
     const status = getPointStatus(payload);
+    const isSelected = isPointSelected(payload);
     const color = status ? statusColors[status] : subjectColor;
     
     return (
       <g key={`dot-${index}`}>
+        {/* Selection ring */}
+        {isSelected && (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={14}
+            fill="none"
+            stroke={subjectColor}
+            strokeWidth={3}
+            strokeDasharray="4 2"
+          />
+        )}
         <circle
           cx={cx}
           cy={cy}
           r={8}
           fill={color}
-          stroke="#fff"
-          strokeWidth={2}
+          stroke={isSelected ? subjectColor : '#fff'}
+          strokeWidth={isSelected ? 3 : 2}
           style={{ cursor: readOnly ? 'default' : 'pointer' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!readOnly) removePoint(index);
-          }}
+          onClick={(e) => handlePointClick(payload, e)}
         />
         {!readOnly && (
-          <title>Click to remove point ({payload.x}, {payload.y})</title>
+          <title>
+            {currentJoinMode !== 'none' 
+              ? `Click to ${isSelected ? 'deselect' : 'select'} point (${payload.x}, ${payload.y})`
+              : `Click to remove point (${payload.x}, ${payload.y})`
+            }
+          </title>
         )}
       </g>
     );
@@ -275,9 +398,11 @@ export function GraphPlottingQuestion({
                 type="single"
                 value={currentJoinMode}
                 onValueChange={(val) => {
-                  if (val && onJoinModeChange) {
+                  if (onJoinModeChange) {
                     onJoinModeChange(val as 'straight' | 'curved');
                   }
+                  // Clear selection when changing mode
+                  setSelectedJoinPoints([]);
                 }}
                 className="border rounded-md"
               >
@@ -313,7 +438,19 @@ export function GraphPlottingQuestion({
         </div>
       )}
 
-      {/* Chart - with touch-action: none to prevent scroll stealing on mobile */}
+      {/* Helper text for joining */}
+      {!readOnly && isJoinModeEnabled && studentPoints.length >= 2 && currentJoinMode !== 'none' && (
+        <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+          {selectedJoinPoints.length === 0 && (
+            <span>Tap a plotted point to start joining.</span>
+          )}
+          {selectedJoinPoints.length === 1 && (
+            <span>Now tap another point to create a {currentJoinMode} line.</span>
+          )}
+        </div>
+      )}
+
+      {/* Chart */}
       <div 
         className="border rounded-lg p-4 bg-card"
         style={{ 
@@ -327,7 +464,7 @@ export function GraphPlottingQuestion({
           <ComposedChart
             ref={chartRef}
             style={{ 
-              pointerEvents: 'none' // Let parent div handle clicks
+              pointerEvents: 'none'
             }}
             data={sortedPoints}
           >
@@ -370,19 +507,23 @@ export function GraphPlottingQuestion({
               formatter={(value: number) => value.toFixed(1)}
             />
             
-            {/* Connecting line through points (if join mode enabled and has 2+ points) */}
-            {isJoinModeEnabled && sortedPoints.length >= 2 && (
-              <Line
-                data={sortedPoints}
-                type={currentJoinMode === 'curved' ? 'monotone' : 'linear'}
-                dataKey="y"
-                stroke={subjectColor}
-                strokeWidth={2.5}
-                dot={false}
-                isAnimationActive={false}
-                connectNulls
-              />
-            )}
+            {/* Render individual line segments */}
+            {segments.map((segment, idx) => {
+              const segmentData = [segment.from, segment.to].sort((a, b) => a.x - b.x);
+              return (
+                <Line
+                  key={segment.id}
+                  data={segmentData}
+                  type={segment.mode === 'curved' ? 'monotone' : 'linear'}
+                  dataKey="y"
+                  stroke={subjectColor}
+                  strokeWidth={2.5}
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              );
+            })}
             
             {/* Student points */}
             <Scatter
@@ -409,6 +550,30 @@ export function GraphPlottingQuestion({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Segments list (if any) */}
+      {segments.length > 0 && !readOnly && (
+        <div className="border rounded-lg p-3 bg-muted/30">
+          <div className="text-sm font-medium mb-2">Line segments ({segments.length})</div>
+          <div className="flex flex-wrap gap-2">
+            {segments.map((seg, idx) => (
+              <div 
+                key={seg.id}
+                className="inline-flex items-center gap-1 bg-background border rounded-full px-2 py-1 text-xs"
+              >
+                <span>({seg.from.x}, {seg.from.y}) → ({seg.to.x}, {seg.to.y})</span>
+                <span className="text-muted-foreground">{seg.mode}</span>
+                <button
+                  onClick={() => setSegments(segments.filter((_, i) => i !== idx))}
+                  className="ml-1 hover:text-destructive"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Plotted points list */}
       <div className="border rounded-lg overflow-hidden">
