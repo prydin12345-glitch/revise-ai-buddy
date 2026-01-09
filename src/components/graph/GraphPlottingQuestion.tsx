@@ -149,74 +149,66 @@ export function GraphPlottingQuestion({
       .map(r => r.expectedPoint);
   }, [showCorrectAnswers, markingData]);
 
-  // Handle chart click for adding points
-  const handleChartClick = (event: any) => {
+  // Handle chart click for adding points - using native mouse/touch events for reliability
+  const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (readOnly) return;
     
-    // Debug logging for development
-    if (import.meta.env.DEV) {
-      console.log('[GraphPlotting] Chart click event:', {
-        xValue: event?.xValue,
-        yValue: event?.yValue,
-        chartX: event?.chartX,
-        chartY: event?.chartY,
-        activePayload: event?.activePayload,
-      });
+    // Get click/touch position
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    
+    let clientX: number;
+    let clientY: number;
+    
+    if ('touches' in e) {
+      // Touch event
+      if (e.touches.length === 0) return;
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      // Mouse event
+      clientX = e.clientX;
+      clientY = e.clientY;
     }
     
-    // Try multiple ways to get coordinates from the event
-    let x: number | undefined;
-    let y: number | undefined;
+    // Calculate position relative to container
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
     
-    // Method 1: Direct xValue/yValue from recharts
-    if (typeof event?.xValue === 'number' && typeof event?.yValue === 'number') {
-      x = event.xValue;
-      y = event.yValue;
-    }
-    // Method 2: From activePayload
-    else if (event?.activePayload?.[0]?.payload) {
-      const payload = event.activePayload[0].payload;
-      x = payload.x;
-      y = payload.y;
-    }
-    // Method 3: Calculate from chart coordinates
-    else if (event?.chartX !== undefined && event?.chartY !== undefined && chartRef.current) {
-      // Get chart dimensions and calculate position
-      const chartArea = chartRef.current;
-      if (chartArea) {
-        // Map pixel coordinates to data coordinates
-        const xRange = domainX[1] - domainX[0];
-        const yRange = domainY[1] - domainY[0];
-        
-        // These are approximate - recharts doesn't expose this cleanly
-        const chartWidth = 600; // Approximate
-        const chartHeight = 280; // Approximate
-        const marginLeft = 60;
-        const marginBottom = 40;
-        
-        const relX = (event.chartX - marginLeft) / (chartWidth - marginLeft);
-        const relY = 1 - (event.chartY / (chartHeight - marginBottom));
-        
-        if (relX >= 0 && relX <= 1 && relY >= 0 && relY <= 1) {
-          x = domainX[0] + relX * xRange;
-          y = domainY[0] + relY * yRange;
-        }
-      }
-    }
+    // Chart area margins (approximate for recharts)
+    const marginLeft = 65;
+    const marginRight = 20;
+    const marginTop = 20;
+    const marginBottom = 50;
     
-    if (x === undefined || y === undefined) {
+    const chartWidth = rect.width - marginLeft - marginRight;
+    const chartHeight = rect.height - marginTop - marginBottom;
+    
+    // Check if click is within chart area
+    if (relativeX < marginLeft || relativeX > rect.width - marginRight ||
+        relativeY < marginTop || relativeY > rect.height - marginBottom) {
       if (import.meta.env.DEV) {
-        console.warn('[GraphPlotting] Could not extract coordinates from click event');
+        console.log('[GraphPlotting] Click outside chart area');
       }
       return;
     }
     
+    // Calculate data coordinates
+    const xRange = domainX[1] - domainX[0];
+    const yRange = domainY[1] - domainY[0];
+    
+    const xFraction = (relativeX - marginLeft) / chartWidth;
+    const yFraction = 1 - ((relativeY - marginTop) / chartHeight); // Invert Y
+    
+    const x = domainX[0] + xFraction * xRange;
+    const y = domainY[0] + yFraction * yRange;
+    
     if (import.meta.env.DEV) {
-      console.log('[GraphPlotting] Adding point at:', { x, y });
+      console.log('[GraphPlotting] Adding point at:', { x: x.toFixed(2), y: y.toFixed(2), relativeX, relativeY });
     }
     
     addPoint(x, y);
-  };
+  }, [readOnly, domainX, domainY, addPoint]);
 
   // Custom dot renderer with status colors
   const renderDot = (props: any) => {
@@ -317,15 +309,18 @@ export function GraphPlottingQuestion({
       {/* Chart - with touch-action: none to prevent scroll stealing on mobile */}
       <div 
         className="border rounded-lg p-4 bg-card"
-        style={{ touchAction: readOnly ? 'auto' : 'none' }}
+        style={{ 
+          touchAction: readOnly ? 'auto' : 'none',
+          cursor: readOnly ? 'default' : 'crosshair'
+        }}
+        onClick={readOnly ? undefined : handleChartContainerClick}
+        onTouchStart={readOnly ? undefined : handleChartContainerClick}
       >
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart
             ref={chartRef}
-            onClick={handleChartClick}
             style={{ 
-              cursor: readOnly ? 'default' : 'crosshair',
-              pointerEvents: 'auto' 
+              pointerEvents: 'none' // Let parent div handle clicks
             }}
             data={sortedPoints}
           >
