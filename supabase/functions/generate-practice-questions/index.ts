@@ -419,23 +419,85 @@ ${notesSection}`;
       return await response.json();
     };
 
+    // Pre-parse sanitizer: fix invalid backslash escapes in JSON strings BEFORE parsing.
+    // This handles LaTeX-like sequences the model may emit despite instructions.
+    const sanitizeJsonString = (raw: string): string => {
+      // Replace invalid escape sequences inside strings.
+      // Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+      // Anything else (e.g. \s, \l, \q from LaTeX) is invalid.
+      let result = '';
+      let inString = false;
+      let i = 0;
+      while (i < raw.length) {
+        const c = raw[i];
+        if (c === '"' && (i === 0 || raw[i - 1] !== '\\')) {
+          inString = !inString;
+          result += c;
+          i++;
+          continue;
+        }
+        if (inString && c === '\\') {
+          const next = raw[i + 1];
+          if (next === undefined) {
+            // Trailing backslash - escape it
+            result += '\\\\';
+            i++;
+            continue;
+          }
+          // Check for valid JSON escapes
+          if ('"\\\/bfnrt'.includes(next)) {
+            result += c + next;
+            i += 2;
+            continue;
+          }
+          if (next === 'u') {
+            // Check for valid unicode escape \uXXXX
+            const hex = raw.slice(i + 2, i + 6);
+            if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+              result += raw.slice(i, i + 6);
+              i += 6;
+              continue;
+            }
+          }
+          // Invalid escape - double the backslash to make it literal
+          result += '\\\\' + next;
+          i += 2;
+          continue;
+        }
+        result += c;
+        i++;
+      }
+      return result;
+    };
+
     const extractToolArgs = (ai: any) => {
       const msg = ai?.choices?.[0]?.message;
       const toolCalls = msg?.tool_calls;
       const call = Array.isArray(toolCalls) ? toolCalls[0] : null;
 
       if (!call?.function?.arguments) {
-        // Helpful debug for unexpected formats
         console.error('Unexpected AI response shape (missing tool_calls):', JSON.stringify(ai).slice(0, 2000));
         throw new Error('AI response missing tool output');
       }
 
-      const argsText = String(call.function.arguments);
+      let argsText = String(call.function.arguments);
+      
+      // Attempt parse; if fails, sanitize and retry once
       try {
         return JSON.parse(argsText);
-      } catch (e) {
-        console.error('Failed to parse tool arguments:', argsText.slice(0, 2000));
-        throw new Error(`Failed to parse AI tool arguments: ${e instanceof Error ? e.message : String(e)}`);
+      } catch (firstErr) {
+        console.warn('First JSON.parse failed, sanitizing:', (firstErr as Error).message);
+        const sanitized = sanitizeJsonString(argsText);
+        try {
+          return JSON.parse(sanitized);
+        } catch (secondErr) {
+          // Log context around failure position
+          const match = (secondErr as Error).message.match(/position (\d+)/);
+          const pos = match ? parseInt(match[1], 10) : 0;
+          const snippet = sanitized.slice(Math.max(0, pos - 50), pos + 50);
+          console.error('Sanitized JSON still invalid. Context:', snippet);
+          throw new Error(`Failed to parse AI tool arguments: ${(secondErr as Error).message}`);
+        }
       }
     };
 
