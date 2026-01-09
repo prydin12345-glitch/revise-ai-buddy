@@ -121,6 +121,7 @@ interface UserAnswer {
   // Graph question answers
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
+  graphJoinMode?: 'straight' | 'curved'; // Join mode for plotting questions
   graphMarkingData?: {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
     perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
@@ -1276,15 +1277,39 @@ const TakePracticeQuiz = () => {
                       return (
                         <div className="space-y-4">
                           <GraphPlottingQuestion
-                            config={config}
+                            config={{
+                              ...config,
+                              // Ensure maxPoints doesn't limit to 1 - use 20 as sensible default
+                              maxPoints: config.maxPoints === 1 ? undefined : config.maxPoints,
+                              // Always enable join mode for user flexibility
+                              joinPointsMode: {
+                                enabled: true,
+                                defaultMode: config.joinPointsMode?.defaultMode ?? 'straight',
+                                graded: config.joinPointsMode?.graded,
+                                correctMode: config.joinPointsMode?.correctMode,
+                              }
+                            }}
                             expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
                             studentPoints={currentAnswer.graphPlottedPoints || []}
                             onPointsChange={(points) => {
-                              const serialized = serializeGraphPlottingResponse(points);
+                              const currentMode = currentAnswer.graphJoinMode ?? 'straight';
+                              const serialized = serializeGraphPlottingResponse(points, currentMode);
                               const newAnswer = {
                                 ...currentAnswer,
                                 answer: serialized,
                                 graphPlottedPoints: points,
+                              };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            joinMode={currentAnswer.graphJoinMode ?? 'straight'}
+                            onJoinModeChange={(mode) => {
+                              const points = currentAnswer.graphPlottedPoints || [];
+                              const serialized = serializeGraphPlottingResponse(points, mode);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                graphJoinMode: mode,
                               };
                               setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
                               debouncedSave(currentQuestion.id, { answer: serialized });
