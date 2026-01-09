@@ -366,7 +366,24 @@ export function TableGridQuestion({
   answerKey,
   markingData
 }: TableGridQuestionProps) {
-  const { headers, rows, columns, selectionMode, prefilled, tableType, perRowMaxSelections } = tableData;
+  // Safely destructure with fallbacks to prevent crashes on malformed data
+  const headers = tableData?.headers ?? [];
+  const rows = tableData?.rows ?? [];
+  const columns = tableData?.columns;
+  const selectionMode = tableData?.selectionMode;
+  const prefilled = tableData?.prefilled;
+  const tableType = tableData?.tableType;
+  const perRowMaxSelections = tableData?.perRowMaxSelections;
+  
+  // Early return if tableData is completely invalid
+  if (!tableData || !Array.isArray(rows) || rows.length === 0) {
+    console.warn('TableGridQuestion: Invalid or empty tableData', { tableData });
+    return (
+      <div className="p-4 border border-destructive/30 bg-destructive/5 rounded-lg text-sm text-destructive">
+        Unable to render table: invalid or missing table data.
+      </div>
+    );
+  }
   
   // Determine if this is a toggle table or input table
   const isInputTable = tableType === 'text_entry' || tableType === 'number_entry' || tableType === 'mixed' ||
