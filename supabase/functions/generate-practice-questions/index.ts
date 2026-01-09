@@ -534,6 +534,11 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
     // NOTE: Removed aggressive regex that was corrupting table_grid data
     // The AI should return properly escaped JSON - if parse fails, we log and fail cleanly
     
+    // Fix invalid JSON escape sequences (e.g., \degree, \alpha, \beta from LaTeX)
+    // JSON only allows: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+    // Convert invalid \X sequences to \\X so they become literal backslash + letter
+    cleanedContent = cleanedContent.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+    
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
     
     let parsedContent;
@@ -541,7 +546,7 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
       parsedContent = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      console.error('Failed to parse content:', cleanedContent);
+      console.error('Failed to parse content:', cleanedContent.substring(0, 2000));
       throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
     }
     
