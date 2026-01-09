@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.25.76";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation } from "../_shared/graph-validator.ts";
 
@@ -128,698 +129,370 @@ serve(async (req) => {
     // Format notes for safe inclusion in prompt
     const notesSection = formatNotesForPrompt(notesValidation.sanitized);
 
-    // Build AI prompt
-    const difficultyInstructions = 
-      setData.difficulty_mode === 'increasing' 
+    // Build AI prompt (ASCII-only, JSON-safe)
+    const difficultyInstructions =
+      setData.difficulty_mode === 'increasing'
         ? 'Questions should progressively increase in difficulty from easy to hard.'
         : setData.difficulty_mode === 'mixed'
         ? 'Questions should have a balanced mix of easy, medium, and hard difficulty.'
         : `All questions should be ${setData.difficulty_level} difficulty.`;
 
-    const prompt = `Generate ${setData.question_count} practice questions for ${setData.subject_id} focused on the following subtopics:
-${setData.subtopics.join(', ')}
+    const prompt = `Generate ${setData.question_count} practice questions.
 
-Requirements:
+Context:
+- Subject: ${setData.subject_id}
+- Subtopics: ${setData.subtopics.join(', ')}
 - Educational Level: ${setData.educational_tier}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
-- Question types: Mix of short answer, extended response, MCQ, table_grid (for interactive tables), graph_interpretation, and graph_plotting where appropriate
-- Include proper LaTeX notation for mathematical expressions using $ delimiters (e.g., $x^2$, $\\frac{1}{b^5}$)
-- Set has_math: true for questions with equations
-- Use lowercase variable names consistently (e.g., $x$ not $X$)
 
-📐 MATHEMATICAL NOTATION (CRITICAL):
-1. Use LaTeX wrapped in $ for inline math: "Find the value of $x$ where $x^2 = 4$"
-2. For fractions use: $\\frac{1}{b^5}$ NOT 1/b^5
-3. For exponents use: $b^{-5}$ NOT b^-5
-4. For roots use: $\\sqrt{x}$ NOT sqrt(x)
-5. Always use lowercase variables: $x$, $y$, $a$, $b$ (NOT $X$, $Y$)
+CRITICAL OUTPUT RULES:
+1) Absolutely NO LaTeX anywhere.
+2) Absolutely NO backslashes anywhere.
+3) ASCII only in ALL text fields (no special symbols, no unicode).
+4) Math must be plain ASCII, examples:
+   - sqrt(16)
+   - 3/4
+   - (x+1)/(x-1)
+   - pi
+   - !=, <=, >=
+   - y = mx + c
+5) Do not output markdown. Do not output code fences.
+6) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
 
-📊 DATA TABLE FORMATTING (CRITICAL):
-When generating questions that require tables:
-1. ALWAYS use HTML table format with class="exam-table"
-2. NEVER use markdown pipe/dash format (| col1 | col2 |)
-3. Use this exact structure:
-<table class="exam-table">
-  <thead>
-    <tr><th>Header 1</th><th>Header 2</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Data 1</td><td>Data 2</td></tr>
-    <tr><td>Data 3</td><td>Data 4</td></tr>
-  </tbody>
-</table>
-4. Place table AFTER the question text, separated by a blank line
-5. Include a caption prefix like "Table 1:" before the table if relevant
-6. Tables with LaTeX: Use $ delimiters inside cells, e.g., <td>$x^2$</td>
+Question type mix:
+- Use a mix of: short_answer, extended, mcq, table_grid, graph_interpretation, graph_plotting where appropriate.
 
-📸 FIGURE NUMBERING RULES (MANDATORY):
-When referencing images/figures/diagrams:
-1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
-2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
-3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
-4. NEVER reuse figure numbers across different questions
-5. NEVER invent unrelated figure numbers
-6. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
+MCQ rules (avoid duplication in UI):
+- question_text MUST contain only the stem (no A/B/C/D in the text).
+- options MUST be an array of 4 strings WITHOUT letter prefixes.
+- correct_answer MUST be one of: "A", "B", "C", "D".
 
-Example usage:
-- Q16: "Fig. 16.1 shows the velocity-time graph..."
-- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
+Graph questions (must include graphSpec inside correct_answer):
+- For graph_interpretation and graph_plotting, correct_answer MUST be an object with:
+  - graphType: "interpretation" or "plotting"
+  - graphConfig: { chartType, xLabel, yLabel, xDomain, yDomain, series }
+  - For interpretation: interpretationFields (at least 1)
+  - For plotting: plottingAnswer.expectedPoints
 
-🚀 UNIVERSAL TABLE RULES (MANDATORY FOR PDF RENDERING):
-1. SHORT HEADERS ONLY (max 14-16 characters):
-   - NEVER use long headers that will truncate in PDF
-   - Always shorten or alias headers:
-     * "Section of Quadrat" → "Quadrat"
-     * "Beetles Count" → "Count"
-     * "Desired concentration of diluted sample" → "Conc (mol/dm³)"
-     * "Volume of stock solution required" → "Stock Vol (cm³)"
-     * "Volume of distilled water required" → "Water Vol (cm³)"
-     * "Temperature / °C" → "Temp (°C)"
-     * "Time / s" → "Time (s)"
+Table_grid questions (interactive tables):
+- question_type MUST be "table_grid".
+- Provide table_data as an object with:
+  - tableType: one of "tick_cross" | "text_entry" | "number_entry" | "mixed"
+  - headers: array of short, meaningful headers (avoid placeholders like "Column 1")
+  - rows: array of { id, label, locked }
+  - columns: array describing input types (toggle/text/number/display)
+  - selectionMode: "single" | "multi" | "text" | "number"
+  - prefilled: optional array for given values, each item: { rowId, colIndex, value, locked }
+- correct_answer for table_grid MUST be an object with correctAnswers keyed by row id.
 
-2. PLAIN TEXT VALUES INSIDE TABLE CELLS:
-   - NEVER output raw LaTeX/math mode inside table cells
-   - Always use plain text with Unicode superscripts:
-     * "$0.4 \\, mol \\, dm^{-3}$" → "0.4 mol dm⁻³"
-     * "$25 \\, cm^3$" → "25 cm³"
-     * "$x^2$" → "x²"
+General field expectations:
+- question_number: string ("1", "2", ...)
+- question_text: plain ASCII string
+- question_latex: MUST be null
+- worked_solution: plain ASCII string (optional)
+- has_math: true/false
+- equation_complexity: "simple" | "medium" | "complex" (optional)
 
-3. TABLE SIZE LIMITS:
-   - If table has more than 6 rows, consider:
-     (A) Rotating table (swap rows/columns) for better fit
-     (B) Splitting into two smaller tables
-   - Tables MUST NOT break across pages
+${specContent ? 'Specification (excerpt):\n' + specContent.substring(0, 5000) : ''}
+${notesSection}`;
 
-4. NARROW TABLES - USE HORIZONTAL LAYOUT:
-   - If table has 2-3 columns and 5+ rows, use horizontal format:
-     | Quadrat | A | B | C | D | E |
-     | Count   |12 |15 |10 |12 |11 |
+    // IMPORTANT: The tool schema + server-side validation enforces structure and blocks LaTeX/backslashes.
 
-📝 MCQ FORMATTING (CRITICAL - PREVENTS DUPLICATION):
-⚠️ NEVER include options (A, B, C, D) inside the "question_text" field!
-The student exam interface renders interactive A/B/C/D buttons automatically.
-If you include options in question_text, they will appear TWICE (duplicated).
+    console.log('Calling Lovable AI (tool mode)...');
 
-RULES:
-1. "question_text" = ONLY the question stem (no A/B/C/D options)
-2. "options" array = Contains the option text WITHOUT letter prefixes
-3. Options must NOT include letter prefixes - the frontend adds A), B), C), D)
-
-✅ CORRECT FORMAT:
-{
-  "question_text": "Which expression represents the same value as $\\frac{1}{b^5}$?",
-  "options": ["$b^{1/5}$", "$b^{-5}$", "$-b^5$", "$5b$"],
-  "correct_answer": "B"
-}
-
-❌ WRONG FORMAT (causes duplication):
-{
-  "question_text": "Which expression represents...?\n\nA) $b^{1/5}$\nB) $b^{-5}$\nC) $-b^5$\nD) $5b$",
-  "options": ["$b^{1/5}$", "$b^{-5}$", "$-b^5$", "$5b$"]
-}
-
-⚠️ FAILSAFE: Before outputting any MCQ, verify question_text does NOT contain "A)", "B)", "C)", "D)"
-
-------------------------------------------------------------
-⚠️ MCQ VALIDATION RULES (CRITICAL - PREVENTS INCORRECT ANSWERS)
-------------------------------------------------------------
-
-When generating ANY MCQ, you MUST perform these validation steps:
-
-1. COMPUTE THE CORRECT ANSWER FIRST:
-   - Before creating options, calculate/determine the correct answer yourself
-   - For math/statistics questions: SHOW YOUR WORKING internally
-   - For data-based questions: Use the EXACT numbers from the table/dataset
-
-2. VALIDATE OPTIONS CONTAIN THE CORRECT ANSWER:
-   - Compare your computed answer to ALL listed options
-   - If NONE match, you MUST rewrite the options to include the correct answer
-   - NEVER output an MCQ where no option is correct
-
-3. DATA-BASED MCQ VALIDATION (Mean/Median/Mode):
-   - For mean: sum of all values ÷ count of values
-   - For median: middle value when data is sorted (or average of two middle values)
-   - For mode: most frequently occurring value
-   - VERIFY your calculated values match one of the options EXACTLY
-
-4. PLAUSIBLE DISTRACTORS:
-   - Incorrect options must be plausible but clearly wrong
-   - Do NOT duplicate the correct answer in distractors
-   - Distractors should reflect common calculation errors
-
-⚠️ INTERNAL CHECK BEFORE FINAL OUTPUT:
-Before outputting any MCQ, ask yourself:
-"Does one of my options match the mathematically correct answer?"
-If NO → FIX IT before outputting. NEVER rely on the user to notice errors.
-
-❌ EXAMPLE OF WHAT NOT TO DO (Beetle Data):
-Data: 10, 11, 12, 12, 15 (from quadrats A-E)
-Correct calculation: Mean = 60/5 = 12, Median = 12, Mode = 12
-Options provided:
-A) Mean = 13, median = 14, mode = 15  ← WRONG
-B) Mean = 14, median = 15, mode = 13  ← WRONG
-C) Mean = 15, median = 14, mode = 13  ← WRONG
-D) Mean = 15, median = 13, mode = 14  ← WRONG
-→ This is UNACCEPTABLE. No correct answer exists!
-
-✅ CORRECT APPROACH:
-Data: 10, 11, 12, 12, 15
-Step 1: Calculate - Mean = (10+11+12+12+15)/5 = 60/5 = 12
-Step 2: Sort data: 10, 11, 12, 12, 15 → Median = 12 (middle value)
-Step 3: Mode = 12 (appears twice, most frequent)
-Step 4: Ensure one option has "Mean = 12, Median = 12, Mode = 12"
-Step 5: Create plausible distractors with common errors (e.g., forgetting to sort for median)
-
-------------------------------------------------------------
-📊 TABLE GENERATION & STUDENT INTERACTIVITY RULES
-------------------------------------------------------------
-
-When generating questions that include tables for student completion:
-
-1. EMPTY CELLS = STUDENT INPUT FIELDS:
-   - Leave cells blank that students should fill in
-   - Use consistent empty cell format: <td></td>
-   - The frontend will convert empty cells to interactive inputs
-
-2. CELL TYPE DETECTION (for frontend):
-   - Numeric columns: Include units in headers (e.g., "Volume (cm³)", "Count", "Mass (g)")
-   - Checkbox columns: Use ✓ symbols in example rows for classification tables
-   - Text columns: Standard blank cells for short text answers
-
-3. EXAMPLE ROW PATTERN:
-   - For classification tables, include one filled row as an example
-   - Mark with "Example:" or show first row completed
-
-4. TABLE STRUCTURE FOR MARKING:
-   - Each editable cell must have a corresponding correct_answer
-   - For table-based questions, include expected values in worked_solution
-
-5. PDF vs STUDENT VIEW:
-   - In PDF: Empty cells remain blank for manual writing
-   - In student view: Empty cells become interactive inputs (numeric, checkbox, or text)
-
-6. TABLE ANSWER DATA STRUCTURE:
-   Student responses are stored as structured JSON:
-   {
-     "row1_col1": "10.0",
-     "row1_col2": "15.0",
-     "row2_col1": true,
-     "row2_col2": false
-   }
-
-7. MARKING TABLE-BASED QUESTIONS:
-   When marking, evaluate:
-   - Whether table values match the correct solution
-   - Whether checkbox patterns are correct (for classification tables)
-   - Whether the reasoning in free-text section adds partial credit
-
-8. ⚠️ CALCULATION TABLES (CRITICAL - PREFILLED DATA REQUIRED):
-   When creating a table where students must CALCULATE values from GIVEN data:
-   
-   Example scenario: "Calculate rate of reaction (1/time) from time values"
-   - Column 1: Label (Temperature)
-   - Column 2: GIVEN data (Time taken) - must be pre-filled and read-only
-   - Column 3: ANSWER (Rate of reaction) - empty, student calculates
-   
-   You MUST use the "prefilled" field to provide given values:
-   
-   "table_data": {
-     "tableType": "number_entry",
-     "headers": ["Temperature (°C)", "Time taken (s)", "Rate (s⁻¹)"],
-     "rows": [
-       { "id": "row1", "label": "20" },
-       { "id": "row2", "label": "30" },
-       { "id": "row3", "label": "40" }
-     ],
-     "columns": [
-       { "type": "display", "header": "Time taken (s)" },
-       { "type": "number", "header": "Rate (s⁻¹)" }
-     ],
-     "prefilled": [
-       { "rowId": "row1", "colIndex": 1, "value": "25", "locked": true },
-       { "rowId": "row2", "colIndex": 1, "value": "20", "locked": true },
-       { "rowId": "row3", "colIndex": 1, "value": "15", "locked": true }
-     ],
-     "selectionMode": "number"
-   },
-   "correct_answer": {
-     "correctAnswers": {
-       "row1": ["0.04"],
-       "row2": ["0.05"],
-       "row3": ["0.07"]
-     }
-   }
-   
-   RULES FOR CALCULATION TABLES:
-   - EVERY row MUST have a prefilled value for the "given" column(s)
-   - prefilled values MUST have "locked": true (read-only)
-   - The column with given data should have type: "display" (not "number" or "text")
-   - Only the ANSWER column(s) should have type: "number" or "text"
-   - correctAnswers must be the calculated result matching the given data
-   - If you cannot generate meaningful given data, DO NOT create the table
-
-❌ INCORRECT FORMAT:
-{
-  "question_text": "Which expression represents...? A) $b^{1/5}$ B) $b^{-5}$",
-  "options": ["A) $b^{1/5}$", "B) $b^{-5}$", ...]
-}
-
-${specContent ? 'Align questions with the provided specification document:\n' + specContent.substring(0, 5000) : ''}
-${notesSection}
-
-------------------------------------------------------------
-📈 GRAPH QUESTION GENERATION (CRITICAL - MUST INCLUDE GRAPHSPEC)
-------------------------------------------------------------
-
-For graph_interpretation and graph_plotting questions, you MUST include complete graphSpec data.
-The UI CANNOT render a graph without this data. If you generate a graph question without graphSpec,
-it will be REJECTED and regenerated.
-
-**GRAPH QUESTION TYPES:**
-- "graph_interpretation": Student views a pre-rendered graph and answers questions about it (gradient, intercept, read values)
-- "graph_plotting": Student plots points on an empty coordinate grid
-
-**REQUIRED correct_answer FORMAT for graph questions:**
-{
-  "graphType": "interpretation" | "plotting",
-  "graphConfig": {
-    "chartType": "line" | "scatter",
-    "xLabel": "Time (s)",
-    "yLabel": "Distance (m)",
-    "xDomain": [0, 10],
-    "yDomain": [0, 25],
-    "series": [
-      {
-        "id": "s1",
-        "label": "Object A",
-        "data": [{"x": 0, "y": 0}, {"x": 2, "y": 4}, {"x": 4, "y": 8}, {"x": 6, "y": 12}, {"x": 8, "y": 16}],
-        "showLine": true,
-        "lineStyle": "solid"
-      }
-    ]
-  },
-  "interpretationFields": [  // ONLY for graph_interpretation
-    {
-      "id": "gradient",
-      "type": "numeric",
-      "question": "What is the gradient of line A?",
-      "correctAnswer": 2,
-      "tolerance": 0.1,
-      "marks": 1,
-      "acceptedFormats": ["2", "y=2x", "m=2"]
-    },
-    {
-      "id": "yintercept",
-      "type": "numeric", 
-      "question": "What is the y-intercept?",
-      "correctAnswer": 0,
-      "tolerance": 0.1,
-      "marks": 1
-    }
-  ],
-  "plottingAnswer": {  // ONLY for graph_plotting
-    "expectedPoints": [{"x": 0, "y": 0}, {"x": 2, "y": 4}, {"x": 4, "y": 8}],
-    "toleranceUnits": 0.5,
-    "marksPerPoint": 1
-  }
-}
-
-**CRITICAL RULES FOR GRAPH QUESTIONS:**
-1. graphConfig.series MUST have at least one series with data points (for interpretation) OR be empty (for plotting)
-2. Each series.data MUST contain at least 3 {x, y} points
-3. xDomain and yDomain MUST be [min, max] arrays with numbers
-4. For interpretation: interpretationFields MUST have at least one field with id, type, question, correctAnswer
-5. For plotting: plottingAnswer.expectedPoints MUST contain the points students should plot
-6. DO NOT describe the graph only in text - provide actual numeric data
-7. The series data should match the question context (e.g., physics: distance-time, velocity-time)
-
-**EXAMPLE graph_interpretation question:**
-{
-  "question_number": "5",
-  "question_text": "The graph shows the velocity of a car over time. Study the graph and answer the questions below.",
-  "question_type": "graph_interpretation",
-  "marks": 3,
-  "subtopic": "Motion Graphs",
-  "difficulty_level": "medium",
-  "has_math": true,
-  "correct_answer": {
-    "graphType": "interpretation",
-    "graphConfig": {
-      "chartType": "line",
-      "xLabel": "Time (s)",
-      "yLabel": "Velocity (m/s)",
-      "xDomain": [0, 10],
-      "yDomain": [0, 20],
-      "series": [{
-        "id": "velocity",
-        "label": "Car velocity",
-        "data": [{"x": 0, "y": 0}, {"x": 2, "y": 8}, {"x": 4, "y": 12}, {"x": 6, "y": 16}, {"x": 8, "y": 18}, {"x": 10, "y": 20}],
-        "showLine": true
-      }]
-    },
-    "interpretationFields": [
-      {"id": "acceleration", "type": "numeric", "question": "What is the initial acceleration (0-2s)?", "correctAnswer": 4, "tolerance": 0.2, "marks": 2},
-      {"id": "pattern", "type": "text", "question": "Describe what happens to acceleration over time", "correctAnswer": "decreases", "marks": 1}
-    ]
-  }
-}
-
-**EXAMPLE graph_plotting question:**
-{
-  "question_number": "6", 
-  "question_text": "Plot the following points on the coordinate grid: (1, 2), (3, 6), (5, 10)",
-  "question_type": "graph_plotting",
-  "marks": 3,
-  "subtopic": "Coordinates",
-  "difficulty_level": "easy",
-  "correct_answer": {
-    "graphType": "plotting",
-    "graphConfig": {
-      "chartType": "scatter",
-      "xLabel": "x",
-      "yLabel": "y",
-      "xDomain": [0, 8],
-      "yDomain": [0, 12],
-      "series": []
-    },
-    "plottingAnswer": {
-      "expectedPoints": [{"x": 1, "y": 2}, {"x": 3, "y": 6}, {"x": 5, "y": 10}],
-      "toleranceUnits": 0.5,
-      "marksPerPoint": 1
-    }
-  }
-}
-
-------------------------------------------------------------
-
-Return JSON with:
-{
-  "questions": [
-    {
-      "question_number": "1",
-      "question_text": "The question text WITHOUT options (options go in options array for MCQ)",
-      "question_latex": "Full LaTeX version if complex math",
-      "question_type": "short_answer" | "extended" | "mcq" | "table_grid" | "graph_interpretation" | "graph_plotting",
-      "marks": 2-10,
-      "subtopic": "...",
-      "difficulty_level": "easy" | "medium" | "hard",
-      "has_math": true/false,
-      "equation_complexity": "simple" | "medium" | "complex",
-      "correct_answer": "The answer OR for table_grid: JSON object OR for graph_*: graphSpec object",
-      "options": ["Option text without letter prefix", "..."] (ONLY for MCQ, null otherwise),
-      "worked_solution": "Step-by-step solution",
-      "table_data": { // REQUIRED for table_grid questions
-        "headers": ["Column 1", "Column 2"],
-        "rows": [
-          { "id": "row1", "label": "Item A", "locked": false },
-          { "id": "row2", "label": "Item B (Example)", "locked": true }
-        ],
-        "columns": [
-          { "type": "toggle", "header": "Yes" },
-          { "type": "toggle", "header": "No" },
-          { "type": "text", "header": "Notes" }
-        ],
-        "selectionMode": "single" | "multi",
-        "prefilled": { "row2": [0] }
-      }
-    }
-  ]
-}
-
-TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
-
-1. **TABLE TYPES - Use the correct one:**
-   - "tick_cross": For true/false, yes/no, classification tables where students tap to select. Use columns with type="toggle".
-   - "text_entry": For tables where students type text answers. Use columns with type="text".
-   - "number_entry": For tables where students type numeric answers. Use columns with type="number".
-   - "mixed": For tables with a combination of types.
-
-2. **REQUIRED FIELDS:**
-   - question_type: "table_grid" (always for any table question)
-   - table_data: Object with headers, rows, columns, and tableType
-   - correct_answer: JSON object with correctAnswers keyed by row ID
-
-3. **COLUMN TYPE MUST MATCH QUESTION:**
-   - If question asks to "complete", "fill in", "enter", "write", "calculate" → type="text" or type="number"
-   - If question asks to "tick", "select", "indicate", "cross", "mark" → type="toggle"
-   - NEVER use type="toggle" for questions requiring written/typed answers!
-
-4. **HEADER VALIDATION (CRITICAL):**
-   - NEVER use placeholder headers like "Element 1", "Element 2", "Option A", "Option B", etc.
-   - Headers MUST be meaningful and specific: "Carbon", "Hydrogen", "Oxygen", "True", "False", "Monomer", "Polymer"
-   - For elements: Use actual element names (Carbon, Hydrogen, Oxygen, Nitrogen, Sulfur, Phosphorus)
-   - For True/False: Use headers "True", "False" (not "Column 1", "Column 2")
-
-5. **LATEX/UNITS IN TABLES:**
-   - NEVER use raw LaTeX like $s^{-1}$ in headers or cells
-   - Use plain text with Unicode: s⁻¹ (not $s^{-1}$), cm³ (not $cm^3$), mol·dm⁻³ (not $mol\\,dm^{-3}$)
-   - Common superscripts: ⁻¹ ⁻² ⁻³ ² ³ ⁴ ⁵
-   - Common subscripts: ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉
-
-6. **ANSWER KEY FORMAT:**
-   - For toggle tables: correctAnswers: { "rowId": [columnIndex, ...], ... } where columnIndex is 0-based for data columns
-   - For text/number tables: correctAnswers: { "rowId": ["value1", "value2", ...], ... }
-   
-7. **EXAMPLE - True/False table:**
-   {
-     "question_type": "table_grid",
-     "question_text": "Indicate whether each statement is true or false.",
-     "table_data": {
-       "tableType": "tick_cross",
-       "headers": ["Statement", "True", "False"],
-       "rows": [{"id": "stmt1", "label": "Proteins are polymers of amino acids."}],
-       "columns": [{"type": "toggle", "header": "True"}, {"type": "toggle", "header": "False"}],
-       "selectionMode": "single"
-     },
-     "correct_answer": { "correctAnswers": { "stmt1": [0] } }
-   }
-
-8. **EXAMPLE - Text entry table:**
-   {
-     "question_type": "table_grid",
-     "question_text": "Complete the table by identifying the monomer for each polymer.",
-     "table_data": {
-       "tableType": "text_entry",
-       "headers": ["Polymer", "Monomer"],
-       "rows": [{"id": "row1", "label": "Starch"}, {"id": "row2", "label": "Protein"}],
-       "columns": [{"type": "text", "header": "Monomer"}],
-       "selectionMode": "text"
-     },
-     "correct_answer": { "correctAnswers": { "row1": ["Glucose"], "row2": ["Amino acids"] } }
-   }
-
-⚠️ VALIDATION BEFORE OUTPUT: Reject any table where:
-- Headers contain "Element 1/2/3", "Option A/B/C", "Column 1/2/3", or similar placeholders
-- Column type is "toggle" but question asks for typed/written answers
-- Raw LaTeX appears in headers or cells`;
-
-    console.log('Calling Lovable AI...');
-
-    // Call Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are an expert exam question generator. Return only valid JSON.' },
-          { role: 'user', content: prompt }
-        ],
-        response_format: { type: "json_object" }
-      }),
+    // ------------------------------
+    // Tool schema + validation
+    // ------------------------------
+
+    const QuestionTypeSchema = z.enum([
+      'short_answer',
+      'extended',
+      'mcq',
+      'table_grid',
+      'graph_interpretation',
+      'graph_plotting',
+    ]);
+
+    const DifficultySchema = z.enum(['easy', 'medium', 'hard']);
+
+    const PracticeQuestionSchema = z.object({
+      question_number: z.string().min(1),
+      question_text: z.string().min(1),
+      question_latex: z.null().optional().nullable(),
+      question_type: QuestionTypeSchema,
+      marks: z.number().int().min(1).max(20),
+      subtopic: z.string().min(1),
+      difficulty_level: DifficultySchema,
+      has_math: z.boolean().optional().default(false),
+      equation_complexity: z.enum(['simple', 'medium', 'complex']).optional().nullable(),
+      correct_answer: z.unknown(),
+      options: z.array(z.string()).optional().nullable(),
+      worked_solution: z.string().optional().nullable(),
+      table_data: z.unknown().optional().nullable(),
+    }).passthrough();
+
+    const GeneratePracticeQuestionsSchema = z.object({
+      questions: z.array(PracticeQuestionSchema).min(1),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const aiResponse = await response.json();
-    console.log('AI response received');
-
-    const content = aiResponse.choices[0].message.content;
-    console.log('Raw AI content:', content.substring(0, 200)); // Log first 200 chars for debugging
-    
-    // Strip markdown code fences if present
-    let cleanedContent = content.trim();
-    if (cleanedContent.startsWith('```json')) {
-      cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanedContent.startsWith('```')) {
-      cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-    
-    // NOTE: Removed aggressive regex that was corrupting table_grid data.
-    // The AI should return properly escaped JSON, but we still defensively repair common JSON-breaking artifacts.
-
-    // 1) Escape raw control characters inside JSON strings (JSON allows them only as \n, \r, \t, etc.)
-    const escapeControlCharsInJsonStrings = (input: string) => {
-      let out = '';
-      let inString = false;
-      let escaped = false;
-
-      for (let i = 0; i < input.length; i++) {
-        const ch = input[i];
-
-        if (inString) {
-          if (escaped) {
-            // If the model ends a line with a backslash, it can "escape" a real newline -> invalid JSON.
-            // Convert that specific case into a JSON newline escape.
-            if (ch === '\n') out += 'n';
-            else if (ch === '\r') out += 'r';
-            else out += ch;
-            escaped = false;
-            continue;
-          }
-
-          if (ch === '\\') {
-            escaped = true;
-            out += ch;
-            continue;
-          }
-
-          if (ch === '"') {
-            inString = false;
-            out += ch;
-            continue;
-          }
-
-          if (ch === '\n') {
-            out += '\\n';
-            continue;
-          }
-          if (ch === '\r') {
-            out += '\\r';
-            continue;
-          }
-          if (ch === '\t') {
-            out += '\\t';
-            continue;
-          }
-
-          out += ch;
-        } else {
-          if (ch === '"') inString = true;
-          out += ch;
-        }
+    const isAsciiOnly = (s: string) => {
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        // allow tab/newline/carriage return
+        if (c === 9 || c === 10 || c === 13) continue;
+        if (c < 32 || c > 126) return false;
       }
-
-      return out;
+      return true;
     };
 
-    // 2) Escape LaTeX-ish backslash sequences inside JSON strings (e.g. \sqrt, \left, \frac)
-    // while preserving real JSON escapes (\n, \t, \", \\, \/, \uXXXX, etc.).
-    const escapeInvalidBackslashesInJsonStrings = (input: string) => {
-      let out = '';
-      let inString = false;
+    const findStringViolations = (value: unknown) => {
+      const issues: { path: string; issue: string }[] = [];
 
-      for (let i = 0; i < input.length; i++) {
-        const ch = input[i];
-
-        if (!inString) {
-          if (ch === '"') inString = true;
-          out += ch;
-          continue;
+      const walk = (v: unknown, path: string) => {
+        if (typeof v === 'string') {
+          if (v.includes('\\')) issues.push({ path, issue: 'contains backslash' });
+          if (v.includes('$')) issues.push({ path, issue: 'contains dollar sign (LaTeX)' });
+          if (v.includes('```')) issues.push({ path, issue: 'contains markdown fence' });
+          if (!isAsciiOnly(v)) issues.push({ path, issue: 'contains non-ASCII characters' });
+          return;
         }
-
-        // inString
-        if (ch === '"') {
-          inString = false;
-          out += ch;
-          continue;
+        if (Array.isArray(v)) {
+          v.forEach((item, idx) => walk(item, `${path}[${idx}]`));
+          return;
         }
-
-        if (ch !== '\\') {
-          out += ch;
-          continue;
-        }
-
-        const next = input[i + 1];
-        if (!next) {
-          // dangling backslash
-          out += '\\\\';
-          continue;
-        }
-
-        // Always preserve these JSON escapes
-        if (next === '"' || next === '\\' || next === '/') {
-          out += '\\' + next;
-          i += 1;
-          continue;
-        }
-
-        // Preserve valid unicode escapes
-        if (next === 'u') {
-          const hex = input.slice(i + 2, i + 6);
-          if (hex.length === 4 && /^[0-9a-fA-F]{4}$/.test(hex)) {
-            out += '\\u' + hex;
-            i += 5;
-            continue;
+        if (v && typeof v === 'object') {
+          for (const [k, child] of Object.entries(v as Record<string, unknown>)) {
+            walk(child, path ? `${path}.${k}` : k);
           }
-          // \u followed by non-hex (e.g. \unit) -> treat as literal backslash
-          out += '\\\\';
-          continue;
         }
+      };
 
-        // Preserve \n/\r/\t ONLY when it looks intentional; otherwise treat as LaTeX command (\neq, \times, etc.)
-        if (next === 'n' || next === 'r' || next === 't' || next === 'b' || next === 'f') {
-          const after = input[i + 2];
-          if (after && /[A-Za-z]/.test(after)) {
-            // likely LaTeX command -> escape the backslash
-            out += '\\\\';
-            continue;
-          }
-
-          out += '\\' + next;
-          i += 1;
-          continue;
-        }
-
-        // Any other \X is invalid JSON escape -> make it literal
-        out += '\\\\';
-      }
-
-      return out;
+      walk(value, '');
+      return issues;
     };
 
-    // 0) Repair backslash-newline artifacts before generic escape fixes
-    cleanedContent = cleanedContent.replace(/\\\r?\n/g, '\\n');
+    // Fail-safe sanitizer (only applied if needed): escape backslashes inside ALL string fields.
+    // NOTE: This is a last resort to guarantee JSON-safe serialization if the model disobeys.
+    const escapeBackslashesDeep = <T,>(value: T): { value: T; didEscape: boolean; count: number } => {
+      let didEscape = false;
+      let count = 0;
 
-    // Apply repairs
-    cleanedContent = escapeControlCharsInJsonStrings(cleanedContent);
-    cleanedContent = escapeInvalidBackslashesInJsonStrings(cleanedContent);
-    
-    console.log('Cleaned content:', cleanedContent.substring(0, 200));
-    
-    let parsedContent;
-    try {
-      parsedContent = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
+      const walk = (v: any): any => {
+        if (typeof v === 'string') {
+          if (v.includes('\\')) {
+            didEscape = true;
+            const next = v.replace(/\\/g, '\\\\');
+            count += (next.length - v.length) / 1;
+            return next;
+          }
+          return v;
+        }
+        if (Array.isArray(v)) return v.map(walk);
+        if (v && typeof v === 'object') {
+          const out: Record<string, any> = {};
+          for (const [k, child] of Object.entries(v)) out[k] = walk(child);
+          return out;
+        }
+        return v;
+      };
 
-      const msg = parseError instanceof Error ? parseError.message : String(parseError);
-      const posMatch = msg.match(/position\s+(\d+)/i);
-      if (posMatch) {
-        const pos = Number(posMatch[1]);
-        const start = Math.max(0, pos - 200);
-        const end = Math.min(cleanedContent.length, pos + 200);
-        console.error('Parse error context:', cleanedContent.slice(start, end));
+      return { value: walk(value), didEscape, count };
+    };
+
+    const tool = {
+      type: 'function',
+      function: {
+        name: 'generate_practice_questions',
+        description: 'Generate a set of practice questions as structured data.',
+        parameters: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['questions'],
+          properties: {
+            questions: {
+              type: 'array',
+              minItems: setData.question_count,
+              maxItems: setData.question_count,
+              items: {
+                type: 'object',
+                required: [
+                  'question_number',
+                  'question_text',
+                  'question_type',
+                  'marks',
+                  'subtopic',
+                  'difficulty_level',
+                  'correct_answer',
+                ],
+                additionalProperties: true,
+                properties: {
+                  question_number: { type: 'string' },
+                  question_text: { type: 'string' },
+                  question_latex: { type: ['null', 'string'], description: 'Must be null.' },
+                  question_type: {
+                    type: 'string',
+                    enum: [
+                      'short_answer',
+                      'extended',
+                      'mcq',
+                      'table_grid',
+                      'graph_interpretation',
+                      'graph_plotting',
+                    ],
+                  },
+                  marks: { type: 'number' },
+                  subtopic: { type: 'string' },
+                  difficulty_level: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+                  has_math: { type: 'boolean' },
+                  equation_complexity: { type: ['null', 'string'] },
+                  correct_answer: {
+                    anyOf: [
+                      { type: 'string' },
+                      { type: 'number' },
+                      { type: 'boolean' },
+                      { type: 'null' },
+                      { type: 'array' },
+                      { type: 'object' },
+                    ],
+                  },
+                  options: { type: ['array', 'null'], items: { type: 'string' } },
+                  worked_solution: { type: ['string', 'null'] },
+                  table_data: { type: ['object', 'null'] },
+                },
+              },
+            },
+          },
+        },
+      },
+    } as const;
+
+    const baseSystemPrompt =
+      'You are an expert practice question generator. ' +
+      'You MUST call the function generate_practice_questions. ' +
+      'Do not output any other text. ' +
+      'No LaTeX, no backslashes, ASCII only. ' +
+      'Math must be plain ASCII like sqrt(16), 3/4, (x+1)/(x-1), pi, !=, <=, >=.';
+
+    const strictRetryPrompt = 'Return valid data. No LaTeX. No backslashes. ASCII only.';
+
+    const callAi = async (attempt: 0 | 1) => {
+      const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          temperature: 0,
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: prompt },
+          ],
+          tools: [tool],
+          tool_choice: { type: 'function', function: { name: 'generate_practice_questions' } },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI API error:', response.status, errorText);
+
+        if (response.status === 429) {
+          throw new Error('AI rate limit exceeded. Please try again in a moment.');
+        }
+        if (response.status === 402) {
+          throw new Error('AI usage limit reached. Please add credits and try again.');
+        }
+
+        throw new Error(`AI API error: ${response.status}`);
       }
 
-      console.error('Failed to parse content (first 2000 chars):', cleanedContent.substring(0, 2000));
-      throw new Error(`Failed to parse AI response: ${msg}`);
+      return await response.json();
+    };
+
+    const extractToolArgs = (ai: any) => {
+      const msg = ai?.choices?.[0]?.message;
+      const toolCalls = msg?.tool_calls;
+      const call = Array.isArray(toolCalls) ? toolCalls[0] : null;
+
+      if (!call?.function?.arguments) {
+        // Helpful debug for unexpected formats
+        console.error('Unexpected AI response shape (missing tool_calls):', JSON.stringify(ai).slice(0, 2000));
+        throw new Error('AI response missing tool output');
+      }
+
+      const argsText = String(call.function.arguments);
+      try {
+        return JSON.parse(argsText);
+      } catch (e) {
+        console.error('Failed to parse tool arguments:', argsText.slice(0, 2000));
+        throw new Error(`Failed to parse AI tool arguments: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    };
+
+    const validateOrThrow = (payload: unknown) => {
+      const parsed = GeneratePracticeQuestionsSchema.safeParse(payload);
+      if (!parsed.success) {
+        console.error('Schema validation failed:', parsed.error.flatten());
+        throw new Error('AI returned invalid question data (schema validation failed)');
+      }
+
+      if (parsed.data.questions.length !== setData.question_count) {
+        throw new Error(`AI returned ${parsed.data.questions.length} questions, expected ${setData.question_count}`);
+      }
+
+      // Enforce: question_latex must be null
+      for (const q of parsed.data.questions) {
+        if (q.question_latex !== null && q.question_latex !== undefined) {
+          throw new Error('question_latex must be null');
+        }
+      }
+
+      // Enforce: no LaTeX/backslashes/non-ASCII in ANY string fields
+      const violations = findStringViolations(parsed.data);
+      if (violations.length) {
+        console.error('String violations found:', violations.slice(0, 50));
+        throw new Error('AI returned forbidden characters (LaTeX/backslashes/non-ASCII)');
+      }
+
+      return parsed.data;
+    };
+
+    let generated: z.infer<typeof GeneratePracticeQuestionsSchema> | null = null;
+    let lastErr: unknown = null;
+
+    for (const attempt of [0, 1] as const) {
+      try {
+        const ai = await callAi(attempt);
+        const toolPayload = extractToolArgs(ai);
+        generated = validateOrThrow(toolPayload);
+        break;
+      } catch (e) {
+        lastErr = e;
+        console.warn(`AI generation attempt ${attempt + 1} failed:`, e);
+      }
     }
-    
-    const questions = parsedContent.questions;
+
+    if (!generated) {
+      throw lastErr instanceof Error ? lastErr : new Error('AI generation failed');
+    }
+
+    // Apply fail-safe sanitizer only if needed (should be rare due to strict validation)
+    const escaped = escapeBackslashesDeep(generated);
+    if (escaped.didEscape) {
+      console.warn(`Fail-safe sanitizer: escaped backslashes in model output (count approx: ${escaped.count})`);
+    }
+
+    const questions = escaped.value.questions;
 
     if (!questions || !Array.isArray(questions)) {
       throw new Error('AI response does not contain a valid questions array');
