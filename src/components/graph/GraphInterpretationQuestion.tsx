@@ -63,22 +63,14 @@ export function GraphInterpretationQuestion({
     });
   };
 
-  // Get dynamic placeholder based on field type and metadata
+  // Get dynamic placeholder based on field type - neutral, student-friendly
   const getPlaceholder = (field: GraphInterpretationField): string => {
     // Use custom placeholder if provided
     if ((field as any).placeholder) return (field as any).placeholder;
     
-    // Infer from question text for common cases
-    const questionLower = field.question.toLowerCase();
-    
+    // Neutral placeholders - no examples in the field itself
     if (field.type === 'numeric') {
-      if (questionLower.includes('gradient') || questionLower.includes('slope')) {
-        return 'Enter gradient (e.g. 2 or y=2x)';
-      }
-      if (questionLower.includes('intercept')) {
-        return 'Enter y-intercept (e.g. 0 or (0,0))';
-      }
-      return 'Enter a number (e.g. 3.5)';
+      return 'Enter your answer';
     }
     
     if (field.type === 'text') {

@@ -136,22 +136,24 @@ export function validateGraphQuestion(
     errors.push('domainY/yDomain values must be numbers');
   }
 
-  // Validate series data (required for rendering)
+  // Validate series data (required for rendering a visible graph)
   if (!Array.isArray(config.series) || config.series.length === 0) {
-    errors.push('Missing or empty series array in graphConfig');
+    errors.push('Missing or empty series array in graphConfig - graph will not render');
   } else {
     config.series.forEach((s: any, idx: number) => {
       if (!s.id) errors.push(`Series ${idx}: missing id`);
       if (!s.label) errors.push(`Series ${idx}: missing label`);
       if (!Array.isArray(s.data) || s.data.length === 0) {
-        errors.push(`Series ${idx}: missing or empty data array`);
+        errors.push(`Series ${idx}: missing or empty data array - graph will not render`);
       } else {
-        // Validate at least some points
+        // Validate we have enough valid points for a visible graph
         const validPoints = s.data.filter((p: any) => 
           typeof p.x === 'number' && typeof p.y === 'number'
         );
         if (validPoints.length === 0) {
-          errors.push(`Series ${idx}: no valid {x, y} points`);
+          errors.push(`Series ${idx}: no valid {x, y} points - graph will not render`);
+        } else if (validPoints.length < 3) {
+          errors.push(`Series ${idx}: only ${validPoints.length} data points - need at least 3 for a visible graph`);
         }
       }
     });

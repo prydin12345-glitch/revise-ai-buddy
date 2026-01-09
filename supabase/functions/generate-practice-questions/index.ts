@@ -144,21 +144,28 @@ serve(async (req) => {
     let visualQuestionInstructions = '';
     if (includeGraphs && includeTables) {
       visualQuestionInstructions = `
-REQUIRED VISUAL QUESTIONS:
-- At least 30% of questions MUST be graph_interpretation or graph_plotting with valid graphConfig.
-- At least 20% of questions MUST be table_grid with valid table_data.
-- Every graph question MUST render a visible graph with plotted data.`;
+REQUIRED VISUAL QUESTIONS (MANDATORY):
+- At least 30% of questions MUST be graph_interpretation or graph_plotting.
+- At least 20% of questions MUST be table_grid.
+- EVERY graph question MUST include complete graphConfig with series.data array containing at least 3 {x,y} points.
+- A graph question WITHOUT visible data points is INVALID and will be rejected.`;
     } else if (includeGraphs) {
       visualQuestionInstructions = `
-REQUIRED VISUAL QUESTIONS:
-- At least 40% of questions MUST be graph_interpretation or graph_plotting with valid graphConfig.
-- Every graph question MUST render a visible graph with plotted data.
-- Include: read values from graphs, find gradient/intercept, plot points.`;
+REQUIRED GRAPH QUESTIONS (MANDATORY):
+- At least 40% of questions MUST be graph_interpretation or graph_plotting.
+- EVERY graph question MUST include complete graphConfig with:
+  - chartType: "line" or "scatter"
+  - xLabel, yLabel: meaningful axis labels
+  - domainX, domainY: [min, max] arrays
+  - series: array with at least one object containing data: [{x, y}, ...] with at least 3 points
+- A graph question WITHOUT visible data points is INVALID and will be rejected.
+- Example topics: read values, find gradient/intercept, identify trends, plot coordinates.`;
     } else if (includeTables) {
       visualQuestionInstructions = `
-REQUIRED VISUAL QUESTIONS:
-- At least 30% of questions MUST be table_grid with valid table_data.
-- Tables should be interactive with tick/cross, text entry, or number entry fields.`;
+REQUIRED TABLE QUESTIONS (MANDATORY):
+- At least 30% of questions MUST be table_grid.
+- Tables must have headers, rows, and columns arrays.
+- Use appropriate tableType: tick_cross, text_entry, number_entry, or mixed.`;
     } else {
       visualQuestionInstructions = `
 Question type mix:
@@ -195,12 +202,34 @@ MCQ rules (avoid duplication in UI):
 - options MUST be an array of 4 strings WITHOUT letter prefixes.
 - correct_answer MUST be one of: "A", "B", "C", "D".
 
-Graph questions (must include graphSpec inside correct_answer):
-- For graph_interpretation and graph_plotting, correct_answer MUST be an object with:
-  - graphType: "interpretation" or "plotting"
-  - graphConfig: { chartType, xLabel, yLabel, domainX: [min, max], domainY: [min, max], series: [{id, label, data: [{x, y}]}] }
-  - For interpretation: interpretationFields: [{id, type, question, correctAnswer, marks}] (at least 1)
-  - For plotting: plottingAnswer: {expectedPoints: [{x, y}], toleranceUnits: 0.5, marksPerPoint: 1}
+Graph questions (CRITICAL - must ALWAYS render a visible graph):
+- For graph_interpretation and graph_plotting, you MUST generate a complete chart.
+- correct_answer MUST be an object with ALL of the following:
+  {
+    "graphType": "interpretation" or "plotting",
+    "graphConfig": {
+      "chartType": "line" or "scatter",
+      "xLabel": "meaningful axis label (e.g. Time/s, Distance/m)",
+      "yLabel": "meaningful axis label (e.g. Speed/m/s, Height/cm)",
+      "domainX": [min, max],
+      "domainY": [min, max],
+      "series": [
+        {
+          "id": "s1",
+          "label": "Data",
+          "data": [{"x": 0, "y": 0}, {"x": 1, "y": 2}, ...],
+          "showLine": true
+        }
+      ],
+      "grid": {"show": true, "stepX": 1, "stepY": 1}
+    },
+    // For interpretation questions:
+    "interpretationFields": [{"id": "f1", "type": "numeric", "question": "...", "correctAnswer": 2, "marks": 1}],
+    // For plotting questions:
+    "plottingAnswer": {"expectedPoints": [{"x": 0, "y": 0}], "toleranceUnits": 0.5, "marksPerPoint": 1}
+  }
+- The "series.data" array MUST have at least 3 data points to render a visible graph.
+- NEVER create a graph question without complete graphConfig and data points.
 
 Table_grid questions (interactive tables):
 - question_type MUST be "table_grid".
@@ -751,19 +780,38 @@ ${notesSection}`;
         }
       }
       
-      // GRAPH QUESTION VALIDATION (CRITICAL - ensures graphSpec exists)
+      // GRAPH QUESTION VALIDATION (CRITICAL - ensures graphSpec exists with actual data)
       if (q.question_type === 'graph_interpretation' || q.question_type === 'graph_plotting') {
         const graphValidation = validateGraphQuestion(q.question_type, q.correct_answer);
         logGraphValidation(q.question_number, graphValidation);
         
-        if (!graphValidation.valid) {
-          console.warn(`Question ${q.question_number}: Graph question failed validation, generating fallback`);
+        // Parse to check if series has actual data points
+        let hasValidData = false;
+        if (graphValidation.valid) {
+          try {
+            const graphData = typeof q.correct_answer === 'string' 
+              ? JSON.parse(q.correct_answer) 
+              : q.correct_answer;
+            const series = graphData?.graphConfig?.series;
+            if (Array.isArray(series) && series.length > 0) {
+              const firstSeries = series[0];
+              if (Array.isArray(firstSeries?.data) && firstSeries.data.length >= 3) {
+                hasValidData = true;
+              }
+            }
+          } catch (e) {
+            console.warn(`Question ${q.question_number}: Failed to parse graphConfig for data check`);
+          }
+        }
+        
+        if (!graphValidation.valid || !hasValidData) {
+          console.warn(`Question ${q.question_number}: Graph question failed validation or missing data, generating fallback`);
           
-          // Generate fallback graphSpec
+          // Generate fallback graphSpec with real data
           const fallbackSpec = generateFallbackGraphSpec(q.question_type, q.question_text || '');
           
           if (fallbackSpec) {
-            console.info(`Question ${q.question_number}: Using fallback graphSpec`);
+            console.info(`Question ${q.question_number}: Using fallback graphSpec with sample data`);
             q.correct_answer = fallbackSpec;
           } else {
             // Cannot generate fallback - downgrade to short_answer
