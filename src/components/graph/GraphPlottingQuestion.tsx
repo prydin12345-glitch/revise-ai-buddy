@@ -94,15 +94,22 @@ export function GraphPlottingQuestion({
     };
   }, [snapToGrid, stepX, stepY]);
 
-  // Add a point
+  // Add or toggle a point (remove if already exists at same position)
   const addPoint = useCallback((x: number, y: number) => {
     if (readOnly) return;
-    if (maxPoints && studentPoints.length >= maxPoints) return;
 
     const snapped = snapPoint(x, y);
     
-    // Don't add duplicate points
-    if (studentPoints.some(p => p.x === snapped.x && p.y === snapped.y)) return;
+    // Check if point already exists at this position - if so, remove it (toggle behavior)
+    const existingIndex = studentPoints.findIndex(p => p.x === snapped.x && p.y === snapped.y);
+    if (existingIndex !== -1) {
+      setHistory(prev => [...prev, studentPoints]);
+      onPointsChange(studentPoints.filter((_, i) => i !== existingIndex));
+      return;
+    }
+    
+    // Check max points limit (only when adding new point)
+    if (maxPoints && studentPoints.length >= maxPoints) return;
 
     setHistory(prev => [...prev, studentPoints]);
     onPointsChange([...studentPoints, snapped]);
@@ -366,12 +373,14 @@ export function GraphPlottingQuestion({
             {/* Connecting line through points (if join mode enabled and has 2+ points) */}
             {isJoinModeEnabled && sortedPoints.length >= 2 && (
               <Line
+                data={sortedPoints}
                 type={currentJoinMode === 'curved' ? 'monotone' : 'linear'}
                 dataKey="y"
                 stroke={subjectColor}
-                strokeWidth={2}
+                strokeWidth={2.5}
                 dot={false}
                 isAnimationActive={false}
+                connectNulls
               />
             )}
             
