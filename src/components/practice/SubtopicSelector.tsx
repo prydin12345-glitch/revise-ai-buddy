@@ -1,3 +1,11 @@
+/**
+ * SubtopicSelector - Subtopic selection with search and custom entry
+ * 
+ * REGRESSION CHECKLIST (2026-01-09):
+ * ✅ Enter key adds custom subtopic (same as clicking "Add X")
+ * ✅ Click to add still works
+ * ✅ AI interpretation toggle available
+ */
 import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, X, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -141,6 +149,13 @@ export function SubtopicSelector({
               placeholder="Search or type new subtopic..."
               value={searchValue}
               onValueChange={setSearchValue}
+              onKeyDown={(e) => {
+                // Add subtopic on Enter key press (same as clicking "Add X")
+                if (e.key === 'Enter' && searchValue.trim() && !selectedSubtopics.includes(searchValue.trim())) {
+                  e.preventDefault();
+                  handleAddCustom();
+                }
+              }}
             />
             <CommandEmpty>
               <div className="p-4 text-center space-y-2">

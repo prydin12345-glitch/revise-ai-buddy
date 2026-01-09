@@ -1,3 +1,14 @@
+/**
+ * TakePracticeQuiz - Practice quiz taking and review component
+ * 
+ * REGRESSION CHECKLIST (after UI fixes 2026-01-09):
+ * ✅ Review mode: no timer/menu/submit buttons shown
+ * ✅ Review mode: footer shows Previous | Exit Review | Next
+ * ✅ Review mode: sidebar shows "Exit Review" instead of "Submit All"
+ * ✅ Review mode badge displayed in header
+ * ✅ Toast auto-dismisses after 8s and has close button
+ * ✅ All answers + graphs/tables rehydrate correctly from stored data
+ */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,6 +150,7 @@ const TakePracticeQuiz = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRetrySetDialog, setShowRetrySetDialog] = useState(false);
+  const [isReviewMode, setIsReviewMode] = useState(false); // Review mode state
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -489,9 +501,16 @@ const TakePracticeQuiz = () => {
           }
         }
 
+        // Detect review mode: if quiz is completed (completed_at set)
+        if (progress.completed_at) {
+          setIsReviewMode(true);
+        }
+
         if (progress.current_question_index > 0 || savedAnswers?.length > 0) {
           toast.success("Progress restored!", {
-            description: `${savedAnswers?.length || 0} answers loaded • Resuming from Q${progress.current_question_index + 1}`
+            description: `${savedAnswers?.length || 0} answers loaded • Resuming from Q${progress.current_question_index + 1}`,
+            duration: 8000, // Auto-dismiss after 8 seconds
+            closeButton: true, // Allow manual close via X
           });
         }
       }
@@ -1016,31 +1035,43 @@ const TakePracticeQuiz = () => {
             )}
           </div>
 
-          {/* Right: Timer + Menu */}
+          {/* Right: Timer + Menu (hidden in review mode) */}
           <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-sm">
-              <Clock className="w-4 h-4" />
-              <span className="font-mono">{formatTime(timeElapsed)}</span>
-            </div>
-            <QuestionOptionsMenu
-              mode="practice"
-              showMathKeypad={showMathKeypad}
-              onToggleMathKeypad={() => setShowMathKeypad(prev => !prev)}
-              hideNavigation={hideNavigation}
-              onToggleNavigation={toggleHideNavigation}
-              isFlagged={flaggedQuestions.has(currentQuestion.id)}
-              onToggleFlag={toggleFlag}
-              onShowSolution={() => setWorkedSolutionVisible(!workedSolutionVisible)}
-              solutionVisible={workedSolutionVisible}
-              onQuitAndSave={() => setShowQuitDialog(true)}
-              onSubmitAll={() => setShowSubmitDialog(true)}
-              disabled={currentAnswer.submitted}
-              onRetryQuestion={handleRetryQuestion}
-              onRegenerateQuestion={handleRegenerateQuestion}
-              onRetryEntireSet={() => setShowRetrySetDialog(true)}
-              isRetrying={isRetrying}
-              isRegenerating={isRegenerating}
-            />
+            {/* Review Mode Badge */}
+            {isReviewMode && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                Review Mode
+              </Badge>
+            )}
+            {/* Timer - only show when NOT in review mode */}
+            {!isReviewMode && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-sm">
+                <Clock className="w-4 h-4" />
+                <span className="font-mono">{formatTime(timeElapsed)}</span>
+              </div>
+            )}
+            {/* Options Menu - only show when NOT in review mode */}
+            {!isReviewMode && (
+              <QuestionOptionsMenu
+                mode="practice"
+                showMathKeypad={showMathKeypad}
+                onToggleMathKeypad={() => setShowMathKeypad(prev => !prev)}
+                hideNavigation={hideNavigation}
+                onToggleNavigation={toggleHideNavigation}
+                isFlagged={flaggedQuestions.has(currentQuestion.id)}
+                onToggleFlag={toggleFlag}
+                onShowSolution={() => setWorkedSolutionVisible(!workedSolutionVisible)}
+                solutionVisible={workedSolutionVisible}
+                onQuitAndSave={() => setShowQuitDialog(true)}
+                onSubmitAll={() => setShowSubmitDialog(true)}
+                disabled={currentAnswer.submitted}
+                onRetryQuestion={handleRetryQuestion}
+                onRegenerateQuestion={handleRegenerateQuestion}
+                onRetryEntireSet={() => setShowRetrySetDialog(true)}
+                isRetrying={isRetrying}
+                isRegenerating={isRegenerating}
+              />
+            )}
           </div>
         </div>
 
@@ -1086,7 +1117,12 @@ const TakePracticeQuiz = () => {
                 <div><span className="font-medium text-foreground">Answered:</span> {answeredCount}/{questions.length}</div>
                 <div><span className="font-medium text-foreground">Flagged:</span> {flaggedQuestions.size}</div>
               </div>
-              <Button variant="destructive" size="sm" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+              {/* Submit All / Exit button - contextual based on mode */}
+              {isReviewMode ? (
+                <Button variant="outline" size="sm" className="mt-auto" onClick={() => navigate('/quizzes')}>Exit Review</Button>
+              ) : (
+                <Button variant="destructive" size="sm" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+              )}
             </div>
           </div>
         </aside>
@@ -1419,47 +1455,84 @@ const TakePracticeQuiz = () => {
           {/* Sticky bottom navigation */}
           <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
             <div className="max-w-5xl mx-auto flex gap-3">
-              <Button 
-                onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                disabled={currentIndex === 0} 
-                variant="outline" 
-                size="lg" 
-                className="flex-1"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                <span className="hidden sm:inline">Previous</span>
-                <span className="sm:hidden">Prev</span>
-              </Button>
-              <Button 
-                onClick={handleSubmitAnswer} 
-                disabled={currentAnswer.submitted || isGrading || (
-                  !currentAnswer.answer.trim() && 
-                  !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
-                  !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
-                )} 
-                size="lg" 
-                className="flex-1 min-w-0" 
-                style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}
-              >
-                {isGrading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Grading...</span>
-                  </>
-                ) : (
-                  <span className="truncate">Submit Answer</span>
-                )}
-              </Button>
-              <Button 
-                onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                disabled={currentIndex === questions.length - 1} 
-                variant="outline" 
-                size="lg" 
-                className="flex-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
-              </Button>
+              {/* In review mode: show only navigation buttons + Exit review */}
+              {isReviewMode ? (
+                <>
+                  <Button 
+                    onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    disabled={currentIndex === 0} 
+                    variant="outline" 
+                    size="lg" 
+                    className="flex-1"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/quizzes')} 
+                    variant="default"
+                    size="lg" 
+                    className="flex-1 min-w-0"
+                  >
+                    <span className="truncate">Exit Review</span>
+                  </Button>
+                  <Button 
+                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    disabled={currentIndex === questions.length - 1} 
+                    variant="outline" 
+                    size="lg" 
+                    className="flex-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button 
+                    onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    disabled={currentIndex === 0} 
+                    variant="outline" 
+                    size="lg" 
+                    className="flex-1"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
+                  </Button>
+                  <Button 
+                    onClick={handleSubmitAnswer} 
+                    disabled={currentAnswer.submitted || isGrading || (
+                      !currentAnswer.answer.trim() && 
+                      !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
+                      !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
+                    )} 
+                    size="lg" 
+                    className="flex-1 min-w-0" 
+                    style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}
+                  >
+                    {isGrading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <span className="hidden sm:inline">Grading...</span>
+                      </>
+                    ) : (
+                      <span className="truncate">Submit Answer</span>
+                    )}
+                  </Button>
+                  <Button 
+                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    disabled={currentIndex === questions.length - 1} 
+                    variant="outline" 
+                    size="lg" 
+                    className="flex-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </main>

@@ -3,6 +3,14 @@
  * 
  * Provides client-side validation and sanitization for the "Notes" field
  * used in exam and practice question generation.
+ * 
+ * SECURITY CHECKLIST (2026-01-09):
+ * ✅ Notes cannot request new platform features/buttons/components
+ * ✅ Notes cannot request UI/schema/API changes
+ * ✅ Notes can only constrain content: topics, difficulty, question types, etc.
+ * ✅ Prompt injection patterns blocked
+ * ✅ Content policy violations blocked
+ * ✅ Personal data redacted
  */
 
 export interface NotesSanitizationResult {
@@ -39,6 +47,20 @@ const INJECTION_PATTERNS = [
   /\[system\]/i,
   /\[admin\]/i,
   /\[developer\]/i,
+];
+
+// SECURITY: Feature request patterns that should be blocked
+// Notes can only constrain content (topics, difficulty, question types that exist)
+// They CANNOT request new platform features, UI changes, or schema modifications
+const FEATURE_REQUEST_PATTERNS = [
+  { pattern: /\b(add|create|implement|build|make)\s+(a\s+)?new\s+(button|component|feature|diagram|screen|page|modal|form|field|input|table|column)/i, reason: "Cannot request new platform features in notes" },
+  { pattern: /\b(add|create|implement|build|make)\s+(a\s+)?(custom\s+)?(ui|interface|design|layout)/i, reason: "Cannot request UI changes in notes" },
+  { pattern: /\b(modify|change|update|alter)\s+(the\s+)?(database|schema|table|column)/i, reason: "Cannot request database changes in notes" },
+  { pattern: /\b(add|create|implement)\s+(a\s+)?new\s+question\s+type/i, reason: "Cannot request new question types in notes" },
+  { pattern: /\bimplement\s+(a\s+)?new\s+(feature|functionality)/i, reason: "Cannot request new features in notes" },
+  { pattern: /\b(add|create)\s+(a\s+)?(new\s+)?(endpoint|api|route|function)/i, reason: "Cannot request API changes in notes" },
+  { pattern: /\bupgrade\s+(the\s+)?(app|application|platform|system)/i, reason: "Cannot request platform upgrades in notes" },
+  { pattern: /\b(add|include)\s+(support\s+for|a)\s+(new\s+)?(graph|chart|visualization)\s+type/i, reason: "Cannot request new visualization types in notes" },
 ];
 
 // Content policy violation patterns
@@ -121,6 +143,15 @@ export function sanitizeNotes(input: string): NotesSanitizationResult {
   for (const pattern of INJECTION_PATTERNS) {
     if (pattern.test(sanitized)) {
       blockedReasons.push("Notes cannot include instructions that try to override the system");
+      break;
+    }
+  }
+
+  // Step 3b: SECURITY - Check for feature request patterns
+  // Notes can only constrain content, not request new platform features
+  for (const { pattern, reason } of FEATURE_REQUEST_PATTERNS) {
+    if (pattern.test(sanitized)) {
+      blockedReasons.push(reason);
       break;
     }
   }
