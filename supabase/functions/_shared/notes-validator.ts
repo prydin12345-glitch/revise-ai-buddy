@@ -44,6 +44,20 @@ const INJECTION_PATTERNS = [
   /\[developer\]/i,
 ];
 
+// SECURITY: Feature request patterns that should be blocked (server-side)
+// Notes can only constrain content (topics, difficulty, question types that exist)
+// They CANNOT request new platform features, UI changes, or schema modifications
+const FEATURE_REQUEST_PATTERNS = [
+  { pattern: /\b(add|create|implement|build|make)\s+(a\s+)?new\s+(button|component|feature|diagram|screen|page|modal|form|field|input|table|column)/i, reason: "feature_request_blocked" },
+  { pattern: /\b(add|create|implement|build|make)\s+(a\s+)?(custom\s+)?(ui|interface|design|layout)/i, reason: "ui_change_blocked" },
+  { pattern: /\b(modify|change|update|alter)\s+(the\s+)?(database|schema|table|column)/i, reason: "schema_change_blocked" },
+  { pattern: /\b(add|create|implement)\s+(a\s+)?new\s+question\s+type/i, reason: "new_question_type_blocked" },
+  { pattern: /\bimplement\s+(a\s+)?new\s+(feature|functionality)/i, reason: "new_feature_blocked" },
+  { pattern: /\b(add|create)\s+(a\s+)?(new\s+)?(endpoint|api|route|function)/i, reason: "api_change_blocked" },
+  { pattern: /\bupgrade\s+(the\s+)?(app|application|platform|system)/i, reason: "platform_upgrade_blocked" },
+  { pattern: /\b(add|include)\s+(support\s+for|a)\s+(new\s+)?(graph|chart|visualization)\s+type/i, reason: "new_visualization_blocked" },
+];
+
 // Content policy violations
 const CONTENT_POLICY_PATTERNS = [
   { pattern: /real\s+exam\s+answers?/i, reason: "real exam answers request" },
@@ -129,7 +143,21 @@ export function validateNotes(input: string | null | undefined): ServerNoteValid
     }
   }
 
-  // Step 4: Check content policy
+  // Step 4: SECURITY - Check for feature request patterns
+  // Notes can only constrain content, not request new platform features
+  for (const { pattern, reason } of FEATURE_REQUEST_PATTERNS) {
+    if (pattern.test(sanitized)) {
+      auditLog.blockedPhrases.push(reason);
+      return {
+        valid: false,
+        sanitized: '',
+        moderationStatus: 'blocked',
+        auditLog,
+      };
+    }
+  }
+
+  // Step 5: Check content policy
   for (const { pattern, reason } of CONTENT_POLICY_PATTERNS) {
     if (pattern.test(sanitized)) {
       auditLog.blockedPhrases.push(reason);

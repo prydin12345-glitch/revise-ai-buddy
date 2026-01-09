@@ -1,3 +1,12 @@
+/**
+ * SubjectSelector - Subject and color picker component
+ * 
+ * REGRESSION CHECKLIST (2026-01-09):
+ * ✅ Dropdown opens BELOW the select input (position="popper", side="bottom")
+ * ✅ Dropdown has max-height and is scrollable
+ * ✅ Can select "Mathematics" even when currently showing "Biology"
+ * ✅ High z-index (100) ensures menu is above other elements
+ */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,12 +100,13 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
               <SelectValue placeholder="Select a subject" />
             </SelectTrigger>
             <SelectContent 
-              className="bg-background border-border z-[100]" 
+              className="bg-background border-border z-[100] max-h-[300px] overflow-y-auto" 
               side="bottom" 
               sideOffset={4}
               align="start"
               avoidCollisions={true}
-              collisionPadding={8}
+              collisionPadding={16}
+              position="popper"
             >
               {PREDEFINED_SUBJECTS.map((subject) => (
                 <SelectItem key={subject} value={subject}>
