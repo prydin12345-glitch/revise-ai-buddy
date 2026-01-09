@@ -120,17 +120,20 @@ export function validateGraphQuestion(
     errors.push('Missing or invalid yLabel');
   }
 
-  // Validate domains
-  if (!Array.isArray(config.domainX) || config.domainX.length !== 2) {
-    errors.push('Missing or invalid xDomain (must be [min, max])');
-  } else if (typeof config.domainX[0] !== 'number' || typeof config.domainX[1] !== 'number') {
-    errors.push('xDomain values must be numbers');
+  // Validate domains (accept both domainX/domainY and xDomain/yDomain)
+  const xDomain = config.domainX || config.xDomain;
+  const yDomain = config.domainY || config.yDomain;
+  
+  if (!Array.isArray(xDomain) || xDomain.length !== 2) {
+    errors.push('Missing or invalid domainX/xDomain (must be [min, max])');
+  } else if (typeof xDomain[0] !== 'number' || typeof xDomain[1] !== 'number') {
+    errors.push('domainX/xDomain values must be numbers');
   }
 
-  if (!Array.isArray(config.domainY) || config.domainY.length !== 2) {
-    errors.push('Missing or invalid yDomain (must be [min, max])');
-  } else if (typeof config.domainY[0] !== 'number' || typeof config.domainY[1] !== 'number') {
-    errors.push('yDomain values must be numbers');
+  if (!Array.isArray(yDomain) || yDomain.length !== 2) {
+    errors.push('Missing or invalid domainY/yDomain (must be [min, max])');
+  } else if (typeof yDomain[0] !== 'number' || typeof yDomain[1] !== 'number') {
+    errors.push('domainY/yDomain values must be numbers');
   }
 
   // Validate series data (required for rendering)

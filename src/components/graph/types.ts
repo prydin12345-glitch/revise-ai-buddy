@@ -168,12 +168,47 @@ export interface GraphQuestionData {
   bearingsConfig?: BearingsQuestionConfig;
 }
 
+// Helper to normalize graph config field names (handles xDomain vs domainX variations)
+function normalizeGraphConfig(config: any): any {
+  if (!config || typeof config !== 'object') return config;
+  
+  const normalized = { ...config };
+  
+  // Normalize domain field names: xDomain -> domainX, yDomain -> domainY
+  if (normalized.xDomain && !normalized.domainX) {
+    normalized.domainX = normalized.xDomain;
+    delete normalized.xDomain;
+  }
+  if (normalized.yDomain && !normalized.domainY) {
+    normalized.domainY = normalized.yDomain;
+    delete normalized.yDomain;
+  }
+  
+  // Ensure series is an array
+  if (!Array.isArray(normalized.series)) {
+    normalized.series = [];
+  }
+  
+  // Normalize grid settings
+  if (normalized.grid && typeof normalized.grid === 'object') {
+    normalized.gridEnabled = normalized.grid.show ?? true;
+    if (normalized.grid.stepX) normalized.stepX = normalized.grid.stepX;
+    if (normalized.grid.stepY) normalized.stepY = normalized.grid.stepY;
+  }
+  
+  return normalized;
+}
+
 // Helper to parse graph question from correct_answer JSON
 export function parseGraphQuestionData(correctAnswer: string | null): GraphQuestionData | null {
   if (!correctAnswer) return null;
   try {
     const parsed = JSON.parse(correctAnswer);
     if (parsed.graphType === 'interpretation' || parsed.graphType === 'plotting') {
+      // Normalize the graphConfig to handle field name variations
+      if (parsed.graphConfig) {
+        parsed.graphConfig = normalizeGraphConfig(parsed.graphConfig);
+      }
       return parsed as GraphQuestionData;
     }
     return null;
