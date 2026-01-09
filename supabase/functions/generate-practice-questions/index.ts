@@ -663,8 +663,14 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
     
     // Fix invalid JSON escape sequences (e.g., \degree, \alpha, \beta from LaTeX)
     // JSON only allows: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
-    // Convert invalid \X sequences to \\X so they become literal backslash + letter
-    cleanedContent = cleanedContent.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+    // The regex handles:
+    // 1. \u NOT followed by 4 hex digits (e.g., \unit, \units) - escape it
+    // 2. Any backslash NOT followed by valid JSON escape chars
+    cleanedContent = cleanedContent
+      // First, fix \u followed by non-hex (like \unit, \underline, etc.)
+      .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u')
+      // Then fix other invalid escapes (not ", \, /, b, f, n, r, t, or already-fixed \\)
+      .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
     
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
     
