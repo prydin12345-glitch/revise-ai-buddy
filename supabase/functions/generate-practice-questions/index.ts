@@ -660,6 +660,8 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
     
     // NOTE: Removed aggressive regex that was corrupting table_grid data.
     // The AI should return properly escaped JSON, but we still defensively repair common JSON-breaking artifacts.
+
+    // 1) Escape raw control characters inside JSON strings (JSON allows them only as \n, \r, \t, etc.)
     const escapeControlCharsInJsonStrings = (input: string) => {
       let out = '';
       let inString = false;
@@ -672,13 +674,9 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
           if (escaped) {
             // If the model ends a line with a backslash, it can "escape" a real newline -> invalid JSON.
             // Convert that specific case into a JSON newline escape.
-            if (ch === '\n') {
-              out += 'n';
-            } else if (ch === '\r') {
-              out += 'r';
-            } else {
-              out += ch;
-            }
+            if (ch === '\n') out += 'n';
+            else if (ch === '\r') out += 'r';
+            else out += ch;
             escaped = false;
             continue;
           }
@@ -695,7 +693,6 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
             continue;
           }
 
-          // Escape raw control characters inside strings (JSON allows them only as escapes)
           if (ch === '\n') {
             out += '\\n';
             continue;
@@ -711,11 +708,84 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
 
           out += ch;
         } else {
-          if (ch === '"') {
-            inString = true;
-          }
+          if (ch === '"') inString = true;
           out += ch;
         }
+      }
+
+      return out;
+    };
+
+    // 2) Escape LaTeX-ish backslash sequences inside JSON strings (e.g. \sqrt, \left, \frac)
+    // while preserving real JSON escapes (\n, \t, \", \\, \/, \uXXXX, etc.).
+    const escapeInvalidBackslashesInJsonStrings = (input: string) => {
+      let out = '';
+      let inString = false;
+
+      for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+
+        if (!inString) {
+          if (ch === '"') inString = true;
+          out += ch;
+          continue;
+        }
+
+        // inString
+        if (ch === '"') {
+          inString = false;
+          out += ch;
+          continue;
+        }
+
+        if (ch !== '\\') {
+          out += ch;
+          continue;
+        }
+
+        const next = input[i + 1];
+        if (!next) {
+          // dangling backslash
+          out += '\\\\';
+          continue;
+        }
+
+        // Always preserve these JSON escapes
+        if (next === '"' || next === '\\' || next === '/') {
+          out += '\\' + next;
+          i += 1;
+          continue;
+        }
+
+        // Preserve valid unicode escapes
+        if (next === 'u') {
+          const hex = input.slice(i + 2, i + 6);
+          if (hex.length === 4 && /^[0-9a-fA-F]{4}$/.test(hex)) {
+            out += '\\u' + hex;
+            i += 5;
+            continue;
+          }
+          // \u followed by non-hex (e.g. \unit) -> treat as literal backslash
+          out += '\\\\';
+          continue;
+        }
+
+        // Preserve \n/\r/\t ONLY when it looks intentional; otherwise treat as LaTeX command (\neq, \times, etc.)
+        if (next === 'n' || next === 'r' || next === 't' || next === 'b' || next === 'f') {
+          const after = input[i + 2];
+          if (after && /[A-Za-z]/.test(after)) {
+            // likely LaTeX command -> escape the backslash
+            out += '\\\\';
+            continue;
+          }
+
+          out += '\\' + next;
+          i += 1;
+          continue;
+        }
+
+        // Any other \X is invalid JSON escape -> make it literal
+        out += '\\\\';
       }
 
       return out;
@@ -724,16 +794,9 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
     // 0) Repair backslash-newline artifacts before generic escape fixes
     cleanedContent = cleanedContent.replace(/\\\r?\n/g, '\\n');
 
-    // 1) Escape control chars inside JSON strings
+    // Apply repairs
     cleanedContent = escapeControlCharsInJsonStrings(cleanedContent);
-
-    // 2) Fix invalid JSON escape sequences (e.g., \degree, \alpha, \beta from LaTeX)
-    // JSON only allows: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
-    cleanedContent = cleanedContent
-      // First, fix \u followed by non-hex (like \unit, \underline, etc.)
-      .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u')
-      // Then fix other invalid escapes (not \", \\, \/, b, f, n, r, t, u)
-      .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+    cleanedContent = escapeInvalidBackslashesInJsonStrings(cleanedContent);
     
     console.log('Cleaned content:', cleanedContent.substring(0, 200));
     
