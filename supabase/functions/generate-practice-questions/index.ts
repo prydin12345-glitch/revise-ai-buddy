@@ -137,6 +137,35 @@ serve(async (req) => {
         ? 'Questions should have a balanced mix of easy, medium, and hard difficulty.'
         : `All questions should be ${setData.difficulty_level} difficulty.`;
 
+    // Visual question type instructions based on user preferences
+    const includeGraphs = setData.include_graphs === true;
+    const includeTables = setData.include_tables === true;
+    
+    let visualQuestionInstructions = '';
+    if (includeGraphs && includeTables) {
+      visualQuestionInstructions = `
+REQUIRED VISUAL QUESTIONS:
+- At least 30% of questions MUST be graph_interpretation or graph_plotting with valid graphConfig.
+- At least 20% of questions MUST be table_grid with valid table_data.
+- Every graph question MUST render a visible graph with plotted data.`;
+    } else if (includeGraphs) {
+      visualQuestionInstructions = `
+REQUIRED VISUAL QUESTIONS:
+- At least 40% of questions MUST be graph_interpretation or graph_plotting with valid graphConfig.
+- Every graph question MUST render a visible graph with plotted data.
+- Include: read values from graphs, find gradient/intercept, plot points.`;
+    } else if (includeTables) {
+      visualQuestionInstructions = `
+REQUIRED VISUAL QUESTIONS:
+- At least 30% of questions MUST be table_grid with valid table_data.
+- Tables should be interactive with tick/cross, text entry, or number entry fields.`;
+    } else {
+      visualQuestionInstructions = `
+Question type mix:
+- Use a mix of: short_answer, extended, mcq where appropriate.
+- Only include graph or table questions if specifically relevant to the subtopics.`;
+    }
+
     const prompt = `Generate ${setData.question_count} practice questions.
 
 Context:
@@ -159,9 +188,7 @@ CRITICAL OUTPUT RULES:
    - y = mx + c
 5) Do not output markdown. Do not output code fences.
 6) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
-
-Question type mix:
-- Use a mix of: short_answer, extended, mcq, table_grid, graph_interpretation, graph_plotting where appropriate.
+${visualQuestionInstructions}
 
 MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
