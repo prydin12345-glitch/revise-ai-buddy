@@ -90,7 +90,14 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="Select a subject" />
             </SelectTrigger>
-            <SelectContent className="bg-background border-border z-[100]">
+            <SelectContent 
+              className="bg-background border-border z-[100]" 
+              side="bottom" 
+              sideOffset={4}
+              align="start"
+              avoidCollisions={true}
+              collisionPadding={8}
+            >
               {PREDEFINED_SUBJECTS.map((subject) => (
                 <SelectItem key={subject} value={subject}>
                   {subject}

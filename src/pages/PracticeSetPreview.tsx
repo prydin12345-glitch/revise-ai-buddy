@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, Play, ArrowLeft, ChevronRight } from "lucide-react";
+import { Loader2, Eye, Play, ArrowLeft, ChevronRight, LogOut, RotateCcw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
 
@@ -36,6 +36,8 @@ interface PracticeSet {
 interface Progress {
   current_question_index: number | null;
   questions_attempted: number | null;
+  questions_correct: number | null;
+  completed_at: string | null;
   session_data: any;
 }
 
@@ -46,6 +48,7 @@ const PracticeSetPreview = () => {
   const [practiceSet, setPracticeSet] = useState<PracticeSet | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasProgress, setHasProgress] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [savedQuestionIndex, setSavedQuestionIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -79,7 +82,7 @@ const PracticeSetPreview = () => {
       if (user) {
         const { data: progress } = await supabase
           .from('practice_set_progress')
-          .select('current_question_index, questions_attempted, session_data')
+          .select('current_question_index, questions_attempted, questions_correct, completed_at, session_data')
           .eq('user_id', user.id)
           .eq('set_id', setId)
           .single();
@@ -92,6 +95,11 @@ const PracticeSetPreview = () => {
           if (hasAttempted) {
             setHasProgress(true);
             setSavedQuestionIndex(progress.current_question_index);
+          }
+          
+          // Check if quiz is completed (has completed_at timestamp)
+          if (progress.completed_at) {
+            setIsCompleted(true);
           }
         }
       }
@@ -145,21 +153,28 @@ const PracticeSetPreview = () => {
             </h1>
           </div>
 
-          {/* Right: Start/Continue button */}
+          {/* Right: Start/Continue/Review button */}
           <div className="flex-1 flex justify-end">
-            <Button onClick={handleStartOrContinue} size="lg">
-              {hasProgress ? (
-                <>
-                  <ChevronRight className="h-4 w-4 mr-2" />
-                  Continue
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Start Quiz
-                </>
-              )}
-            </Button>
+            {isCompleted ? (
+              <Button onClick={handleStartOrContinue} size="lg" variant="outline">
+                <Eye className="h-4 w-4 mr-2" />
+                Review Answers
+              </Button>
+            ) : (
+              <Button onClick={handleStartOrContinue} size="lg">
+                {hasProgress ? (
+                  <>
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                    Continue
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Quiz
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -254,19 +269,26 @@ const PracticeSetPreview = () => {
         {/* Bottom CTA */}
         {questions.length > 0 && (
           <div className="mt-8 flex justify-center pb-8">
-            <Button onClick={handleStartOrContinue} size="lg" className="px-8">
-              {hasProgress ? (
-                <>
-                  <ChevronRight className="h-4 w-4 mr-2" />
-                  Continue Quiz
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Start Quiz
-                </>
-              )}
-            </Button>
+            {isCompleted ? (
+              <Button onClick={handleStartOrContinue} size="lg" className="px-8" variant="outline">
+                <Eye className="h-4 w-4 mr-2" />
+                Review Answers
+              </Button>
+            ) : (
+              <Button onClick={handleStartOrContinue} size="lg" className="px-8">
+                {hasProgress ? (
+                  <>
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                    Continue Quiz
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Quiz
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
       </div>
