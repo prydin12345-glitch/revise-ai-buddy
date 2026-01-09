@@ -1,5 +1,6 @@
 // Graph Plotting Question Component
 // Interactive scatter plot where students can add/drag/remove points
+// With optional Join Points Mode (straight vs curved lines)
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
@@ -11,11 +12,14 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceDot,
-  ReferenceLine
+  ReferenceLine,
+  Line,
+  ComposedChart
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Trash2, Undo2 } from 'lucide-react';
+import { Trash2, Undo2, TrendingUp, Spline } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
   GraphPlottingConfig,
   GraphPoint,
@@ -32,6 +36,9 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
+  // Join mode props
+  joinMode?: 'straight' | 'curved';
+  onJoinModeChange?: (mode: 'straight' | 'curved') => void;
 }
 
 // Status colors matching table logic
@@ -50,7 +57,9 @@ export function GraphPlottingQuestion({
   readOnly = false,
   showCorrectAnswers = false,
   markingData,
-  subjectColor = '#3B82F6'
+  subjectColor = '#3B82F6',
+  joinMode,
+  onJoinModeChange
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const [history, setHistory] = useState<GraphPoint[][]>([]);
@@ -64,8 +73,17 @@ export function GraphPlottingQuestion({
     stepX = 1,
     stepY = 1,
     maxPoints,
-    showConnectLine = false
+    joinPointsMode
   } = config;
+
+  // Determine if join mode is enabled and get current mode
+  const isJoinModeEnabled = joinPointsMode?.enabled ?? false;
+  const currentJoinMode = joinMode ?? joinPointsMode?.defaultMode ?? 'straight';
+
+  // Sort points by x for line drawing
+  const sortedPoints = useMemo(() => {
+    return [...studentPoints].sort((a, b) => a.x - b.x);
+  }, [studentPoints]);
 
   // Snap point to grid if enabled
   const snapPoint = useCallback((x: number, y: number): GraphPoint => {
@@ -171,12 +189,34 @@ export function GraphPlottingQuestion({
     <div className="space-y-4">
       {/* Toolbar */}
       {!readOnly && (
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-sm flex-wrap gap-2">
           <span className="text-muted-foreground">
             Click on the grid to plot points
             {maxPoints && ` (${studentPoints.length}/${maxPoints})`}
           </span>
           <div className="flex gap-2">
+            {/* Join Mode Toggle */}
+            {isJoinModeEnabled && (
+              <ToggleGroup
+                type="single"
+                value={currentJoinMode}
+                onValueChange={(val) => {
+                  if (val && onJoinModeChange) {
+                    onJoinModeChange(val as 'straight' | 'curved');
+                  }
+                }}
+                className="border rounded-md"
+              >
+                <ToggleGroupItem value="straight" aria-label="Straight line" className="gap-1 px-3">
+                  <TrendingUp className="w-4 h-4" />
+                  Straight
+                </ToggleGroupItem>
+                <ToggleGroupItem value="curved" aria-label="Curved line" className="gap-1 px-3">
+                  <Spline className="w-4 h-4" />
+                  Curved
+                </ToggleGroupItem>
+              </ToggleGroup>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -202,10 +242,11 @@ export function GraphPlottingQuestion({
       {/* Chart */}
       <div className="border rounded-lg p-4 bg-card">
         <ResponsiveContainer width="100%" height={320}>
-          <ScatterChart
+          <ComposedChart
             ref={chartRef}
             onClick={handleChartClick}
             style={{ cursor: readOnly ? 'default' : 'crosshair' }}
+            data={sortedPoints}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
@@ -246,6 +287,18 @@ export function GraphPlottingQuestion({
               formatter={(value: number) => value.toFixed(1)}
             />
             
+            {/* Connecting line through points (if join mode enabled and has 2+ points) */}
+            {isJoinModeEnabled && sortedPoints.length >= 2 && (
+              <Line
+                type={currentJoinMode === 'curved' ? 'monotone' : 'linear'}
+                dataKey="y"
+                stroke={subjectColor}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            )}
+            
             {/* Student points */}
             <Scatter
               name="Your points"
@@ -268,7 +321,7 @@ export function GraphPlottingQuestion({
                 strokeDasharray="4 4"
               />
             ))}
-          </ScatterChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 

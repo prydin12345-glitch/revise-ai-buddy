@@ -49,6 +49,44 @@ export interface GraphPlottingConfig extends GraphConfig {
   toleranceUnits?: number; // Tolerance for point matching in graph units
   showConnectLine?: boolean; // Whether to connect plotted points
   requiredPointCount?: number; // Exact number of points required
+  // Join points mode configuration
+  joinPointsMode?: {
+    enabled: boolean;
+    graded?: boolean; // If true, adds 1 mark for correct mode selection
+    correctMode?: 'straight' | 'curved'; // Required answer if graded
+    defaultMode?: 'straight' | 'curved';
+  };
+  // Tolerance for x and y separately (default ±0.2)
+  toleranceX?: number;
+  toleranceY?: number;
+}
+
+// Configuration for bearings questions
+export interface BearingsQuestionConfig {
+  prompt: string;
+  correctBearing: number; // 0-360
+  tolerance?: number; // Default ±1°
+  acceptedFormats?: string[]; // e.g., ["N45E", "045°"]
+  marks?: number;
+}
+
+// Bearings question response
+export interface BearingsResponse {
+  _type: 'bearings';
+  version: 1;
+  bearing: number | string; // Student's answer
+}
+
+// Bearings marking result
+export interface BearingsMarkingResult {
+  correct: boolean;
+  studentBearing: number | null;
+  correctBearing: number;
+  tolerance: number;
+  difference: number | null;
+  status: 'correct' | 'incorrect' | 'missed';
+  earned: number;
+  max: number;
 }
 
 // Answer field types for interpretation questions
@@ -88,6 +126,7 @@ export interface GraphPlottingResponse {
   _type: 'graph_plotting';
   version: 1;
   points: GraphPoint[];
+  joinMode?: 'straight' | 'curved'; // Selected join mode (if enabled)
 }
 
 // Marking result for interpretation fields
@@ -119,12 +158,14 @@ export interface GraphPlottingMarkingResult {
 
 // Full question data structure (stored in correct_answer JSON)
 export interface GraphQuestionData {
-  graphType: 'interpretation' | 'plotting';
+  graphType: 'interpretation' | 'plotting' | 'bearings';
   graphConfig: GraphInterpretationConfig | GraphPlottingConfig;
   // For interpretation questions
   interpretationFields?: GraphInterpretationField[];
   // For plotting questions
   plottingAnswer?: GraphPlottingAnswer;
+  // For bearings questions
+  bearingsConfig?: BearingsQuestionConfig;
 }
 
 // Helper to parse graph question from correct_answer JSON
@@ -154,23 +195,72 @@ export function serializeGraphInterpretationResponse(
 }
 
 // Helper to serialize graph plotting response
-export function serializeGraphPlottingResponse(points: GraphPoint[]): string {
+export function serializeGraphPlottingResponse(
+  points: GraphPoint[],
+  joinMode?: 'straight' | 'curved'
+): string {
   const response: GraphPlottingResponse = {
     _type: 'graph_plotting',
     version: 1,
-    points
+    points,
+    joinMode
   };
   return JSON.stringify(response);
+}
+
+// Helper to serialize bearings response
+export function serializeBearingsResponse(bearing: number | string): string {
+  const response: BearingsResponse = {
+    _type: 'bearings',
+    version: 1,
+    bearing
+  };
+  return JSON.stringify(response);
+}
+
+// Normalize bearing input to degrees (0-360)
+export function normalizeBearing(input: string | number): number | null {
+  if (typeof input === 'number') {
+    return ((input % 360) + 360) % 360;
+  }
+  
+  const str = String(input).trim().toUpperCase();
+  
+  // Try direct number: "045", "45°", "45"
+  const numMatch = str.match(/^(\d+(?:\.\d+)?)\s*°?$/);
+  if (numMatch) {
+    const deg = parseFloat(numMatch[1]);
+    return ((deg % 360) + 360) % 360;
+  }
+  
+  // Try compass notation: N45E, S30W, etc.
+  const compassMatch = str.match(/^([NSEW])(\d+(?:\.\d+)?)([NSEW])?$/);
+  if (compassMatch) {
+    const [, start, angle, end] = compassMatch;
+    const deg = parseFloat(angle);
+    
+    // N = 0/360, E = 90, S = 180, W = 270
+    if (start === 'N' && end === 'E') return deg;
+    if (start === 'N' && end === 'W') return 360 - deg;
+    if (start === 'S' && end === 'E') return 180 - deg;
+    if (start === 'S' && end === 'W') return 180 + deg;
+    if (start === 'N' && !end) return deg <= 90 ? deg : 360 - deg;
+    if (start === 'E' && !end) return 90;
+    if (start === 'S' && !end) return 180;
+    if (start === 'W' && !end) return 270;
+  }
+  
+  return null;
 }
 
 // Helper to parse student's graph response
 export function parseGraphResponse(
   answerText: string | null
-): GraphInterpretationResponse | GraphPlottingResponse | null {
+): GraphInterpretationResponse | GraphPlottingResponse | BearingsResponse | null {
   if (!answerText) return null;
   try {
     const parsed = JSON.parse(answerText);
-    if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting') {
+    if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings') {
       return parsed;
     }
     return null;

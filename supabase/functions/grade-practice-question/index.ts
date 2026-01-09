@@ -50,8 +50,10 @@ serve(async (req) => {
     const isTableGrid = question.question_type === 'table_grid';
     const isGraphInterpretation = question.question_type === 'graph_interpretation';
     const isGraphPlotting = question.question_type === 'graph_plotting';
+    const isBearings = question.question_type === 'bearings';
     let tableGridResult: any = null;
     let graphResult: any = null;
+    let bearingsResult: any = null;
 
     // ========================
     // GRAPH ANSWER NORMALIZATION UTILITIES
@@ -262,32 +264,46 @@ serve(async (req) => {
       }
     }
 
-    // Handle graph_plotting deterministic grading
+    // Handle graph_plotting deterministic grading with separate x/y tolerance
     if (isGraphPlotting && answerText) {
       try {
         const parsed = JSON.parse(answerText);
         if (parsed._type === 'graph_plotting') {
           const questionData = JSON.parse(question.correct_answer || '{}');
           const expected = questionData.plottingAnswer?.expectedPoints || [];
-          const tolerance = questionData.plottingAnswer?.toleranceUnits || 0.5;
+          const toleranceUnits = questionData.plottingAnswer?.toleranceUnits || 0.5;
+          // Support separate x/y tolerance (default ±0.2)
+          const toleranceX = questionData.graphConfig?.toleranceX ?? toleranceUnits;
+          const toleranceY = questionData.graphConfig?.toleranceY ?? toleranceUnits;
           const studentPoints = parsed.points || [];
-          const marksPerPoint = question.marks / Math.max(expected.length, 1);
+          const studentJoinMode = parsed.joinMode;
+          const joinPointsMode = questionData.graphConfig?.joinPointsMode;
+          
+          // Calculate marks: points + optional join mode
+          const joinModeMarks = joinPointsMode?.graded ? 1 : 0;
+          const pointMarks = question.marks - joinModeMarks;
+          const marksPerPoint = pointMarks / Math.max(expected.length, 1);
           
           let totalScore = 0;
           const perPointResults: any[] = [];
           const matchedExpected = new Set<number>();
           
-          // Match each student point to closest expected point
+          // Match each student point to closest expected point using separate x/y tolerance
           for (const sp of studentPoints) {
             let bestMatch = -1;
             let bestDist = Infinity;
             expected.forEach((ep: any, idx: number) => {
               if (matchedExpected.has(idx)) return;
-              const dist = Math.sqrt(Math.pow(sp.x - ep.x, 2) + Math.pow(sp.y - ep.y, 2));
-              if (dist < bestDist) { bestDist = dist; bestMatch = idx; }
+              // Check if within tolerance box (separate x and y)
+              const withinX = Math.abs(sp.x - ep.x) <= toleranceX;
+              const withinY = Math.abs(sp.y - ep.y) <= toleranceY;
+              if (withinX && withinY) {
+                const dist = Math.sqrt(Math.pow(sp.x - ep.x, 2) + Math.pow(sp.y - ep.y, 2));
+                if (dist < bestDist) { bestDist = dist; bestMatch = idx; }
+              }
             });
             
-            if (bestMatch >= 0 && bestDist <= tolerance) {
+            if (bestMatch >= 0) {
               matchedExpected.add(bestMatch);
               totalScore += marksPerPoint;
               perPointResults.push({ studentPoint: sp, expectedPoint: expected[bestMatch], matched: true, distance: bestDist, status: 'correct' });
@@ -303,16 +319,140 @@ serve(async (req) => {
             }
           });
           
+          // Grade join mode if enabled
+          let joinModeResult = null;
+          if (joinPointsMode?.graded && joinPointsMode.correctMode) {
+            const isJoinModeCorrect = studentJoinMode === joinPointsMode.correctMode;
+            if (isJoinModeCorrect) {
+              totalScore += joinModeMarks;
+            }
+            joinModeResult = {
+              studentMode: studentJoinMode || 'none',
+              correctMode: joinPointsMode.correctMode,
+              correct: isJoinModeCorrect,
+              earned: isJoinModeCorrect ? joinModeMarks : 0,
+              max: joinModeMarks,
+              status: !studentJoinMode ? 'missed' : isJoinModeCorrect ? 'correct' : 'incorrect'
+            };
+          }
+          
           graphResult = {
             score: Math.round(totalScore * 100) / 100,
-            feedback: `${matchedExpected.size}/${expected.length} points correct.`,
-            isCorrect: matchedExpected.size === expected.length,
-            markingData: { perPointResults, totalScore: Math.round(totalScore * 100) / 100, totalMarks: question.marks }
+            feedback: `${matchedExpected.size}/${expected.length} points correct.${joinModeResult ? ` Line type: ${joinModeResult.correct ? 'correct' : 'incorrect'}.` : ''}`,
+            isCorrect: matchedExpected.size === expected.length && (!joinModeResult || joinModeResult.correct),
+            markingData: { perPointResults, totalScore: Math.round(totalScore * 100) / 100, totalMarks: question.marks, joinModeResult }
           };
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
       }
+    }
+
+    // Handle bearings deterministic grading
+    if (isBearings && answerText) {
+      try {
+        const parsed = JSON.parse(answerText);
+        if (parsed._type === 'bearings') {
+          const questionData = JSON.parse(question.correct_answer || '{}');
+          const config = questionData.bearingsConfig || {};
+          const correctBearing = config.correctBearing ?? 0;
+          const tolerance = config.tolerance ?? 1; // Default ±1°
+          const marks = config.marks ?? question.marks ?? 1;
+          
+          // Normalize student bearing
+          const studentInput = parsed.bearing;
+          let studentBearing: number | null = null;
+          
+          if (studentInput !== undefined && studentInput !== '' && studentInput !== null) {
+            if (typeof studentInput === 'number') {
+              studentBearing = ((studentInput % 360) + 360) % 360;
+            } else {
+              const str = String(studentInput).trim().toUpperCase();
+              
+              // Try direct number: "045", "45°", "45"
+              const numMatch = str.match(/^(\d+(?:\.\d+)?)\s*°?$/);
+              if (numMatch) {
+                studentBearing = ((parseFloat(numMatch[1]) % 360) + 360) % 360;
+              }
+              
+              // Try compass notation: N45E, S30W, etc.
+              if (studentBearing === null) {
+                const compassMatch = str.match(/^([NSEW])(\d+(?:\.\d+)?)([NSEW])?$/);
+                if (compassMatch) {
+                  const [, start, angle, end] = compassMatch;
+                  const deg = parseFloat(angle);
+                  
+                  if (start === 'N' && end === 'E') studentBearing = deg;
+                  else if (start === 'N' && end === 'W') studentBearing = 360 - deg;
+                  else if (start === 'S' && end === 'E') studentBearing = 180 - deg;
+                  else if (start === 'S' && end === 'W') studentBearing = 180 + deg;
+                  else if (start === 'N' && !end) studentBearing = deg <= 90 ? deg : 360 - deg;
+                  else if (start === 'E' && !end) studentBearing = 90;
+                  else if (start === 'S' && !end) studentBearing = 180;
+                  else if (start === 'W' && !end) studentBearing = 270;
+                }
+              }
+            }
+          }
+          
+          // Calculate difference (accounting for wrap-around at 0/360)
+          let difference: number | null = null;
+          let isCorrect = false;
+          
+          if (studentBearing !== null) {
+            const diff1 = Math.abs(studentBearing - correctBearing);
+            const diff2 = 360 - diff1;
+            difference = Math.min(diff1, diff2);
+            isCorrect = difference <= tolerance;
+          }
+          
+          const hasAnswer = studentBearing !== null;
+          bearingsResult = {
+            score: isCorrect ? marks : 0,
+            feedback: isCorrect 
+              ? `✓ Correct! Bearing: ${correctBearing}°` 
+              : hasAnswer 
+                ? `✗ Incorrect. Your answer: ${studentBearing?.toFixed(1)}°, Correct: ${correctBearing}° (tolerance: ±${tolerance}°)`
+                : `○ No answer provided. Correct: ${correctBearing}°`,
+            isCorrect,
+            markingData: {
+              correct: isCorrect,
+              studentBearing,
+              correctBearing,
+              tolerance,
+              difference,
+              status: !hasAnswer ? 'missed' : isCorrect ? 'correct' : 'incorrect',
+              earned: isCorrect ? marks : 0,
+              max: marks
+            }
+          };
+        }
+      } catch (e) {
+        console.log('[bearings-grading] Parse error:', e);
+      }
+    }
+
+    // If we have a bearings result, save and return
+    if (bearingsResult) {
+      await supabase.from('practice_question_answers').upsert({
+        user_id: user.id, set_id: setId, question_id: questionId,
+        answer_text: answerText || '', working_out: workingOut,
+        score: bearingsResult.score, is_correct: bearingsResult.isCorrect,
+        feedback: bearingsResult.feedback, submitted_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,question_id' });
+      
+      const { data: allAnswers } = await supabase.from('practice_question_answers').select('is_correct').eq('user_id', user.id).eq('set_id', setId);
+      await supabase.from('practice_set_progress').upsert({
+        user_id: user.id, set_id: setId,
+        questions_attempted: allAnswers?.length || 0,
+        questions_correct: allAnswers?.filter(a => a.is_correct).length || 0,
+        last_accessed_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,set_id' });
+      
+      return new Response(JSON.stringify({
+        score: bearingsResult.score, feedback: bearingsResult.feedback,
+        isCorrect: bearingsResult.isCorrect, markingData: bearingsResult.markingData
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // If we have a graph result, save and return
