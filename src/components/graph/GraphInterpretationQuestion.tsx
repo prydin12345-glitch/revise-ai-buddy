@@ -247,6 +247,18 @@ export function GraphInterpretationQuestion({
     }
   };
 
+  // Validate config has required data
+  const hasValidConfig = config && config.series && config.series.length > 0;
+
+  if (!hasValidConfig) {
+    return (
+      <div className="border rounded-lg p-6 bg-destructive/10 text-destructive">
+        <p className="font-medium">Graph data missing</p>
+        <p className="text-sm mt-1">This question was generated without visual graph data. Please regenerate the question or contact support.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Graph display */}

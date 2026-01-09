@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
+import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation } from "../_shared/graph-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -142,7 +143,7 @@ Requirements:
 - Educational Level: ${setData.educational_tier}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
-- Question types: Mix of short answer, extended response, MCQ, and table_grid (for interactive tables) where appropriate
+- Question types: Mix of short answer, extended response, MCQ, table_grid (for interactive tables), graph_interpretation, and graph_plotting where appropriate
 - Include proper LaTeX notation for mathematical expressions using $ delimiters (e.g., $x^2$, $\\frac{1}{b^5}$)
 - Set has_math: true for questions with equations
 - Use lowercase variable names consistently (e.g., $x$ not $X$)
@@ -386,6 +387,132 @@ When generating questions that include tables for student completion:
 
 ${specContent ? 'Align questions with the provided specification document:\n' + specContent.substring(0, 5000) : ''}
 ${notesSection}
+
+------------------------------------------------------------
+📈 GRAPH QUESTION GENERATION (CRITICAL - MUST INCLUDE GRAPHSPEC)
+------------------------------------------------------------
+
+For graph_interpretation and graph_plotting questions, you MUST include complete graphSpec data.
+The UI CANNOT render a graph without this data. If you generate a graph question without graphSpec,
+it will be REJECTED and regenerated.
+
+**GRAPH QUESTION TYPES:**
+- "graph_interpretation": Student views a pre-rendered graph and answers questions about it (gradient, intercept, read values)
+- "graph_plotting": Student plots points on an empty coordinate grid
+
+**REQUIRED correct_answer FORMAT for graph questions:**
+{
+  "graphType": "interpretation" | "plotting",
+  "graphConfig": {
+    "chartType": "line" | "scatter",
+    "xLabel": "Time (s)",
+    "yLabel": "Distance (m)",
+    "xDomain": [0, 10],
+    "yDomain": [0, 25],
+    "series": [
+      {
+        "id": "s1",
+        "label": "Object A",
+        "data": [{"x": 0, "y": 0}, {"x": 2, "y": 4}, {"x": 4, "y": 8}, {"x": 6, "y": 12}, {"x": 8, "y": 16}],
+        "showLine": true,
+        "lineStyle": "solid"
+      }
+    ]
+  },
+  "interpretationFields": [  // ONLY for graph_interpretation
+    {
+      "id": "gradient",
+      "type": "numeric",
+      "question": "What is the gradient of line A?",
+      "correctAnswer": 2,
+      "tolerance": 0.1,
+      "marks": 1,
+      "acceptedFormats": ["2", "y=2x", "m=2"]
+    },
+    {
+      "id": "yintercept",
+      "type": "numeric", 
+      "question": "What is the y-intercept?",
+      "correctAnswer": 0,
+      "tolerance": 0.1,
+      "marks": 1
+    }
+  ],
+  "plottingAnswer": {  // ONLY for graph_plotting
+    "expectedPoints": [{"x": 0, "y": 0}, {"x": 2, "y": 4}, {"x": 4, "y": 8}],
+    "toleranceUnits": 0.5,
+    "marksPerPoint": 1
+  }
+}
+
+**CRITICAL RULES FOR GRAPH QUESTIONS:**
+1. graphConfig.series MUST have at least one series with data points (for interpretation) OR be empty (for plotting)
+2. Each series.data MUST contain at least 3 {x, y} points
+3. xDomain and yDomain MUST be [min, max] arrays with numbers
+4. For interpretation: interpretationFields MUST have at least one field with id, type, question, correctAnswer
+5. For plotting: plottingAnswer.expectedPoints MUST contain the points students should plot
+6. DO NOT describe the graph only in text - provide actual numeric data
+7. The series data should match the question context (e.g., physics: distance-time, velocity-time)
+
+**EXAMPLE graph_interpretation question:**
+{
+  "question_number": "5",
+  "question_text": "The graph shows the velocity of a car over time. Study the graph and answer the questions below.",
+  "question_type": "graph_interpretation",
+  "marks": 3,
+  "subtopic": "Motion Graphs",
+  "difficulty_level": "medium",
+  "has_math": true,
+  "correct_answer": {
+    "graphType": "interpretation",
+    "graphConfig": {
+      "chartType": "line",
+      "xLabel": "Time (s)",
+      "yLabel": "Velocity (m/s)",
+      "xDomain": [0, 10],
+      "yDomain": [0, 20],
+      "series": [{
+        "id": "velocity",
+        "label": "Car velocity",
+        "data": [{"x": 0, "y": 0}, {"x": 2, "y": 8}, {"x": 4, "y": 12}, {"x": 6, "y": 16}, {"x": 8, "y": 18}, {"x": 10, "y": 20}],
+        "showLine": true
+      }]
+    },
+    "interpretationFields": [
+      {"id": "acceleration", "type": "numeric", "question": "What is the initial acceleration (0-2s)?", "correctAnswer": 4, "tolerance": 0.2, "marks": 2},
+      {"id": "pattern", "type": "text", "question": "Describe what happens to acceleration over time", "correctAnswer": "decreases", "marks": 1}
+    ]
+  }
+}
+
+**EXAMPLE graph_plotting question:**
+{
+  "question_number": "6", 
+  "question_text": "Plot the following points on the coordinate grid: (1, 2), (3, 6), (5, 10)",
+  "question_type": "graph_plotting",
+  "marks": 3,
+  "subtopic": "Coordinates",
+  "difficulty_level": "easy",
+  "correct_answer": {
+    "graphType": "plotting",
+    "graphConfig": {
+      "chartType": "scatter",
+      "xLabel": "x",
+      "yLabel": "y",
+      "xDomain": [0, 8],
+      "yDomain": [0, 12],
+      "series": []
+    },
+    "plottingAnswer": {
+      "expectedPoints": [{"x": 1, "y": 2}, {"x": 3, "y": 6}, {"x": 5, "y": 10}],
+      "toleranceUnits": 0.5,
+      "marksPerPoint": 1
+    }
+  }
+}
+
+------------------------------------------------------------
+
 Return JSON with:
 {
   "questions": [
@@ -393,13 +520,13 @@ Return JSON with:
       "question_number": "1",
       "question_text": "The question text WITHOUT options (options go in options array for MCQ)",
       "question_latex": "Full LaTeX version if complex math",
-      "question_type": "short_answer" | "extended" | "mcq" | "table_grid",
+      "question_type": "short_answer" | "extended" | "mcq" | "table_grid" | "graph_interpretation" | "graph_plotting",
       "marks": 2-10,
       "subtopic": "...",
       "difficulty_level": "easy" | "medium" | "hard",
       "has_math": true/false,
       "equation_complexity": "simple" | "medium" | "complex",
-      "correct_answer": "The answer OR for table_grid: JSON object with row/cell answers",
+      "correct_answer": "The answer OR for table_grid: JSON object OR for graph_*: graphSpec object",
       "options": ["Option text without letter prefix", "..."] (ONLY for MCQ, null otherwise),
       "worked_solution": "Step-by-step solution",
       "table_data": { // REQUIRED for table_grid questions
@@ -661,6 +788,29 @@ TABLE_GRID RULES (CRITICAL - READ CAREFULLY):
         
         if (!q.correct_answer) {
           console.warn(`Question ${q.question_number}: table_grid type but missing correct_answer for grading`);
+        }
+      }
+      
+      // GRAPH QUESTION VALIDATION (CRITICAL - ensures graphSpec exists)
+      if (q.question_type === 'graph_interpretation' || q.question_type === 'graph_plotting') {
+        const graphValidation = validateGraphQuestion(q.question_type, q.correct_answer);
+        logGraphValidation(q.question_number, graphValidation);
+        
+        if (!graphValidation.valid) {
+          console.warn(`Question ${q.question_number}: Graph question failed validation, generating fallback`);
+          
+          // Generate fallback graphSpec
+          const fallbackSpec = generateFallbackGraphSpec(q.question_type, q.question_text || '');
+          
+          if (fallbackSpec) {
+            console.info(`Question ${q.question_number}: Using fallback graphSpec`);
+            q.correct_answer = fallbackSpec;
+          } else {
+            // Cannot generate fallback - downgrade to short_answer
+            console.error(`Question ${q.question_number}: Cannot generate fallback graphSpec, downgrading to short_answer`);
+            q.question_type = 'short_answer';
+            q.correct_answer = 'Answer will vary based on graph interpretation.';
+          }
         }
       }
       
