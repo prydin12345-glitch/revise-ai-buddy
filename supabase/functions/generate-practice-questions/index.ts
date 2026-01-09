@@ -171,9 +171,9 @@ MCQ rules (avoid duplication in UI):
 Graph questions (must include graphSpec inside correct_answer):
 - For graph_interpretation and graph_plotting, correct_answer MUST be an object with:
   - graphType: "interpretation" or "plotting"
-  - graphConfig: { chartType, xLabel, yLabel, xDomain, yDomain, series }
-  - For interpretation: interpretationFields (at least 1)
-  - For plotting: plottingAnswer.expectedPoints
+  - graphConfig: { chartType, xLabel, yLabel, domainX: [min, max], domainY: [min, max], series: [{id, label, data: [{x, y}]}] }
+  - For interpretation: interpretationFields: [{id, type, question, correctAnswer, marks}] (at least 1)
+  - For plotting: plottingAnswer: {expectedPoints: [{x, y}], toleranceUnits: 0.5, marksPerPoint: 1}
 
 Table_grid questions (interactive tables):
 - question_type MUST be "table_grid".
@@ -570,6 +570,62 @@ ${notesSection}`;
           console.warn(`Question ${q.question_number}: table_grid type but missing table_data, downgrading to short_answer`);
           q.question_type = 'short_answer';
         } else {
+          // CRITICAL: Ensure rows array exists and is valid
+          if (!Array.isArray(q.table_data.rows) || q.table_data.rows.length === 0) {
+            console.warn(`Question ${q.question_number}: table_grid missing rows array, generating fallback`);
+            
+            // Try to infer rows from question context
+            const questionLower = (q.question_text || '').toLowerCase();
+            let fallbackRows: Array<{ id: string; label: string }> = [];
+            
+            // Common table patterns
+            if (/statement|claim|fact/i.test(questionLower)) {
+              fallbackRows = [
+                { id: 'row1', label: 'Statement 1' },
+                { id: 'row2', label: 'Statement 2' },
+                { id: 'row3', label: 'Statement 3' },
+              ];
+            } else if (/x\s*[=:]/i.test(questionLower) || /coordinate|point/i.test(questionLower)) {
+              fallbackRows = [
+                { id: 'row1', label: 'x = 0' },
+                { id: 'row2', label: 'x = 1' },
+                { id: 'row3', label: 'x = 2' },
+              ];
+            } else if (/segment|interval|range/i.test(questionLower)) {
+              fallbackRows = [
+                { id: 'row1', label: 'Segment A-B' },
+                { id: 'row2', label: 'Segment B-C' },
+                { id: 'row3', label: 'Segment C-D' },
+              ];
+            } else {
+              // Generic fallback
+              fallbackRows = [
+                { id: 'row1', label: 'Item 1' },
+                { id: 'row2', label: 'Item 2' },
+                { id: 'row3', label: 'Item 3' },
+              ];
+            }
+            
+            q.table_data.rows = fallbackRows;
+          }
+          
+          // Ensure headers array exists
+          if (!Array.isArray(q.table_data.headers) || q.table_data.headers.length === 0) {
+            console.warn(`Question ${q.question_number}: table_grid missing headers, generating fallback`);
+            
+            const tableType = q.table_data.tableType || q.table_data.table_interaction_type || 'text_entry';
+            
+            if (tableType === 'tf_single' || /true.*false/i.test(q.question_text || '')) {
+              q.table_data.headers = ['', 'True', 'False'];
+            } else if (tableType === 'tick_cross' || /tick.*cross/i.test(q.question_text || '')) {
+              q.table_data.headers = ['', 'Tick', 'Cross'];
+            } else if (/increase|decrease/i.test(q.question_text || '')) {
+              q.table_data.headers = ['', 'Increasing', 'Decreasing'];
+            } else {
+              q.table_data.headers = ['', 'Answer'];
+            }
+          }
+          
           // Validate headers aren't placeholders
           const headers: string[] = q.table_data.headers || [];
           const placeholderPatterns = /^(Element|Option|Column|Item|Row|Cell)\s*\d+$/i;
