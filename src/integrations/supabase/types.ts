@@ -1056,6 +1056,8 @@ export type Database = {
           extraction_error: string | null
           extraction_status: string | null
           id: string
+          include_graphs: boolean | null
+          include_tables: boolean | null
           notes: string | null
           question_count: number
           set_name: string
@@ -1077,6 +1079,8 @@ export type Database = {
           extraction_error?: string | null
           extraction_status?: string | null
           id?: string
+          include_graphs?: boolean | null
+          include_tables?: boolean | null
           notes?: string | null
           question_count: number
           set_name: string
@@ -1098,6 +1102,8 @@ export type Database = {
           extraction_error?: string | null
           extraction_status?: string | null
           id?: string
+          include_graphs?: boolean | null
+          include_tables?: boolean | null
           notes?: string | null
           question_count?: number
           set_name?: string
