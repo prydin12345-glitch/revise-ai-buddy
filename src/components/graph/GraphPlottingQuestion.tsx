@@ -452,7 +452,7 @@ export function GraphPlottingQuestion({
 
       {/* Chart */}
       <div 
-        className="border rounded-lg p-4 bg-card"
+        className="rounded-lg bg-card overflow-hidden"
         style={{ 
           touchAction: readOnly ? 'auto' : 'none',
           cursor: readOnly ? 'default' : 'crosshair'
@@ -460,7 +460,7 @@ export function GraphPlottingQuestion({
         onClick={readOnly ? undefined : handleChartContainerClick}
         onTouchStart={readOnly ? undefined : handleChartContainerClick}
       >
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" aspect={1.2}>
           <ComposedChart
             ref={chartRef}
             style={{ 
@@ -507,20 +507,35 @@ export function GraphPlottingQuestion({
               formatter={(value: number) => value.toFixed(1)}
             />
             
-            {/* Render individual line segments */}
-            {segments.map((segment, idx) => {
-              const segmentData = [segment.from, segment.to].sort((a, b) => a.x - b.x);
+            {/* Legend in top-right */}
+            {studentPoints.length > 0 && (
+              <defs>
+                <marker id="dot" markerWidth="4" markerHeight="4" refX="2" refY="2">
+                  <circle cx="2" cy="2" r="2" fill={subjectColor} />
+                </marker>
+              </defs>
+            )}
+            
+            {/* Render line segments as custom SVG lines within chart coordinate space */}
+            {segments.map((segment) => {
+              // For ComposedChart, we render using Line components with custom data
+              const segmentData = [
+                { x: segment.from.x, y: segment.from.y },
+                { x: segment.to.x, y: segment.to.y }
+              ];
               return (
                 <Line
                   key={segment.id}
                   data={segmentData}
-                  type={segment.mode === 'curved' ? 'monotone' : 'linear'}
                   dataKey="y"
+                  xAxisId={0}
+                  yAxisId={0}
+                  type={segment.mode === 'curved' ? 'monotone' : 'linear'}
                   stroke={subjectColor}
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                   dot={false}
                   isAnimationActive={false}
-                  connectNulls
+                  legendType="none"
                 />
               );
             })}

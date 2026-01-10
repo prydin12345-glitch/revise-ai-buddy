@@ -95,7 +95,8 @@ export interface GraphInterpretationField {
   type: 'numeric' | 'text' | 'mcq' | 'boolean';
   question: string;
   correctAnswer: string | number | boolean;
-  tolerance?: number; // For numeric: ±tolerance (default 0.01 = 1%)
+  tolerance?: number; // For numeric: relative tolerance (default 0.01 = 1%)
+  estimateTolerance?: number; // For "read-off" questions: absolute tolerance in units (default ±1)
   decimals?: number; // Expected decimal places
   synonyms?: string[]; // For text: acceptable alternatives
   options?: string[]; // For MCQ: list of options
