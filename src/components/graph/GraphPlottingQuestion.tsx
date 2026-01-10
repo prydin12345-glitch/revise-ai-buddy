@@ -69,11 +69,36 @@ export function GraphPlottingQuestion({
   onSegmentsChange
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [chartContainerSize, setChartContainerSize] = useState({ width: 0, height: 0 });
   const [history, setHistory] = useState<GraphPoint[][]>([]);
+
   // Timestamp of the last pointer interaction; used to ignore iPad Safari synthetic clicks
   const lastPointerTimeRef = useRef<number>(0);
   const POINTER_GUARD_MS = 500;
-  
+
+  // Observe container size for segment overlay positioning
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setChartContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    observer.observe(container);
+    // Initial measurement
+    setChartContainerSize({
+      width: container.offsetWidth,
+      height: container.offsetHeight,
+    });
+    return () => observer.disconnect();
+  }, []);
+
   // Internal segment state (single source of truth for rendering)
   const [segments, setSegmentsState] = useState<LineSegment[]>(externalSegments ?? []);
 
@@ -91,7 +116,7 @@ export function GraphPlottingQuestion({
     },
     [onSegmentsChange]
   );
-  
+
   // Selected points for joining (max 2)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
@@ -525,7 +550,8 @@ export function GraphPlottingQuestion({
 
       {/* Chart - uses pointer events for cross-device compatibility */}
       <div 
-        className="rounded-lg bg-card overflow-hidden"
+        ref={chartContainerRef}
+        className="rounded-lg bg-card overflow-visible relative"
         style={{ 
           touchAction: readOnly ? 'auto' : 'none',
           cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair')
@@ -595,9 +621,6 @@ export function GraphPlottingQuestion({
               </defs>
             )}
             
-            {/* Render line segments as a custom SVG layer so they always draw */}
-            <GraphSegmentsLayer segments={segments} stroke={subjectColor} />
-            
             {/* Student points */}
             <Scatter
               name="Your points"
@@ -622,6 +645,18 @@ export function GraphPlottingQuestion({
             ))}
           </ComposedChart>
         </ResponsiveContainer>
+
+        {/* Segment overlay - rendered OUTSIDE Recharts for guaranteed visibility */}
+        {chartContainerSize.width > 0 && segments.length > 0 && (
+          <GraphSegmentsLayer
+            segments={segments}
+            stroke={subjectColor}
+            containerWidth={chartContainerSize.width}
+            containerHeight={chartContainerSize.height}
+            domainX={domainX}
+            domainY={domainY}
+          />
+        )}
       </div>
 
       {/* Segments list (if any) */}
