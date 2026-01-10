@@ -2,8 +2,7 @@
  * GraphSegmentsLayer - Renders line segments on a coordinate graph
  * 
  * This renders as an SVG overlay OUTSIDE Recharts to guarantee visibility.
- * We compute pixel coords from the domain/range manually since Recharts 
- * Customized doesn't reliably expose axis scales.
+ * Uses Recharts axis scales when available, otherwise falls back to manual mapping.
  */
 
 import type { LineSegment } from "./types";
@@ -81,22 +80,29 @@ export function GraphSegmentsLayer({
 
   if (plotWidth <= 0 || plotHeight <= 0) return null;
 
-  // Convert data coordinates to pixel coordinates (fallback)
+  // Convert data coordinates to pixel coordinates (fallback when scales not available)
   const dataToPixelX = (dataX: number): number => {
+    // Use Recharts scale if available
+    if (xScale) return xScale(dataX);
+    
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
   };
 
   const dataToPixelY = (dataY: number): number => {
+    // Use Recharts scale if available
+    if (yScale) return yScale(dataY);
+    
     const denom = domainY[1] - domainY[0] || 1;
     // Y axis is inverted in SVG (0 is top)
     const fraction = (dataY - domainY[0]) / denom;
     return marginTop + (1 - fraction) * plotHeight;
   };
 
-  const outlineStroke = "hsl(var(--foreground))";
-  const outlineExtra = 5; // px added to strokeWidth for visibility/contrast
+  // High-contrast outline for visibility on any background
+  const outlineColor = "rgba(0, 0, 0, 0.7)";
+  const outlineWidth = strokeWidth + 4;
 
   return (
     <svg
@@ -106,7 +112,8 @@ export function GraphSegmentsLayer({
         width: "100%",
         height: "100%",
         pointerEvents: "none",
-        zIndex: 50, // Above chart/grid AND above points
+        zIndex: 100, // Very high - above chart, grid, AND points
+        overflow: "visible",
       }}
     >
       {segments.map((seg) => {
@@ -120,15 +127,42 @@ export function GraphSegmentsLayer({
           return null;
         }
 
+        const isCurved = seg.mode === "curved";
+        const pathD = isCurved ? makeCurvedPath(x1, y1, x2, y2) : undefined;
+
         return (
           <g key={seg.id}>
-            {seg.mode === "curved" ? (
+            {/* Dark outline/halo for contrast */}
+            {isCurved ? (
               <path
-                d={makeCurvedPath(x1, y1, x2, y2)}
+                d={pathD!}
+                fill="none"
+                stroke={outlineColor}
+                strokeWidth={outlineWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : (
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={outlineColor}
+                strokeWidth={outlineWidth}
+                strokeLinecap="round"
+              />
+            )}
+
+            {/* Main colored segment */}
+            {isCurved ? (
+              <path
+                d={pathD!}
                 fill="none"
                 stroke={stroke}
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
             ) : (
               <line
@@ -141,16 +175,17 @@ export function GraphSegmentsLayer({
                 strokeLinecap="round"
               />
             )}
+
             {/* Debug: show endpoint markers and coordinates */}
             {debug && (
               <>
-                <circle cx={x1} cy={y1} r={4} fill="red" />
-                <circle cx={x2} cy={y2} r={4} fill="blue" />
-                <text x={x1 + 6} y={y1 - 6} fontSize={10} fill="red">
-                  ({seg.from.x},{seg.from.y})→px({Math.round(x1)},{Math.round(y1)})
+                <circle cx={x1} cy={y1} r={6} fill="red" stroke="white" strokeWidth={2} />
+                <circle cx={x2} cy={y2} r={6} fill="lime" stroke="white" strokeWidth={2} />
+                <text x={x1 + 10} y={y1 - 10} fontSize={11} fill="red" fontWeight="bold">
+                  ({seg.from.x},{seg.from.y}) → px({Math.round(x1)},{Math.round(y1)})
                 </text>
-                <text x={x2 + 6} y={y2 + 12} fontSize={10} fill="blue">
-                  ({seg.to.x},{seg.to.y})→px({Math.round(x2)},{Math.round(y2)})
+                <text x={x2 + 10} y={y2 + 16} fontSize={11} fill="lime" fontWeight="bold">
+                  ({seg.to.x},{seg.to.y}) → px({Math.round(x2)},{Math.round(y2)})
                 </text>
               </>
             )}
