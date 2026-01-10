@@ -2,6 +2,7 @@
 // Interactive scatter plot where students can add/drag/remove points
 // With segment-based joining: select two points to join them
 // Uses Pointer Events for cross-device compatibility (iPad Safari, mobile, desktop)
+// Rebuilt 2026-01-10
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
