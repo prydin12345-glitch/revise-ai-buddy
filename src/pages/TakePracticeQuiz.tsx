@@ -417,6 +417,19 @@ const TakePracticeQuiz = () => {
             }
           }
           
+          // Declare variables for graphJoinMode and graphSegments before the block
+          let graphJoinMode: 'straight' | 'curved' | undefined;
+          let graphSegments: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }> | undefined;
+          
+          // Rehydrate joinMode and segments from submitted answer
+          if (ans.answer_text) {
+            const graphResponse2 = parseGraphResponse(ans.answer_text);
+            if (graphResponse2 && graphResponse2._type === 'graph_plotting') {
+              graphJoinMode = graphResponse2.joinMode;
+              graphSegments = graphResponse2.segments;
+            }
+          }
+          
           // Try to extract marking data from feedback (stored as JSON metadata)
           if (ans.feedback) {
             try {
@@ -450,6 +463,8 @@ const TakePracticeQuiz = () => {
             graphInterpretationAnswers,
             graphPlottedPoints,
             graphMarkingData,
+            graphJoinMode,
+            graphSegments,
           };
         });
       }
@@ -486,10 +501,17 @@ const TakePracticeQuiz = () => {
               // Only restore draft if question hasn't been submitted
               if (initialAnswers[questionId] && !initialAnswers[questionId].submitted) {
                 // Handle new format (object with text) or old format (string)
-                if (typeof draft === 'object' && draft !== null) {
-                  initialAnswers[questionId].answer = draft.text || "";
-                } else if (typeof draft === 'string') {
-                  initialAnswers[questionId].answer = draft;
+                const draftText = typeof draft === 'object' && draft !== null ? (draft.text || "") : (typeof draft === 'string' ? draft : "");
+                initialAnswers[questionId].answer = draftText;
+                
+                // Rehydrate graph plotting state from draft JSON
+                const graphResponse = parseGraphResponse(draftText);
+                if (graphResponse && graphResponse._type === 'graph_plotting') {
+                  initialAnswers[questionId].graphPlottedPoints = graphResponse.points;
+                  initialAnswers[questionId].graphJoinMode = graphResponse.joinMode;
+                  initialAnswers[questionId].graphSegments = graphResponse.segments;
+                } else if (graphResponse && graphResponse._type === 'graph_interpretation') {
+                  initialAnswers[questionId].graphInterpretationAnswers = graphResponse.answers;
                 }
               }
             });
@@ -530,7 +552,18 @@ const TakePracticeQuiz = () => {
               const hasDbAnswer = initialAnswers[question.id].answer?.trim();
               if (!hasDbAnswer) {
                 console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
-                initialAnswers[question.id].answer = draft.text || '';
+                const draftText = draft.text || '';
+                initialAnswers[question.id].answer = draftText;
+                
+                // Rehydrate graph plotting state from sessionStorage draft
+                const graphResponse = parseGraphResponse(draftText);
+                if (graphResponse && graphResponse._type === 'graph_plotting') {
+                  initialAnswers[question.id].graphPlottedPoints = graphResponse.points;
+                  initialAnswers[question.id].graphJoinMode = graphResponse.joinMode;
+                  initialAnswers[question.id].graphSegments = graphResponse.segments;
+                } else if (graphResponse && graphResponse._type === 'graph_interpretation') {
+                  initialAnswers[question.id].graphInterpretationAnswers = graphResponse.answers;
+                }
               }
             }
           }

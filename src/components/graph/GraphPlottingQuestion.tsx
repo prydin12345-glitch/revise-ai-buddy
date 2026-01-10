@@ -1,6 +1,7 @@
 // Graph Plotting Question Component
 // Interactive scatter plot where students can add/drag/remove points
 // With segment-based joining: select two points to join them
+// Uses Pointer Events for cross-device compatibility (iPad Safari, mobile, desktop)
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
@@ -75,6 +76,10 @@ export function GraphPlottingQuestion({
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const [history, setHistory] = useState<GraphPoint[][]>([]);
+  
+  // Guard to prevent double-firing on iPad Safari (touch + synthetic click)
+  const lastPointerTimeRef = useRef<number>(0);
+  const POINTER_GUARD_MS = 500;
   
   // Internal segment state (mirrors external state when provided)
   const [internalSegments, setInternalSegments] = useState<LineSegment[]>([]);
@@ -354,7 +359,7 @@ export function GraphPlottingQuestion({
   }, [readOnly, domainX, domainY, addPoint, currentJoinMode]);
 
   // Custom dot renderer with status colors and selection highlighting
-  // Uses both onClick and onTouchEnd for cross-device compatibility
+  // Uses onPointerUp ONLY for cross-device compatibility (iPad Safari, mobile, desktop)
   const renderDot = (props: any) => {
     const { cx, cy, payload, index } = props;
     if (!payload) return null;
@@ -363,13 +368,20 @@ export function GraphPlottingQuestion({
     const isSelected = isPointSelected(payload);
     const color = status ? statusColors[status] : subjectColor;
     
-    // Handler that works for both mouse and touch
-    const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    // Unified pointer handler - works on touch and mouse
+    const handlePointerUp = (e: React.PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      
+      // Guard against duplicate events (iPad fires touch + synthetic click)
+      const now = Date.now();
+      if (now - lastPointerTimeRef.current < POINTER_GUARD_MS) {
+        return;
+      }
+      lastPointerTimeRef.current = now;
+      
       if (!readOnly) {
-        // Create a synthetic mouse event for the handler
-        handlePointClick(payload, e as React.MouseEvent);
+        handlePointClick(payload, e as unknown as React.MouseEvent);
       }
     };
     
@@ -387,15 +399,14 @@ export function GraphPlottingQuestion({
             strokeDasharray="4 2"
           />
         )}
-        {/* Larger invisible touch target for mobile */}
+        {/* Larger invisible touch target for mobile - pointer events only */}
         <circle
           cx={cx}
           cy={cy}
-          r={20}
+          r={24}
           fill="transparent"
-          style={{ cursor: readOnly ? 'default' : 'pointer' }}
-          onClick={handleInteraction}
-          onTouchEnd={handleInteraction}
+          style={{ cursor: readOnly ? 'default' : 'pointer', touchAction: 'none' }}
+          onPointerUp={handlePointerUp}
         />
         {/* Visible dot */}
         <circle
@@ -445,8 +456,10 @@ export function GraphPlottingQuestion({
             {isJoinModeEnabled && (
               <ToggleGroup
                 type="single"
-                value={currentJoinMode}
+                value={currentJoinMode === 'none' ? '' : currentJoinMode}
                 onValueChange={(val) => {
+                  // ToggleGroup emits '' when deselecting - ignore it to keep mode sticky
+                  if (!val) return;
                   if (onJoinModeChange) {
                     onJoinModeChange(val as 'straight' | 'curved');
                   }
@@ -499,15 +512,22 @@ export function GraphPlottingQuestion({
         </div>
       )}
 
-      {/* Chart */}
+      {/* Chart - uses pointer events for cross-device compatibility */}
       <div 
         className="rounded-lg bg-card overflow-hidden"
         style={{ 
-          touchAction: readOnly ? 'auto' : 'manipulation',
+          touchAction: readOnly ? 'auto' : 'none',
           cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair')
         }}
-        onClick={readOnly ? undefined : handleChartContainerClick}
-        onTouchEnd={readOnly ? undefined : handleChartContainerClick}
+        onPointerUp={readOnly ? undefined : (e) => {
+          // Guard against duplicate events
+          const now = Date.now();
+          if (now - lastPointerTimeRef.current < POINTER_GUARD_MS) {
+            return;
+          }
+          lastPointerTimeRef.current = now;
+          handleChartContainerClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+        }}
       >
         <ResponsiveContainer width="100%" aspect={1.2}>
           <ComposedChart
