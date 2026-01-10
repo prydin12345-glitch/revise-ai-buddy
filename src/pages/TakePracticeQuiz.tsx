@@ -1290,42 +1290,72 @@ const TakePracticeQuiz = () => {
                             expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
                             studentPoints={currentAnswer.graphPlottedPoints || []}
                             onPointsChange={(points) => {
-                              const currentMode = currentAnswer.graphJoinMode;
-                              const currentSegments = currentAnswer.graphSegments;
-                              const serialized = serializeGraphPlottingResponse(points, currentMode, currentSegments);
-                              const newAnswer = {
-                                ...currentAnswer,
-                                answer: serialized,
-                                graphPlottedPoints: points,
-                              };
-                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                              debouncedSave(currentQuestion.id, { answer: serialized });
+                              let serializedToSave = '';
+                              setUserAnswers((prev) => {
+                                const existing = prev[currentQuestion.id] ?? currentAnswer;
+                                const serialized = serializeGraphPlottingResponse(
+                                  points,
+                                  existing.graphJoinMode,
+                                  existing.graphSegments
+                                );
+                                serializedToSave = serialized;
+                                return {
+                                  ...prev,
+                                  [currentQuestion.id]: {
+                                    ...existing,
+                                    answer: serialized,
+                                    graphPlottedPoints: points,
+                                  },
+                                };
+                              });
+                              debouncedSave(currentQuestion.id, { answer: serializedToSave });
                             }}
                             joinMode={currentAnswer.graphJoinMode}
                             onJoinModeChange={(mode) => {
-                              const points = currentAnswer.graphPlottedPoints || [];
-                              const currentSegments = currentAnswer.graphSegments;
-                              const serialized = serializeGraphPlottingResponse(points, mode, currentSegments);
-                              const newAnswer = {
-                                ...currentAnswer,
-                                answer: serialized,
-                                graphJoinMode: mode,
-                              };
-                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                              debouncedSave(currentQuestion.id, { answer: serialized });
+                              let serializedToSave = '';
+                              setUserAnswers((prev) => {
+                                const existing = prev[currentQuestion.id] ?? currentAnswer;
+                                const points = existing.graphPlottedPoints || [];
+                                const serialized = serializeGraphPlottingResponse(
+                                  points,
+                                  mode,
+                                  existing.graphSegments
+                                );
+                                serializedToSave = serialized;
+                                return {
+                                  ...prev,
+                                  [currentQuestion.id]: {
+                                    ...existing,
+                                    answer: serialized,
+                                    graphJoinMode: mode,
+                                  },
+                                };
+                              });
+                              debouncedSave(currentQuestion.id, { answer: serializedToSave });
                             }}
                             segments={currentAnswer.graphSegments}
                             onSegmentsChange={(segments) => {
-                              const points = currentAnswer.graphPlottedPoints || [];
-                              const currentMode = currentAnswer.graphJoinMode;
-                              const serialized = serializeGraphPlottingResponse(points, currentMode, segments);
-                              const newAnswer = {
-                                ...currentAnswer,
-                                answer: serialized,
-                                graphSegments: segments,
-                              };
-                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                              debouncedSave(currentQuestion.id, { answer: serialized });
+                              let serializedToSave = '';
+                              setUserAnswers((prev) => {
+                                const existing = prev[currentQuestion.id] ?? currentAnswer;
+                                const points = existing.graphPlottedPoints || [];
+                                const mode = existing.graphJoinMode;
+                                const serialized = serializeGraphPlottingResponse(
+                                  points,
+                                  mode,
+                                  segments
+                                );
+                                serializedToSave = serialized;
+                                return {
+                                  ...prev,
+                                  [currentQuestion.id]: {
+                                    ...existing,
+                                    answer: serialized,
+                                    graphSegments: segments,
+                                  },
+                                };
+                              });
+                              debouncedSave(currentQuestion.id, { answer: serializedToSave });
                             }}
                             readOnly={currentAnswer.submitted}
                             showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}

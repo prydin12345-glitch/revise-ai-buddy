@@ -2,7 +2,7 @@
 // Interactive scatter plot where students can add/drag/remove points
 // With segment-based joining: select two points to join them
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer,
   XAxis,
@@ -76,10 +76,22 @@ export function GraphPlottingQuestion({
   const chartRef = useRef<any>(null);
   const [history, setHistory] = useState<GraphPoint[][]>([]);
   
-  // Internal segment state (if not controlled externally)
+  // Internal segment state (mirrors external state when provided)
   const [internalSegments, setInternalSegments] = useState<LineSegment[]>([]);
+
+  useEffect(() => {
+    // Keep internal state in sync so joins render immediately even if parent state lags
+    if (externalSegments) setInternalSegments(externalSegments);
+  }, [externalSegments]);
+
   const segments = externalSegments ?? internalSegments;
-  const setSegments = onSegmentsChange ?? setInternalSegments;
+  const setSegments = useCallback(
+    (next: LineSegment[]) => {
+      setInternalSegments(next);
+      onSegmentsChange?.(next);
+    },
+    [onSegmentsChange]
+  );
   
   // Selected points for joining (max 2)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
