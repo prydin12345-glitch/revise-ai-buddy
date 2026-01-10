@@ -1344,7 +1344,7 @@ const TakePracticeQuiz = () => {
                               debouncedSave(currentQuestion.id, { answer: serializedToSave });
                             }}
                             joinMode={currentAnswer.graphJoinMode}
-                            onJoinModeChange={(mode) => {
+                            onJoinModeChange={(mode?: 'straight' | 'curved') => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
                                 const existing = prev[currentQuestion.id] ?? currentAnswer;

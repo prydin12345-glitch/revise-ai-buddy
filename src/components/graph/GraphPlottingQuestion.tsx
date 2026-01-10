@@ -46,7 +46,7 @@ interface GraphPlottingQuestionProps {
   subjectColor?: string;
   // Join mode props
   joinMode?: 'straight' | 'curved';
-  onJoinModeChange?: (mode: 'straight' | 'curved') => void;
+  onJoinModeChange?: (mode?: 'straight' | 'curved') => void;
   // Segments state (for persistence)
   segments?: LineSegment[];
   onSegmentsChange?: (segments: LineSegment[]) => void;
@@ -76,8 +76,7 @@ export function GraphPlottingQuestion({
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const [history, setHistory] = useState<GraphPoint[][]>([]);
-  
-  // Guard to prevent double-firing on iPad Safari (touch + synthetic click)
+  // Timestamp of the last pointer interaction; used to ignore iPad Safari synthetic clicks
   const lastPointerTimeRef = useRef<number>(0);
   const POINTER_GUARD_MS = 500;
   
@@ -372,16 +371,20 @@ export function GraphPlottingQuestion({
     const handlePointerUp = (e: React.PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      
-      // Guard against duplicate events (iPad fires touch + synthetic click)
-      const now = Date.now();
-      if (now - lastPointerTimeRef.current < POINTER_GUARD_MS) {
-        return;
-      }
-      lastPointerTimeRef.current = now;
-      
+
+      // Record pointer time so we can ignore the synthetic click that iPad Safari emits after touch
+      lastPointerTimeRef.current = Date.now();
+
       if (!readOnly) {
         handlePointClick(payload, e as unknown as React.MouseEvent);
+      }
+    };
+
+    const handleClickCapture = (e: React.MouseEvent) => {
+      // Ignore synthetic click that can follow a touch/pointer interaction
+      if (Date.now() - lastPointerTimeRef.current < POINTER_GUARD_MS) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
     
@@ -407,6 +410,7 @@ export function GraphPlottingQuestion({
           fill="transparent"
           style={{ cursor: readOnly ? 'default' : 'pointer', touchAction: 'none' }}
           onPointerUp={handlePointerUp}
+          onClickCapture={handleClickCapture}
         />
         {/* Visible dot */}
         <circle
@@ -458,11 +462,14 @@ export function GraphPlottingQuestion({
                 type="single"
                 value={currentJoinMode === 'none' ? '' : currentJoinMode}
                 onValueChange={(val) => {
-                  // ToggleGroup emits '' when deselecting - ignore it to keep mode sticky
-                  if (!val) return;
-                  if (onJoinModeChange) {
-                    onJoinModeChange(val as 'straight' | 'curved');
+                  // Allow tapping the active option again to exit join mode (back to plotting)
+                  if (!val) {
+                    onJoinModeChange?.(undefined);
+                    setSelectedJoinPoints([]);
+                    return;
                   }
+
+                  onJoinModeChange?.(val as 'straight' | 'curved');
                   // Clear selection when changing mode
                   setSelectedJoinPoints([]);
                 }}
@@ -520,13 +527,15 @@ export function GraphPlottingQuestion({
           cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair')
         }}
         onPointerUp={readOnly ? undefined : (e) => {
-          // Guard against duplicate events
-          const now = Date.now();
-          if (now - lastPointerTimeRef.current < POINTER_GUARD_MS) {
-            return;
-          }
-          lastPointerTimeRef.current = now;
+          // Record pointer time so we can ignore the synthetic click that iPad Safari emits after touch
+          lastPointerTimeRef.current = Date.now();
           handleChartContainerClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+        }}
+        onClickCapture={readOnly ? undefined : (e) => {
+          if (Date.now() - lastPointerTimeRef.current < POINTER_GUARD_MS) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
         }}
       >
         <ResponsiveContainer width="100%" aspect={1.2}>
