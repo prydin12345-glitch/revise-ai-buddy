@@ -73,6 +73,10 @@ export function GraphPlottingQuestion({
   const [chartContainerSize, setChartContainerSize] = useState({ width: 0, height: 0 });
   const [history, setHistory] = useState<GraphPoint[][]>([]);
 
+  // Use Recharts' real axis scales when available (prevents domain/margin mismatches)
+  const [axisScales, setAxisScales] = useState<{ x?: (v: number) => number; y?: (v: number) => number }>({});
+  const axisScalesRef = useRef<{ x?: (v: number) => number; y?: (v: number) => number }>({});
+
   // Timestamp of the last pointer interaction; used to ignore iPad Safari synthetic clicks
   const lastPointerTimeRef = useRef<number>(0);
   const POINTER_GUARD_MS = 500;
@@ -98,6 +102,26 @@ export function GraphPlottingQuestion({
     });
     return () => observer.disconnect();
   }, []);
+
+  // Capture Recharts axis scale functions for exact pixel mapping (used by segment overlay)
+  useEffect(() => {
+    const inst = chartRef.current;
+    const xAxisMap = inst?.state?.xAxisMap;
+    const yAxisMap = inst?.state?.yAxisMap;
+
+    const xAxis: any = xAxisMap ? Object.values(xAxisMap)[0] : undefined;
+    const yAxis: any = yAxisMap ? Object.values(yAxisMap)[0] : undefined;
+
+    const xScale = xAxis?.scale;
+    const yScale = yAxis?.scale;
+
+    if (typeof xScale === 'function' && typeof yScale === 'function') {
+      if (axisScalesRef.current.x !== xScale || axisScalesRef.current.y !== yScale) {
+        axisScalesRef.current = { x: xScale, y: yScale };
+        setAxisScales({ x: xScale, y: yScale });
+      }
+    }
+  }, [chartContainerSize.width, chartContainerSize.height, domainX[0], domainX[1], domainY[0], domainY[1]]);
 
   // Internal segment state (single source of truth for rendering)
   const [segments, setSegmentsState] = useState<LineSegment[]>(externalSegments ?? []);
@@ -655,6 +679,8 @@ export function GraphPlottingQuestion({
             containerHeight={chartContainerSize.height}
             domainX={domainX}
             domainY={domainY}
+            xScale={axisScales.x}
+            yScale={axisScales.y}
           />
         )}
       </div>

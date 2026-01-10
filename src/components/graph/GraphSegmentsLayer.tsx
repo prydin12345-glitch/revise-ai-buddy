@@ -12,6 +12,14 @@ interface GraphSegmentsLayerProps {
   segments: LineSegment[];
   stroke: string;
   strokeWidth?: number;
+
+  /**
+   * Optional: pass Recharts' actual axis scale functions for pixel-perfect alignment.
+   * If omitted, we fall back to a manual linear mapping using domain + margins.
+   */
+  xScale?: (x: number) => number;
+  yScale?: (y: number) => number;
+
   // Chart dimensions and margins (must match what Recharts uses)
   containerWidth: number;
   containerHeight: number;
@@ -19,9 +27,11 @@ interface GraphSegmentsLayerProps {
   marginRight?: number;
   marginTop?: number;
   marginBottom?: number;
+
   // Data domain
   domainX: [number, number];
   domainY: [number, number];
+
   // Debug mode
   debug?: boolean;
 }
@@ -48,7 +58,9 @@ function makeCurvedPath(x1: number, y1: number, x2: number, y2: number) {
 export function GraphSegmentsLayer({
   segments,
   stroke,
-  strokeWidth = 3,
+  strokeWidth = 4,
+  xScale,
+  yScale,
   containerWidth,
   containerHeight,
   marginLeft = 65,
@@ -63,34 +75,38 @@ export function GraphSegmentsLayer({
     return null;
   }
 
-  // Calculate the plot area dimensions
+  // Calculate the plot area dimensions (fallback mapper)
   const plotWidth = containerWidth - marginLeft - marginRight;
   const plotHeight = containerHeight - marginTop - marginBottom;
 
   if (plotWidth <= 0 || plotHeight <= 0) return null;
 
-  // Convert data coordinates to pixel coordinates
+  // Convert data coordinates to pixel coordinates (fallback)
   const dataToPixelX = (dataX: number): number => {
-    const fraction = (dataX - domainX[0]) / (domainX[1] - domainX[0]);
+    const denom = domainX[1] - domainX[0] || 1;
+    const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
   };
 
   const dataToPixelY = (dataY: number): number => {
+    const denom = domainY[1] - domainY[0] || 1;
     // Y axis is inverted in SVG (0 is top)
-    const fraction = (dataY - domainY[0]) / (domainY[1] - domainY[0]);
+    const fraction = (dataY - domainY[0]) / denom;
     return marginTop + (1 - fraction) * plotHeight;
   };
+
+  const outlineStroke = "hsl(var(--foreground))";
+  const outlineExtra = 5; // px added to strokeWidth for visibility/contrast
 
   return (
     <svg
       style={{
         position: "absolute",
-        top: 0,
-        left: 0,
-        width: containerWidth,
-        height: containerHeight,
+        inset: 0,
+        width: "100%",
+        height: "100%",
         pointerEvents: "none",
-        zIndex: 10, // Above chart but below dots (dots have their own z via DOM order)
+        zIndex: 50, // Above chart/grid AND above points
       }}
     >
       {segments.map((seg) => {
