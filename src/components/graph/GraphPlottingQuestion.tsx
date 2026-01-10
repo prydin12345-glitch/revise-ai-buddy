@@ -12,7 +12,6 @@ import {
   Tooltip,
   ReferenceDot,
   ReferenceLine,
-  Line,
   ComposedChart,
   Scatter
 } from 'recharts';
@@ -24,16 +23,10 @@ import type {
   GraphPlottingConfig,
   GraphPoint,
   GraphPlottingAnswer,
-  GraphPlottingMarkingResult
+  GraphPlottingMarkingResult,
+  LineSegment
 } from './types';
-
-// Line segment between two points
-interface LineSegment {
-  id: string;
-  from: GraphPoint;
-  to: GraphPoint;
-  mode: 'straight' | 'curved';
-}
+import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
@@ -80,18 +73,19 @@ export function GraphPlottingQuestion({
   const lastPointerTimeRef = useRef<number>(0);
   const POINTER_GUARD_MS = 500;
   
-  // Internal segment state (mirrors external state when provided)
-  const [internalSegments, setInternalSegments] = useState<LineSegment[]>([]);
+  // Internal segment state (single source of truth for rendering)
+  const [segments, setSegmentsState] = useState<LineSegment[]>(externalSegments ?? []);
 
   useEffect(() => {
-    // Keep internal state in sync so joins render immediately even if parent state lags
-    if (externalSegments) setInternalSegments(externalSegments);
+    // Hydrate/rehydrate from parent when provided (e.g., navigation, drafts)
+    if (externalSegments) {
+      setSegmentsState(externalSegments);
+    }
   }, [externalSegments]);
 
-  const segments = externalSegments ?? internalSegments;
   const setSegments = useCallback(
     (next: LineSegment[]) => {
-      setInternalSegments(next);
+      setSegmentsState(next);
       onSegmentsChange?.(next);
     },
     [onSegmentsChange]
@@ -163,8 +157,9 @@ export function GraphPlottingQuestion({
             mode: currentJoinMode as 'straight' | 'curved'
           };
           setSegments([...segments, newSegment]);
-          // Clear selection after creating segment
-          setSelectedJoinPoints([]);
+
+          // Keep the second point selected so the student can keep joining in a chain
+          setSelectedJoinPoints([newSelection[1]]);
         }
       }
     } else {
@@ -510,11 +505,19 @@ export function GraphPlottingQuestion({
       {/* Helper text for joining */}
       {!readOnly && isJoinModeEnabled && studentPoints.length >= 2 && currentJoinMode !== 'none' && (
         <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-          {selectedJoinPoints.length === 0 && (
-            <span>Tap a plotted point to start joining.</span>
-          )}
-          {selectedJoinPoints.length === 1 && (
-            <span>Now tap another point to create a {currentJoinMode} line.</span>
+          {selectedJoinPoints.length === 1 ? (
+            <span>
+              Selected ({selectedJoinPoints[0].x}, {selectedJoinPoints[0].y}). Now tap another point to draw a{' '}
+              {currentJoinMode} segment (tap the selected point again to cancel).
+            </span>
+          ) : segments.length > 0 ? (
+            <span>
+              Tap a plotted point to start another {currentJoinMode} segment. ({segments.length} created so far.)
+            </span>
+          ) : (
+            <span>
+              Tap a plotted point to start joining with {currentJoinMode} segments.
+            </span>
           )}
         </div>
       )}
@@ -591,29 +594,8 @@ export function GraphPlottingQuestion({
               </defs>
             )}
             
-            {/* Render line segments as custom SVG lines within chart coordinate space */}
-            {segments.map((segment) => {
-              // For ComposedChart, we render using Line components with custom data
-              const segmentData = [
-                { x: segment.from.x, y: segment.from.y },
-                { x: segment.to.x, y: segment.to.y }
-              ];
-              return (
-                <Line
-                  key={segment.id}
-                  data={segmentData}
-                  dataKey="y"
-                  xAxisId={0}
-                  yAxisId={0}
-                  type={segment.mode === 'curved' ? 'monotone' : 'linear'}
-                  stroke={subjectColor}
-                  strokeWidth={3}
-                  dot={false}
-                  isAnimationActive={false}
-                  legendType="none"
-                />
-              );
-            })}
+            {/* Render line segments as a custom SVG layer so they always draw */}
+            <GraphSegmentsLayer segments={segments} stroke={subjectColor} />
             
             {/* Student points */}
             <Scatter
