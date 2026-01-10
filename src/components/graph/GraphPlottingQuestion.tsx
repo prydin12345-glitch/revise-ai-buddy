@@ -121,7 +121,7 @@ export function GraphPlottingQuestion({
         setAxisScales({ x: xScale, y: yScale });
       }
     }
-  }, [chartContainerSize.width, chartContainerSize.height, domainX[0], domainX[1], domainY[0], domainY[1]]);
+  }, [chartContainerSize.width, chartContainerSize.height, config.domainX, config.domainY]);
 
   // Internal segment state (single source of truth for rendering)
   const [segments, setSegmentsState] = useState<LineSegment[]>(externalSegments ?? []);
