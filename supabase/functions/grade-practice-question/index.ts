@@ -167,26 +167,43 @@ serve(async (req) => {
             
             if (hasAnswer) {
               if (field.type === 'numeric') {
-                // ROBUST NUMERIC MATCHING with normalization
-                const tolerance = field.tolerance || 0.01;
+                // ROBUST NUMERIC MATCHING with tolerance support
+                // Use estimateTolerance for "read-off" / "estimate" questions (absolute value tolerance)
+                // Use tolerance for relative tolerance (default 1%)
+                const isEstimateQuestion = field.estimateTolerance !== undefined || 
+                  field.question?.toLowerCase().includes('estimate') ||
+                  field.question?.toLowerCase().includes('read') ||
+                  field.question?.toLowerCase().includes('approximately');
+                
+                // For estimate questions: use absolute tolerance (default ±1 unit)
+                // For exact questions: use relative tolerance (default 1%)
+                const absoluteTolerance = field.estimateTolerance ?? (isEstimateQuestion ? 1 : 0.001);
+                const relativeTolerance = field.tolerance ?? 0.01;
                 
                 // Try to extract numeric value from student answer (handles "y=2x", "(0,0)", etc.)
                 const numStudent = extractNumericValue(studentVal);
                 const numCorrect = typeof correctVal === 'number' ? correctVal : parseFloat(String(correctVal));
                 
-                console.log(`[graph-grading] Numeric: extracted student=${numStudent}, correct=${numCorrect}`);
+                console.log(`[graph-grading] Numeric: extracted student=${numStudent}, correct=${numCorrect}, isEstimate=${isEstimateQuestion}, absTol=${absoluteTolerance}`);
                 
                 if (numStudent !== null && !isNaN(numCorrect)) {
-                  isCorrect = numericMatch(numStudent, numCorrect, tolerance);
+                  // For estimate questions, use absolute tolerance
+                  // For exact questions, use relative tolerance OR tiny absolute
+                  const relTol = Math.abs(numCorrect * relativeTolerance);
+                  const diff = Math.abs(numStudent - numCorrect);
+                  isCorrect = diff <= absoluteTolerance || diff <= relTol;
                 }
                 
                 // Also check against acceptable answer formats if provided
                 if (!isCorrect && field.acceptedFormats) {
                   for (const fmt of field.acceptedFormats) {
                     const fmtNum = extractNumericValue(fmt);
-                    if (fmtNum !== null && numStudent !== null && numericMatch(numStudent, fmtNum, tolerance)) {
-                      isCorrect = true;
-                      break;
+                    if (fmtNum !== null && numStudent !== null) {
+                      const diff = Math.abs(numStudent - fmtNum);
+                      if (diff <= absoluteTolerance) {
+                        isCorrect = true;
+                        break;
+                      }
                     }
                   }
                 }
@@ -356,7 +373,8 @@ serve(async (req) => {
           const questionData = JSON.parse(question.correct_answer || '{}');
           const config = questionData.bearingsConfig || {};
           const correctBearing = config.correctBearing ?? 0;
-          const tolerance = config.tolerance ?? 1; // Default ±1°
+          // Increased default tolerance to ±3° for bearings/angles (more forgiving for estimates)
+          const tolerance = config.tolerance ?? 3;
           const marks = config.marks ?? question.marks ?? 1;
           
           // Normalize student bearing

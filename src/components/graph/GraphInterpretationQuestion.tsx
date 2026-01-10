@@ -254,11 +254,10 @@ export function GraphInterpretationQuestion({
   return (
     <div className="space-y-4">
       {/* Graph display */}
-      <div className="border rounded-lg p-4 bg-card">
+      <div className="rounded-lg bg-card overflow-hidden">
         <GraphRenderer
           config={config}
           series={config.series}
-          height={280}
         />
       </div>
 

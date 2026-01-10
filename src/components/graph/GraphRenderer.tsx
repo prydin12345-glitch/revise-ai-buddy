@@ -124,11 +124,12 @@ export function GraphRenderer({
   if (chartType === 'line' || (chartType === 'scatter' && series.some(s => s.showLine))) {
     return (
       <div className={cn('w-full', className)}>
-        <ResponsiveContainer width="100%" height={height}>
+        <ResponsiveContainer width="100%" aspect={1.2}>
           <LineChart
             data={chartData}
             onClick={interactive ? handleChartClick : undefined}
             style={{ cursor: interactive ? 'crosshair' : 'default' }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
           >
             {gridEnabled && (
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -138,7 +139,7 @@ export function GraphRenderer({
               domain={calculatedDomain.x}
               type="number"
               {...axisProps}
-              label={{ value: xLabel, position: 'insideBottom', offset: -5 }}
+              label={{ value: xLabel, position: 'bottom', offset: 10 }}
             />
             <YAxis
               domain={calculatedDomain.y}
@@ -153,7 +154,7 @@ export function GraphRenderer({
               }}
               formatter={(value: number, name: string) => [value.toFixed(2), name]}
             />
-            <Legend />
+            <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 10 }} />
             
             {series.map(s => (
               <Line
@@ -220,10 +221,11 @@ export function GraphRenderer({
   // Render scatter chart
   return (
     <div className={cn('w-full', className)}>
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" aspect={1.2}>
         <ScatterChart
           onClick={interactive ? handleChartClick : undefined}
           style={{ cursor: interactive ? 'crosshair' : 'default' }}
+          margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
         >
           {gridEnabled && (
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -233,7 +235,7 @@ export function GraphRenderer({
             domain={calculatedDomain.x}
             type="number"
             {...axisProps}
-            label={{ value: xLabel, position: 'insideBottom', offset: -5 }}
+            label={{ value: xLabel, position: 'bottom', offset: 10 }}
           />
           <YAxis
             dataKey="y"
