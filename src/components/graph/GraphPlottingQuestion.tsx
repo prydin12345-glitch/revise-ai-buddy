@@ -273,9 +273,15 @@ export function GraphPlottingQuestion({
       .map(r => r.expectedPoint);
   }, [showCorrectAnswers, markingData]);
 
-  // Handle chart click for adding points
+  // Handle chart click for adding points (only when NOT in join mode or clicking empty space)
   const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (readOnly) return;
+    
+    // In join mode, only allow clicking on existing points (handled by dot click)
+    // Container clicks in join mode should be ignored
+    if (currentJoinMode !== 'none') {
+      return;
+    }
     
     // Get click/touch position
     const container = e.currentTarget;
@@ -285,9 +291,19 @@ export function GraphPlottingQuestion({
     let clientY: number;
     
     if ('touches' in e) {
-      if (e.touches.length === 0) return;
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+      if (e.touches.length === 0) {
+        // For touchend, use changedTouches
+        const touchEvent = e as React.TouchEvent;
+        if (touchEvent.changedTouches && touchEvent.changedTouches.length > 0) {
+          clientX = touchEvent.changedTouches[0].clientX;
+          clientY = touchEvent.changedTouches[0].clientY;
+        } else {
+          return;
+        }
+      } else {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
     } else {
       clientX = e.clientX;
       clientY = e.clientY;
@@ -299,8 +315,8 @@ export function GraphPlottingQuestion({
     
     // Chart area margins (approximate for recharts)
     const marginLeft = 65;
-    const marginRight = 20;
-    const marginTop = 20;
+    const marginRight = 30;
+    const marginTop = 30;
     const marginBottom = 50;
     
     const chartWidth = rect.width - marginLeft - marginRight;
@@ -323,9 +339,10 @@ export function GraphPlottingQuestion({
     const y = domainY[0] + yFraction * yRange;
     
     addPoint(x, y);
-  }, [readOnly, domainX, domainY, addPoint]);
+  }, [readOnly, domainX, domainY, addPoint, currentJoinMode]);
 
   // Custom dot renderer with status colors and selection highlighting
+  // Uses both onClick and onTouchEnd for cross-device compatibility
   const renderDot = (props: any) => {
     const { cx, cy, payload, index } = props;
     if (!payload) return null;
@@ -334,35 +351,55 @@ export function GraphPlottingQuestion({
     const isSelected = isPointSelected(payload);
     const color = status ? statusColors[status] : subjectColor;
     
+    // Handler that works for both mouse and touch
+    const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!readOnly) {
+        // Create a synthetic mouse event for the handler
+        handlePointClick(payload, e as React.MouseEvent);
+      }
+    };
+    
     return (
-      <g key={`dot-${index}`}>
+      <g key={`dot-${index}`} style={{ pointerEvents: 'auto' }}>
         {/* Selection ring */}
         {isSelected && (
           <circle
             cx={cx}
             cy={cy}
-            r={14}
+            r={18}
             fill="none"
             stroke={subjectColor}
             strokeWidth={3}
             strokeDasharray="4 2"
           />
         )}
+        {/* Larger invisible touch target for mobile */}
         <circle
           cx={cx}
           cy={cy}
-          r={8}
+          r={20}
+          fill="transparent"
+          style={{ cursor: readOnly ? 'default' : 'pointer' }}
+          onClick={handleInteraction}
+          onTouchEnd={handleInteraction}
+        />
+        {/* Visible dot */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={10}
           fill={color}
           stroke={isSelected ? subjectColor : '#fff'}
           strokeWidth={isSelected ? 3 : 2}
-          style={{ cursor: readOnly ? 'default' : 'pointer' }}
-          onClick={(e) => handlePointClick(payload, e)}
+          style={{ pointerEvents: 'none' }}
         />
         {!readOnly && (
           <title>
             {currentJoinMode !== 'none' 
-              ? `Click to ${isSelected ? 'deselect' : 'select'} point (${payload.x}, ${payload.y})`
-              : `Click to remove point (${payload.x}, ${payload.y})`
+              ? `Tap to ${isSelected ? 'deselect' : 'select'} point (${payload.x}, ${payload.y})`
+              : `Tap to remove point (${payload.x}, ${payload.y})`
             }
           </title>
         )}
@@ -454,18 +491,15 @@ export function GraphPlottingQuestion({
       <div 
         className="rounded-lg bg-card overflow-hidden"
         style={{ 
-          touchAction: readOnly ? 'auto' : 'none',
-          cursor: readOnly ? 'default' : 'crosshair'
+          touchAction: readOnly ? 'auto' : 'manipulation',
+          cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair')
         }}
         onClick={readOnly ? undefined : handleChartContainerClick}
-        onTouchStart={readOnly ? undefined : handleChartContainerClick}
+        onTouchEnd={readOnly ? undefined : handleChartContainerClick}
       >
         <ResponsiveContainer width="100%" aspect={1.2}>
           <ComposedChart
             ref={chartRef}
-            style={{ 
-              pointerEvents: 'none'
-            }}
             data={sortedPoints}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
