@@ -40,7 +40,7 @@ interface GraphSegmentsLayerProps {
 
   /**
    * Spline mode: When provided, renders a smooth Catmull-Rom spline through all points
-   * instead of individual segments. Requires 3+ points.
+   * in the order provided (NOT sorted). Requires 3+ points.
    */
   splinePoints?: GraphPoint[];
   
@@ -79,6 +79,7 @@ function catmullRomPoint(
 /**
  * Generate SVG path for a Catmull-Rom spline through all points
  * Uses high-resolution sampling for smooth curves
+ * Points are used IN THE ORDER PROVIDED (not sorted)
  */
 function makeCatmullRomPath(
   points: GraphPoint[],
@@ -102,7 +103,7 @@ function makeCatmullRomPath(
   // Start at first point
   const startX = dataToPixelX(points[0].x);
   const startY = dataToPixelY(points[0].y);
-  pathPoints.push(`M ${startX} ${startY}`);
+  pathPoints.push(`M ${startX.toFixed(2)} ${startY.toFixed(2)}`);
 
   // For each segment between consecutive points
   for (let i = 0; i < points.length - 1; i++) {
@@ -154,7 +155,7 @@ function makeQuadraticCurvePath(x1: number, y1: number, x2: number, y2: number) 
 export function GraphSegmentsLayer({
   segments,
   stroke,
-  strokeWidth = 4,
+  strokeWidth = 3,
   xScale,
   yScale,
   containerWidth,
@@ -181,6 +182,7 @@ export function GraphSegmentsLayer({
   if (plotWidth <= 0 || plotHeight <= 0) return null;
 
   // Convert data coordinates to pixel coordinates
+  // Use Recharts scale functions if available for perfect alignment
   const dataToPixelX = (dataX: number): number => {
     if (xScale) return xScale(dataX);
     const denom = domainX[1] - domainX[0] || 1;
@@ -196,10 +198,6 @@ export function GraphSegmentsLayer({
     return marginTop + (1 - fraction) * plotHeight;
   };
 
-  // High-contrast outline for visibility on any background
-  const outlineColor = "rgba(0, 0, 0, 0.7)";
-  const outlineWidth = strokeWidth + 4;
-
   // Check if we should render a spline (curved mode with 3+ points)
   const shouldRenderSpline = splinePoints && splinePoints.length >= 3;
 
@@ -207,36 +205,28 @@ export function GraphSegmentsLayer({
     <svg
       style={{
         position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
+        top: 0,
+        left: 0,
+        width: containerWidth,
+        height: containerHeight,
         pointerEvents: "none",
-        zIndex: 100,
-        overflow: "visible",
+        zIndex: 10,
+        overflow: "hidden",
       }}
+      viewBox={`0 0 ${containerWidth} ${containerHeight}`}
+      preserveAspectRatio="none"
     >
       {/* Render smooth Catmull-Rom spline when in spline mode */}
       {shouldRenderSpline && (
-        <>
-          {/* Dark outline/halo for contrast */}
-          <path
-            d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
-            fill="none"
-            stroke={outlineColor}
-            strokeWidth={outlineWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Main colored spline */}
-          <path
-            d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
-            fill="none"
-            stroke={stroke}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
+        <path
+          d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={1}
+        />
       )}
 
       {/* Render individual segments (straight mode, or legacy curved per-segment) */}
@@ -256,29 +246,7 @@ export function GraphSegmentsLayer({
 
         return (
           <g key={seg.id}>
-            {/* Dark outline/halo for contrast */}
-            {isCurved ? (
-              <path
-                d={pathD!}
-                fill="none"
-                stroke={outlineColor}
-                strokeWidth={outlineWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : (
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={outlineColor}
-                strokeWidth={outlineWidth}
-                strokeLinecap="round"
-              />
-            )}
-
-            {/* Main colored segment */}
+            {/* Main segment - single solid stroke */}
             {isCurved ? (
               <path
                 d={pathD!}
@@ -287,6 +255,7 @@ export function GraphSegmentsLayer({
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity={1}
               />
             ) : (
               <line
@@ -297,6 +266,7 @@ export function GraphSegmentsLayer({
                 stroke={stroke}
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
+                opacity={1}
               />
             )}
 

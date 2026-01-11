@@ -161,8 +161,14 @@ export function GraphPlottingQuestion({
   // Current join mode: 'none' | 'straight' | 'curved'
   const currentJoinMode = joinMode ?? 'none';
 
-  // Sort points by x for display
-  const sortedPoints = useMemo(() => {
+  // Points in plotting order (NOT sorted) - used for curve rendering
+  // Sorting by x would change the spline shape unpredictably
+  const plottingOrderPoints = useMemo(() => {
+    return [...studentPoints];
+  }, [studentPoints]);
+  
+  // Sorted points for display in table only
+  const sortedPointsForTable = useMemo(() => {
     return [...studentPoints].sort((a, b) => a.x - b.x);
   }, [studentPoints]);
 
@@ -563,7 +569,7 @@ export function GraphPlottingQuestion({
               </span>
             ) : (
               <span>
-                Smooth curve drawn through {studentPoints.length} points (sorted by x-coordinate).
+                Smooth curve drawn through {studentPoints.length} points in plotting order.
               </span>
             )
           ) : (
@@ -593,10 +599,11 @@ export function GraphPlottingQuestion({
       {/* Chart - uses pointer events for cross-device compatibility */}
       <div 
         ref={chartContainerRef}
-        className="rounded-lg bg-card overflow-visible relative"
+        className="rounded-lg bg-card overflow-hidden relative"
         style={{ 
           touchAction: readOnly ? 'auto' : 'none',
-          cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair')
+          cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair'),
+          isolation: 'isolate', // Creates stacking context to prevent z-index bleed
         }}
         onPointerUp={readOnly ? undefined : (e) => {
           // Record pointer time so we can ignore the synthetic click that iPad Safari emits after touch
@@ -613,7 +620,7 @@ export function GraphPlottingQuestion({
         <ResponsiveContainer width="100%" aspect={1.2}>
           <ComposedChart
             ref={chartRef}
-            data={sortedPoints}
+            data={plottingOrderPoints}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
@@ -689,10 +696,9 @@ export function GraphPlottingQuestion({
         </ResponsiveContainer>
 
         {/* Segment overlay - rendered OUTSIDE Recharts for guaranteed visibility */}
-        {/* Curved mode: render Catmull-Rom spline through all points (3+ required) */}
-        {/* Straight mode: render individual segments */}
+        {/* Uses plotting order (not sorted) so curves match point selection sequence */}
         {chartContainerSize.width > 0 && (
-          (currentJoinMode === 'curved' && sortedPoints.length >= 3) ||
+          (currentJoinMode === 'curved' && plottingOrderPoints.length >= 3) ||
           (currentJoinMode === 'straight' && segments.length > 0)
         ) && (
           <GraphSegmentsLayer
@@ -704,8 +710,8 @@ export function GraphPlottingQuestion({
             domainY={domainY}
             xScale={axisScales.x}
             yScale={axisScales.y}
-            // Pass sorted points for spline rendering in curved mode
-            splinePoints={currentJoinMode === 'curved' ? sortedPoints : undefined}
+            // Pass points in plotting order for spline rendering in curved mode
+            splinePoints={currentJoinMode === 'curved' ? plottingOrderPoints : undefined}
           />
         )}
       </div>
