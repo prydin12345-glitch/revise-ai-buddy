@@ -2233,6 +2233,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_deadline_change_notifications: {
+        Args: {
+          p_exam_id: string
+          p_exam_title: string
+          p_new_deadline: string
+        }
+        Returns: string[]
+      }
+      create_group_announcement_notifications: {
+        Args: {
+          p_action_data?: Json
+          p_body: string
+          p_group_id: string
+          p_title: string
+          p_type: string
+        }
+        Returns: string[]
+      }
       create_notification: {
         Args: {
           p_body: string

@@ -378,23 +378,14 @@ export const ClassDetailPanel = ({
 
       if (error) throw error;
 
-      // Send notifications
-      const { data: groupMembers } = await supabase
-        .from("group_members")
-        .select("student_id")
-        .eq("group_id", groupId)
-        .eq("is_active", true);
-
-      if (groupMembers && groupMembers.length > 0) {
-        await supabase.from("notifications").insert(
-          groupMembers.map(m => ({
-            user_id: m.student_id,
-            type: "announcement",
-            title: newAnnouncementTitle.trim(),
-            body: newAnnouncementMessage.trim(),
-          }))
-        );
-      }
+      // Send notifications using secure RPC
+      await supabase.rpc("create_group_announcement_notifications", {
+        p_group_id: groupId,
+        p_type: "announcement",
+        p_title: newAnnouncementTitle.trim(),
+        p_body: newAnnouncementMessage.trim(),
+        p_action_data: null,
+      });
 
       toast({ title: "Announcement posted" });
       setNewAnnouncementTitle("");
