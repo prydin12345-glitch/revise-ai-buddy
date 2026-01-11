@@ -52,34 +52,22 @@ export const AnnouncementModal = ({ open, onOpenChange, groupId, onSuccess }: An
 
       if (announcementError) throw announcementError;
 
-      // Get all active group members
-      const { data: members, error: membersError } = await supabase
-        .from("group_members")
-        .select("student_id")
-        .eq("group_id", groupId)
-        .eq("is_active", true);
-
-      if (membersError) throw membersError;
-
-      // Create notifications for all members
-      if (members && members.length > 0) {
-        const notifications = members.map(member => ({
-          user_id: member.student_id,
-          type: "announcement",
-          title: title.trim(),
-          body: message.trim(),
-          action_data: {
+      // Create notifications for all group members using secure RPC
+      const { error: notificationError } = await supabase.rpc(
+        "create_group_announcement_notifications",
+        {
+          p_group_id: groupId,
+          p_type: "announcement",
+          p_title: title.trim(),
+          p_body: message.trim(),
+          p_action_data: {
             group_id: groupId,
             announcement_url: attachmentUrl.trim() || null,
           },
-        }));
+        }
+      );
 
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert(notifications);
-
-        if (notificationError) throw notificationError;
-      }
+      if (notificationError) throw notificationError;
 
       // Reset form
       setTitle("");

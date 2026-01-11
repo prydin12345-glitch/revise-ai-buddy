@@ -76,46 +76,12 @@ export const EditDeadlineModal = ({
 
       if (assignmentError) throw assignmentError;
 
-      // Get all assigned students to notify them
-      const { data: assignments } = await supabase
-        .from("exam_assignments")
-        .select("target_id, assignment_type")
-        .eq("exam_id", examId)
-        .eq("is_active", true);
-
-      const studentIds: string[] = [];
-
-      if (assignments) {
-        for (const assignment of assignments) {
-          if (assignment.assignment_type === "group" && assignment.target_id) {
-            const { data: members } = await supabase
-              .from("group_members")
-              .select("student_id")
-              .eq("group_id", assignment.target_id)
-              .eq("is_active", true);
-            
-            if (members) {
-              studentIds.push(...members.map(m => m.student_id));
-            }
-          } else if (assignment.assignment_type === "individual" && assignment.target_id) {
-            studentIds.push(assignment.target_id);
-          }
-        }
-      }
-
-      // Create notifications for all students
-      const uniqueStudentIds = [...new Set(studentIds)];
-      if (uniqueStudentIds.length > 0) {
-        const notifications = uniqueStudentIds.map((studentId) => ({
-          user_id: studentId,
-          type: "deadline_changed",
-          title: "Exam Deadline Updated",
-          body: `The deadline for "${examTitle}" has been changed to ${format(newDeadline, "PPP 'at' p")}`,
-          action_data: { exam_id: examId, new_deadline: newDeadline.toISOString() },
-        }));
-
-        await supabase.from("notifications").insert(notifications);
-      }
+      // Create notifications for all assigned students using secure RPC
+      await supabase.rpc("create_deadline_change_notifications", {
+        p_exam_id: examId,
+        p_exam_title: examTitle,
+        p_new_deadline: newDeadline.toISOString(),
+      });
 
       toast.success("Deadline updated successfully");
       onUpdated();
