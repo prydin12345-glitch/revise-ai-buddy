@@ -287,8 +287,6 @@ export function GraphSegmentsLayer({
                 opacity={1}
               />
             )}
-            )}
-
             {/* Debug: show endpoint markers and coordinates */}
             {debug && (
               <>
