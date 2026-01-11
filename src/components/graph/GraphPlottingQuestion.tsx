@@ -77,6 +77,9 @@ export function GraphPlottingQuestion({
   const [axisScales, setAxisScales] = useState<{ x?: (v: number) => number; y?: (v: number) => number }>({});
   const axisScalesRef = useRef<{ x?: (v: number) => number; y?: (v: number) => number }>({});
 
+  // Keep the exact plot-area offsets Recharts computed, so our overlay aligns perfectly.
+  const [chartMargins, setChartMargins] = useState({ left: 65, right: 30, top: 30, bottom: 50 });
+
   // Timestamp of the last pointer interaction; used to ignore iPad Safari synthetic clicks
   const lastPointerTimeRef = useRef<number>(0);
   const POINTER_GUARD_MS = 500;
@@ -103,17 +106,27 @@ export function GraphPlottingQuestion({
     return () => observer.disconnect();
   }, []);
 
-  // Capture Recharts axis scale functions for exact pixel mapping (used by segment overlay)
+  // Capture Recharts axis scale functions + plot-area offsets for exact pixel alignment
   useEffect(() => {
     const inst = chartRef.current;
     const xAxisMap = inst?.state?.xAxisMap;
     const yAxisMap = inst?.state?.yAxisMap;
+    const offset = inst?.state?.offset;
 
     const xAxis: any = xAxisMap ? Object.values(xAxisMap)[0] : undefined;
     const yAxis: any = yAxisMap ? Object.values(yAxisMap)[0] : undefined;
 
     const xScale = xAxis?.scale;
     const yScale = yAxis?.scale;
+
+    if (offset && typeof offset.left === 'number' && typeof offset.top === 'number') {
+      setChartMargins({
+        left: offset.left,
+        right: offset.right ?? 30,
+        top: offset.top,
+        bottom: offset.bottom ?? 50,
+      });
+    }
 
     if (typeof xScale === 'function' && typeof yScale === 'function') {
       if (axisScalesRef.current.x !== xScale || axisScalesRef.current.y !== yScale) {
@@ -703,13 +716,17 @@ export function GraphPlottingQuestion({
         ) && (
           <GraphSegmentsLayer
             segments={currentJoinMode === 'straight' ? segments : []}
-            stroke={subjectColor}
+            stroke="hsl(var(--primary))"
             containerWidth={chartContainerSize.width}
             containerHeight={chartContainerSize.height}
             domainX={domainX}
             domainY={domainY}
             xScale={axisScales.x}
             yScale={axisScales.y}
+            marginLeft={chartMargins.left}
+            marginRight={chartMargins.right}
+            marginTop={chartMargins.top}
+            marginBottom={chartMargins.bottom}
             // Pass points in plotting order for spline rendering in curved mode
             splinePoints={currentJoinMode === 'curved' ? plottingOrderPoints : undefined}
           />

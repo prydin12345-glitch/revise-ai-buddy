@@ -182,16 +182,34 @@ export function GraphSegmentsLayer({
   if (plotWidth <= 0 || plotHeight <= 0) return null;
 
   // Convert data coordinates to pixel coordinates
-  // Use Recharts scale functions if available for perfect alignment
+  // Use Recharts scale functions if available, but compensate if their ranges don't include chart offsets.
+  const xScaleNeedsOffset = (() => {
+    const r = (xScale as any)?.range?.();
+    return Array.isArray(r) && r.length >= 2 && Math.min(...r) < 1;
+  })();
+
+  const yScaleNeedsOffset = (() => {
+    const r = (yScale as any)?.range?.();
+    return Array.isArray(r) && r.length >= 2 && Math.min(...r) < 1;
+  })();
+
   const dataToPixelX = (dataX: number): number => {
-    if (xScale) return xScale(dataX);
+    if (xScale) {
+      const px = xScale(dataX);
+      return xScaleNeedsOffset ? px + marginLeft : px;
+    }
+
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
   };
 
   const dataToPixelY = (dataY: number): number => {
-    if (yScale) return yScale(dataY);
+    if (yScale) {
+      const py = yScale(dataY);
+      return yScaleNeedsOffset ? py + marginTop : py;
+    }
+
     const denom = domainY[1] - domainY[0] || 1;
     // Y axis is inverted in SVG (0 is top)
     const fraction = (dataY - domainY[0]) / denom;
@@ -221,10 +239,11 @@ export function GraphSegmentsLayer({
         <path
           d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
           fill="none"
-          stroke="#38bdf8"
+          stroke={stroke}
           strokeWidth={strokeWidth + 1}
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity={1}
         />
       )}
 
@@ -245,15 +264,16 @@ export function GraphSegmentsLayer({
 
         return (
           <g key={seg.id}>
-            {/* Main segment - single solid stroke in light blue */}
+            {/* Main segment - single solid stroke */}
             {isCurved ? (
               <path
                 d={pathD!}
                 fill="none"
-                stroke="#38bdf8"
+                stroke={stroke}
                 strokeWidth={strokeWidth + 1}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity={1}
               />
             ) : (
               <line
@@ -261,10 +281,12 @@ export function GraphSegmentsLayer({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke="#38bdf8"
+                stroke={stroke}
                 strokeWidth={strokeWidth + 1}
                 strokeLinecap="round"
+                opacity={1}
               />
+            )}
             )}
 
             {/* Debug: show endpoint markers and coordinates */}
