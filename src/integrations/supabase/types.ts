@@ -2287,6 +2287,14 @@ export type Database = {
         Args: { _exam_id: string; _user_id: string }
         Returns: boolean
       }
+      validate_invite_code: {
+        Args: { p_code: string }
+        Returns: {
+          group_id: string
+          group_name: string
+          tutor_display_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "student" | "teacher" | "tutor" | "admin"
