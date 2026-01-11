@@ -221,11 +221,10 @@ export function GraphSegmentsLayer({
         <path
           d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
           fill="none"
-          stroke={stroke}
-          strokeWidth={strokeWidth}
+          stroke="#38bdf8"
+          strokeWidth={strokeWidth + 1}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={1}
         />
       )}
 
@@ -246,16 +245,15 @@ export function GraphSegmentsLayer({
 
         return (
           <g key={seg.id}>
-            {/* Main segment - single solid stroke */}
+            {/* Main segment - single solid stroke in light blue */}
             {isCurved ? (
               <path
                 d={pathD!}
                 fill="none"
-                stroke={stroke}
-                strokeWidth={strokeWidth}
+                stroke="#38bdf8"
+                strokeWidth={strokeWidth + 1}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity={1}
               />
             ) : (
               <line
@@ -263,10 +261,9 @@ export function GraphSegmentsLayer({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={stroke}
-                strokeWidth={strokeWidth}
+                stroke="#38bdf8"
+                strokeWidth={strokeWidth + 1}
                 strokeLinecap="round"
-                opacity={1}
               />
             )}
 
