@@ -1,11 +1,15 @@
 /**
- * GraphSegmentsLayer - Renders line segments on a coordinate graph
+ * GraphSegmentsLayer - Renders line segments and smooth splines on a coordinate graph
  * 
  * This renders as an SVG overlay OUTSIDE Recharts to guarantee visibility.
  * Uses Recharts axis scales when available, otherwise falls back to manual mapping.
+ * 
+ * Supports two modes:
+ * - Individual segments (straight or curved per-segment)
+ * - Spline mode: Catmull-Rom spline through all points (requires 3+ points)
  */
 
-import type { LineSegment } from "./types";
+import type { LineSegment, GraphPoint } from "./types";
 
 interface GraphSegmentsLayerProps {
   segments: LineSegment[];
@@ -33,9 +37,102 @@ interface GraphSegmentsLayerProps {
 
   // Debug mode
   debug?: boolean;
+
+  /**
+   * Spline mode: When provided, renders a smooth Catmull-Rom spline through all points
+   * instead of individual segments. Requires 3+ points.
+   */
+  splinePoints?: GraphPoint[];
+  
+  /**
+   * Tension parameter for Catmull-Rom spline (0 = sharp, 0.5 = default, 1 = loose)
+   */
+  splineTension?: number;
 }
 
-function makeCurvedPath(x1: number, y1: number, x2: number, y2: number) {
+/**
+ * Catmull-Rom spline interpolation
+ * Returns a point on the spline between p1 and p2, with p0 and p3 as control points
+ * @param t - Parameter from 0 to 1 (position between p1 and p2)
+ * @param tension - Tension parameter (0.5 is standard Catmull-Rom)
+ */
+function catmullRomPoint(
+  p0: GraphPoint,
+  p1: GraphPoint,
+  p2: GraphPoint,
+  p3: GraphPoint,
+  t: number,
+  tension: number = 0.5
+): GraphPoint {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  
+  // Catmull-Rom basis matrix with tension
+  const s = (1 - tension) / 2;
+  
+  return {
+    x: s * ((-t3 + 2*t2 - t) * p0.x + (3*t3 - 5*t2 + 2) * p1.x + (-3*t3 + 4*t2 + t) * p2.x + (t3 - t2) * p3.x),
+    y: s * ((-t3 + 2*t2 - t) * p0.y + (3*t3 - 5*t2 + 2) * p1.y + (-3*t3 + 4*t2 + t) * p2.y + (t3 - t2) * p3.y)
+  };
+}
+
+/**
+ * Generate SVG path for a Catmull-Rom spline through all points
+ * Uses high-resolution sampling for smooth curves
+ */
+function makeCatmullRomPath(
+  points: GraphPoint[],
+  dataToPixelX: (x: number) => number,
+  dataToPixelY: (y: number) => number,
+  tension: number = 0.5,
+  samplesPerSegment: number = 32
+): string {
+  if (points.length < 2) return '';
+  if (points.length === 2) {
+    // Just a straight line for 2 points
+    const x1 = dataToPixelX(points[0].x);
+    const y1 = dataToPixelY(points[0].y);
+    const x2 = dataToPixelX(points[1].x);
+    const y2 = dataToPixelY(points[1].y);
+    return `M ${x1} ${y1} L ${x2} ${y2}`;
+  }
+
+  const pathPoints: string[] = [];
+  
+  // Start at first point
+  const startX = dataToPixelX(points[0].x);
+  const startY = dataToPixelY(points[0].y);
+  pathPoints.push(`M ${startX} ${startY}`);
+
+  // For each segment between consecutive points
+  for (let i = 0; i < points.length - 1; i++) {
+    // Get the 4 control points for this segment
+    // For endpoints, we extend/duplicate to maintain curvature
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+    // Sample the spline at high resolution
+    for (let j = 1; j <= samplesPerSegment; j++) {
+      const t = j / samplesPerSegment;
+      const pt = catmullRomPoint(p0, p1, p2, p3, t, tension);
+      const px = dataToPixelX(pt.x);
+      const py = dataToPixelY(pt.y);
+      
+      if (Number.isFinite(px) && Number.isFinite(py)) {
+        pathPoints.push(`L ${px.toFixed(2)} ${py.toFixed(2)}`);
+      }
+    }
+  }
+
+  return pathPoints.join(' ');
+}
+
+/**
+ * Generate a simple quadratic curve path between two points (legacy per-segment curved mode)
+ */
+function makeQuadraticCurvePath(x1: number, y1: number, x2: number, y2: number) {
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
 
@@ -69,8 +166,11 @@ export function GraphSegmentsLayer({
   domainX,
   domainY,
   debug = false,
+  splinePoints,
+  splineTension = 0.5,
 }: GraphSegmentsLayerProps) {
-  if (!segments?.length || containerWidth <= 0 || containerHeight <= 0) {
+  // Early return for invalid dimensions
+  if (containerWidth <= 0 || containerHeight <= 0) {
     return null;
   }
 
@@ -80,20 +180,16 @@ export function GraphSegmentsLayer({
 
   if (plotWidth <= 0 || plotHeight <= 0) return null;
 
-  // Convert data coordinates to pixel coordinates (fallback when scales not available)
+  // Convert data coordinates to pixel coordinates
   const dataToPixelX = (dataX: number): number => {
-    // Use Recharts scale if available
     if (xScale) return xScale(dataX);
-    
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
   };
 
   const dataToPixelY = (dataY: number): number => {
-    // Use Recharts scale if available
     if (yScale) return yScale(dataY);
-    
     const denom = domainY[1] - domainY[0] || 1;
     // Y axis is inverted in SVG (0 is top)
     const fraction = (dataY - domainY[0]) / denom;
@@ -104,6 +200,9 @@ export function GraphSegmentsLayer({
   const outlineColor = "rgba(0, 0, 0, 0.7)";
   const outlineWidth = strokeWidth + 4;
 
+  // Check if we should render a spline (curved mode with 3+ points)
+  const shouldRenderSpline = splinePoints && splinePoints.length >= 3;
+
   return (
     <svg
       style={{
@@ -112,11 +211,36 @@ export function GraphSegmentsLayer({
         width: "100%",
         height: "100%",
         pointerEvents: "none",
-        zIndex: 100, // Very high - above chart, grid, AND points
+        zIndex: 100,
         overflow: "visible",
       }}
     >
-      {segments.map((seg) => {
+      {/* Render smooth Catmull-Rom spline when in spline mode */}
+      {shouldRenderSpline && (
+        <>
+          {/* Dark outline/halo for contrast */}
+          <path
+            d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
+            fill="none"
+            stroke={outlineColor}
+            strokeWidth={outlineWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Main colored spline */}
+          <path
+            d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      )}
+
+      {/* Render individual segments (straight mode, or legacy curved per-segment) */}
+      {!shouldRenderSpline && segments?.length > 0 && segments.map((seg) => {
         const x1 = dataToPixelX(seg.from.x);
         const y1 = dataToPixelY(seg.from.y);
         const x2 = dataToPixelX(seg.to.x);
@@ -128,7 +252,7 @@ export function GraphSegmentsLayer({
         }
 
         const isCurved = seg.mode === "curved";
-        const pathD = isCurved ? makeCurvedPath(x1, y1, x2, y2) : undefined;
+        const pathD = isCurved ? makeQuadraticCurvePath(x1, y1, x2, y2) : undefined;
 
         return (
           <g key={seg.id}>
@@ -189,6 +313,20 @@ export function GraphSegmentsLayer({
                 </text>
               </>
             )}
+          </g>
+        );
+      })}
+
+      {/* Debug markers for spline points */}
+      {debug && shouldRenderSpline && splinePoints!.map((pt, idx) => {
+        const px = dataToPixelX(pt.x);
+        const py = dataToPixelY(pt.y);
+        return (
+          <g key={`debug-spline-${idx}`}>
+            <circle cx={px} cy={py} r={6} fill="cyan" stroke="white" strokeWidth={2} />
+            <text x={px + 10} y={py - 5} fontSize={10} fill="cyan" fontWeight="bold">
+              P{idx}: ({pt.x},{pt.y})
+            </text>
           </g>
         );
       })}

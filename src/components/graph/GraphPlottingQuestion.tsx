@@ -553,21 +553,39 @@ export function GraphPlottingQuestion({
       )}
 
       {/* Helper text for joining */}
-      {!readOnly && isJoinModeEnabled && studentPoints.length >= 2 && currentJoinMode !== 'none' && (
+      {!readOnly && isJoinModeEnabled && currentJoinMode !== 'none' && (
         <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-          {selectedJoinPoints.length === 1 ? (
-            <span>
-              Selected ({selectedJoinPoints[0].x}, {selectedJoinPoints[0].y}). Now tap another point to draw a{' '}
-              {currentJoinMode} segment (tap the selected point again to cancel).
-            </span>
-          ) : segments.length > 0 ? (
-            <span>
-              Tap a plotted point to start another {currentJoinMode} segment. ({segments.length} created so far.)
-            </span>
+          {currentJoinMode === 'curved' ? (
+            // Curved mode: spline through all points (needs 3+ points)
+            studentPoints.length < 3 ? (
+              <span>
+                Add at least 3 points to define the curve shape. ({studentPoints.length}/3 points plotted)
+              </span>
+            ) : (
+              <span>
+                Smooth curve drawn through {studentPoints.length} points (sorted by x-coordinate).
+              </span>
+            )
           ) : (
-            <span>
-              Tap a plotted point to start joining with {currentJoinMode} segments.
-            </span>
+            // Straight mode: segment-by-segment joining
+            studentPoints.length < 2 ? (
+              <span>
+                Plot at least 2 points to start joining them with straight lines.
+              </span>
+            ) : selectedJoinPoints.length === 1 ? (
+              <span>
+                Selected ({selectedJoinPoints[0].x}, {selectedJoinPoints[0].y}). Now tap another point to draw a{' '}
+                straight segment (tap the selected point again to cancel).
+              </span>
+            ) : segments.length > 0 ? (
+              <span>
+                Tap a plotted point to start another straight segment. ({segments.length} created so far.)
+              </span>
+            ) : (
+              <span>
+                Tap a plotted point to start joining with straight segments.
+              </span>
+            )
           )}
         </div>
       )}
@@ -671,9 +689,14 @@ export function GraphPlottingQuestion({
         </ResponsiveContainer>
 
         {/* Segment overlay - rendered OUTSIDE Recharts for guaranteed visibility */}
-        {chartContainerSize.width > 0 && segments.length > 0 && (
+        {/* Curved mode: render Catmull-Rom spline through all points (3+ required) */}
+        {/* Straight mode: render individual segments */}
+        {chartContainerSize.width > 0 && (
+          (currentJoinMode === 'curved' && sortedPoints.length >= 3) ||
+          (currentJoinMode === 'straight' && segments.length > 0)
+        ) && (
           <GraphSegmentsLayer
-            segments={segments}
+            segments={currentJoinMode === 'straight' ? segments : []}
             stroke={subjectColor}
             containerWidth={chartContainerSize.width}
             containerHeight={chartContainerSize.height}
@@ -681,12 +704,14 @@ export function GraphPlottingQuestion({
             domainY={domainY}
             xScale={axisScales.x}
             yScale={axisScales.y}
+            // Pass sorted points for spline rendering in curved mode
+            splinePoints={currentJoinMode === 'curved' ? sortedPoints : undefined}
           />
         )}
       </div>
 
-      {/* Segments list (if any) */}
-      {segments.length > 0 && !readOnly && (
+      {/* Segments list (only for straight mode - curved mode uses implicit spline through all points) */}
+      {segments.length > 0 && !readOnly && currentJoinMode === 'straight' && (
         <div className="border rounded-lg p-3 bg-muted/30">
           <div className="text-sm font-medium mb-2">Line segments ({segments.length})</div>
           <div className="flex flex-wrap gap-2">

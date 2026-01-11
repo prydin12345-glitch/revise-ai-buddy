@@ -130,13 +130,30 @@ export interface LineSegment {
   mode: 'straight' | 'curved';
 }
 
-// Student response for plotting
+/**
+ * Student response for plotting questions.
+ * 
+ * Join modes work differently:
+ * - 'straight': Uses explicit `segments` array - student draws individual line segments between points
+ * - 'curved': Renders a smooth Catmull-Rom spline through ALL points (sorted by x).
+ *             Requires 3+ points. No explicit segments needed - the curve is defined by point positions.
+ * 
+ * For grading curved mode:
+ * - Backend reconstructs the spline from `points` array using the same Catmull-Rom algorithm
+ * - Samples the curve at multiple positions to verify it passes through expected regions
+ */
 export interface GraphPlottingResponse {
   _type: 'graph_plotting';
   version: 1;
   points: GraphPoint[];
-  joinMode?: 'straight' | 'curved'; // Selected join mode (if enabled)
-  segments?: LineSegment[]; // Persisted line segments
+  /** 
+   * Selected join mode:
+   * - 'straight': Individual line segments (uses segments array)
+   * - 'curved': Smooth spline through all points (3+ required, sorted by x)
+   */
+  joinMode?: 'straight' | 'curved';
+  /** Line segments for straight mode. Ignored in curved mode. */
+  segments?: LineSegment[];
 }
 
 // Marking result for interpretation fields
