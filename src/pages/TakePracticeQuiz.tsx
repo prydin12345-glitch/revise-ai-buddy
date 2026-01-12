@@ -122,7 +122,7 @@ interface UserAnswer {
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
   graphJoinMode?: 'straight' | 'curved' | 'freeform'; // Join mode for plotting questions
-  graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }>; // Persisted line segments
+  graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved'; controlPoint?: GraphPoint }>; // Persisted line segments with optional control point
   graphDrawnPaths?: Array<{ id: string; points: Array<{ pixelX: number; pixelY: number }> }>; // Freeform drawn paths
   graphMarkingData?: {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
@@ -795,6 +795,12 @@ const TakePracticeQuiz = () => {
   // Retry current question - clears answer and marking state, keeps question content
   const handleRetryQuestion = async () => {
     const currentQuestion = questions[currentIndex];
+    if (!currentQuestion) {
+      console.error('[Retry] No current question at index:', currentIndex);
+      toast.error("Unable to retry - question not found");
+      return;
+    }
+    
     setIsRetrying(true);
     
     try {
@@ -808,30 +814,39 @@ const TakePracticeQuiz = () => {
         .eq('user_id', user.id)
         .eq('question_id', currentQuestion.id);
 
-      // Clear local state for this question (including graph data)
-      setUserAnswers(prev => ({
-        ...prev,
-        [currentQuestion.id]: {
+      // Clear local state for this question (including ALL graph data)
+      // Use functional update to ensure we're working with latest state
+      setUserAnswers(prev => {
+        const newAnswers = { ...prev };
+        newAnswers[currentQuestion.id] = {
           answer: "",
           workingOut: "",
           submitted: false,
+          answerLatex: undefined,
+          useMathInput: undefined,
           tableGridAnswers: undefined,
           tableGridInputs: undefined,
           markingData: undefined,
           graphInterpretationAnswers: undefined,
-          graphPlottedPoints: undefined,
+          graphPlottedPoints: [],
+          graphJoinMode: undefined,
+          graphSegments: [],
+          graphDrawnPaths: [],
           graphMarkingData: undefined,
           score: undefined,
+          methodMarks: undefined,
+          accuracyMarks: undefined,
           feedback: undefined,
           isCorrect: undefined
-        }
-      }));
+        };
+        return newAnswers;
+      });
 
       // Clear sessionStorage draft
       try {
         sessionStorage.removeItem(`practice:${setId}:draft:${currentQuestion.id}`);
       } catch (e) {
-        // Ignore
+        console.warn('[Retry] Failed to clear sessionStorage:', e);
       }
 
       // Hide worked solution
@@ -839,8 +854,25 @@ const TakePracticeQuiz = () => {
 
       toast.success("Question reset - try again!");
     } catch (error: any) {
-      console.error("Retry error:", error);
-      toast.error("Failed to reset question");
+      console.error("[Retry] Error:", error);
+      // Defensive fallback: try to reset state locally even if DB delete failed
+      try {
+        setUserAnswers(prev => ({
+          ...prev,
+          [currentQuestion.id]: {
+            answer: "",
+            workingOut: "",
+            submitted: false,
+            graphPlottedPoints: [],
+            graphSegments: [],
+            graphDrawnPaths: []
+          }
+        }));
+        toast.warning("Reset locally (network issue)");
+      } catch (fallbackError) {
+        console.error("[Retry] Fallback also failed:", fallbackError);
+        toast.error("Failed to reset question");
+      }
     } finally {
       setIsRetrying(false);
     }
