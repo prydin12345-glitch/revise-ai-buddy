@@ -137,16 +137,14 @@ export function GraphPlottingQuestion({
 
   // Calculate domain from config
   const domainX: [number, number] = useMemo(() => {
-    const min = config.xMin ?? 0;
-    const max = config.xMax ?? 10;
-    return [min, max];
-  }, [config.xMin, config.xMax]);
+    if (config.domainX) return config.domainX;
+    return [0, 10];
+  }, [config.domainX]);
 
   const domainY: [number, number] = useMemo(() => {
-    const min = config.yMin ?? 0;
-    const max = config.yMax ?? 10;
-    return [min, max];
-  }, [config.yMin, config.yMax]);
+    if (config.domainY) return config.domainY;
+    return [0, 10];
+  }, [config.domainY]);
 
   // Determine current join mode
   const isJoinModeEnabled = config.joinPointsMode?.enabled ?? false;
@@ -680,12 +678,6 @@ export function GraphPlottingQuestion({
           <div className="text-sm font-medium">
             Score: {markingData.totalScore} / {markingData.totalMarks} marks
           </div>
-          {markingData.joinModeResult && (
-            <div className="text-sm text-muted-foreground mt-1">
-              Line type: {markingData.joinModeResult.correct ? '✓' : '✗'} 
-              (You used {markingData.joinModeResult.studentMode}, expected {markingData.joinModeResult.correctMode})
-            </div>
-          )}
         </div>
       )}
     </div>
