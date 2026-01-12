@@ -1,6 +1,7 @@
 import { InlineMath, BlockMath } from 'react-katex';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import DOMPurify from 'dompurify';
 
 interface MathRendererProps {
   content: string;
@@ -102,18 +103,24 @@ const processTableWithMath = (tableHtml: string): string => {
           // Replace LaTeX expressions with rendered HTML
           const processedContent = cellContent.replace(/\$([^$]+)\$/g, (match, latex) => {
             try {
-              // Render LaTeX using KaTeX
+              // Render LaTeX using KaTeX with XSS-safe options
               return katex.renderToString(latex, { 
                 throwOnError: false,
-                displayMode: false 
+                displayMode: false,
+                trust: false,  // Disable trust mode to prevent XSS
+                strict: true   // Strict mode for additional security
               });
             } catch (e) {
-              // If rendering fails, return original
-              return match;
+              // If rendering fails, return original (escaped)
+              return DOMPurify.sanitize(match);
             }
           });
           
-          cell.innerHTML = processedContent;
+          // Sanitize processed content before setting innerHTML
+          cell.innerHTML = DOMPurify.sanitize(processedContent, {
+            ADD_TAGS: ['span', 'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'mroot', 'msqrt'],
+            ADD_ATTR: ['class', 'style', 'aria-hidden', 'xmlns']
+          });
         }
       });
       
@@ -223,11 +230,16 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
           if (part.match(tableRegex)) {
             // Process LaTeX in table cells before rendering
             const processedTable = processTableWithMath(part);
+            // Sanitize the processed table before rendering
+            const sanitizedTable = DOMPurify.sanitize(processedTable, {
+              ADD_TAGS: ['span', 'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'mroot', 'msqrt', 'table', 'thead', 'tbody', 'tr', 'td', 'th'],
+              ADD_ATTR: ['class', 'style', 'aria-hidden', 'xmlns']
+            });
             return (
               <div 
                 key={i} 
                 className="my-4"
-                dangerouslySetInnerHTML={{ __html: processedTable }}
+                dangerouslySetInnerHTML={{ __html: sanitizedTable }}
               />
             );
           }
