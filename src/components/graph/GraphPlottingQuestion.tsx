@@ -14,15 +14,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { Undo2, Trash2, Minus, Spline } from 'lucide-react';
+import { Undo2, Trash2, Minus, Spline, Pencil } from 'lucide-react';
 import { 
   GraphPlottingConfig, 
   GraphPoint, 
   GraphPlottingAnswer,
   GraphPlottingMarkingResult,
-  LineSegment 
+  LineSegment,
+  DrawingPath
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
+import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
@@ -33,10 +35,12 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  joinMode?: 'straight' | 'curved';
-  onJoinModeChange?: (mode: 'straight' | 'curved') => void;
+  joinMode?: 'straight' | 'curved' | 'freeform';
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform') => void;
   segments: LineSegment[];
   onSegmentsChange: (segments: LineSegment[]) => void;
+  drawnPaths?: DrawingPath[];
+  onDrawnPathsChange?: (paths: DrawingPath[]) => void;
 }
 
 /**
@@ -63,6 +67,8 @@ export function GraphPlottingQuestion({
   onJoinModeChange,
   segments,
   onSegmentsChange,
+  drawnPaths = [],
+  onDrawnPathsChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -209,12 +215,12 @@ export function GraphPlottingQuestion({
           (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
         );
 
-        if (!segmentExists) {
+        if (!segmentExists && currentJoinMode !== 'freeform') {
           const newSegment: LineSegment = {
             id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             from: { x: fromPoint.x, y: fromPoint.y },
             to: { x: toPoint.x, y: toPoint.y },
-            mode: currentJoinMode,
+            mode: currentJoinMode as 'straight' | 'curved',
           };
           onSegmentsChange([...segments, newSegment]);
         }
@@ -299,8 +305,9 @@ export function GraphPlottingQuestion({
     setPointsHistory(prev => [...prev, studentPoints]);
     onPointsChange([]);
     onSegmentsChange([]);
+    onDrawnPathsChange?.([]);
     setSelectedJoinPoints([]);
-  }, [readOnly, studentPoints, onPointsChange, onSegmentsChange]);
+  }, [readOnly, studentPoints, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
 
   /**
    * Get the status of a point for display (correct, incorrect, etc.)
@@ -450,7 +457,7 @@ export function GraphPlottingQuestion({
             variant="outline"
             size="sm"
             onClick={clearAll}
-            disabled={studentPoints.length === 0}
+            disabled={studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0}
           >
             <Trash2 className="h-4 w-4 mr-1" />
             Clear
@@ -462,8 +469,10 @@ export function GraphPlottingQuestion({
               type="single"
               value={currentJoinMode}
               onValueChange={(value) => {
-                if (value === 'straight' || value === 'curved') {
+                if (value === 'straight' || value === 'curved' || value === 'freeform') {
                   onJoinModeChange(value);
+                  // Clear selection when switching modes
+                  setSelectedJoinPoints([]);
                 }
               }}
               className="ml-auto"
@@ -476,6 +485,10 @@ export function GraphPlottingQuestion({
                 <Spline className="h-4 w-4 mr-1" />
                 Curved
               </ToggleGroupItem>
+              <ToggleGroupItem value="freeform" aria-label="Freeform drawing">
+                <Pencil className="h-4 w-4 mr-1" />
+                Freeform
+              </ToggleGroupItem>
             </ToggleGroup>
           )}
         </div>
@@ -485,7 +498,9 @@ export function GraphPlottingQuestion({
       {!readOnly && (
         <p className="text-sm text-muted-foreground">
           {isJoinModeEnabled ? (
-            selectedJoinPoints.length === 0 ? (
+            currentJoinMode === 'freeform' ? (
+              'Click and drag on the graph to draw lines. Click on empty space to add points.'
+            ) : selectedJoinPoints.length === 0 ? (
               `Click to add points. To connect points: tap first point, then tap second point to create a ${currentJoinMode} segment.`
             ) : selectedJoinPoints.length === 1 ? (
               `Point selected at (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}). Tap another point to connect, or tap the same point to cancel.`
@@ -605,6 +620,24 @@ export function GraphPlottingQuestion({
             marginBottom={chartMargins.bottom}
           />
         )}
+
+        {/* Freeform drawing canvas overlay */}
+        {isJoinModeEnabled && onDrawnPathsChange && (
+          <GraphDrawingCanvas
+            containerWidth={chartContainerSize.width}
+            containerHeight={chartContainerSize.height}
+            marginLeft={chartMargins.left}
+            marginTop={chartMargins.top}
+            marginRight={chartMargins.right}
+            marginBottom={chartMargins.bottom}
+            paths={drawnPaths}
+            onPathsChange={onDrawnPathsChange}
+            readOnly={readOnly}
+            active={currentJoinMode === 'freeform'}
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+          />
+        )}
       </div>
 
       {/* Segments list */}
@@ -628,6 +661,34 @@ export function GraphPlottingQuestion({
                   size="sm"
                   className="h-5 w-5 p-0 ml-1"
                   onClick={() => removeSegment(seg.id)}
+                >
+                  ×
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Drawn paths list */}
+      {drawnPaths.length > 0 && !readOnly && onDrawnPathsChange && (
+        <div className="border rounded-lg p-3 bg-muted/30">
+          <div className="text-sm font-medium mb-2">Drawn lines ({drawnPaths.length})</div>
+          <div className="flex flex-wrap gap-2">
+            {drawnPaths.map((path, idx) => (
+              <div 
+                key={path.id}
+                className="flex items-center gap-1 bg-background px-2 py-1 rounded text-sm border"
+              >
+                <span>Path {idx + 1}</span>
+                <span className="text-muted-foreground text-xs">
+                  ({path.points.length} pts)
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => onDrawnPathsChange(drawnPaths.filter(p => p.id !== path.id))}
                 >
                   ×
                 </Button>

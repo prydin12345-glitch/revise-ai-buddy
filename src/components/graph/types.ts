@@ -130,6 +130,12 @@ export interface LineSegment {
   mode: 'straight' | 'curved';
 }
 
+// Freeform drawing path (stores pixel coordinates)
+export interface DrawingPath {
+  id: string;
+  points: Array<{ pixelX: number; pixelY: number }>;
+}
+
 /**
  * Student response for plotting questions.
  * 
@@ -137,6 +143,7 @@ export interface LineSegment {
  * - 'straight': Uses explicit `segments` array - student draws individual line segments between points
  * - 'curved': Renders a smooth Catmull-Rom spline through ALL points (sorted by x).
  *             Requires 3+ points. No explicit segments needed - the curve is defined by point positions.
+ * - 'freeform': Uses `drawnPaths` array - student draws freehand lines
  * 
  * For grading curved mode:
  * - Backend reconstructs the spline from `points` array using the same Catmull-Rom algorithm
@@ -150,10 +157,13 @@ export interface GraphPlottingResponse {
    * Selected join mode:
    * - 'straight': Individual line segments (uses segments array)
    * - 'curved': Smooth spline through all points (3+ required, sorted by x)
+   * - 'freeform': Freehand drawing (uses drawnPaths array)
    */
-  joinMode?: 'straight' | 'curved';
-  /** Line segments for straight mode. Ignored in curved mode. */
+  joinMode?: 'straight' | 'curved' | 'freeform';
+  /** Line segments for straight mode. Ignored in curved/freeform mode. */
   segments?: LineSegment[];
+  /** Freeform drawn paths. Used only in freeform mode. */
+  drawnPaths?: DrawingPath[];
 }
 
 // Marking result for interpretation fields
@@ -259,15 +269,17 @@ export function serializeGraphInterpretationResponse(
 // Helper to serialize graph plotting response
 export function serializeGraphPlottingResponse(
   points: GraphPoint[],
-  joinMode?: 'straight' | 'curved',
-  segments?: LineSegment[]
+  joinMode?: 'straight' | 'curved' | 'freeform',
+  segments?: LineSegment[],
+  drawnPaths?: DrawingPath[]
 ): string {
   const response: GraphPlottingResponse = {
     _type: 'graph_plotting',
     version: 1,
     points,
     joinMode,
-    segments
+    segments,
+    drawnPaths
   };
   return JSON.stringify(response);
 }

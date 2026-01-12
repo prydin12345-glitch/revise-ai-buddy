@@ -121,8 +121,9 @@ interface UserAnswer {
   // Graph question answers
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
-  graphJoinMode?: 'straight' | 'curved'; // Join mode for plotting questions
+  graphJoinMode?: 'straight' | 'curved' | 'freeform'; // Join mode for plotting questions
   graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }>; // Persisted line segments
+  graphDrawnPaths?: Array<{ id: string; points: Array<{ pixelX: number; pixelY: number }> }>; // Freeform drawn paths
   graphMarkingData?: {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
     perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
@@ -418,7 +419,7 @@ const TakePracticeQuiz = () => {
           }
           
           // Declare variables for graphJoinMode and graphSegments before the block
-          let graphJoinMode: 'straight' | 'curved' | undefined;
+          let graphJoinMode: 'straight' | 'curved' | 'freeform' | undefined;
           let graphSegments: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }> | undefined;
           
           // Rehydrate joinMode and segments from submitted answer
@@ -508,8 +509,9 @@ const TakePracticeQuiz = () => {
                 const graphResponse = parseGraphResponse(draftText);
                 if (graphResponse && graphResponse._type === 'graph_plotting') {
                   initialAnswers[questionId].graphPlottedPoints = graphResponse.points;
-                  initialAnswers[questionId].graphJoinMode = graphResponse.joinMode;
+                  initialAnswers[questionId].graphJoinMode = graphResponse.joinMode as 'straight' | 'curved' | 'freeform' | undefined;
                   initialAnswers[questionId].graphSegments = graphResponse.segments;
+                  initialAnswers[questionId].graphDrawnPaths = graphResponse.drawnPaths;
                 } else if (graphResponse && graphResponse._type === 'graph_interpretation') {
                   initialAnswers[questionId].graphInterpretationAnswers = graphResponse.answers;
                 }
@@ -559,8 +561,9 @@ const TakePracticeQuiz = () => {
                 const graphResponse = parseGraphResponse(draftText);
                 if (graphResponse && graphResponse._type === 'graph_plotting') {
                   initialAnswers[question.id].graphPlottedPoints = graphResponse.points;
-                  initialAnswers[question.id].graphJoinMode = graphResponse.joinMode;
+                  initialAnswers[question.id].graphJoinMode = graphResponse.joinMode as 'straight' | 'curved' | 'freeform' | undefined;
                   initialAnswers[question.id].graphSegments = graphResponse.segments;
+                  initialAnswers[question.id].graphDrawnPaths = graphResponse.drawnPaths;
                 } else if (graphResponse && graphResponse._type === 'graph_interpretation') {
                   initialAnswers[question.id].graphInterpretationAnswers = graphResponse.answers;
                 }
@@ -1329,7 +1332,8 @@ const TakePracticeQuiz = () => {
                                 const serialized = serializeGraphPlottingResponse(
                                   points,
                                   existing.graphJoinMode,
-                                  existing.graphSegments
+                                  existing.graphSegments,
+                                  existing.graphDrawnPaths
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -1344,7 +1348,7 @@ const TakePracticeQuiz = () => {
                               debouncedSave(currentQuestion.id, { answer: serializedToSave });
                             }}
                             joinMode={currentAnswer.graphJoinMode}
-                            onJoinModeChange={(mode?: 'straight' | 'curved') => {
+                            onJoinModeChange={(mode) => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
                                 const existing = prev[currentQuestion.id] ?? currentAnswer;
@@ -1352,7 +1356,8 @@ const TakePracticeQuiz = () => {
                                 const serialized = serializeGraphPlottingResponse(
                                   points,
                                   mode,
-                                  existing.graphSegments
+                                  existing.graphSegments,
+                                  existing.graphDrawnPaths
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -1376,7 +1381,8 @@ const TakePracticeQuiz = () => {
                                 const serialized = serializeGraphPlottingResponse(
                                   points,
                                   mode,
-                                  segments
+                                  segments,
+                                  existing.graphDrawnPaths
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -1385,6 +1391,31 @@ const TakePracticeQuiz = () => {
                                     ...existing,
                                     answer: serialized,
                                     graphSegments: segments,
+                                  },
+                                };
+                              });
+                              debouncedSave(currentQuestion.id, { answer: serializedToSave });
+                            }}
+                            drawnPaths={currentAnswer.graphDrawnPaths}
+                            onDrawnPathsChange={(paths) => {
+                              let serializedToSave = '';
+                              setUserAnswers((prev) => {
+                                const existing = prev[currentQuestion.id] ?? currentAnswer;
+                                const points = existing.graphPlottedPoints || [];
+                                const mode = existing.graphJoinMode;
+                                const serialized = serializeGraphPlottingResponse(
+                                  points,
+                                  mode,
+                                  existing.graphSegments,
+                                  paths
+                                );
+                                serializedToSave = serialized;
+                                return {
+                                  ...prev,
+                                  [currentQuestion.id]: {
+                                    ...existing,
+                                    answer: serialized,
+                                    graphDrawnPaths: paths,
                                   },
                                 };
                               });

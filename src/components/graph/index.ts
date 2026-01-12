@@ -5,3 +5,4 @@ export * from './GraphRenderer';
 export * from './GraphInterpretationQuestion';
 export * from './GraphPlottingQuestion';
 export * from './BearingsQuestion';
+export * from './GraphDrawingCanvas';
