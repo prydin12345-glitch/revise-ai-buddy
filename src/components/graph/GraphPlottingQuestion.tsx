@@ -1,59 +1,55 @@
-// Graph Plotting Question Component
-// Interactive scatter plot where students can add/drag/remove points
-// With segment-based joining: select two points to join them
-// Uses Pointer Events for cross-device compatibility (iPad Safari, mobile, desktop)
-// Rebuilt 2026-01-10
-
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceDot,
   ReferenceLine,
+  ReferenceDot,
   ComposedChart,
-  Scatter
+  ZAxis,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Trash2, Undo2, TrendingUp, Spline, X } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import type {
-  GraphPlottingConfig,
-  GraphPoint,
+import { cn } from '@/lib/utils';
+import { Undo2, Trash2, Minus, Spline } from 'lucide-react';
+import { 
+  GraphPlottingConfig, 
+  GraphPoint, 
   GraphPlottingAnswer,
   GraphPlottingMarkingResult,
-  LineSegment
+  LineSegment 
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
-  expectedAnswer: GraphPlottingAnswer;
+  expectedAnswer?: GraphPlottingAnswer;
   studentPoints: GraphPoint[];
   onPointsChange: (points: GraphPoint[]) => void;
   readOnly?: boolean;
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  // Join mode props
   joinMode?: 'straight' | 'curved';
-  onJoinModeChange?: (mode?: 'straight' | 'curved') => void;
-  // Segments state (for persistence)
-  segments?: LineSegment[];
-  onSegmentsChange?: (segments: LineSegment[]) => void;
+  onJoinModeChange?: (mode: 'straight' | 'curved') => void;
+  segments: LineSegment[];
+  onSegmentsChange: (segments: LineSegment[]) => void;
 }
 
-// Status colors matching table logic
-const statusColors = {
-  correct: '#22c55e',
-  incorrect: '#ef4444',
-  missed: '#f97316',
-  neutral: '#3b82f6'
-};
-
+/**
+ * GraphPlottingQuestion - Interactive scatter plot for plotting points and creating segments.
+ * 
+ * Workflow:
+ * 1. User plots points by clicking on the graph
+ * 2. User selects a join mode (straight or curved)
+ * 3. User taps Point A, then Point B to create a segment between them
+ * 4. Segments are rendered using the selected mode
+ * 
+ * NO auto-joining: Lines/curves only appear when user explicitly creates segments.
+ */
 export function GraphPlottingQuestion({
   config,
   expectedAnswer,
@@ -62,33 +58,39 @@ export function GraphPlottingQuestion({
   readOnly = false,
   showCorrectAnswers = false,
   markingData,
-  subjectColor = '#3B82F6',
+  subjectColor = 'hsl(var(--primary))',
   joinMode,
   onJoinModeChange,
-  segments: externalSegments,
-  onSegmentsChange
+  segments,
+  onSegmentsChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const [chartContainerSize, setChartContainerSize] = useState({ width: 0, height: 0 });
-  const [history, setHistory] = useState<GraphPoint[][]>([]);
+  
+  // Chart size state
+  const [chartContainerSize, setChartContainerSize] = useState({ width: 400, height: 300 });
+  
+  // History for undo
+  const [pointsHistory, setPointsHistory] = useState<GraphPoint[][]>([]);
+  
+  // Recharts axis scales (captured from rendered chart)
+  const [axisScales, setAxisScales] = useState<{ x?: any; y?: any }>({});
+  
+  // Chart margins (captured from rendered chart)
+  const [chartMargins, setChartMargins] = useState({
+    left: 60,
+    right: 20,
+    top: 20,
+    bottom: 40,
+  });
 
-  // Use Recharts' real axis scales when available (prevents domain/margin mismatches)
-  const [axisScales, setAxisScales] = useState<{ x?: (v: number) => number; y?: (v: number) => number }>({});
-  const axisScalesRef = useRef<{ x?: (v: number) => number; y?: (v: number) => number }>({});
+  // Selected points for creating segments (tap Point A, then Point B)
+  const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
-  // Keep the exact plot-area offsets Recharts computed, so our overlay aligns perfectly.
-  const [chartMargins, setChartMargins] = useState({ left: 65, right: 30, top: 30, bottom: 50 });
-
-  // Timestamp of the last pointer interaction; used to ignore iPad Safari synthetic clicks
-  const lastPointerTimeRef = useRef<number>(0);
-  const POINTER_GUARD_MS = 500;
-
-  // Observe container size for segment overlay positioning
+  // Observe container size changes
   useEffect(() => {
-    const container = chartContainerRef.current;
-    if (!container) return;
-
+    if (!chartContainerRef.current) return;
+    
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setChartContainerSize({
@@ -97,415 +99,336 @@ export function GraphPlottingQuestion({
         });
       }
     });
-    observer.observe(container);
-    // Initial measurement
-    setChartContainerSize({
-      width: container.offsetWidth,
-      height: container.offsetHeight,
-    });
+    
+    observer.observe(chartContainerRef.current);
     return () => observer.disconnect();
   }, []);
 
-  // Capture Recharts axis scale functions + plot-area offsets for exact pixel alignment
+  // Capture Recharts axis scales and margins
   useEffect(() => {
-    const inst = chartRef.current;
-    const xAxisMap = inst?.state?.xAxisMap;
-    const yAxisMap = inst?.state?.yAxisMap;
-    const offset = inst?.state?.offset;
-
-    const xAxis: any = xAxisMap ? Object.values(xAxisMap)[0] : undefined;
-    const yAxis: any = yAxisMap ? Object.values(yAxisMap)[0] : undefined;
-
-    const xScale = xAxis?.scale;
-    const yScale = yAxis?.scale;
-
-    if (offset && typeof offset.left === 'number' && typeof offset.top === 'number') {
-      setChartMargins({
-        left: offset.left,
-        right: offset.right ?? 30,
-        top: offset.top,
-        bottom: offset.bottom ?? 50,
-      });
-    }
-
-    if (typeof xScale === 'function' && typeof yScale === 'function') {
-      if (axisScalesRef.current.x !== xScale || axisScalesRef.current.y !== yScale) {
-        axisScalesRef.current = { x: xScale, y: yScale };
-        setAxisScales({ x: xScale, y: yScale });
+    if (!chartRef.current) return;
+    
+    const timer = setTimeout(() => {
+      try {
+        const chart = chartRef.current;
+        if (chart?.state) {
+          const { xAxisMap, yAxisMap } = chart.state;
+          if (xAxisMap && yAxisMap) {
+            const xAxis = Object.values(xAxisMap)[0] as any;
+            const yAxis = Object.values(yAxisMap)[0] as any;
+            if (xAxis?.scale && yAxis?.scale) {
+              setAxisScales({ x: xAxis.scale, y: yAxis.scale });
+              setChartMargins({
+                left: xAxis.x || 60,
+                right: chartContainerSize.width - (xAxis.x + xAxis.width) || 20,
+                top: yAxis.y || 20,
+                bottom: chartContainerSize.height - (yAxis.y + yAxis.height) || 40,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to capture axis scales:', e);
       }
-    }
-  }, [chartContainerSize.width, chartContainerSize.height, config.domainX, config.domainY]);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [chartContainerSize, studentPoints]);
 
-  // Internal segment state (single source of truth for rendering)
-  const [segments, setSegmentsState] = useState<LineSegment[]>(externalSegments ?? []);
+  // Calculate domain from config
+  const domainX: [number, number] = useMemo(() => {
+    const min = config.xMin ?? 0;
+    const max = config.xMax ?? 10;
+    return [min, max];
+  }, [config.xMin, config.xMax]);
 
-  useEffect(() => {
-    // Hydrate/rehydrate from parent when provided (e.g., navigation, drafts)
-    if (externalSegments) {
-      setSegmentsState(externalSegments);
-    }
-  }, [externalSegments]);
+  const domainY: [number, number] = useMemo(() => {
+    const min = config.yMin ?? 0;
+    const max = config.yMax ?? 10;
+    return [min, max];
+  }, [config.yMin, config.yMax]);
 
-  const setSegments = useCallback(
-    (next: LineSegment[]) => {
-      setSegmentsState(next);
-      onSegmentsChange?.(next);
-    },
-    [onSegmentsChange]
-  );
+  // Determine current join mode
+  const isJoinModeEnabled = config.joinPointsMode?.enabled ?? false;
+  const currentJoinMode = joinMode || config.joinPointsMode?.defaultMode || 'straight';
 
-  // Selected points for joining (max 2)
-  const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
-
-  const {
-    xLabel,
-    yLabel,
-    domainX = [-10, 10],
-    domainY = [-10, 10],
-    snapToGrid = true,
-    stepX = 1,
-    stepY = 1,
-    maxPoints,
-    joinPointsMode
-  } = config;
-
-  // Determine if join mode is enabled - default to "none" (no mode selected initially)
-  const isJoinModeEnabled = joinPointsMode?.enabled ?? false;
-  // Current join mode: 'none' | 'straight' | 'curved'
-  const currentJoinMode = joinMode ?? 'none';
-
-  // Points in plotting order (NOT sorted) - used for curve rendering
-  // Sorting by x would change the spline shape unpredictably
-  const plottingOrderPoints = useMemo(() => {
-    return [...studentPoints];
-  }, [studentPoints]);
-  
-  // Sorted points for display in table only
-  const sortedPointsForTable = useMemo(() => {
-    return [...studentPoints].sort((a, b) => a.x - b.x);
-  }, [studentPoints]);
-
-  // Snap point to grid if enabled
+  /**
+   * Snap a coordinate to the grid step.
+   */
   const snapPoint = useCallback((x: number, y: number): GraphPoint => {
-    if (!snapToGrid) return { x, y };
-    return {
-      x: Math.round(x / stepX) * stepX,
-      y: Math.round(y / stepY) * stepY
+    const stepX = config.stepX ?? 1;
+    const stepY = config.stepY ?? 1;
+    const snappedX = Math.round(x / stepX) * stepX;
+    const snappedY = Math.round(y / stepY) * stepY;
+    return { 
+      x: Math.round(snappedX * 1000) / 1000, 
+      y: Math.round(snappedY * 1000) / 1000 
     };
-  }, [snapToGrid, stepX, stepY]);
+  }, [config.stepX, config.stepY]);
 
-  // Check if a point is in the selected join points list
+  /**
+   * Check if a point is currently selected for joining.
+   */
   const isPointSelected = useCallback((point: GraphPoint): boolean => {
     return selectedJoinPoints.some(p => p.x === point.x && p.y === point.y);
   }, [selectedJoinPoints]);
 
-  // Handle point click - either toggle plot/unplot OR select for joining
-  const handlePointClick = useCallback((point: GraphPoint, e: React.MouseEvent) => {
-    e.stopPropagation();
+  /**
+   * Handle click on an existing point.
+   * - If not in join mode: remove the point
+   * - If in join mode: select/deselect for joining
+   */
+  const handlePointClick = useCallback((point: GraphPoint, e: React.PointerEvent | React.MouseEvent) => {
     if (readOnly) return;
-    
-    // If join mode is active (straight or curved), select points for joining
-    if (currentJoinMode !== 'none') {
-      // Check if point is already selected
-      const alreadySelected = selectedJoinPoints.findIndex(p => p.x === point.x && p.y === point.y);
-      
-      if (alreadySelected !== -1) {
-        // Deselect the point
-        setSelectedJoinPoints(prev => prev.filter((_, i) => i !== alreadySelected));
-      } else if (selectedJoinPoints.length < 2) {
-        // Add to selection
-        const newSelection = [...selectedJoinPoints, point];
-        setSelectedJoinPoints(newSelection);
-        
-        // If we now have 2 points, create a segment
-        if (newSelection.length === 2) {
-          const newSegment: LineSegment = {
-            id: `seg-${Date.now()}`,
-            from: newSelection[0],
-            to: newSelection[1],
-            mode: currentJoinMode as 'straight' | 'curved'
-          };
-          setSegments([...segments, newSegment]);
+    e.stopPropagation();
 
-          // Keep the second point selected so the student can keep joining in a chain
-          setSelectedJoinPoints([newSelection[1]]);
-        }
-      }
+    if (!isJoinModeEnabled) {
+      // Remove point
+      setPointsHistory(prev => [...prev, studentPoints]);
+      onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+      return;
+    }
+
+    // Join mode is enabled
+    const isAlreadySelected = isPointSelected(point);
+
+    if (isAlreadySelected) {
+      // Deselect
+      setSelectedJoinPoints(prev => prev.filter(p => p.x !== point.x || p.y !== point.y));
     } else {
-      // No join mode - toggle point (remove it)
-      const existingIndex = studentPoints.findIndex(p => p.x === point.x && p.y === point.y);
-      if (existingIndex !== -1) {
-        setHistory(prev => [...prev, studentPoints]);
-        const newPoints = studentPoints.filter((_, i) => i !== existingIndex);
-        onPointsChange(newPoints);
+      // Select
+      if (selectedJoinPoints.length === 0) {
+        // First point selected
+        setSelectedJoinPoints([point]);
+      } else if (selectedJoinPoints.length === 1) {
+        // Second point selected - create segment
+        const fromPoint = selectedJoinPoints[0];
+        const toPoint = point;
         
-        // Remove any segments that reference this point
-        const newSegments = segments.filter(
-          seg => !(seg.from.x === point.x && seg.from.y === point.y) &&
-                 !(seg.to.x === point.x && seg.to.y === point.y)
+        // Check if segment already exists (in either direction)
+        const segmentExists = segments.some(s => 
+          (s.from.x === fromPoint.x && s.from.y === fromPoint.y && s.to.x === toPoint.x && s.to.y === toPoint.y) ||
+          (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
         );
-        if (newSegments.length !== segments.length) {
-          setSegments(newSegments);
+
+        if (!segmentExists) {
+          const newSegment: LineSegment = {
+            id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            from: { x: fromPoint.x, y: fromPoint.y },
+            to: { x: toPoint.x, y: toPoint.y },
+            mode: currentJoinMode,
+          };
+          onSegmentsChange([...segments, newSegment]);
         }
-        
-        // If points become empty, clear selected join points too
-        if (newPoints.length === 0) {
-          setSelectedJoinPoints([]);
-        }
+
+        // Clear selection
+        setSelectedJoinPoints([]);
       }
     }
-  }, [readOnly, currentJoinMode, selectedJoinPoints, studentPoints, segments, onPointsChange, setSegments]);
+  }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange]);
 
-  // Add a point (only called when clicking empty space)
+  /**
+   * Add a new point to the graph.
+   */
   const addPoint = useCallback((x: number, y: number) => {
     if (readOnly) return;
+    
+    const maxPoints = config.maxPoints ?? 20;
+    if (studentPoints.length >= maxPoints) return;
 
     const snapped = snapPoint(x, y);
     
-    // Check if point already exists at this position
-    const existingIndex = studentPoints.findIndex(p => p.x === snapped.x && p.y === snapped.y);
-    if (existingIndex !== -1) {
-      // Point exists - if no join mode, remove it (toggle behavior)
-      if (currentJoinMode === 'none') {
-        setHistory(prev => [...prev, studentPoints]);
-        const newPoints = studentPoints.filter((_, i) => i !== existingIndex);
-        onPointsChange(newPoints);
-        
-        // Remove segments referencing this point
-        const newSegments = segments.filter(
-          seg => !(seg.from.x === snapped.x && seg.from.y === snapped.y) &&
-                 !(seg.to.x === snapped.x && seg.to.y === snapped.y)
-        );
-        if (newSegments.length !== segments.length) {
-          setSegments(newSegments);
-        }
-        
-        if (newPoints.length === 0) {
-          setSelectedJoinPoints([]);
-        }
-      }
-      return;
-    }
-    
-    // Check max points limit (only when adding new point)
-    if (maxPoints && studentPoints.length >= maxPoints) return;
+    // Check if point already exists
+    const exists = studentPoints.some(p => p.x === snapped.x && p.y === snapped.y);
+    if (exists) return;
 
-    setHistory(prev => [...prev, studentPoints]);
+    // Save to history and add point
+    setPointsHistory(prev => [...prev, studentPoints]);
     onPointsChange([...studentPoints, snapped]);
-  }, [readOnly, maxPoints, studentPoints, snapPoint, onPointsChange, currentJoinMode, segments, setSegments]);
+  }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange]);
 
-  // Remove a point by index
+  /**
+   * Remove a point by index.
+   */
   const removePoint = useCallback((index: number) => {
     if (readOnly) return;
-    const point = studentPoints[index];
-    setHistory(prev => [...prev, studentPoints]);
+    
+    const pointToRemove = studentPoints[index];
+    
+    // Save to history
+    setPointsHistory(prev => [...prev, studentPoints]);
+    
+    // Remove the point
     const newPoints = studentPoints.filter((_, i) => i !== index);
     onPointsChange(newPoints);
-    
-    // Remove segments referencing this point
-    const newSegments = segments.filter(
-      seg => !(seg.from.x === point.x && seg.from.y === point.y) &&
-             !(seg.to.x === point.x && seg.to.y === point.y)
+
+    // Also remove any segments that reference this point
+    const newSegments = segments.filter(s => 
+      !(s.from.x === pointToRemove.x && s.from.y === pointToRemove.y) &&
+      !(s.to.x === pointToRemove.x && s.to.y === pointToRemove.y)
     );
     if (newSegments.length !== segments.length) {
-      setSegments(newSegments);
+      onSegmentsChange(newSegments);
     }
-    
-    // Clear all if empty
-    if (newPoints.length === 0) {
-      setSelectedJoinPoints([]);
-    }
-  }, [readOnly, studentPoints, onPointsChange, segments, setSegments]);
 
-  // Undo last action
+    // Clear selection if this point was selected
+    setSelectedJoinPoints(prev => prev.filter(p => p.x !== pointToRemove.x || p.y !== pointToRemove.y));
+  }, [readOnly, studentPoints, segments, onPointsChange, onSegmentsChange]);
+
+  /**
+   * Remove a segment by id.
+   */
+  const removeSegment = useCallback((segmentId: string) => {
+    if (readOnly) return;
+    onSegmentsChange(segments.filter(s => s.id !== segmentId));
+  }, [readOnly, segments, onSegmentsChange]);
+
+  /**
+   * Undo the last action.
+   */
   const undo = useCallback(() => {
-    if (history.length === 0 || readOnly) return;
-    const previous = history[history.length - 1];
-    setHistory(prev => prev.slice(0, -1));
-    onPointsChange(previous);
-  }, [history, readOnly, onPointsChange]);
+    if (pointsHistory.length === 0) return;
+    const previousPoints = pointsHistory[pointsHistory.length - 1];
+    setPointsHistory(prev => prev.slice(0, -1));
+    onPointsChange(previousPoints);
+  }, [pointsHistory, onPointsChange]);
 
-  // Clear all points and segments
+  /**
+   * Clear all points and segments.
+   */
   const clearAll = useCallback(() => {
-    if (readOnly || studentPoints.length === 0) return;
-    setHistory(prev => [...prev, studentPoints]);
+    if (readOnly) return;
+    setPointsHistory(prev => [...prev, studentPoints]);
     onPointsChange([]);
-    setSegments([]);
+    onSegmentsChange([]);
     setSelectedJoinPoints([]);
-  }, [readOnly, studentPoints, onPointsChange, setSegments]);
+  }, [readOnly, studentPoints, onPointsChange, onSegmentsChange]);
 
-  // Get point status from marking data
-  const getPointStatus = (point: GraphPoint): 'correct' | 'incorrect' | null => {
-    if (!showCorrectAnswers || !markingData) return null;
+  /**
+   * Get the status of a point for display (correct, incorrect, etc.)
+   */
+  const getPointStatus = useCallback((point: GraphPoint): 'correct' | 'incorrect' | 'neutral' => {
+    if (!showCorrectAnswers || !markingData?.perPointResults) return 'neutral';
     
-    const result = markingData.perPointResults.find(
-      r => r.studentPoint?.x === point.x && r.studentPoint?.y === point.y
+    const result = markingData.perPointResults.find(r => 
+      r.studentPoint?.x === point.x && r.studentPoint?.y === point.y
     );
     
-    return result?.matched ? 'correct' : 'incorrect';
-  };
-
-  // Get missed expected points (not matched by any student point)
-  const missedPoints = useMemo(() => {
-    if (!showCorrectAnswers || !markingData) return [];
-    return markingData.perPointResults
-      .filter(r => r.status === 'missed')
-      .map(r => r.expectedPoint);
+    if (!result) return 'neutral';
+    return result.status === 'correct' ? 'correct' : 'incorrect';
   }, [showCorrectAnswers, markingData]);
 
-  // Handle chart click for adding points (only when NOT in join mode or clicking empty space)
-  const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+  /**
+   * Get missed expected points (for showing correct answers).
+   */
+  const missedPoints = useMemo(() => {
+    if (!showCorrectAnswers || !markingData?.perPointResults) return [];
+    
+    return markingData.perPointResults
+      .filter(r => r.status === 'missed' && r.expectedPoint)
+      .map(r => r.expectedPoint!);
+  }, [showCorrectAnswers, markingData]);
+
+  /**
+   * Handle click on the chart background to add a point.
+   * Only adds points if NOT in "point selection" mode (no points selected for joining).
+   */
+  const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly) return;
     
-    // In join mode, only allow clicking on existing points (handled by dot click)
-    // Container clicks in join mode should be ignored
-    if (currentJoinMode !== 'none') {
+    // Don't add points if we're selecting points for joining
+    if (selectedJoinPoints.length > 0) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Convert pixel to data coordinates
+    const plotWidth = chartContainerSize.width - chartMargins.left - chartMargins.right;
+    const plotHeight = chartContainerSize.height - chartMargins.top - chartMargins.bottom;
+
+    // Check if click is within the plot area
+    if (clickX < chartMargins.left || clickX > chartContainerSize.width - chartMargins.right ||
+        clickY < chartMargins.top || clickY > chartContainerSize.height - chartMargins.bottom) {
       return;
     }
+
+    const dataX = domainX[0] + ((clickX - chartMargins.left) / plotWidth) * (domainX[1] - domainX[0]);
+    const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
+
+    addPoint(dataX, dataY);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint]);
+
+  /**
+   * Custom dot renderer for points.
+   */
+  const renderDot = useCallback((props: any) => {
+    const { cx, cy, payload } = props;
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
+
+    const point = payload as GraphPoint;
+    const status = getPointStatus(point);
+    const isSelected = isPointSelected(point);
     
-    // Get click/touch position
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    
-    let clientX: number;
-    let clientY: number;
-    
-    if ('touches' in e) {
-      if (e.touches.length === 0) {
-        // For touchend, use changedTouches
-        const touchEvent = e as React.TouchEvent;
-        if (touchEvent.changedTouches && touchEvent.changedTouches.length > 0) {
-          clientX = touchEvent.changedTouches[0].clientX;
-          clientY = touchEvent.changedTouches[0].clientY;
-        } else {
-          return;
-        }
-      } else {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      }
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+    // Determine fill color based on status
+    let fillColor = subjectColor;
+    if (showCorrectAnswers) {
+      if (status === 'correct') fillColor = 'hsl(var(--success, 142 76% 36%))';
+      else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
     }
-    
-    // Calculate position relative to container
-    const relativeX = clientX - rect.left;
-    const relativeY = clientY - rect.top;
-    
-    // Chart area margins (approximate for recharts)
-    const marginLeft = 65;
-    const marginRight = 30;
-    const marginTop = 30;
-    const marginBottom = 50;
-    
-    const chartWidth = rect.width - marginLeft - marginRight;
-    const chartHeight = rect.height - marginTop - marginBottom;
-    
-    // Check if click is within chart area
-    if (relativeX < marginLeft || relativeX > rect.width - marginRight ||
-        relativeY < marginTop || relativeY > rect.height - marginBottom) {
-      return;
-    }
-    
-    // Calculate data coordinates
-    const xRange = domainX[1] - domainX[0];
-    const yRange = domainY[1] - domainY[0];
-    
-    const xFraction = (relativeX - marginLeft) / chartWidth;
-    const yFraction = 1 - ((relativeY - marginTop) / chartHeight);
-    
-    const x = domainX[0] + xFraction * xRange;
-    const y = domainY[0] + yFraction * yRange;
-    
-    addPoint(x, y);
-  }, [readOnly, domainX, domainY, addPoint, currentJoinMode]);
 
-  // Custom dot renderer with status colors and selection highlighting
-  // Uses onPointerUp ONLY for cross-device compatibility (iPad Safari, mobile, desktop)
-  const renderDot = (props: any) => {
-    const { cx, cy, payload, index } = props;
-    if (!payload) return null;
-    
-    const status = getPointStatus(payload);
-    const isSelected = isPointSelected(payload);
-    const color = status ? statusColors[status] : subjectColor;
-    
-    // Unified pointer handler - works on touch and mouse
-    const handlePointerUp = (e: React.PointerEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
+    // Larger touch target for mobile
+    const touchRadius = 20;
+    const visualRadius = isSelected ? 10 : 8;
 
-      // Record pointer time so we can ignore the synthetic click that iPad Safari emits after touch
-      lastPointerTimeRef.current = Date.now();
-
-      if (!readOnly) {
-        handlePointClick(payload, e as unknown as React.MouseEvent);
-      }
-    };
-
-    const handleClickCapture = (e: React.MouseEvent) => {
-      // Ignore synthetic click that can follow a touch/pointer interaction
-      if (Date.now() - lastPointerTimeRef.current < POINTER_GUARD_MS) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-    
     return (
-      <g key={`dot-${index}`} style={{ pointerEvents: 'auto' }}>
+      <g 
+        key={`point-${point.x}-${point.y}`}
+        style={{ cursor: readOnly ? 'default' : 'pointer' }}
+      >
+        {/* Invisible larger touch target */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={touchRadius}
+          fill="transparent"
+          onPointerDown={(e) => handlePointClick(point, e)}
+        />
+        
         {/* Selection ring */}
         {isSelected && (
           <circle
             cx={cx}
             cy={cy}
-            r={18}
+            r={visualRadius + 4}
             fill="none"
-            stroke={subjectColor}
-            strokeWidth={3}
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
             strokeDasharray="4 2"
           />
         )}
-        {/* Larger invisible touch target for mobile - pointer events only */}
+        
+        {/* Visible point */}
         <circle
           cx={cx}
           cy={cy}
-          r={24}
-          fill="transparent"
-          style={{ cursor: readOnly ? 'default' : 'pointer', touchAction: 'none' }}
-          onPointerUp={handlePointerUp}
-          onClickCapture={handleClickCapture}
+          r={visualRadius}
+          fill={fillColor}
+          stroke="white"
+          strokeWidth={2}
         />
-        {/* Visible dot */}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={10}
-          fill={color}
-          stroke={isSelected ? subjectColor : '#fff'}
-          strokeWidth={isSelected ? 3 : 2}
-          style={{ pointerEvents: 'none' }}
-        />
-        {!readOnly && (
-          <title>
-            {currentJoinMode !== 'none' 
-              ? `Tap to ${isSelected ? 'deselect' : 'select'} point (${payload.x}, ${payload.y})`
-              : `Tap to remove point (${payload.x}, ${payload.y})`
-            }
-          </title>
-        )}
+        
+        {/* Tooltip on hover */}
+        <title>{`(${point.x}, ${point.y})`}</title>
       </g>
     );
-  };
+  }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, handlePointClick]);
 
-  // Validate config exists
-  const hasValidConfig = config && config.xLabel && config.yLabel;
-
-  if (!hasValidConfig) {
+  // Error state if no config
+  if (!config) {
     return (
-      <div className="border rounded-lg p-6 bg-destructive/10 text-destructive">
-        <p className="font-medium">Graph data missing</p>
-        <p className="text-sm mt-1">This question was generated without coordinate grid data. Please regenerate the question or contact support.</p>
+      <div className="p-4 border border-destructive rounded-lg bg-destructive/10">
+        <p className="text-destructive">Error: No graph configuration provided</p>
       </div>
     );
   }
@@ -514,185 +437,143 @@ export function GraphPlottingQuestion({
     <div className="space-y-4">
       {/* Toolbar */}
       {!readOnly && (
-        <div className="flex items-center justify-between text-sm flex-wrap gap-2">
-          <span className="text-muted-foreground">
-            Click on the grid to plot points
-            {maxPoints && ` (${studentPoints.length}/${maxPoints})`}
-          </span>
-          <div className="flex gap-2">
-            {/* Join Mode Toggle */}
-            {isJoinModeEnabled && (
-              <ToggleGroup
-                type="single"
-                value={currentJoinMode === 'none' ? '' : currentJoinMode}
-                onValueChange={(val) => {
-                  // Allow tapping the active option again to exit join mode (back to plotting)
-                  if (!val) {
-                    onJoinModeChange?.(undefined);
-                    setSelectedJoinPoints([]);
-                    return;
-                  }
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={undo}
+            disabled={pointsHistory.length === 0}
+          >
+            <Undo2 className="h-4 w-4 mr-1" />
+            Undo
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAll}
+            disabled={studentPoints.length === 0}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
 
-                  onJoinModeChange?.(val as 'straight' | 'curved');
-                  // Clear selection when changing mode
-                  setSelectedJoinPoints([]);
-                }}
-                className="border rounded-md"
-              >
-                <ToggleGroupItem value="straight" aria-label="Straight line" className="gap-1 px-3">
-                  <TrendingUp className="w-4 h-4" />
-                  Straight
-                </ToggleGroupItem>
-                <ToggleGroupItem value="curved" aria-label="Curved line" className="gap-1 px-3">
-                  <Spline className="w-4 h-4" />
-                  Curved
-                </ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={undo}
-              disabled={history.length === 0}
+          {/* Join mode toggle */}
+          {isJoinModeEnabled && onJoinModeChange && (
+            <ToggleGroup
+              type="single"
+              value={currentJoinMode}
+              onValueChange={(value) => {
+                if (value === 'straight' || value === 'curved') {
+                  onJoinModeChange(value);
+                }
+              }}
+              className="ml-auto"
             >
-              <Undo2 className="w-4 h-4 mr-1" />
-              Undo
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAll}
-              disabled={studentPoints.length === 0}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Clear
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Helper text for joining */}
-      {!readOnly && isJoinModeEnabled && currentJoinMode !== 'none' && (
-        <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-          {currentJoinMode === 'curved' ? (
-            // Curved mode: spline through all points (needs 3+ points)
-            studentPoints.length < 3 ? (
-              <span>
-                Add at least 3 points to define the curve shape. ({studentPoints.length}/3 points plotted)
-              </span>
-            ) : (
-              <span>
-                Smooth curve drawn through {studentPoints.length} points in plotting order.
-              </span>
-            )
-          ) : (
-            // Straight mode: segment-by-segment joining
-            studentPoints.length < 2 ? (
-              <span>
-                Plot at least 2 points to start joining them with straight lines.
-              </span>
-            ) : selectedJoinPoints.length === 1 ? (
-              <span>
-                Selected ({selectedJoinPoints[0].x}, {selectedJoinPoints[0].y}). Now tap another point to draw a{' '}
-                straight segment (tap the selected point again to cancel).
-              </span>
-            ) : segments.length > 0 ? (
-              <span>
-                Tap a plotted point to start another straight segment. ({segments.length} created so far.)
-              </span>
-            ) : (
-              <span>
-                Tap a plotted point to start joining with straight segments.
-              </span>
-            )
+              <ToggleGroupItem value="straight" aria-label="Straight lines">
+                <Minus className="h-4 w-4 mr-1" />
+                Straight
+              </ToggleGroupItem>
+              <ToggleGroupItem value="curved" aria-label="Curved lines">
+                <Spline className="h-4 w-4 mr-1" />
+                Curved
+              </ToggleGroupItem>
+            </ToggleGroup>
           )}
         </div>
       )}
 
-      {/* Chart - uses pointer events for cross-device compatibility */}
+      {/* Helper text */}
+      {!readOnly && (
+        <p className="text-sm text-muted-foreground">
+          {isJoinModeEnabled ? (
+            selectedJoinPoints.length === 0 ? (
+              `Click to add points. To connect points: tap first point, then tap second point to create a ${currentJoinMode} segment.`
+            ) : selectedJoinPoints.length === 1 ? (
+              `Point selected at (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}). Tap another point to connect, or tap the same point to cancel.`
+            ) : (
+              'Creating segment...'
+            )
+          ) : (
+            'Click on the graph to plot points. Click a point to remove it.'
+          )}
+        </p>
+      )}
+
+      {/* Chart */}
       <div 
         ref={chartContainerRef}
-        className="rounded-lg bg-card overflow-hidden relative"
-        style={{ 
-          touchAction: readOnly ? 'auto' : 'none',
-          cursor: readOnly ? 'default' : (currentJoinMode !== 'none' ? 'pointer' : 'crosshair'),
-          isolation: 'isolate', // Creates stacking context to prevent z-index bleed
-        }}
-        onPointerUp={readOnly ? undefined : (e) => {
-          // Record pointer time so we can ignore the synthetic click that iPad Safari emits after touch
-          lastPointerTimeRef.current = Date.now();
-          handleChartContainerClick(e as unknown as React.MouseEvent<HTMLDivElement>);
-        }}
-        onClickCapture={readOnly ? undefined : (e) => {
-          if (Date.now() - lastPointerTimeRef.current < POINTER_GUARD_MS) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }}
+        className="relative w-full aspect-[4/3] border rounded-lg bg-card overflow-hidden"
+        onClick={handleChartContainerClick}
+        style={{ cursor: readOnly ? 'default' : 'crosshair' }}
       >
-        <ResponsiveContainer width="100%" aspect={1.2}>
+        <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             ref={chartRef}
-            data={plottingOrderPoints}
+            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            
             <XAxis
+              type="number"
               dataKey="x"
-              type="number"
               domain={domainX}
-              ticks={Array.from(
-                { length: Math.floor((domainX[1] - domainX[0]) / stepX) + 1 },
-                (_, i) => domainX[0] + i * stepX
-              )}
-              stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
-              label={{ value: xLabel, position: 'insideBottom', offset: -5 }}
-            />
-            <YAxis
-              dataKey="y"
-              type="number"
-              domain={domainY}
-              ticks={Array.from(
-                { length: Math.floor((domainY[1] - domainY[0]) / stepY) + 1 },
-                (_, i) => domainY[0] + i * stepY
-              )}
-              stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
-              label={{ value: yLabel, angle: -90, position: 'insideLeft' }}
+              tickCount={Math.min(11, domainX[1] - domainX[0] + 1)}
+              label={{ 
+                value: config.xLabel || 'X', 
+                position: 'insideBottom', 
+                offset: -10,
+                style: { fill: 'hsl(var(--foreground))' }
+              }}
+              stroke="hsl(var(--foreground))"
             />
             
-            {/* Reference lines at origin */}
-            <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-            <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            <YAxis
+              type="number"
+              dataKey="y"
+              domain={domainY}
+              tickCount={Math.min(11, domainY[1] - domainY[0] + 1)}
+              label={{ 
+                value: config.yLabel || 'Y', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { fill: 'hsl(var(--foreground))' }
+              }}
+              stroke="hsl(var(--foreground))"
+            />
+            
+            <ZAxis range={[100, 100]} />
             
             <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px'
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const point = payload[0].payload as GraphPoint;
+                return (
+                  <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-md">
+                    ({point.x}, {point.y})
+                  </div>
+                );
               }}
-              formatter={(value: number) => value.toFixed(1)}
             />
-            
-            {/* Legend in top-right */}
-            {studentPoints.length > 0 && (
-              <defs>
-                <marker id="dot" markerWidth="4" markerHeight="4" refX="2" refY="2">
-                  <circle cx="2" cy="2" r="2" fill={subjectColor} />
-                </marker>
-              </defs>
+
+            {/* Reference lines at 0 if in domain */}
+            {domainX[0] <= 0 && domainX[1] >= 0 && (
+              <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
             )}
-            
+            {domainY[0] <= 0 && domainY[1] >= 0 && (
+              <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            )}
+
             {/* Student points */}
             <Scatter
-              name="Your points"
+              name="Points"
               data={studentPoints}
               fill={subjectColor}
               shape={renderDot}
               isAnimationActive={false}
             />
-            
-            {/* Show expected points in review mode (missed ones) */}
+
+            {/* Missed expected points (when showing correct answers) */}
             {showCorrectAnswers && missedPoints.map((point, idx) => (
               <ReferenceDot
                 key={`missed-${idx}`}
@@ -700,23 +581,20 @@ export function GraphPlottingQuestion({
                 y={point.y}
                 r={8}
                 fill="transparent"
-                stroke={statusColors.missed}
+                stroke="hsl(var(--success, 142 76% 36%))"
                 strokeWidth={2}
-                strokeDasharray="4 4"
+                strokeDasharray="4 2"
               />
             ))}
           </ComposedChart>
         </ResponsiveContainer>
 
-        {/* Segment overlay - rendered OUTSIDE Recharts for guaranteed visibility */}
-        {/* Uses plotting order (not sorted) so curves match point selection sequence */}
-        {chartContainerSize.width > 0 && (
-          (currentJoinMode === 'curved' && plottingOrderPoints.length >= 3) ||
-          (currentJoinMode === 'straight' && segments.length > 0)
-        ) && (
+        {/* Segments overlay - ONLY renders explicitly created segments */}
+        {segments.length > 0 && (
           <GraphSegmentsLayer
-            segments={currentJoinMode === 'straight' ? segments : []}
+            segments={segments}
             stroke="hsl(var(--primary))"
+            strokeWidth={2}
             containerWidth={chartContainerSize.width}
             containerHeight={chartContainerSize.height}
             domainX={domainX}
@@ -727,111 +605,91 @@ export function GraphPlottingQuestion({
             marginRight={chartMargins.right}
             marginTop={chartMargins.top}
             marginBottom={chartMargins.bottom}
-            // Pass points in plotting order for spline rendering in curved mode
-            splinePoints={currentJoinMode === 'curved' ? plottingOrderPoints : undefined}
           />
         )}
       </div>
 
-      {/* Segments list (only for straight mode - curved mode uses implicit spline through all points) */}
-      {segments.length > 0 && !readOnly && currentJoinMode === 'straight' && (
+      {/* Segments list */}
+      {segments.length > 0 && !readOnly && (
         <div className="border rounded-lg p-3 bg-muted/30">
           <div className="text-sm font-medium mb-2">Line segments ({segments.length})</div>
           <div className="flex flex-wrap gap-2">
-            {segments.map((seg, idx) => (
+            {segments.map((seg) => (
               <div 
                 key={seg.id}
-                className="inline-flex items-center gap-1 bg-background border rounded-full px-2 py-1 text-xs"
+                className="flex items-center gap-1 bg-background px-2 py-1 rounded text-sm border"
               >
-                <span>({seg.from.x}, {seg.from.y}) → ({seg.to.x}, {seg.to.y})</span>
-                <span className="text-muted-foreground">{seg.mode}</span>
-                <button
-                  onClick={() => setSegments(segments.filter((_, i) => i !== idx))}
-                  className="ml-1 hover:text-destructive"
+                <span>
+                  ({seg.from.x}, {seg.from.y}) → ({seg.to.x}, {seg.to.y})
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  [{seg.mode}]
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => removeSegment(seg.id)}
                 >
-                  <X className="w-3 h-3" />
-                </button>
+                  ×
+                </Button>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Plotted points list */}
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium w-16">#</th>
-              <th className="px-3 py-2 text-left font-medium">{xLabel}</th>
-              <th className="px-3 py-2 text-left font-medium">{yLabel}</th>
-              {showCorrectAnswers && <th className="px-3 py-2 text-left font-medium">Status</th>}
-              {!readOnly && <th className="px-3 py-2 text-right font-medium w-20">Action</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {studentPoints.length === 0 ? (
-              <tr>
-                <td colSpan={readOnly ? 3 : 4} className="px-3 py-4 text-center text-muted-foreground">
-                  No points plotted yet
-                </td>
-              </tr>
-            ) : (
-              studentPoints.map((point, idx) => {
-                const status = getPointStatus(point);
-                return (
-                  <tr key={idx} className="border-t">
-                    <td className="px-3 py-2">{idx + 1}</td>
-                    <td className="px-3 py-2">{point.x}</td>
-                    <td className="px-3 py-2">{point.y}</td>
-                    {showCorrectAnswers && (
-                      <td className={cn(
-                        'px-3 py-2 font-medium',
-                        status === 'correct' && 'text-green-600',
-                        status === 'incorrect' && 'text-red-600'
-                      )}>
-                        {status === 'correct' ? '✓ Correct' : '✗ Incorrect'}
-                      </td>
-                    )}
-                    {!readOnly && (
-                      <td className="px-3 py-2 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePoint(idx)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-            {/* Show missed expected points in review mode */}
-            {showCorrectAnswers && missedPoints.map((point, idx) => (
-              <tr key={`missed-${idx}`} className="border-t bg-orange-50 dark:bg-orange-900/20">
-                <td className="px-3 py-2 text-muted-foreground">—</td>
-                <td className="px-3 py-2">{point.x}</td>
-                <td className="px-3 py-2">{point.y}</td>
-                <td className="px-3 py-2 font-medium text-orange-600">
-                  ○ Missed
-                </td>
-                {!readOnly && <td />}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Points table */}
+      {studentPoints.length > 0 && (
+        <div className="border rounded-lg p-3 bg-muted/30">
+          <div className="text-sm font-medium mb-2">Plotted points ({studentPoints.length})</div>
+          <div className="flex flex-wrap gap-2">
+            {studentPoints.map((point, idx) => {
+              const status = getPointStatus(point);
+              return (
+                <div 
+                  key={`${point.x}-${point.y}-${idx}`}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded text-sm border",
+                    showCorrectAnswers && status === 'correct' && "bg-green-100 border-green-300 dark:bg-green-900/30 dark:border-green-700",
+                    showCorrectAnswers && status === 'incorrect' && "bg-red-100 border-red-300 dark:bg-red-900/30 dark:border-red-700",
+                    !showCorrectAnswers && "bg-background"
+                  )}
+                >
+                  <span>({point.x}, {point.y})</span>
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 ml-1"
+                      onClick={() => removePoint(idx)}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* Score summary in review mode */}
+      {/* Score summary when showing correct answers */}
       {showCorrectAnswers && markingData && (
-        <div className="p-3 rounded-lg bg-muted/50 border">
-          <span className="text-sm font-medium">
+        <div className="border rounded-lg p-3 bg-muted/30">
+          <div className="text-sm font-medium">
             Score: {markingData.totalScore} / {markingData.totalMarks} marks
-          </span>
+          </div>
+          {markingData.joinModeResult && (
+            <div className="text-sm text-muted-foreground mt-1">
+              Line type: {markingData.joinModeResult.correct ? '✓' : '✗'} 
+              (You used {markingData.joinModeResult.studentMode}, expected {markingData.joinModeResult.correctMode})
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+export default GraphPlottingQuestion;
