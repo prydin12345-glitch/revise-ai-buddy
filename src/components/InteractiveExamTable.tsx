@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import katex from 'katex';
+import DOMPurify from 'dompurify';
 
 interface TableCell {
   rowIndex: number;
@@ -325,8 +326,12 @@ export function InteractiveExamTable({
   };
   
   if (headers.length === 0 || rows.length === 0) {
-    // Fallback to static rendering
-    return <div dangerouslySetInnerHTML={{ __html: tableHtml }} />;
+    // Fallback to static rendering - sanitize HTML first
+    const sanitizedHtml = DOMPurify.sanitize(tableHtml, {
+      ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'span'],
+      ADD_ATTR: ['class', 'style']
+    });
+    return <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
   }
   
   return (
