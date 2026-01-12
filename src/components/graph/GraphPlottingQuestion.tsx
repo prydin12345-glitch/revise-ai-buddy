@@ -93,6 +93,16 @@ export function GraphPlottingQuestion({
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
+  // Double-tap detection state
+  const lastTapRef = useRef<{ point: GraphPoint | null; time: number; x: number; y: number }>({
+    point: null,
+    time: 0,
+    x: 0,
+    y: 0
+  });
+  const DOUBLE_TAP_THRESHOLD = 350; // ms
+  const DOUBLE_TAP_DISTANCE = 30; // px max movement
+
   // Observe container size changes
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -182,53 +192,90 @@ export function GraphPlottingQuestion({
    * - If not in join mode: remove the point
    * - If in join mode: select/deselect for joining
    */
+  /**
+   * Handle pointer down on an existing point.
+   * Uses double-tap detection for selection (more reliable on iPad).
+   * - Double-tap: select point for joining (or deselect if already selected)
+   * - Single-tap on already selected point: deselect
+   * - Single-tap when one point is selected: complete the segment
+   */
   const handlePointClick = useCallback((point: GraphPoint, e: React.PointerEvent | React.MouseEvent) => {
     if (readOnly) return;
     e.stopPropagation();
+    e.preventDefault(); // Prevent double-firing on touch
+
+    const now = Date.now();
+    const clientX = 'clientX' in e ? e.clientX : 0;
+    const clientY = 'clientY' in e ? e.clientY : 0;
+    const lastTap = lastTapRef.current;
+    
+    // Check if this is a double-tap on the same point
+    const timeDiff = now - lastTap.time;
+    const isSamePoint = lastTap.point && lastTap.point.x === point.x && lastTap.point.y === point.y;
+    const distanceMoved = Math.sqrt(
+      Math.pow(clientX - lastTap.x, 2) + Math.pow(clientY - lastTap.y, 2)
+    );
+    const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+
+    // Update last tap reference
+    lastTapRef.current = { point, time: now, x: clientX, y: clientY };
 
     if (!isJoinModeEnabled) {
-      // Remove point
-      setPointsHistory(prev => [...prev, studentPoints]);
-      onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+      // Not in join mode: single-tap removes point
+      if (isDoubleTap) {
+        // Double-tap removes point
+        setPointsHistory(prev => [...prev, studentPoints]);
+        onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+        lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+      }
+      // Single tap does nothing in non-join mode (prevents accidental removal)
       return;
     }
 
     // Join mode is enabled
     const isAlreadySelected = isPointSelected(point);
 
-    if (isAlreadySelected) {
-      // Deselect
-      setSelectedJoinPoints(prev => prev.filter(p => p.x !== point.x || p.y !== point.y));
-    } else {
-      // Select
-      if (selectedJoinPoints.length === 0) {
-        // First point selected
+    if (isDoubleTap) {
+      // Double-tap toggles selection
+      if (isAlreadySelected) {
+        // Deselect
+        setSelectedJoinPoints(prev => prev.filter(p => p.x !== point.x || p.y !== point.y));
+      } else {
+        // Select (replace any existing selection with this point)
         setSelectedJoinPoints([point]);
-      } else if (selectedJoinPoints.length === 1) {
-        // Second point selected - create segment
-        const fromPoint = selectedJoinPoints[0];
-        const toPoint = point;
-        
-        // Check if segment already exists (in either direction)
-        const segmentExists = segments.some(s => 
-          (s.from.x === fromPoint.x && s.from.y === fromPoint.y && s.to.x === toPoint.x && s.to.y === toPoint.y) ||
-          (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
-        );
-
-        if (!segmentExists && currentJoinMode !== 'freeform') {
-          const newSegment: LineSegment = {
-            id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            from: { x: fromPoint.x, y: fromPoint.y },
-            to: { x: toPoint.x, y: toPoint.y },
-            mode: currentJoinMode as 'straight' | 'curved',
-          };
-          onSegmentsChange([...segments, newSegment]);
-        }
-
-        // Clear selection
-        setSelectedJoinPoints([]);
       }
+      lastTapRef.current = { point: null, time: 0, x: 0, y: 0 }; // Reset to prevent triple-tap
+      return;
     }
+
+    // Single-tap behavior when one point is already selected
+    if (selectedJoinPoints.length === 1 && !isAlreadySelected) {
+      // Single-tap on a different point completes the segment
+      const fromPoint = selectedJoinPoints[0];
+      const toPoint = point;
+      
+      // Check if segment already exists (in either direction)
+      const segmentExists = segments.some(s => 
+        (s.from.x === fromPoint.x && s.from.y === fromPoint.y && s.to.x === toPoint.x && s.to.y === toPoint.y) ||
+        (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
+      );
+
+      if (!segmentExists && currentJoinMode !== 'freeform') {
+        const newSegment: LineSegment = {
+          id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          from: { x: fromPoint.x, y: fromPoint.y },
+          to: { x: toPoint.x, y: toPoint.y },
+          mode: currentJoinMode as 'straight' | 'curved',
+        };
+        onSegmentsChange([...segments, newSegment]);
+      }
+
+      // Clear selection
+      setSelectedJoinPoints([]);
+      lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+    }
+    // If single-tap on the selected point, do nothing (wait for double-tap to deselect)
+    // If single-tap on empty/unselected point with no selection, do nothing (wait for double-tap)
   }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange]);
 
   /**
@@ -337,12 +384,16 @@ export function GraphPlottingQuestion({
   /**
    * Handle click on the chart background to add a point.
    * Only adds points if NOT in "point selection" mode (no points selected for joining).
+   * Also clears selection if clicking on empty space.
    */
   const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly) return;
     
-    // Don't add points if we're selecting points for joining
-    if (selectedJoinPoints.length > 0) return;
+    // If we have a point selected and user clicks empty space, clear selection
+    if (selectedJoinPoints.length > 0) {
+      setSelectedJoinPoints([]);
+      return;
+    }
     
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -501,14 +552,14 @@ export function GraphPlottingQuestion({
             currentJoinMode === 'freeform' ? (
               'Click and drag on the graph to draw lines. Click on empty space to add points.'
             ) : selectedJoinPoints.length === 0 ? (
-              `Click to add points. To connect points: tap first point, then tap second point to create a ${currentJoinMode} segment.`
+              `Click to add points. Double-tap a point to select it for joining.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point selected at (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}). Tap another point to connect, or tap the same point to cancel.`
+              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect, or tap empty space to cancel.`
             ) : (
               'Creating segment...'
             )
           ) : (
-            'Click on the graph to plot points. Click a point to remove it.'
+            'Click on the graph to plot points. Double-tap a point to remove it.'
           )}
         </p>
       )}
@@ -606,6 +657,7 @@ export function GraphPlottingQuestion({
         {segments.length > 0 && (
           <GraphSegmentsLayer
             segments={segments}
+            onSegmentsChange={readOnly ? undefined : onSegmentsChange}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             containerWidth={chartContainerSize.width}
@@ -618,6 +670,7 @@ export function GraphPlottingQuestion({
             marginRight={chartMargins.right}
             marginTop={chartMargins.top}
             marginBottom={chartMargins.bottom}
+            readOnly={readOnly}
           />
         )}
 

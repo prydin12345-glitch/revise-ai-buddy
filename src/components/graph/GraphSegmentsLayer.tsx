@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { GraphPoint, LineSegment } from './types';
 
 /**
@@ -8,6 +8,8 @@ import { GraphPoint, LineSegment } from './types';
 interface GraphSegmentsLayerProps {
   /** Array of line segments to render */
   segments: LineSegment[];
+  /** Callback when segments are updated (for control point dragging) */
+  onSegmentsChange?: (segments: LineSegment[]) => void;
   /** Stroke color for the segments */
   stroke?: string;
   /** Stroke width for the segments */
@@ -34,35 +36,42 @@ interface GraphSegmentsLayerProps {
   domainY?: [number, number];
   /** Enable debug mode to show coordinate labels */
   debug?: boolean;
+  /** Read-only mode (no dragging) */
+  readOnly?: boolean;
 }
 
 /**
- * Generates a simple quadratic bezier curve path between two points.
- * The curve bends perpendicular to the line connecting the two points.
+ * Generates a quadratic bezier curve path with a custom control point.
  */
-function makeQuadraticCurvePath(
+function makeQuadraticCurvePathWithControl(
+  x1: number, y1: number,
+  x2: number, y2: number,
+  controlX: number, controlY: number
+): string {
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+
+/**
+ * Calculate default control point for a curve (perpendicular offset from midpoint).
+ */
+function getDefaultControlPoint(
   x1: number, y1: number,
   x2: number, y2: number
-): string {
-  // Calculate midpoint
+): { x: number; y: number } {
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  
-  // Calculate perpendicular offset for the control point
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.sqrt(dx * dx + dy * dy);
   
-  // Offset the control point perpendicular to the line
-  // Use 20% of the distance as the curve amount
+  if (dist === 0) return { x: midX, y: midY };
+  
+  // 20% perpendicular offset
   const curveAmount = dist * 0.2;
   const perpX = -dy / dist * curveAmount;
   const perpY = dx / dist * curveAmount;
   
-  const controlX = midX + perpX;
-  const controlY = midY + perpY;
-  
-  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  return { x: midX + perpX, y: midY + perpY };
 }
 
 /**
@@ -70,9 +79,11 @@ function makeQuadraticCurvePath(
  * 
  * It renders ONLY the segments that are explicitly provided - no auto-joining.
  * Each segment specifies its own mode (straight or curved).
+ * Curved segments can have their control point dragged to adjust the curve.
  */
 export function GraphSegmentsLayer({
   segments,
+  onSegmentsChange,
   stroke = 'hsl(var(--primary))',
   strokeWidth = 2,
   xScale,
@@ -86,7 +97,12 @@ export function GraphSegmentsLayer({
   domainX = [0, 10],
   domainY = [0, 10],
   debug = false,
+  readOnly = false,
 }: GraphSegmentsLayerProps) {
+  // Track which segment is being dragged
+  const [draggingSegmentId, setDraggingSegmentId] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
   // Calculate plot area dimensions
   const plotWidth = containerWidth - marginLeft - marginRight;
   const plotHeight = containerHeight - marginTop - marginBottom;
@@ -97,9 +113,8 @@ export function GraphSegmentsLayer({
 
   /**
    * Convert data X coordinate to pixel X coordinate.
-   * Uses Recharts scale if available, otherwise calculates manually.
    */
-  const dataToPixelX = (dataX: number): number => {
+  const dataToPixelX = useCallback((dataX: number): number => {
     if (xScale) {
       const px = xScale(dataX);
       return xScaleNeedsOffset ? px + marginLeft : px;
@@ -107,14 +122,12 @@ export function GraphSegmentsLayer({
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
-  };
+  }, [xScale, xScaleNeedsOffset, marginLeft, domainX, plotWidth]);
 
   /**
    * Convert data Y coordinate to pixel Y coordinate.
-   * Uses Recharts scale if available, otherwise calculates manually.
-   * Note: Y axis is inverted in SVG (0 is top).
    */
-  const dataToPixelY = (dataY: number): number => {
+  const dataToPixelY = useCallback((dataY: number): number => {
     if (yScale) {
       const py = yScale(dataY);
       return yScaleNeedsOffset ? py + marginTop : py;
@@ -122,7 +135,73 @@ export function GraphSegmentsLayer({
     const denom = domainY[1] - domainY[0] || 1;
     const fraction = (dataY - domainY[0]) / denom;
     return marginTop + (1 - fraction) * plotHeight;
-  };
+  }, [yScale, yScaleNeedsOffset, marginTop, domainY, plotHeight]);
+
+  /**
+   * Convert pixel X to data X.
+   */
+  const pixelToDataX = useCallback((pixelX: number): number => {
+    const denom = domainX[1] - domainX[0] || 1;
+    const fraction = (pixelX - marginLeft) / plotWidth;
+    return domainX[0] + fraction * denom;
+  }, [marginLeft, plotWidth, domainX]);
+
+  /**
+   * Convert pixel Y to data Y.
+   */
+  const pixelToDataY = useCallback((pixelY: number): number => {
+    const denom = domainY[1] - domainY[0] || 1;
+    const fraction = 1 - (pixelY - marginTop) / plotHeight;
+    return domainY[0] + fraction * denom;
+  }, [marginTop, plotHeight, domainY]);
+
+  /**
+   * Handle pointer down on control handle.
+   */
+  const handleControlPointerDown = useCallback((segId: string, e: React.PointerEvent) => {
+    if (readOnly || !onSegmentsChange) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingSegmentId(segId);
+    (e.target as SVGElement).setPointerCapture(e.pointerId);
+  }, [readOnly, onSegmentsChange]);
+
+  /**
+   * Handle pointer move for dragging control point.
+   */
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingSegmentId || !onSegmentsChange || !svgRef.current) return;
+    e.preventDefault();
+    
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    const pixelX = e.clientX - rect.left;
+    const pixelY = e.clientY - rect.top;
+    
+    // Convert to data coordinates
+    const dataX = pixelToDataX(pixelX);
+    const dataY = pixelToDataY(pixelY);
+    
+    // Update the segment's control point
+    const updatedSegments = segments.map(seg => {
+      if (seg.id === draggingSegmentId && seg.mode === 'curved') {
+        return { ...seg, controlPoint: { x: dataX, y: dataY } };
+      }
+      return seg;
+    });
+    
+    onSegmentsChange(updatedSegments);
+  }, [draggingSegmentId, onSegmentsChange, segments, pixelToDataX, pixelToDataY]);
+
+  /**
+   * Handle pointer up to stop dragging.
+   */
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (draggingSegmentId) {
+      e.preventDefault();
+      setDraggingSegmentId(null);
+    }
+  }, [draggingSegmentId]);
 
   if (!segments || segments.length === 0) {
     return null;
@@ -130,15 +209,20 @@ export function GraphSegmentsLayer({
 
   return (
     <svg
+      ref={svgRef}
       style={{
         position: 'absolute',
         top: 0,
         left: 0,
         width: containerWidth,
         height: containerHeight,
-        pointerEvents: 'none',
+        pointerEvents: draggingSegmentId ? 'auto' : 'none',
         overflow: 'visible',
+        touchAction: 'none',
       }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       {/* Render each segment */}
       {segments.map((seg) => {
@@ -155,18 +239,75 @@ export function GraphSegmentsLayer({
 
         const isCurved = seg.mode === 'curved';
 
+        // Calculate control point in pixels
+        let controlPixelX: number;
+        let controlPixelY: number;
+        
+        if (isCurved) {
+          if (seg.controlPoint) {
+            // Use stored control point
+            controlPixelX = dataToPixelX(seg.controlPoint.x);
+            controlPixelY = dataToPixelY(seg.controlPoint.y);
+          } else {
+            // Calculate default
+            const defaultCtrl = getDefaultControlPoint(x1, y1, x2, y2);
+            controlPixelX = defaultCtrl.x;
+            controlPixelY = defaultCtrl.y;
+          }
+        }
+
         return (
           <g key={seg.id}>
             {isCurved ? (
-              // Curved segment using quadratic bezier
-              <path
-                d={makeQuadraticCurvePath(x1, y1, x2, y2)}
-                fill="none"
-                stroke={stroke}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <>
+                {/* Curved segment using quadratic bezier */}
+                <path
+                  d={makeQuadraticCurvePathWithControl(x1, y1, x2, y2, controlPixelX!, controlPixelY!)}
+                  fill="none"
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                
+                {/* Control point handle (draggable) - only show when not readonly */}
+                {!readOnly && onSegmentsChange && (
+                  <>
+                    {/* Dashed line from curve midpoint to control handle */}
+                    <line
+                      x1={(x1 + x2) / 2}
+                      y1={(y1 + y2) / 2}
+                      x2={controlPixelX!}
+                      y2={controlPixelY!}
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeWidth={1}
+                      strokeDasharray="3 3"
+                      opacity={0.5}
+                      pointerEvents="none"
+                    />
+                    {/* Invisible larger touch target */}
+                    <circle
+                      cx={controlPixelX!}
+                      cy={controlPixelY!}
+                      r={20}
+                      fill="transparent"
+                      style={{ cursor: 'grab', pointerEvents: 'auto', touchAction: 'none' }}
+                      onPointerDown={(e) => handleControlPointerDown(seg.id, e)}
+                    />
+                    {/* Visible control handle */}
+                    <circle
+                      cx={controlPixelX!}
+                      cy={controlPixelY!}
+                      r={6}
+                      fill="hsl(var(--background))"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      style={{ cursor: 'grab', pointerEvents: 'auto' }}
+                      onPointerDown={(e) => handleControlPointerDown(seg.id, e)}
+                    />
+                  </>
+                )}
+              </>
             ) : (
               // Straight line segment
               <line

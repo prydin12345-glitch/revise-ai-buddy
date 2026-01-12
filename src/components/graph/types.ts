@@ -128,6 +128,12 @@ export interface LineSegment {
   from: GraphPoint;
   to: GraphPoint;
   mode: 'straight' | 'curved';
+  /**
+   * Control point for curved segments (in data coordinates).
+   * When undefined, a default curve is calculated.
+   * User can drag to adjust bulge/direction.
+   */
+  controlPoint?: GraphPoint;
 }
 
 // Freeform drawing path (stores pixel coordinates)
