@@ -1,322 +1,203 @@
+import React from 'react';
+import { GraphPoint, LineSegment } from './types';
+
 /**
- * GraphSegmentsLayer - Renders line segments and smooth splines on a coordinate graph
- * 
- * This renders as an SVG overlay OUTSIDE Recharts to guarantee visibility.
- * Uses Recharts axis scales when available, otherwise falls back to manual mapping.
- * 
- * Supports two modes:
- * - Individual segments (straight or curved per-segment)
- * - Spline mode: Catmull-Rom spline through all points (requires 3+ points)
+ * Props for the GraphSegmentsLayer component.
+ * This component renders line segments and curves on a coordinate graph as an SVG overlay.
  */
-
-import type { LineSegment, GraphPoint } from "./types";
-
 interface GraphSegmentsLayerProps {
+  /** Array of line segments to render */
   segments: LineSegment[];
-  stroke: string;
+  /** Stroke color for the segments */
+  stroke?: string;
+  /** Stroke width for the segments */
   strokeWidth?: number;
-
-  /**
-   * Optional: pass Recharts' actual axis scale functions for pixel-perfect alignment.
-   * If omitted, we fall back to a manual linear mapping using domain + margins.
-   */
-  xScale?: (x: number) => number;
-  yScale?: (y: number) => number;
-
-  // Chart dimensions and margins (must match what Recharts uses)
-  containerWidth: number;
-  containerHeight: number;
+  /** Recharts x-axis scale function (if available) */
+  xScale?: (value: number) => number;
+  /** Recharts y-axis scale function (if available) */
+  yScale?: (value: number) => number;
+  /** Container width in pixels */
+  containerWidth?: number;
+  /** Container height in pixels */
+  containerHeight?: number;
+  /** Left margin of the chart area */
   marginLeft?: number;
+  /** Right margin of the chart area */
   marginRight?: number;
+  /** Top margin of the chart area */
   marginTop?: number;
+  /** Bottom margin of the chart area */
   marginBottom?: number;
-
-  // Data domain
-  domainX: [number, number];
-  domainY: [number, number];
-
-  // Debug mode
+  /** X-axis domain [min, max] */
+  domainX?: [number, number];
+  /** Y-axis domain [min, max] */
+  domainY?: [number, number];
+  /** Enable debug mode to show coordinate labels */
   debug?: boolean;
-
-  /**
-   * Spline mode: When provided, renders a smooth Catmull-Rom spline through all points
-   * in the order provided (NOT sorted). Requires 3+ points.
-   */
-  splinePoints?: GraphPoint[];
-  
-  /**
-   * Tension parameter for Catmull-Rom spline (0 = sharp, 0.5 = default, 1 = loose)
-   */
-  splineTension?: number;
 }
 
 /**
- * Catmull-Rom spline interpolation
- * Returns a point on the spline between p1 and p2, with p0 and p3 as control points
- * @param t - Parameter from 0 to 1 (position between p1 and p2)
- * @param tension - Tension parameter (0.5 is standard Catmull-Rom)
+ * Generates a simple quadratic bezier curve path between two points.
+ * The curve bends perpendicular to the line connecting the two points.
  */
-function catmullRomPoint(
-  p0: GraphPoint,
-  p1: GraphPoint,
-  p2: GraphPoint,
-  p3: GraphPoint,
-  t: number,
-  tension: number = 0.5
-): GraphPoint {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  
-  // Catmull-Rom basis matrix with tension
-  const s = (1 - tension) / 2;
-  
-  return {
-    x: s * ((-t3 + 2*t2 - t) * p0.x + (3*t3 - 5*t2 + 2) * p1.x + (-3*t3 + 4*t2 + t) * p2.x + (t3 - t2) * p3.x),
-    y: s * ((-t3 + 2*t2 - t) * p0.y + (3*t3 - 5*t2 + 2) * p1.y + (-3*t3 + 4*t2 + t) * p2.y + (t3 - t2) * p3.y)
-  };
-}
-
-/**
- * Generate SVG path for a Catmull-Rom spline through all points
- * Uses high-resolution sampling for smooth curves
- * Points are used IN THE ORDER PROVIDED (not sorted)
- */
-function makeCatmullRomPath(
-  points: GraphPoint[],
-  dataToPixelX: (x: number) => number,
-  dataToPixelY: (y: number) => number,
-  tension: number = 0.5,
-  samplesPerSegment: number = 32
+function makeQuadraticCurvePath(
+  x1: number, y1: number,
+  x2: number, y2: number
 ): string {
-  if (points.length < 2) return '';
-  if (points.length === 2) {
-    // Just a straight line for 2 points
-    const x1 = dataToPixelX(points[0].x);
-    const y1 = dataToPixelY(points[0].y);
-    const x2 = dataToPixelX(points[1].x);
-    const y2 = dataToPixelY(points[1].y);
-    return `M ${x1} ${y1} L ${x2} ${y2}`;
-  }
-
-  const pathPoints: string[] = [];
+  // Calculate midpoint
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
   
-  // Start at first point
-  const startX = dataToPixelX(points[0].x);
-  const startY = dataToPixelY(points[0].y);
-  pathPoints.push(`M ${startX.toFixed(2)} ${startY.toFixed(2)}`);
-
-  // For each segment between consecutive points
-  for (let i = 0; i < points.length - 1; i++) {
-    // Get the 4 control points for this segment
-    // For endpoints, we extend/duplicate to maintain curvature
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
-
-    // Sample the spline at high resolution
-    for (let j = 1; j <= samplesPerSegment; j++) {
-      const t = j / samplesPerSegment;
-      const pt = catmullRomPoint(p0, p1, p2, p3, t, tension);
-      const px = dataToPixelX(pt.x);
-      const py = dataToPixelY(pt.y);
-      
-      if (Number.isFinite(px) && Number.isFinite(py)) {
-        pathPoints.push(`L ${px.toFixed(2)} ${py.toFixed(2)}`);
-      }
-    }
-  }
-
-  return pathPoints.join(' ');
-}
-
-/**
- * Generate a simple quadratic curve path between two points (legacy per-segment curved mode)
- */
-function makeQuadraticCurvePath(x1: number, y1: number, x2: number, y2: number) {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-
+  // Calculate perpendicular offset for the control point
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-
-  // Perpendicular normal for a gentle, consistent curve
-  const nx = -dy / len;
-  const ny = dx / len;
-  const curvature = Math.min(40, len * 0.25);
-
-  const cx = mx + nx * curvature;
-  const cy = my + ny * curvature;
-
-  return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  
+  // Offset the control point perpendicular to the line
+  // Use 20% of the distance as the curve amount
+  const curveAmount = dist * 0.2;
+  const perpX = -dy / dist * curveAmount;
+  const perpY = dx / dist * curveAmount;
+  
+  const controlX = midX + perpX;
+  const controlY = midY + perpY;
+  
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 
+/**
+ * GraphSegmentsLayer renders line segments on a coordinate graph.
+ * 
+ * It renders ONLY the segments that are explicitly provided - no auto-joining.
+ * Each segment specifies its own mode (straight or curved).
+ */
 export function GraphSegmentsLayer({
   segments,
-  stroke,
-  strokeWidth = 3,
+  stroke = 'hsl(var(--primary))',
+  strokeWidth = 2,
   xScale,
   yScale,
-  containerWidth,
-  containerHeight,
-  marginLeft = 65,
-  marginRight = 30,
-  marginTop = 30,
-  marginBottom = 50,
-  domainX,
-  domainY,
+  containerWidth = 400,
+  containerHeight = 300,
+  marginLeft = 60,
+  marginRight = 20,
+  marginTop = 20,
+  marginBottom = 40,
+  domainX = [0, 10],
+  domainY = [0, 10],
   debug = false,
-  splinePoints,
-  splineTension = 0.5,
 }: GraphSegmentsLayerProps) {
-  // Early return for invalid dimensions
-  if (containerWidth <= 0 || containerHeight <= 0) {
-    return null;
-  }
-
-  // Calculate the plot area dimensions (fallback mapper)
+  // Calculate plot area dimensions
   const plotWidth = containerWidth - marginLeft - marginRight;
   const plotHeight = containerHeight - marginTop - marginBottom;
 
-  if (plotWidth <= 0 || plotHeight <= 0) return null;
+  // Check if we need to offset scales (Recharts sometimes returns values relative to plot area)
+  const xScaleNeedsOffset = xScale ? xScale(domainX[0]) < marginLeft : false;
+  const yScaleNeedsOffset = yScale ? yScale(domainY[0]) < marginTop : false;
 
-  // Convert data coordinates to pixel coordinates
-  // Use Recharts scale functions if available, but compensate if their ranges don't include chart offsets.
-  const xScaleNeedsOffset = (() => {
-    const r = (xScale as any)?.range?.();
-    return Array.isArray(r) && r.length >= 2 && Math.min(...r) < 1;
-  })();
-
-  const yScaleNeedsOffset = (() => {
-    const r = (yScale as any)?.range?.();
-    return Array.isArray(r) && r.length >= 2 && Math.min(...r) < 1;
-  })();
-
+  /**
+   * Convert data X coordinate to pixel X coordinate.
+   * Uses Recharts scale if available, otherwise calculates manually.
+   */
   const dataToPixelX = (dataX: number): number => {
     if (xScale) {
       const px = xScale(dataX);
       return xScaleNeedsOffset ? px + marginLeft : px;
     }
-
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
   };
 
+  /**
+   * Convert data Y coordinate to pixel Y coordinate.
+   * Uses Recharts scale if available, otherwise calculates manually.
+   * Note: Y axis is inverted in SVG (0 is top).
+   */
   const dataToPixelY = (dataY: number): number => {
     if (yScale) {
       const py = yScale(dataY);
       return yScaleNeedsOffset ? py + marginTop : py;
     }
-
     const denom = domainY[1] - domainY[0] || 1;
-    // Y axis is inverted in SVG (0 is top)
     const fraction = (dataY - domainY[0]) / denom;
     return marginTop + (1 - fraction) * plotHeight;
   };
 
-  // Check if we should render a spline (curved mode with 3+ points)
-  const shouldRenderSpline = splinePoints && splinePoints.length >= 3;
+  if (!segments || segments.length === 0) {
+    return null;
+  }
 
   return (
     <svg
       style={{
-        position: "absolute",
+        position: 'absolute',
         top: 0,
         left: 0,
         width: containerWidth,
         height: containerHeight,
-        pointerEvents: "none",
-        zIndex: 10,
-        overflow: "hidden",
+        pointerEvents: 'none',
+        overflow: 'visible',
       }}
-      viewBox={`0 0 ${containerWidth} ${containerHeight}`}
-      preserveAspectRatio="none"
     >
-      {/* Render smooth Catmull-Rom spline when in spline mode */}
-      {shouldRenderSpline && (
-        <path
-          d={makeCatmullRomPath(splinePoints!, dataToPixelX, dataToPixelY, splineTension)}
-          fill="none"
-          stroke={stroke}
-          strokeWidth={strokeWidth + 1}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={1}
-        />
-      )}
-
-      {/* Render individual segments (straight mode, or legacy curved per-segment) */}
-      {!shouldRenderSpline && segments?.length > 0 && segments.map((seg) => {
+      {/* Render each segment */}
+      {segments.map((seg) => {
         const x1 = dataToPixelX(seg.from.x);
         const y1 = dataToPixelY(seg.from.y);
         const x2 = dataToPixelX(seg.to.x);
         const y2 = dataToPixelY(seg.to.y);
 
         // Skip invalid coordinates
-        if ([x1, y1, x2, y2].some((v) => !Number.isFinite(v))) {
+        if (!Number.isFinite(x1) || !Number.isFinite(y1) || 
+            !Number.isFinite(x2) || !Number.isFinite(y2)) {
           return null;
         }
 
-        const isCurved = seg.mode === "curved";
-        const pathD = isCurved ? makeQuadraticCurvePath(x1, y1, x2, y2) : undefined;
+        const isCurved = seg.mode === 'curved';
 
         return (
           <g key={seg.id}>
-            {/* Main segment - single solid stroke */}
             {isCurved ? (
+              // Curved segment using quadratic bezier
               <path
-                d={pathD!}
+                d={makeQuadraticCurvePath(x1, y1, x2, y2)}
                 fill="none"
                 stroke={stroke}
-                strokeWidth={strokeWidth + 1}
+                strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity={1}
               />
             ) : (
+              // Straight line segment
               <line
                 x1={x1}
                 y1={y1}
                 x2={x2}
                 y2={y2}
                 stroke={stroke}
-                strokeWidth={strokeWidth + 1}
+                strokeWidth={strokeWidth}
                 strokeLinecap="round"
-                opacity={1}
               />
             )}
-            {/* Debug: show endpoint markers and coordinates */}
+
+            {/* Debug overlay: show pixel coordinates at endpoints */}
             {debug && (
               <>
-                <circle cx={x1} cy={y1} r={6} fill="red" stroke="white" strokeWidth={2} />
-                <circle cx={x2} cy={y2} r={6} fill="lime" stroke="white" strokeWidth={2} />
-                <text x={x1 + 10} y={y1 - 10} fontSize={11} fill="red" fontWeight="bold">
-                  ({seg.from.x},{seg.from.y}) → px({Math.round(x1)},{Math.round(y1)})
+                <circle cx={x1} cy={y1} r={4} fill="red" />
+                <circle cx={x2} cy={y2} r={4} fill="blue" />
+                <text x={x1 + 5} y={y1 - 5} fontSize="10" fill="red">
+                  ({x1.toFixed(0)},{y1.toFixed(0)})
                 </text>
-                <text x={x2 + 10} y={y2 + 16} fontSize={11} fill="lime" fontWeight="bold">
-                  ({seg.to.x},{seg.to.y}) → px({Math.round(x2)},{Math.round(y2)})
+                <text x={x2 + 5} y={y2 - 5} fontSize="10" fill="blue">
+                  ({x2.toFixed(0)},{y2.toFixed(0)})
                 </text>
               </>
             )}
           </g>
         );
       })}
-
-      {/* Debug markers for spline points */}
-      {debug && shouldRenderSpline && splinePoints!.map((pt, idx) => {
-        const px = dataToPixelX(pt.x);
-        const py = dataToPixelY(pt.y);
-        return (
-          <g key={`debug-spline-${idx}`}>
-            <circle cx={px} cy={py} r={6} fill="cyan" stroke="white" strokeWidth={2} />
-            <text x={px + 10} y={py - 5} fontSize={10} fill="cyan" fontWeight="bold">
-              P{idx}: ({pt.x},{pt.y})
-            </text>
-          </g>
-        );
-      })}
     </svg>
   );
 }
+
+export default GraphSegmentsLayer;
