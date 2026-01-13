@@ -103,8 +103,8 @@ export function GraphPlottingQuestion({
   const DOUBLE_TAP_THRESHOLD = 350; // ms
   const DOUBLE_TAP_DISTANCE = 30; // px max movement
   
-  // Track pending selection for visual feedback
-  const [pendingSelection, setPendingSelection] = useState<GraphPoint | null>(null);
+  // Track if pointer event started on a point (to prevent bubbling issues)
+  const pointerStartedOnPointRef = useRef(false);
 
   // Observe container size changes
   useEffect(() => {
@@ -207,6 +207,9 @@ export function GraphPlottingQuestion({
     if (readOnly) return;
     e.stopPropagation();
     e.preventDefault(); // Prevent double-firing on touch
+    
+    // Mark that this pointer event started on a point (prevents container from clearing selection)
+    pointerStartedOnPointRef.current = true;
 
     const now = Date.now();
     const clientX = 'clientX' in e ? e.clientX : 0;
@@ -241,7 +244,6 @@ export function GraphPlottingQuestion({
     if (isAlreadySelected) {
       // Single-tap on already selected point: DESELECT
       setSelectedJoinPoints([]);
-      setPendingSelection(null);
       return;
     }
 
@@ -268,14 +270,12 @@ export function GraphPlottingQuestion({
 
       // Clear selection after creating segment
       setSelectedJoinPoints([]);
-      setPendingSelection(null);
       lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
       return;
     }
 
     // No point selected yet: SELECT this point immediately
     setSelectedJoinPoints([point]);
-    setPendingSelection(null);
   }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange]);
 
   /**
@@ -354,7 +354,6 @@ export function GraphPlottingQuestion({
     onSegmentsChange([]);
     onDrawnPathsChange?.([]);
     setSelectedJoinPoints([]);
-    setPendingSelection(null);
   }, [readOnly, studentPoints, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
 
   /**
@@ -383,12 +382,18 @@ export function GraphPlottingQuestion({
   }, [showCorrectAnswers, markingData]);
 
   /**
-   * Handle click on the chart background to add a point.
+   * Handle pointer up on the chart background to add a point.
    * Only adds points if NOT in "point selection" mode (no points selected for joining).
-   * Also clears selection if clicking on empty space.
+   * Also clears selection if clicking on empty space (but not if the click started on a point).
    */
-  const handleChartContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleChartContainerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
+    
+    // If the pointer event started on a point, don't process it here (already handled by point)
+    if (pointerStartedOnPointRef.current) {
+      pointerStartedOnPointRef.current = false;
+      return;
+    }
     
     // If we have a point selected and user clicks empty space, clear selection
     if (selectedJoinPoints.length > 0) {
@@ -525,7 +530,6 @@ export function GraphPlottingQuestion({
                   onJoinModeChange(value);
                   // Clear selection when switching modes
                   setSelectedJoinPoints([]);
-                  setPendingSelection(null);
                 }
               }}
               className="ml-auto"
@@ -570,8 +574,8 @@ export function GraphPlottingQuestion({
       <div 
         ref={chartContainerRef}
         className="relative w-full aspect-[4/3] border rounded-lg bg-card overflow-hidden"
-        onClick={handleChartContainerClick}
-        style={{ cursor: readOnly ? 'default' : 'crosshair' }}
+        onPointerUp={handleChartContainerPointerUp}
+        style={{ cursor: readOnly ? 'default' : 'crosshair', touchAction: 'none' }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
