@@ -93,7 +93,7 @@ export function GraphPlottingQuestion({
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
-  // Double-tap detection state
+  // Double-tap detection for point REMOVAL (not selection)
   const lastTapRef = useRef<{ point: GraphPoint | null; time: number; x: number; y: number }>({
     point: null,
     time: 0,
@@ -102,6 +102,9 @@ export function GraphPlottingQuestion({
   });
   const DOUBLE_TAP_THRESHOLD = 350; // ms
   const DOUBLE_TAP_DISTANCE = 30; // px max movement
+  
+  // Track pending selection for visual feedback
+  const [pendingSelection, setPendingSelection] = useState<GraphPoint | null>(null);
 
   // Observe container size changes
   useEffect(() => {
@@ -194,10 +197,11 @@ export function GraphPlottingQuestion({
    */
   /**
    * Handle pointer down on an existing point.
-   * Uses double-tap detection for selection (more reliable on iPad).
-   * - Double-tap: select point for joining (or deselect if already selected)
-   * - Single-tap on already selected point: deselect
-   * - Single-tap when one point is selected: complete the segment
+   * Uses SINGLE-TAP for selection (more reliable and intuitive).
+   * - Single-tap on unselected point with no selection: SELECT it (show ring immediately)
+   * - Single-tap on different point when one is selected: CREATE segment and clear selection
+   * - Single-tap on already selected point: DESELECT it
+   * - Double-tap in non-join mode: REMOVE point
    */
   const handlePointClick = useCallback((point: GraphPoint, e: React.PointerEvent | React.MouseEvent) => {
     if (readOnly) return;
@@ -209,7 +213,7 @@ export function GraphPlottingQuestion({
     const clientY = 'clientY' in e ? e.clientY : 0;
     const lastTap = lastTapRef.current;
     
-    // Check if this is a double-tap on the same point
+    // Check if this is a double-tap on the same point (only used for point removal in non-join mode)
     const timeDiff = now - lastTap.time;
     const isSamePoint = lastTap.point && lastTap.point.x === point.x && lastTap.point.y === point.y;
     const distanceMoved = Math.sqrt(
@@ -221,9 +225,8 @@ export function GraphPlottingQuestion({
     lastTapRef.current = { point, time: now, x: clientX, y: clientY };
 
     if (!isJoinModeEnabled) {
-      // Not in join mode: single-tap removes point
+      // Not in join mode: double-tap removes point
       if (isDoubleTap) {
-        // Double-tap removes point
         setPointsHistory(prev => [...prev, studentPoints]);
         onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
         lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
@@ -232,25 +235,18 @@ export function GraphPlottingQuestion({
       return;
     }
 
-    // Join mode is enabled
+    // ===== JOIN MODE ENABLED: Use single-tap for immediate selection =====
     const isAlreadySelected = isPointSelected(point);
 
-    if (isDoubleTap) {
-      // Double-tap toggles selection
-      if (isAlreadySelected) {
-        // Deselect
-        setSelectedJoinPoints(prev => prev.filter(p => p.x !== point.x || p.y !== point.y));
-      } else {
-        // Select (replace any existing selection with this point)
-        setSelectedJoinPoints([point]);
-      }
-      lastTapRef.current = { point: null, time: 0, x: 0, y: 0 }; // Reset to prevent triple-tap
+    if (isAlreadySelected) {
+      // Single-tap on already selected point: DESELECT
+      setSelectedJoinPoints([]);
+      setPendingSelection(null);
       return;
     }
 
-    // Single-tap behavior when one point is already selected
-    if (selectedJoinPoints.length === 1 && !isAlreadySelected) {
-      // Single-tap on a different point completes the segment
+    if (selectedJoinPoints.length === 1) {
+      // One point already selected, single-tap on different point: CREATE SEGMENT
       const fromPoint = selectedJoinPoints[0];
       const toPoint = point;
       
@@ -270,12 +266,16 @@ export function GraphPlottingQuestion({
         onSegmentsChange([...segments, newSegment]);
       }
 
-      // Clear selection
+      // Clear selection after creating segment
       setSelectedJoinPoints([]);
+      setPendingSelection(null);
       lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+      return;
     }
-    // If single-tap on the selected point, do nothing (wait for double-tap to deselect)
-    // If single-tap on empty/unselected point with no selection, do nothing (wait for double-tap)
+
+    // No point selected yet: SELECT this point immediately
+    setSelectedJoinPoints([point]);
+    setPendingSelection(null);
   }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange]);
 
   /**
@@ -354,6 +354,7 @@ export function GraphPlottingQuestion({
     onSegmentsChange([]);
     onDrawnPathsChange?.([]);
     setSelectedJoinPoints([]);
+    setPendingSelection(null);
   }, [readOnly, studentPoints, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
 
   /**
@@ -524,6 +525,7 @@ export function GraphPlottingQuestion({
                   onJoinModeChange(value);
                   // Clear selection when switching modes
                   setSelectedJoinPoints([]);
+                  setPendingSelection(null);
                 }
               }}
               className="ml-auto"
@@ -552,9 +554,9 @@ export function GraphPlottingQuestion({
             currentJoinMode === 'freeform' ? (
               'Click and drag on the graph to draw lines. Click on empty space to add points.'
             ) : selectedJoinPoints.length === 0 ? (
-              `Click to add points. Double-tap a point to select it for joining.`
+              `Click to add points. Tap a point to select it for joining.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect, or tap empty space to cancel.`
+              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect, or tap the selected point again to cancel.`
             ) : (
               'Creating segment...'
             )
