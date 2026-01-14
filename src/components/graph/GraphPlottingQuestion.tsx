@@ -35,8 +35,8 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  joinMode?: 'straight' | 'curved' | 'freeform';
-  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform') => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | null;
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | null) => void;
   segments: LineSegment[];
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
@@ -166,8 +166,10 @@ export function GraphPlottingQuestion({
   }, [config.domainY]);
 
   // Determine current join mode
+  // joinMode === null means "no mode selected" - user can add points normally
   const isJoinModeEnabled = config.joinPointsMode?.enabled ?? false;
-  const currentJoinMode = joinMode || config.joinPointsMode?.defaultMode || 'straight';
+  const isJoinModeActive = isJoinModeEnabled && joinMode !== null;
+  const currentJoinMode = joinMode;
 
   /**
    * Snap a coordinate to the grid step.
@@ -227,8 +229,8 @@ export function GraphPlottingQuestion({
     // Update last tap reference
     lastTapRef.current = { point, time: now, x: clientX, y: clientY };
 
-    if (!isJoinModeEnabled) {
-      // Not in join mode: double-tap removes point
+    if (!isJoinModeActive) {
+      // Not in active join mode: double-tap removes point
       if (isDoubleTap) {
         setPointsHistory(prev => [...prev, studentPoints]);
         onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
@@ -258,7 +260,7 @@ export function GraphPlottingQuestion({
         (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
       );
 
-      if (!segmentExists && currentJoinMode !== 'freeform') {
+      if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
         const newSegment: LineSegment = {
           id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           from: { x: fromPoint.x, y: fromPoint.y },
@@ -285,7 +287,7 @@ export function GraphPlottingQuestion({
 
     // No point selected yet: SELECT this point immediately
     setSelectedJoinPoints([point]);
-  }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales]);
+  }, [readOnly, isJoinModeActive, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales]);
 
   /**
    * Add a new point to the graph.
@@ -410,6 +412,11 @@ export function GraphPlottingQuestion({
       return;
     }
     
+    // If a join mode is active, do NOT add points (only select existing points)
+    if (isJoinModeActive) {
+      return;
+    }
+    
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
@@ -428,7 +435,7 @@ export function GraphPlottingQuestion({
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive]);
 
   /**
    * Custom dot renderer for points.
@@ -533,11 +540,14 @@ export function GraphPlottingQuestion({
           {isJoinModeEnabled && onJoinModeChange && (
             <ToggleGroup
               type="single"
-              value={currentJoinMode}
+              value={currentJoinMode || ''}
               onValueChange={(value) => {
-                if (value === 'straight' || value === 'curved' || value === 'freeform') {
+                // If user clicks the already-selected mode, toggle it OFF (set to null)
+                if (value === '' || value === currentJoinMode) {
+                  onJoinModeChange(null);
+                  setSelectedJoinPoints([]);
+                } else if (value === 'straight' || value === 'curved' || value === 'freeform') {
                   onJoinModeChange(value);
-                  // Clear selection when switching modes
                   setSelectedJoinPoints([]);
                 }
               }}
@@ -563,13 +573,13 @@ export function GraphPlottingQuestion({
       {/* Helper text */}
       {!readOnly && (
         <p className="text-sm text-muted-foreground">
-          {isJoinModeEnabled ? (
+        {isJoinModeActive ? (
             currentJoinMode === 'freeform' ? (
-              'Click and drag on the graph to draw lines. Click on empty space to add points.'
+              'Click and drag on the graph to draw lines.'
             ) : selectedJoinPoints.length === 0 ? (
-              `Click to add points. Tap a point to select it for joining.`
+              `Tap a point to select it for joining. Deselect the mode to add points.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect, or tap the selected point again to cancel.`
+              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect.`
             ) : (
               'Creating segment...'
             )
@@ -686,7 +696,7 @@ export function GraphPlottingQuestion({
             marginTop={chartMargins.top}
             marginBottom={chartMargins.bottom}
             readOnly={readOnly}
-            debug={true}
+            debug={false}
           />
         )}
 
@@ -702,7 +712,7 @@ export function GraphPlottingQuestion({
             paths={drawnPaths}
             onPathsChange={onDrawnPathsChange}
             readOnly={readOnly}
-            active={currentJoinMode === 'freeform'}
+            active={isJoinModeActive && currentJoinMode === 'freeform'}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
           />
