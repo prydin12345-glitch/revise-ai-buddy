@@ -265,7 +265,16 @@ export function GraphPlottingQuestion({
           to: { x: toPoint.x, y: toPoint.y },
           mode: currentJoinMode as 'straight' | 'curved',
         };
-        onSegmentsChange([...segments, newSegment]);
+        const updatedSegments = [...segments, newSegment];
+        console.debug('[Segment Created]', {
+          from: newSegment.from,
+          to: newSegment.to,
+          mode: newSegment.mode,
+          pointsCount: studentPoints.length,
+          segmentsCount: updatedSegments.length,
+          axisScalesAvailable: !!axisScales.x && !!axisScales.y,
+        });
+        onSegmentsChange(updatedSegments);
       }
 
       // Clear selection after creating segment
@@ -276,7 +285,7 @@ export function GraphPlottingQuestion({
 
     // No point selected yet: SELECT this point immediately
     setSelectedJoinPoints([point]);
-  }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange]);
+  }, [readOnly, isJoinModeEnabled, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales]);
 
   /**
    * Add a new point to the graph.
@@ -664,8 +673,8 @@ export function GraphPlottingQuestion({
           <GraphSegmentsLayer
             segments={segments}
             onSegmentsChange={readOnly ? undefined : onSegmentsChange}
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
+            stroke="#3b82f6"
+            strokeWidth={4}
             containerWidth={chartContainerSize.width}
             containerHeight={chartContainerSize.height}
             domainX={domainX}
@@ -677,6 +686,7 @@ export function GraphPlottingQuestion({
             marginTop={chartMargins.top}
             marginBottom={chartMargins.bottom}
             readOnly={readOnly}
+            debug={true}
           />
         )}
 

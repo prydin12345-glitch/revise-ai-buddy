@@ -260,7 +260,7 @@ export function GraphSegmentsLayer({
           <g key={seg.id}>
             {isCurved ? (
               <>
-                {/* Curved segment using quadratic bezier */}
+                {/* Curved segment using quadratic bezier - force visible */}
                 <path
                   d={makeQuadraticCurvePathWithControl(x1, y1, x2, y2, controlPixelX!, controlPixelY!)}
                   fill="none"
@@ -268,6 +268,7 @@ export function GraphSegmentsLayer({
                   strokeWidth={strokeWidth}
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  strokeOpacity={1}
                 />
                 
                 {/* Control point handle (draggable) - only show when not readonly */}
@@ -309,7 +310,7 @@ export function GraphSegmentsLayer({
                 )}
               </>
             ) : (
-              // Straight line segment
+              // Straight line segment - force visible with solid stroke
               <line
                 x1={x1}
                 y1={y1}
@@ -318,6 +319,8 @@ export function GraphSegmentsLayer({
                 stroke={stroke}
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeOpacity={1}
               />
             )}
 
