@@ -41,6 +41,8 @@ interface GraphPlottingQuestionProps {
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
   onDrawnPathsChange?: (paths: DrawingPath[]) => void;
+  /** Used to reset internal state when question changes */
+  questionId?: string;
 }
 
 /**
@@ -69,6 +71,7 @@ export function GraphPlottingQuestion({
   onSegmentsChange,
   drawnPaths = [],
   onDrawnPathsChange,
+  questionId,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -105,6 +108,13 @@ export function GraphPlottingQuestion({
   
   // Track if pointer event started on a point (to prevent bubbling issues)
   const pointerStartedOnPointRef = useRef(false);
+
+  // Reset internal state when question changes (navigation/retry)
+  useEffect(() => {
+    setSelectedJoinPoints([]);
+    lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+    pointerStartedOnPointRef.current = false;
+  }, [questionId]);
 
   // Observe container size changes
   useEffect(() => {
@@ -455,8 +465,8 @@ export function GraphPlottingQuestion({
       else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
     }
 
-    // Larger touch target for mobile
-    const touchRadius = 20;
+    // Larger touch target for mobile (24px radius for easier tapping on iPad/iPhone)
+    const HIT_RADIUS = 24;
     const visualRadius = isSelected ? 10 : 8;
 
     return (
@@ -464,12 +474,14 @@ export function GraphPlottingQuestion({
         key={`point-${point.x}-${point.y}`}
         style={{ cursor: readOnly ? 'default' : 'pointer' }}
       >
-        {/* Invisible larger touch target */}
+        {/* Invisible larger touch target for iPad/iPhone friendly tapping */}
         <circle
           cx={cx}
           cy={cy}
-          r={touchRadius}
+          r={HIT_RADIUS}
           fill="transparent"
+          stroke="transparent"
+          pointerEvents="all"
           onPointerDown={(e) => handlePointClick(point, e)}
         />
         

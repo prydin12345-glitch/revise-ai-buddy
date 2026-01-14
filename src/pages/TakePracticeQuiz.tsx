@@ -293,6 +293,26 @@ const TakePracticeQuiz = () => {
     return () => clearInterval(autoSaveInterval);
   }, [userAnswers, timeElapsed, setId]);
 
+  // Reset graph join mode when question changes (navigation)
+  useEffect(() => {
+    if (!questions[currentIndex]) return;
+    const qId = questions[currentIndex].id;
+    setUserAnswers(prev => {
+      const existing = prev[qId];
+      // Only reset graphJoinMode if it exists (don't create new entry if not needed)
+      if (existing?.graphJoinMode !== undefined && existing?.graphJoinMode !== null) {
+        return {
+          ...prev,
+          [qId]: {
+            ...existing,
+            graphJoinMode: null, // Reset to OFF so user can add points immediately
+          }
+        };
+      }
+      return prev;
+    });
+  }, [currentIndex, questions]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
@@ -829,7 +849,7 @@ const TakePracticeQuiz = () => {
           markingData: undefined,
           graphInterpretationAnswers: undefined,
           graphPlottedPoints: [],
-          graphJoinMode: undefined,
+          graphJoinMode: null, // Reset to null (OFF) so user can add points immediately
           graphSegments: [],
           graphDrawnPaths: [],
           graphMarkingData: undefined,
@@ -1346,6 +1366,7 @@ const TakePracticeQuiz = () => {
                       return (
                         <div className="space-y-4">
                           <GraphPlottingQuestion
+                            questionId={currentQuestion.id}
                             config={{
                               ...config,
                               maxPoints: config.maxPoints === 1 ? undefined : config.maxPoints,
