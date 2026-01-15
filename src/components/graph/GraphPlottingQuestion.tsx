@@ -67,7 +67,7 @@ export function GraphPlottingQuestion({
   subjectColor = 'hsl(var(--primary))',
   joinMode,
   onJoinModeChange,
-  segments,
+  segments = [],
   onSegmentsChange,
   drawnPaths = [],
   onDrawnPathsChange,
