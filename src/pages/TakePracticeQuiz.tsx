@@ -50,16 +50,20 @@ import {
 import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  BearingsQuestion,
   parseGraphQuestionData,
   parseGraphResponse,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeBearingsResponse,
   type GraphQuestionData,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
   type GraphPlottingAnswer,
   type GraphInterpretationField,
+  type BearingsQuestionConfig,
+  type BearingsMarkingResult,
 } from "@/components/graph";
 
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
@@ -128,6 +132,9 @@ interface UserAnswer {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
     perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
   };
+  // Bearings question answers
+  bearingsAnswer?: string;
+  bearingsMarkingData?: BearingsMarkingResult;
 }
 
 const TakePracticeQuiz = () => {
@@ -414,6 +421,10 @@ const TakePracticeQuiz = () => {
           let graphPlottedPoints: GraphPoint[] | undefined;
           let graphMarkingData: UserAnswer['graphMarkingData'] | undefined;
           
+          // Bearings question answers
+          let bearingsAnswer: string | undefined;
+          let bearingsMarkingData: BearingsMarkingResult | undefined;
+          
           if (ans.answer_text) {
             // Try parsing as table grid
             const parsed = parseStoredTableGridAnswer(ans.answer_text);
@@ -434,6 +445,8 @@ const TakePracticeQuiz = () => {
                 graphInterpretationAnswers = graphResponse.answers;
               } else if (graphResponse._type === 'graph_plotting') {
                 graphPlottedPoints = graphResponse.points;
+              } else if (graphResponse._type === 'bearings') {
+                bearingsAnswer = String(graphResponse.bearing);
               }
             }
           }
@@ -457,8 +470,12 @@ const TakePracticeQuiz = () => {
               const feedbackMatch = ans.feedback.match(/<!--MARKING_DATA:(.*?)-->/);
               if (feedbackMatch) {
                 const parsedMarking = JSON.parse(feedbackMatch[1]);
+                // Check if it's bearings marking data
+                if (parsedMarking.studentBearing !== undefined || parsedMarking.correctBearing !== undefined) {
+                  bearingsMarkingData = parsedMarking as BearingsMarkingResult;
+                }
                 // Check if it's graph marking data or table marking data
-                if (parsedMarking.perFieldResults || parsedMarking.perPointResults) {
+                else if (parsedMarking.perFieldResults || parsedMarking.perPointResults) {
                   graphMarkingData = parsedMarking;
                 } else {
                   markingData = parsedMarking;
@@ -486,6 +503,8 @@ const TakePracticeQuiz = () => {
             graphMarkingData,
             graphJoinMode,
             graphSegments,
+            bearingsAnswer,
+            bearingsMarkingData,
           };
         });
       }
@@ -1321,10 +1340,38 @@ const TakePracticeQuiz = () => {
                       }
                     }
                     
-                    // Check if this is a graph question
+                    // Check if this is a graph or bearings question
                     const graphData = parseGraphQuestionData(currentQuestion.correct_answer);
                     const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
                     const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
+                    const isBearings = currentQuestion.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    
+                    // Render bearings question
+                    if (isBearings && graphData?.bearingsConfig) {
+                      const config = graphData.bearingsConfig as BearingsQuestionConfig;
+                      
+                      return (
+                        <div className="space-y-4">
+                          <BearingsQuestion
+                            config={config}
+                            value={currentAnswer.bearingsAnswer || ''}
+                            onChange={(value) => {
+                              const serialized = serializeBearingsResponse(value);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                bearingsAnswer: value,
+                              };
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            readOnly={currentAnswer.submitted}
+                            showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                            markingData={currentAnswer.bearingsMarkingData}
+                          />
+                        </div>
+                      );
+                    }
                     
                     if (isGraphInterpretation && graphData) {
                       const config = graphData.graphConfig as GraphInterpretationConfig;
