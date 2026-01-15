@@ -403,9 +403,57 @@ export function GraphPlottingQuestion({
   }, [showCorrectAnswers, markingData]);
 
   /**
+   * Convert data coordinates to pixel coordinates (for hit testing).
+   * Uses the same logic as Recharts for consistency.
+   */
+  const dataToPixel = useCallback((dataX: number, dataY: number): { px: number; py: number } => {
+    const plotWidth = chartContainerSize.width - chartMargins.left - chartMargins.right;
+    const plotHeight = chartContainerSize.height - chartMargins.top - chartMargins.bottom;
+    
+    // Use axis scales if available (most accurate)
+    if (axisScales.x && axisScales.y) {
+      let px = axisScales.x(dataX);
+      let py = axisScales.y(dataY);
+      // Check if scales need offset adjustment
+      if (px < chartMargins.left) px += chartMargins.left;
+      if (py < chartMargins.top) py += chartMargins.top;
+      return { px, py };
+    }
+    
+    // Fallback: manual calculation
+    const px = chartMargins.left + ((dataX - domainX[0]) / (domainX[1] - domainX[0])) * plotWidth;
+    const py = chartMargins.top + (1 - (dataY - domainY[0]) / (domainY[1] - domainY[0])) * plotHeight;
+    return { px, py };
+  }, [chartContainerSize, chartMargins, axisScales, domainX, domainY]);
+
+  /**
+   * Find the nearest point within a given pixel radius.
+   * Returns the point if found, null otherwise.
+   */
+  const findNearestPoint = useCallback((clickPixelX: number, clickPixelY: number, maxDistancePx: number = 30): GraphPoint | null => {
+    let nearestPoint: GraphPoint | null = null;
+    let nearestDistance = maxDistancePx;
+    
+    for (const point of studentPoints) {
+      const { px, py } = dataToPixel(point.x, point.y);
+      const distance = Math.sqrt(Math.pow(clickPixelX - px, 2) + Math.pow(clickPixelY - py, 2));
+      
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPoint = point;
+      }
+    }
+    
+    return nearestPoint;
+  }, [studentPoints, dataToPixel]);
+
+  /**
    * Handle pointer up on the chart background to add a point.
    * Only adds points if NOT in "point selection" mode (no points selected for joining).
    * Also clears selection if clicking on empty space (but not if the click started on a point).
+   * 
+   * NEW: Also performs distance-based hit-testing to select points near edges that might
+   * have their touch targets clipped.
    */
   const handleChartContainerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
@@ -416,22 +464,84 @@ export function GraphPlottingQuestion({
       return;
     }
     
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // In join mode, check if click is near any point (distance-based hit testing for edges)
+    if (isJoinModeActive) {
+      const HIT_RADIUS = 30; // Generous hit radius for touch devices
+      const nearestPoint = findNearestPoint(clickX, clickY, HIT_RADIUS);
+      
+      if (nearestPoint) {
+        // Simulate point click using the same logic
+        const now = Date.now();
+        const lastTap = lastTapRef.current;
+        
+        // Check for double-tap (for removal)
+        const timeDiff = now - lastTap.time;
+        const isSamePoint = lastTap.point && lastTap.point.x === nearestPoint.x && lastTap.point.y === nearestPoint.y;
+        const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+        
+        // Update last tap
+        lastTapRef.current = { point: nearestPoint, time: now, x: e.clientX, y: e.clientY };
+        
+        const isAlreadySelected = isPointSelected(nearestPoint);
+        
+        if (isAlreadySelected) {
+          setSelectedJoinPoints([]);
+          return;
+        }
+        
+        if (selectedJoinPoints.length === 1) {
+          // Create segment
+          const fromPoint = selectedJoinPoints[0];
+          const toPoint = nearestPoint;
+          
+          const segmentExists = segments.some(s => 
+            (s.from.x === fromPoint.x && s.from.y === fromPoint.y && s.to.x === toPoint.x && s.to.y === toPoint.y) ||
+            (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
+          );
+          
+          if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
+            const newSegment: LineSegment = {
+              id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              from: { x: fromPoint.x, y: fromPoint.y },
+              to: { x: toPoint.x, y: toPoint.y },
+              mode: currentJoinMode as 'straight' | 'curved',
+            };
+            console.debug('[Segment Created via distance hit-test]', {
+              from: newSegment.from,
+              to: newSegment.to,
+              mode: newSegment.mode,
+            });
+            onSegmentsChange([...segments, newSegment]);
+          }
+          
+          setSelectedJoinPoints([]);
+          lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+          return;
+        }
+        
+        // Select this point
+        setSelectedJoinPoints([nearestPoint]);
+        return;
+      }
+      
+      // No point nearby and in join mode - clear selection
+      if (selectedJoinPoints.length > 0) {
+        setSelectedJoinPoints([]);
+      }
+      return;
+    }
+    
     // If we have a point selected and user clicks empty space, clear selection
     if (selectedJoinPoints.length > 0) {
       setSelectedJoinPoints([]);
       return;
     }
-    
-    // If a join mode is active, do NOT add points (only select existing points)
-    if (isJoinModeActive) {
-      return;
-    }
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
 
-    // Convert pixel to data coordinates
+    // Convert pixel to data coordinates for adding new point
     const plotWidth = chartContainerSize.width - chartMargins.left - chartMargins.right;
     const plotHeight = chartContainerSize.height - chartMargins.top - chartMargins.bottom;
 
@@ -445,7 +555,7 @@ export function GraphPlottingQuestion({
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange]);
 
   /**
    * Custom dot renderer for points.
@@ -604,9 +714,9 @@ export function GraphPlottingQuestion({
       {/* Chart */}
       <div 
         ref={chartContainerRef}
-        className="relative w-full aspect-[4/3] border rounded-lg bg-card overflow-hidden"
+        className="relative w-full aspect-[4/3] border rounded-lg bg-card"
         onPointerUp={handleChartContainerPointerUp}
-        style={{ cursor: readOnly ? 'default' : 'crosshair', touchAction: 'none' }}
+        style={{ cursor: readOnly ? 'default' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
