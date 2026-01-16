@@ -25,6 +25,8 @@ import {
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
+import { ProtractorOverlay } from './ProtractorOverlay';
+import { AngleMeasurementOverlay } from './AngleMeasurementOverlay';
 
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
@@ -43,6 +45,11 @@ interface GraphPlottingQuestionProps {
   onDrawnPathsChange?: (paths: DrawingPath[]) => void;
   /** Used to reset internal state when question changes */
   questionId?: string;
+  /** Show protractor overlay */
+  showProtractor?: boolean;
+  /** Callback when segment is selected for angle measurement */
+  selectedSegmentIds?: string[];
+  onSelectedSegmentIdsChange?: (ids: string[]) => void;
 }
 
 /**
@@ -72,6 +79,9 @@ export function GraphPlottingQuestion({
   drawnPaths = [],
   onDrawnPathsChange,
   questionId,
+  showProtractor = false,
+  selectedSegmentIds = [],
+  onSelectedSegmentIdsChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -837,6 +847,36 @@ export function GraphPlottingQuestion({
             active={isJoinModeActive && currentJoinMode === 'freeform'}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
+          />
+        )}
+
+        {/* Protractor overlay */}
+        {showProtractor && (
+          <ProtractorOverlay
+            containerWidth={chartContainerSize.width}
+            containerHeight={chartContainerSize.height}
+            marginLeft={chartMargins.left}
+            marginRight={chartMargins.right}
+            marginTop={chartMargins.top}
+            marginBottom={chartMargins.bottom}
+          />
+        )}
+
+        {/* Angle measurement overlay */}
+        {selectedSegmentIds.length === 2 && (
+          <AngleMeasurementOverlay
+            segments={segments}
+            selectedSegmentIds={selectedSegmentIds}
+            containerWidth={chartContainerSize.width}
+            containerHeight={chartContainerSize.height}
+            marginLeft={chartMargins.left}
+            marginRight={chartMargins.right}
+            marginTop={chartMargins.top}
+            marginBottom={chartMargins.bottom}
+            domainX={domainX}
+            domainY={domainY}
+            xScale={axisScales.x}
+            yScale={axisScales.y}
           />
         )}
       </div>

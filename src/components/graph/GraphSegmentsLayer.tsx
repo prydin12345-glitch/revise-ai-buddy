@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { GraphPoint, LineSegment } from './types';
+import { toast } from 'sonner';
 
 /**
  * Props for the GraphSegmentsLayer component.
@@ -38,6 +39,10 @@ interface GraphSegmentsLayerProps {
   debug?: boolean;
   /** Read-only mode (no dragging) */
   readOnly?: boolean;
+  /** Selected segment IDs for angle measurement */
+  selectedSegmentIds?: string[];
+  /** Callback when segment selection changes */
+  onSegmentSelect?: (segmentId: string) => void;
 }
 
 /**
@@ -98,6 +103,8 @@ export function GraphSegmentsLayer({
   domainY = [0, 10],
   debug = false,
   readOnly = false,
+  selectedSegmentIds = [],
+  onSegmentSelect,
 }: GraphSegmentsLayerProps) {
   // Track which segment is being dragged
   const [draggingSegmentId, setDraggingSegmentId] = useState<string | null>(null);
@@ -256,19 +263,46 @@ export function GraphSegmentsLayer({
           }
         }
 
+        const isSelected = selectedSegmentIds.includes(seg.id);
+        const segmentStroke = isSelected ? 'hsl(var(--warning))' : stroke;
+        const segmentStrokeWidth = isSelected ? strokeWidth + 2 : strokeWidth;
+
+        // Hit target stroke width for touch devices (generous ~16px)
+        const hitTargetWidth = 16;
+
+        const handleSegmentClick = (e: React.PointerEvent) => {
+          if (!onSegmentSelect) return;
+          e.stopPropagation();
+          e.preventDefault();
+          onSegmentSelect(seg.id);
+        };
+
         return (
           <g key={seg.id}>
             {isCurved ? (
               <>
+                {/* Invisible hit target for curved segment */}
+                {onSegmentSelect && (
+                  <path
+                    d={makeQuadraticCurvePathWithControl(x1, y1, x2, y2, controlPixelX!, controlPixelY!)}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={hitTargetWidth}
+                    strokeLinecap="round"
+                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                    onPointerDown={handleSegmentClick}
+                  />
+                )}
                 {/* Curved segment using quadratic bezier - force visible */}
                 <path
                   d={makeQuadraticCurvePathWithControl(x1, y1, x2, y2, controlPixelX!, controlPixelY!)}
                   fill="none"
-                  stroke={stroke}
-                  strokeWidth={strokeWidth}
+                  stroke={segmentStroke}
+                  strokeWidth={segmentStrokeWidth}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeOpacity={1}
+                  pointerEvents="none"
                 />
                 
                 {/* Control point handle (draggable) - only show when not readonly */}
@@ -310,17 +344,45 @@ export function GraphSegmentsLayer({
                 )}
               </>
             ) : (
-              // Straight line segment - force visible with solid stroke
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={stroke}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeOpacity={1}
+              <>
+                {/* Invisible hit target for straight segment */}
+                {onSegmentSelect && (
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="transparent"
+                    strokeWidth={hitTargetWidth}
+                    strokeLinecap="round"
+                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                    onPointerDown={handleSegmentClick}
+                  />
+                )}
+                {/* Straight line segment - force visible with solid stroke */}
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={segmentStroke}
+                  strokeWidth={segmentStrokeWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeOpacity={1}
+                  pointerEvents="none"
+                />
+              </>
+            )}
+
+            {/* Selection highlight */}
+            {isSelected && (
+              <circle
+                cx={(x1 + x2) / 2}
+                cy={(y1 + y2) / 2}
+                r={6}
+                fill="hsl(var(--warning))"
+                pointerEvents="none"
               />
             )}
 

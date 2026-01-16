@@ -1,6 +1,6 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Calculator, Eye, EyeOff, Flag, Save, ChevronLeft, Send, RotateCcw, RefreshCw, ListRestart } from "lucide-react";
+import { MoreVertical, Calculator, Eye, EyeOff, Flag, Save, ChevronLeft, Send, RotateCcw, RefreshCw, ListRestart, Compass } from "lucide-react";
 
 interface QuestionOptionsMenuProps {
   mode: "practice" | "exam";
@@ -16,6 +16,9 @@ interface QuestionOptionsMenuProps {
   onSubmitAll: () => void;
   disabled?: boolean;
   isReadOnly?: boolean;
+  // Protractor toggle
+  showProtractor?: boolean;
+  onToggleProtractor?: () => void;
   // New retry props
   onRetryQuestion?: () => void;
   onRegenerateQuestion?: () => void;
@@ -38,6 +41,8 @@ export const QuestionOptionsMenu = ({
   onSubmitAll,
   disabled = false,
   isReadOnly = false,
+  showProtractor = false,
+  onToggleProtractor,
   onRetryQuestion,
   onRegenerateQuestion,
   onRetryEntireSet,
@@ -76,6 +81,14 @@ export const QuestionOptionsMenu = ({
           {hideNavigation ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
           {hideNavigation ? "Show Navigation" : "Hide Navigation"}
         </DropdownMenuItem>
+
+        {/* Protractor toggle - practice mode only */}
+        {mode === "practice" && onToggleProtractor && (
+          <DropdownMenuItem onClick={onToggleProtractor} className="cursor-pointer">
+            <Compass className="w-4 h-4 mr-2" />
+            {showProtractor ? "Hide Protractor" : "Show Protractor"}
+          </DropdownMenuItem>
+        )}
 
         {/* Flag Question - both modes */}
         <DropdownMenuItem onClick={onToggleFlag} className="cursor-pointer">
