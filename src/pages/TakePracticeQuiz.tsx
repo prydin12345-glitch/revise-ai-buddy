@@ -161,8 +161,22 @@ const TakePracticeQuiz = () => {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRetrySetDialog, setShowRetrySetDialog] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false); // Review mode state
+  const [showProtractor, setShowProtractor] = useState(() => {
+    // Restore from sessionStorage
+    try {
+      return sessionStorage.getItem(`practice_protractor_${setId}`) === 'true';
+    } catch { return false; }
+  });
+  const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persist protractor state
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`practice_protractor_${setId}`, String(showProtractor));
+    } catch {}
+  }, [showProtractor, setId]);
 
   useEffect(() => {
     loadQuiz();
@@ -1174,6 +1188,8 @@ const TakePracticeQuiz = () => {
                 onQuitAndSave={() => setShowQuitDialog(true)}
                 onSubmitAll={() => setShowSubmitDialog(true)}
                 disabled={currentAnswer.submitted}
+                showProtractor={showProtractor}
+                onToggleProtractor={() => setShowProtractor(prev => !prev)}
                 onRetryQuestion={handleRetryQuestion}
                 onRegenerateQuestion={handleRegenerateQuestion}
                 onRetryEntireSet={() => setShowRetrySetDialog(true)}
