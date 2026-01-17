@@ -125,7 +125,7 @@ interface UserAnswer {
   // Graph question answers
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
-  graphJoinMode?: 'straight' | 'curved' | 'freeform'; // Join mode for plotting questions
+  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null; // Join mode for plotting questions (angle is for measurement only)
   graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved'; controlPoint?: GraphPoint }>; // Persisted line segments with optional control point
   graphDrawnPaths?: Array<{ id: string; points: Array<{ pixelX: number; pixelY: number }> }>; // Freeform drawn paths
   graphMarkingData?: {
@@ -135,6 +135,8 @@ interface UserAnswer {
   // Bearings question answers
   bearingsAnswer?: string;
   bearingsMarkingData?: BearingsMarkingResult;
+  // Protractor state for persistence
+  protractorState?: { x: number; y: number; rotationDeg: number; visible: boolean };
 }
 
 const TakePracticeQuiz = () => {

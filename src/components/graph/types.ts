@@ -275,15 +275,17 @@ export function serializeGraphInterpretationResponse(
 // Helper to serialize graph plotting response
 export function serializeGraphPlottingResponse(
   points: GraphPoint[],
-  joinMode?: 'straight' | 'curved' | 'freeform',
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null,
   segments?: LineSegment[],
   drawnPaths?: DrawingPath[]
 ): string {
+  // Filter out 'angle' mode for serialization (it's UI-only, not a drawing mode)
+  const serializableMode = joinMode === 'angle' ? undefined : joinMode ?? undefined;
   const response: GraphPlottingResponse = {
     _type: 'graph_plotting',
     version: 1,
     points,
-    joinMode,
+    joinMode: serializableMode,
     segments,
     drawnPaths
   };

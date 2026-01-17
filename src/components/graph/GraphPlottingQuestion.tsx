@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { Undo2, Trash2, Minus, Spline, Pencil } from 'lucide-react';
+import { Undo2, Trash2, Minus, Spline, Pencil, Ruler } from 'lucide-react';
 import { 
   GraphPlottingConfig, 
   GraphPoint, 
@@ -25,7 +25,7 @@ import {
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
-import { ProtractorOverlay } from './ProtractorOverlay';
+import { ProtractorOverlay, ProtractorState } from './ProtractorOverlay';
 import { AngleMeasurementOverlay } from './AngleMeasurementOverlay';
 
 interface GraphPlottingQuestionProps {
@@ -37,8 +37,8 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  joinMode?: 'straight' | 'curved' | 'freeform' | null;
-  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | null) => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | null) => void;
   segments: LineSegment[];
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
@@ -47,6 +47,10 @@ interface GraphPlottingQuestionProps {
   questionId?: string;
   /** Show protractor overlay */
   showProtractor?: boolean;
+  /** Protractor state for position/rotation persistence */
+  protractorState?: ProtractorState;
+  /** Callback when protractor state changes */
+  onProtractorStateChange?: (state: ProtractorState) => void;
   /** Callback when segment is selected for angle measurement */
   selectedSegmentIds?: string[];
   onSelectedSegmentIdsChange?: (ids: string[]) => void;
@@ -80,6 +84,8 @@ export function GraphPlottingQuestion({
   onDrawnPathsChange,
   questionId,
   showProtractor = false,
+  protractorState,
+  onProtractorStateChange,
   selectedSegmentIds = [],
   onSelectedSegmentIdsChange,
 }: GraphPlottingQuestionProps) {
@@ -187,8 +193,11 @@ export function GraphPlottingQuestion({
 
   // Determine current join mode
   // joinMode === null means "no mode selected" - user can add points normally
+  // joinMode === 'angle' means angle measurement mode - no point adding/joining, only segment selection
   const isJoinModeEnabled = config.joinPointsMode?.enabled ?? false;
-  const isJoinModeActive = isJoinModeEnabled && joinMode !== null;
+  const isAngleMode = joinMode === 'angle';
+  const isDrawingMode = joinMode === 'straight' || joinMode === 'curved' || joinMode === 'freeform';
+  const isJoinModeActive = isJoinModeEnabled && isDrawingMode;
   const currentJoinMode = joinMode;
 
   /**
@@ -474,6 +483,14 @@ export function GraphPlottingQuestion({
       return;
     }
     
+    // In angle mode, only clear segment selection when clicking empty space - don't add points
+    if (isAngleMode) {
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
+        onSelectedSegmentIdsChange([]);
+      }
+      return;
+    }
+    
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
@@ -691,24 +708,36 @@ export function GraphPlottingQuestion({
                 if (value === '' || value === currentJoinMode) {
                   onJoinModeChange(null);
                   setSelectedJoinPoints([]);
-                } else if (value === 'straight' || value === 'curved' || value === 'freeform') {
+                  // Clear segment selection when exiting angle mode
+                  if (onSelectedSegmentIdsChange) {
+                    onSelectedSegmentIdsChange([]);
+                  }
+                } else if (value === 'straight' || value === 'curved' || value === 'freeform' || value === 'angle') {
                   onJoinModeChange(value);
                   setSelectedJoinPoints([]);
+                  // Clear segment selection when switching modes
+                  if (onSelectedSegmentIdsChange) {
+                    onSelectedSegmentIdsChange([]);
+                  }
                 }
               }}
-              className="ml-auto"
+              className="ml-auto flex-wrap"
             >
-              <ToggleGroupItem value="straight" aria-label="Straight lines">
+              <ToggleGroupItem value="straight" aria-label="Straight lines" disabled={isAngleMode}>
                 <Minus className="h-4 w-4 mr-1" />
                 Straight
               </ToggleGroupItem>
-              <ToggleGroupItem value="curved" aria-label="Curved lines">
+              <ToggleGroupItem value="curved" aria-label="Curved lines" disabled={isAngleMode}>
                 <Spline className="h-4 w-4 mr-1" />
                 Curved
               </ToggleGroupItem>
-              <ToggleGroupItem value="freeform" aria-label="Freeform drawing">
+              <ToggleGroupItem value="freeform" aria-label="Freeform drawing" disabled={isAngleMode}>
                 <Pencil className="h-4 w-4 mr-1" />
                 Freeform
+              </ToggleGroupItem>
+              <ToggleGroupItem value="angle" aria-label="Angle measurement">
+                <Ruler className="h-4 w-4 mr-1" />
+                Angle
               </ToggleGroupItem>
             </ToggleGroup>
           )}
@@ -718,7 +747,15 @@ export function GraphPlottingQuestion({
       {/* Helper text */}
       {!readOnly && (
         <p className="text-sm text-muted-foreground">
-        {isJoinModeActive ? (
+        {isAngleMode ? (
+            selectedSegmentIds.length === 0 ? (
+              'Tap two connected lines to measure the angle between them.'
+            ) : selectedSegmentIds.length === 1 ? (
+              'Tap another connected line to see the angle.'
+            ) : (
+              'Angle displayed. Tap empty space to clear, or tap another line to start a new measurement.'
+            )
+          ) : isJoinModeActive ? (
             currentJoinMode === 'freeform' ? (
               'Click and drag on the graph to draw lines.'
             ) : selectedJoinPoints.length === 0 ? (
@@ -842,8 +879,8 @@ export function GraphPlottingQuestion({
             marginBottom={chartMargins.bottom}
             readOnly={readOnly}
             debug={false}
-            selectedSegmentIds={selectedSegmentIds}
-            onSegmentSelect={(segId) => {
+            selectedSegmentIds={isAngleMode ? selectedSegmentIds : []}
+            onSegmentSelect={isAngleMode ? (segId) => {
               if (!onSelectedSegmentIdsChange) return;
               // Toggle selection: if already selected, deselect; otherwise add to selection (max 2)
               if (selectedSegmentIds.includes(segId)) {
@@ -851,10 +888,10 @@ export function GraphPlottingQuestion({
               } else if (selectedSegmentIds.length < 2) {
                 onSelectedSegmentIdsChange([...selectedSegmentIds, segId]);
               } else {
-                // Replace oldest selection with new one
-                onSelectedSegmentIdsChange([selectedSegmentIds[1], segId]);
+                // Start new selection (clear and select this one)
+                onSelectedSegmentIdsChange([segId]);
               }
-            }}
+            } : undefined}
           />
         )}
 
@@ -885,6 +922,9 @@ export function GraphPlottingQuestion({
             marginRight={chartMargins.right}
             marginTop={chartMargins.top}
             marginBottom={chartMargins.bottom}
+            protractorState={protractorState}
+            onProtractorStateChange={onProtractorStateChange}
+            readOnly={readOnly}
           />
         )}
 
