@@ -845,6 +845,43 @@ const TakePracticeQuiz = () => {
     setSidebarOpen(hideNavigation);
   };
 
+  // Handle segment selection for angle measurement
+  const handleSegmentSelection = useCallback((ids: string[]) => {
+    // If we have exactly 2 segments, check if they share a vertex
+    if (ids.length === 2) {
+      const currentQuestionId = questions[currentIndex]?.id;
+      const currentAnswer = userAnswers[currentQuestionId] || { answer: '', submitted: false };
+      const segments = currentAnswer.graphSegments || [];
+      
+      const seg1 = segments.find((s: any) => s.id === ids[0]);
+      const seg2 = segments.find((s: any) => s.id === ids[1]);
+      
+      if (seg1 && seg2) {
+        // Check if segments share a vertex
+        const points1 = [seg1.from, seg1.to];
+        const points2 = [seg2.from, seg2.to];
+        
+        let hasSharedVertex = false;
+        for (const p1 of points1) {
+          for (const p2 of points2) {
+            if (p1.x === p2.x && p1.y === p2.y) {
+              hasSharedVertex = true;
+              break;
+            }
+          }
+          if (hasSharedVertex) break;
+        }
+        
+        if (!hasSharedVertex) {
+          toast.error("Select a connected line");
+          return;
+        }
+      }
+    }
+    
+    setSelectedSegmentIds(ids);
+  }, [questions, currentIndex, userAnswers]);
+
   // Retry current question - clears answer and marking state, keeps question content
   const handleRetryQuestion = async () => {
     const currentQuestion = questions[currentIndex];
@@ -1441,6 +1478,9 @@ const TakePracticeQuiz = () => {
                             }}
                             expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
                             studentPoints={currentAnswer.graphPlottedPoints || []}
+                            showProtractor={showProtractor}
+                            selectedSegmentIds={selectedSegmentIds}
+                            onSelectedSegmentIdsChange={handleSegmentSelection}
                             onPointsChange={(points) => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {

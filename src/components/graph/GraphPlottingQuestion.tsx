@@ -542,13 +542,26 @@ export function GraphPlottingQuestion({
       if (selectedJoinPoints.length > 0) {
         setSelectedJoinPoints([]);
       }
+      // Clear segment selection when clicking empty space (angle measurement tool)
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
+        onSelectedSegmentIdsChange([]);
+      }
       return;
     }
     
     // If we have a point selected and user clicks empty space, clear selection
     if (selectedJoinPoints.length > 0) {
       setSelectedJoinPoints([]);
+      // Also clear segment selection
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
+        onSelectedSegmentIdsChange([]);
+      }
       return;
+    }
+    
+    // Clear segment selection when clicking empty space (angle measurement tool)
+    if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
+      onSelectedSegmentIdsChange([]);
     }
 
     // Convert pixel to data coordinates for adding new point
@@ -829,6 +842,19 @@ export function GraphPlottingQuestion({
             marginBottom={chartMargins.bottom}
             readOnly={readOnly}
             debug={false}
+            selectedSegmentIds={selectedSegmentIds}
+            onSegmentSelect={(segId) => {
+              if (!onSelectedSegmentIdsChange) return;
+              // Toggle selection: if already selected, deselect; otherwise add to selection (max 2)
+              if (selectedSegmentIds.includes(segId)) {
+                onSelectedSegmentIdsChange(selectedSegmentIds.filter(id => id !== segId));
+              } else if (selectedSegmentIds.length < 2) {
+                onSelectedSegmentIdsChange([...selectedSegmentIds, segId]);
+              } else {
+                // Replace oldest selection with new one
+                onSelectedSegmentIdsChange([selectedSegmentIds[1], segId]);
+              }
+            }}
           />
         )}
 
