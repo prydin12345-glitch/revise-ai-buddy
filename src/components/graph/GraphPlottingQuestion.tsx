@@ -124,12 +124,16 @@ export function GraphPlottingQuestion({
   
   // Track if pointer event started on a point (to prevent bubbling issues)
   const pointerStartedOnPointRef = useRef(false);
+  
+  // Track if pointer event started on a line segment (to prevent container from clearing selection)
+  const pointerStartedOnLineRef = useRef(false);
 
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
     setSelectedJoinPoints([]);
     lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
     pointerStartedOnPointRef.current = false;
+    pointerStartedOnLineRef.current = false;
   }, [questionId]);
 
   // Observe container size changes
@@ -480,6 +484,12 @@ export function GraphPlottingQuestion({
     // If the pointer event started on a point, don't process it here (already handled by point)
     if (pointerStartedOnPointRef.current) {
       pointerStartedOnPointRef.current = false;
+      return;
+    }
+    
+    // If the pointer event started on a line segment, don't clear selection (already handled by segment)
+    if (pointerStartedOnLineRef.current) {
+      pointerStartedOnLineRef.current = false;
       return;
     }
     
@@ -891,6 +901,9 @@ export function GraphPlottingQuestion({
                 // Start new selection (clear and select this one)
                 onSelectedSegmentIdsChange([segId]);
               }
+            } : undefined}
+            onPointerStartedOnSegment={isAngleMode ? () => {
+              pointerStartedOnLineRef.current = true;
             } : undefined}
           />
         )}
