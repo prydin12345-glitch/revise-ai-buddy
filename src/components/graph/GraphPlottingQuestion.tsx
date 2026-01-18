@@ -127,6 +127,12 @@ export function GraphPlottingQuestion({
   
   // Track if pointer event started on a line segment (to prevent container from clearing selection)
   const pointerStartedOnLineRef = useRef(false);
+  
+  // Dragging state for point repositioning
+  const [draggingPoint, setDraggingPoint] = useState<{ original: GraphPoint; current: GraphPoint } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const DRAG_THRESHOLD = 8; // px - minimum movement to start drag
 
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
@@ -134,6 +140,9 @@ export function GraphPlottingQuestion({
     lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
     pointerStartedOnPointRef.current = false;
     pointerStartedOnLineRef.current = false;
+    setDraggingPoint(null);
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
   }, [questionId]);
 
   // Observe container size changes
@@ -205,18 +214,22 @@ export function GraphPlottingQuestion({
   const currentJoinMode = joinMode;
 
   /**
-   * Snap a coordinate to the grid step.
+   * Round a value to 1 decimal place.
+   */
+  const round1dp = useCallback((value: number): number => {
+    return Math.round(value * 10) / 10;
+  }, []);
+
+  /**
+   * Snap a coordinate to 1 decimal place precision.
+   * This allows non-integer coordinates like 4.2, 4.5, 4.7 etc.
    */
   const snapPoint = useCallback((x: number, y: number): GraphPoint => {
-    const stepX = config.stepX ?? 1;
-    const stepY = config.stepY ?? 1;
-    const snappedX = Math.round(x / stepX) * stepX;
-    const snappedY = Math.round(y / stepY) * stepY;
     return { 
-      x: Math.round(snappedX * 1000) / 1000, 
-      y: Math.round(snappedY * 1000) / 1000 
+      x: round1dp(x), 
+      y: round1dp(y) 
     };
-  }, [config.stepX, config.stepY]);
+  }, [round1dp]);
 
   /**
    * Check if a point is currently selected for joining.
@@ -450,6 +463,20 @@ export function GraphPlottingQuestion({
   }, [chartContainerSize, chartMargins, axisScales, domainX, domainY]);
 
   /**
+   * Convert pixel coordinates to data coordinates.
+   * Used for drag operations.
+   */
+  const pixelToData = useCallback((pixelX: number, pixelY: number): { dataX: number; dataY: number } => {
+    const plotWidth = chartContainerSize.width - chartMargins.left - chartMargins.right;
+    const plotHeight = chartContainerSize.height - chartMargins.top - chartMargins.bottom;
+    
+    const dataX = domainX[0] + ((pixelX - chartMargins.left) / plotWidth) * (domainX[1] - domainX[0]);
+    const dataY = domainY[0] + (1 - (pixelY - chartMargins.top) / plotHeight) * (domainY[1] - domainY[0]);
+    
+    return { dataX, dataY };
+  }, [chartContainerSize, chartMargins, domainX, domainY]);
+
+  /**
    * Find the nearest point within a given pixel radius.
    * Returns the point if found, null otherwise.
    */
@@ -469,6 +496,120 @@ export function GraphPlottingQuestion({
     
     return nearestPoint;
   }, [studentPoints, dataToPixel]);
+
+  /**
+   * Handle pointer down on a point - start potential drag
+   */
+  const handlePointPointerDown = useCallback((point: GraphPoint, e: React.PointerEvent) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Mark that pointer started on a point
+    pointerStartedOnPointRef.current = true;
+    
+    // Set up for potential drag
+    dragStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+    
+    // Capture pointer for drag tracking
+    (e.target as Element).setPointerCapture(e.pointerId);
+  }, [readOnly]);
+
+  /**
+   * Handle pointer move during drag
+   */
+  const handlePointPointerMove = useCallback((point: GraphPoint, e: React.PointerEvent) => {
+    if (readOnly || !dragStartRef.current) return;
+    
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Start drag if threshold exceeded
+    if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
+      isDraggingRef.current = true;
+      // Save history when drag starts
+      setPointsHistory(prev => [...prev, studentPoints]);
+    }
+    
+    if (isDraggingRef.current) {
+      const rect = chartContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const pixelX = e.clientX - rect.left;
+      const pixelY = e.clientY - rect.top;
+      
+      // Convert to data coordinates and snap to 1dp
+      const { dataX, dataY } = pixelToData(pixelX, pixelY);
+      
+      // Clamp to domain
+      const clampedX = Math.max(domainX[0], Math.min(domainX[1], dataX));
+      const clampedY = Math.max(domainY[0], Math.min(domainY[1], dataY));
+      
+      const snapped = snapPoint(clampedX, clampedY);
+      
+      setDraggingPoint({
+        original: point,
+        current: snapped
+      });
+    }
+  }, [readOnly, pixelToData, snapPoint, domainX, domainY, studentPoints]);
+
+  /**
+   * Handle pointer up - end drag or trigger click
+   */
+  const handlePointPointerUp = useCallback((point: GraphPoint, e: React.PointerEvent) => {
+    if (readOnly) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Release pointer capture
+    (e.target as Element).releasePointerCapture(e.pointerId);
+    
+    if (isDraggingRef.current && draggingPoint) {
+      // End drag - commit the new position
+      const newPoints = studentPoints.map(p => 
+        p.x === draggingPoint.original.x && p.y === draggingPoint.original.y
+          ? draggingPoint.current
+          : p
+      );
+      
+      // Update segments that reference this point
+      const newSegments = segments.map(seg => {
+        let updated = { ...seg };
+        if (seg.from.x === draggingPoint.original.x && seg.from.y === draggingPoint.original.y) {
+          updated.from = draggingPoint.current;
+        }
+        if (seg.to.x === draggingPoint.original.x && seg.to.y === draggingPoint.original.y) {
+          updated.to = draggingPoint.current;
+        }
+        return updated;
+      });
+      
+      onPointsChange(newPoints);
+      if (newSegments.some((seg, i) => 
+        seg.from.x !== segments[i].from.x || seg.from.y !== segments[i].from.y ||
+        seg.to.x !== segments[i].to.x || seg.to.y !== segments[i].to.y
+      )) {
+        onSegmentsChange(newSegments);
+      }
+      
+      setDraggingPoint(null);
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
+      
+      // Keep guard ref set to prevent container from processing this
+      return;
+    }
+    
+    // Not a drag - treat as click
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
+    
+    // Call original click handler
+    handlePointClick(point, e);
+  }, [readOnly, draggingPoint, studentPoints, segments, onPointsChange, onSegmentsChange, handlePointClick]);
 
   /**
    * Handle pointer up on the chart background to add a point.
@@ -609,6 +750,7 @@ export function GraphPlottingQuestion({
 
   /**
    * Custom dot renderer for points.
+   * Supports dragging for repositioning with live tooltip.
    */
   const renderDot = useCallback((props: any) => {
     const { cx, cy, payload } = props;
@@ -618,6 +760,18 @@ export function GraphPlottingQuestion({
     const status = getPointStatus(point);
     const isSelected = isPointSelected(point);
     
+    // Check if this point is being dragged
+    const isDragging = draggingPoint?.original.x === point.x && draggingPoint?.original.y === point.y;
+    
+    // If dragging, use the dragged position for display
+    let displayCx = cx;
+    let displayCy = cy;
+    if (isDragging && draggingPoint) {
+      const { px, py } = dataToPixel(draggingPoint.current.x, draggingPoint.current.y);
+      displayCx = px;
+      displayCy = py;
+    }
+    
     // Determine fill color based on status
     let fillColor = subjectColor;
     if (showCorrectAnswers) {
@@ -625,31 +779,54 @@ export function GraphPlottingQuestion({
       else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
     }
 
-    // Larger touch target for mobile (24px radius for easier tapping on iPad/iPhone)
-    const HIT_RADIUS = 24;
-    const visualRadius = isSelected ? 10 : 8;
+    // Larger touch target for mobile (30px radius for easier tapping and dragging)
+    const HIT_RADIUS = 30;
+    const visualRadius = isSelected || isDragging ? 10 : 8;
 
     return (
       <g 
         key={`point-${point.x}-${point.y}`}
-        style={{ cursor: readOnly ? 'default' : 'pointer' }}
+        style={{ cursor: readOnly ? 'default' : isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
-        {/* Invisible larger touch target for iPad/iPhone friendly tapping */}
+        {/* Invisible larger touch target for iPad/iPhone friendly tapping and dragging */}
         <circle
-          cx={cx}
-          cy={cy}
+          cx={displayCx}
+          cy={displayCy}
           r={HIT_RADIUS}
           fill="transparent"
           stroke="transparent"
           pointerEvents="all"
-          onPointerDown={(e) => handlePointClick(point, e)}
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => handlePointPointerDown(point, e)}
+          onPointerMove={(e) => handlePointPointerMove(point, e)}
+          onPointerUp={(e) => handlePointPointerUp(point, e)}
+          onPointerCancel={(e) => {
+            // Handle cancel (e.g., finger left screen) - reset drag state
+            isDraggingRef.current = false;
+            dragStartRef.current = null;
+            setDraggingPoint(null);
+            pointerStartedOnPointRef.current = false;
+          }}
         />
         
-        {/* Selection ring */}
-        {isSelected && (
+        {/* Drag indicator ring when dragging */}
+        {isDragging && (
           <circle
-            cx={cx}
-            cy={cy}
+            cx={displayCx}
+            cy={displayCy}
+            r={visualRadius + 6}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+            opacity={0.5}
+          />
+        )}
+        
+        {/* Selection ring */}
+        {isSelected && !isDragging && (
+          <circle
+            cx={displayCx}
+            cy={displayCy}
             r={visualRadius + 4}
             fill="none"
             stroke="hsl(var(--primary))"
@@ -660,19 +837,21 @@ export function GraphPlottingQuestion({
         
         {/* Visible point */}
         <circle
-          cx={cx}
-          cy={cy}
+          cx={displayCx}
+          cy={displayCy}
           r={visualRadius}
-          fill={fillColor}
+          fill={isDragging ? 'hsl(var(--primary))' : fillColor}
           stroke="white"
           strokeWidth={2}
         />
         
         {/* Tooltip on hover */}
-        <title>{`(${point.x}, ${point.y})`}</title>
+        <title>{`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`}</title>
       </g>
     );
-  }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, handlePointClick]);
+  }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, 
+      handlePointPointerDown, handlePointPointerMove, handlePointPointerUp, 
+      draggingPoint, dataToPixel]);
 
   // Error state if no config
   if (!config) {
@@ -771,12 +950,12 @@ export function GraphPlottingQuestion({
             ) : selectedJoinPoints.length === 0 ? (
               `Tap a point to select it for joining. Deselect the mode to add points.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect.`
+              `Point (${selectedJoinPoints[0].x.toFixed(1)}, ${selectedJoinPoints[0].y.toFixed(1)}) selected. Tap another point to connect.`
             ) : (
               'Creating segment...'
             )
           ) : (
-            'Click on the graph to plot points. Double-tap a point to remove it.'
+            'Click on the graph to plot points (1dp precision). Drag points to reposition. Double-tap to remove.'
           )}
         </p>
       )}
@@ -830,8 +1009,8 @@ export function GraphPlottingQuestion({
                 if (!active || !payload?.length) return null;
                 const point = payload[0].payload as GraphPoint;
                 return (
-                  <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-md">
-                    ({point.x}, {point.y})
+                  <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-md font-mono">
+                    ({point.x.toFixed(1)}, {point.y.toFixed(1)})
                   </div>
                 );
               }}
@@ -958,6 +1137,22 @@ export function GraphPlottingQuestion({
             yScale={axisScales.y}
           />
         )}
+
+        {/* Drag tooltip - shows live coordinates while dragging a point */}
+        {draggingPoint && (
+          <div 
+            className="absolute pointer-events-none z-50"
+            style={{
+              left: dataToPixel(draggingPoint.current.x, draggingPoint.current.y).px,
+              top: dataToPixel(draggingPoint.current.x, draggingPoint.current.y).py - 40,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-lg font-mono whitespace-nowrap">
+              ({draggingPoint.current.x.toFixed(1)}, {draggingPoint.current.y.toFixed(1)})
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Segments list */}
@@ -971,7 +1166,7 @@ export function GraphPlottingQuestion({
                 className="flex items-center gap-1 bg-background px-2 py-1 rounded text-sm border"
               >
                 <span>
-                  ({seg.from.x}, {seg.from.y}) → ({seg.to.x}, {seg.to.y})
+                  ({seg.from.x.toFixed(1)}, {seg.from.y.toFixed(1)}) → ({seg.to.x.toFixed(1)}, {seg.to.y.toFixed(1)})
                 </span>
                 <span className="text-muted-foreground text-xs">
                   [{seg.mode}]
@@ -1035,7 +1230,7 @@ export function GraphPlottingQuestion({
                     !showCorrectAnswers && "bg-background"
                   )}
                 >
-                  <span>({point.x}, {point.y})</span>
+                  <span>({point.x.toFixed(1)}, {point.y.toFixed(1)})</span>
                   {!readOnly && (
                     <Button
                       variant="ghost"
