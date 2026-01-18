@@ -43,6 +43,8 @@ interface GraphSegmentsLayerProps {
   selectedSegmentIds?: string[];
   /** Callback when segment selection changes */
   onSegmentSelect?: (segmentId: string) => void;
+  /** Callback to notify parent that pointer started on a segment (prevents container from clearing selection) */
+  onPointerStartedOnSegment?: () => void;
 }
 
 /**
@@ -105,6 +107,7 @@ export function GraphSegmentsLayer({
   readOnly = false,
   selectedSegmentIds = [],
   onSegmentSelect,
+  onPointerStartedOnSegment,
 }: GraphSegmentsLayerProps) {
   // Track which segment is being dragged
   const [draggingSegmentId, setDraggingSegmentId] = useState<string | null>(null);
@@ -270,10 +273,12 @@ export function GraphSegmentsLayer({
         // Hit target stroke width for touch devices (generous ~16px)
         const hitTargetWidth = 16;
 
-        const handleSegmentClick = (e: React.PointerEvent) => {
+        const handleSegmentPointerDown = (e: React.PointerEvent) => {
           if (!onSegmentSelect) return;
           e.stopPropagation();
           e.preventDefault();
+          // Mark that pointer started on a segment - prevents container from clearing selection
+          onPointerStartedOnSegment?.();
           onSegmentSelect(seg.id);
         };
 
@@ -290,7 +295,7 @@ export function GraphSegmentsLayer({
                     strokeWidth={hitTargetWidth}
                     strokeLinecap="round"
                     style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                    onPointerDown={handleSegmentClick}
+                    onPointerDown={handleSegmentPointerDown}
                   />
                 )}
                 {/* Curved segment using quadratic bezier - force visible */}
@@ -356,7 +361,7 @@ export function GraphSegmentsLayer({
                     strokeWidth={hitTargetWidth}
                     strokeLinecap="round"
                     style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                    onPointerDown={handleSegmentClick}
+                    onPointerDown={handleSegmentPointerDown}
                   />
                 )}
                 {/* Straight line segment - force visible with solid stroke */}
