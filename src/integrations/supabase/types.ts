@@ -911,6 +911,13 @@ export type Database = {
             foreignKeyName: "group_members_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
+            referencedRelation: "student_profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
@@ -2230,7 +2237,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      student_profiles_safe: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          student_code: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          student_code?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          student_code?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_deadline_change_notifications: {
