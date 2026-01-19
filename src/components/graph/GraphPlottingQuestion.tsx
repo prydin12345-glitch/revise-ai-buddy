@@ -128,7 +128,10 @@ export function GraphPlottingQuestion({
     y: 0
   });
   const DOUBLE_TAP_THRESHOLD = 350; // ms
-  const DOUBLE_TAP_DISTANCE = 30; // px max movement
+  const DOUBLE_TAP_DISTANCE = 45; // px max movement (increased for touch tolerance)
+  
+  // Hit radius for touch targets (larger for iPad/touch devices)
+  const POINT_HIT_RADIUS = 44; // px - generous hit area for touch
   
   // Track if pointer event started on a point (to prevent bubbling issues)
   const pointerStartedOnPointRef = useRef(false);
@@ -861,6 +864,33 @@ export function GraphPlottingQuestion({
       return;
     }
 
+    // CRITICAL: Before adding a new point, check if tap is near any existing point
+    // This prevents accidental point creation when trying to tap an existing point
+    const nearbyPoint = findNearestPoint(clickX, clickY, POINT_HIT_RADIUS);
+    if (nearbyPoint) {
+      // Tap is near an existing point - don't add a new point
+      // Instead, treat it as if the user tapped that point (activate drag mode on double-tap)
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      const timeDiff = now - lastTap.time;
+      const isSamePoint = lastTap.point && lastTap.point.x === nearbyPoint.x && lastTap.point.y === nearbyPoint.y;
+      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+      
+      lastTapRef.current = { point: nearbyPoint, time: now, x: e.clientX, y: e.clientY };
+      
+      if (isDoubleTap) {
+        // Toggle drag mode for this point
+        if (activeDragPoint && activeDragPoint.x === nearbyPoint.x && activeDragPoint.y === nearbyPoint.y) {
+          setActiveDragPoint(null);
+        } else {
+          setActiveDragPoint(nearbyPoint);
+        }
+        lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+      }
+      return; // Don't add a new point
+    }
+
     const dataX = domainX[0] + ((clickX - chartMargins.left) / plotWidth) * (domainX[1] - domainX[0]);
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
@@ -910,8 +940,7 @@ export function GraphPlottingQuestion({
       else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
     }
 
-    // Larger touch target for mobile (30px radius for easier tapping and dragging)
-    const HIT_RADIUS = 30;
+    // Use the constant HIT_RADIUS for touch targets (44px for iPad-friendly tapping)
     const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
 
     return (
@@ -923,7 +952,7 @@ export function GraphPlottingQuestion({
         <circle
           cx={displayCx}
           cy={displayCy}
-          r={HIT_RADIUS}
+          r={POINT_HIT_RADIUS}
           fill="transparent"
           stroke="transparent"
           pointerEvents="all"
