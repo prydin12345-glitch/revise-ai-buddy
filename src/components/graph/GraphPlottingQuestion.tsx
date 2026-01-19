@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { Undo2, Trash2, Minus, Spline, Pencil, Ruler } from 'lucide-react';
+import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler } from 'lucide-react';
 import { 
   GraphPlottingConfig, 
   GraphPoint, 
@@ -56,6 +56,13 @@ interface GraphPlottingQuestionProps {
   onSelectedSegmentIdsChange?: (ids: string[]) => void;
 }
 
+// History state for undo/redo
+interface HistoryState {
+  points: GraphPoint[];
+  segments: LineSegment[];
+  drawnPaths: DrawingPath[];
+}
+
 /**
  * GraphPlottingQuestion - Interactive scatter plot for plotting points and creating segments.
  * 
@@ -95,8 +102,9 @@ export function GraphPlottingQuestion({
   // Chart size state
   const [chartContainerSize, setChartContainerSize] = useState({ width: 400, height: 300 });
   
-  // History for undo
-  const [pointsHistory, setPointsHistory] = useState<GraphPoint[][]>([]);
+  // History stacks for undo/redo (stores full state snapshots)
+  const [undoStack, setUndoStack] = useState<HistoryState[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryState[]>([]);
   
   // Recharts axis scales (captured from rendered chart)
   const [axisScales, setAxisScales] = useState<{ x?: any; y?: any }>({});
@@ -112,7 +120,7 @@ export function GraphPlottingQuestion({
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
-  // Double-tap detection for point REMOVAL (not selection)
+  // Double-tap detection for activating drag mode
   const lastTapRef = useRef<{ point: GraphPoint | null; time: number; x: number; y: number }>({
     point: null,
     time: 0,
@@ -128,11 +136,17 @@ export function GraphPlottingQuestion({
   // Track if pointer event started on a line segment (to prevent container from clearing selection)
   const pointerStartedOnLineRef = useRef(false);
   
+  // Active draggable point (selected via double-tap for drag mode)
+  const [activeDragPoint, setActiveDragPoint] = useState<GraphPoint | null>(null);
+  
   // Dragging state for point repositioning
   const [draggingPoint, setDraggingPoint] = useState<{ original: GraphPoint; current: GraphPoint } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const isDraggingRef = useRef(false);
   const DRAG_THRESHOLD = 8; // px - minimum movement to start drag
+  
+  // Erase mode
+  const [eraseMode, setEraseMode] = useState(false);
 
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
@@ -141,8 +155,12 @@ export function GraphPlottingQuestion({
     pointerStartedOnPointRef.current = false;
     pointerStartedOnLineRef.current = false;
     setDraggingPoint(null);
+    setActiveDragPoint(null);
     isDraggingRef.current = false;
     dragStartRef.current = null;
+    setEraseMode(false);
+    setUndoStack([]);
+    setRedoStack([]);
   }, [questionId]);
 
   // Observe container size changes
@@ -239,32 +257,100 @@ export function GraphPlottingQuestion({
   }, [selectedJoinPoints]);
 
   /**
-   * Handle click on an existing point.
-   * - If not in join mode: remove the point
-   * - If in join mode: select/deselect for joining
+   * Save current state to history (call before making changes)
    */
+  const saveToHistory = useCallback(() => {
+    const currentState: HistoryState = {
+      points: [...studentPoints],
+      segments: [...segments],
+      drawnPaths: [...drawnPaths],
+    };
+    setUndoStack(prev => [...prev, currentState]);
+    setRedoStack([]); // Clear redo stack on new action
+  }, [studentPoints, segments, drawnPaths]);
+
+  /**
+   * Undo the last action.
+   */
+  const undo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    
+    // Save current state to redo stack
+    const currentState: HistoryState = {
+      points: [...studentPoints],
+      segments: [...segments],
+      drawnPaths: [...drawnPaths],
+    };
+    setRedoStack(prev => [...prev, currentState]);
+    
+    // Pop from undo stack and apply
+    const previousState = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    
+    onPointsChange(previousState.points);
+    onSegmentsChange(previousState.segments);
+    onDrawnPathsChange?.(previousState.drawnPaths);
+  }, [undoStack, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
+
+  /**
+   * Redo the last undone action.
+   */
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    
+    // Save current state to undo stack
+    const currentState: HistoryState = {
+      points: [...studentPoints],
+      segments: [...segments],
+      drawnPaths: [...drawnPaths],
+    };
+    setUndoStack(prev => [...prev, currentState]);
+    
+    // Pop from redo stack and apply
+    const nextState = redoStack[redoStack.length - 1];
+    setRedoStack(prev => prev.slice(0, -1));
+    
+    onPointsChange(nextState.points);
+    onSegmentsChange(nextState.segments);
+    onDrawnPathsChange?.(nextState.drawnPaths);
+  }, [redoStack, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
+
   /**
    * Handle pointer down on an existing point.
-   * Uses SINGLE-TAP for selection (more reliable and intuitive).
-   * - Single-tap on unselected point with no selection: SELECT it (show ring immediately)
-   * - Single-tap on different point when one is selected: CREATE segment and clear selection
-   * - Single-tap on already selected point: DESELECT it
-   * - Double-tap in non-join mode: REMOVE point
+   * - Double-tap: toggle drag mode for that point
+   * - In erase mode: delete the point
+   * - In join mode: select for segment creation
    */
   const handlePointClick = useCallback((point: GraphPoint, e: React.PointerEvent | React.MouseEvent) => {
     if (readOnly) return;
     e.stopPropagation();
-    e.preventDefault(); // Prevent double-firing on touch
+    e.preventDefault();
     
-    // Mark that this pointer event started on a point (prevents container from clearing selection)
+    // Mark that this pointer event started on a point
     pointerStartedOnPointRef.current = true;
+
+    // If erase mode is active, delete the point
+    if (eraseMode) {
+      saveToHistory();
+      // Remove the point
+      onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+      // Also remove any segments that reference this point
+      const newSegments = segments.filter(s => 
+        !(s.from.x === point.x && s.from.y === point.y) &&
+        !(s.to.x === point.x && s.to.y === point.y)
+      );
+      if (newSegments.length !== segments.length) {
+        onSegmentsChange(newSegments);
+      }
+      return;
+    }
 
     const now = Date.now();
     const clientX = 'clientX' in e ? e.clientX : 0;
     const clientY = 'clientY' in e ? e.clientY : 0;
     const lastTap = lastTapRef.current;
     
-    // Check if this is a double-tap on the same point (only used for point removal in non-join mode)
+    // Check if this is a double-tap on the same point
     const timeDiff = now - lastTap.time;
     const isSamePoint = lastTap.point && lastTap.point.x === point.x && lastTap.point.y === point.y;
     const distanceMoved = Math.sqrt(
@@ -275,14 +361,20 @@ export function GraphPlottingQuestion({
     // Update last tap reference
     lastTapRef.current = { point, time: now, x: clientX, y: clientY };
 
-    if (!isJoinModeActive) {
-      // Not in active join mode: double-tap removes point
+    if (!isJoinModeActive && !isAngleMode) {
+      // Not in active join/angle mode
       if (isDoubleTap) {
-        setPointsHistory(prev => [...prev, studentPoints]);
-        onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+        // Double-tap: toggle drag mode for this point
+        if (activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y) {
+          // Already in drag mode for this point - exit drag mode
+          setActiveDragPoint(null);
+        } else {
+          // Enter drag mode for this point
+          setActiveDragPoint(point);
+        }
         lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
       }
-      // Single tap does nothing in non-join mode (prevents accidental removal)
+      // Single tap does nothing in non-join mode (no accidental removal)
       return;
     }
 
@@ -307,6 +399,7 @@ export function GraphPlottingQuestion({
       );
 
       if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
+        saveToHistory();
         const newSegment: LineSegment = {
           id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           from: { x: fromPoint.x, y: fromPoint.y },
@@ -333,7 +426,7 @@ export function GraphPlottingQuestion({
 
     // No point selected yet: SELECT this point immediately
     setSelectedJoinPoints([point]);
-  }, [readOnly, isJoinModeActive, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales]);
+  }, [readOnly, isJoinModeActive, isAngleMode, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales, eraseMode, activeDragPoint, saveToHistory]);
 
   /**
    * Add a new point to the graph.
@@ -351,9 +444,9 @@ export function GraphPlottingQuestion({
     if (exists) return;
 
     // Save to history and add point
-    setPointsHistory(prev => [...prev, studentPoints]);
+    saveToHistory();
     onPointsChange([...studentPoints, snapped]);
-  }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange]);
+  }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange, saveToHistory]);
 
   /**
    * Remove a point by index.
@@ -364,7 +457,7 @@ export function GraphPlottingQuestion({
     const pointToRemove = studentPoints[index];
     
     // Save to history
-    setPointsHistory(prev => [...prev, studentPoints]);
+    saveToHistory();
     
     // Remove the point
     const newPoints = studentPoints.filter((_, i) => i !== index);
@@ -381,37 +474,36 @@ export function GraphPlottingQuestion({
 
     // Clear selection if this point was selected
     setSelectedJoinPoints(prev => prev.filter(p => p.x !== pointToRemove.x || p.y !== pointToRemove.y));
-  }, [readOnly, studentPoints, segments, onPointsChange, onSegmentsChange]);
+    
+    // Clear drag mode if this was the active drag point
+    if (activeDragPoint && activeDragPoint.x === pointToRemove.x && activeDragPoint.y === pointToRemove.y) {
+      setActiveDragPoint(null);
+    }
+  }, [readOnly, studentPoints, segments, onPointsChange, onSegmentsChange, activeDragPoint, saveToHistory]);
 
   /**
    * Remove a segment by id.
    */
   const removeSegment = useCallback((segmentId: string) => {
     if (readOnly) return;
+    saveToHistory();
     onSegmentsChange(segments.filter(s => s.id !== segmentId));
-  }, [readOnly, segments, onSegmentsChange]);
-
-  /**
-   * Undo the last action.
-   */
-  const undo = useCallback(() => {
-    if (pointsHistory.length === 0) return;
-    const previousPoints = pointsHistory[pointsHistory.length - 1];
-    setPointsHistory(prev => prev.slice(0, -1));
-    onPointsChange(previousPoints);
-  }, [pointsHistory, onPointsChange]);
+  }, [readOnly, segments, onSegmentsChange, saveToHistory]);
 
   /**
    * Clear all points and segments.
    */
   const clearAll = useCallback(() => {
     if (readOnly) return;
-    setPointsHistory(prev => [...prev, studentPoints]);
+    if (studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0) return;
+    
+    saveToHistory();
     onPointsChange([]);
     onSegmentsChange([]);
     onDrawnPathsChange?.([]);
     setSelectedJoinPoints([]);
-  }, [readOnly, studentPoints, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
+    setActiveDragPoint(null);
+  }, [readOnly, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange, saveToHistory]);
 
   /**
    * Get the status of a point for display (correct, incorrect, etc.)
@@ -478,23 +570,21 @@ export function GraphPlottingQuestion({
 
   /**
    * Find the nearest point within a given pixel radius.
-   * Returns the point if found, null otherwise.
    */
-  const findNearestPoint = useCallback((clickPixelX: number, clickPixelY: number, maxDistancePx: number = 30): GraphPoint | null => {
-    let nearestPoint: GraphPoint | null = null;
-    let nearestDistance = maxDistancePx;
-    
+  const findNearestPoint = useCallback((pixelX: number, pixelY: number, maxRadius: number): GraphPoint | null => {
+    let nearest: GraphPoint | null = null;
+    let nearestDistance = maxRadius;
+
     for (const point of studentPoints) {
       const { px, py } = dataToPixel(point.x, point.y);
-      const distance = Math.sqrt(Math.pow(clickPixelX - px, 2) + Math.pow(clickPixelY - py, 2));
-      
+      const distance = Math.sqrt(Math.pow(pixelX - px, 2) + Math.pow(pixelY - py, 2));
       if (distance < nearestDistance) {
         nearestDistance = distance;
-        nearestPoint = point;
+        nearest = point;
       }
     }
-    
-    return nearestPoint;
+
+    return nearest;
   }, [studentPoints, dataToPixel]);
 
   /**
@@ -508,18 +598,24 @@ export function GraphPlottingQuestion({
     // Mark that pointer started on a point
     pointerStartedOnPointRef.current = true;
     
-    // Set up for potential drag
-    dragStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
-    
-    // Capture pointer for drag tracking
-    (e.target as Element).setPointerCapture(e.pointerId);
-  }, [readOnly]);
+    // Only allow dragging if this point is in drag mode
+    if (activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y) {
+      // Set up for drag
+      dragStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+      
+      // Capture pointer for drag tracking
+      (e.target as Element).setPointerCapture(e.pointerId);
+    }
+  }, [readOnly, activeDragPoint]);
 
   /**
    * Handle pointer move during drag
    */
   const handlePointPointerMove = useCallback((point: GraphPoint, e: React.PointerEvent) => {
     if (readOnly || !dragStartRef.current) return;
+    
+    // Only allow dragging if this point is the active drag point
+    if (!activeDragPoint || activeDragPoint.x !== point.x || activeDragPoint.y !== point.y) return;
     
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
@@ -529,7 +625,7 @@ export function GraphPlottingQuestion({
     if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
       isDraggingRef.current = true;
       // Save history when drag starts
-      setPointsHistory(prev => [...prev, studentPoints]);
+      saveToHistory();
     }
     
     if (isDraggingRef.current) {
@@ -553,7 +649,7 @@ export function GraphPlottingQuestion({
         current: snapped
       });
     }
-  }, [readOnly, pixelToData, snapPoint, domainX, domainY, studentPoints]);
+  }, [readOnly, activeDragPoint, pixelToData, snapPoint, domainX, domainY, saveToHistory]);
 
   /**
    * Handle pointer up - end drag or trigger click
@@ -565,7 +661,11 @@ export function GraphPlottingQuestion({
     e.preventDefault();
     
     // Release pointer capture
-    (e.target as Element).releasePointerCapture(e.pointerId);
+    try {
+      (e.target as Element).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore if capture wasn't set
+    }
     
     if (isDraggingRef.current && draggingPoint) {
       // End drag - commit the new position
@@ -595,6 +695,9 @@ export function GraphPlottingQuestion({
         onSegmentsChange(newSegments);
       }
       
+      // Update the active drag point to the new position
+      setActiveDragPoint(draggingPoint.current);
+      
       setDraggingPoint(null);
       isDraggingRef.current = false;
       dragStartRef.current = null;
@@ -615,9 +718,6 @@ export function GraphPlottingQuestion({
    * Handle pointer up on the chart background to add a point.
    * Only adds points if NOT in "point selection" mode (no points selected for joining).
    * Also clears selection if clicking on empty space (but not if the click started on a point).
-   * 
-   * NEW: Also performs distance-based hit-testing to select points near edges that might
-   * have their touch targets clipped.
    */
   const handleChartContainerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
@@ -631,6 +731,24 @@ export function GraphPlottingQuestion({
     // If the pointer event started on a line segment, don't clear selection (already handled by segment)
     if (pointerStartedOnLineRef.current) {
       pointerStartedOnLineRef.current = false;
+      return;
+    }
+    
+    // Clear active drag point when tapping empty space
+    if (activeDragPoint) {
+      setActiveDragPoint(null);
+      // Don't add a new point when exiting drag mode
+      return;
+    }
+    
+    // In erase mode, don't add points - just clear selections
+    if (eraseMode) {
+      if (selectedJoinPoints.length > 0) {
+        setSelectedJoinPoints([]);
+      }
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
+        onSelectedSegmentIdsChange([]);
+      }
       return;
     }
     
@@ -656,7 +774,7 @@ export function GraphPlottingQuestion({
         const now = Date.now();
         const lastTap = lastTapRef.current;
         
-        // Check for double-tap (for removal)
+        // Check for double-tap (for drag mode activation)
         const timeDiff = now - lastTap.time;
         const isSamePoint = lastTap.point && lastTap.point.x === nearestPoint.x && lastTap.point.y === nearestPoint.y;
         const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
@@ -682,6 +800,7 @@ export function GraphPlottingQuestion({
           );
           
           if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
+            saveToHistory();
             const newSegment: LineSegment = {
               id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               from: { x: fromPoint.x, y: fromPoint.y },
@@ -746,7 +865,16 @@ export function GraphPlottingQuestion({
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPoint, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory]);
+
+  /**
+   * Handle segment click in erase mode
+   */
+  const handleSegmentErase = useCallback((segmentId: string) => {
+    if (!eraseMode || readOnly) return;
+    saveToHistory();
+    onSegmentsChange(segments.filter(s => s.id !== segmentId));
+  }, [eraseMode, readOnly, segments, onSegmentsChange, saveToHistory]);
 
   /**
    * Custom dot renderer for points.
@@ -762,6 +890,9 @@ export function GraphPlottingQuestion({
     
     // Check if this point is being dragged
     const isDragging = draggingPoint?.original.x === point.x && draggingPoint?.original.y === point.y;
+    
+    // Check if this point is in drag mode (active for dragging)
+    const isInDragMode = activeDragPoint?.x === point.x && activeDragPoint?.y === point.y;
     
     // If dragging, use the dragged position for display
     let displayCx = cx;
@@ -781,12 +912,12 @@ export function GraphPlottingQuestion({
 
     // Larger touch target for mobile (30px radius for easier tapping and dragging)
     const HIT_RADIUS = 30;
-    const visualRadius = isSelected || isDragging ? 10 : 8;
+    const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
 
     return (
       <g 
         key={`point-${point.x}-${point.y}`}
-        style={{ cursor: readOnly ? 'default' : isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', touchAction: 'none' }}
       >
         {/* Invisible larger touch target for iPad/iPhone friendly tapping and dragging */}
         <circle
@@ -809,7 +940,21 @@ export function GraphPlottingQuestion({
           }}
         />
         
-        {/* Drag indicator ring when dragging */}
+        {/* Drag mode indicator ring (pulsing halo when point is in drag mode) */}
+        {isInDragMode && !isDragging && (
+          <circle
+            cx={displayCx}
+            cy={displayCy}
+            r={visualRadius + 8}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth={3}
+            opacity={0.6}
+            className="animate-pulse"
+          />
+        )}
+        
+        {/* Drag indicator ring when actively dragging */}
         {isDragging && (
           <circle
             cx={displayCx}
@@ -822,8 +967,8 @@ export function GraphPlottingQuestion({
           />
         )}
         
-        {/* Selection ring */}
-        {isSelected && !isDragging && (
+        {/* Selection ring (for join mode) */}
+        {isSelected && !isDragging && !isInDragMode && (
           <circle
             cx={displayCx}
             cy={displayCy}
@@ -840,7 +985,7 @@ export function GraphPlottingQuestion({
           cx={displayCx}
           cy={displayCy}
           r={visualRadius}
-          fill={isDragging ? 'hsl(var(--primary))' : fillColor}
+          fill={isDragging || isInDragMode ? 'hsl(var(--primary))' : fillColor}
           stroke="white"
           strokeWidth={2}
         />
@@ -851,7 +996,7 @@ export function GraphPlottingQuestion({
     );
   }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, 
       handlePointPointerDown, handlePointPointerMove, handlePointPointerUp, 
-      draggingPoint, dataToPixel]);
+      draggingPoint, dataToPixel, activeDragPoint, eraseMode]);
 
   // Error state if no config
   if (!config) {
@@ -867,24 +1012,46 @@ export function GraphPlottingQuestion({
       {/* Toolbar */}
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-2">
+          {/* Undo/Redo/Clear buttons */}
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={undo}
-            disabled={pointsHistory.length === 0}
+            disabled={undoStack.length === 0}
+            title="Undo"
           >
-            <Undo2 className="h-4 w-4 mr-1" />
-            Undo
+            <Undo2 className="h-4 w-4" />
           </Button>
           
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
             onClick={clearAll}
             disabled={studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0}
+            title="Clear all"
           >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Clear
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          
+          {/* Erase tool */}
+          <Button
+            variant={eraseMode ? "default" : "outline"}
+            size="icon"
+            onClick={() => setEraseMode(!eraseMode)}
+            title={eraseMode ? "Exit erase mode" : "Erase mode"}
+            className={eraseMode ? "bg-destructive hover:bg-destructive/90" : ""}
+          >
+            <Eraser className="h-4 w-4" />
           </Button>
 
           {/* Join mode toggle */}
@@ -908,6 +1075,8 @@ export function GraphPlottingQuestion({
                   if (onSelectedSegmentIdsChange) {
                     onSelectedSegmentIdsChange([]);
                   }
+                  // Exit erase mode when entering a drawing mode
+                  setEraseMode(false);
                 }
               }}
               className="ml-auto flex-wrap"
@@ -936,7 +1105,11 @@ export function GraphPlottingQuestion({
       {/* Helper text */}
       {!readOnly && (
         <p className="text-sm text-muted-foreground">
-        {isAngleMode ? (
+          {eraseMode ? (
+            'Tap a point or line to delete it. Tap the eraser icon again to exit.'
+          ) : activeDragPoint ? (
+            `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, or tap empty space to exit.`
+          ) : isAngleMode ? (
             selectedSegmentIds.length === 0 ? (
               'Tap two connected lines to measure the angle between them.'
             ) : selectedSegmentIds.length === 1 ? (
@@ -955,7 +1128,7 @@ export function GraphPlottingQuestion({
               'Creating segment...'
             )
           ) : (
-            'Click on the graph to plot points (1dp precision). Drag points to reposition. Double-tap to remove.'
+            'Tap to plot points (1dp). Double-tap a point to enable drag mode.'
           )}
         </p>
       )}
@@ -965,7 +1138,7 @@ export function GraphPlottingQuestion({
         ref={chartContainerRef}
         className="relative w-full aspect-[4/3] border rounded-lg bg-card"
         onPointerUp={handleChartContainerPointerUp}
-        style={{ cursor: readOnly ? 'default' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
+        style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
@@ -979,12 +1152,14 @@ export function GraphPlottingQuestion({
               dataKey="x"
               domain={domainX}
               tickCount={Math.min(11, domainX[1] - domainX[0] + 1)}
+              allowDecimals={true}
               label={{ 
-                value: config.xLabel || 'X', 
-                position: 'insideBottom', 
-                offset: -10,
+                value: 'x', 
+                position: 'bottom', 
+                offset: 5,
                 style: { fill: 'hsl(var(--foreground))' }
               }}
+              tick={{ fill: 'hsl(var(--foreground))' }}
               stroke="hsl(var(--foreground))"
             />
             
@@ -993,8 +1168,9 @@ export function GraphPlottingQuestion({
               dataKey="y"
               domain={domainY}
               tickCount={Math.min(11, domainY[1] - domainY[0] + 1)}
+              allowDecimals={true}
               label={{ 
-                value: config.yLabel || 'Y', 
+                value: 'y', 
                 angle: -90, 
                 position: 'insideLeft',
                 style: { fill: 'hsl(var(--foreground))' }
@@ -1069,7 +1245,7 @@ export function GraphPlottingQuestion({
             readOnly={readOnly}
             debug={false}
             selectedSegmentIds={isAngleMode ? selectedSegmentIds : []}
-            onSegmentSelect={isAngleMode ? (segId) => {
+            onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? (segId) => {
               if (!onSelectedSegmentIdsChange) return;
               // Toggle selection: if already selected, deselect; otherwise add to selection (max 2)
               if (selectedSegmentIds.includes(segId)) {
@@ -1081,7 +1257,7 @@ export function GraphPlottingQuestion({
                 onSelectedSegmentIdsChange([segId]);
               }
             } : undefined}
-            onPointerStartedOnSegment={isAngleMode ? () => {
+            onPointerStartedOnSegment={(eraseMode || isAngleMode) ? () => {
               pointerStartedOnLineRef.current = true;
             } : undefined}
           />
