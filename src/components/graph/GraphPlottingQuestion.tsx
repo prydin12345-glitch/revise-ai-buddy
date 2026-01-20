@@ -1285,16 +1285,18 @@ export function GraphPlottingQuestion({
       {!readOnly && (
         <p className="text-sm text-muted-foreground">
           {eraseMode ? (
-            'Tap a point or line to delete it. Tap the eraser icon again to exit.'
+            'Tap a point, line, or angle label to delete it. Tap the eraser icon again to exit.'
           ) : activeDragPoint ? (
-            `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, or tap empty space to exit.`
+            `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, tap the point or empty space to exit.`
           ) : isAngleMode ? (
             selectedSegmentIds.length === 0 ? (
-              'Tap two connected lines to measure the angle between them.'
+              angleMeasurements.length > 0
+                ? `${angleMeasurements.length} angle(s) saved. Tap two connected lines to add another.`
+                : 'Tap two connected lines to measure the angle between them.'
             ) : selectedSegmentIds.length === 1 ? (
-              'Tap another connected line to see the angle.'
+              'Tap another connected line to complete the measurement.'
             ) : (
-              'Angle displayed. Tap empty space to clear, or tap another line to start a new measurement.'
+              'Angle saved! Tap another pair of lines to add more.'
             )
           ) : isJoinModeActive ? (
             currentJoinMode === 'freeform' ? (
@@ -1424,18 +1426,7 @@ export function GraphPlottingQuestion({
             readOnly={readOnly}
             debug={false}
             selectedSegmentIds={isAngleMode ? selectedSegmentIds : []}
-            onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? (segId) => {
-              if (!onSelectedSegmentIdsChange) return;
-              // Toggle selection: if already selected, deselect; otherwise add to selection (max 2)
-              if (selectedSegmentIds.includes(segId)) {
-                onSelectedSegmentIdsChange(selectedSegmentIds.filter(id => id !== segId));
-              } else if (selectedSegmentIds.length < 2) {
-                onSelectedSegmentIdsChange([...selectedSegmentIds, segId]);
-              } else {
-                // Start new selection (clear and select this one)
-                onSelectedSegmentIdsChange([segId]);
-              }
-            } : undefined}
+            onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
             onPointerStartedOnSegment={(eraseMode || isAngleMode) ? () => {
               pointerStartedOnLineRef.current = true;
             } : undefined}
@@ -1475,7 +1466,28 @@ export function GraphPlottingQuestion({
           />
         )}
 
-        {/* Angle measurement overlay */}
+        {/* Persisted angle measurements - render ALL saved measurements */}
+        {angleMeasurements.map((measurement) => (
+          <AngleMeasurementOverlay
+            key={measurement.id}
+            segments={segments}
+            selectedSegmentIds={[measurement.segmentId1, measurement.segmentId2]}
+            containerWidth={chartContainerSize.width}
+            containerHeight={chartContainerSize.height}
+            marginLeft={chartMargins.left}
+            marginRight={chartMargins.right}
+            marginTop={chartMargins.top}
+            marginBottom={chartMargins.bottom}
+            domainX={domainX}
+            domainY={domainY}
+            xScale={axisScales.x}
+            yScale={axisScales.y}
+            measurementId={measurement.id}
+            onErase={eraseMode ? handleAngleMeasurementErase : undefined}
+          />
+        ))}
+
+        {/* Current selection preview (when selecting 2nd segment) */}
         {selectedSegmentIds.length === 2 && (
           <AngleMeasurementOverlay
             segments={segments}
@@ -1490,6 +1502,7 @@ export function GraphPlottingQuestion({
             domainY={domainY}
             xScale={axisScales.x}
             yScale={axisScales.y}
+            isPreview={true}
           />
         )}
 
