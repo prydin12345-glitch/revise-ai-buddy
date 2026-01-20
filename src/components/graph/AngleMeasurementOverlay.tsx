@@ -15,6 +15,12 @@ interface AngleMeasurementOverlayProps {
   xScale?: (value: number) => number;
   yScale?: (value: number) => number;
   stroke?: string;
+  /** Optional measurement ID for persisted measurements */
+  measurementId?: string;
+  /** Callback when erase is triggered on this measurement */
+  onErase?: (measurementId: string) => void;
+  /** Whether this is a preview (during selection) vs a persisted measurement */
+  isPreview?: boolean;
 }
 
 /**
@@ -84,6 +90,9 @@ export function AngleMeasurementOverlay({
   xScale,
   yScale,
   stroke = 'hsl(var(--primary))',
+  measurementId,
+  onErase,
+  isPreview = false,
 }: AngleMeasurementOverlayProps) {
   const plotWidth = containerWidth - marginLeft - marginRight;
   const plotHeight = containerHeight - marginTop - marginBottom;
@@ -172,6 +181,12 @@ export function AngleMeasurementOverlay({
   const labelX = px + labelRadius * Math.cos(midAngle);
   const labelY = py + labelRadius * Math.sin(midAngle);
 
+  const handleClick = () => {
+    if (onErase && measurementId) {
+      onErase(measurementId);
+    }
+  };
+
   return (
     <svg
       style={{
@@ -189,20 +204,24 @@ export function AngleMeasurementOverlay({
       <path
         d={arcPath}
         fill="none"
-        stroke="hsl(var(--warning))"
+        stroke={isPreview ? "hsl(var(--primary))" : "hsl(var(--warning))"}
         strokeWidth={2}
         strokeLinecap="round"
+        strokeDasharray={isPreview ? "4 2" : undefined}
       />
       
-      {/* Angle label with background */}
-      <g>
+      {/* Angle label with background - clickable for erase */}
+      <g
+        style={{ pointerEvents: onErase ? 'all' : 'none', cursor: onErase ? 'pointer' : 'default' }}
+        onClick={handleClick}
+      >
         <rect
           x={labelX - 24}
           y={labelY - 10}
           width={48}
           height={20}
           rx={4}
-          fill="hsl(var(--warning))"
+          fill={isPreview ? "hsl(var(--primary))" : "hsl(var(--warning))"}
         />
         <text
           x={labelX}
@@ -211,7 +230,7 @@ export function AngleMeasurementOverlay({
           dominantBaseline="middle"
           fontSize={12}
           fontWeight="bold"
-          fill="hsl(var(--warning-foreground, 0 0% 0%))"
+          fill={isPreview ? "hsl(var(--primary-foreground))" : "hsl(var(--warning-foreground, 0 0% 0%))"}
         >
           {angle}°
         </text>
@@ -222,7 +241,7 @@ export function AngleMeasurementOverlay({
         cx={px}
         cy={py}
         r={4}
-        fill="hsl(var(--warning))"
+        fill={isPreview ? "hsl(var(--primary))" : "hsl(var(--warning))"}
       />
     </svg>
   );
