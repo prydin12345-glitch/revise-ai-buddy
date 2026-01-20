@@ -28,6 +28,14 @@ import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { ProtractorOverlay, ProtractorState } from './ProtractorOverlay';
 import { AngleMeasurementOverlay } from './AngleMeasurementOverlay';
 
+// Persisted angle measurement
+export interface AngleMeasurement {
+  id: string;
+  segmentId1: string;
+  segmentId2: string;
+  angleDegrees: number;
+}
+
 interface GraphPlottingQuestionProps {
   config: GraphPlottingConfig;
   expectedAnswer?: GraphPlottingAnswer;
@@ -54,6 +62,9 @@ interface GraphPlottingQuestionProps {
   /** Callback when segment is selected for angle measurement */
   selectedSegmentIds?: string[];
   onSelectedSegmentIdsChange?: (ids: string[]) => void;
+  /** Persisted angle measurements */
+  angleMeasurements?: AngleMeasurement[];
+  onAngleMeasurementsChange?: (measurements: AngleMeasurement[]) => void;
 }
 
 // History state for undo/redo
@@ -61,6 +72,7 @@ interface HistoryState {
   points: GraphPoint[];
   segments: LineSegment[];
   drawnPaths: DrawingPath[];
+  angleMeasurements: AngleMeasurement[];
 }
 
 /**
@@ -95,6 +107,8 @@ export function GraphPlottingQuestion({
   onProtractorStateChange,
   selectedSegmentIds = [],
   onSelectedSegmentIdsChange,
+  angleMeasurements = [],
+  onAngleMeasurementsChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -235,6 +249,49 @@ export function GraphPlottingQuestion({
   const currentJoinMode = joinMode;
 
   /**
+   * Compute angle between two segments at their shared vertex.
+   * Returns angle in degrees (0-180) or null if no shared vertex.
+   */
+  const computeAngleBetweenSegments = useCallback((seg1: LineSegment, seg2: LineSegment): number | null => {
+    // Find shared vertex
+    const points1 = [seg1.from, seg1.to];
+    const points2 = [seg2.from, seg2.to];
+    let sharedVertex: GraphPoint | null = null;
+    
+    for (const p1 of points1) {
+      for (const p2 of points2) {
+        if (p1.x === p2.x && p1.y === p2.y) {
+          sharedVertex = p1;
+          break;
+        }
+      }
+      if (sharedVertex) break;
+    }
+    
+    if (!sharedVertex) return null;
+    
+    // Get vectors from shared vertex to other endpoints
+    const isFromVertex1 = seg1.from.x === sharedVertex.x && seg1.from.y === sharedVertex.y;
+    const other1 = isFromVertex1 ? seg1.to : seg1.from;
+    const v1 = { x: other1.x - sharedVertex.x, y: other1.y - sharedVertex.y };
+    
+    const isFromVertex2 = seg2.from.x === sharedVertex.x && seg2.from.y === sharedVertex.y;
+    const other2 = isFromVertex2 ? seg2.to : seg2.from;
+    const v2 = { x: other2.x - sharedVertex.x, y: other2.y - sharedVertex.y };
+    
+    // Compute angle
+    const dot = v1.x * v2.x + v1.y * v2.y;
+    const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+    const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+    
+    if (mag1 === 0 || mag2 === 0) return 0;
+    
+    const cosAngle = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
+    const angleRad = Math.acos(cosAngle);
+    return Math.round((angleRad * 180) / Math.PI);
+  }, []);
+
+  /**
    * Round a value to 1 decimal place.
    */
   const round1dp = useCallback((value: number): number => {
@@ -267,10 +324,72 @@ export function GraphPlottingQuestion({
       points: [...studentPoints],
       segments: [...segments],
       drawnPaths: [...drawnPaths],
+      angleMeasurements: [...angleMeasurements],
     };
     setUndoStack(prev => [...prev, currentState]);
     setRedoStack([]); // Clear redo stack on new action
-  }, [studentPoints, segments, drawnPaths]);
+  }, [studentPoints, segments, drawnPaths, angleMeasurements]);
+
+  /**
+   * Handle segment selection in angle mode - when 2 segments selected, create a persisted measurement.
+   */
+  const handleAngleSegmentSelect = useCallback((segId: string) => {
+    if (!onSelectedSegmentIdsChange) return;
+    
+    // If segment is already selected, deselect it
+    if (selectedSegmentIds.includes(segId)) {
+      onSelectedSegmentIdsChange(selectedSegmentIds.filter(id => id !== segId));
+      return;
+    }
+    
+    // Add to selection
+    const newSelection = [...selectedSegmentIds, segId];
+    
+    if (newSelection.length < 2) {
+      // First segment selected, just update selection
+      onSelectedSegmentIdsChange(newSelection);
+      return;
+    }
+    
+    // Two segments selected - create a persisted angle measurement
+    const seg1 = segments.find(s => s.id === newSelection[0]);
+    const seg2 = segments.find(s => s.id === newSelection[1]);
+    
+    if (seg1 && seg2) {
+      const angle = computeAngleBetweenSegments(seg1, seg2);
+      
+      if (angle !== null && onAngleMeasurementsChange) {
+        // Check if this measurement already exists
+        const exists = angleMeasurements.some(m => 
+          (m.segmentId1 === seg1.id && m.segmentId2 === seg2.id) ||
+          (m.segmentId1 === seg2.id && m.segmentId2 === seg1.id)
+        );
+        
+        if (!exists) {
+          saveToHistory();
+          const newMeasurement: AngleMeasurement = {
+            id: `angle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            segmentId1: seg1.id,
+            segmentId2: seg2.id,
+            angleDegrees: angle,
+          };
+          onAngleMeasurementsChange([...angleMeasurements, newMeasurement]);
+        }
+      }
+    }
+    
+    // Clear selection after creating measurement
+    onSelectedSegmentIdsChange([]);
+  }, [selectedSegmentIds, segments, angleMeasurements, onSelectedSegmentIdsChange, onAngleMeasurementsChange, computeAngleBetweenSegments, saveToHistory]);
+
+  /**
+   * Handle erasing an angle measurement.
+   */
+  const handleAngleMeasurementErase = useCallback((measurementId: string) => {
+    if (!eraseMode || readOnly || !onAngleMeasurementsChange) return;
+    saveToHistory();
+    onAngleMeasurementsChange(angleMeasurements.filter(m => m.id !== measurementId));
+  }, [eraseMode, readOnly, angleMeasurements, onAngleMeasurementsChange, saveToHistory]);
 
   /**
    * Undo the last action.
@@ -278,11 +397,15 @@ export function GraphPlottingQuestion({
   const undo = useCallback(() => {
     if (undoStack.length === 0) return;
     
+    // Exit drag mode on undo
+    setActiveDragPoint(null);
+    
     // Save current state to redo stack
     const currentState: HistoryState = {
       points: [...studentPoints],
       segments: [...segments],
       drawnPaths: [...drawnPaths],
+      angleMeasurements: [...angleMeasurements],
     };
     setRedoStack(prev => [...prev, currentState]);
     
@@ -293,7 +416,8 @@ export function GraphPlottingQuestion({
     onPointsChange(previousState.points);
     onSegmentsChange(previousState.segments);
     onDrawnPathsChange?.(previousState.drawnPaths);
-  }, [undoStack, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
+    onAngleMeasurementsChange?.(previousState.angleMeasurements);
+  }, [undoStack, studentPoints, segments, drawnPaths, angleMeasurements, onPointsChange, onSegmentsChange, onDrawnPathsChange, onAngleMeasurementsChange]);
 
   /**
    * Redo the last undone action.
@@ -301,11 +425,15 @@ export function GraphPlottingQuestion({
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
     
+    // Exit drag mode on redo
+    setActiveDragPoint(null);
+    
     // Save current state to undo stack
     const currentState: HistoryState = {
       points: [...studentPoints],
       segments: [...segments],
       drawnPaths: [...drawnPaths],
+      angleMeasurements: [...angleMeasurements],
     };
     setUndoStack(prev => [...prev, currentState]);
     
@@ -316,7 +444,8 @@ export function GraphPlottingQuestion({
     onPointsChange(nextState.points);
     onSegmentsChange(nextState.segments);
     onDrawnPathsChange?.(nextState.drawnPaths);
-  }, [redoStack, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange]);
+    onAngleMeasurementsChange?.(nextState.angleMeasurements);
+  }, [redoStack, studentPoints, segments, drawnPaths, angleMeasurements, onPointsChange, onSegmentsChange, onDrawnPathsChange, onAngleMeasurementsChange]);
 
   /**
    * Handle pointer down on an existing point.
@@ -366,9 +495,13 @@ export function GraphPlottingQuestion({
 
     if (!isJoinModeActive && !isAngleMode) {
       // Not in active join/angle mode
+      
+      // Check if this point is currently in drag mode
+      const isThisPointInDragMode = activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y;
+      
       if (isDoubleTap) {
         // Double-tap: toggle drag mode for this point
-        if (activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y) {
+        if (isThisPointInDragMode) {
           // Already in drag mode for this point - exit drag mode
           setActiveDragPoint(null);
         } else {
@@ -376,8 +509,17 @@ export function GraphPlottingQuestion({
           setActiveDragPoint(point);
         }
         lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+        return;
       }
-      // Single tap does nothing in non-join mode (no accidental removal)
+      
+      // Single tap behavior:
+      // If this point is in drag mode, a single tap exits drag mode
+      if (isThisPointInDragMode) {
+        setActiveDragPoint(null);
+        return;
+      }
+      
+      // Single tap on other points does nothing (no accidental removal)
       return;
     }
 
@@ -498,15 +640,16 @@ export function GraphPlottingQuestion({
    */
   const clearAll = useCallback(() => {
     if (readOnly) return;
-    if (studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0) return;
+    if (studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0 && angleMeasurements.length === 0) return;
     
     saveToHistory();
     onPointsChange([]);
     onSegmentsChange([]);
     onDrawnPathsChange?.([]);
+    onAngleMeasurementsChange?.([]);
     setSelectedJoinPoints([]);
     setActiveDragPoint(null);
-  }, [readOnly, studentPoints, segments, drawnPaths, onPointsChange, onSegmentsChange, onDrawnPathsChange, saveToHistory]);
+  }, [readOnly, studentPoints, segments, drawnPaths, angleMeasurements, onPointsChange, onSegmentsChange, onDrawnPathsChange, onAngleMeasurementsChange, saveToHistory]);
 
   /**
    * Get the status of a point for display (correct, incorrect, etc.)
@@ -1076,7 +1219,11 @@ export function GraphPlottingQuestion({
           <Button
             variant={eraseMode ? "default" : "outline"}
             size="icon"
-            onClick={() => setEraseMode(!eraseMode)}
+            onClick={() => {
+              setEraseMode(!eraseMode);
+              // Exit drag mode when entering erase mode
+              setActiveDragPoint(null);
+            }}
             title={eraseMode ? "Exit erase mode" : "Erase mode"}
             className={eraseMode ? "bg-destructive hover:bg-destructive/90" : ""}
           >
@@ -1089,6 +1236,9 @@ export function GraphPlottingQuestion({
               type="single"
               value={currentJoinMode || ''}
               onValueChange={(value) => {
+                // Exit drag mode when changing tools
+                setActiveDragPoint(null);
+                
                 // If user clicks the already-selected mode, toggle it OFF (set to null)
                 if (value === '' || value === currentJoinMode) {
                   onJoinModeChange(null);
