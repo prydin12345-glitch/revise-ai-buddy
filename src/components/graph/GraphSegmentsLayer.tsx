@@ -273,12 +273,20 @@ export function GraphSegmentsLayer({
         // Hit target stroke width for touch devices (generous ~16px)
         const hitTargetWidth = 16;
 
+        // Mark pointer started on segment (on PointerDown) - prevents container from clearing selection
         const handleSegmentPointerDown = (e: React.PointerEvent) => {
           if (!onSegmentSelect) return;
           e.stopPropagation();
           e.preventDefault();
-          // Mark that pointer started on a segment - prevents container from clearing selection
+          // Set the guard ref immediately on down - this prevents container's pointerUp from clearing
           onPointerStartedOnSegment?.();
+        };
+
+        // Perform selection on PointerUp (not click) to avoid iOS double-trigger issues
+        const handleSegmentPointerUp = (e: React.PointerEvent) => {
+          if (!onSegmentSelect) return;
+          e.stopPropagation();
+          e.preventDefault();
           onSegmentSelect(seg.id);
         };
 
@@ -294,8 +302,9 @@ export function GraphSegmentsLayer({
                     stroke="transparent"
                     strokeWidth={hitTargetWidth}
                     strokeLinecap="round"
-                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', touchAction: 'none' }}
                     onPointerDown={handleSegmentPointerDown}
+                    onPointerUp={handleSegmentPointerUp}
                   />
                 )}
                 {/* Curved segment using quadratic bezier - force visible */}
@@ -360,8 +369,9 @@ export function GraphSegmentsLayer({
                     stroke="transparent"
                     strokeWidth={hitTargetWidth}
                     strokeLinecap="round"
-                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', touchAction: 'none' }}
                     onPointerDown={handleSegmentPointerDown}
+                    onPointerUp={handleSegmentPointerUp}
                   />
                 )}
                 {/* Straight line segment - force visible with solid stroke */}
