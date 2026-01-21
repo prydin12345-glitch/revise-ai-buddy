@@ -76,6 +76,13 @@ interface HistoryState {
 }
 
 /**
+ * Generate a stable unique ID for a point.
+ */
+function generatePointId(): string {
+  return `pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
  * GraphPlottingQuestion - Interactive scatter plot for plotting points and creating segments.
  * 
  * Workflow:
@@ -135,8 +142,8 @@ export function GraphPlottingQuestion({
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
   // Double-tap detection for activating drag mode
-  const lastTapRef = useRef<{ point: GraphPoint | null; time: number; x: number; y: number }>({
-    point: null,
+  const lastTapRef = useRef<{ pointId: string | null; time: number; x: number; y: number }>({
+    pointId: null,
     time: 0,
     x: 0,
     y: 0
@@ -153,26 +160,34 @@ export function GraphPlottingQuestion({
   // Track if pointer event started on a line segment (to prevent container from clearing selection)
   const pointerStartedOnLineRef = useRef(false);
   
-  // Active draggable point (selected via double-tap for drag mode)
-  const [activeDragPoint, setActiveDragPoint] = useState<GraphPoint | null>(null);
+  // Active draggable point ID (selected via double-tap for drag mode) - use ID not coordinates
+  const [activeDragPointId, setActiveDragPointId] = useState<string | null>(null);
   
-  // Dragging state for point repositioning
-  const [draggingPoint, setDraggingPoint] = useState<{ original: GraphPoint; current: GraphPoint } | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  // Dragging state for point repositioning - track by ID
+  const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  const [draggingPosition, setDraggingPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const isDraggingRef = useRef(false);
   const DRAG_THRESHOLD = 8; // px - minimum movement to start drag
   
   // Erase mode
   const [eraseMode, setEraseMode] = useState(false);
 
+  // Helper: find point by ID
+  const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
+    if (!id) return undefined;
+    return studentPoints.find(p => p.id === id);
+  }, [studentPoints]);
+
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
     setSelectedJoinPoints([]);
-    lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+    lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
     pointerStartedOnPointRef.current = false;
     pointerStartedOnLineRef.current = false;
-    setDraggingPoint(null);
-    setActiveDragPoint(null);
+    setDraggingPointId(null);
+    setDraggingPosition(null);
+    setActiveDragPointId(null);
     isDraggingRef.current = false;
     dragStartRef.current = null;
     setEraseMode(false);
@@ -302,7 +317,7 @@ export function GraphPlottingQuestion({
    * Snap a coordinate to 1 decimal place precision.
    * This allows non-integer coordinates like 4.2, 4.5, 4.7 etc.
    */
-  const snapPoint = useCallback((x: number, y: number): GraphPoint => {
+  const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
     return { 
       x: round1dp(x), 
       y: round1dp(y) 
@@ -313,7 +328,7 @@ export function GraphPlottingQuestion({
    * Check if a point is currently selected for joining.
    */
   const isPointSelected = useCallback((point: GraphPoint): boolean => {
-    return selectedJoinPoints.some(p => p.x === point.x && p.y === point.y);
+    return selectedJoinPoints.some(p => p.id === point.id);
   }, [selectedJoinPoints]);
 
   /**
@@ -334,16 +349,21 @@ export function GraphPlottingQuestion({
    * Handle segment selection in angle mode - when 2 segments selected, create a persisted measurement.
    */
   const handleAngleSegmentSelect = useCallback((segId: string) => {
+    console.log("LINE TAP", { segId, isAngleMode, selectedSegmentIdsBefore: selectedSegmentIds });
+    
     if (!onSelectedSegmentIdsChange) return;
     
     // If segment is already in the transient selection, deselect it
     if (selectedSegmentIds.includes(segId)) {
-      onSelectedSegmentIdsChange(selectedSegmentIds.filter(id => id !== segId));
+      const newSelection = selectedSegmentIds.filter(id => id !== segId);
+      console.log("ANGLE SELECTION (deselect)", { selectedSegmentIdsAfter: newSelection });
+      onSelectedSegmentIdsChange(newSelection);
       return;
     }
     
     // Add to selection
     const newSelection = [...selectedSegmentIds, segId];
+    console.log("ANGLE SELECTION (add)", { selectedSegmentIdsAfter: newSelection });
     
     if (newSelection.length < 2) {
       // First segment selected, just update selection
@@ -373,9 +393,11 @@ export function GraphPlottingQuestion({
             segmentId2: seg2.id,
             angleDegrees: angle,
           };
-          onAngleMeasurementsChange([...angleMeasurements, newMeasurement]);
+          const newMeasurements = [...angleMeasurements, newMeasurement];
+          console.log("ANGLE MEASUREMENT ADD", { measurement: newMeasurement, angleMeasurementsAfter: newMeasurements });
+          onAngleMeasurementsChange(newMeasurements);
         }
-        // Clear transient selection after successful measurement
+        // Clear transient selection after successful measurement - segments stay orange via angleMeasurements
         onSelectedSegmentIdsChange([]);
       } else {
         // Segments don't share a vertex - clear first selection and keep the new one
@@ -386,7 +408,7 @@ export function GraphPlottingQuestion({
       // Segment not found - clear selection
       onSelectedSegmentIdsChange([]);
     }
-  }, [selectedSegmentIds, segments, angleMeasurements, onSelectedSegmentIdsChange, onAngleMeasurementsChange, computeAngleBetweenSegments, saveToHistory]);
+  }, [selectedSegmentIds, segments, angleMeasurements, onSelectedSegmentIdsChange, onAngleMeasurementsChange, computeAngleBetweenSegments, saveToHistory, isAngleMode]);
 
   /**
    * Handle erasing an angle measurement.
@@ -404,7 +426,7 @@ export function GraphPlottingQuestion({
     if (undoStack.length === 0) return;
     
     // Exit drag mode on undo
-    setActiveDragPoint(null);
+    setActiveDragPointId(null);
     
     // Save current state to redo stack
     const currentState: HistoryState = {
@@ -432,7 +454,7 @@ export function GraphPlottingQuestion({
     if (redoStack.length === 0) return;
     
     // Exit drag mode on redo
-    setActiveDragPoint(null);
+    setActiveDragPointId(null);
     
     // Save current state to undo stack
     const currentState: HistoryState = {
@@ -471,7 +493,7 @@ export function GraphPlottingQuestion({
     if (eraseMode) {
       saveToHistory();
       // Remove the point
-      onPointsChange(studentPoints.filter(p => p.x !== point.x || p.y !== point.y));
+      onPointsChange(studentPoints.filter(p => p.id !== point.id));
       // Also remove any segments that reference this point
       const newSegments = segments.filter(s => 
         !(s.from.x === point.x && s.from.y === point.y) &&
@@ -490,38 +512,38 @@ export function GraphPlottingQuestion({
     
     // Check if this is a double-tap on the same point
     const timeDiff = now - lastTap.time;
-    const isSamePoint = lastTap.point && lastTap.point.x === point.x && lastTap.point.y === point.y;
+    const isSamePoint = lastTap.pointId === point.id;
     const distanceMoved = Math.sqrt(
       Math.pow(clientX - lastTap.x, 2) + Math.pow(clientY - lastTap.y, 2)
     );
     const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
 
     // Update last tap reference
-    lastTapRef.current = { point, time: now, x: clientX, y: clientY };
+    lastTapRef.current = { pointId: point.id || null, time: now, x: clientX, y: clientY };
 
     if (!isJoinModeActive && !isAngleMode) {
       // Not in active join/angle mode
       
       // Check if this point is currently in drag mode
-      const isThisPointInDragMode = activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y;
+      const isThisPointInDragMode = activeDragPointId === point.id;
       
       if (isDoubleTap) {
         // Double-tap: toggle drag mode for this point
         if (isThisPointInDragMode) {
           // Already in drag mode for this point - exit drag mode
-          setActiveDragPoint(null);
+          setActiveDragPointId(null);
         } else {
           // Enter drag mode for this point
-          setActiveDragPoint(point);
+          setActiveDragPointId(point.id || null);
         }
-        lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
         return;
       }
       
       // Single tap behavior:
       // If this point is in drag mode, a single tap exits drag mode
       if (isThisPointInDragMode) {
-        setActiveDragPoint(null);
+        setActiveDragPointId(null);
         return;
       }
       
@@ -571,13 +593,13 @@ export function GraphPlottingQuestion({
 
       // Clear selection after creating segment
       setSelectedJoinPoints([]);
-      lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+      lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
       return;
     }
 
     // No point selected yet: SELECT this point immediately
     setSelectedJoinPoints([point]);
-  }, [readOnly, isJoinModeActive, isAngleMode, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales, eraseMode, activeDragPoint, saveToHistory]);
+  }, [readOnly, isJoinModeActive, isAngleMode, selectedJoinPoints, isPointSelected, studentPoints, segments, currentJoinMode, onPointsChange, onSegmentsChange, axisScales, eraseMode, activeDragPointId, saveToHistory]);
 
   /**
    * Add a new point to the graph.
@@ -590,13 +612,18 @@ export function GraphPlottingQuestion({
 
     const snapped = snapPoint(x, y);
     
-    // Check if point already exists
+    // Check if point already exists at this location
     const exists = studentPoints.some(p => p.x === snapped.x && p.y === snapped.y);
     if (exists) return;
 
-    // Save to history and add point
+    // Save to history and add point with stable ID
     saveToHistory();
-    onPointsChange([...studentPoints, snapped]);
+    const newPoint: GraphPoint = {
+      id: generatePointId(),
+      x: snapped.x,
+      y: snapped.y,
+    };
+    onPointsChange([...studentPoints, newPoint]);
   }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange, saveToHistory]);
 
   /**
@@ -624,13 +651,13 @@ export function GraphPlottingQuestion({
     }
 
     // Clear selection if this point was selected
-    setSelectedJoinPoints(prev => prev.filter(p => p.x !== pointToRemove.x || p.y !== pointToRemove.y));
+    setSelectedJoinPoints(prev => prev.filter(p => p.id !== pointToRemove.id));
     
     // Clear drag mode if this was the active drag point
-    if (activeDragPoint && activeDragPoint.x === pointToRemove.x && activeDragPoint.y === pointToRemove.y) {
-      setActiveDragPoint(null);
+    if (activeDragPointId === pointToRemove.id) {
+      setActiveDragPointId(null);
     }
-  }, [readOnly, studentPoints, segments, onPointsChange, onSegmentsChange, activeDragPoint, saveToHistory]);
+  }, [readOnly, studentPoints, segments, onPointsChange, onSegmentsChange, activeDragPointId, saveToHistory]);
 
   /**
    * Remove a segment by id.
@@ -654,7 +681,7 @@ export function GraphPlottingQuestion({
     onDrawnPathsChange?.([]);
     onAngleMeasurementsChange?.([]);
     setSelectedJoinPoints([]);
-    setActiveDragPoint(null);
+    setActiveDragPointId(null);
   }, [readOnly, studentPoints, segments, drawnPaths, angleMeasurements, onPointsChange, onSegmentsChange, onDrawnPathsChange, onAngleMeasurementsChange, saveToHistory]);
 
   /**
@@ -750,22 +777,26 @@ export function GraphPlottingQuestion({
     // Mark that pointer started on a point
     pointerStartedOnPointRef.current = true;
     
-    // Only allow dragging if this point is in drag mode
-    if (activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y) {
-      // Set up for drag - store the original point coordinates
-      dragStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+    console.log("DOWN", { pointId: point.id, activeDragPointId, dragStart: dragStartRef.current });
+    
+    // Only allow dragging if this point is in drag mode (by ID)
+    if (activeDragPointId && activeDragPointId === point.id) {
+      // Set up for drag - store the pointer ID for filtering events
+      dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
       
-      // Capture pointer for drag tracking - ensures all future pointer events go to this element
+      // Capture pointer for drag tracking
       (e.target as Element).setPointerCapture(e.pointerId);
     }
-  }, [readOnly, activeDragPoint]);
+  }, [readOnly, activeDragPointId]);
 
   /**
    * Handle pointer move during drag.
-   * Uses activeDragPoint directly instead of the point param to avoid closure issues.
+   * Uses activeDragPointId to find the point and update position.
    */
   const handlePointPointerMove = useCallback((e: React.PointerEvent) => {
-    if (readOnly || !dragStartRef.current || !activeDragPoint) return;
+    // Only process if we have an active drag start and correct pointer
+    if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
+    if (readOnly || !activeDragPointId) return;
     
     e.preventDefault();
     e.stopPropagation();
@@ -777,6 +808,7 @@ export function GraphPlottingQuestion({
     // Start drag if threshold exceeded
     if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
       isDraggingRef.current = true;
+      setDraggingPointId(activeDragPointId);
       // Save history when drag starts
       saveToHistory();
     }
@@ -797,22 +829,22 @@ export function GraphPlottingQuestion({
       
       const snapped = snapPoint(clampedX, clampedY);
       
-      setDraggingPoint({
-        original: activeDragPoint,
-        current: snapped
-      });
+      console.log("MOVE", { activeDragPointId, isDragging: isDraggingRef.current, draggingPosition: snapped });
+      
+      setDraggingPosition(snapped);
     }
-  }, [readOnly, activeDragPoint, pixelToData, snapPoint, domainX, domainY, saveToHistory]);
+  }, [readOnly, activeDragPointId, pixelToData, snapPoint, domainX, domainY, saveToHistory]);
 
   /**
    * Handle pointer up - end drag or trigger click.
-   * Uses activeDragPoint directly instead of the point param to avoid closure issues.
    */
   const handlePointPointerUp = useCallback((point: GraphPoint, e: React.PointerEvent) => {
     if (readOnly) return;
     
     e.stopPropagation();
     e.preventDefault();
+    
+    console.log("UP", { isDragging: isDraggingRef.current, draggingPointId, draggingPosition });
     
     // Release pointer capture
     try {
@@ -821,25 +853,33 @@ export function GraphPlottingQuestion({
       // Ignore if capture wasn't set
     }
     
-    if (isDraggingRef.current && draggingPoint) {
+    if (isDraggingRef.current && draggingPointId && draggingPosition) {
       // End drag - commit the new position
-      const newPoints = studentPoints.map(p => 
-        p.x === draggingPoint.original.x && p.y === draggingPoint.original.y
-          ? draggingPoint.current
-          : p
-      );
+      const newPoints = studentPoints.map(p => {
+        if (p.id === draggingPointId) {
+          return { ...p, x: draggingPosition.x, y: draggingPosition.y };
+        }
+        return p;
+      });
+      
+      // Find the original point to update segments
+      const originalPoint = studentPoints.find(p => p.id === draggingPointId);
       
       // Update segments that reference this point
       const newSegments = segments.map(seg => {
         let updated = { ...seg };
-        if (seg.from.x === draggingPoint.original.x && seg.from.y === draggingPoint.original.y) {
-          updated.from = draggingPoint.current;
-        }
-        if (seg.to.x === draggingPoint.original.x && seg.to.y === draggingPoint.original.y) {
-          updated.to = draggingPoint.current;
+        if (originalPoint) {
+          if (seg.from.x === originalPoint.x && seg.from.y === originalPoint.y) {
+            updated.from = { ...updated.from, x: draggingPosition.x, y: draggingPosition.y };
+          }
+          if (seg.to.x === originalPoint.x && seg.to.y === originalPoint.y) {
+            updated.to = { ...updated.to, x: draggingPosition.x, y: draggingPosition.y };
+          }
         }
         return updated;
       });
+      
+      console.log("COMMIT", { old: studentPoints, new: newPoints });
       
       onPointsChange(newPoints);
       if (newSegments.some((seg, i) => 
@@ -849,10 +889,11 @@ export function GraphPlottingQuestion({
         onSegmentsChange(newSegments);
       }
       
-      // Update the active drag point to the new position
-      setActiveDragPoint(draggingPoint.current);
+      // Update the active drag point ID (it stays the same, just position changed)
+      // The point still has the same ID
       
-      setDraggingPoint(null);
+      setDraggingPointId(null);
+      setDraggingPosition(null);
       isDraggingRef.current = false;
       dragStartRef.current = null;
       
@@ -863,10 +904,12 @@ export function GraphPlottingQuestion({
     // Not a drag - treat as click
     isDraggingRef.current = false;
     dragStartRef.current = null;
+    setDraggingPointId(null);
+    setDraggingPosition(null);
     
     // Call original click handler
     handlePointClick(point, e);
-  }, [readOnly, draggingPoint, studentPoints, segments, onPointsChange, onSegmentsChange, handlePointClick]);
+  }, [readOnly, draggingPointId, draggingPosition, studentPoints, segments, onPointsChange, onSegmentsChange, handlePointClick]);
 
   /**
    * Handle pointer up on the chart background to add a point.
@@ -884,13 +927,16 @@ export function GraphPlottingQuestion({
     
     // If the pointer event started on a line segment, don't clear selection (already handled by segment)
     if (pointerStartedOnLineRef.current) {
+      console.log("CONTAINER CLEAR BLOCKED", { reason: "pointerStartedOnLineRef", isAngleMode, selectedSegmentIds, angleMeasurements: angleMeasurements.length });
       pointerStartedOnLineRef.current = false;
       return;
     }
     
+    console.log("CONTAINER CLEAR FIRED", { reason: "background tap", isAngleMode, selectedSegmentIds, angleMeasurements: angleMeasurements.length });
+    
     // Clear active drag point when tapping empty space
-    if (activeDragPoint) {
-      setActiveDragPoint(null);
+    if (activeDragPointId) {
+      setActiveDragPointId(null);
       // Don't add a new point when exiting drag mode
       return;
     }
@@ -900,13 +946,15 @@ export function GraphPlottingQuestion({
       if (selectedJoinPoints.length > 0) {
         setSelectedJoinPoints([]);
       }
+      // In erase mode, we DO want to clear transient segment selection on background tap
       if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
         onSelectedSegmentIdsChange([]);
       }
       return;
     }
     
-    // In angle mode, only clear segment selection when clicking empty space - don't add points
+    // In angle mode, clear ONLY transient selection when clicking empty space
+    // Persisted measurements stay (they're in angleMeasurements, not selectedSegmentIds)
     if (isAngleMode) {
       if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
         onSelectedSegmentIdsChange([]);
@@ -930,11 +978,11 @@ export function GraphPlottingQuestion({
         
         // Check for double-tap (for drag mode activation)
         const timeDiff = now - lastTap.time;
-        const isSamePoint = lastTap.point && lastTap.point.x === nearestPoint.x && lastTap.point.y === nearestPoint.y;
+        const isSamePoint = lastTap.pointId === nearestPoint.id;
         const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
         
         // Update last tap
-        lastTapRef.current = { point: nearestPoint, time: now, x: e.clientX, y: e.clientY };
+        lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
         
         const isAlreadySelected = isPointSelected(nearestPoint);
         
@@ -970,7 +1018,7 @@ export function GraphPlottingQuestion({
           }
           
           setSelectedJoinPoints([]);
-          lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+          lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
           return;
         }
         
@@ -983,26 +1031,13 @@ export function GraphPlottingQuestion({
       if (selectedJoinPoints.length > 0) {
         setSelectedJoinPoints([]);
       }
-      // Clear segment selection when clicking empty space (angle measurement tool)
-      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
-        onSelectedSegmentIdsChange([]);
-      }
       return;
     }
     
     // If we have a point selected and user clicks empty space, clear selection
     if (selectedJoinPoints.length > 0) {
       setSelectedJoinPoints([]);
-      // Also clear segment selection
-      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
-        onSelectedSegmentIdsChange([]);
-      }
       return;
-    }
-    
-    // Clear segment selection when clicking empty space (angle measurement tool)
-    if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) {
-      onSelectedSegmentIdsChange([]);
     }
 
     // Convert pixel to data coordinates for adding new point
@@ -1024,20 +1059,20 @@ export function GraphPlottingQuestion({
       const now = Date.now();
       const lastTap = lastTapRef.current;
       const timeDiff = now - lastTap.time;
-      const isSamePoint = lastTap.point && lastTap.point.x === nearbyPoint.x && lastTap.point.y === nearbyPoint.y;
+      const isSamePoint = lastTap.pointId === nearbyPoint.id;
       const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
       const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
       
-      lastTapRef.current = { point: nearbyPoint, time: now, x: e.clientX, y: e.clientY };
+      lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
       
       if (isDoubleTap) {
         // Toggle drag mode for this point
-        if (activeDragPoint && activeDragPoint.x === nearbyPoint.x && activeDragPoint.y === nearbyPoint.y) {
-          setActiveDragPoint(null);
+        if (activeDragPointId === nearbyPoint.id) {
+          setActiveDragPointId(null);
         } else {
-          setActiveDragPoint(nearbyPoint);
+          setActiveDragPointId(nearbyPoint.id || null);
         }
-        lastTapRef.current = { point: null, time: 0, x: 0, y: 0 };
+        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
       }
       return; // Don't add a new point
     }
@@ -1046,7 +1081,7 @@ export function GraphPlottingQuestion({
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPoint, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements]);
 
   /**
    * Handle segment click in erase mode
@@ -1069,17 +1104,17 @@ export function GraphPlottingQuestion({
     const status = getPointStatus(point);
     const isSelected = isPointSelected(point);
     
-    // Check if this point is being dragged
-    const isDragging = draggingPoint?.original.x === point.x && draggingPoint?.original.y === point.y;
+    // Check if this point is being dragged (by ID)
+    const isDragging = draggingPointId === point.id;
     
-    // Check if this point is in drag mode (active for dragging)
-    const isInDragMode = activeDragPoint?.x === point.x && activeDragPoint?.y === point.y;
+    // Check if this point is in drag mode (active for dragging, by ID)
+    const isInDragMode = activeDragPointId === point.id;
     
     // If dragging, use the dragged position for display
     let displayCx = cx;
     let displayCy = cy;
-    if (isDragging && draggingPoint) {
-      const { px, py } = dataToPixel(draggingPoint.current.x, draggingPoint.current.y);
+    if (isDragging && draggingPosition) {
+      const { px, py } = dataToPixel(draggingPosition.x, draggingPosition.y);
       displayCx = px;
       displayCy = py;
     }
@@ -1096,7 +1131,7 @@ export function GraphPlottingQuestion({
 
     return (
       <g 
-        key={`point-${point.x}-${point.y}`}
+        key={`point-${point.id || `${point.x}-${point.y}`}`}
         style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', touchAction: 'none' }}
       >
         {/* Invisible larger touch target for iPad/iPhone friendly tapping and dragging */}
@@ -1118,7 +1153,8 @@ export function GraphPlottingQuestion({
             } catch {}
             isDraggingRef.current = false;
             dragStartRef.current = null;
-            setDraggingPoint(null);
+            setDraggingPointId(null);
+            setDraggingPosition(null);
             pointerStartedOnPointRef.current = false;
           }}
         />
@@ -1179,7 +1215,10 @@ export function GraphPlottingQuestion({
     );
   }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, 
       handlePointPointerDown, handlePointPointerMove, handlePointPointerUp, 
-      draggingPoint, dataToPixel, activeDragPoint, eraseMode]);
+      draggingPointId, draggingPosition, dataToPixel, activeDragPointId, eraseMode]);
+
+  // Get the active drag point for display
+  const activeDragPoint = findPointById(activeDragPointId);
 
   // Error state if no config
   if (!config) {
@@ -1233,7 +1272,7 @@ export function GraphPlottingQuestion({
             onClick={() => {
               setEraseMode(!eraseMode);
               // Exit drag mode when entering erase mode
-              setActiveDragPoint(null);
+              setActiveDragPointId(null);
             }}
             title={eraseMode ? "Exit erase mode" : "Erase mode"}
             className={eraseMode ? "bg-destructive hover:bg-destructive/90" : ""}
@@ -1248,7 +1287,7 @@ export function GraphPlottingQuestion({
               value={currentJoinMode || ''}
               onValueChange={(value) => {
                 // Exit drag mode when changing tools
-                setActiveDragPoint(null);
+                setActiveDragPointId(null);
                 
                 // If user clicks the already-selected mode, toggle it OFF (set to null)
                 if (value === '' || value === currentJoinMode) {
@@ -1534,17 +1573,17 @@ export function GraphPlottingQuestion({
         )}
 
         {/* Drag tooltip - shows live coordinates while dragging a point */}
-        {draggingPoint && (
+        {draggingPointId && draggingPosition && (
           <div 
             className="absolute pointer-events-none z-50"
             style={{
-              left: dataToPixel(draggingPoint.current.x, draggingPoint.current.y).px,
-              top: dataToPixel(draggingPoint.current.x, draggingPoint.current.y).py - 40,
+              left: dataToPixel(draggingPosition.x, draggingPosition.y).px,
+              top: dataToPixel(draggingPosition.x, draggingPosition.y).py - 40,
               transform: 'translateX(-50%)',
             }}
           >
             <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-lg font-mono whitespace-nowrap">
-              ({draggingPoint.current.x.toFixed(1)}, {draggingPoint.current.y.toFixed(1)})
+              ({draggingPosition.x.toFixed(1)}, {draggingPosition.y.toFixed(1)})
             </div>
           </div>
         )}
@@ -1617,7 +1656,7 @@ export function GraphPlottingQuestion({
               const status = getPointStatus(point);
               return (
                 <div 
-                  key={`${point.x}-${point.y}-${idx}`}
+                  key={point.id || `${point.x}-${point.y}-${idx}`}
                   className={cn(
                     "flex items-center gap-1 px-2 py-1 rounded text-sm border",
                     showCorrectAnswers && status === 'correct' && "bg-green-100 border-green-300 dark:bg-green-900/30 dark:border-green-700",
