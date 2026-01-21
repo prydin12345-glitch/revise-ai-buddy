@@ -161,7 +161,14 @@ export function GraphPlottingQuestion({
   const pointerStartedOnLineRef = useRef(false);
   
   // Active draggable point ID (selected via double-tap for drag mode) - use ID not coordinates
-  const [activeDragPointId, setActiveDragPointId] = useState<string | null>(null);
+  const [activeDragPointId, setActiveDragPointIdState] = useState<string | null>(null);
+  // Keep a ref in sync for use in event handlers (avoids stale closure issues)
+  const activeDragPointIdRef = useRef<string | null>(null);
+  // Wrapper to sync ref immediately on set (not just after render)
+  const setActiveDragPointId = useCallback((id: string | null) => {
+    activeDragPointIdRef.current = id;
+    setActiveDragPointIdState(id);
+  }, []);
   
   // Dragging state for point repositioning - track by ID
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
@@ -266,44 +273,59 @@ export function GraphPlottingQuestion({
   /**
    * Compute angle between two segments at their shared vertex.
    * Returns angle in degrees (0-180) or null if no shared vertex.
+   * Uses ID-based matching when available, falls back to coordinate matching with tolerance.
    */
-  const computeAngleBetweenSegments = useCallback((seg1: LineSegment, seg2: LineSegment): number | null => {
-    // Find shared vertex
-    const points1 = [seg1.from, seg1.to];
-    const points2 = [seg2.from, seg2.to];
-    let sharedVertex: GraphPoint | null = null;
+  const computeAngleBetweenSegments = useCallback((seg1: LineSegment, seg2: LineSegment): { angle: number; vertex: GraphPoint } | null => {
+    // Helper to check if two points match (by ID or by coordinates with tolerance)
+    const pointsMatch = (p1: GraphPoint, p2: GraphPoint): boolean => {
+      // First try ID match (most reliable)
+      if (p1.id && p2.id && p1.id === p2.id) return true;
+      // Fall back to coordinate match with small tolerance (0.01 for floating point)
+      const tolerance = 0.01;
+      return Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+    };
     
-    for (const p1 of points1) {
-      for (const p2 of points2) {
-        if (p1.x === p2.x && p1.y === p2.y) {
-          sharedVertex = p1;
+    // Find shared vertex by checking all combinations
+    const endpoints1 = [seg1.from, seg1.to];
+    const endpoints2 = [seg2.from, seg2.to];
+    let sharedVertex: GraphPoint | null = null;
+    let idx1 = -1, idx2 = -1;
+    
+    for (let i = 0; i < endpoints1.length && !sharedVertex; i++) {
+      for (let j = 0; j < endpoints2.length; j++) {
+        if (pointsMatch(endpoints1[i], endpoints2[j])) {
+          sharedVertex = endpoints1[i];
+          idx1 = i;
+          idx2 = j;
           break;
         }
       }
-      if (sharedVertex) break;
     }
     
-    if (!sharedVertex) return null;
+    if (!sharedVertex) {
+      return null;
+    }
     
-    // Get vectors from shared vertex to other endpoints
-    const isFromVertex1 = seg1.from.x === sharedVertex.x && seg1.from.y === sharedVertex.y;
-    const other1 = isFromVertex1 ? seg1.to : seg1.from;
+    // Get the "other" endpoint from each segment (not the shared vertex)
+    const other1 = idx1 === 0 ? seg1.to : seg1.from;
+    const other2 = idx2 === 0 ? seg2.to : seg2.from;
+    
+    // Calculate vectors from shared vertex to other endpoints
     const v1 = { x: other1.x - sharedVertex.x, y: other1.y - sharedVertex.y };
-    
-    const isFromVertex2 = seg2.from.x === sharedVertex.x && seg2.from.y === sharedVertex.y;
-    const other2 = isFromVertex2 ? seg2.to : seg2.from;
     const v2 = { x: other2.x - sharedVertex.x, y: other2.y - sharedVertex.y };
     
-    // Compute angle
+    // Compute angle using dot product
     const dot = v1.x * v2.x + v1.y * v2.y;
     const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
     const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
     
-    if (mag1 === 0 || mag2 === 0) return 0;
+    if (mag1 === 0 || mag2 === 0) return { angle: 0, vertex: sharedVertex };
     
     const cosAngle = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
     const angleRad = Math.acos(cosAngle);
-    return Math.round((angleRad * 180) / Math.PI);
+    const angleDeg = Math.round((angleRad * 180) / Math.PI);
+    
+    return { angle: angleDeg, vertex: sharedVertex };
   }, []);
 
   /**
@@ -349,21 +371,19 @@ export function GraphPlottingQuestion({
    * Handle segment selection in angle mode - when 2 segments selected, create a persisted measurement.
    */
   const handleAngleSegmentSelect = useCallback((segId: string) => {
-    console.log("LINE TAP", { segId, isAngleMode, selectedSegmentIdsBefore: selectedSegmentIds });
+    if (!onSelectedSegmentIdsChange) return;
     
     if (!onSelectedSegmentIdsChange) return;
     
     // If segment is already in the transient selection, deselect it
     if (selectedSegmentIds.includes(segId)) {
       const newSelection = selectedSegmentIds.filter(id => id !== segId);
-      console.log("ANGLE SELECTION (deselect)", { selectedSegmentIdsAfter: newSelection });
       onSelectedSegmentIdsChange(newSelection);
       return;
     }
     
     // Add to selection
     const newSelection = [...selectedSegmentIds, segId];
-    console.log("ANGLE SELECTION (add)", { selectedSegmentIdsAfter: newSelection });
     
     if (newSelection.length < 2) {
       // First segment selected, just update selection
@@ -376,9 +396,9 @@ export function GraphPlottingQuestion({
     const seg2 = segments.find(s => s.id === newSelection[1]);
     
     if (seg1 && seg2) {
-      const angle = computeAngleBetweenSegments(seg1, seg2);
+      const result = computeAngleBetweenSegments(seg1, seg2);
       
-      if (angle !== null && onAngleMeasurementsChange) {
+      if (result !== null && onAngleMeasurementsChange) {
         // Check if this measurement already exists
         const exists = angleMeasurements.some(m => 
           (m.segmentId1 === seg1.id && m.segmentId2 === seg2.id) ||
@@ -391,10 +411,10 @@ export function GraphPlottingQuestion({
             id: `angle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             segmentId1: seg1.id,
             segmentId2: seg2.id,
-            angleDegrees: angle,
+            angleDegrees: result.angle,
           };
           const newMeasurements = [...angleMeasurements, newMeasurement];
-          console.log("ANGLE MEASUREMENT ADD", { measurement: newMeasurement, angleMeasurementsAfter: newMeasurements });
+          onAngleMeasurementsChange(newMeasurements);
           onAngleMeasurementsChange(newMeasurements);
         }
         // Clear transient selection after successful measurement - segments stay orange via angleMeasurements
@@ -573,10 +593,11 @@ export function GraphPlottingQuestion({
 
       if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
         saveToHistory();
+        // Include point IDs in the segment for reliable vertex matching
         const newSegment: LineSegment = {
           id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          from: { x: fromPoint.x, y: fromPoint.y },
-          to: { x: toPoint.x, y: toPoint.y },
+          from: { id: fromPoint.id, x: fromPoint.x, y: fromPoint.y },
+          to: { id: toPoint.id, x: toPoint.x, y: toPoint.y },
           mode: currentJoinMode as 'straight' | 'curved',
         };
         const updatedSegments = [...segments, newSegment];
@@ -777,17 +798,18 @@ export function GraphPlottingQuestion({
     // Mark that pointer started on a point
     pointerStartedOnPointRef.current = true;
     
-    console.log("DOWN", { pointId: point.id, activeDragPointId, dragStart: dragStartRef.current });
+    // Use ref for current value (avoids stale closure)
+    const currentDragPointId = activeDragPointIdRef.current;
     
     // Only allow dragging if this point is in drag mode (by ID)
-    if (activeDragPointId && activeDragPointId === point.id) {
+    if (currentDragPointId && currentDragPointId === point.id) {
       // Set up for drag - store the pointer ID for filtering events
       dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
       
       // Capture pointer for drag tracking
       (e.target as Element).setPointerCapture(e.pointerId);
     }
-  }, [readOnly, activeDragPointId]);
+  }, [readOnly]); // Remove activeDragPointId from deps - use ref instead
 
   /**
    * Handle pointer move during drag.
@@ -796,7 +818,8 @@ export function GraphPlottingQuestion({
   const handlePointPointerMove = useCallback((e: React.PointerEvent) => {
     // Only process if we have an active drag start and correct pointer
     if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
-    if (readOnly || !activeDragPointId) return;
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (readOnly || !currentDragPointId) return;
     
     e.preventDefault();
     e.stopPropagation();
@@ -808,7 +831,7 @@ export function GraphPlottingQuestion({
     // Start drag if threshold exceeded
     if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
       isDraggingRef.current = true;
-      setDraggingPointId(activeDragPointId);
+      setDraggingPointId(currentDragPointId);
       // Save history when drag starts
       saveToHistory();
     }
@@ -829,11 +852,9 @@ export function GraphPlottingQuestion({
       
       const snapped = snapPoint(clampedX, clampedY);
       
-      console.log("MOVE", { activeDragPointId, isDragging: isDraggingRef.current, draggingPosition: snapped });
-      
       setDraggingPosition(snapped);
     }
-  }, [readOnly, activeDragPointId, pixelToData, snapPoint, domainX, domainY, saveToHistory]);
+  }, [readOnly, pixelToData, snapPoint, domainX, domainY, saveToHistory]); // Remove activeDragPointId - use ref
 
   /**
    * Handle pointer up - end drag or trigger click.
@@ -843,8 +864,6 @@ export function GraphPlottingQuestion({
     
     e.stopPropagation();
     e.preventDefault();
-    
-    console.log("UP", { isDragging: isDraggingRef.current, draggingPointId, draggingPosition });
     
     // Release pointer capture
     try {
@@ -878,8 +897,6 @@ export function GraphPlottingQuestion({
         }
         return updated;
       });
-      
-      console.log("COMMIT", { old: studentPoints, new: newPoints });
       
       onPointsChange(newPoints);
       if (newSegments.some((seg, i) => 
@@ -927,12 +944,9 @@ export function GraphPlottingQuestion({
     
     // If the pointer event started on a line segment, don't clear selection (already handled by segment)
     if (pointerStartedOnLineRef.current) {
-      console.log("CONTAINER CLEAR BLOCKED", { reason: "pointerStartedOnLineRef", isAngleMode, selectedSegmentIds, angleMeasurements: angleMeasurements.length });
       pointerStartedOnLineRef.current = false;
       return;
     }
-    
-    console.log("CONTAINER CLEAR FIRED", { reason: "background tap", isAngleMode, selectedSegmentIds, angleMeasurements: angleMeasurements.length });
     
     // Clear active drag point when tapping empty space
     if (activeDragPointId) {
