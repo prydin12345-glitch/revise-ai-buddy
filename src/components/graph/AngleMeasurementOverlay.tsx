@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { LineSegment, GraphPoint } from './types';
 
 interface AngleMeasurementOverlayProps {
@@ -21,6 +21,12 @@ interface AngleMeasurementOverlayProps {
   onErase?: (measurementId: string) => void;
   /** Whether this is a preview (during selection) vs a persisted measurement */
   isPreview?: boolean;
+  /** User-draggable label offset in pixels from the default position */
+  labelOffset?: { x: number; y: number };
+  /** Callback when label is dragged to a new offset */
+  onLabelOffsetChange?: (measurementId: string, offset: { x: number; y: number }) => void;
+  /** Read-only mode - disables dragging */
+  readOnly?: boolean;
 }
 
 /**
@@ -53,7 +59,9 @@ function findSharedVertex(
   
   for (const p1 of points1) {
     for (const p2 of points2) {
-      if (p1.x === p2.x && p1.y === p2.y) {
+      // Use tolerance for floating point comparison
+      const tolerance = 0.01;
+      if (Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance) {
         return p1;
       }
     }
@@ -68,13 +76,16 @@ function getVectorFromVertex(
   segment: LineSegment,
   vertex: GraphPoint
 ): { x: number; y: number } {
-  const isFromVertex = segment.from.x === vertex.x && segment.from.y === vertex.y;
+  const tolerance = 0.01;
+  const isFromVertex = Math.abs(segment.from.x - vertex.x) < tolerance && 
+                       Math.abs(segment.from.y - vertex.y) < tolerance;
   const other = isFromVertex ? segment.to : segment.from;
   return { x: other.x - vertex.x, y: other.y - vertex.y };
 }
 
 /**
  * Overlay that shows the angle between two selected segments at their shared vertex.
+ * The label can be dragged away from the vertex while staying connected by a tether line.
  */
 export function AngleMeasurementOverlay({
   segments,
@@ -93,15 +104,29 @@ export function AngleMeasurementOverlay({
   measurementId,
   onErase,
   isPreview = false,
+  labelOffset,
+  onLabelOffsetChange,
+  readOnly = false,
 }: AngleMeasurementOverlayProps) {
   const plotWidth = containerWidth - marginLeft - marginRight;
   const plotHeight = containerHeight - marginTop - marginBottom;
+  
+  // Local drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [localOffset, setLocalOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragStartRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
+  
+  // Use provided offset or local offset during drag
+  const effectiveOffset = useMemo(() => {
+    if (isDragging) return localOffset;
+    return labelOffset || { x: 0, y: 0 };
+  }, [isDragging, localOffset, labelOffset]);
   
   // Check if scales need offset
   const xScaleNeedsOffset = xScale ? xScale(domainX[0]) < marginLeft : false;
   const yScaleNeedsOffset = yScale ? yScale(domainY[0]) < marginTop : false;
 
-  const dataToPixelX = (dataX: number): number => {
+  const dataToPixelX = useCallback((dataX: number): number => {
     if (xScale) {
       const px = xScale(dataX);
       return xScaleNeedsOffset ? px + marginLeft : px;
@@ -109,9 +134,9 @@ export function AngleMeasurementOverlay({
     const denom = domainX[1] - domainX[0] || 1;
     const fraction = (dataX - domainX[0]) / denom;
     return marginLeft + fraction * plotWidth;
-  };
+  }, [xScale, xScaleNeedsOffset, marginLeft, domainX, plotWidth]);
 
-  const dataToPixelY = (dataY: number): number => {
+  const dataToPixelY = useCallback((dataY: number): number => {
     if (yScale) {
       const py = yScale(dataY);
       return yScaleNeedsOffset ? py + marginTop : py;
@@ -119,7 +144,7 @@ export function AngleMeasurementOverlay({
     const denom = domainY[1] - domainY[0] || 1;
     const fraction = (dataY - domainY[0]) / denom;
     return marginTop + (1 - fraction) * plotHeight;
-  };
+  }, [yScale, yScaleNeedsOffset, marginTop, domainY, plotHeight]);
 
   // Calculate angle display data
   const angleData = useMemo(() => {
@@ -149,7 +174,61 @@ export function AngleMeasurementOverlay({
     const angle2 = Math.atan2(-v2.y, v2.x);
     
     return { px, py, angle, arcRadius, angle1, angle2 };
-  }, [selectedSegmentIds, segments, domainX, domainY, xScale, yScale, marginLeft, marginTop, plotWidth, plotHeight]);
+  }, [selectedSegmentIds, segments, dataToPixelX, dataToPixelY]);
+
+  // Drag handlers
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (readOnly || isPreview || !onLabelOffsetChange || !measurementId) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const currentOffset = labelOffset || { x: 0, y: 0 };
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: currentOffset.x,
+      offsetY: currentOffset.y,
+    };
+    setLocalOffset(currentOffset);
+    setIsDragging(true);
+    
+    (e.target as Element).setPointerCapture(e.pointerId);
+  }, [readOnly, isPreview, onLabelOffsetChange, measurementId, labelOffset]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const dx = e.clientX - dragStartRef.current.startX;
+    const dy = e.clientY - dragStartRef.current.startY;
+    
+    setLocalOffset({
+      x: dragStartRef.current.offsetX + dx,
+      y: dragStartRef.current.offsetY + dy,
+    });
+  }, [isDragging]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    try {
+      (e.target as Element).releasePointerCapture(e.pointerId);
+    } catch { /* ignore */ }
+    
+    // Commit the new offset
+    if (onLabelOffsetChange && measurementId) {
+      onLabelOffsetChange(measurementId, localOffset);
+    }
+    
+    setIsDragging(false);
+    dragStartRef.current = null;
+  }, [isDragging, localOffset, onLabelOffsetChange, measurementId]);
 
   if (!angleData) return null;
 
@@ -175,17 +254,32 @@ export function AngleMeasurementOverlay({
   const largeArc = (arcEnd - arcStart) > Math.PI ? 1 : 0;
   const arcPath = `M ${x1} ${y1} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${x2} ${y2}`;
   
-  // Label position (midpoint of arc)
+  // Default label position (midpoint of arc)
   const midAngle = (arcStart + arcEnd) / 2;
   const labelRadius = arcRadius + 18;
-  const labelX = px + labelRadius * Math.cos(midAngle);
-  const labelY = py + labelRadius * Math.sin(midAngle);
+  const defaultLabelX = px + labelRadius * Math.cos(midAngle);
+  const defaultLabelY = py + labelRadius * Math.sin(midAngle);
+  
+  // Apply offset to label position
+  const labelX = defaultLabelX + effectiveOffset.x;
+  const labelY = defaultLabelY + effectiveOffset.y;
+  
+  // Check if label has been moved significantly (show tether line)
+  const hasMoved = Math.abs(effectiveOffset.x) > 5 || Math.abs(effectiveOffset.y) > 5;
+  
+  // Tether line from vertex to label
+  const tetherEndX = labelX;
+  const tetherEndY = labelY;
 
-  const handleClick = () => {
-    if (onErase && measurementId) {
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger erase if not dragging and in erase mode
+    if (!isDragging && onErase && measurementId) {
+      e.stopPropagation();
       onErase(measurementId);
     }
   };
+
+  const canDrag = !readOnly && !isPreview && onLabelOffsetChange && measurementId;
 
   return (
     <svg
@@ -210,9 +304,30 @@ export function AngleMeasurementOverlay({
         strokeDasharray={isPreview ? "4 2" : undefined}
       />
       
-      {/* Angle label with background - clickable for erase */}
+      {/* Tether line from vertex to label (only when label has been moved) */}
+      {hasMoved && !isPreview && (
+        <line
+          x1={px}
+          y1={py}
+          x2={tetherEndX}
+          y2={tetherEndY}
+          stroke="hsl(var(--warning))"
+          strokeWidth={1}
+          strokeDasharray="3 2"
+          opacity={0.6}
+        />
+      )}
+      
+      {/* Angle label with background - draggable or clickable for erase */}
       <g
-        style={{ pointerEvents: onErase ? 'all' : 'none', cursor: onErase ? 'pointer' : 'default' }}
+        style={{ 
+          pointerEvents: 'all', 
+          cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : (onErase ? 'pointer' : 'default'),
+          touchAction: 'none',
+        }}
+        onPointerDown={canDrag ? handlePointerDown : undefined}
+        onPointerMove={canDrag ? handlePointerMove : undefined}
+        onPointerUp={canDrag ? handlePointerUp : undefined}
         onClick={handleClick}
       >
         <rect
@@ -222,6 +337,8 @@ export function AngleMeasurementOverlay({
           height={20}
           rx={4}
           fill={isPreview ? "hsl(var(--primary))" : "hsl(var(--warning))"}
+          stroke={isDragging ? "hsl(var(--foreground))" : undefined}
+          strokeWidth={isDragging ? 1 : undefined}
         />
         <text
           x={labelX}
@@ -231,6 +348,7 @@ export function AngleMeasurementOverlay({
           fontSize={12}
           fontWeight="bold"
           fill={isPreview ? "hsl(var(--primary-foreground))" : "hsl(var(--warning-foreground, 0 0% 0%))"}
+          style={{ userSelect: 'none' }}
         >
           {angle}°
         </text>

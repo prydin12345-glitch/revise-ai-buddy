@@ -170,7 +170,7 @@ const TakePracticeQuiz = () => {
     } catch { return false; }
   });
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
-  const [angleMeasurements, setAngleMeasurements] = useState<Array<{ id: string; segmentId1: string; segmentId2: string; angleDegrees: number }>>([]);
+  const [angleMeasurements, setAngleMeasurements] = useState<Array<{ id: string; segmentId1: string; segmentId2: string; angleDegrees: number; labelOffset?: { x: number; y: number } }>>([]);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
