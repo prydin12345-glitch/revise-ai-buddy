@@ -1198,21 +1198,34 @@ export function GraphPlottingQuestion({
     // Use the constant HIT_RADIUS for touch targets (44px for iPad-friendly tapping)
     const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
 
+    // Use a consistent, large hit radius for ALL points regardless of position
+    // This ensures edge points are just as easy to tap as center points
+    const effectiveHitRadius = Math.max(POINT_HIT_RADIUS, 48);
+    
     return (
       <g 
         key={`point-${point.id || `${point.x}-${point.y}`}`}
-        style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', touchAction: 'none' }}
+        style={{ 
+          cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', 
+          touchAction: 'none',
+          // Ensure proper stacking - points in drag mode should be on top
+          isolation: 'isolate',
+        }}
+        pointerEvents="all"
       >
         {/* Invisible larger touch target for iPad/iPhone friendly tapping and dragging */}
-        <circle
-          cx={displayCx}
-          cy={displayCy}
-          r={POINT_HIT_RADIUS}
+        {/* Use a rectangle-based hit area for better edge coverage */}
+        <rect
+          x={displayCx - effectiveHitRadius}
+          y={displayCy - effectiveHitRadius}
+          width={effectiveHitRadius * 2}
+          height={effectiveHitRadius * 2}
           // iOS Safari can be flaky with fully transparent SVG hit targets; use near-transparent paint.
           fill="hsl(var(--foreground))"
           fillOpacity={0.001}
-          stroke="transparent"
+          stroke="none"
           pointerEvents="all"
+          rx={effectiveHitRadius / 2}
           style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
           onPointerDown={(e) => handlePointPointerDown(point, e)}
           onPointerMove={handlePointPointerMove}
