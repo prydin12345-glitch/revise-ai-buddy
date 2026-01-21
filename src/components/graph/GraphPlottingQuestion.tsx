@@ -984,29 +984,68 @@ export function GraphPlottingQuestion({
   }, [readOnly, draggingPointId, draggingPosition, studentPoints, segments, onPointsChange, onSegmentsChange, handlePointClick]);
 
   /**
-   * Container-level pointer down handler to make it easier to START dragging on touch devices.
-   * This avoids relying on the (sometimes clipped) Recharts dot hit-area near chart edges.
+   * Container-level pointer down handler for reliable touch interactions.
+   * Handles double-tap detection and drag initiation via distance-based hit testing.
    */
   const handleChartContainerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
-
-    // Only attempt drag-start when a point is already in drag mode.
-    const currentDragPointId = activeDragPointIdRef.current;
-    if (!currentDragPointId) return;
-
-    // Don't start drags while in modes that repurpose pointer interactions.
-    if (eraseMode || isJoinModeActive || isAngleMode) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    // Use distance-based hit testing so edge points are still targetable.
+    // Use distance-based hit testing for all point interactions
     const nearestPoint = findNearestPoint(clickX, clickY, POINT_HIT_RADIUS);
-    if (!nearestPoint || nearestPoint.id !== currentDragPointId) return;
+    
+    if (!nearestPoint) return; // No point nearby - let pointerUp handle adding points
 
-    handlePointPointerDown(nearestPoint, e);
-  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPoint, POINT_HIT_RADIUS, handlePointPointerDown]);
+    // Mark that pointer started on a point
+    pointerStartedOnPointRef.current = true;
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Handle erase mode
+    if (eraseMode) {
+      // Erase is handled on pointerUp
+      return;
+    }
+
+    // Handle join/angle modes - selection is handled on pointerUp via handlePointClick
+    if (isJoinModeActive || isAngleMode) {
+      return;
+    }
+
+    // Check for double-tap to activate drag mode
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+    const timeDiff = now - lastTap.time;
+    const isSamePoint = lastTap.pointId === nearestPoint.id;
+    const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+    const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+
+    // Update last tap reference
+    lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+
+    if (isDoubleTap) {
+      // Toggle drag mode for this point
+      const currentDragId = activeDragPointIdRef.current;
+      if (currentDragId === nearestPoint.id) {
+        setActiveDragPointId(null);
+      } else {
+        setActiveDragPointId(nearestPoint.id || null);
+      }
+      lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
+      return;
+    }
+
+    // If this point is in drag mode, start potential drag
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (currentDragPointId && currentDragPointId === nearestPoint.id) {
+      dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+      // Capture pointer for drag tracking on the container
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPoint, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE]);
 
   const handleChartContainerPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // If a drag started on the container, mirror the same cleanup as the dot hit target.
@@ -1043,9 +1082,28 @@ export function GraphPlottingQuestion({
       return;
     }
     
-    // If the pointer event started on a point, don't process it here (already handled by point)
+    // If the pointer event started on a point, route to handlePointClick for proper handling
     if (pointerStartedOnPointRef.current) {
       pointerStartedOnPointRef.current = false;
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const nearestPoint = findNearestPoint(clickX, clickY, POINT_HIT_RADIUS);
+      
+      if (nearestPoint) {
+        // In join mode or angle mode, route through handlePointClick
+        if (isJoinModeActive || isAngleMode || eraseMode) {
+          handlePointClick(nearestPoint, e);
+          return;
+        }
+        
+        // For normal mode, single tap on a point in drag mode exits drag mode
+        const currentDragId = activeDragPointIdRef.current;
+        if (currentDragId === nearestPoint.id) {
+          setActiveDragPointId(null);
+        }
+      }
       return;
     }
     
@@ -1213,7 +1271,7 @@ export function GraphPlottingQuestion({
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS]);
 
   /**
    * Handle segment click in erase mode
@@ -1261,9 +1319,9 @@ export function GraphPlottingQuestion({
     // Use the constant HIT_RADIUS for touch targets (44px for iPad-friendly tapping)
     const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
 
-    // Use a consistent, large hit radius for ALL points regardless of position
-    // This ensures edge points are just as easy to tap as center points
-    const effectiveHitRadius = Math.max(POINT_HIT_RADIUS, 48);
+    // ONLY the active drag point gets a large hit target to avoid overlap issues.
+    // All other points rely on container-level distance-based hit testing.
+    const hitRadius = isInDragMode ? Math.max(POINT_HIT_RADIUS, 48) : 20;
     
     return (
       <g 
@@ -1271,24 +1329,19 @@ export function GraphPlottingQuestion({
         style={{ 
           cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', 
           touchAction: 'none',
-          // Ensure proper stacking - points in drag mode should be on top
-          isolation: 'isolate',
         }}
         pointerEvents="all"
       >
-        {/* Invisible larger touch target for iPad/iPhone friendly tapping and dragging */}
-        {/* Use a rectangle-based hit area for better edge coverage */}
-        <rect
-          x={displayCx - effectiveHitRadius}
-          y={displayCy - effectiveHitRadius}
-          width={effectiveHitRadius * 2}
-          height={effectiveHitRadius * 2}
+        {/* Small invisible touch target - container handles distance-based hit testing */}
+        <circle
+          cx={displayCx}
+          cy={displayCy}
+          r={hitRadius}
           // iOS Safari can be flaky with fully transparent SVG hit targets; use near-transparent paint.
           fill="hsl(var(--foreground))"
           fillOpacity={0.001}
           stroke="none"
           pointerEvents="all"
-          rx={effectiveHitRadius / 2}
           style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
           onPointerDown={(e) => handlePointPointerDown(point, e)}
           onPointerMove={handlePointPointerMove}
@@ -1515,7 +1568,10 @@ export function GraphPlottingQuestion({
       <div 
         ref={chartContainerRef}
         className="relative w-full aspect-[4/3] border rounded-lg bg-card"
+        onPointerDown={handleChartContainerPointerDown}
+        onPointerMove={handlePointPointerMove}
         onPointerUp={handleChartContainerPointerUp}
+        onPointerCancel={handleChartContainerPointerCancel}
         style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
       >
         <ResponsiveContainer width="100%" height="100%">
