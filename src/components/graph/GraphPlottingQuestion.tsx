@@ -984,12 +984,64 @@ export function GraphPlottingQuestion({
   }, [readOnly, draggingPointId, draggingPosition, studentPoints, segments, onPointsChange, onSegmentsChange, handlePointClick]);
 
   /**
+   * Container-level pointer down handler to make it easier to START dragging on touch devices.
+   * This avoids relying on the (sometimes clipped) Recharts dot hit-area near chart edges.
+   */
+  const handleChartContainerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (readOnly) return;
+
+    // Only attempt drag-start when a point is already in drag mode.
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (!currentDragPointId) return;
+
+    // Don't start drags while in modes that repurpose pointer interactions.
+    if (eraseMode || isJoinModeActive || isAngleMode) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Use distance-based hit testing so edge points are still targetable.
+    const nearestPoint = findNearestPoint(clickX, clickY, POINT_HIT_RADIUS);
+    if (!nearestPoint || nearestPoint.id !== currentDragPointId) return;
+
+    handlePointPointerDown(nearestPoint, e);
+  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPoint, POINT_HIT_RADIUS, handlePointPointerDown]);
+
+  const handleChartContainerPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // If a drag started on the container, mirror the same cleanup as the dot hit target.
+    if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
+    setDraggingPointId(null);
+    setDraggingPosition(null);
+    pointerStartedOnPointRef.current = false;
+  }, []);
+
+  /**
    * Handle pointer up on the chart background to add a point.
    * Only adds points if NOT in "point selection" mode (no points selected for joining).
    * Also clears selection if clicking on empty space (but not if the click started on a point).
    */
   const handleChartContainerPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (readOnly) return;
+
+    // If we were dragging (or attempted to) the active drag point via container pointer capture,
+    // always route this pointerup through the point-up handler.
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (dragStartRef.current && dragStartRef.current.pointerId === e.pointerId && currentDragPointId) {
+      const activePoint = findPointById(currentDragPointId);
+      if (activePoint) {
+        handlePointPointerUp(activePoint, e);
+      }
+      pointerStartedOnPointRef.current = false;
+      return;
+    }
     
     // If the pointer event started on a point, don't process it here (already handled by point)
     if (pointerStartedOnPointRef.current) {
@@ -1012,6 +1064,17 @@ export function GraphPlottingQuestion({
     
     // In erase mode, don't add points - just clear selections
     if (eraseMode) {
+      // Also support distance-based erase so edge points are reliable on touch devices.
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const nearestPoint = findNearestPoint(clickX, clickY, POINT_HIT_RADIUS);
+      if (nearestPoint) {
+        handlePointClick(nearestPoint, e);
+        pointerStartedOnPointRef.current = false;
+        return;
+      }
+
       if (selectedJoinPoints.length > 0) {
         setSelectedJoinPoints([]);
       }
