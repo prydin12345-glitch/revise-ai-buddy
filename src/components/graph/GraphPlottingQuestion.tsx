@@ -770,17 +770,43 @@ export function GraphPlottingQuestion({
    * Convert data coordinates to pixel coordinates (for hit testing).
    * Uses the same logic as Recharts for consistency.
    */
+  const axisScaleOffsets = useMemo(() => {
+    if (!axisScales.x || !axisScales.y) return { offsetX: 0, offsetY: 0 };
+
+    // Recharts scale sometimes returns coordinates already including axis offsets,
+    // and sometimes returns coordinates relative to the plot area.
+    // Compute a stable offset by anchoring the domain edges to the plot edges.
+    const expectedLeft = chartMargins.left;
+    const expectedRight = chartContainerSize.width - chartMargins.right;
+    const expectedTop = chartMargins.top;
+    const expectedBottom = chartContainerSize.height - chartMargins.bottom;
+
+    const xAtMin = axisScales.x(domainX[0]);
+    const xAtMax = axisScales.x(domainX[1]);
+    const yAtMax = axisScales.y(domainY[1]);
+    const yAtMin = axisScales.y(domainY[0]);
+
+    const approx = (a: number, b: number, tol = 2) => Math.abs(a - b) <= tol;
+
+    const offsetX = approx(xAtMin, expectedLeft) || approx(xAtMax, expectedRight)
+      ? 0
+      : expectedLeft - xAtMin;
+
+    const offsetY = approx(yAtMax, expectedTop) || approx(yAtMin, expectedBottom)
+      ? 0
+      : expectedTop - yAtMax;
+
+    return { offsetX, offsetY };
+  }, [axisScales, chartMargins, chartContainerSize, domainX, domainY]);
+
   const dataToPixel = useCallback((dataX: number, dataY: number): { px: number; py: number } => {
     const plotWidth = chartContainerSize.width - chartMargins.left - chartMargins.right;
     const plotHeight = chartContainerSize.height - chartMargins.top - chartMargins.bottom;
     
     // Use axis scales if available (most accurate)
     if (axisScales.x && axisScales.y) {
-      let px = axisScales.x(dataX);
-      let py = axisScales.y(dataY);
-      // Check if scales need offset adjustment
-      if (px < chartMargins.left) px += chartMargins.left;
-      if (py < chartMargins.top) py += chartMargins.top;
+      const px = axisScales.x(dataX) + axisScaleOffsets.offsetX;
+      const py = axisScales.y(dataY) + axisScaleOffsets.offsetY;
       return { px, py };
     }
     
@@ -788,7 +814,7 @@ export function GraphPlottingQuestion({
     const px = chartMargins.left + ((dataX - domainX[0]) / (domainX[1] - domainX[0])) * plotWidth;
     const py = chartMargins.top + (1 - (dataY - domainY[0]) / (domainY[1] - domainY[0])) * plotHeight;
     return { px, py };
-  }, [chartContainerSize, chartMargins, axisScales, domainX, domainY]);
+  }, [chartContainerSize, chartMargins, axisScales, axisScaleOffsets, domainX, domainY]);
 
   /**
    * Convert pixel coordinates to data coordinates.
