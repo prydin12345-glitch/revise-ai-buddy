@@ -148,8 +148,8 @@ export function GraphPlottingQuestion({
     x: 0,
     y: 0
   });
-  const DOUBLE_TAP_THRESHOLD = 350; // ms
-  const DOUBLE_TAP_DISTANCE = 45; // px max movement (increased for touch tolerance)
+  const DOUBLE_TAP_THRESHOLD = 500; // ms - increased for touch reliability
+  const DOUBLE_TAP_DISTANCE = 60; // px max movement - generous for finger variance on iPad
   
   // Hit radius for touch targets (larger for iPad/touch devices)
   const POINT_HIT_RADIUS = 44; // px - generous hit area for touch
@@ -537,6 +537,18 @@ export function GraphPlottingQuestion({
       Math.pow(clientX - lastTap.x, 2) + Math.pow(clientY - lastTap.y, 2)
     );
     const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+    
+    // Debug logging for double-tap detection
+    console.debug('[Point Tap]', {
+      pointId: point.id,
+      timeDiff,
+      distanceMoved: distanceMoved.toFixed(1),
+      isSamePoint,
+      isDoubleTap,
+      threshold: DOUBLE_TAP_THRESHOLD,
+      maxDistance: DOUBLE_TAP_DISTANCE,
+      activeDragPointId: activeDragPointIdRef.current,
+    });
 
     // Update last tap reference
     lastTapRef.current = { pointId: point.id || null, time: now, x: clientX, y: clientY };
@@ -544,11 +556,13 @@ export function GraphPlottingQuestion({
     if (!isJoinModeActive && !isAngleMode) {
       // Not in active join/angle mode
       
-      // Check if this point is currently in drag mode
-      const isThisPointInDragMode = activeDragPointId === point.id;
+      // Check if this point is currently in drag mode (use ref for immediate value)
+      const currentDragId = activeDragPointIdRef.current;
+      const isThisPointInDragMode = currentDragId === point.id;
       
       if (isDoubleTap) {
         // Double-tap: toggle drag mode for this point
+        console.debug('[Double-tap detected]', { pointId: point.id, wasInDragMode: isThisPointInDragMode });
         if (isThisPointInDragMode) {
           // Already in drag mode for this point - exit drag mode
           setActiveDragPointId(null);
@@ -563,6 +577,7 @@ export function GraphPlottingQuestion({
       // Single tap behavior:
       // If this point is in drag mode, a single tap exits drag mode
       if (isThisPointInDragMode) {
+        console.debug('[Single-tap exit drag mode]', { pointId: point.id });
         setActiveDragPointId(null);
         return;
       }
