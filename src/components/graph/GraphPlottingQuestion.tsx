@@ -34,6 +34,8 @@ export interface AngleMeasurement {
   segmentId1: string;
   segmentId2: string;
   angleDegrees: number;
+  /** User-draggable label offset in pixels from the default position */
+  labelOffset?: { x: number; y: number };
 }
 
 interface GraphPlottingQuestionProps {
@@ -415,7 +417,6 @@ export function GraphPlottingQuestion({
           };
           const newMeasurements = [...angleMeasurements, newMeasurement];
           onAngleMeasurementsChange(newMeasurements);
-          onAngleMeasurementsChange(newMeasurements);
         }
         // Clear transient selection after successful measurement - segments stay orange via angleMeasurements
         onSelectedSegmentIdsChange([]);
@@ -438,6 +439,16 @@ export function GraphPlottingQuestion({
     saveToHistory();
     onAngleMeasurementsChange(angleMeasurements.filter(m => m.id !== measurementId));
   }, [eraseMode, readOnly, angleMeasurements, onAngleMeasurementsChange, saveToHistory]);
+
+  /**
+   * Handle updating the label offset for an angle measurement.
+   */
+  const handleAngleLabelOffsetChange = useCallback((measurementId: string, offset: { x: number; y: number }) => {
+    if (readOnly || !onAngleMeasurementsChange) return;
+    onAngleMeasurementsChange(angleMeasurements.map(m => 
+      m.id === measurementId ? { ...m, labelOffset: offset } : m
+    ));
+  }, [readOnly, angleMeasurements, onAngleMeasurementsChange]);
 
   /**
    * Undo the last action.
@@ -914,11 +925,30 @@ export function GraphPlottingQuestion({
       });
       
       onPointsChange(newPoints);
-      if (newSegments.some((seg, i) => 
+      
+      const segmentsChanged = newSegments.some((seg, i) => 
         seg.from.x !== segments[i].from.x || seg.from.y !== segments[i].from.y ||
         seg.to.x !== segments[i].to.x || seg.to.y !== segments[i].to.y
-      )) {
+      );
+      
+      if (segmentsChanged) {
         onSegmentsChange(newSegments);
+        
+        // Recalculate angles for any affected measurements
+        if (angleMeasurements.length > 0 && onAngleMeasurementsChange) {
+          const updatedMeasurements = angleMeasurements.map(m => {
+            const seg1 = newSegments.find(s => s.id === m.segmentId1);
+            const seg2 = newSegments.find(s => s.id === m.segmentId2);
+            if (seg1 && seg2) {
+              const result = computeAngleBetweenSegments(seg1, seg2);
+              if (result) {
+                return { ...m, angleDegrees: result.angle };
+              }
+            }
+            return m;
+          });
+          onAngleMeasurementsChange(updatedMeasurements);
+        }
       }
       
       // Update the active drag point ID (it stays the same, just position changed)
@@ -1579,6 +1609,9 @@ export function GraphPlottingQuestion({
             yScale={axisScales.y}
             measurementId={measurement.id}
             onErase={eraseMode ? handleAngleMeasurementErase : undefined}
+            labelOffset={measurement.labelOffset}
+            onLabelOffsetChange={handleAngleLabelOffsetChange}
+            readOnly={readOnly}
           />
         ))}
 
