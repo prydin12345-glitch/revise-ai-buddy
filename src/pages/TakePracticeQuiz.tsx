@@ -170,6 +170,7 @@ const TakePracticeQuiz = () => {
     } catch { return false; }
   });
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
+  const [angleMeasurements, setAngleMeasurements] = useState<Array<{ id: string; segmentId1: string; segmentId2: string; angleDegrees: number }>>([]);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1587,6 +1588,8 @@ const TakePracticeQuiz = () => {
                               totalMarks: currentQuestion.marks,
                             } : undefined}
                             subjectColor={subjectColor}
+                            angleMeasurements={angleMeasurements}
+                            onAngleMeasurementsChange={setAngleMeasurements}
                           />
                         </div>
                       );
