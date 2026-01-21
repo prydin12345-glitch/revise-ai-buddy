@@ -336,7 +336,7 @@ export function GraphPlottingQuestion({
   const handleAngleSegmentSelect = useCallback((segId: string) => {
     if (!onSelectedSegmentIdsChange) return;
     
-    // If segment is already selected, deselect it
+    // If segment is already in the transient selection, deselect it
     if (selectedSegmentIds.includes(segId)) {
       onSelectedSegmentIdsChange(selectedSegmentIds.filter(id => id !== segId));
       return;
@@ -351,7 +351,7 @@ export function GraphPlottingQuestion({
       return;
     }
     
-    // Two segments selected - create a persisted angle measurement
+    // Two segments selected - try to create a persisted angle measurement
     const seg1 = segments.find(s => s.id === newSelection[0]);
     const seg2 = segments.find(s => s.id === newSelection[1]);
     
@@ -375,11 +375,17 @@ export function GraphPlottingQuestion({
           };
           onAngleMeasurementsChange([...angleMeasurements, newMeasurement]);
         }
+        // Clear transient selection after successful measurement
+        onSelectedSegmentIdsChange([]);
+      } else {
+        // Segments don't share a vertex - clear first selection and keep the new one
+        // This allows user to "start over" by tapping a different segment
+        onSelectedSegmentIdsChange([segId]);
       }
+    } else {
+      // Segment not found - clear selection
+      onSelectedSegmentIdsChange([]);
     }
-    
-    // Clear selection after creating measurement
-    onSelectedSegmentIdsChange([]);
   }, [selectedSegmentIds, segments, angleMeasurements, onSelectedSegmentIdsChange, onAngleMeasurementsChange, computeAngleBetweenSegments, saveToHistory]);
 
   /**
@@ -746,22 +752,23 @@ export function GraphPlottingQuestion({
     
     // Only allow dragging if this point is in drag mode
     if (activeDragPoint && activeDragPoint.x === point.x && activeDragPoint.y === point.y) {
-      // Set up for drag
+      // Set up for drag - store the original point coordinates
       dragStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
       
-      // Capture pointer for drag tracking
+      // Capture pointer for drag tracking - ensures all future pointer events go to this element
       (e.target as Element).setPointerCapture(e.pointerId);
     }
   }, [readOnly, activeDragPoint]);
 
   /**
-   * Handle pointer move during drag
+   * Handle pointer move during drag.
+   * Uses activeDragPoint directly instead of the point param to avoid closure issues.
    */
-  const handlePointPointerMove = useCallback((point: GraphPoint, e: React.PointerEvent) => {
-    if (readOnly || !dragStartRef.current) return;
+  const handlePointPointerMove = useCallback((e: React.PointerEvent) => {
+    if (readOnly || !dragStartRef.current || !activeDragPoint) return;
     
-    // Only allow dragging if this point is the active drag point
-    if (!activeDragPoint || activeDragPoint.x !== point.x || activeDragPoint.y !== point.y) return;
+    e.preventDefault();
+    e.stopPropagation();
     
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
@@ -791,14 +798,15 @@ export function GraphPlottingQuestion({
       const snapped = snapPoint(clampedX, clampedY);
       
       setDraggingPoint({
-        original: point,
+        original: activeDragPoint,
         current: snapped
       });
     }
   }, [readOnly, activeDragPoint, pixelToData, snapPoint, domainX, domainY, saveToHistory]);
 
   /**
-   * Handle pointer up - end drag or trigger click
+   * Handle pointer up - end drag or trigger click.
+   * Uses activeDragPoint directly instead of the point param to avoid closure issues.
    */
   const handlePointPointerUp = useCallback((point: GraphPoint, e: React.PointerEvent) => {
     if (readOnly) return;
@@ -1099,12 +1107,15 @@ export function GraphPlottingQuestion({
           fill="transparent"
           stroke="transparent"
           pointerEvents="all"
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
           onPointerDown={(e) => handlePointPointerDown(point, e)}
-          onPointerMove={(e) => handlePointPointerMove(point, e)}
+          onPointerMove={handlePointPointerMove}
           onPointerUp={(e) => handlePointPointerUp(point, e)}
           onPointerCancel={(e) => {
             // Handle cancel (e.g., finger left screen) - reset drag state
+            try {
+              (e.target as Element).releasePointerCapture(e.pointerId);
+            } catch {}
             isDraggingRef.current = false;
             dragStartRef.current = null;
             setDraggingPoint(null);
@@ -1407,31 +1418,47 @@ export function GraphPlottingQuestion({
         </ResponsiveContainer>
 
         {/* Segments overlay - ONLY renders explicitly created segments */}
-        {segments.length > 0 && (
-          <GraphSegmentsLayer
-            segments={segments}
-            onSegmentsChange={readOnly ? undefined : onSegmentsChange}
-            stroke="#3b82f6"
-            strokeWidth={4}
-            containerWidth={chartContainerSize.width}
-            containerHeight={chartContainerSize.height}
-            domainX={domainX}
-            domainY={domainY}
-            xScale={axisScales.x}
-            yScale={axisScales.y}
-            marginLeft={chartMargins.left}
-            marginRight={chartMargins.right}
-            marginTop={chartMargins.top}
-            marginBottom={chartMargins.bottom}
-            readOnly={readOnly}
-            debug={false}
-            selectedSegmentIds={isAngleMode ? selectedSegmentIds : []}
-            onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
-            onPointerStartedOnSegment={(eraseMode || isAngleMode) ? () => {
-              pointerStartedOnLineRef.current = true;
-            } : undefined}
-          />
-        )}
+        {segments.length > 0 && (() => {
+          // Compute all segment IDs that should be highlighted in angle mode:
+          // 1. Segments from persisted angle measurements (always orange)
+          // 2. Segments from current transient selection (also orange while selecting)
+          const measurementSegmentIds = new Set<string>();
+          angleMeasurements.forEach(m => {
+            measurementSegmentIds.add(m.segmentId1);
+            measurementSegmentIds.add(m.segmentId2);
+          });
+          
+          // Combine persisted and transient selections
+          const allHighlightedSegmentIds = isAngleMode 
+            ? [...new Set([...measurementSegmentIds, ...selectedSegmentIds])]
+            : [];
+          
+          return (
+            <GraphSegmentsLayer
+              segments={segments}
+              onSegmentsChange={readOnly ? undefined : onSegmentsChange}
+              stroke="#3b82f6"
+              strokeWidth={4}
+              containerWidth={chartContainerSize.width}
+              containerHeight={chartContainerSize.height}
+              domainX={domainX}
+              domainY={domainY}
+              xScale={axisScales.x}
+              yScale={axisScales.y}
+              marginLeft={chartMargins.left}
+              marginRight={chartMargins.right}
+              marginTop={chartMargins.top}
+              marginBottom={chartMargins.bottom}
+              readOnly={readOnly}
+              debug={false}
+              selectedSegmentIds={allHighlightedSegmentIds}
+              onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
+              onPointerStartedOnSegment={(eraseMode || isAngleMode) ? () => {
+                pointerStartedOnLineRef.current = true;
+              } : undefined}
+            />
+          );
+        })()}
 
         {/* Freeform drawing canvas overlay */}
         {isJoinModeEnabled && onDrawnPathsChange && (
