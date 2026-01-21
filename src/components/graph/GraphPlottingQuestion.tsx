@@ -152,9 +152,19 @@ export function GraphPlottingQuestion({
   });
   const DOUBLE_TAP_THRESHOLD = 500; // ms - increased for touch reliability
   const DOUBLE_TAP_DISTANCE = 60; // px max movement - generous for finger variance on iPad
-  
-  // Hit radius for touch targets (larger for iPad/touch devices)
-  const POINT_HIT_RADIUS = 44; // px - generous hit area for touch
+
+  // Hit radius for touch targets (larger for iPad/tablets)
+  const isCoarsePointer = useMemo(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(pointer: coarse)').matches;
+  }, []);
+
+  const POINT_HIT_RADIUS = useMemo(() => {
+    if (!isCoarsePointer) return 32;
+    // Heuristic: on phones keep it moderate; on tablets (iPad) make it much larger.
+    if (chartContainerSize.width < 480) return 44;
+    return 72;
+  }, [isCoarsePointer, chartContainerSize.width]);
   
   // Track if pointer event started on a point (to prevent bubbling issues)
   const pointerStartedOnPointRef = useRef(false);
@@ -1198,7 +1208,9 @@ export function GraphPlottingQuestion({
           cx={displayCx}
           cy={displayCy}
           r={POINT_HIT_RADIUS}
-          fill="transparent"
+          // iOS Safari can be flaky with fully transparent SVG hit targets; use near-transparent paint.
+          fill="hsl(var(--foreground))"
+          fillOpacity={0.001}
           stroke="transparent"
           pointerEvents="all"
           style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
