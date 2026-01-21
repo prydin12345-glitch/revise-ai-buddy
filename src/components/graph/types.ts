@@ -2,6 +2,11 @@
 
 // Data point for graphs
 export interface GraphPoint {
+  /**
+   * Stable identifier for a plotted point.
+   * Used for drag-mode tracking and to keep connected segments synced while points move.
+   */
+  id?: string;
   x: number;
   y: number;
   label?: string;
