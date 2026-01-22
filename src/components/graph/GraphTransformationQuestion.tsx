@@ -22,6 +22,7 @@ import {
   LineSegment,
   GraphTransformationMarkingResult,
   GraphPlottingConfig,
+  GraphSeries,
 } from "./types";
 
 interface PartAnswer {
@@ -56,13 +57,51 @@ export const GraphTransformationQuestion = ({
 
   // Build reference curve series for display
   const referenceSeries = useMemo(() => {
+    const series: GraphSeries[] = [];
+    
+    // Primary: use provided reference curve
     if (config.originalFunction.referenceCurve) {
-      return [config.originalFunction.referenceCurve];
+      series.push(config.originalFunction.referenceCurve);
+    } else if (config.originalFunction.keyPoints?.length >= 3) {
+      // Fallback: generate curve from key points via interpolation
+      const sortedPoints = [...config.originalFunction.keyPoints]
+        .sort((a, b) => a.coordinates.x - b.coordinates.x);
+      
+      // Simple polynomial interpolation for smooth curve
+      const curveData: GraphPoint[] = [];
+      const xMin = sortedPoints[0].coordinates.x - 1;
+      const xMax = sortedPoints[sortedPoints.length - 1].coordinates.x + 1;
+      
+      // Use Lagrange interpolation for smooth curve
+      for (let x = xMin; x <= xMax; x += 0.25) {
+        let y = 0;
+        for (let i = 0; i < sortedPoints.length; i++) {
+          let term = sortedPoints[i].coordinates.y;
+          for (let j = 0; j < sortedPoints.length; j++) {
+            if (i !== j) {
+              term *= (x - sortedPoints[j].coordinates.x) / 
+                      (sortedPoints[i].coordinates.x - sortedPoints[j].coordinates.x);
+            }
+          }
+          y += term;
+        }
+        if (isFinite(y) && Math.abs(y) < 100) {
+          curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+        }
+      }
+      
+      series.push({
+        id: 'interpolated',
+        label: 'y = f(x)',
+        data: curveData,
+        color: subjectColor,
+        showLine: true,
+      });
     }
     
-    // Fallback: render key points as a scatter
+    // Always add key points as a scatter overlay for labels
     if (config.originalFunction.keyPoints?.length) {
-      return [{
+      series.push({
         id: 'keypoints',
         label: 'Key Points',
         data: config.originalFunction.keyPoints.map(kp => ({
@@ -70,12 +109,12 @@ export const GraphTransformationQuestion = ({
           y: kp.coordinates.y,
           label: kp.label,
         })),
-        color: subjectColor,
+        color: '#1F2937',
         showLine: false,
-      }];
+      });
     }
     
-    return [];
+    return series;
   }, [config.originalFunction, subjectColor]);
 
   // Get status for a part
@@ -83,6 +122,18 @@ export const GraphTransformationQuestion = ({
     if (!showCorrectAnswers || !markingData) return null;
     return markingData.perPartResults[partId]?.status || null;
   };
+
+  // Render asymptote reference lines for the graph
+  const asymptoteLines = useMemo(() => {
+    if (!config.originalFunction.asymptotes?.length) return [];
+    
+    return config.originalFunction.asymptotes.map((asym, i) => ({
+      id: `asymptote-${i}`,
+      type: asym.type,
+      value: asym.value,
+      equation: asym.equation,
+    }));
+  }, [config.originalFunction.asymptotes]);
 
   // Render the reference function diagram
   const renderReferenceDiagram = () => {
@@ -97,19 +148,66 @@ export const GraphTransformationQuestion = ({
               <MathRenderer content={originalFunction.description} />
             </p>
             {originalFunction.asymptotes?.length ? (
-              <p className="text-sm text-muted-foreground mt-2">
-                Asymptote{originalFunction.asymptotes.length > 1 ? 's' : ''}:{' '}
+              <div className="mt-2 flex flex-wrap gap-2">
                 {originalFunction.asymptotes.map((a, i) => (
-                  <span key={i}>
-                    {i > 0 && ', '}
-                    <MathRenderer content={a.equation} inline />
-                  </span>
+                  <Badge key={i} variant="secondary" className="text-xs font-mono">
+                    Asymptote: <MathRenderer content={a.equation} inline />
+                  </Badge>
                 ))}
-              </p>
+              </div>
             ) : null}
           </div>
           
-          <div className="bg-muted/30 rounded-lg p-2">
+          <div className="bg-muted/30 rounded-lg p-2 relative">
+            {/* Asymptote overlay - rendered as dashed lines */}
+            {asymptoteLines.length > 0 && (
+              <div className="absolute inset-0 pointer-events-none z-10">
+                <svg className="w-full h-full" style={{ overflow: 'visible' }}>
+                  {asymptoteLines.map((asym) => {
+                    const domainXRange = domainX || [-10, 10];
+                    const domainYRange = domainY || [-10, 10];
+                    const chartWidth = 100; // percentage
+                    const chartHeight = 100;
+                    
+                    if (asym.type === 'vertical' && asym.value !== undefined) {
+                      // Convert x value to percentage position
+                      const xPos = ((asym.value - domainXRange[0]) / (domainXRange[1] - domainXRange[0])) * chartWidth;
+                      return (
+                        <line
+                          key={asym.id}
+                          x1={`${xPos}%`}
+                          y1="5%"
+                          x2={`${xPos}%`}
+                          y2="95%"
+                          stroke="#EF4444"
+                          strokeWidth={1.5}
+                          strokeDasharray="6 4"
+                          opacity={0.7}
+                        />
+                      );
+                    }
+                    if (asym.type === 'horizontal' && asym.value !== undefined) {
+                      const yPos = 100 - ((asym.value - domainYRange[0]) / (domainYRange[1] - domainYRange[0])) * chartHeight;
+                      return (
+                        <line
+                          key={asym.id}
+                          x1="5%"
+                          y1={`${yPos}%`}
+                          x2="95%"
+                          y2={`${yPos}%`}
+                          stroke="#EF4444"
+                          strokeWidth={1.5}
+                          strokeDasharray="6 4"
+                          opacity={0.7}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                </svg>
+              </div>
+            )}
+            
             <GraphRenderer
               config={{
                 chartType: 'line',
@@ -131,11 +229,16 @@ export const GraphTransformationQuestion = ({
                 <Badge 
                   key={kp.id} 
                   variant="outline"
-                  className="text-xs"
+                  className="text-xs font-mono"
+                  style={{ borderColor: `${subjectColor}60` }}
                 >
-                  {kp.label}: ({kp.coordinates.x}, {kp.coordinates.y})
+                  <span className="font-semibold">{kp.label}</span>
+                  <span className="mx-1">:</span>
+                  ({kp.coordinates.x}, {kp.coordinates.y})
                   {kp.type !== 'point' && (
-                    <span className="ml-1 opacity-60">({kp.type})</span>
+                    <span className="ml-1 opacity-60 text-[10px]">
+                      {kp.type.replace('-', ' ').replace('_', ' ')}
+                    </span>
                   )}
                 </Badge>
               ))}
