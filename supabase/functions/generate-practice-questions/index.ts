@@ -173,10 +173,65 @@ Question type mix:
 - Only include graph or table questions if specifically relevant to the subtopics.`;
     }
 
-    // A-Level specific transformation instructions
-    const isALevel = setData.educational_tier?.toLowerCase().includes('a-level') || 
-                     setData.educational_tier?.toLowerCase().includes('a level');
+    // Determine educational tier for complexity scaling
+    const tier = (setData.educational_tier || '').toLowerCase();
+    const isFoundation = tier.includes('foundation') || tier.includes('basic');
+    const isGCSE = tier.includes('gcse') || tier.includes('ks4') || tier.includes('o-level') || tier.includes('secondary');
+    const isALevel = tier.includes('a-level') || tier.includes('a level') || tier.includes('ib') || tier.includes('pre-u') || tier.includes('advanced');
+    const isUniversity = tier.includes('university') || tier.includes('undergraduate') || tier.includes('degree') || tier.includes('postgraduate') || tier.includes('masters');
     
+    // Build complexity scaling instructions based on educational tier
+    let complexityInstructions = '';
+    
+    if (isFoundation) {
+      complexityInstructions = `
+COMPLEXITY LEVEL: Foundation/Basic
+- Use simple, scaffolded questions with clear step-by-step guidance
+- Avoid abstract notation; use concrete numbers and straightforward language
+- Include worked examples within multi-part questions
+- Keep calculations to single-step or two-step maximum
+- Use friendly, encouraging language
+- Provide visual aids (diagrams, number lines) where helpful`;
+    } else if (isGCSE) {
+      complexityInstructions = `
+COMPLEXITY LEVEL: GCSE/Secondary (Higher)
+- Questions should require multi-step reasoning
+- Use standard mathematical notation but explain any unfamiliar symbols
+- Include some abstract elements but ground in practical contexts
+- Mix procedural fluency with problem-solving
+- 2-4 mark questions with clear mark allocation
+- Include "show that" and "explain" command words`;
+    } else if (isALevel) {
+      complexityInstructions = `
+COMPLEXITY LEVEL: A-Level/IB/Advanced
+- Use formal mathematical language and notation throughout
+- Require abstract reasoning and proof-style arguments
+- Use f(x) notation for functions; expect students to work with transformations
+- Questions should connect multiple concepts (e.g., calculus with trigonometry)
+- Include "hence or otherwise", "deduce", "prove" command words
+- No scaffolding or hints; professional exam-style layout
+- Multi-part questions (a, b, c) where parts may build on each other
+- Include asymptote analysis, set notation for domains/ranges
+- Marks: 4-12 per question, reflecting depth of working required`;
+    } else if (isUniversity) {
+      complexityInstructions = `
+COMPLEXITY LEVEL: University/Undergraduate+
+- Assume full mathematical maturity; no hand-holding
+- Use formal definitions, theorems, and proof structures
+- Questions may require synthesis across multiple courses
+- Include epsilon-delta arguments, formal set theory notation where appropriate
+- Expect rigorous justification for all steps
+- Professional academic examination style`;
+    } else {
+      // Default: moderate complexity
+      complexityInstructions = `
+COMPLEXITY LEVEL: Standard
+- Balance procedural and conceptual questions
+- Use clear mathematical notation
+- Include a range of difficulty within the set`;
+    }
+
+    // A-Level/Advanced specific transformation instructions
     const transformationInstructions = isALevel ? `
 A-LEVEL GRAPH TRANSFORMATION QUESTIONS (use graph_transformation type):
 - For function transformation topics, use question_type = "graph_transformation"
@@ -200,9 +255,10 @@ A-LEVEL GRAPH TRANSFORMATION QUESTIONS (use graph_transformation type):
 Context:
 - Subject: ${setData.subject_id}
 - Subtopics: ${setData.subtopics.join(', ')}
-- Educational Level: ${setData.educational_tier}
+- Educational Level: ${setData.educational_tier || 'not specified'}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
+${complexityInstructions}
 ${transformationInstructions}
 
 CRITICAL OUTPUT RULES:
