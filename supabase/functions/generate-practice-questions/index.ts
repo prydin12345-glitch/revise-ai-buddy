@@ -423,7 +423,7 @@ ${notesSection}`;
                       { type: 'number' },
                       { type: 'boolean' },
                       { type: 'null' },
-                      { type: 'array' },
+                      { type: 'array', items: {} },
                       { type: 'object' },
                     ],
                   },
