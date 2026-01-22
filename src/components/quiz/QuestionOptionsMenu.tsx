@@ -82,8 +82,8 @@ export const QuestionOptionsMenu = ({
           {hideNavigation ? "Show Navigation" : "Hide Navigation"}
         </DropdownMenuItem>
 
-        {/* Protractor toggle - practice mode only */}
-        {mode === "practice" && onToggleProtractor && (
+        {/* Protractor toggle - both modes for graph questions */}
+        {onToggleProtractor && (
           <DropdownMenuItem onClick={onToggleProtractor} className="cursor-pointer">
             <Compass className="w-4 h-4 mr-2" />
             {showProtractor ? "Hide Protractor" : "Show Protractor"}
