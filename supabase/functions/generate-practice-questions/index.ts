@@ -180,6 +180,51 @@ Question type mix:
     const isALevel = tier.includes('a-level') || tier.includes('a level') || tier.includes('ib') || tier.includes('pre-u') || tier.includes('advanced');
     const isUniversity = tier.includes('university') || tier.includes('undergraduate') || tier.includes('degree') || tier.includes('postgraduate') || tier.includes('masters');
     
+    // PHASE 1: Stronger subtopic detection for transformations
+    const subtopicsLower = (setData.subtopics || []).map((s: string) => s.toLowerCase());
+    const hasTransformationTopic = subtopicsLower.some((s: string) => 
+      s.includes('transform') || 
+      s.includes('f(x)') || 
+      s.includes('function') ||
+      s.includes('sketch') ||
+      s.includes('curve') ||
+      s.includes('graph')
+    );
+    
+    // Force graph_transformation type when A-Level/IB + transformation/graph topic
+    const forceTransformationType = (isALevel || isUniversity) && hasTransformationTopic && includeGraphs;
+    
+    console.log('Transformation detection:', { 
+      tier, 
+      isALevel, 
+      hasTransformationTopic, 
+      forceTransformationType,
+      subtopics: setData.subtopics 
+    });
+    
+    // PHASE 4: Better specification extraction - parse for exam patterns
+    let examPatterns = '';
+    if (specContent && specContent.length > 0) {
+      // Look for question structures in the spec
+      const questionMatches = specContent.match(/\([a-z]\)\s+[A-Z][^.]{10,100}\./g) || [];
+      const markPatterns = specContent.match(/\[\d+\s*marks?\]/gi) || [];
+      const commandWords = specContent.match(/\b(hence|deduce|prove|show that|sketch|state|find|calculate|determine|explain|justify)\b/gi) || [];
+      
+      const uniqueMarks = [...new Set(markPatterns)];
+      const uniqueCommands = [...new Set(commandWords.map((w: string) => w.toLowerCase()))];
+      
+      if (questionMatches.length > 0 || uniqueCommands.length > 0) {
+        examPatterns = `
+EXAM STYLE PATTERNS (from uploaded specification):
+${questionMatches.length > 0 ? `- Sample question structures:\n${questionMatches.slice(0, 3).join('\n')}` : ''}
+${uniqueMarks.length > 0 ? `- Mark allocations observed: ${uniqueMarks.join(', ')}` : ''}
+${uniqueCommands.length > 0 ? `- Command words used: ${uniqueCommands.slice(0, 10).join(', ')}` : ''}
+- IMPORTANT: Match the complexity and style of these patterns in your generated questions.
+`;
+        console.log('Extracted exam patterns from specification');
+      }
+    }
+    
     // Build complexity scaling instructions based on educational tier
     let complexityInstructions = '';
     
@@ -201,27 +246,34 @@ COMPLEXITY LEVEL: GCSE/Secondary (Higher)
 - Mix procedural fluency with problem-solving
 - 2-4 mark questions with clear mark allocation
 - Include "show that" and "explain" command words`;
-    } else if (isALevel) {
+    } else if (isALevel || isUniversity) {
+      // PHASE 3: Enhanced A-Level enforcement
+      const minMarks = isUniversity ? 6 : 4;
       complexityInstructions = `
-COMPLEXITY LEVEL: A-Level/IB/Advanced
+COMPLEXITY LEVEL: ${isUniversity ? 'University/Undergraduate+' : 'A-Level/IB/Advanced'}
+CRITICAL REQUIREMENTS:
 - Use formal mathematical language and notation throughout
 - Require abstract reasoning and proof-style arguments
-- Use f(x) notation for functions; expect students to work with transformations
+- Use f(x) notation for ALL function questions; students must work with transformations
 - Questions should connect multiple concepts (e.g., calculus with trigonometry)
-- Include "hence or otherwise", "deduce", "prove" command words
-- No scaffolding or hints; professional exam-style layout
-- Multi-part questions (a, b, c) where parts may build on each other
+- Include "hence or otherwise", "deduce", "prove", "show that" command words
+- NO scaffolding or hints; professional exam-style layout only
+- Multi-part questions (a, b, c) where parts BUILD ON EACH OTHER
 - Include asymptote analysis, set notation for domains/ranges
-- Marks: 4-12 per question, reflecting depth of working required`;
-    } else if (isUniversity) {
-      complexityInstructions = `
-COMPLEXITY LEVEL: University/Undergraduate+
-- Assume full mathematical maturity; no hand-holding
-- Use formal definitions, theorems, and proof structures
-- Questions may require synthesis across multiple courses
-- Include epsilon-delta arguments, formal set theory notation where appropriate
-- Expect rigorous justification for all steps
-- Professional academic examination style`;
+- MINIMUM ${minMarks} marks per question - no simple 1-2 mark procedural tasks
+
+BANNED FOR THIS LEVEL:
+- Simple "plot this single point" questions
+- Questions asking only for a single coordinate read-off
+- Basic arithmetic without conceptual reasoning
+- Any question that could appear on a GCSE paper
+
+REQUIRED STYLE:
+- Every question should require REASONING, not just procedure
+- Use abstract function notation: f(x), g(x), fg(x), f^(-1)(x)
+- Include phrases like "Hence find...", "Deduce that...", "Prove that...", "Show that..."
+${isUniversity ? '- Expect rigorous justification for all steps\n- Include epsilon-delta arguments, formal set theory where appropriate' : ''}
+${examPatterns}`;
     } else {
       // Default: moderate complexity
       complexityInstructions = `
@@ -231,24 +283,95 @@ COMPLEXITY LEVEL: Standard
 - Include a range of difficulty within the set`;
     }
 
-    // A-Level/Advanced specific transformation instructions
-    const transformationInstructions = isALevel ? `
-A-LEVEL GRAPH TRANSFORMATION QUESTIONS (use graph_transformation type):
-- For function transformation topics, use question_type = "graph_transformation"
-- Include f(x) notation: y = f(x+a), y = f(x) + a, y = af(x), y = f(ax), y = -f(x), y = f(-x)
-- correct_answer must include:
-  {
-    "graphType": "transformation",
-    "graphConfig": { "chartType": "line", "xLabel": "x", "yLabel": "y", "domainX": [-5, 5], "domainY": [-5, 5] },
-    "originalFunction": {
-      "description": "y = f(x) where f(x) = ...",
-      "keyPoints": [{"id": "A", "type": "maximum", "coordinates": {"x": 0, "y": 4}, "label": "A"}]
+    // PHASE 2: A-Level specific transformation instructions with MANDATORY templates
+    let transformationInstructions = '';
+    
+    if (forceTransformationType) {
+      transformationInstructions = `
+MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
+***** CRITICAL: AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_transformation" *****
+
+For this A-Level transformation topic set, you MUST generate professional exam-style transformation questions.
+
+REQUIRED QUESTION TEMPLATE (follow this structure):
+Question text: "Figure 1 shows a sketch of the curve y = f(x). The curve has a maximum at A(0, 4), passes through the origin O, and crosses the x-axis at B(-2, 0) and C(1, 0). There is an asymptote at x = -3."
+
+(a) Write down the coordinates of the maximum point on the curve with equation y = f(x + 3). [2 marks]
+(b) Sketch the curve with equation y = 2f(x), showing the coordinates of the maximum and any points where the curve crosses the x-axis. [3 marks]  
+(c) State the equation of the asymptote of the curve y = f(x - 1). [1 mark]
+(d) Given that f(x) = x(x + 2)(1 - x), find the value of ff(0). [3 marks]
+
+CORRECT ANSWER STRUCTURE FOR graph_transformation:
+{
+  "graphType": "transformation",
+  "graphConfig": { 
+    "chartType": "line", 
+    "xLabel": "x", 
+    "yLabel": "y", 
+    "domainX": [-6, 4], 
+    "domainY": [-4, 6],
+    "series": [{"id": "original", "label": "y = f(x)", "data": [{"x": -2, "y": 0}, {"x": 0, "y": 4}, {"x": 1, "y": 0}], "showLine": true}]
+  },
+  "originalFunction": {
+    "description": "y = f(x) where f(x) = x(x + 2)(1 - x)",
+    "keyPoints": [
+      {"id": "O", "type": "intercept", "coordinates": {"x": 0, "y": 0}, "label": "O"},
+      {"id": "A", "type": "maximum", "coordinates": {"x": 0, "y": 4}, "label": "A"},
+      {"id": "B", "type": "root", "coordinates": {"x": -2, "y": 0}, "label": "B"},
+      {"id": "C", "type": "root", "coordinates": {"x": 1, "y": 0}, "label": "C"}
+    ],
+    "asymptotes": [{"type": "vertical", "value": -3, "equation": "x = -3"}]
+  },
+  "parts": [
+    {
+      "id": "a", 
+      "transformation": "y = f(x + 3)", 
+      "questionType": "coordinates", 
+      "prompt": "Write down the coordinates of the maximum point on the curve with equation y = f(x + 3).",
+      "marks": 2, 
+      "correctAnswer": {"coordinateAnswer": {"x": -3, "y": 4}}
     },
-    "parts": [
-      {"id": "a", "transformation": "y = f(x + 2)", "questionType": "coordinates", "prompt": "State the coordinates of point A...", "marks": 2, "correctAnswer": {"coordinateAnswer": {"x": -2, "y": 4}}}
-    ]
-  }
-` : '';
+    {
+      "id": "b",
+      "transformation": "y = 2f(x)",
+      "questionType": "sketch",
+      "prompt": "Sketch the curve with equation y = 2f(x), showing the coordinates of the maximum and any points where the curve crosses the x-axis.",
+      "marks": 3,
+      "correctAnswer": {"expectedKeyPoints": [{"x": 0, "y": 8}, {"x": -2, "y": 0}, {"x": 1, "y": 0}]}
+    },
+    {
+      "id": "c",
+      "transformation": "y = f(x - 1)",
+      "questionType": "equation",
+      "prompt": "State the equation of the asymptote of the curve y = f(x - 1).",
+      "marks": 1,
+      "correctAnswer": {"equationAnswer": "x = -2"}
+    }
+  ]
+}
+
+TRANSFORMATIONS TO INCLUDE (vary these across questions):
+- Horizontal translations: y = f(x + a), y = f(x - a)
+- Vertical translations: y = f(x) + a, y = f(x) - a  
+- Horizontal stretches: y = f(ax), y = f(x/a)
+- Vertical stretches: y = af(x)
+- Reflections: y = -f(x), y = f(-x)
+- Combined: y = af(x + b) + c
+
+QUESTION TYPES FOR PARTS:
+- "coordinates": Ask for transformed coordinates of labeled points
+- "sketch": Ask student to draw the transformed curve on blank axes
+- "equation": Ask for equation of transformed asymptote or curve
+- "value": Ask for numerical calculation like f(a), ff(0), gf(2)
+`;
+    } else if (isALevel) {
+      transformationInstructions = `
+A-LEVEL GRAPH TRANSFORMATION QUESTIONS (when relevant to subtopics):
+- Use question_type = "graph_transformation" for function transformation questions
+- Include f(x) notation: y = f(x+a), y = f(x) + a, y = af(x), y = f(ax), y = -f(x), y = f(-x)
+- correct_answer must include complete graphType, graphConfig, originalFunction, and parts arrays
+`;
+    }
 
     const prompt = `Generate ${setData.question_count} practice questions.
 
@@ -708,6 +831,49 @@ ${notesSection}`;
     }
 
     console.log(`Generated ${questions.length} questions`);
+    
+    // PHASE 5: Post-generation validation for A-Level complexity
+    if (isALevel || isUniversity) {
+      const minExpectedMarks = isUniversity ? 6 : 4;
+      
+      // Count low-quality questions
+      const lowQualityQuestions = questions.filter((q: any) => {
+        const isLowMarks = q.marks < minExpectedMarks;
+        const isShortText = (q.question_text || '').length < 50;
+        const isTooSimple = /^plot (the|a|this) point/i.test(q.question_text || '') ||
+                           /^read (the|a) value/i.test(q.question_text || '') ||
+                           /^what is the (x|y)(-| )coordinate/i.test(q.question_text || '');
+        const hasNoReasoning = !/hence|therefore|deduce|prove|show that|explain|justify/i.test(q.question_text || '');
+        
+        return isLowMarks || isShortText || isTooSimple;
+      });
+      
+      const lowQualityRatio = lowQualityQuestions.length / questions.length;
+      
+      console.log(`A-Level quality check: ${lowQualityQuestions.length}/${questions.length} questions below expected complexity (${(lowQualityRatio * 100).toFixed(1)}%)`);
+      
+      if (lowQualityRatio > 0.3) {
+        console.warn('WARNING: Too many low-complexity questions for A-Level/University tier');
+        console.warn('Low quality questions:', lowQualityQuestions.map((q: any) => ({
+          num: q.question_number,
+          marks: q.marks,
+          textPreview: (q.question_text || '').substring(0, 60)
+        })));
+      }
+      
+      // Check graph_transformation ratio when forced
+      if (forceTransformationType) {
+        const transformationQuestions = questions.filter((q: any) => q.question_type === 'graph_transformation');
+        const transformationRatio = transformationQuestions.length / questions.length;
+        
+        console.log(`Transformation question ratio: ${transformationQuestions.length}/${questions.length} (${(transformationRatio * 100).toFixed(1)}%)`);
+        
+        if (transformationRatio < 0.3) {
+          console.warn('WARNING: Expected at least 50% graph_transformation questions but got less than 30%');
+          console.warn('Question types generated:', questions.map((q: any) => q.question_type));
+        }
+      }
+    }
 
     // Validate and transform questions
     const questionsToInsert = questions.map((q: any, idx: number) => {
