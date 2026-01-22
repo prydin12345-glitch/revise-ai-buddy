@@ -284,138 +284,154 @@ COMPLEXITY LEVEL: Standard
     }
 
     // PHASE 2: A-Level specific transformation instructions with MANDATORY templates
+    // IMPORTANT: We use graph_plotting for interactive graphs (not graph_transformation which doesn't render)
     let transformationInstructions = '';
     
     if (forceTransformationType) {
       transformationInstructions = `
 MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
-***** CRITICAL: AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_transformation" *****
+***** CRITICAL: AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
 
-For this A-Level transformation topic set, you MUST generate professional exam-style transformation questions.
+For this A-Level transformation topic set, you MUST generate professional exam-style graph questions.
+These questions should show a reference function and ask students to plot transformed points or curves.
 
 HERE IS A COMPLETE WORKING EXAMPLE - COPY THIS STRUCTURE EXACTLY:
 
-question_type: "graph_transformation"
-question_text: "Figure 1 shows a sketch of the curve y = f(x) where f(x) = x(x + 2)(1 - x). The curve has a maximum at A(-0.55, 1.63), passes through the origin O, and crosses the x-axis at B(-2, 0) and C(1, 0)."
-marks: 8
+question_type: "graph_plotting"
+question_text: "The curve y = f(x) where f(x) = x(x + 2)(1 - x) has a maximum at A(-0.55, 1.63) and crosses the x-axis at O(0,0), B(-2,0) and C(1,0). On the grid, plot the coordinates of the maximum point on the curve y = f(x + 3)."
+marks: 3
 
 correct_answer (THIS IS A COMPLETE WORKING JSON OBJECT - USE THIS FORMAT):
 {
-  "graphType": "transformation",
-  "chartType": "line",
-  "xLabel": "x",
-  "yLabel": "y",
-  "domainX": [-5, 4],
-  "domainY": [-4, 6],
+  "graphType": "plotting",
   "graphConfig": {
     "chartType": "line",
     "xLabel": "x",
     "yLabel": "y",
-    "domainX": [-5, 4],
+    "xDomain": [-6, 4],
+    "yDomain": [-4, 6],
+    "domainX": [-6, 4],
     "domainY": [-4, 6],
+    "grid": {"show": true, "stepX": 1, "stepY": 1},
     "series": [
       {
-        "id": "f",
+        "id": "original",
         "label": "y = f(x)",
         "data": [
           {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
           {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
           {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
         ],
-        "color": "#3B82F6",
+        "showLine": true,
+        "lineStyle": "solid"
+      }
+    ]
+  },
+  "plottingAnswer": {
+    "expectedPoints": [{"x": -3.55, "y": 1.63}],
+    "toleranceUnits": 0.3,
+    "marksPerPoint": 3
+  }
+}
+
+ANOTHER EXAMPLE - SKETCHING TRANSFORMED CURVE:
+
+question_type: "graph_plotting"  
+question_text: "The curve y = f(x) = (x-1)² has vertex at V(1, 0). On the grid, sketch the curve y = 2f(x) + 3 by plotting the vertex and at least two other points."
+marks: 4
+
+correct_answer:
+{
+  "graphType": "plotting",
+  "graphConfig": {
+    "chartType": "line",
+    "xLabel": "x",
+    "yLabel": "y",
+    "xDomain": [-4, 6],
+    "yDomain": [-2, 14],
+    "domainX": [-4, 6],
+    "domainY": [-2, 14],
+    "grid": {"show": true, "stepX": 1, "stepY": 2},
+    "series": [
+      {
+        "id": "original",
+        "label": "y = f(x) = (x-1)² (reference)",
+        "data": [{"x": -1, "y": 4}, {"x": 0, "y": 1}, {"x": 1, "y": 0}, {"x": 2, "y": 1}, {"x": 3, "y": 4}],
+        "showLine": true,
+        "lineStyle": "dashed"
+      }
+    ]
+  },
+  "plottingAnswer": {
+    "expectedPoints": [{"x": 1, "y": 3}, {"x": 0, "y": 5}, {"x": 2, "y": 5}, {"x": 3, "y": 11}],
+    "toleranceUnits": 0.3,
+    "marksPerPoint": 1
+  }
+}
+
+EXAMPLE - GRAPH INTERPRETATION (for text/numeric answers with visible graph):
+
+question_type: "graph_interpretation"
+question_text: "The curve y = f(x) = 1/(x+3) has a vertical asymptote at x = -3. State the equation of the vertical asymptote of y = f(x - 1)."
+marks: 2
+
+correct_answer:
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line",
+    "xLabel": "x",
+    "yLabel": "y",
+    "xDomain": [-8, 6],
+    "yDomain": [-4, 4],
+    "domainX": [-8, 6],
+    "domainY": [-4, 4],
+    "grid": {"show": true, "stepX": 1, "stepY": 1},
+    "series": [
+      {
+        "id": "left",
+        "label": "y = f(x)",
+        "data": [{"x": -7, "y": -0.25}, {"x": -6, "y": -0.33}, {"x": -5, "y": -0.5}, {"x": -4, "y": -1}],
+        "showLine": true
+      },
+      {
+        "id": "right",
+        "label": "y = f(x)",
+        "data": [{"x": -2, "y": 1}, {"x": -1, "y": 0.5}, {"x": 0, "y": 0.33}, {"x": 2, "y": 0.2}],
         "showLine": true
       }
     ]
   },
-  "originalFunction": {
-    "description": "y = f(x) where f(x) = x(x + 2)(1 - x)",
-    "keyPoints": [
-      {"id": "O", "type": "y-intercept", "coordinates": {"x": 0, "y": 0}, "label": "O"},
-      {"id": "A", "type": "maximum", "coordinates": {"x": -0.55, "y": 1.63}, "label": "A"},
-      {"id": "B", "type": "x-intercept", "coordinates": {"x": -2, "y": 0}, "label": "B"},
-      {"id": "C", "type": "x-intercept", "coordinates": {"x": 1, "y": 0}, "label": "C"}
-    ],
-    "referenceCurve": {
-      "id": "f",
-      "label": "y = f(x)",
-      "data": [
-        {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
-        {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
-        {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
-      ],
-      "color": "#3B82F6",
-      "showLine": true
-    }
-  },
-  "parts": [
-    {
-      "id": "a",
-      "transformation": "y = f(x + 3)",
-      "questionType": "coordinates",
-      "prompt": "Write down the coordinates of the maximum point on the curve with equation y = f(x + 3).",
-      "marks": 2,
-      "correctAnswer": {"coordinateAnswer": {"x": -3.55, "y": 1.63}}
-    },
-    {
-      "id": "b",
-      "transformation": "y = 2f(x)",
-      "questionType": "sketch",
-      "prompt": "Sketch the curve with equation y = 2f(x), showing the coordinates of the maximum and any points where the curve crosses the x-axis.",
-      "marks": 3,
-      "correctAnswer": {
-        "transformedPoints": [
-          {"x": -0.55, "y": 3.26, "label": "A'"},
-          {"x": -2, "y": 0, "label": "B'"},
-          {"x": 0, "y": 0, "label": "O'"},
-          {"x": 1, "y": 0, "label": "C'"}
-        ]
-      }
-    },
-    {
-      "id": "c",
-      "transformation": "ff(x)",
-      "questionType": "value",
-      "prompt": "Given that f(x) = x(x + 2)(1 - x), find the value of ff(0).",
-      "marks": 3,
-      "correctAnswer": {"numericAnswer": 0, "textAnswer": "0"}
-    }
+  "interpretationFields": [
+    {"id": "asymptote", "type": "text", "question": "State the equation of the vertical asymptote of y = f(x - 1)", "correctAnswer": "x = -2", "marks": 2, "alternatives": ["x=-2", "-2"]}
   ]
 }
 
 TRANSFORMATIONS TO INCLUDE (vary these across questions):
-- Horizontal translations: y = f(x + a), y = f(x - a)
-- Vertical translations: y = f(x) + a, y = f(x) - a  
-- Horizontal stretches: y = f(ax), y = f(x/a)
-- Vertical stretches: y = af(x)
-- Reflections: y = -f(x), y = f(-x)
-- Combined: y = af(x + b) + c
-- Composite functions: fg(x), gf(x), ff(x)
-- Inverse functions: f^(-1)(x)
+- Horizontal translations: y = f(x + a), y = f(x - a) - use graph_plotting to plot transformed key points
+- Vertical translations: y = f(x) + a - use graph_plotting
+- Stretches: y = af(x), y = f(ax) - use graph_plotting  
+- Reflections: y = -f(x), y = f(-x) - use graph_plotting
+- Asymptote questions: use graph_interpretation with text fields
+- Composite functions fg(x), gf(x): use graph_interpretation with numeric fields
+- Inverse functions: use graph_interpretation
 
-QUESTION PART TYPES:
-- "coordinates": Ask for transformed coordinates of labeled points
-- "sketch": Ask student to draw the transformed curve on blank axes
-- "equation": Ask for equation of transformed asymptote or curve
-- "value": Ask for numerical calculation like f(a), ff(0), gf(2)
-- "text": Ask for explanation or set notation for domain/range
-
-ASYMPTOTE EXAMPLE (for rational functions):
-{
-  "originalFunction": {
-    "asymptotes": [
-      {"type": "vertical", "value": -3, "equation": "x = -3"},
-      {"type": "horizontal", "value": 0, "equation": "y = 0"}
-    ]
-  }
-}
+CRITICAL RULES:
+1. ALWAYS use "graphType": "plotting" for graph_plotting questions
+2. ALWAYS use "graphType": "interpretation" for graph_interpretation questions  
+3. ALWAYS include grid: {"show": true, "stepX": 1, "stepY": 1} in graphConfig
+4. ALWAYS include series with actual data points (at least 5 points for curves)
+5. ALWAYS set both xDomain/yDomain AND domainX/domainY (they should match)
+6. For plotting questions, set marksPerPoint based on total marks divided by expected points
 `;
     } else if (isALevel) {
       transformationInstructions = `
-A-LEVEL GRAPH TRANSFORMATION QUESTIONS (when relevant to subtopics):
-- Use question_type = "graph_transformation" for function transformation questions
-- Include f(x) notation: y = f(x+a), y = f(x) + a, y = af(x), y = f(ax), y = -f(x), y = f(-x)
-- correct_answer must include complete graphType, graphConfig with series data, originalFunction with keyPoints, and parts arrays
-- See the CRITICAL graph_transformation format requirements above
+A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
+- Use question_type = "graph_plotting" for questions where students plot points or sketch curves
+- Use question_type = "graph_interpretation" for questions with text/numeric answers about graphs
+- Include f(x) notation for transformations
+- correct_answer MUST include graphType ("plotting" or "interpretation"), graphConfig with series data
+- See the graph format requirements above
 `;
     }
 
@@ -1125,47 +1141,71 @@ ${notesSection}`;
         }
       }
       
-      // GRAPH TRANSFORMATION VALIDATION (A-Level multi-part questions)
+      // GRAPH TRANSFORMATION VALIDATION - Convert to graph_plotting since that's what renders
       if (q.question_type === 'graph_transformation') {
-        let isValidTransformation = false;
+        console.info(`Question ${q.question_number}: Converting graph_transformation to graph_plotting for proper rendering`);
         
         try {
           const transData = typeof q.correct_answer === 'string' 
             ? JSON.parse(q.correct_answer) 
             : q.correct_answer;
           
-          // Check required structure
-          const hasGraphType = transData?.graphType === 'transformation';
-          const hasOriginalFunction = transData?.originalFunction && 
-                                      Array.isArray(transData.originalFunction.keyPoints) &&
-                                      transData.originalFunction.keyPoints.length >= 2;
-          const hasParts = Array.isArray(transData?.parts) && transData.parts.length >= 1;
+          // Convert to graph_plotting format
           const hasGraphConfig = transData?.graphConfig && 
                                  Array.isArray(transData.graphConfig.series) &&
-                                 transData.graphConfig.series.length > 0 &&
-                                 transData.graphConfig.series[0].data?.length >= 3;
+                                 transData.graphConfig.series.length > 0;
           
-          isValidTransformation = hasGraphType && hasOriginalFunction && hasParts && hasGraphConfig;
-          
-          if (!isValidTransformation) {
-            console.warn(`Question ${q.question_number}: graph_transformation validation failed`, {
-              hasGraphType,
-              hasOriginalFunction,
-              hasParts,
-              hasGraphConfig,
-            });
+          if (hasGraphConfig) {
+            // Transform to graph_plotting format
+            const plottingData = {
+              graphType: 'plotting',
+              graphConfig: {
+                ...transData.graphConfig,
+                grid: { show: true, stepX: 1, stepY: 1 },
+                xDomain: transData.graphConfig.domainX || transData.graphConfig.xDomain || [-10, 10],
+                yDomain: transData.graphConfig.domainY || transData.graphConfig.yDomain || [-10, 10],
+                domainX: transData.graphConfig.domainX || transData.graphConfig.xDomain || [-10, 10],
+                domainY: transData.graphConfig.domainY || transData.graphConfig.yDomain || [-10, 10],
+              },
+              plottingAnswer: {
+                expectedPoints: transData.parts?.[0]?.correctAnswer?.coordinateAnswer 
+                  ? [transData.parts[0].correctAnswer.coordinateAnswer]
+                  : transData.parts?.[0]?.correctAnswer?.transformedPoints || [],
+                toleranceUnits: 0.3,
+                marksPerPoint: q.marks / Math.max(1, transData.parts?.length || 1)
+              }
+            };
+            
+            q.question_type = 'graph_plotting';
+            q.correct_answer = plottingData;
+            console.info(`Question ${q.question_number}: Successfully converted to graph_plotting`);
           } else {
-            console.info(`Question ${q.question_number}: graph_transformation validated successfully with ${transData.parts.length} parts`);
+            // Fallback to graph_interpretation if no series data
+            console.warn(`Question ${q.question_number}: No graphConfig series, converting to graph_interpretation`);
+            q.question_type = 'graph_interpretation';
+            const interpretationData = {
+              graphType: 'interpretation',
+              graphConfig: {
+                chartType: 'line',
+                xLabel: 'x',
+                yLabel: 'y',
+                xDomain: [-10, 10],
+                yDomain: [-10, 10],
+                domainX: [-10, 10],
+                domainY: [-10, 10],
+                grid: { show: true, stepX: 1, stepY: 1 },
+                series: []
+              },
+              interpretationFields: [
+                { id: 'answer', type: 'text', question: 'Enter your answer', correctAnswer: transData.parts?.[0]?.correctAnswer?.textAnswer || '', marks: q.marks }
+              ]
+            };
+            q.correct_answer = interpretationData;
           }
         } catch (e) {
-          console.warn(`Question ${q.question_number}: Failed to parse graph_transformation correct_answer`);
-        }
-        
-        if (!isValidTransformation) {
-          // Downgrade to extended question if transformation structure is invalid
-          console.warn(`Question ${q.question_number}: Invalid graph_transformation structure, downgrading to extended`);
+          console.warn(`Question ${q.question_number}: Failed to convert graph_transformation, downgrading to extended`);
           q.question_type = 'extended';
-          q.correct_answer = 'This question requires drawing and analysis of function transformations. Full worked solution required.';
+          q.correct_answer = 'This question requires analysis of function transformations.';
         }
       }
       
