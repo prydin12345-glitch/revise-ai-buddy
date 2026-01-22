@@ -204,16 +204,121 @@ export interface GraphPlottingMarkingResult {
   totalMarks: number;
 }
 
+// ============= Graph Transformation Types (A-Level f(x) questions) =============
+
+// Key point on a function curve (maxima, minima, intercepts, asymptotes)
+export interface FunctionKeyPoint {
+  id: string;
+  type: 'maximum' | 'minimum' | 'x-intercept' | 'y-intercept' | 'turning_point' | 'point';
+  coordinates: { x: number; y: number };
+  label?: string; // e.g., "A", "B", "P"
+}
+
+// Asymptote definition
+export interface Asymptote {
+  type: 'horizontal' | 'vertical' | 'oblique';
+  equation: string; // e.g., "y = 1", "x = -2"
+  value?: number; // For horizontal: y-value; for vertical: x-value
+}
+
+// Original function definition with labeled points
+export interface OriginalFunctionConfig {
+  description: string; // e.g., "y = f(x) where f(x) = (x+3)^2(x-1)"
+  displayEquation?: string; // For rendering, e.g., "y = f(x)"
+  keyPoints: FunctionKeyPoint[];
+  asymptotes?: Asymptote[];
+  // Series data for rendering the reference curve
+  referenceCurve?: GraphSeries;
+  // Domain/range if relevant
+  domain?: [number, number];
+  range?: [number, number];
+}
+
+// A single part of a multi-part transformation question
+export interface TransformationPart {
+  id: string; // "a", "b", "c", etc.
+  transformation: string; // "y = f(x + 2)", "y = 3f(x)", "y = -f(x)"
+  transformationDescription?: string; // "Translation 2 units left"
+  questionType: 'sketch' | 'coordinates' | 'equation' | 'value' | 'set' | 'text';
+  prompt: string; // The actual question text
+  marks: number;
+  correctAnswer: {
+    // For sketch: expected transformed key points
+    transformedPoints?: Array<{ x: number; y: number; label?: string; originalLabel?: string }>;
+    // For sketch: expected asymptotes after transformation
+    transformedAsymptotes?: Asymptote[];
+    // For coordinates: specific point coordinates
+    coordinateAnswer?: { x: number; y: number };
+    // For equation/value/text: text or numeric answer
+    textAnswer?: string;
+    numericAnswer?: number;
+    // For set notation: e.g., "{x : x > 0}"
+    setAnswer?: string;
+    // Alternative accepted answers
+    alternatives?: string[];
+  };
+  // Tolerance for numeric/coordinate answers
+  tolerance?: number;
+}
+
+// Complete graph transformation question configuration
+export interface GraphTransformationConfig extends GraphConfig {
+  originalFunction: OriginalFunctionConfig;
+  parts: TransformationPart[];
+  // Whether to show a blank canvas for student sketching
+  showBlankCanvas?: boolean;
+  // Grid configuration for sketch canvas
+  sketchGridStep?: number;
+}
+
+// Student response for a transformation question
+export interface GraphTransformationResponse {
+  _type: 'graph_transformation';
+  version: 1;
+  partAnswers: Record<string, {
+    // For sketch parts
+    sketchPoints?: GraphPoint[];
+    sketchCurve?: DrawingPath[];
+    // For other answer types
+    textAnswer?: string;
+    numericAnswer?: number;
+    coordinateAnswer?: { x: number; y: number };
+  }>;
+}
+
+// Marking result for transformation questions
+export interface GraphTransformationMarkingResult {
+  perPartResults: Record<string, {
+    partId: string;
+    correct: boolean;
+    earned: number;
+    max: number;
+    feedback?: string;
+    status: 'correct' | 'incorrect' | 'partial' | 'missed';
+    // For sketch: per-point matching results
+    pointResults?: Array<{
+      expectedPoint: { x: number; y: number; label?: string };
+      studentPoint?: GraphPoint;
+      matched: boolean;
+      distance?: number;
+    }>;
+  }>;
+  totalScore: number;
+  totalMarks: number;
+}
+
 // Full question data structure (stored in correct_answer JSON)
 export interface GraphQuestionData {
-  graphType: 'interpretation' | 'plotting' | 'bearings';
-  graphConfig: GraphInterpretationConfig | GraphPlottingConfig;
+  graphType: 'interpretation' | 'plotting' | 'bearings' | 'transformation';
+  graphConfig: GraphInterpretationConfig | GraphPlottingConfig | GraphTransformationConfig;
   // For interpretation questions
   interpretationFields?: GraphInterpretationField[];
   // For plotting questions
   plottingAnswer?: GraphPlottingAnswer;
   // For bearings questions
   bearingsConfig?: BearingsQuestionConfig;
+  // For transformation questions
+  transformationConfig?: GraphTransformationConfig;
 }
 
 // Helper to normalize graph config field names (handles xDomain vs domainX variations)
@@ -252,7 +357,7 @@ export function parseGraphQuestionData(correctAnswer: string | null): GraphQuest
   if (!correctAnswer) return null;
   try {
     const parsed = JSON.parse(correctAnswer);
-    if (parsed.graphType === 'interpretation' || parsed.graphType === 'plotting') {
+    if (parsed.graphType === 'interpretation' || parsed.graphType === 'plotting' || parsed.graphType === 'transformation') {
       // Normalize the graphConfig to handle field name variations
       if (parsed.graphConfig) {
         parsed.graphConfig = normalizeGraphConfig(parsed.graphConfig);
@@ -345,11 +450,11 @@ export function normalizeBearing(input: string | number): number | null {
 // Helper to parse student's graph response
 export function parseGraphResponse(
   answerText: string | null
-): GraphInterpretationResponse | GraphPlottingResponse | BearingsResponse | null {
+): GraphInterpretationResponse | GraphPlottingResponse | BearingsResponse | GraphTransformationResponse | null {
   if (!answerText) return null;
   try {
     const parsed = JSON.parse(answerText);
-    if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings') {
+    if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings' || parsed._type === 'graph_transformation') {
       return parsed;
     }
     return null;
@@ -361,4 +466,16 @@ export function parseGraphResponse(
 // Helper: calculate Euclidean distance between two points
 export function pointDistance(p1: GraphPoint, p2: GraphPoint): number {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+}
+
+// Helper to serialize graph transformation response
+export function serializeGraphTransformationResponse(
+  partAnswers: GraphTransformationResponse['partAnswers']
+): string {
+  const response: GraphTransformationResponse = {
+    _type: 'graph_transformation',
+    version: 1,
+    partAnswers
+  };
+  return JSON.stringify(response);
 }
