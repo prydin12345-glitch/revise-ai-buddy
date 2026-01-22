@@ -173,6 +173,28 @@ Question type mix:
 - Only include graph or table questions if specifically relevant to the subtopics.`;
     }
 
+    // A-Level specific transformation instructions
+    const isALevel = setData.educational_tier?.toLowerCase().includes('a-level') || 
+                     setData.educational_tier?.toLowerCase().includes('a level');
+    
+    const transformationInstructions = isALevel ? `
+A-LEVEL GRAPH TRANSFORMATION QUESTIONS (use graph_transformation type):
+- For function transformation topics, use question_type = "graph_transformation"
+- Include f(x) notation: y = f(x+a), y = f(x) + a, y = af(x), y = f(ax), y = -f(x), y = f(-x)
+- correct_answer must include:
+  {
+    "graphType": "transformation",
+    "graphConfig": { "chartType": "line", "xLabel": "x", "yLabel": "y", "domainX": [-5, 5], "domainY": [-5, 5] },
+    "originalFunction": {
+      "description": "y = f(x) where f(x) = ...",
+      "keyPoints": [{"id": "A", "type": "maximum", "coordinates": {"x": 0, "y": 4}, "label": "A"}]
+    },
+    "parts": [
+      {"id": "a", "transformation": "y = f(x + 2)", "questionType": "coordinates", "prompt": "State the coordinates of point A...", "marks": 2, "correctAnswer": {"coordinateAnswer": {"x": -2, "y": 4}}}
+    ]
+  }
+` : '';
+
     const prompt = `Generate ${setData.question_count} practice questions.
 
 Context:
@@ -181,6 +203,7 @@ Context:
 - Educational Level: ${setData.educational_tier}
 ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
+${transformationInstructions}
 
 CRITICAL OUTPUT RULES:
 1) Absolutely NO LaTeX anywhere.
@@ -283,6 +306,7 @@ ${notesSection}`;
       'table_grid',
       'graph_interpretation',
       'graph_plotting',
+      'graph_transformation',
     ]);
 
     const DifficultySchema = z.enum(['easy', 'medium', 'hard']);
@@ -410,6 +434,7 @@ ${notesSection}`;
                       'table_grid',
                       'graph_interpretation',
                       'graph_plotting',
+                      'graph_transformation',
                     ],
                   },
                   marks: { type: 'number' },
