@@ -293,43 +293,68 @@ MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
 
 For this A-Level transformation topic set, you MUST generate professional exam-style transformation questions.
 
-REQUIRED QUESTION TEMPLATE (follow this structure):
-Question text: "Figure 1 shows a sketch of the curve y = f(x). The curve has a maximum at A(0, 4), passes through the origin O, and crosses the x-axis at B(-2, 0) and C(1, 0). There is an asymptote at x = -3."
+HERE IS A COMPLETE WORKING EXAMPLE - COPY THIS STRUCTURE EXACTLY:
 
-(a) Write down the coordinates of the maximum point on the curve with equation y = f(x + 3). [2 marks]
-(b) Sketch the curve with equation y = 2f(x), showing the coordinates of the maximum and any points where the curve crosses the x-axis. [3 marks]  
-(c) State the equation of the asymptote of the curve y = f(x - 1). [1 mark]
-(d) Given that f(x) = x(x + 2)(1 - x), find the value of ff(0). [3 marks]
+question_type: "graph_transformation"
+question_text: "Figure 1 shows a sketch of the curve y = f(x) where f(x) = x(x + 2)(1 - x). The curve has a maximum at A(-0.55, 1.63), passes through the origin O, and crosses the x-axis at B(-2, 0) and C(1, 0)."
+marks: 8
 
-CORRECT ANSWER STRUCTURE FOR graph_transformation:
+correct_answer (THIS IS A COMPLETE WORKING JSON OBJECT - USE THIS FORMAT):
 {
   "graphType": "transformation",
-  "graphConfig": { 
-    "chartType": "line", 
-    "xLabel": "x", 
-    "yLabel": "y", 
-    "domainX": [-6, 4], 
+  "chartType": "line",
+  "xLabel": "x",
+  "yLabel": "y",
+  "domainX": [-5, 4],
+  "domainY": [-4, 6],
+  "graphConfig": {
+    "chartType": "line",
+    "xLabel": "x",
+    "yLabel": "y",
+    "domainX": [-5, 4],
     "domainY": [-4, 6],
-    "series": [{"id": "original", "label": "y = f(x)", "data": [{"x": -2, "y": 0}, {"x": 0, "y": 4}, {"x": 1, "y": 0}], "showLine": true}]
+    "series": [
+      {
+        "id": "f",
+        "label": "y = f(x)",
+        "data": [
+          {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
+          {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
+          {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
+        ],
+        "color": "#3B82F6",
+        "showLine": true
+      }
+    ]
   },
   "originalFunction": {
     "description": "y = f(x) where f(x) = x(x + 2)(1 - x)",
     "keyPoints": [
-      {"id": "O", "type": "intercept", "coordinates": {"x": 0, "y": 0}, "label": "O"},
-      {"id": "A", "type": "maximum", "coordinates": {"x": 0, "y": 4}, "label": "A"},
-      {"id": "B", "type": "root", "coordinates": {"x": -2, "y": 0}, "label": "B"},
-      {"id": "C", "type": "root", "coordinates": {"x": 1, "y": 0}, "label": "C"}
+      {"id": "O", "type": "y-intercept", "coordinates": {"x": 0, "y": 0}, "label": "O"},
+      {"id": "A", "type": "maximum", "coordinates": {"x": -0.55, "y": 1.63}, "label": "A"},
+      {"id": "B", "type": "x-intercept", "coordinates": {"x": -2, "y": 0}, "label": "B"},
+      {"id": "C", "type": "x-intercept", "coordinates": {"x": 1, "y": 0}, "label": "C"}
     ],
-    "asymptotes": [{"type": "vertical", "value": -3, "equation": "x = -3"}]
+    "referenceCurve": {
+      "id": "f",
+      "label": "y = f(x)",
+      "data": [
+        {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
+        {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
+        {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
+      ],
+      "color": "#3B82F6",
+      "showLine": true
+    }
   },
   "parts": [
     {
-      "id": "a", 
-      "transformation": "y = f(x + 3)", 
-      "questionType": "coordinates", 
+      "id": "a",
+      "transformation": "y = f(x + 3)",
+      "questionType": "coordinates",
       "prompt": "Write down the coordinates of the maximum point on the curve with equation y = f(x + 3).",
-      "marks": 2, 
-      "correctAnswer": {"coordinateAnswer": {"x": -3, "y": 4}}
+      "marks": 2,
+      "correctAnswer": {"coordinateAnswer": {"x": -3.55, "y": 1.63}}
     },
     {
       "id": "b",
@@ -337,15 +362,22 @@ CORRECT ANSWER STRUCTURE FOR graph_transformation:
       "questionType": "sketch",
       "prompt": "Sketch the curve with equation y = 2f(x), showing the coordinates of the maximum and any points where the curve crosses the x-axis.",
       "marks": 3,
-      "correctAnswer": {"expectedKeyPoints": [{"x": 0, "y": 8}, {"x": -2, "y": 0}, {"x": 1, "y": 0}]}
+      "correctAnswer": {
+        "transformedPoints": [
+          {"x": -0.55, "y": 3.26, "label": "A'"},
+          {"x": -2, "y": 0, "label": "B'"},
+          {"x": 0, "y": 0, "label": "O'"},
+          {"x": 1, "y": 0, "label": "C'"}
+        ]
+      }
     },
     {
       "id": "c",
-      "transformation": "y = f(x - 1)",
-      "questionType": "equation",
-      "prompt": "State the equation of the asymptote of the curve y = f(x - 1).",
-      "marks": 1,
-      "correctAnswer": {"equationAnswer": "x = -2"}
+      "transformation": "ff(x)",
+      "questionType": "value",
+      "prompt": "Given that f(x) = x(x + 2)(1 - x), find the value of ff(0).",
+      "marks": 3,
+      "correctAnswer": {"numericAnswer": 0, "textAnswer": "0"}
     }
   ]
 }
@@ -357,19 +389,33 @@ TRANSFORMATIONS TO INCLUDE (vary these across questions):
 - Vertical stretches: y = af(x)
 - Reflections: y = -f(x), y = f(-x)
 - Combined: y = af(x + b) + c
+- Composite functions: fg(x), gf(x), ff(x)
+- Inverse functions: f^(-1)(x)
 
-QUESTION TYPES FOR PARTS:
+QUESTION PART TYPES:
 - "coordinates": Ask for transformed coordinates of labeled points
 - "sketch": Ask student to draw the transformed curve on blank axes
 - "equation": Ask for equation of transformed asymptote or curve
 - "value": Ask for numerical calculation like f(a), ff(0), gf(2)
+- "text": Ask for explanation or set notation for domain/range
+
+ASYMPTOTE EXAMPLE (for rational functions):
+{
+  "originalFunction": {
+    "asymptotes": [
+      {"type": "vertical", "value": -3, "equation": "x = -3"},
+      {"type": "horizontal", "value": 0, "equation": "y = 0"}
+    ]
+  }
+}
 `;
     } else if (isALevel) {
       transformationInstructions = `
 A-LEVEL GRAPH TRANSFORMATION QUESTIONS (when relevant to subtopics):
 - Use question_type = "graph_transformation" for function transformation questions
 - Include f(x) notation: y = f(x+a), y = f(x) + a, y = af(x), y = f(ax), y = -f(x), y = f(-x)
-- correct_answer must include complete graphType, graphConfig, originalFunction, and parts arrays
+- correct_answer must include complete graphType, graphConfig with series data, originalFunction with keyPoints, and parts arrays
+- See the CRITICAL graph_transformation format requirements above
 `;
     }
 
@@ -1076,6 +1122,50 @@ ${notesSection}`;
             q.question_type = 'short_answer';
             q.correct_answer = 'Answer will vary based on graph interpretation.';
           }
+        }
+      }
+      
+      // GRAPH TRANSFORMATION VALIDATION (A-Level multi-part questions)
+      if (q.question_type === 'graph_transformation') {
+        let isValidTransformation = false;
+        
+        try {
+          const transData = typeof q.correct_answer === 'string' 
+            ? JSON.parse(q.correct_answer) 
+            : q.correct_answer;
+          
+          // Check required structure
+          const hasGraphType = transData?.graphType === 'transformation';
+          const hasOriginalFunction = transData?.originalFunction && 
+                                      Array.isArray(transData.originalFunction.keyPoints) &&
+                                      transData.originalFunction.keyPoints.length >= 2;
+          const hasParts = Array.isArray(transData?.parts) && transData.parts.length >= 1;
+          const hasGraphConfig = transData?.graphConfig && 
+                                 Array.isArray(transData.graphConfig.series) &&
+                                 transData.graphConfig.series.length > 0 &&
+                                 transData.graphConfig.series[0].data?.length >= 3;
+          
+          isValidTransformation = hasGraphType && hasOriginalFunction && hasParts && hasGraphConfig;
+          
+          if (!isValidTransformation) {
+            console.warn(`Question ${q.question_number}: graph_transformation validation failed`, {
+              hasGraphType,
+              hasOriginalFunction,
+              hasParts,
+              hasGraphConfig,
+            });
+          } else {
+            console.info(`Question ${q.question_number}: graph_transformation validated successfully with ${transData.parts.length} parts`);
+          }
+        } catch (e) {
+          console.warn(`Question ${q.question_number}: Failed to parse graph_transformation correct_answer`);
+        }
+        
+        if (!isValidTransformation) {
+          // Downgrade to extended question if transformation structure is invalid
+          console.warn(`Question ${q.question_number}: Invalid graph_transformation structure, downgrading to extended`);
+          q.question_type = 'extended';
+          q.correct_answer = 'This question requires drawing and analysis of function transformations. Full worked solution required.';
         }
       }
       
