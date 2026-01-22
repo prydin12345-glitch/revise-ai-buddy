@@ -19,6 +19,23 @@ import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScre
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
 import { TableGridQuestion, isTickXTable, parseMarkdownToTableGrid, extractTextBeforeTable, deserializeTableGridAnswers, serializeTableGridAnswers } from "@/components/exam/TableGridQuestion";
+import {
+  GraphInterpretationQuestion,
+  GraphPlottingQuestion,
+  BearingsQuestion,
+  parseGraphQuestionData,
+  parseGraphResponse,
+  serializeGraphInterpretationResponse,
+  serializeGraphPlottingResponse,
+  serializeBearingsResponse,
+  type GraphPoint,
+  type GraphInterpretationConfig,
+  type GraphPlottingConfig,
+  type BearingsQuestionConfig,
+  type LineSegment,
+  type DrawingPath,
+  type AngleMeasurement,
+} from "@/components/graph";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -79,6 +96,20 @@ const ExamInProgress = () => {
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
   const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
   const [tableGridAnswers, setTableGridAnswers] = useState<Record<string, Record<string, number[]>>>({});
+  
+  // Graph question state - shared with practice mode for feature parity
+  const [graphAnswers, setGraphAnswers] = useState<Record<string, {
+    graphInterpretationAnswers?: Record<string, string | number | boolean>;
+    graphPlottedPoints?: GraphPoint[];
+    graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+    graphSegments?: LineSegment[];
+    graphDrawnPaths?: DrawingPath[];
+    bearingsAnswer?: string;
+    angleMeasurements?: AngleMeasurement[];
+  }>>({});
+  const [showProtractor, setShowProtractor] = useState(false);
+  const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
+  
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [showMathKeypad, setShowMathKeypad] = useState(false);
   const [activeQuestionForMath, setActiveQuestionForMath] = useState<string | null>(null);
@@ -439,6 +470,15 @@ const ExamInProgress = () => {
       const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
       const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
       const tableGridAnswersMap: Record<string, Record<string, number[]>> = {};
+      const graphAnswersMap: Record<string, {
+        graphInterpretationAnswers?: Record<string, string | number | boolean>;
+        graphPlottedPoints?: GraphPoint[];
+        graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+        graphSegments?: LineSegment[];
+        graphDrawnPaths?: DrawingPath[];
+        bearingsAnswer?: string;
+        angleMeasurements?: AngleMeasurement[];
+      }> = {};
       const savedSet = new Set<string>();
       
       // First, load answers from database
@@ -456,6 +496,34 @@ const ExamInProgress = () => {
               flaggedSet.add(ans.question_id);
             }
             return; // Skip normal answer processing
+          }
+          
+          // Check if this is a graph answer
+          if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings') {
+            const graphResponse = parseGraphResponse(answerText);
+            if (graphResponse) {
+              if (graphResponse._type === 'graph_interpretation') {
+                graphAnswersMap[ans.question_id] = {
+                  graphInterpretationAnswers: graphResponse.answers
+                };
+              } else if (graphResponse._type === 'graph_plotting') {
+                graphAnswersMap[ans.question_id] = {
+                  graphPlottedPoints: graphResponse.points,
+                  graphJoinMode: graphResponse.joinMode,
+                  graphSegments: graphResponse.segments,
+                  graphDrawnPaths: graphResponse.drawnPaths
+                };
+              } else if (graphResponse._type === 'bearings') {
+                graphAnswersMap[ans.question_id] = {
+                  bearingsAnswer: String(graphResponse.bearing)
+                };
+              }
+              savedSet.add(ans.question_id);
+              if (ans.is_flagged) {
+                flaggedSet.add(ans.question_id);
+              }
+              return; // Skip normal answer processing
+            }
           }
         } catch {
           // Not JSON, continue with normal processing
@@ -489,6 +557,7 @@ const ExamInProgress = () => {
       
       setFlaggedQuestions(flaggedSet);
       setTableGridAnswers(tableGridAnswersMap);
+      setGraphAnswers(graphAnswersMap);
       
       // Then, check sessionStorage for any unsaved drafts (fallback for network failures)
       try {
@@ -618,6 +687,23 @@ const ExamInProgress = () => {
       } else if (questionTableGridAnswers && Object.keys(questionTableGridAnswers).length > 0) {
         // For table grid, serialize the grid answers as JSON with a marker
         finalAnswerText = JSON.stringify({ _type: 'table_grid', answers: questionTableGridAnswers });
+      }
+      
+      // Check for graph answers
+      const questionGraphAnswers = graphAnswers[questionId];
+      if (questionGraphAnswers) {
+        if (questionGraphAnswers.graphInterpretationAnswers) {
+          finalAnswerText = serializeGraphInterpretationResponse(questionGraphAnswers.graphInterpretationAnswers);
+        } else if (questionGraphAnswers.graphPlottedPoints) {
+          finalAnswerText = serializeGraphPlottingResponse(
+            questionGraphAnswers.graphPlottedPoints,
+            questionGraphAnswers.graphJoinMode,
+            questionGraphAnswers.graphSegments,
+            questionGraphAnswers.graphDrawnPaths
+          );
+        } else if (questionGraphAnswers.bearingsAnswer) {
+          finalAnswerText = serializeBearingsResponse(questionGraphAnswers.bearingsAnswer);
+        }
       }
       
       const { error } = await supabase.functions.invoke('submit-student-answer', {
@@ -1034,6 +1120,8 @@ const ExamInProgress = () => {
                 onQuitAndSave={() => setShowQuitDialog(true)}
                 onSubmitAll={() => setShowSubmitDialog(true)}
                 isReadOnly={isReadOnly}
+                showProtractor={showProtractor}
+                onToggleProtractor={() => setShowProtractor(prev => !prev)}
               />
             )}
           </div>
@@ -1302,41 +1390,220 @@ const ExamInProgress = () => {
                     </div>
                   )}
 
-                  {question.question_type === 'mcq' && question.options ? (
-                    <RadioGroup 
-                      value={userAnswers[question.id]?.finalAnswer || ''} 
-                      onValueChange={(val) => handleAnswerChange(question.id, val)}
-                      disabled={isReadOnly}
-                      className="space-y-2"
-                    >
-                      {question.options.map((option, idx) => {
-                        const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D...
-                        const isSelected = userAnswers[question.id]?.finalAnswer === optionLetter;
-                        return (
-                        <div 
-                            key={idx} 
-                            className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                              isSelected ? '' : 'border-border hover:bg-accent'
-                            }`}
-                            style={isSelected ? {
-                              borderColor: subjectColor,
-                              backgroundColor: addOpacity(subjectColor, 0.1)
-                            } : undefined}
-                          >
-                            <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
-                            <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
-                              <span className="font-medium mr-2">{optionLetter})</span>
-                              <MathRenderer 
-                                content={option} 
-                                hasMath={question.has_math}
-                                inline={true}
-                              />
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </RadioGroup>
-                  ) : examSubject.toLowerCase().includes('math') ? (
+                  {/* Graph question rendering - same components as practice mode for feature parity */}
+                  {(() => {
+                    const graphData = parseGraphQuestionData(question.correct_answer || null);
+                    const isGraphInterpretation = question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
+                    const isGraphPlotting = question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
+                    const isBearings = question.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    const currentGraphAnswer = graphAnswers[question.id] || {};
+                    
+                    if (isBearings && graphData?.bearingsConfig) {
+                      const config = graphData.bearingsConfig as BearingsQuestionConfig;
+                      return (
+                        <div className="space-y-4">
+                          <BearingsQuestion
+                            config={config}
+                            value={currentGraphAnswer.bearingsAnswer || ''}
+                            onChange={(value) => {
+                              setGraphAnswers(prev => ({
+                                ...prev,
+                                [question.id]: { ...prev[question.id], bearingsAnswer: value }
+                              }));
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            showCorrectAnswers={false}
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    if (isGraphInterpretation && graphData) {
+                      const config = graphData.graphConfig as GraphInterpretationConfig;
+                      const fields = graphData.interpretationFields || [];
+                      return (
+                        <div className="space-y-4">
+                          <GraphInterpretationQuestion
+                            config={config}
+                            fields={fields}
+                            answers={currentGraphAnswer.graphInterpretationAnswers || {}}
+                            onAnswerChange={(newAnswers) => {
+                              setGraphAnswers(prev => ({
+                                ...prev,
+                                [question.id]: { ...prev[question.id], graphInterpretationAnswers: newAnswers }
+                              }));
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            showCorrectAnswers={false}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    if (isGraphPlotting && graphData) {
+                      const config = graphData.graphConfig as GraphPlottingConfig;
+                      const plottingAnswer = graphData.plottingAnswer;
+                      return (
+                        <div className="space-y-4">
+                          <GraphPlottingQuestion
+                            questionId={question.id}
+                            config={{
+                              ...config,
+                              maxPoints: config.maxPoints === 1 ? undefined : config.maxPoints,
+                              joinPointsMode: {
+                                enabled: true,
+                                graded: config.joinPointsMode?.graded,
+                                correctMode: config.joinPointsMode?.correctMode,
+                              }
+                            }}
+                            expectedAnswer={plottingAnswer || { expectedPoints: [], toleranceUnits: 0.5 }}
+                            studentPoints={currentGraphAnswer.graphPlottedPoints || []}
+                            showProtractor={showProtractor}
+                            selectedSegmentIds={selectedSegmentIds}
+                            onSelectedSegmentIdsChange={setSelectedSegmentIds}
+                            onPointsChange={(points) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphPlottedPoints: points }
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            joinMode={currentGraphAnswer.graphJoinMode}
+                            onJoinModeChange={(mode) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphJoinMode: mode }
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            segments={currentGraphAnswer.graphSegments || []}
+                            onSegmentsChange={(segments) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphSegments: segments }
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            drawnPaths={currentGraphAnswer.graphDrawnPaths || []}
+                            onDrawnPathsChange={(paths) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphDrawnPaths: paths }
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            showCorrectAnswers={false}
+                            subjectColor={subjectColor}
+                            angleMeasurements={currentGraphAnswer.angleMeasurements || []}
+                            onAngleMeasurementsChange={(measurements) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, angleMeasurements: measurements }
+                                };
+                              });
+                            }}
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    return null;
+                  })()}
+
+                  {/* Standard answer inputs for non-graph questions */}
+                  {!(() => {
+                    const graphData = parseGraphQuestionData(question.correct_answer || null);
+                    return question.question_type === 'graph_interpretation' || 
+                           question.question_type === 'graph_plotting' || 
+                           question.question_type === 'bearings' ||
+                           graphData?.graphType === 'interpretation' ||
+                           graphData?.graphType === 'plotting' ||
+                           graphData?.graphType === 'bearings';
+                  })() && (
+                    <>
+                      {question.question_type === 'mcq' && question.options ? (
+                        <RadioGroup 
+                          value={userAnswers[question.id]?.finalAnswer || ''} 
+                          onValueChange={(val) => handleAnswerChange(question.id, val)}
+                          disabled={isReadOnly}
+                          className="space-y-2"
+                        >
+                          {question.options.map((option, idx) => {
+                            const optionLetter = String.fromCharCode(65 + idx); // A, B, C, D...
+                            const isSelected = userAnswers[question.id]?.finalAnswer === optionLetter;
+                            return (
+                            <div 
+                                key={idx} 
+                                className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                                  isSelected ? '' : 'border-border hover:bg-accent'
+                                }`}
+                                style={isSelected ? {
+                                  borderColor: subjectColor,
+                                  backgroundColor: addOpacity(subjectColor, 0.1)
+                                } : undefined}
+                              >
+                                <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
+                                <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
+                                  <span className="font-medium mr-2">{optionLetter})</span>
+                                  <MathRenderer 
+                                    content={option} 
+                                    hasMath={question.has_math}
+                                    inline={true}
+                                  />
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </RadioGroup>
+                      ) : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-medium">Your Answer</Label>
@@ -1564,6 +1831,8 @@ const ExamInProgress = () => {
                         />
                       )}
                     </div>
+                      )}
+                    </>
                   )}
                 </Card>
               ))}
