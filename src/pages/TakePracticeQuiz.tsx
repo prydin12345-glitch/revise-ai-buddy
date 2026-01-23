@@ -1397,10 +1397,18 @@ const TakePracticeQuiz = () => {
                     }
                     
                     // Check if this is a graph or bearings question
+                    // CRITICAL: question_type is the authoritative source - only use graphData parsing as fallback
+                    // This prevents short_answer questions with old cached graphData from rendering as graph questions
                     const graphData = parseGraphQuestionData(currentQuestion.correct_answer);
-                    const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
-                    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
-                    const isBearings = currentQuestion.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    
+                    // Only treat as graph question if question_type explicitly says so
+                    // OR if question_type is unset/generic but graphData has a graphType
+                    const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || 
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'interpretation');
+                    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || 
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'plotting');
+                    const isBearings = currentQuestion.question_type === 'bearings' || 
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'bearings');
                     
                     // Render bearings question
                     if (isBearings && graphData?.bearingsConfig) {
