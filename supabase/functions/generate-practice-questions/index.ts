@@ -408,21 +408,57 @@ correct_answer:
 }
 
 TRANSFORMATIONS TO INCLUDE (vary these across questions):
-- Horizontal translations: y = f(x + a), y = f(x - a) - use graph_plotting to plot transformed key points
-- Vertical translations: y = f(x) + a - use graph_plotting
-- Stretches: y = af(x), y = f(ax) - use graph_plotting  
-- Reflections: y = -f(x), y = f(-x) - use graph_plotting
-- Asymptote questions: use graph_interpretation with text fields
-- Composite functions fg(x), gf(x): use graph_interpretation with numeric fields
-- Inverse functions: use graph_interpretation
+- Horizontal translations: y = f(x + a), y = f(x - a)
+- Vertical translations: y = f(x) + a
+- Stretches: y = af(x), y = f(ax)
+- Reflections: y = -f(x), y = f(-x)
+- Composite functions fg(x), gf(x)
+- Inverse functions
+
+***** CRITICAL: COMMAND VERB DETECTION RULES *****
+Use COMMAND VERBS to determine question type:
+
+ALGEBRAIC ANSWER VERBS (use question_type = "short_answer"):
+- "Write down" → short_answer (coordinate or numeric input)
+- "State" → short_answer (text input, e.g., asymptote equation)
+- "Find" → short_answer (algebraic/numeric answer)
+- "Calculate" → short_answer (numeric answer)
+- "Determine" → short_answer (any answer type)
+- "Give" → short_answer (coordinate or value)
+- "Work out" → short_answer (numeric/algebraic)
+- "Show that" → extended (working required)
+- "Prove" → extended (formal proof required)
+- "Explain" → extended (reasoning required)
+- "Describe" → extended (description required)
+
+GRAPHICAL ACTION VERBS (use question_type = "graph_plotting"):
+- "Sketch" → graph_plotting (student draws on grid)
+- "Plot" → graph_plotting (student places points)
+- "Draw" → graph_plotting (student creates curve)
+- "Mark" → graph_plotting (student marks on diagram)
+- "On the grid, show" → graph_plotting
+
+READING FROM GRAPH VERBS (use question_type = "graph_interpretation"):
+- "Read from the graph" → graph_interpretation with visible data
+- "Use your graph to find" → graph_interpretation
+- "Estimate from the curve" → graph_interpretation
+
+EXAMPLES OF CORRECT MAPPING:
+- "Write down the coordinates of the maximum point on y = f(x+3)" → short_answer with coordinateAnswer
+- "State the equation of the asymptote of y = f(2x)" → short_answer with textAnswer
+- "Find f⁻¹(4)" → short_answer with numericAnswer
+- "Sketch y = 2f(x) on the grid" → graph_plotting with expectedPoints
+- "Plot the transformed curve" → graph_plotting
+
+DO NOT show an interactive graph if the question only asks for algebraic/numeric answers.
+Graphs should ONLY appear when students need to visually interact with them.
 
 CRITICAL RULES:
-1. ALWAYS use "graphType": "plotting" for graph_plotting questions
-2. ALWAYS use "graphType": "interpretation" for graph_interpretation questions  
-3. ALWAYS include grid: {"show": true, "stepX": 1, "stepY": 1} in graphConfig
-4. ALWAYS include series with actual data points (at least 5 points for curves)
-5. ALWAYS set both xDomain/yDomain AND domainX/domainY (they should match)
-6. For plotting questions, set marksPerPoint based on total marks divided by expected points
+1. Match command verbs to question types as specified above
+2. For graph_plotting: ALWAYS include graphType, graphConfig.series with data, and plottingAnswer.expectedPoints
+3. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
+4. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
+5. NEVER include a graph just because the topic involves functions - only when visual interaction is required
 `;
     } else if (isALevel) {
       transformationInstructions = `
@@ -939,6 +975,61 @@ ${notesSection}`;
 
     // Validate and transform questions
     const questionsToInsert = questions.map((q: any, idx: number) => {
+      
+      // *** CRITICAL: COMMAND VERB DETECTION - Convert graph questions to short_answer when appropriate ***
+      const questionText = (q.question_text || '').toLowerCase();
+      const isGraphType = q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation' || q.question_type === 'graph_transformation';
+      
+      if (isGraphType) {
+        // Verbs that indicate algebraic/numeric answers (NOT graph interaction)
+        const algebraicVerbs = /\b(write down|state|find|calculate|determine|give|work out)\b/i;
+        // Verbs that indicate graph interaction IS required
+        const graphicalVerbs = /\b(sketch|plot|draw|mark|on the grid|on the axes|on the diagram)\b/i;
+        
+        const hasAlgebraicVerb = algebraicVerbs.test(questionText);
+        const hasGraphicalVerb = graphicalVerbs.test(questionText);
+        
+        // If question uses algebraic verbs but NOT graphical verbs, convert to short_answer
+        if (hasAlgebraicVerb && !hasGraphicalVerb) {
+          console.info(`Question ${q.question_number}: Converting ${q.question_type} to short_answer - uses algebraic verb "${questionText.match(algebraicVerbs)?.[0]}" without graphical action`);
+          
+          // Try to extract numeric answer from the graph data
+          let convertedAnswer: any = { textAnswer: '' };
+          
+          try {
+            const graphData = typeof q.correct_answer === 'string' 
+              ? JSON.parse(q.correct_answer) 
+              : q.correct_answer;
+            
+            // Check for coordinate answers
+            if (graphData?.plottingAnswer?.expectedPoints?.[0]) {
+              const pt = graphData.plottingAnswer.expectedPoints[0];
+              convertedAnswer = {
+                coordinateAnswer: { x: pt.x, y: pt.y },
+                textAnswer: `(${pt.x}, ${pt.y})`,
+                alternatives: [`(${pt.x},${pt.y})`, `${pt.x}, ${pt.y}`]
+              };
+            }
+            // Check for interpretation text answers
+            else if (graphData?.interpretationFields?.[0]) {
+              const field = graphData.interpretationFields[0];
+              convertedAnswer = {
+                textAnswer: String(field.correctAnswer),
+                alternatives: field.alternatives || field.synonyms || []
+              };
+              if (typeof field.correctAnswer === 'number') {
+                convertedAnswer.numericAnswer = field.correctAnswer;
+              }
+            }
+          } catch (e) {
+            console.warn(`Question ${q.question_number}: Failed to extract answer during conversion`);
+          }
+          
+          q.question_type = 'short_answer';
+          q.correct_answer = convertedAnswer;
+        }
+      }
+      
       // Validate table_grid questions have required fields
       if (q.question_type === 'table_grid') {
         if (!q.table_data) {
