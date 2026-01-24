@@ -10,7 +10,9 @@ import {
   ReferenceDot,
   ComposedChart,
   ZAxis,
+  Line,
 } from 'recharts';
+import { GraphSeries } from './types';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -67,6 +69,8 @@ interface GraphPlottingQuestionProps {
   /** Persisted angle measurements */
   angleMeasurements?: AngleMeasurement[];
   onAngleMeasurementsChange?: (measurements: AngleMeasurement[]) => void;
+  /** Reference curves/series to display (from graphConfig.series) */
+  referenceSeries?: GraphSeries[];
 }
 
 // History state for undo/redo
@@ -118,6 +122,7 @@ export function GraphPlottingQuestion({
   onSelectedSegmentIdsChange,
   angleMeasurements = [],
   onAngleMeasurementsChange,
+  referenceSeries = [],
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -1660,7 +1665,33 @@ export function GraphPlottingQuestion({
               <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
             )}
 
-            {/* Student points */}
+            {/* Reference curves from graphConfig.series - displays the "shown in diagram" curve */}
+            {referenceSeries.map((series, idx) => {
+              // Skip if no data points
+              if (!series.data || series.data.length < 2) return null;
+              
+              const lineColor = series.color || 'hsl(var(--primary))';
+              const lineStyle = series.lineStyle === 'dashed' ? '5 5' : 
+                               series.lineStyle === 'dotted' ? '2 2' : undefined;
+              
+              return (
+                <Line
+                  key={`reference-${series.id || idx}`}
+                  type="monotone"
+                  data={series.data}
+                  dataKey="y"
+                  stroke={lineColor}
+                  strokeWidth={2}
+                  strokeDasharray={lineStyle}
+                  dot={false}
+                  isAnimationActive={false}
+                  name={series.label || `Series ${idx + 1}`}
+                  connectNulls
+                />
+              );
+            })}
+
+
             <Scatter
               name="Points"
               data={studentPoints}

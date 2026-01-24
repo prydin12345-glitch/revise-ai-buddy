@@ -1492,6 +1492,7 @@ const TakePracticeQuiz = () => {
                             showProtractor={showProtractor}
                             selectedSegmentIds={selectedSegmentIds}
                             onSelectedSegmentIdsChange={handleSegmentSelection}
+                            referenceSeries={(graphData.graphConfig as any)?.series || []}
                             onPointsChange={(points) => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
