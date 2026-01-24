@@ -9,7 +9,7 @@
  * ✅ Toast auto-dismisses after 8s and has close button
  * ✅ All answers + graphs/tables rehydrate correctly from stored data
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,6 +51,9 @@ import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
   BearingsQuestion,
+  ReferenceDiagram,
+  extractFunctionFromText,
+  generateCurveFromExpression,
   parseGraphQuestionData,
   parseGraphResponse,
   serializeGraphInterpretationResponse,
@@ -64,6 +67,7 @@ import {
   type GraphInterpretationField,
   type BearingsQuestionConfig,
   type BearingsMarkingResult,
+  type GraphSeries,
 } from "@/components/graph";
 
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
@@ -1159,11 +1163,120 @@ const TakePracticeQuiz = () => {
 
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 
+  /**
+   * Extract root question number from a question number like "1a", "1b", "5c" -> "1", "5"
+   */
+  const getRootQuestionNumber = useCallback((qNum: string): string => {
+    const match = qNum.match(/^(\d+)/);
+    return match ? match[1] : qNum;
+  }, []);
+
+  /**
+   * Group questions by their root number for display.
+   * Returns array of { rootNumber, questions[] } objects.
+   */
+  const groupedQuestions = useMemo(() => {
+    const groups: { rootNumber: string; questions: Question[] }[] = [];
+    let currentRoot: string | null = null;
+    let currentGroup: Question[] = [];
+    
+    questions.forEach((q) => {
+      const root = getRootQuestionNumber(q.question_number);
+      if (root !== currentRoot) {
+        if (currentGroup.length > 0 && currentRoot) {
+          groups.push({ rootNumber: currentRoot, questions: currentGroup });
+        }
+        currentRoot = root;
+        currentGroup = [q];
+      } else {
+        currentGroup.push(q);
+      }
+    });
+    
+    if (currentGroup.length > 0 && currentRoot) {
+      groups.push({ rootNumber: currentRoot, questions: currentGroup });
+    }
+    
+    return groups;
+  }, [questions, getRootQuestionNumber]);
+
+  /**
+   * Find reference diagram series for a question that mentions "shown in the diagram".
+   * Looks in sibling questions (same root) for graph_plotting questions with series data.
+   */
+  const findReferenceSeries = useCallback((questionText: string, questionId: string, questionNumber: string): { series: GraphSeries[]; domainX: [number, number]; domainY: [number, number] } | null => {
+    // Check if question mentions diagram
+    const mentionsDiagram = /shown in the diagram|in the diagram|the diagram shows/i.test(questionText);
+    if (!mentionsDiagram) return null;
+    
+    // Look through sibling questions in the same group for graph data
+    const rootNum = getRootQuestionNumber(questionNumber);
+    const siblingQuestions = questions.filter(q => 
+      getRootQuestionNumber(q.question_number) === rootNum && q.id !== questionId
+    );
+    
+    // First check if any sibling has graphConfig with series
+    for (const sibling of siblingQuestions) {
+      const graphData = parseGraphQuestionData(sibling.correct_answer);
+      if (graphData?.graphConfig && 'series' in graphData.graphConfig) {
+        const config = graphData.graphConfig as GraphInterpretationConfig;
+        if (config.series && config.series.length > 0) {
+          return {
+            series: config.series,
+            domainX: config.domainX || [-5, 5],
+            domainY: config.domainY || [-5, 5],
+          };
+        }
+      }
+    }
+    
+    // Try to generate from the current question's function expression
+    const funcExpr = extractFunctionFromText(questionText);
+    if (funcExpr) {
+      const curveData = generateCurveFromExpression(funcExpr);
+      if (curveData && curveData.length > 2) {
+        // Determine domain from curve data
+        const xValues = curveData.map(p => p.x);
+        const yValues = curveData.map(p => p.y);
+        const minX = Math.min(...xValues);
+        const maxX = Math.max(...xValues);
+        const minY = Math.min(...yValues);
+        const maxY = Math.max(...yValues);
+        
+        return {
+          series: [{
+            id: 'generated',
+            label: `y = f(x) = ${funcExpr}`,
+            data: curveData,
+            color: 'hsl(var(--primary))',
+            showLine: true,
+            lineStyle: 'solid',
+          }],
+          domainX: [Math.floor(minX) - 1, Math.ceil(maxX) + 1],
+          domainY: [Math.floor(minY) - 1, Math.ceil(maxY) + 1],
+        };
+      }
+    }
+    
+    return null;
+  }, [questions, getRootQuestionNumber]);
+
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!questions.length) return <div className="p-8 text-center">No questions available</div>;
 
   const currentQuestion = questions[currentIndex];
   const currentAnswer = userAnswers[currentQuestion.id] || { answer: "", answerLatex: "", submitted: false };
+  
+  /**
+   * Find which group the current question belongs to
+   */
+  const currentGroupIdx = groupedQuestions.findIndex(g => g.rootNumber === getRootQuestionNumber(currentQuestion.question_number));
+  
+  /**
+   * Get the current group of questions to display together
+   */
+  const currentGroup = groupedQuestions[currentGroupIdx] || { rootNumber: '', questions: [currentQuestion] };
+  
   // Count answers including those with LaTeX
   const answeredCount = Object.values(userAnswers).filter(a => a.answer.trim() || a.answerLatex?.trim()).length;
   const unansweredCount = questions.length - answeredCount;
@@ -1186,10 +1299,10 @@ const TakePracticeQuiz = () => {
             <h1 className="font-semibold text-base lg:text-lg truncate max-w-[200px] lg:max-w-[300px]">{quizTitle}</h1>
           </div>
 
-          {/* Center: Question X of Y */}
+          {/* Center: Question number (e.g., "Question 2c") */}
           <div className="flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
             <Badge variant="outline" className="text-sm lg:text-base px-3 py-1.5 whitespace-nowrap">
-              Question {currentIndex + 1} of {questions.length}
+              Question {currentQuestion.question_number}
             </Badge>
             {flaggedQuestions.has(currentQuestion.id) && (
               <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600 hidden sm:flex">
@@ -1297,25 +1410,57 @@ const TakePracticeQuiz = () => {
           {/* Scrollable question area */}
           <div className="flex-1 p-4 lg:p-6 xl:p-8 overflow-y-auto">
             <div className="max-w-5xl mx-auto w-full">
-              {/* Question Card */}
+              {/* Question Card - displays all sub-questions in current group */}
               <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
-                <CardContent className="p-5 lg:p-8 space-y-5 lg:space-y-6">
-                  {/* Question header - removed redundant number display */}
-                  <div className="flex justify-end items-center">
+                <CardContent className="p-5 lg:p-8 space-y-6 lg:space-y-8">
+                  {/* Group header showing total marks for this question set */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold text-foreground">
+                      Question {currentGroup.rootNumber}
+                    </span>
                     <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1">
-                      {currentQuestion.marks} marks
+                      {currentGroup.questions.reduce((sum, q) => sum + q.marks, 0)} marks total
                     </Badge>
                   </div>
 
-                  {/* Question text */}
-                  <div className="text-base lg:text-lg leading-relaxed">
-                    <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
-                  </div>
+                  {/* Render each sub-question in the group */}
+                  {currentGroup.questions.map((q, idx) => {
+                    const qAnswer = userAnswers[q.id] || { answer: "", submitted: false };
+                    const refSeries = findReferenceSeries(q.question_text, q.id, q.question_number);
+                    
+                    return (
+                      <div key={q.id} className={idx > 0 ? 'pt-6 border-t border-border' : ''}>
+                        {/* Sub-question header */}
+                        <div className="flex justify-between items-start gap-4 mb-4">
+                          <Badge variant="outline" className="text-sm font-semibold">
+                            {q.question_number}
+                          </Badge>
+                          <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1 shrink-0">
+                            {q.marks} marks
+                          </Badge>
+                        </div>
 
-                  {/* Answer input section - conditionally render based on question type */}
-                  {(() => {
-                    // Check if this is a table_grid question (explicit type or detected from content)
-                    const isTableGrid = currentQuestion.question_type === 'table_grid' || isTickXTable(currentQuestion.question_text);
+                        {/* Question text */}
+                        <div className="text-base lg:text-lg leading-relaxed mb-4">
+                          <MathRenderer content={q.question_text} hasMath={q.has_math} />
+                        </div>
+
+                        {/* Reference diagram for "shown in the diagram" questions */}
+                        {refSeries && refSeries.series.length > 0 && (
+                          <div className="mb-4">
+                            <ReferenceDiagram
+                              series={refSeries.series}
+                              domainX={refSeries.domainX}
+                              domainY={refSeries.domainY}
+                              className="mx-auto"
+                            />
+                          </div>
+                        )}
+
+                        {/* Answer input section - conditionally render based on question type */}
+                        {(() => {
+                          // Check if this is a table_grid question (explicit type or detected from content)
+                          const isTableGrid = q.question_type === 'table_grid' || isTickXTable(q.question_text);
                     
                     if (isTableGrid) {
                       // Try to get table data from correct_answer (new format) or parse from question text
