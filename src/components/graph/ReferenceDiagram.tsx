@@ -28,12 +28,20 @@ interface ReferenceDiagramProps {
 
 /**
  * Parse a simple function expression and generate curve data points.
- * Supports: x(x+a)(b-x), x(x+a)(x-b), ax^2+bx+c, 1/(x+a), etc.
+ * Supports: x(x+a)(b-x), x(x+a)(x-b), ax^2+bx+c, 1/(x+a), (x-a)^2, etc.
+ * 
+ * IMPORTANT: For f(x) = x(x+2)(1-x), the correct expansion is:
+ * f(x) = x * (x+2) * (1-x) 
+ *      = x * (x + 2 - x² - 2x)
+ *      = x * (-x² - x + 2)
+ *      = -x³ - x² + 2x
+ * Roots at x = -2, 0, 1
+ * Local min at x ≈ -1.22, local max at x ≈ 0.55
  */
 export function generateCurveFromExpression(
   expression: string,
   domainX: [number, number] = [-5, 5],
-  steps: number = 50
+  steps: number = 80
 ): { x: number; y: number }[] | null {
   try {
     // Clean the expression
@@ -46,23 +54,34 @@ export function generateCurveFromExpression(
     
     // Try to parse common patterns
     
-    // Pattern 1: x(x+a)(b-x) or x(x+a)(x-b)
-    const cubicMatch = cleanExpr.match(/x\(x([+-]\d+(?:\.\d+)?)\)\((\d+(?:\.\d+)?)?([+-])?x?\)/);
-    if (cubicMatch) {
-      const a = parseFloat(cubicMatch[1]);
-      const b = parseFloat(cubicMatch[2] || '1');
-      const isNegX = cubicMatch[3] === '-' || cleanExpr.includes('-x)');
+    // Pattern 1a: x(x+a)(b-x) - e.g., x(x+2)(1-x) 
+    // Note: The key is to correctly identify (b-x) vs (x-b)
+    const cubicPattern1 = cleanExpr.match(/^x\(x([+-]\d+(?:\.\d+)?)\)\((\d+(?:\.\d+)?)-x\)$/);
+    if (cubicPattern1) {
+      const a = parseFloat(cubicPattern1[1]); // e.g., +2 from (x+2)
+      const b = parseFloat(cubicPattern1[2]); // e.g., 1 from (1-x)
       
       return Array.from({ length: steps + 1 }, (_, i) => {
         const x = domainX[0] + (i / steps) * (domainX[1] - domainX[0]);
-        const y = isNegX 
-          ? x * (x + a) * (b - x)
-          : x * (x + a) * (x - b);
+        const y = x * (x + a) * (b - x); // f(x) = x(x+a)(b-x)
         return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
       });
     }
     
-    // Pattern 2: (x+a)^2(x-b) style cubic
+    // Pattern 1b: x(x+a)(x-b) - e.g., x(x+2)(x-1)
+    const cubicPattern2 = cleanExpr.match(/^x\(x([+-]\d+(?:\.\d+)?)\)\(x([+-]\d+(?:\.\d+)?)\)$/);
+    if (cubicPattern2) {
+      const a = parseFloat(cubicPattern2[1]);
+      const b = parseFloat(cubicPattern2[2]);
+      
+      return Array.from({ length: steps + 1 }, (_, i) => {
+        const x = domainX[0] + (i / steps) * (domainX[1] - domainX[0]);
+        const y = x * (x + a) * (x + b); // Note: (x-1) means b=-1
+        return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+      });
+    }
+    
+    // Pattern 2: (x+a)^2(x+b) style cubic - e.g., (x-1)^2(x+2)
     const cubicMatch2 = cleanExpr.match(/\(x([+-]\d+(?:\.\d+)?)\)\^?2\(x([+-]\d+(?:\.\d+)?)\)/);
     if (cubicMatch2) {
       const a = parseFloat(cubicMatch2[1]);
@@ -75,8 +94,20 @@ export function generateCurveFromExpression(
       });
     }
     
-    // Pattern 3: 1/(x+a) - reciprocal
-    const reciprocalMatch = cleanExpr.match(/1\/\(x([+-]\d+(?:\.\d+)?)\)/);
+    // Pattern 3: (x-a)^2 - simple parabola, e.g., (x-1)^2
+    const parabolaMatch = cleanExpr.match(/^\(x([+-]\d+(?:\.\d+)?)\)\^2$/);
+    if (parabolaMatch) {
+      const a = parseFloat(parabolaMatch[1]);
+      
+      return Array.from({ length: steps + 1 }, (_, i) => {
+        const x = domainX[0] + (i / steps) * (domainX[1] - domainX[0]);
+        const y = Math.pow(x + a, 2);
+        return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+      });
+    }
+    
+    // Pattern 4: 1/(x+a) - reciprocal
+    const reciprocalMatch = cleanExpr.match(/^1\/\(x([+-]\d+(?:\.\d+)?)\)$/);
     if (reciprocalMatch) {
       const a = parseFloat(reciprocalMatch[1]);
       const asymptote = -a;
@@ -87,6 +118,17 @@ export function generateCurveFromExpression(
         const y = 1 / (x + a);
         return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
       }).filter(p => !isNaN(p.y) && Math.abs(p.y) < 100);
+    }
+    
+    // Pattern 5: sqrt(x) - square root function
+    const sqrtMatch = cleanExpr.match(/^sqrt\(x\)$|^x\^0?\.?5$/);
+    if (sqrtMatch) {
+      return Array.from({ length: steps + 1 }, (_, i) => {
+        const x = domainX[0] + (i / steps) * (domainX[1] - domainX[0]);
+        if (x < 0) return { x, y: NaN };
+        const y = Math.sqrt(x);
+        return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+      }).filter(p => !isNaN(p.y));
     }
     
     return null;

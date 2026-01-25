@@ -71,6 +71,8 @@ interface GraphPlottingQuestionProps {
   onAngleMeasurementsChange?: (measurements: AngleMeasurement[]) => void;
   /** Reference curves/series to display (from graphConfig.series) */
   referenceSeries?: GraphSeries[];
+  /** Expected answer curve to display in review mode (dashed green) */
+  expectedCurveSeries?: GraphSeries[];
 }
 
 // History state for undo/redo
@@ -123,6 +125,7 @@ export function GraphPlottingQuestion({
   angleMeasurements = [],
   onAngleMeasurementsChange,
   referenceSeries = [],
+  expectedCurveSeries = [],
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -1713,6 +1716,27 @@ export function GraphPlottingQuestion({
                 strokeDasharray="4 2"
               />
             ))}
+
+            {/* Expected answer curve in review mode (dashed green) */}
+            {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {
+              if (!series.data || series.data.length < 2) return null;
+              
+              return (
+                <Line
+                  key={`expected-curve-${series.id || idx}`}
+                  type="monotone"
+                  data={series.data}
+                  dataKey="y"
+                  stroke="hsl(var(--success, 142 76% 36%))"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  isAnimationActive={false}
+                  name={`Expected: ${series.label || `Curve ${idx + 1}`}`}
+                  connectNulls
+                />
+              );
+            })}
           </ComposedChart>
         </ResponsiveContainer>
 
