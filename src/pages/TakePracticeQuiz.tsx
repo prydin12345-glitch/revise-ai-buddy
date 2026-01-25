@@ -1410,57 +1410,46 @@ const TakePracticeQuiz = () => {
           {/* Scrollable question area */}
           <div className="flex-1 p-4 lg:p-6 xl:p-8 overflow-y-auto">
             <div className="max-w-5xl mx-auto w-full">
-              {/* Question Card - displays all sub-questions in current group */}
+              {/* Question Card */}
               <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
                 <CardContent className="p-5 lg:p-8 space-y-6 lg:space-y-8">
-                  {/* Group header showing total marks for this question set */}
-                  <div className="flex justify-between items-center">
+                  {/* Question header - shows specific question number (e.g., "Question 2c") */}
+                  <div className="flex justify-between items-start gap-4">
                     <span className="text-lg font-semibold text-foreground">
-                      Question {currentGroup.rootNumber}
+                      Question {currentQuestion.question_number}
                     </span>
-                    <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1">
-                      {currentGroup.questions.reduce((sum, q) => sum + q.marks, 0)} marks total
+                    <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1 shrink-0">
+                      {currentQuestion.marks} marks
                     </Badge>
                   </div>
 
-                  {/* Render each sub-question in the group */}
-                  {currentGroup.questions.map((q, idx) => {
-                    const qAnswer = userAnswers[q.id] || { answer: "", submitted: false };
-                    const refSeries = findReferenceSeries(q.question_text, q.id, q.question_number);
-                    
-                    return (
-                      <div key={q.id} className={idx > 0 ? 'pt-6 border-t border-border' : ''}>
-                        {/* Sub-question header */}
-                        <div className="flex justify-between items-start gap-4 mb-4">
-                          <Badge variant="outline" className="text-sm font-semibold">
-                            {q.question_number}
-                          </Badge>
-                          <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1 shrink-0">
-                            {q.marks} marks
-                          </Badge>
+                  {/* Question text */}
+                  <div className="text-base lg:text-lg leading-relaxed">
+                    <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
+                  </div>
+
+                  {/* Reference diagram for "shown in the diagram" questions */}
+                  {(() => {
+                    const refSeries = findReferenceSeries(currentQuestion.question_text, currentQuestion.id, currentQuestion.question_number);
+                    if (refSeries && refSeries.series.length > 0) {
+                      return (
+                        <div className="my-4">
+                          <ReferenceDiagram
+                            series={refSeries.series}
+                            domainX={refSeries.domainX}
+                            domainY={refSeries.domainY}
+                            className="mx-auto"
+                          />
                         </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
-                        {/* Question text */}
-                        <div className="text-base lg:text-lg leading-relaxed mb-4">
-                          <MathRenderer content={q.question_text} hasMath={q.has_math} />
-                        </div>
-
-                        {/* Reference diagram for "shown in the diagram" questions */}
-                        {refSeries && refSeries.series.length > 0 && (
-                          <div className="mb-4">
-                            <ReferenceDiagram
-                              series={refSeries.series}
-                              domainX={refSeries.domainX}
-                              domainY={refSeries.domainY}
-                              className="mx-auto"
-                            />
-                          </div>
-                        )}
-
-                        {/* Answer input section - conditionally render based on question type */}
-                        {(() => {
-                          // Check if this is a table_grid question (explicit type or detected from content)
-                          const isTableGrid = q.question_type === 'table_grid' || isTickXTable(q.question_text);
+                  {/* Answer input section - conditionally render based on question type */}
+                  {(() => {
+                    // Check if this is a table_grid question (explicit type or detected from content)
+                    const isTableGrid = currentQuestion.question_type === 'table_grid' || isTickXTable(currentQuestion.question_text);
                     
                     if (isTableGrid) {
                       // Try to get table data from correct_answer (new format) or parse from question text
