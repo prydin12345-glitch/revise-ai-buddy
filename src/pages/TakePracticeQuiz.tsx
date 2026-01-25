@@ -1608,6 +1608,26 @@ const TakePracticeQuiz = () => {
                       const config = graphData.graphConfig as GraphPlottingConfig;
                       const plottingAnswer = graphData.plottingAnswer;
                       
+                      // Get reference series from graphConfig.series
+                      const refSeries = (graphData.graphConfig as any)?.series || [];
+                      
+                      // For review mode, generate expected curve from plottingAnswer.expectedCurve
+                      // or fallback to transforming the reference series
+                      let expectedCurveSeries: GraphSeries[] = [];
+                      if (currentAnswer.submitted && currentAnswer.feedback && plottingAnswer) {
+                        // Check if plottingAnswer has an expectedCurve
+                        if ((plottingAnswer as any).expectedCurve && Array.isArray((plottingAnswer as any).expectedCurve)) {
+                          expectedCurveSeries = [{
+                            id: 'expected-answer',
+                            label: 'Expected Answer',
+                            data: (plottingAnswer as any).expectedCurve,
+                            color: 'hsl(var(--success))',
+                            showLine: true,
+                            lineStyle: 'dashed',
+                          }];
+                        }
+                      }
+                      
                       return (
                         <div className="space-y-4">
                           <GraphPlottingQuestion
@@ -1626,7 +1646,8 @@ const TakePracticeQuiz = () => {
                             showProtractor={showProtractor}
                             selectedSegmentIds={selectedSegmentIds}
                             onSelectedSegmentIdsChange={handleSegmentSelection}
-                            referenceSeries={(graphData.graphConfig as any)?.series || []}
+                            referenceSeries={refSeries}
+                            expectedCurveSeries={expectedCurveSeries}
                             onPointsChange={(points) => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
@@ -1678,11 +1699,9 @@ const TakePracticeQuiz = () => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
                                 const existing = prev[currentQuestion.id] ?? currentAnswer;
-                                const points = existing.graphPlottedPoints || [];
-                                const mode = existing.graphJoinMode;
                                 const serialized = serializeGraphPlottingResponse(
-                                  points,
-                                  mode,
+                                  existing.graphPlottedPoints || [],
+                                  existing.graphJoinMode,
                                   segments,
                                   existing.graphDrawnPaths
                                 );
@@ -1703,11 +1722,9 @@ const TakePracticeQuiz = () => {
                               let serializedToSave = '';
                               setUserAnswers((prev) => {
                                 const existing = prev[currentQuestion.id] ?? currentAnswer;
-                                const points = existing.graphPlottedPoints || [];
-                                const mode = existing.graphJoinMode;
                                 const serialized = serializeGraphPlottingResponse(
-                                  points,
-                                  mode,
+                                  existing.graphPlottedPoints || [],
+                                  existing.graphJoinMode,
                                   existing.graphSegments,
                                   paths
                                 );
