@@ -105,6 +105,23 @@ serve(async (req) => {
       }
     }
 
+    // Download example questions file if available - use this to guide graph style and question format
+    let exampleQuestionsContent = '';
+    if (setData.example_questions_file_url) {
+      try {
+        const { data: exampleFile } = await supabaseClient.storage
+          .from('exam-files')
+          .download(setData.example_questions_file_url);
+        
+        if (exampleFile) {
+          exampleQuestionsContent = await exampleFile.text();
+          console.log('Loaded example questions file, length:', exampleQuestionsContent.length);
+        }
+      } catch (err) {
+        console.warn('Failed to load example questions file:', err);
+      }
+    }
+
     // Validate and sanitize notes
     const notesValidation = validateNotes(setData.notes);
     logNotesModeration('generate-practice-questions', notesValidation.auditLog);
@@ -561,6 +578,18 @@ General field expectations:
 - equation_complexity: "simple" | "medium" | "complex" (optional)
 
 ${specContent ? 'Specification (excerpt):\n' + specContent.substring(0, 5000) : ''}
+${exampleQuestionsContent ? `
+EXAMPLE QUESTIONS TO REPLICATE (IMPORTANT):
+The user has provided example questions. Study these carefully and:
+1. Match the STYLE of graph questions (curve shapes, axis labels, grid setup)
+2. Match the STRUCTURE of multi-part questions (a, b, c sub-parts)
+3. Match the COMMAND VERBS used (Sketch, State, Find, etc.)
+4. For graph questions, ensure your graphConfig.series data produces similar curve shapes
+5. Use similar marks allocation patterns
+
+Example content (excerpt):
+${exampleQuestionsContent.substring(0, 8000)}
+` : ''}
 ${notesSection}`;
 
     // IMPORTANT: The tool schema + server-side validation enforces structure and blocks LaTeX/backslashes.
@@ -672,20 +701,20 @@ ${notesSection}`;
       return { value: walk(value), didEscape, count };
     };
 
+    // Simplified tool schema to avoid "too many states" error from Google AI
+    // Removed minItems/maxItems constraints and simplified correct_answer type
     const tool = {
       type: 'function',
       function: {
         name: 'generate_practice_questions',
-        description: 'Generate a set of practice questions as structured data.',
+        description: `Generate exactly ${setData.question_count} practice questions as structured data.`,
         parameters: {
           type: 'object',
-          additionalProperties: false,
           required: ['questions'],
           properties: {
             questions: {
               type: 'array',
-              minItems: setData.question_count,
-              maxItems: setData.question_count,
+              description: `Array of exactly ${setData.question_count} questions`,
               items: {
                 type: 'object',
                 required: [
@@ -697,41 +726,20 @@ ${notesSection}`;
                   'difficulty_level',
                   'correct_answer',
                 ],
-                additionalProperties: true,
                 properties: {
                   question_number: { type: 'string' },
                   question_text: { type: 'string' },
-                  question_latex: { type: ['null', 'string'], description: 'Must be null.' },
-                  question_type: {
-                    type: 'string',
-                    enum: [
-                      'short_answer',
-                      'extended',
-                      'mcq',
-                      'table_grid',
-                      'graph_interpretation',
-                      'graph_plotting',
-                      'graph_transformation',
-                    ],
-                  },
+                  question_latex: { type: 'string', nullable: true },
+                  question_type: { type: 'string' },
                   marks: { type: 'number' },
                   subtopic: { type: 'string' },
-                  difficulty_level: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+                  difficulty_level: { type: 'string' },
                   has_math: { type: 'boolean' },
-                  equation_complexity: { type: ['null', 'string'] },
-                  correct_answer: {
-                    anyOf: [
-                      { type: 'string' },
-                      { type: 'number' },
-                      { type: 'boolean' },
-                      { type: 'null' },
-                      { type: 'array', items: {} },
-                      { type: 'object' },
-                    ],
-                  },
-                  options: { type: ['array', 'null'], items: { type: 'string' } },
-                  worked_solution: { type: ['string', 'null'] },
-                  table_data: { type: ['object', 'null'] },
+                  equation_complexity: { type: 'string', nullable: true },
+                  correct_answer: {},
+                  options: { type: 'array', nullable: true },
+                  worked_solution: { type: 'string', nullable: true },
+                  table_data: { type: 'object', nullable: true },
                 },
               },
             },
