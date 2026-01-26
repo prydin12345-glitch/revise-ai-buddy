@@ -520,33 +520,60 @@ MCQ rules (avoid duplication in UI):
 - correct_answer MUST be one of: "A", "B", "C", "D".
 
 Graph questions (CRITICAL - must ALWAYS render a visible graph):
-- For graph_interpretation and graph_plotting, you MUST generate a complete chart.
+- For graph_interpretation and graph_plotting, you MUST generate a complete chart with MATHEMATICAL DATA.
 - correct_answer MUST be an object with ALL of the following:
   {
     "graphType": "interpretation" or "plotting",
     "graphConfig": {
-      "chartType": "line" or "scatter",
-      "xLabel": "meaningful axis label (e.g. Time/s, Distance/m)",
-      "yLabel": "meaningful axis label (e.g. Speed/m/s, Height/cm)",
+      "chartType": "line",
+      "xLabel": "x",
+      "yLabel": "y",
+      "xDomain": [min, max],
+      "yDomain": [min, max],
       "domainX": [min, max],
       "domainY": [min, max],
       "series": [
         {
-          "id": "s1",
-          "label": "Data",
-          "data": [{"x": 0, "y": 0}, {"x": 1, "y": 2}, ...],
-          "showLine": true
+          "id": "reference",
+          "label": "y = f(x)",
+          "data": [MATHEMATICALLY COMPUTED POINTS - at least 15-20 points for a smooth curve],
+          "showLine": true,
+          "lineStyle": "solid"
         }
       ],
       "grid": {"show": true, "stepX": 1, "stepY": 1}
     },
-    // For interpretation questions:
-    "interpretationFields": [{"id": "f1", "type": "numeric", "question": "...", "correctAnswer": 2, "marks": 1}],
-    // For plotting questions:
-    "plottingAnswer": {"expectedPoints": [{"x": 0, "y": 0}], "toleranceUnits": 0.5, "marksPerPoint": 1}
+    "plottingAnswer": {
+      "expectedPoints": [{"x": val, "y": val}, ...],
+      "toleranceUnits": 0.3,
+      "marksPerPoint": 1,
+      "expectedCurve": {
+        "id": "expected",
+        "label": "Expected",
+        "data": [same curve data as series],
+        "showLine": true,
+        "lineStyle": "dashed",
+        "color": "#22c55e"
+      }
+    }
   }
-- The "series.data" array MUST have at least 3 data points to render a visible graph.
-- NEVER create a graph question without complete graphConfig and data points.
+
+***** CRITICAL DATA GENERATION RULES *****
+1. The "series.data" array MUST contain 15-20 mathematically computed points
+2. If question mentions f(x) = x(x+2)(1-x), COMPUTE y values: y = x * (x+2) * (1-x)
+3. If question mentions (x-a)^2, COMPUTE y values: y = (x-a)^2
+4. If question mentions 1/(x+a), COMPUTE y values: y = 1/(x+a)
+5. Set xDomain/yDomain to encompass all key points mentioned in the question
+6. NEVER use placeholder data like [{"x":0,"y":1},{"x":2,"y":5}] - compute real values
+7. Copy the same curve data into plottingAnswer.expectedCurve for review mode
+
+Example computation for y = x(x+2)(1-x):
+x=-3: y = -3*(-1)*4 = 12
+x=-2: y = -2*0*3 = 0 (root)
+x=-1: y = -1*1*2 = -2
+x=0: y = 0 (root)
+x=0.5: y = 0.5*2.5*0.5 = 0.625
+x=1: y = 1*3*0 = 0 (root)
 
 CRITICAL RULE FOR graph_interpretation interpretationFields:
 - The interpretationFields array MUST match the intent of question_text.
@@ -1206,156 +1233,186 @@ ${notesSection}`;
         // Parse to check if series has actual data points
         let hasValidData = false;
         let graphData: any = null;
-        if (graphValidation.valid) {
-          try {
-            graphData = typeof q.correct_answer === 'string' 
-              ? JSON.parse(q.correct_answer) 
-              : q.correct_answer;
-            const series = graphData?.graphConfig?.series;
-            if (Array.isArray(series) && series.length > 0) {
-              const firstSeries = series[0];
-              if (Array.isArray(firstSeries?.data) && firstSeries.data.length >= 3) {
-                hasValidData = true;
-              }
+        try {
+          graphData = typeof q.correct_answer === 'string' 
+            ? JSON.parse(q.correct_answer) 
+            : q.correct_answer;
+          const series = graphData?.graphConfig?.series;
+          if (Array.isArray(series) && series.length > 0) {
+            const firstSeries = series[0];
+            if (Array.isArray(firstSeries?.data) && firstSeries.data.length >= 3) {
+              hasValidData = true;
             }
-          } catch (e) {
-            console.warn(`Question ${q.question_number}: Failed to parse graphConfig for data check`);
           }
+        } catch (e) {
+          console.warn(`Question ${q.question_number}: Failed to parse graphConfig for data check`);
         }
         
-        // *** CRITICAL: "SHOWN IN THE DIAGRAM" ENFORCEMENT ***
-        // If question mentions a diagram but has no curve data, either:
-        // 1. Generate curve data from function expression in text, OR
-        // 2. Strip the "shown in the diagram" phrase
-        const diagramPattern = /\b(shown|displayed|given|illustrated)\s+(in|on)\s+(the\s+)?(diagram|graph|figure|sketch)\b/i;
-        const hasDiagramReference = diagramPattern.test(q.question_text || '');
-        
-        if (hasDiagramReference && !hasValidData) {
-          console.warn(`Question ${q.question_number}: References diagram but has no series data - fixing`);
+        // *** CRITICAL: ALWAYS try to generate question-specific curve data ***
+        // This fixes the issue where AI returns empty graphConfig or generic fallback data
+        if (!hasValidData) {
+          console.info(`Question ${q.question_number}: No valid series data - generating from question context`);
           
-          // Try to extract function from question text (e.g., "y = f(x) = x(x+2)(1-x)")
-          const functionMatch = (q.question_text || '').match(/f\(x\)\s*=\s*([^,.\n]+)/i);
-          const functionExpr = functionMatch?.[1]?.trim();
+          const qText = q.question_text || '';
           
-          if (functionExpr) {
-            // Generate curve data from function expression
-            console.info(`Question ${q.question_number}: Generating curve for f(x) = ${functionExpr}`);
+          // Extract key points from question text
+          // Pattern: "crosses the x-axis at (2, 0) and (6, 0)"
+          // Pattern: "has a turning point at (4, -4)"
+          // Pattern: "maximum at A(-0.55, 1.63)"
+          // Pattern: "passes through (0, 4)"
+          const coordPatterns = [
+            /(?:crosses|intercept|root|zero)[^.]*?\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
+            /(?:turning point|vertex|maximum|minimum|max|min)[^.]*?\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
+            /(?:passes through|through)[^.]*?\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
+            /at\s+[A-Z]?\s*\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
+          ];
+          
+          const extractedPoints: Array<{x: number, y: number, type?: string}> = [];
+          
+          for (const pattern of coordPatterns) {
+            let match;
+            const text = qText;
+            pattern.lastIndex = 0;
+            while ((match = pattern.exec(text)) !== null) {
+              const x = parseFloat(match[1]);
+              const y = parseFloat(match[2]);
+              if (!isNaN(x) && !isNaN(y)) {
+                extractedPoints.push({ x, y });
+              }
+            }
+          }
+          
+          console.info(`Question ${q.question_number}: Extracted ${extractedPoints.length} key points from text:`, extractedPoints);
+          
+          // Try to determine the function type and generate a curve
+          let curveData: Array<{x: number, y: number}> = [];
+          let domainX: [number, number] = [-5, 5];
+          let domainY: [number, number] = [-5, 5];
+          
+          // Check for specific function mentions
+          const isQuadratic = /\b(x-?\d*)?\^2\b|parabola|quadratic/i.test(qText);
+          const isCubic = /x\([^)]+\)\([^)]+\)|cubic|x\^3/i.test(qText);
+          const isReciprocal = /1\/\(x|1\/x|reciprocal/i.test(qText);
+          
+          if (extractedPoints.length >= 2) {
+            // Generate curve that passes through extracted key points
+            const allX = extractedPoints.map(p => p.x);
+            const allY = extractedPoints.map(p => p.y);
+            const minX = Math.min(...allX);
+            const maxX = Math.max(...allX);
+            const minY = Math.min(...allY);
+            const maxY = Math.max(...allY);
             
-            // Create a simple curve with sample points
-            const curvePoints: Array<{x: number, y: number}> = [];
-            const domainX = graphData?.graphConfig?.domainX || [-5, 5];
-            const step = (domainX[1] - domainX[0]) / 40;
+            // Set domain with padding
+            const xPad = Math.max(2, (maxX - minX) * 0.3);
+            const yPad = Math.max(2, (maxY - minY) * 0.3);
+            domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
+            domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
             
-            // Parse simple polynomial expressions
-            try {
-              for (let x = domainX[0]; x <= domainX[1]; x += step) {
-                // Simple evaluation for common patterns
-                let y = 0;
-                const expr = functionExpr.replace(/\s+/g, '');
-                
-                // Handle x(x+a)(b-x) pattern
-                const cubicMatch = expr.match(/x\(x([+-]\d+)\)\((\d+)-x\)/);
-                if (cubicMatch) {
-                  const a = parseInt(cubicMatch[1]);
-                  const b = parseInt(cubicMatch[2]);
-                  y = x * (x + a) * (b - x);
-                }
-                // Handle (x-a)^2 pattern
-                else if (/\(x-?\d+\)\^?2/.test(expr)) {
-                  const shiftMatch = expr.match(/\(x(-?\d+)\)/);
-                  const shift = shiftMatch ? parseInt(shiftMatch[1]) : 0;
-                  y = Math.pow(x + shift, 2);
-                }
-                // Handle 1/(x+a) pattern
-                else if (/1\/\(x[+-]?\d*\)/.test(expr)) {
-                  const shiftMatch = expr.match(/\(x([+-]?\d+)\)/);
-                  const shift = shiftMatch ? parseInt(shiftMatch[1]) : 0;
-                  const denom = x + shift;
-                  if (Math.abs(denom) > 0.1) {
-                    y = 1 / denom;
-                  } else {
-                    continue; // Skip asymptote
+            // Generate curve using Lagrange interpolation for given points
+            const step = (domainX[1] - domainX[0]) / 50;
+            for (let x = domainX[0]; x <= domainX[1]; x += step) {
+              let y = 0;
+              for (let i = 0; i < extractedPoints.length; i++) {
+                let term = extractedPoints[i].y;
+                for (let j = 0; j < extractedPoints.length; j++) {
+                  if (i !== j) {
+                    term *= (x - extractedPoints[j].x) / (extractedPoints[i].x - extractedPoints[j].x);
                   }
                 }
-                // Handle sqrt(x) pattern
-                else if (/sqrt\(x\)|√x/i.test(expr)) {
-                  if (x >= 0) {
-                    y = Math.sqrt(x);
-                  } else {
-                    continue;
-                  }
-                }
-                // Fallback: simple x^2
-                else {
-                  y = x * x;
-                }
-                
-                if (Number.isFinite(y) && Math.abs(y) < 100) {
-                  curvePoints.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+                y += term;
+              }
+              if (Number.isFinite(y) && Math.abs(y) < 100) {
+                curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+              }
+            }
+          } else if (isQuadratic) {
+            // Default parabola y = (x-1)^2 if no specific points
+            domainX = [-3, 5];
+            domainY = [-2, 10];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
+              const y = Math.pow(x - 1, 2);
+              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+          } else if (isCubic) {
+            // Default cubic y = x(x+2)(1-x)
+            domainX = [-4, 3];
+            domainY = [-6, 4];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+              const y = x * (x + 2) * (1 - x);
+              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+          } else if (isReciprocal) {
+            // Default reciprocal y = 1/x
+            domainX = [-5, 5];
+            domainY = [-5, 5];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+              if (Math.abs(x) > 0.2) {
+                const y = 1 / x;
+                if (Math.abs(y) < 10) {
+                  curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
                 }
               }
-              
-              if (curvePoints.length >= 10) {
-                // Add the generated series to the graphConfig
-                if (!graphData) graphData = { graphType: 'plotting', graphConfig: {} };
-                if (!graphData.graphConfig) graphData.graphConfig = {};
-                
-                // CRITICAL: Add reference curve to series for display
-                graphData.graphConfig.series = [{
+            }
+          } else {
+            // Generic parabola through origin for transformation questions
+            domainX = [-4, 4];
+            domainY = [-2, 8];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
+              const y = x * x;
+              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+          }
+          
+          if (curveData.length >= 10) {
+            console.info(`Question ${q.question_number}: Generated ${curveData.length} curve points`);
+            
+            // Build complete graphConfig
+            graphData = {
+              graphType: 'plotting',
+              graphConfig: {
+                chartType: 'line',
+                xLabel: 'x',
+                yLabel: 'y',
+                xDomain: domainX,
+                yDomain: domainY,
+                domainX: domainX,
+                domainY: domainY,
+                grid: { show: true, stepX: 1, stepY: 1 },
+                series: [{
                   id: 'reference',
-                  label: `y = f(x)`,
-                  data: curvePoints,
-                  color: 'hsl(var(--primary))',
+                  label: 'y = f(x)',
+                  data: curveData,
                   showLine: true,
-                  lineStyle: 'solid'
-                }];
-                
-                // CRITICAL: Also ensure plottingAnswer has expectedCurve for review mode
-                if (!graphData.plottingAnswer) {
-                  graphData.plottingAnswer = { expectedPoints: [], toleranceUnits: 0.3 };
-                }
-                graphData.plottingAnswer.expectedCurve = {
+                  lineStyle: 'solid',
+                  color: 'hsl(var(--primary))'
+                }]
+              },
+              plottingAnswer: {
+                expectedPoints: extractedPoints.length > 0 ? extractedPoints.slice(0, 5) : curveData.slice(0, 5),
+                toleranceUnits: 0.5,
+                marksPerPoint: Math.max(1, Math.floor(q.marks / Math.max(1, extractedPoints.length))),
+                expectedCurve: {
                   id: 'expected',
-                  label: 'Expected answer',
-                  data: curvePoints,
+                  label: 'Expected',
+                  data: curveData,
                   showLine: true,
                   lineStyle: 'dashed',
                   color: '#22c55e'
-                };
-                
-                q.correct_answer = graphData;
-                hasValidData = true;
-                console.info(`Question ${q.question_number}: Successfully generated ${curvePoints.length} curve points with expectedCurve for review`);
+                }
               }
-            } catch (e) {
-              console.warn(`Question ${q.question_number}: Failed to generate curve from expression`);
-            }
-          }
-          
-          // If we still don't have valid data, strip the diagram reference
-          if (!hasValidData) {
-            console.warn(`Question ${q.question_number}: Stripping diagram reference since no curve data could be generated`);
-            q.question_text = (q.question_text || '').replace(diagramPattern, '');
-            // Also remove "The curve ... is shown" type phrases
-            q.question_text = q.question_text.replace(/The curve[^.]*is shown[^.]*\.\s*/gi, '');
+            };
+            
+            q.correct_answer = graphData;
+            hasValidData = true;
           }
         }
         
-        if (!graphValidation.valid || !hasValidData) {
-          console.warn(`Question ${q.question_number}: Graph question failed validation or missing data, generating fallback`);
-          
-          // Generate fallback graphSpec with real data
-          const fallbackSpec = generateFallbackGraphSpec(q.question_type, q.question_text || '');
-          
-          if (fallbackSpec) {
-            console.info(`Question ${q.question_number}: Using fallback graphSpec with sample data`);
-            q.correct_answer = fallbackSpec;
-          } else {
-            // Cannot generate fallback - downgrade to short_answer
-            console.error(`Question ${q.question_number}: Cannot generate fallback graphSpec, downgrading to short_answer`);
-            q.question_type = 'short_answer';
-            q.correct_answer = 'Answer will vary based on graph interpretation.';
-          }
+        // If still no valid data after generation attempt, downgrade question type
+        if (!hasValidData) {
+          console.warn(`Question ${q.question_number}: Could not generate curve data, downgrading to extended`);
+          q.question_type = 'extended';
+          q.correct_answer = 'This question requires graphical analysis. Show your working.';
         }
       }
       

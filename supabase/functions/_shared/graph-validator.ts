@@ -216,7 +216,8 @@ ${graphData.graphType === 'plotting' ? '- plottingAnswer: { expectedPoints: [{x,
 }
 
 /**
- * Generates a fallback graphSpec when LLM fails to provide one
+ * Generates a fallback graphSpec when LLM fails to provide one.
+ * Now tries to intelligently parse the question to generate appropriate curves.
  */
 export function generateFallbackGraphSpec(
   questionType: string,
@@ -227,27 +228,120 @@ export function generateFallbackGraphSpec(
 
   if (!isInterpretation && !isPlotting) return null;
 
-  // Extract potential context from question text
-  const xLabelMatch = questionText.match(/x[- ]?axis[:\s]+([^,.]+)/i);
-  const yLabelMatch = questionText.match(/y[- ]?axis[:\s]+([^,.]+)/i);
-
-  // Generate sample linear data: y = 2x + 1
-  const sampleData = Array.from({ length: 5 }, (_, i) => ({
-    x: i * 2,
-    y: 2 * (i * 2) + 1
-  }));
+  // Try to determine function type from question text
+  const text = questionText.toLowerCase();
+  const isQuadratic = /\(x[-+]?\d*\)\s*\^?\s*2|parabola|quadratic/i.test(text);
+  const isCubic = /x\s*\([^)]+\)\s*\([^)]+\)|cubic|x\^3/i.test(text);
+  const isReciprocal = /1\/\s*\(x|1\/x|reciprocal/i.test(text);
+  
+  // Extract key points mentioned in question
+  const pointMatches = questionText.matchAll(/\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/g);
+  const keyPoints: Array<{x: number, y: number}> = [];
+  for (const match of pointMatches) {
+    keyPoints.push({ x: parseFloat(match[1]), y: parseFloat(match[2]) });
+  }
+  
+  // Determine domain from key points
+  let domainX: [number, number] = [-5, 5];
+  let domainY: [number, number] = [-5, 10];
+  
+  if (keyPoints.length >= 2) {
+    const xs = keyPoints.map(p => p.x);
+    const ys = keyPoints.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    
+    const xPad = Math.max(2, (maxX - minX) * 0.3);
+    const yPad = Math.max(2, (maxY - minY) * 0.3);
+    domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
+    domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
+  }
+  
+  // Generate curve data based on function type
+  let curveData: Array<{x: number, y: number}> = [];
+  
+  if (isCubic) {
+    // Generate cubic y = x(x+2)(1-x)
+    domainX = [-4, 3];
+    domainY = [-6, 4];
+    for (let x = domainX[0]; x <= domainX[1]; x += 0.12) {
+      const y = x * (x + 2) * (1 - x);
+      if (Number.isFinite(y) && Math.abs(y) <= 20) {
+        curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+      }
+    }
+  } else if (isReciprocal) {
+    // Generate reciprocal y = 1/x
+    domainX = [-5, 5];
+    domainY = [-5, 5];
+    for (let x = domainX[0]; x <= domainX[1]; x += 0.1) {
+      if (Math.abs(x) > 0.15) {
+        const y = 1 / x;
+        if (Number.isFinite(y) && Math.abs(y) <= 8) {
+          curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+        }
+      }
+    }
+  } else if (isQuadratic) {
+    // Generate parabola y = (x-1)^2
+    domainX = [-3, 5];
+    domainY = [-1, 10];
+    for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+      const y = Math.pow(x - 1, 2);
+      curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+    }
+  } else if (keyPoints.length >= 3) {
+    // Use Lagrange interpolation through key points
+    const step = (domainX[1] - domainX[0]) / 50;
+    for (let x = domainX[0]; x <= domainX[1]; x += step) {
+      let y = 0;
+      for (let i = 0; i < keyPoints.length; i++) {
+        let term = keyPoints[i].y;
+        for (let j = 0; j < keyPoints.length; j++) {
+          if (i !== j && keyPoints[i].x !== keyPoints[j].x) {
+            term *= (x - keyPoints[j].x) / (keyPoints[i].x - keyPoints[j].x);
+          }
+        }
+        y += term;
+      }
+      if (Number.isFinite(y) && Math.abs(y) < 50) {
+        curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+      }
+    }
+  } else {
+    // Default: simple parabola y = x^2
+    domainX = [-4, 4];
+    domainY = [-2, 10];
+    for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+      const y = x * x;
+      curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+    }
+  }
+  
+  // Ensure we have enough points
+  if (curveData.length < 10) {
+    // Fallback to simple parabola
+    curveData = [];
+    domainX = [-4, 4];
+    domainY = [-2, 10];
+    for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+      curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(x * x * 100) / 100 });
+    }
+  }
 
   const baseConfig: GraphSpec = {
     chartType: 'line',
-    xLabel: xLabelMatch?.[1]?.trim() || 'x',
-    yLabel: yLabelMatch?.[1]?.trim() || 'y',
-    xDomain: [0, 10],
-    yDomain: [0, 25],
-    grid: { show: true, stepX: 2, stepY: 5 },
+    xLabel: 'x',
+    yLabel: 'y',
+    xDomain: domainX,
+    yDomain: domainY,
+    grid: { show: true, stepX: 1, stepY: 1 },
     series: [{
-      id: 's1',
-      label: 'Data',
-      data: sampleData,
+      id: 'reference',
+      label: 'y = f(x)',
+      data: curveData,
       showLine: true,
       lineStyle: 'solid'
     }]
@@ -259,53 +353,38 @@ export function generateFallbackGraphSpec(
       graphConfig: baseConfig,
       interpretationFields: [
         {
-          id: 'gradient',
-          type: 'numeric',
-          question: 'What is the gradient of the line?',
-          correctAnswer: 2,
-          tolerance: 0.1,
-          marks: 1,
-          acceptedFormats: ['2', 'y=2x', 'm=2']
-        },
-        {
-          id: 'intercept',
-          type: 'numeric',
-          question: 'What is the y-intercept?',
-          correctAnswer: 1,
-          tolerance: 0.1,
-          marks: 1,
-          acceptedFormats: ['1', '(0,1)', 'c=1']
+          id: 'answer',
+          type: 'text',
+          question: 'Enter your answer based on the graph',
+          correctAnswer: '',
+          marks: 2,
         }
       ]
     };
   }
 
   if (isPlotting) {
-    // IMPORTANT: Include reference series so the graph displays something visible
-    // Also include expectedCurve for review mode rendering
     return {
       graphType: 'plotting',
       graphConfig: {
         ...baseConfig,
-        // Keep the series so a reference curve is shown on the graph
         series: [{
           id: 'reference',
           label: 'y = f(x)',
-          data: sampleData,
+          data: curveData,
           showLine: true,
           lineStyle: 'solid',
           color: 'hsl(var(--primary))'
         }]
       },
       plottingAnswer: {
-        expectedPoints: sampleData.slice(0, 3), // First 3 points
+        expectedPoints: keyPoints.length > 0 ? keyPoints.slice(0, 5) : curveData.slice(0, 5).map(p => ({ x: p.x, y: p.y })),
         toleranceUnits: 0.5,
         marksPerPoint: 1,
-        // Include expected curve data for review mode
         expectedCurve: {
           id: 'expected',
           label: 'Expected',
-          data: sampleData,
+          data: curveData,
           showLine: true,
           lineStyle: 'dashed',
           color: '#22c55e'
