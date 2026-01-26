@@ -33,6 +33,15 @@ export interface GraphPlottingAnswer {
   expectedPoints: Array<{ x: number; y: number }>;
   toleranceUnits: number;
   marksPerPoint?: number;
+  // Expected curve data for review mode rendering
+  expectedCurve?: {
+    id: string;
+    label: string;
+    data: Array<{ x: number; y: number }>;
+    showLine?: boolean;
+    lineStyle?: 'solid' | 'dashed' | 'dotted';
+    color?: string;
+  };
 }
 
 export interface GraphQuestionData {
@@ -272,16 +281,35 @@ export function generateFallbackGraphSpec(
   }
 
   if (isPlotting) {
+    // IMPORTANT: Include reference series so the graph displays something visible
+    // Also include expectedCurve for review mode rendering
     return {
       graphType: 'plotting',
       graphConfig: {
         ...baseConfig,
-        series: [] // Empty for plotting questions
+        // Keep the series so a reference curve is shown on the graph
+        series: [{
+          id: 'reference',
+          label: 'y = f(x)',
+          data: sampleData,
+          showLine: true,
+          lineStyle: 'solid',
+          color: 'hsl(var(--primary))'
+        }]
       },
       plottingAnswer: {
         expectedPoints: sampleData.slice(0, 3), // First 3 points
         toleranceUnits: 0.5,
-        marksPerPoint: 1
+        marksPerPoint: 1,
+        // Include expected curve data for review mode
+        expectedCurve: {
+          id: 'expected',
+          label: 'Expected',
+          data: sampleData,
+          showLine: true,
+          lineStyle: 'dashed',
+          color: '#22c55e'
+        }
       }
     };
   }
