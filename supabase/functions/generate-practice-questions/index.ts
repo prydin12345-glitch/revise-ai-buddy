@@ -1300,6 +1300,7 @@ ${notesSection}`;
                 if (!graphData) graphData = { graphType: 'plotting', graphConfig: {} };
                 if (!graphData.graphConfig) graphData.graphConfig = {};
                 
+                // CRITICAL: Add reference curve to series for display
                 graphData.graphConfig.series = [{
                   id: 'reference',
                   label: `y = f(x)`,
@@ -1309,9 +1310,22 @@ ${notesSection}`;
                   lineStyle: 'solid'
                 }];
                 
+                // CRITICAL: Also ensure plottingAnswer has expectedCurve for review mode
+                if (!graphData.plottingAnswer) {
+                  graphData.plottingAnswer = { expectedPoints: [], toleranceUnits: 0.3 };
+                }
+                graphData.plottingAnswer.expectedCurve = {
+                  id: 'expected',
+                  label: 'Expected answer',
+                  data: curvePoints,
+                  showLine: true,
+                  lineStyle: 'dashed',
+                  color: '#22c55e'
+                };
+                
                 q.correct_answer = graphData;
                 hasValidData = true;
-                console.info(`Question ${q.question_number}: Successfully generated ${curvePoints.length} curve points`);
+                console.info(`Question ${q.question_number}: Successfully generated ${curvePoints.length} curve points with expectedCurve for review`);
               }
             } catch (e) {
               console.warn(`Question ${q.question_number}: Failed to generate curve from expression`);
@@ -1361,6 +1375,8 @@ ${notesSection}`;
           
           if (hasGraphConfig) {
             // Transform to graph_plotting format
+            // CRITICAL: Include expectedCurve from series for review mode
+            const seriesData = transData.graphConfig.series[0]?.data || [];
             const plottingData = {
               graphType: 'plotting',
               graphConfig: {
@@ -1376,13 +1392,22 @@ ${notesSection}`;
                   ? [transData.parts[0].correctAnswer.coordinateAnswer]
                   : transData.parts?.[0]?.correctAnswer?.transformedPoints || [],
                 toleranceUnits: 0.3,
-                marksPerPoint: q.marks / Math.max(1, transData.parts?.length || 1)
+                marksPerPoint: q.marks / Math.max(1, transData.parts?.length || 1),
+                // Include expectedCurve for review mode rendering
+                expectedCurve: seriesData.length >= 3 ? {
+                  id: 'expected',
+                  label: 'Expected answer',
+                  data: seriesData,
+                  showLine: true,
+                  lineStyle: 'dashed',
+                  color: '#22c55e'
+                } : undefined
               }
             };
             
             q.question_type = 'graph_plotting';
             q.correct_answer = plottingData;
-            console.info(`Question ${q.question_number}: Successfully converted to graph_plotting`);
+            console.info(`Question ${q.question_number}: Successfully converted to graph_plotting with expectedCurve`);
           } else {
             // Fallback to graph_interpretation if no series data
             console.warn(`Question ${q.question_number}: No graphConfig series, converting to graph_interpretation`);
