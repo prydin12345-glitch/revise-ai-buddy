@@ -596,16 +596,19 @@ Table_grid questions (interactive tables):
   - prefilled: optional array for given values, each item: { rowId, colIndex, value, locked }
 - correct_answer for table_grid MUST be an object with correctAnswers keyed by row id.
 
-QUESTION NUMBERING (CRITICAL):
-- The user requested ${setData.question_count} questions total
-- Each question_number should be a simple integer: "1", "2", "3", etc.
-- Multi-part questions (a, b, c) should be SEPARATE questions with unique numbers
-- Example: If you want to create a 3-part question about transformations:
-  - Question 1: "Write down the coordinates of..." → question_number: "1"
-  - Question 2: "Sketch the graph of..." → question_number: "2"
-  - Question 3: "State the equation of..." → question_number: "3"
-- Do NOT use "1a", "1b", "1c" notation - each part is a separate numbered question
-- This ensures the total question count matches what the user requested
+QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
+- You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
+- Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
+- Example: A transformation question about f(x) = x(x+2)(1-x) might have:
+  - Question "1a": "Sketch the curve y = f(x)..." → question_number: "1a"
+  - Question "1b": "Sketch the curve y = f(x + 3)..." → question_number: "1b"
+  - Question "1c": "State the coordinates of the maximum of y = -f(x)" → question_number: "1c"
+- A standalone question with no sub-parts can just use "2", "3", etc.
+- The sub-parts (1a, 1b, 1c) together count as ONE root question
+- You can have questions with varying numbers of sub-parts: some may have just "a", others "a, b, c, d"
+- Total ROOT questions (unique numbers like 1, 2, 3) should roughly match user request
+- The INDIVIDUAL entries you return should equal the user's requested count (${setData.question_count})
+- Example: 20 questions could be: 1a, 1b, 2a, 2b, 2c, 3, 4a, 4b, 5a, 5b, 5c, 5d, 6, 7a, 7b, 8, 9a, 9b, 9c, 10
 
 MCQ QUESTIONS:
 - If the question asks "Which of the following represents..." it MUST be question_type: "mcq"
@@ -1456,35 +1459,44 @@ ${notesSection}`;
           }
           
           // CRITICAL: Apply transformation to generate expectedCurve
+          // The transformation is applied to the CURVE, not to individual x values.
+          // For y = f(x + a): we evaluate y at (x + a), which means we SHIFT the curve LEFT by a
+          // So if baseCurveData has point (2, 4) from f(x), for f(x + 3), the new point is at x = 2 - 3 = -1
+          // The convention: if we want the transformed curve, we take each base point and shift the x-coordinate
           const transformedCurveData: Array<{x: number, y: number}> = [];
           
           for (const point of baseCurveData) {
             let newX = point.x;
             let newY = point.y;
             
-            // Apply transformations in correct order:
-            // For f(x - a): shift x by +a (opposite direction)
+            // Apply transformations in correct mathematical order:
+            
+            // 1. Horizontal transformations (affect x-coordinate of the output curve)
+            // For y = f(x + a): shift the curve LEFT by a (so newX = point.x - a)
+            // For y = f(x - a): shift the curve RIGHT by a (so newX = point.x + a)
+            // horizontalShift is stored as: f(x - a) → shift = +a, f(x + a) → shift = -a
             newX = point.x + transform.horizontalShift;
             
-            // For f(ax): compress/stretch x by 1/a
+            // For y = f(ax): compress horizontally by factor a (so newX = point.x / a)
             if (transform.horizontalStretch !== 1) {
               newX = point.x / transform.horizontalStretch;
             }
             
-            // For f(-x): reflect x
+            // For y = f(-x): reflect in y-axis (newX = -point.x)
             if (transform.reflectY) {
               newX = -point.x;
             }
             
-            // For af(x): stretch y by a
+            // 2. Vertical transformations (affect y-coordinate of the output curve)
+            // For y = af(x): stretch vertically by factor a
             newY = point.y * transform.verticalStretch;
             
-            // For -f(x): reflect y
+            // For y = -f(x): reflect in x-axis
             if (transform.reflectX) {
               newY = -newY;
             }
             
-            // For f(x) + a: shift y by a
+            // For y = f(x) + a: shift up by a
             newY = newY + transform.verticalShift;
             
             if (Number.isFinite(newX) && Number.isFinite(newY)) {
@@ -1494,6 +1506,9 @@ ${notesSection}`;
               });
             }
           }
+          
+          // Sort transformed curve by x-coordinate for proper line rendering
+          transformedCurveData.sort((a, b) => a.x - b.x);
           
           // Adjust domain to fit transformed curve
           if (transformedCurveData.length > 0) {
