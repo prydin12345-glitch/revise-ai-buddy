@@ -1612,15 +1612,30 @@ const TakePracticeQuiz = () => {
                       const refSeries = (graphData.graphConfig as any)?.series || [];
                       
                       // For review mode, generate expected curve from plottingAnswer.expectedCurve
-                      // or fallback to transforming the reference series
+                      // expectedCurve can be either:
+                      // 1. An object with { id, label, data: [...] } (from edge function)
+                      // 2. An array directly (legacy format)
                       let expectedCurveSeries: GraphSeries[] = [];
                       if (currentAnswer.submitted && currentAnswer.feedback && plottingAnswer) {
-                        // Check if plottingAnswer has an expectedCurve
-                        if ((plottingAnswer as any).expectedCurve && Array.isArray((plottingAnswer as any).expectedCurve)) {
+                        const expCurve = (plottingAnswer as any).expectedCurve;
+                        
+                        // Case 1: expectedCurve is an object with data array
+                        if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
+                          expectedCurveSeries = [{
+                            id: expCurve.id || 'expected-answer',
+                            label: expCurve.label || 'Expected Answer',
+                            data: expCurve.data,
+                            color: expCurve.color || 'hsl(var(--success))',
+                            showLine: expCurve.showLine !== false,
+                            lineStyle: expCurve.lineStyle || 'dashed',
+                          }];
+                        }
+                        // Case 2: expectedCurve is an array directly (legacy format)
+                        else if (Array.isArray(expCurve) && expCurve.length > 0) {
                           expectedCurveSeries = [{
                             id: 'expected-answer',
                             label: 'Expected Answer',
-                            data: (plottingAnswer as any).expectedCurve,
+                            data: expCurve,
                             color: 'hsl(var(--success))',
                             showLine: true,
                             lineStyle: 'dashed',
