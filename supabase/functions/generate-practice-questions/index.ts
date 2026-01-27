@@ -596,8 +596,24 @@ Table_grid questions (interactive tables):
   - prefilled: optional array for given values, each item: { rowId, colIndex, value, locked }
 - correct_answer for table_grid MUST be an object with correctAnswers keyed by row id.
 
+QUESTION NUMBERING (CRITICAL):
+- The user requested ${setData.question_count} questions total
+- Each question_number should be a simple integer: "1", "2", "3", etc.
+- Multi-part questions (a, b, c) should be SEPARATE questions with unique numbers
+- Example: If you want to create a 3-part question about transformations:
+  - Question 1: "Write down the coordinates of..." → question_number: "1"
+  - Question 2: "Sketch the graph of..." → question_number: "2"
+  - Question 3: "State the equation of..." → question_number: "3"
+- Do NOT use "1a", "1b", "1c" notation - each part is a separate numbered question
+- This ensures the total question count matches what the user requested
+
+MCQ QUESTIONS:
+- If the question asks "Which of the following represents..." it MUST be question_type: "mcq"
+- MCQ correct_answer MUST be a single letter: "A", "B", "C", or "D"
+- Do NOT use graph_plotting for "Which of the following..." questions
+
 General field expectations:
-- question_number: string ("1", "2", ...)
+- question_number: string ("1", "2", ...) - simple integers only
 - question_text: plain ASCII string
 - question_latex: MUST be null
 - worked_solution: plain ASCII string (optional)
@@ -1015,7 +1031,27 @@ ${notesSection}`;
       const questionText = (q.question_text || '').toLowerCase();
       const isGraphType = q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation' || q.question_type === 'graph_transformation';
       
-      if (isGraphType) {
+      // *** NEW: Detect MCQ questions wrongly marked as graph_plotting ***
+      // Pattern: "Which of the following represents..." with single-letter answer
+      const isMcqPattern = /\b(which of the following|which option|which graph|which represents|which shows)\b/i.test(questionText);
+      const hasOptions = Array.isArray(q.options) && q.options.length >= 2;
+      const hasSingleLetterAnswer = typeof q.correct_answer === 'string' && /^[A-D]$/i.test(q.correct_answer);
+      
+      if (isGraphType && isMcqPattern && (hasOptions || hasSingleLetterAnswer)) {
+        console.info(`Question ${q.question_number}: Converting ${q.question_type} to MCQ - detected "Which of the following" pattern`);
+        q.question_type = 'mcq';
+        
+        // Ensure we have options
+        if (!hasOptions) {
+          q.options = ['A', 'B', 'C', 'D'];
+        }
+        
+        // Ensure correct_answer is just the letter
+        if (typeof q.correct_answer !== 'string' || !/^[A-D]$/i.test(q.correct_answer)) {
+          q.correct_answer = 'A'; // Default if not specified
+        }
+      }
+      else if (isGraphType) {
         // Verbs that indicate algebraic/numeric answers (NOT graph interaction)
         const algebraicVerbs = /\b(write down|state|find|calculate|determine|give|work out)\b/i;
         // Verbs that indicate graph interaction IS required
@@ -1256,10 +1292,6 @@ ${notesSection}`;
           const qText = q.question_text || '';
           
           // Extract key points from question text
-          // Pattern: "crosses the x-axis at (2, 0) and (6, 0)"
-          // Pattern: "has a turning point at (4, -4)"
-          // Pattern: "maximum at A(-0.55, 1.63)"
-          // Pattern: "passes through (0, 4)"
           const coordPatterns = [
             /(?:crosses|intercept|root|zero)[^.]*?\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
             /(?:turning point|vertex|maximum|minimum|max|min)[^.]*?\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/gi,
@@ -1284,17 +1316,87 @@ ${notesSection}`;
           
           console.info(`Question ${q.question_number}: Extracted ${extractedPoints.length} key points from text:`, extractedPoints);
           
-          // Try to determine the function type and generate a curve
-          let curveData: Array<{x: number, y: number}> = [];
+          // CRITICAL: Detect transformation type from question text
+          // e.g., "Sketch y = f(x) + 2" means vertical translation +2
+          // e.g., "Sketch y = f(x - 3)" means horizontal translation +3
+          // e.g., "Sketch y = 2f(x)" means vertical stretch by 2
+          // e.g., "Sketch y = f(2x)" means horizontal compression by 1/2
+          // e.g., "Sketch y = -f(x)" means reflection in x-axis
+          // e.g., "Sketch y = f(-x)" means reflection in y-axis
+          
+          interface TransformConfig {
+            verticalShift: number;
+            horizontalShift: number;
+            verticalStretch: number;
+            horizontalStretch: number;
+            reflectX: boolean;
+            reflectY: boolean;
+          }
+          
+          const transform: TransformConfig = {
+            verticalShift: 0,
+            horizontalShift: 0,
+            verticalStretch: 1,
+            horizontalStretch: 1,
+            reflectX: false,
+            reflectY: false,
+          };
+          
+          // Parse transformation from question text
+          // Pattern: f(x) + a or f(x) - a (vertical shift)
+          const vertShiftMatch = qText.match(/f\(x\)\s*([+-])\s*(\d+(?:\.\d+)?)/i);
+          if (vertShiftMatch) {
+            const sign = vertShiftMatch[1] === '+' ? 1 : -1;
+            transform.verticalShift = sign * parseFloat(vertShiftMatch[2]);
+            console.info(`Question ${q.question_number}: Detected vertical shift: ${transform.verticalShift}`);
+          }
+          
+          // Pattern: f(x + a) or f(x - a) (horizontal shift, OPPOSITE direction)
+          const horizShiftMatch = qText.match(/f\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
+          if (horizShiftMatch) {
+            // f(x - 3) shifts RIGHT by 3, f(x + 2) shifts LEFT by 2
+            const sign = horizShiftMatch[1] === '-' ? 1 : -1;
+            transform.horizontalShift = sign * parseFloat(horizShiftMatch[2]);
+            console.info(`Question ${q.question_number}: Detected horizontal shift: ${transform.horizontalShift}`);
+          }
+          
+          // Pattern: af(x) where a is a number (vertical stretch)
+          const vertStretchMatch = qText.match(/(\d+(?:\.\d+)?)\s*f\(x\)/i);
+          if (vertStretchMatch) {
+            transform.verticalStretch = parseFloat(vertStretchMatch[1]);
+            console.info(`Question ${q.question_number}: Detected vertical stretch: ${transform.verticalStretch}`);
+          }
+          
+          // Pattern: f(ax) where a is a number (horizontal compression)
+          const horizStretchMatch = qText.match(/f\((\d+(?:\.\d+)?)x\)/i);
+          if (horizStretchMatch) {
+            transform.horizontalStretch = parseFloat(horizStretchMatch[1]);
+            console.info(`Question ${q.question_number}: Detected horizontal stretch factor: ${transform.horizontalStretch}`);
+          }
+          
+          // Pattern: -f(x) (reflection in x-axis)
+          if (/-\s*f\(x\)/i.test(qText) && !/f\(x\)\s*-/i.test(qText)) {
+            transform.reflectX = true;
+            console.info(`Question ${q.question_number}: Detected reflection in x-axis`);
+          }
+          
+          // Pattern: f(-x) (reflection in y-axis)
+          if (/f\(-x\)/i.test(qText)) {
+            transform.reflectY = true;
+            console.info(`Question ${q.question_number}: Detected reflection in y-axis`);
+          }
+          
+          // Generate base curve (reference curve y = f(x))
+          let baseCurveData: Array<{x: number, y: number}> = [];
           let domainX: [number, number] = [-5, 5];
-          let domainY: [number, number] = [-5, 5];
+          let domainY: [number, number] = [-5, 10];
           
           // Check for specific function mentions
           const isQuadratic = /\b(x-?\d*)?\^2\b|parabola|quadratic/i.test(qText);
           const isCubic = /x\([^)]+\)\([^)]+\)|cubic|x\^3/i.test(qText);
           const isReciprocal = /1\/\(x|1\/x|reciprocal/i.test(qText);
           
-          if (extractedPoints.length >= 2) {
+          if (extractedPoints.length >= 3) {
             // Generate curve that passes through extracted key points
             const allX = extractedPoints.map(p => p.x);
             const allY = extractedPoints.map(p => p.y);
@@ -1303,13 +1405,12 @@ ${notesSection}`;
             const minY = Math.min(...allY);
             const maxY = Math.max(...allY);
             
-            // Set domain with padding
             const xPad = Math.max(2, (maxX - minX) * 0.3);
             const yPad = Math.max(2, (maxY - minY) * 0.3);
             domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
             domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
             
-            // Generate curve using Lagrange interpolation for given points
+            // Lagrange interpolation
             const step = (domainX[1] - domainX[0]) / 50;
             for (let x = domainX[0]; x <= domainX[1]; x += step) {
               let y = 0;
@@ -1323,50 +1424,93 @@ ${notesSection}`;
                 y += term;
               }
               if (Number.isFinite(y) && Math.abs(y) < 100) {
-                curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+                baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
               }
             }
-          } else if (isQuadratic) {
-            // Default parabola y = (x-1)^2 if no specific points
-            domainX = [-3, 5];
-            domainY = [-2, 10];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
-              const y = Math.pow(x - 1, 2);
-              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-          } else if (isCubic) {
-            // Default cubic y = x(x+2)(1-x)
-            domainX = [-4, 3];
-            domainY = [-6, 4];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
-              const y = x * (x + 2) * (1 - x);
-              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
           } else if (isReciprocal) {
-            // Default reciprocal y = 1/x
             domainX = [-5, 5];
             domainY = [-5, 5];
             for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
               if (Math.abs(x) > 0.2) {
                 const y = 1 / x;
                 if (Math.abs(y) < 10) {
-                  curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+                  baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
                 }
               }
             }
+          } else if (isCubic) {
+            domainX = [-4, 3];
+            domainY = [-6, 4];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
+              const y = x * (x + 2) * (1 - x);
+              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
           } else {
-            // Generic parabola through origin for transformation questions
+            // Default: simple parabola y = x^2
             domainX = [-4, 4];
-            domainY = [-2, 8];
+            domainY = [-2, 10];
             for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
               const y = x * x;
-              curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
             }
           }
           
-          if (curveData.length >= 10) {
-            console.info(`Question ${q.question_number}: Generated ${curveData.length} curve points`);
+          // CRITICAL: Apply transformation to generate expectedCurve
+          const transformedCurveData: Array<{x: number, y: number}> = [];
+          
+          for (const point of baseCurveData) {
+            let newX = point.x;
+            let newY = point.y;
             
+            // Apply transformations in correct order:
+            // For f(x - a): shift x by +a (opposite direction)
+            newX = point.x + transform.horizontalShift;
+            
+            // For f(ax): compress/stretch x by 1/a
+            if (transform.horizontalStretch !== 1) {
+              newX = point.x / transform.horizontalStretch;
+            }
+            
+            // For f(-x): reflect x
+            if (transform.reflectY) {
+              newX = -point.x;
+            }
+            
+            // For af(x): stretch y by a
+            newY = point.y * transform.verticalStretch;
+            
+            // For -f(x): reflect y
+            if (transform.reflectX) {
+              newY = -newY;
+            }
+            
+            // For f(x) + a: shift y by a
+            newY = newY + transform.verticalShift;
+            
+            if (Number.isFinite(newX) && Number.isFinite(newY)) {
+              transformedCurveData.push({ 
+                x: Math.round(newX * 100) / 100, 
+                y: Math.round(newY * 100) / 100 
+              });
+            }
+          }
+          
+          // Adjust domain to fit transformed curve
+          if (transformedCurveData.length > 0) {
+            const allX = transformedCurveData.map(p => p.x);
+            const allY = transformedCurveData.map(p => p.y);
+            const minX = Math.min(...allX, ...baseCurveData.map(p => p.x));
+            const maxX = Math.max(...allX, ...baseCurveData.map(p => p.x));
+            const minY = Math.min(...allY, ...baseCurveData.map(p => p.y));
+            const maxY = Math.max(...allY, ...baseCurveData.map(p => p.y));
+            
+            domainX = [Math.floor(minX - 1), Math.ceil(maxX + 1)];
+            domainY = [Math.floor(minY - 1), Math.ceil(maxY + 1)];
+          }
+          
+          console.info(`Question ${q.question_number}: Generated base curve (${baseCurveData.length} pts) and transformed curve (${transformedCurveData.length} pts)`);
+          
+          if (baseCurveData.length >= 10) {
             // Build complete graphConfig
             graphData = {
               graphType: 'plotting',
@@ -1382,20 +1526,21 @@ ${notesSection}`;
                 series: [{
                   id: 'reference',
                   label: 'y = f(x)',
-                  data: curveData,
+                  data: baseCurveData,
                   showLine: true,
                   lineStyle: 'solid',
                   color: 'hsl(var(--primary))'
                 }]
               },
               plottingAnswer: {
-                expectedPoints: extractedPoints.length > 0 ? extractedPoints.slice(0, 5) : curveData.slice(0, 5),
+                expectedPoints: transformedCurveData.slice(0, 5).map(p => ({ x: p.x, y: p.y })),
                 toleranceUnits: 0.5,
-                marksPerPoint: Math.max(1, Math.floor(q.marks / Math.max(1, extractedPoints.length))),
+                marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
+                // CRITICAL: expectedCurve is the TRANSFORMED curve, not the original
                 expectedCurve: {
                   id: 'expected',
                   label: 'Expected',
-                  data: curveData,
+                  data: transformedCurveData.length > 0 ? transformedCurveData : baseCurveData,
                   showLine: true,
                   lineStyle: 'dashed',
                   color: '#22c55e'
