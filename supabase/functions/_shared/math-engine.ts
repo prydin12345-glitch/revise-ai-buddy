@@ -285,6 +285,117 @@ function findDiscontinuityPoint(
 // ============================================
 
 /**
+ * Calculate a sensible, student-friendly domain based on key features.
+ * Uses 1-unit step increments and consistent x/y scaling where possible.
+ */
+export function calculateStudentFriendlyDomain(
+  fn: FunctionType,
+  keyFeatures: KeyFeatures | null = null
+): { x: [number, number]; y: [number, number]; stepX: number; stepY: number } {
+  // Extract key points from function type
+  let keyXValues: number[] = [0];
+  let keyYValues: number[] = [0];
+  
+  // Collect roots/key points based on function type
+  if (fn.type === 'factored_cubic') {
+    keyXValues = [...fn.roots, 0];
+  } else if (fn.type === 'quadratic_factor') {
+    keyXValues = [fn.repeatedRoot, fn.singleRoot, 0];
+  } else if (fn.type === 'reciprocal' && fn.inner.type === 'linear') {
+    // Asymptote at x = -intercept/slope
+    const asymptote = -fn.inner.intercept / fn.inner.slope;
+    keyXValues = [asymptote - 2, asymptote + 2, 0];
+  } else if (fn.type === 'quadratic') {
+    // Vertex at x = -b/(2a)
+    const vertex = -fn.b / (2 * fn.a);
+    keyXValues = [vertex, 0];
+  }
+  
+  // Add key features if provided
+  if (keyFeatures) {
+    keyXValues = keyXValues.concat(keyFeatures.intercepts.x);
+    keyXValues = keyXValues.concat(keyFeatures.turningPoints.map(tp => tp.x));
+    keyYValues = keyYValues.concat(keyFeatures.turningPoints.map(tp => tp.y));
+    if (keyFeatures.intercepts.y !== null) {
+      keyYValues.push(keyFeatures.intercepts.y);
+    }
+  }
+  
+  // Calculate x domain with integer padding
+  const minX = Math.min(...keyXValues);
+  const maxX = Math.max(...keyXValues);
+  const xRange = maxX - minX;
+  const xPad = Math.max(2, Math.ceil(xRange * 0.3));
+  
+  // Round to nice integer boundaries
+  let xDomain: [number, number] = [
+    Math.floor(minX - xPad),
+    Math.ceil(maxX + xPad)
+  ];
+  
+  // Clamp to reasonable range
+  xDomain = [
+    Math.max(-15, xDomain[0]),
+    Math.min(15, xDomain[1])
+  ];
+  
+  // Sample function to determine y range
+  const samples: number[] = [];
+  const step = (xDomain[1] - xDomain[0]) / 50;
+  for (let x = xDomain[0]; x <= xDomain[1]; x += step) {
+    const y = evaluate(fn, x);
+    if (y !== null && Number.isFinite(y) && Math.abs(y) < 100) {
+      samples.push(y);
+    }
+  }
+  
+  if (samples.length > 0) {
+    keyYValues = keyYValues.concat(samples);
+  }
+  
+  const minY = Math.min(...keyYValues.filter(y => Math.abs(y) < 100));
+  const maxY = Math.max(...keyYValues.filter(y => Math.abs(y) < 100));
+  const yRange = maxY - minY;
+  const yPad = Math.max(2, Math.ceil(yRange * 0.2));
+  
+  let yDomain: [number, number] = [
+    Math.floor(minY - yPad),
+    Math.ceil(maxY + yPad)
+  ];
+  
+  // Clamp y to reasonable range
+  yDomain = [
+    Math.max(-20, yDomain[0]),
+    Math.min(20, yDomain[1])
+  ];
+  
+  // Calculate step sizes - prefer 1 unit, but scale up if range is too large
+  const xRangeActual = xDomain[1] - xDomain[0];
+  const yRangeActual = yDomain[1] - yDomain[0];
+  
+  // Use 1-unit steps unless range is very large
+  let stepX = 1;
+  let stepY = 1;
+  
+  if (xRangeActual > 20) stepX = 2;
+  if (xRangeActual > 40) stepX = 5;
+  if (yRangeActual > 20) stepY = 2;
+  if (yRangeActual > 40) stepY = 5;
+  
+  // Try to keep x and y steps consistent where sensible
+  if (stepX === 1 && stepY === 1 && xRangeActual <= 15 && yRangeActual <= 15) {
+    // Perfect: consistent 1-unit grid
+  } else if (Math.abs(stepX - stepY) <= 1) {
+    // Close enough - use average
+    const avgStep = Math.round((stepX + stepY) / 2);
+    stepX = avgStep;
+    stepY = avgStep;
+  }
+  
+  return { x: xDomain, y: yDomain, stepX, stepY };
+}
+
+/**
  * Generate curve data with automatic branch splitting at discontinuities.
  * Returns an array of GraphSeries (one per continuous branch).
  */
@@ -314,7 +425,7 @@ export function generateCurveData(
   for (let i = 0; i < regions.length; i++) {
     const [start, end] = regions[i];
     const regionWidth = end - start;
-    const step = regionWidth / (pointDensity / regions.length);
+    const step = regionWidth / Math.max(30, Math.floor(pointDensity / regions.length));
     const points: GraphPoint[] = [];
     
     for (let x = start; x <= end; x += step) {
@@ -333,7 +444,8 @@ export function generateCurveData(
         if (transforms.reflectX) outputY = -outputY;
         outputY = outputY + transforms.shiftY;
         
-        if (Math.abs(outputY) <= 100) { // Reasonable y-range
+        // Allow larger y-range but still reasonable
+        if (Math.abs(outputY) <= 200) {
           points.push({
             x: Math.round(x * 100) / 100,
             y: Math.round(outputY * 100) / 100,
