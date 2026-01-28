@@ -1808,6 +1808,8 @@ export function GraphPlottingQuestion({
             active={isJoinModeActive && currentJoinMode === 'freeform'}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
+            domainX={domainX}
+            domainY={domainY}
           />
         )}
 

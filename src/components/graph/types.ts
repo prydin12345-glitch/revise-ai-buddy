@@ -141,10 +141,16 @@ export interface LineSegment {
   controlPoint?: GraphPoint;
 }
 
-// Freeform drawing path (stores pixel coordinates)
+// Freeform drawing path
+// IMPORTANT: We store BOTH pixel coordinates (for immediate rendering at capture time)
+// and data coordinates (for stable re-rendering across different viewport sizes).
+// The dataPoints are canonical for grading/review; pixels are for immediate display.
 export interface DrawingPath {
   id: string;
+  /** Legacy: pixel coordinates relative to canvas at capture time. Used for immediate rendering. */
   points: Array<{ pixelX: number; pixelY: number }>;
+  /** Canonical: data coordinates (graph x,y). Used for stable re-rendering and grading. */
+  dataPoints?: Array<{ x: number; y: number }>;
 }
 
 /**

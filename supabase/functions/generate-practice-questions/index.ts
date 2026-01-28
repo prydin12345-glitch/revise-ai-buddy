@@ -1030,6 +1030,94 @@ ${notesSection}`;
 
     console.log(`Generated ${questions.length} questions`);
     
+    // =====================================================================
+    // PHASE 6: SUB-QUESTION GROUPING - Share base graph data across 1a, 1b, 1c, etc.
+    // =====================================================================
+    // Group questions by their root number (e.g., "1a", "1b", "1c" all belong to group "1")
+    // The first question in each group establishes the base function and curve data
+    interface QuestionGroup {
+      rootNumber: string;
+      baseFunction?: string;        // e.g., "x(x+2)(1-x)"
+      baseCurveData?: Array<{ x: number; y: number }>;
+      baseDomainX?: [number, number];
+      baseDomainY?: [number, number];
+      baseSeries?: any[];           // Full series array for reuse
+      baseGraphConfig?: any;        // Full graphConfig for reuse
+      questions: number[];          // Indices into questions array
+    }
+    
+    const questionGroups = new Map<string, QuestionGroup>();
+    
+    // Build question groups
+    questions.forEach((q: any, idx: number) => {
+      const qNum = String(q.question_number || idx + 1);
+      // Extract root number: "1a" -> "1", "10b" -> "10", "2" -> "2"
+      const rootMatch = qNum.match(/^(\d+)/);
+      const rootNumber = rootMatch ? rootMatch[1] : qNum;
+      
+      if (!questionGroups.has(rootNumber)) {
+        questionGroups.set(rootNumber, {
+          rootNumber,
+          questions: [],
+        });
+      }
+      questionGroups.get(rootNumber)!.questions.push(idx);
+    });
+    
+    console.log(`Question groups: ${Array.from(questionGroups.keys()).join(', ')}`);
+    
+    // Helper function to extract function from question text
+    const extractBaseFunctionFromText = (text: string): string | null => {
+      // Pattern: f(x) = expression
+      const fxMatch = text.match(/f\s*\(\s*x\s*\)\s*=\s*([^,.]+?)(?:[,.]|is\s+shown|\s+has|\s+where|$)/i);
+      if (fxMatch) {
+        return fxMatch[1].trim();
+      }
+      // Pattern: y = expression (not involving f)
+      const yMatch = text.match(/y\s*=\s*([^,f]+?)(?:[,.]|is\s+shown|\s+has|$)/i);
+      if (yMatch && !yMatch[1].includes('f(x)')) {
+        return yMatch[1].trim();
+      }
+      return null;
+    };
+    
+    // First pass: identify and store base functions from first questions in each group
+    for (const [rootNum, group] of questionGroups) {
+      if (group.questions.length < 2) continue; // Skip single-question groups
+      
+      const firstQIdx = group.questions[0];
+      const firstQ = questions[firstQIdx];
+      const qText = firstQ.question_text || '';
+      
+      // Try to extract base function from the first question
+      const baseFunc = extractBaseFunctionFromText(qText);
+      if (baseFunc) {
+        group.baseFunction = baseFunc;
+        console.log(`Group ${rootNum}: Base function = "${baseFunc}"`);
+      }
+      
+      // If the first question has graphConfig with series, store it
+      try {
+        const graphData = typeof firstQ.correct_answer === 'string' 
+          ? JSON.parse(firstQ.correct_answer) 
+          : firstQ.correct_answer;
+        
+        if (graphData?.graphConfig?.series?.length > 0) {
+          const series = graphData.graphConfig.series;
+          if (series[0]?.data?.length >= 3) {
+            group.baseCurveData = series[0].data;
+            group.baseSeries = series;
+            group.baseGraphConfig = graphData.graphConfig;
+            group.baseDomainX = graphData.graphConfig.domainX || graphData.graphConfig.xDomain;
+            group.baseDomainY = graphData.graphConfig.domainY || graphData.graphConfig.yDomain;
+            console.log(`Group ${rootNum}: Captured base curve with ${series[0].data.length} points`);
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors - base will be generated later if needed
+      }
+    }
+    
     // PHASE 5: Post-generation validation for A-Level complexity
     if (isALevel || isUniversity) {
       const minExpectedMarks = isUniversity ? 6 : 4;
@@ -1079,6 +1167,25 @@ ${notesSection}`;
       const questionTextRaw = q.question_text || '';
       const questionText = questionTextRaw.toLowerCase();
       
+      // =====================================================================
+      // SUB-QUESTION GROUP DETECTION
+      // =====================================================================
+      // Check if this question is part of a group and should inherit base graph data
+      const qNum = String(q.question_number || idx + 1);
+      const rootMatch = qNum.match(/^(\d+)/);
+      const rootNumber = rootMatch ? rootMatch[1] : qNum;
+      const group = questionGroups.get(rootNumber);
+      const isSubQuestion = group && group.questions.length > 1 && group.questions[0] !== idx;
+      const isFirstInGroup = group && group.questions[0] === idx;
+      
+      // Check if this question references f(x) without defining it (depends on parent)
+      const referencesFWithoutDefining = /\bf\s*\(\s*x\s*[+-]|\bf\s*\(\s*-?\s*x\s*\)|\b[0-9]+f\s*\(x\)|-f\s*\(x\)/i.test(questionTextRaw) &&
+                                          !/f\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
+      
+      // Check if question says "graph shows" g(x) or y without defining it
+      const mentionsUndefinedGraph = /\b(the\s+)?(graph|diagram|curve)\s+(shows|of)\s+(y\s*=\s*)?g\s*\(\s*x\s*\)/i.test(questionTextRaw) &&
+                                     !/g\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
+      
       // *** FIX 1: "The graph shows..." pattern MUST have a graph ***
       // If question says "graph shows" or "diagram shows" but doesn't have graph_plotting type, fix it
       const hasGraphShowsPattern = /\b(the\s+)?(graph|diagram|curve|figure)\s+(shows|displays|represents|illustrates)\b/i.test(questionTextRaw);
@@ -1098,7 +1205,222 @@ ${notesSection}`;
         }
       }
       
-      // *** FIX 3: "The graph shows..." MUST include visible graph data ***
+      // =====================================================================
+      // INHERIT BASE GRAPH FROM PARENT QUESTION (1a -> 1b, 1c, etc.)
+      // =====================================================================
+      if (isSubQuestion && (referencesFWithoutDefining || mentionsUndefinedGraph)) {
+        console.info(`Question ${q.question_number}: Sub-question references f(x) - checking for inherited base graph`);
+        
+        // Try to get base curve from group
+        if (group?.baseCurveData && group?.baseGraphConfig) {
+          // Parse transformation from question text to apply to base curve
+          let transformSpec: TransformSpec = { ...IDENTITY_TRANSFORM };
+          
+          // Parse f(x + a) or f(x - a) - horizontal shift
+          const horizMatch = questionTextRaw.match(/f\s*\(\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)/i);
+          if (horizMatch) {
+            // f(x - 3) shifts RIGHT by 3, f(x + 2) shifts LEFT by 2
+            const sign = horizMatch[1] === '-' ? 1 : -1;
+            transformSpec.shiftX = sign * parseFloat(horizMatch[2]);
+          }
+          
+          // Parse f(x) + a or f(x) - a - vertical shift
+          const vertMatch = questionTextRaw.match(/f\s*\(\s*x\s*\)\s*([+-])\s*(\d+(?:\.\d+)?)/i);
+          if (vertMatch) {
+            const sign = vertMatch[1] === '+' ? 1 : -1;
+            transformSpec.shiftY = sign * parseFloat(vertMatch[2]);
+          }
+          
+          // Parse af(x) - vertical stretch
+          const stretchMatch = questionTextRaw.match(/(\d+(?:\.\d+)?)\s*f\s*\(\s*x\s*\)/i);
+          if (stretchMatch) {
+            transformSpec.scaleY = parseFloat(stretchMatch[1]);
+          }
+          
+          // Parse -f(x) - reflection in x-axis
+          if (/-\s*f\s*\(\s*x\s*\)/i.test(questionTextRaw)) {
+            transformSpec.reflectX = true;
+          }
+          
+          // Parse f(-x) - reflection in y-axis
+          if (/f\s*\(\s*-\s*x\s*\)/i.test(questionTextRaw)) {
+            transformSpec.reflectY = true;
+          }
+          
+          // Apply transformation to base curve data
+          const transformedData = group.baseCurveData.map(pt => {
+            let newX = pt.x;
+            let newY = pt.y;
+            
+            // Horizontal transformations
+            newX = pt.x + transformSpec.shiftX;
+            if (transformSpec.reflectY) {
+              newX = -pt.x;
+            }
+            
+            // Vertical transformations
+            newY = pt.y * transformSpec.scaleY;
+            if (transformSpec.reflectX) {
+              newY = -newY;
+            }
+            newY = newY + transformSpec.shiftY;
+            
+            return { 
+              x: Math.round(newX * 100) / 100, 
+              y: Math.round(newY * 100) / 100 
+            };
+          });
+          
+          // Calculate new domain based on transformation
+          let domainX = group.baseDomainX || [-6, 6];
+          let domainY = group.baseDomainY || [-6, 6];
+          
+          // Adjust domain for horizontal shift
+          if (transformSpec.shiftX !== 0) {
+            domainX = [domainX[0] + transformSpec.shiftX, domainX[1] + transformSpec.shiftX];
+          }
+          
+          // Adjust domain for vertical transformations
+          if (transformSpec.shiftY !== 0 || transformSpec.scaleY !== 1 || transformSpec.reflectX) {
+            const yValues = transformedData.map(p => p.y).filter(y => Math.abs(y) < 50);
+            if (yValues.length > 0) {
+              const minY = Math.min(...yValues);
+              const maxY = Math.max(...yValues);
+              const yPad = Math.max(2, (maxY - minY) * 0.2);
+              domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
+            }
+          }
+          
+          // Build the graph config using inherited base + transformation
+          const inheritedGraphConfig = {
+            ...group.baseGraphConfig,
+            domainX,
+            domainY,
+            xDomain: domainX,
+            yDomain: domainY,
+            series: [
+              // Include original curve as reference (lighter)
+              {
+                id: 'reference',
+                label: 'y = f(x)',
+                data: group.baseCurveData,
+                showLine: true,
+                lineStyle: 'solid',
+                color: 'hsl(var(--muted-foreground))'
+              }
+            ]
+          };
+          
+          // Build plottingAnswer with expected transformed curve
+          const graphData = {
+            graphType: 'plotting',
+            graphConfig: inheritedGraphConfig,
+            plottingAnswer: {
+              expectedPoints: transformedData.filter((p, i) => i % 10 === 0).slice(0, 5),
+              toleranceUnits: 0.5,
+              marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
+              expectedCurve: {
+                id: 'expected',
+                label: 'Expected',
+                data: transformedData,
+                showLine: true,
+                lineStyle: 'dashed',
+                color: '#22c55e'
+              }
+            }
+          };
+          
+          q.correct_answer = graphData;
+          console.info(`Question ${q.question_number}: Inherited base graph from Q${rootNumber}a and applied transformation`);
+        }
+      }
+      
+      // Store base graph data for first question in group (for later sub-questions to inherit)
+      if (isFirstInGroup && group && !group.baseCurveData) {
+        // Will be populated after graph generation below
+      }
+      
+      // =====================================================================
+      // FIX 3: "The graph shows g(x)" with UNDEFINED g(x) - must generate fallback
+      // =====================================================================
+      // If question says "graph shows y = g(x)" but g(x) is never defined, generate a fallback
+      if (mentionsUndefinedGraph && !isSubQuestion) {
+        console.warn(`Question ${q.question_number}: References undefined g(x) - generating fallback curve`);
+        
+        // Generate a sensible fallback function (quadratic or cubic)
+        // Use different functions based on question number to add variety
+        const functionVariants = [
+          { fn: { type: 'quadratic' as const, a: 1, b: 0, c: -4 }, label: 'g(x) = x² - 4' },
+          { fn: { type: 'factored_cubic' as const, roots: [0, -2, 2] }, label: 'g(x) = x(x+2)(x-2)' },
+          { fn: { type: 'quadratic' as const, a: -1, b: 2, c: 3 }, label: 'g(x) = -x² + 2x + 3' },
+          { fn: { type: 'polynomial' as const, coefficients: [0, 1, 0, 1] }, label: 'g(x) = x + x³' },
+        ];
+        
+        const variant = functionVariants[idx % functionVariants.length];
+        const fallbackDomain: [number, number] = [-5, 5];
+        const fallbackBranches = generateCurveData(variant.fn, fallbackDomain, IDENTITY_TRANSFORM);
+        
+        if (fallbackBranches.length > 0 && fallbackBranches[0].data.length > 0) {
+          // Calculate y domain from generated data
+          const yValues = fallbackBranches[0].data.map(p => p.y);
+          const minY = Math.min(...yValues);
+          const maxY = Math.max(...yValues);
+          const yPad = Math.max(2, (maxY - minY) * 0.2);
+          const domainY: [number, number] = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
+          
+          const fallbackGraphData = {
+            graphType: 'plotting',
+            graphConfig: {
+              chartType: 'line',
+              xLabel: 'x',
+              yLabel: 'y',
+              domainX: fallbackDomain,
+              domainY: domainY,
+              xDomain: fallbackDomain,
+              yDomain: domainY,
+              grid: { show: true, stepX: 1, stepY: 1 },
+              series: [{
+                id: 'gx',
+                label: variant.label,
+                data: fallbackBranches[0].data,
+                showLine: true,
+                lineStyle: 'solid',
+                color: 'hsl(var(--primary))'
+              }]
+            },
+            plottingAnswer: {
+              expectedPoints: fallbackBranches[0].data.filter((p, i) => i % 15 === 0).slice(0, 3),
+              toleranceUnits: 0.5,
+              marksPerPoint: Math.max(1, Math.floor(q.marks / 2)),
+              expectedCurve: {
+                id: 'expected',
+                label: 'Expected',
+                data: fallbackBranches[0].data,
+                showLine: true,
+                lineStyle: 'dashed',
+                color: '#22c55e'
+              }
+            }
+          };
+          
+          q.correct_answer = fallbackGraphData;
+          q.question_type = 'graph_plotting';
+          
+          // Store as base for any sub-questions
+          if (group && isFirstInGroup) {
+            group.baseFunction = variant.label;
+            group.baseCurveData = fallbackBranches[0].data;
+            group.baseDomainX = fallbackDomain;
+            group.baseDomainY = domainY;
+            group.baseSeries = fallbackGraphData.graphConfig.series;
+            group.baseGraphConfig = fallbackGraphData.graphConfig;
+          }
+          
+          console.info(`Question ${q.question_number}: Generated fallback g(x) curve with ${fallbackBranches[0].data.length} points`);
+        }
+      }
+      
+      // *** FIX 3b: "The graph shows..." MUST include visible graph data ***
       if (hasGraphShowsPattern && q.question_type !== 'graph_plotting' && q.question_type !== 'graph_interpretation') {
         console.info(`Question ${q.question_number}: Converting to graph_plotting - says "graph shows" but was ${q.question_type}`);
         q.question_type = needsGraphInput ? 'graph_plotting' : 'graph_interpretation';
