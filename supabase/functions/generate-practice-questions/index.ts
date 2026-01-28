@@ -168,40 +168,73 @@ serve(async (req) => {
         ? 'Questions should have a balanced mix of easy, medium, and hard difficulty.'
         : `All questions should be ${setData.difficulty_level} difficulty.`;
 
-    // Visual question type instructions based on user preferences
-    const includeGraphs = setData.include_graphs === true;
-    const includeTables = setData.include_tables === true;
+    // PHASE 0: AUTO-DETECT GRAPH/TABLE NEEDS based on subtopics and subject context
+    // The AI should always include visuals when the topic warrants it - no manual toggle needed
+    const subtopicsLower = (setData.subtopics || []).map((s: string) => s.toLowerCase());
+    const notesLower = (setData.notes || '').toLowerCase();
     
+    // Detect if subtopics/notes suggest graphs are needed
+    const graphKeywords = [
+      'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function', 
+      'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
+      'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
+      'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine'
+    ];
+    
+    const tableKeywords = [
+      'table', 'data', 'frequency', 'cumulative', 'statistics', 'probability',
+      'tally', 'survey', 'grouped', 'class interval', 'histogram', 'chemistry',
+      'periodic', 'element', 'compound', 'reaction', 'biology', 'physics'
+    ];
+    
+    // Check if any subtopic or notes contain these keywords
+    const needsGraphs = graphKeywords.some(kw => 
+      subtopicsLower.some((s: string) => s.includes(kw)) || notesLower.includes(kw)
+    );
+    
+    const needsTables = tableKeywords.some(kw => 
+      subtopicsLower.some((s: string) => s.includes(kw)) || notesLower.includes(kw)
+    );
+    
+    console.log('Auto-detected visual needs:', { needsGraphs, needsTables, subtopics: setData.subtopics });
+    
+    // Build visual question instructions based on AUTO-DETECTION (not manual toggles)
     let visualQuestionInstructions = '';
-    if (includeGraphs && includeTables) {
+    if (needsGraphs && needsTables) {
       visualQuestionInstructions = `
-REQUIRED VISUAL QUESTIONS (MANDATORY):
-- At least 30% of questions MUST be graph_interpretation or graph_plotting.
-- At least 20% of questions MUST be table_grid.
-- EVERY graph question MUST include complete graphConfig with series.data array containing at least 3 {x,y} points.
-- A graph question WITHOUT visible data points is INVALID and will be rejected.`;
-    } else if (includeGraphs) {
+INTELLIGENT VISUAL QUESTIONS (AUTO-DETECTED REQUIREMENT):
+Based on the subtopics selected, this set REQUIRES visual questions.
+- When the question involves functions, coordinates, curves, or transformations: USE graph_plotting or graph_interpretation
+- When the question involves data, frequencies, or tabular information: USE table_grid
+- EVERY graph question MUST include complete graphConfig with series.data array containing at least 10 {x,y} points for smooth curves
+- A graph question WITHOUT visible data points is INVALID and will be rejected
+- If a question says "sketch", "plot", "draw", or "the graph shows" it MUST be a graph question type, NOT extended or short_answer`;
+    } else if (needsGraphs) {
       visualQuestionInstructions = `
-REQUIRED GRAPH QUESTIONS (MANDATORY):
-- At least 40% of questions MUST be graph_interpretation or graph_plotting.
+INTELLIGENT GRAPH QUESTIONS (AUTO-DETECTED REQUIREMENT):
+Based on the subtopics selected (${setData.subtopics?.join(', ')}), this set REQUIRES graph questions.
+- AT LEAST 40% of questions MUST use graph_plotting or graph_interpretation types
+- If a question mentions "sketch", "plot", "draw", "the graph shows", or any visual verb: USE graph_plotting, NOT extended
 - EVERY graph question MUST include complete graphConfig with:
   - chartType: "line" or "scatter"
   - xLabel, yLabel: meaningful axis labels
   - domainX, domainY: [min, max] arrays
-  - series: array with at least one object containing data: [{x, y}, ...] with at least 3 points
-- A graph question WITHOUT visible data points is INVALID and will be rejected.
-- Example topics: read values, find gradient/intercept, identify trends, plot coordinates.`;
-    } else if (includeTables) {
+  - series: array with at least one object containing data: [{x, y}, ...] with at least 10 points for smooth curves
+- A graph question WITHOUT visible data points is INVALID and will be rejected
+- NEVER use question_type "extended" for questions that say "sketch" or "plot" - those MUST be graph_plotting`;
+    } else if (needsTables) {
       visualQuestionInstructions = `
-REQUIRED TABLE QUESTIONS (MANDATORY):
-- At least 30% of questions MUST be table_grid.
-- Tables must have headers, rows, and columns arrays.
-- Use appropriate tableType: tick_cross, text_entry, number_entry, or mixed.`;
+INTELLIGENT TABLE QUESTIONS (AUTO-DETECTED REQUIREMENT):
+- At least 30% of questions MUST be table_grid
+- Tables must have headers, rows, and columns arrays
+- Use appropriate tableType: tick_cross, text_entry, number_entry, or mixed`;
     } else {
       visualQuestionInstructions = `
-Question type mix:
-- Use a mix of: short_answer, extended, mcq where appropriate.
-- Only include graph or table questions if specifically relevant to the subtopics.`;
+VISUAL QUESTION GUIDELINES:
+- Use graph_plotting or graph_interpretation when the question naturally involves coordinates, curves, or visual analysis
+- Use table_grid when the question involves data entry or tabular information
+- IMPORTANT: If a question says "sketch", "plot", "draw", or "the graph shows", it MUST use graph_plotting type
+- Never use "extended" type for questions that require visual/graphical answers`;
     }
 
     // Determine educational tier for complexity scaling
@@ -211,8 +244,7 @@ Question type mix:
     const isALevel = tier.includes('a-level') || tier.includes('a level') || tier.includes('ib') || tier.includes('pre-u') || tier.includes('advanced');
     const isUniversity = tier.includes('university') || tier.includes('undergraduate') || tier.includes('degree') || tier.includes('postgraduate') || tier.includes('masters');
     
-    // PHASE 1: Stronger subtopic detection for transformations
-    const subtopicsLower = (setData.subtopics || []).map((s: string) => s.toLowerCase());
+    // Detect transformation topics for special handling
     const hasTransformationTopic = subtopicsLower.some((s: string) => 
       s.includes('transform') || 
       s.includes('f(x)') || 
@@ -222,8 +254,8 @@ Question type mix:
       s.includes('graph')
     );
     
-    // Force graph_transformation type when A-Level/IB + transformation/graph topic
-    const forceTransformationType = (isALevel || isUniversity) && hasTransformationTopic && includeGraphs;
+    // Force graph questions when A-Level/IB + transformation/graph topic (always, regardless of toggle)
+    const forceTransformationType = (isALevel || isUniversity) && hasTransformationTopic;
     
     console.log('Transformation detection:', { 
       tier, 
@@ -1648,11 +1680,57 @@ ${notesSection}`;
           }
         }
         
-        // If still no valid data after generation attempt, downgrade question type
+        // If still no valid data after generation attempt, try one more time with fallback
         if (!hasValidData) {
-          console.warn(`Question ${q.question_number}: Could not generate curve data, downgrading to extended`);
-          q.question_type = 'extended';
-          q.correct_answer = 'This question requires graphical analysis. Show your working.';
+          const qText = q.question_text || '';
+          const hasSketchCommand = /\bsketch\b/i.test(qText);
+          const hasPlotCommand = /\bplot\b/i.test(qText);
+          const hasDrawCommand = /\bdraw\b/i.test(qText);
+          const hasGraphShowsPhrase = /\b(the\s+)?(graph|diagram|curve)\s+(shows|displays|represents)\b/i.test(qText);
+          
+          // CRITICAL: If question uses sketch/plot/draw, NEVER downgrade to extended
+          // Instead, generate a minimal fallback graph
+          if (hasSketchCommand || hasPlotCommand || hasDrawCommand || hasGraphShowsPhrase) {
+            console.warn(`Question ${q.question_number}: Using fallback graph for sketch/plot question`);
+            
+            // Use the fallback generator from graph-validator
+            const fallbackSpec = generateFallbackGraphSpec(q.question_type, qText);
+            
+            if (fallbackSpec) {
+              q.correct_answer = fallbackSpec;
+              hasValidData = true;
+              console.info(`Question ${q.question_number}: Applied fallback graphSpec for sketch question`);
+            } else {
+              // Absolute last resort - create minimal empty grid for sketching
+              q.correct_answer = {
+                graphType: 'plotting',
+                graphConfig: {
+                  chartType: 'line',
+                  xLabel: 'x',
+                  yLabel: 'y',
+                  xDomain: [-6, 6],
+                  yDomain: [-6, 6],
+                  domainX: [-6, 6],
+                  domainY: [-6, 6],
+                  grid: { show: true, stepX: 1, stepY: 1 },
+                  series: [],  // Empty - student will sketch
+                  isSketchMode: true,
+                },
+                plottingAnswer: {
+                  expectedPoints: [],
+                  toleranceUnits: 1.0,
+                  marksPerPoint: 1,
+                }
+              };
+              hasValidData = true;
+              console.info(`Question ${q.question_number}: Created minimal empty grid for sketching`);
+            }
+          } else {
+            // Only downgrade non-sketch questions that genuinely can't render
+            console.warn(`Question ${q.question_number}: Could not generate curve data, downgrading to extended`);
+            q.question_type = 'extended';
+            q.correct_answer = 'This question requires graphical analysis. Show your working.';
+          }
         }
       }
       

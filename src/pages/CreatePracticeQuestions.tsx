@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, FileText, Upload, Info, BarChart3, Grid3X3 } from "lucide-react";
+import { Sparkles, FileText, Upload, Info } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { PracticeSetCompleteModal } from "@/components/practice/PracticeSetCompleteModal";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { NotesInput } from "@/components/ui/notes-input";
-import { Switch } from "@/components/ui/switch";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
@@ -49,8 +48,8 @@ const CreatePracticeQuestions = () => {
   const [customEducationalTier, setCustomEducationalTier] = useState("");
   const [customExamBoard, setCustomExamBoard] = useState("");
   const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
-  const [includeGraphs, setIncludeGraphs] = useState(false);
-  const [includeTables, setIncludeTables] = useState(false);
+  // Visual question types are now auto-detected by the AI based on context
+  // Removed manual toggles - AI will include graphs/tables when appropriate
 
   // Generation states
   const [generating, setGenerating] = useState(false);
@@ -190,8 +189,9 @@ const CreatePracticeQuestions = () => {
           exam_board: examBoard === "other" ? customExamBoard : (examBoard || null),
           status: "draft",
           extraction_status: "pending",
-          include_graphs: includeGraphs,
-          include_tables: includeTables,
+          // Graphs and tables are now auto-detected by AI based on context
+          include_graphs: true,
+          include_tables: true,
         })
         .select()
         .single();
@@ -379,61 +379,8 @@ const CreatePracticeQuestions = () => {
               onLevelChange={setDifficultyLevel}
             />
 
-            {/* Visual Question Types */}
-            <Card className="p-4">
-              <Label className="text-sm font-medium mb-3 block">Visual Question Types</Label>
-              <p className="text-xs text-muted-foreground mb-4">
-                Enable to include questions with interactive visuals
-              </p>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="include-graphs" className="text-sm font-normal cursor-pointer">
-                      Include Graphs
-                    </Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs max-w-48">Generate questions with interactive graphs for plotting points, reading values, finding gradients, etc.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Switch
-                    id="include-graphs"
-                    checked={includeGraphs}
-                    onCheckedChange={setIncludeGraphs}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Grid3X3 className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="include-tables" className="text-sm font-normal cursor-pointer">
-                      Include Tables
-                    </Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs max-w-48">Generate questions with interactive tables for data entry, tick/cross selections, etc.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Switch
-                    id="include-tables"
-                    checked={includeTables}
-                    onCheckedChange={setIncludeTables}
-                  />
-                </div>
-              </div>
-            </Card>
+            {/* Visual Question Types - Auto-detected */}
+            {/* Removed manual toggles - AI automatically includes graphs/tables when relevant to the subject/subtopics */}
 
             {/* File Uploads */}
             <Card className="p-4">
