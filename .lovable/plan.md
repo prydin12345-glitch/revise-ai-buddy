@@ -1,331 +1,302 @@
 
-# Mathematical Graph Engine - Refined Implementation Plan
+# Expand Graph Modal - Technical Implementation Plan
 
-## Current System Analysis
+## Overview
 
-After thorough exploration, the current system works as follows:
+This feature adds an "Expand Graph" button to all interactive graph questions, opening a full-screen modal with a larger drawing canvas. The goal is to improve drawing accuracy, reduce coordinate rounding issues, and provide clearer axis visibility.
 
-**Generation Pipeline:**
-1. AI model generates questions with `graphConfig` containing `series.data` arrays
-2. Post-processing validates and attempts to repair missing data using regex-based function parsing
-3. Transformations are parsed from question text (e.g., `f(x+3)`, `-f(x)`) and applied to curve data
-4. Fallback logic generates generic curves when AI fails
+## Current Architecture Analysis
 
-**Current Problems:**
-- AI often returns empty `graphConfig` and post-processing guesses curves
-- Transformation parsing is fragile (regex-based string parsing)
-- Discontinuity handling is hardcoded for specific patterns (e.g., `1/(x(x-1)(x-2))`)
-- Graph grading uses strict point-matching with no sketch tolerance
-- Complex functions can fail silently or produce invalid curves
+The graph system is built around:
 
-## Refined Architecture
+1. **`GraphPlottingQuestion.tsx`** (~2000 lines) - Core interactive graph component with:
+   - Drawing toolbar (Straight, Curved, Freeform, Angle modes)
+   - Point plotting, segment creation, drag handling
+   - Coordinate conversion (data <-> pixel) via `dataToPixel` / `pixelToData`
+   - ResizeObserver for container size tracking
+   - Undo/redo history stack
 
-Based on your feedback, the improved architecture separates concerns:
+2. **`GraphDrawingCanvas.tsx`** - Freeform drawing overlay that stores paths in **data coordinates** (not just pixels) for stable rendering
+
+3. **Data Flow**:
+   - `TakePracticeQuiz.tsx` / `QuestionItem.tsx` pass `studentPoints`, `segments`, `drawnPaths` as props
+   - Changes propagate via `onPointsChange`, `onSegmentsChange`, `onDrawnPathsChange` callbacks
+   - All data is already stored in graph coordinates (not pixels)
+
+4. **Coordinate Stability**:
+   - Recent fixes ensure `DrawingPath.dataPoints` are stored in graph coordinates
+   - `GraphSegmentsLayer` uses domain-based coordinate conversion
+   - The system is already designed for stable rendering across viewport sizes
+
+## Implementation Strategy
+
+### Core Principle: Single Source of Truth
+
+The expanded modal will **share state** with the inline graph - no data duplication. When the modal closes, all changes are already committed via the existing callbacks.
+
+### File Structure
 
 ```text
-┌─────────────────────────┐
-│      AI Model           │
-│ (generates questions +  │
-│  structured function    │
-│  definitions)           │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│   Structured Schema     │
-│ • baseFunction string   │
-│ • transforms object     │
-│ • sketchMode flag       │
-│ • givenGraph flag       │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│   Math Engine           │
-│ • Evaluates f(x)        │
-│ • Detects discontinuities│
-│ • Applies transforms    │
-│ • Generates curve data  │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│   Canonical graphConfig │
-│ • domain, branches      │
-│ • key features stored   │
-│ • marking tolerances    │
-└───────────┬─────────────┘
-            │
-    ┌───────┴───────┐
-    ▼               ▼
-┌─────────┐   ┌─────────────┐
-│ Renderer│   │Feature Marker│
-│(frontend)│  │(sketch grading)│
-└─────────┘   └─────────────┘
+src/components/graph/
+├── GraphPlottingQuestion.tsx     (updated - add expand button trigger)
+├── ExpandedGraphModal.tsx        (NEW - modal wrapper)
+├── GraphPlottingCanvas.tsx       (NEW - extracted core canvas logic)
+└── index.ts                      (updated - export new components)
 ```
 
-## Implementation Phases
+## Phase 1: Create ExpandedGraphModal Component
 
-### Phase 1: Create Math Engine with Safe Grammar
+**New file: `src/components/graph/ExpandedGraphModal.tsx`**
 
-**New file: `supabase/functions/_shared/math-engine.ts`**
-
-Instead of parsing arbitrary expressions, use a restricted mini-grammar:
+A full-screen dialog that:
+- Takes the same props as `GraphPlottingQuestion`
+- Renders the graph at 80-90% of viewport size
+- Provides a pinned toolbar at the top
+- Includes zoom controls and "Reset View" button
 
 ```typescript
-// Supported function types (expandable later)
-type FunctionType = 
-  | { type: 'polynomial'; coefficients: number[] }  // [a0, a1, a2, ...] for a0 + a1*x + a2*x^2
-  | { type: 'factored_cubic'; roots: number[] }     // x(x-r1)(x-r2)
-  | { type: 'quadratic_factor'; vertex: number; root: number } // (x-v)^2(x-r)
-  | { type: 'reciprocal'; inner: FunctionType }     // 1/f(x)
-  | { type: 'constant'; value: number };
-
-// Transforms as structured data (not string parsing)
-interface TransformSpec {
-  shiftX: number;      // f(x - a) = shift RIGHT by a
-  shiftY: number;      // f(x) + a = shift UP by a
-  scaleY: number;      // a*f(x) = stretch vertically by a
-  scaleX: number;      // f(a*x) = compress horizontally by a
-  reflectX: boolean;   // -f(x) = reflect in x-axis
-  reflectY: boolean;   // f(-x) = reflect in y-axis
+interface ExpandedGraphModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  
+  // Pass through all GraphPlottingQuestion props
+  config: GraphPlottingConfig;
+  studentPoints: GraphPoint[];
+  onPointsChange: (points: GraphPoint[]) => void;
+  segments: LineSegment[];
+  onSegmentsChange: (segments: LineSegment[]) => void;
+  drawnPaths?: DrawingPath[];
+  onDrawnPathsChange?: (paths: DrawingPath[]) => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+  onJoinModeChange?: (mode: ...) => void;
+  
+  // Domain/scale (locked between views)
+  domainX: [number, number];
+  domainY: [number, number];
+  
+  // Review mode data
+  readOnly?: boolean;
+  showCorrectAnswers?: boolean;
+  markingData?: GraphPlottingMarkingResult;
+  referenceSeries?: GraphSeries[];
+  expectedCurveSeries?: GraphSeries[];
+  
+  // Styling
+  subjectColor?: string;
 }
 ```
 
-**Key functions:**
+### Modal Layout
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  [✕ Close]                     Graph Focus Mode         │
+├─────────────────────────────────────────────────────────┤
+│  [Undo] [Redo] [Clear] [Erase]  |  Straight Curved ...  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│                                                         │
+│                                                         │
+│               LARGE GRAPH CANVAS                        │
+│               (80% viewport height)                     │
+│                                                         │
+│                                                         │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│  Helper text | [Snap to Grid ○] | [Done]               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Key Implementation Details
+
+1. **Shared State**: The modal receives the exact same callback props (`onPointsChange`, etc.) as the inline graph. Any drawing in the modal immediately updates the parent state.
+
+2. **Locked Domain**: The `domainX` and `domainY` are passed from the parent and are identical in both views. This prevents scale mismatch.
+
+3. **No Data Transformation**: Because `GraphDrawingCanvas` already stores `dataPoints` in graph coordinates, the same strokes render identically regardless of canvas size.
+
+4. **Aspect Ratio**: The expanded canvas maintains `aspect-[4/3]` (matching inline) but at ~80% viewport width.
+
+## Phase 2: Add Expand Button to GraphPlottingQuestion
+
+**Update: `src/components/graph/GraphPlottingQuestion.tsx`**
+
+Add state and trigger button:
 
 ```typescript
-// Evaluate function at a point
-function evaluate(fn: FunctionType, x: number): number | null;
+// New state
+const [isExpanded, setIsExpanded] = useState(false);
 
-// Detect discontinuities by sampling (not symbolic solving)
-function findDiscontinuities(
-  fn: FunctionType, 
-  domain: [number, number],
-  sampleDensity: number
-): number[];
+// In the toolbar section (near Undo/Redo)
+<Button
+  variant="outline"
+  size="icon"
+  onClick={() => setIsExpanded(true)}
+  title="Expand graph"
+>
+  <Maximize2 className="h-4 w-4" />
+</Button>
 
-// Generate curve data with automatic branch splitting
-function generateCurveData(
-  fn: FunctionType,
-  domain: [number, number],
-  transforms: TransformSpec
-): GraphSeries[];
-
-// Apply transformation to existing curve data
-function applyTransform(
-  series: GraphSeries[], 
-  transforms: TransformSpec
-): GraphSeries[];
+// At component end
+{isExpanded && (
+  <ExpandedGraphModal
+    isOpen={isExpanded}
+    onClose={() => setIsExpanded(false)}
+    config={config}
+    studentPoints={studentPoints}
+    onPointsChange={onPointsChange}
+    segments={segments}
+    onSegmentsChange={onSegmentsChange}
+    drawnPaths={drawnPaths}
+    onDrawnPathsChange={onDrawnPathsChange}
+    joinMode={joinMode}
+    onJoinModeChange={onJoinModeChange}
+    domainX={domainX}
+    domainY={domainY}
+    readOnly={readOnly}
+    showCorrectAnswers={showCorrectAnswers}
+    markingData={markingData}
+    referenceSeries={referenceSeries}
+    expectedCurveSeries={expectedCurveSeries}
+    subjectColor={subjectColor}
+    questionId={questionId}
+    showProtractor={showProtractor}
+    protractorState={protractorState}
+    onProtractorStateChange={onProtractorStateChange}
+    selectedSegmentIds={selectedSegmentIds}
+    onSelectedSegmentIdsChange={onSelectedSegmentIdsChange}
+    angleMeasurements={angleMeasurements}
+    onAngleMeasurementsChange={onAngleMeasurementsChange}
+  />
+)}
 ```
 
-**Discontinuity detection via sampling:**
-- Sample function across domain at high density
-- Detect discontinuities via:
-  - `NaN` or `Infinity` values
-  - Massive jumps (e.g., `|y[i] - y[i-1]| > 50`)
-  - Sign flips with huge magnitudes
-- Split into branches at detected discontinuities
+## Phase 3: Enhanced Modal Features
 
-### Phase 2: Update AI Prompt for Structured Output
+### 3.1 Toolbar (Pinned Top)
 
-**Update: `generate-practice-questions/index.ts`**
+The toolbar is duplicated in the modal with the same functionality:
+- Undo / Redo
+- Clear All
+- Erase mode toggle
+- Mode toggle group (Straight, Curved, Freeform, Angle)
+- **New**: Expand button replaced with "Exit Full Screen" button
 
-Modify prompt to return structured function definitions:
+### 3.2 Optional Controls Panel
 
-```json
-{
-  "graphQuestion": {
-    "baseFunction": "factored_cubic",
-    "functionParams": { "roots": [0, -2, 1] },
-    "transforms": {
-      "shiftX": 0,
-      "shiftY": 0,
-      "scaleY": 1,
-      "scaleX": 1,
-      "reflectX": false,
-      "reflectY": false
-    },
-    "sketchMode": true,
-    "givenGraph": true,
-    "studentTask": "sketch_transformed"
-  }
-}
-```
-
-**Task types:**
-- `sketch_from_equation`: Blank grid, student sketches from equation
-- `sketch_transformed`: Show original f(x), student sketches transformed curve
-- `plot_points`: Student plots specific coordinate points
-- `read_values`: Interpretation question (read values from given graph)
-
-### Phase 3: Canonical graphConfig Storage
-
-Store complete question metadata for deterministic rendering and marking:
+**Nice-to-have toggles** (can be added later):
 
 ```typescript
-interface CanonicalGraphConfig {
-  // Function definition
-  functionDef: FunctionType;
-  transforms: TransformSpec;
-  
-  // Pre-computed curve data
-  baseCurveBranches: GraphSeries[];  // Original f(x)
-  transformedBranches: GraphSeries[]; // After transformation
-  
-  // Domain and key features
-  domain: { x: [number, number]; y: [number, number] };
-  asymptotes: { vertical: number[]; horizontal: number[] };
-  intercepts: { x: number[]; y: number };
-  turningPoints: Array<{ x: number; y: number; type: 'max' | 'min' }>;
-  
-  // Marking configuration
-  sketchMode: boolean;
-  givenGraph: boolean;
-  markingTolerance: {
-    intercepts: number;      // ±1 unit for intercept regions
-    turningPoints: number;   // ±1 unit for turning points
-    asymptoteAvoidance: number; // Must not cross within this distance
-  };
-}
+// Local UI state (doesn't affect data)
+const [snapToGrid, setSnapToGrid] = useState(false);
+const [showGridLabels, setShowGridLabels] = useState(true);
+
+// In footer area
+<div className="flex items-center gap-4">
+  <label className="flex items-center gap-2 text-sm">
+    <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+    Snap to grid
+  </label>
+  <Button variant="ghost" size="sm" onClick={resetPan}>
+    Reset View
+  </Button>
+</div>
 ```
 
-### Phase 4: Feature-Based Sketch Marking
+### 3.3 "Done" Button Behavior
 
-**Update: `grade-practice-question/index.ts`**
+- Clicking "Done" or "✕ Close" simply calls `onClose()`
+- No separate save action needed - state is already synced
+- The inline graph immediately reflects all changes made in the modal
 
-Replace strict point-matching with checkpoint-based marking:
+## Phase 4: Coordinate Stability Verification
 
-```typescript
-interface SketchMarkingResult {
-  // Shape check: Does curve have correct number of turning points?
-  shapeCorrect: boolean;
-  shapeMarks: number;
-  
-  // Intercept check: Points within tolerance of expected intercepts?
-  interceptsCorrect: boolean;
-  interceptMarks: number;
-  
-  // Asymptote check: No points crossing forbidden zones?
-  asymptoteRespected: boolean;
-  asymptoteMarks: number;
-  
-  // Orientation check: Curve in correct quadrants at extremes?
-  orientationCorrect: boolean;
-  orientationMarks: number;
-  
-  totalScore: number;
-  totalMarks: number;
-}
-```
+### Acceptance Checks
 
-**Marking rubric (configurable per question):**
-- 1 mark: Correct general shape (number of turning points, overall direction)
-- 1 mark: Correct intercept regions (x-intercepts within ±1 unit)
-- 1 mark: Correct asymptote behaviour (no points crossing forbidden zones)
-- 1 mark: Correct orientation at edges (curve in correct quadrants)
+The implementation must pass these tests:
 
-**Implementation approach:**
-- Extract features from student's plotted curve
-- Compare against expected features with tolerance
-- Award partial marks for each correct feature
+1. **Draw in modal, view inline**: A line drawn in expanded view renders identically when collapsed.
 
-### Phase 5: Sketch Mode Logic
+2. **Draw inline, view in modal**: A line drawn in the small view looks the same when expanded.
 
-**Update: `TakePracticeQuiz.tsx`**
+3. **Submit stability**: After submitting, the student's drawing doesn't shift in the feedback/review overlay.
 
-Handle two sketch scenarios:
+4. **Review mode parity**: The expected curve overlay (dashed green) aligns perfectly in both views.
 
-```typescript
-// Determine sketch behaviour from question metadata
-const questionMeta = graphData?.graphQuestion;
+### Technical Guarantees
 
-if (questionMeta?.sketchMode) {
-  if (questionMeta.givenGraph) {
-    // Show original f(x), hide transformed curve until review
-    referenceSeries = baseCurveBranches;
-    expectedCurveSeries = isReviewMode ? transformedBranches : [];
-  } else {
-    // Blank grid for "sketch from equation"
-    referenceSeries = [];
-    expectedCurveSeries = isReviewMode ? transformedBranches : [];
-  }
-}
-```
+- Both views use the **same `domainX`/`domainY`** (never recalculated)
+- Both views use the **same coordinate conversion formulas** (data <-> pixel via `dataToPixel`/`pixelToData`)
+- `DrawingPath.dataPoints` are stored in graph coordinates, not pixels
+- `LineSegment.from`/`to` use graph coordinates with point IDs for stable matching
 
-### Phase 6: Complexity Validation
+## Potential Pitfalls and Mitigations
 
-**Smarter downgrade heuristics:**
-
-```typescript
-function isSketchable(fn: FunctionType, domain: [number, number]): {
-  sketchable: boolean;
-  reason?: string;
-} {
-  const discontinuities = findDiscontinuities(fn, domain, 100);
-  const visibleAsymptotes = discontinuities.filter(
-    d => d > domain[0] && d < domain[1]
-  );
-  
-  // Rule 1: More than 2 asymptotes in visible range = too complex
-  if (visibleAsymptotes.length > 2) {
-    return { 
-      sketchable: false, 
-      reason: 'Too many asymptotes for freehand sketch' 
-    };
-  }
-  
-  // Rule 2: Reciprocal of polynomial degree >= 3 with multiple roots
-  if (fn.type === 'reciprocal') {
-    const inner = fn.inner;
-    if (inner.type === 'polynomial' && inner.coefficients.length > 3) {
-      return { 
-        sketchable: false, 
-        reason: 'Complex reciprocal function' 
-      };
-    }
-  }
-  
-  return { sketchable: true };
-}
-```
-
-When not sketchable, automatically:
-- Downgrade to feature-based question (identify intercepts, asymptotes)
-- Remove "sketch" instruction from question text
-- Use text/coordinate input instead of interactive graph
+| Pitfall | Mitigation |
+|---------|------------|
+| Modal causes parent re-render, losing draft state | Use stable callback refs; test with fast open/close cycles |
+| Touch events conflict with modal backdrop | Use `touchAction: none` on canvas; portal modal above all overlays |
+| Axis scale looks different due to ResponsiveContainer | Lock axis domain as props; use same `tickCount` formula |
+| History (undo/redo) resets when entering modal | History state lives in parent `GraphPlottingQuestion`; passed as props |
+| Focus trap in modal breaks keyboard shortcuts | Use `onPointerDownOutside` to close; avoid focus trap on canvas area |
 
 ## Files to Create
 
 | File | Purpose |
 |------|---------|
-| `supabase/functions/_shared/math-engine.ts` | Centralised math utilities: evaluation, discontinuity detection, curve generation, transformation application |
+| `src/components/graph/ExpandedGraphModal.tsx` | Full-screen modal containing large graph canvas with duplicated toolbar |
 
 ## Files to Update
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/generate-practice-questions/index.ts` | Update AI prompt for structured output; use math engine for curve generation; add complexity validation |
-| `supabase/functions/_shared/graph-validator.ts` | Use math engine for fallback generation instead of inline regex parsing |
-| `supabase/functions/grade-practice-question/index.ts` | Add feature-based sketch marking with tolerance; checkpoint-based rubric |
-| `src/pages/TakePracticeQuiz.tsx` | Handle `sketchMode` + `givenGraph` flags for correct display logic |
-| `src/components/graph/GraphPlottingQuestion.tsx` | Ensure `connectNulls={false}` for all Line components; verify multi-branch rendering |
+| `src/components/graph/GraphPlottingQuestion.tsx` | Add `isExpanded` state, expand button in toolbar, render modal conditionally |
+| `src/components/graph/index.ts` | Export `ExpandedGraphModal` |
 
-## Migration Approach
+## Implementation Order
 
-1. **Create math-engine.ts** with core utilities first
-2. **Update generation pipeline** to use structured output + math engine
-3. **Test with existing practice sets** - backward compatible rendering
-4. **Add feature-based marking** for new questions
-5. **Iterate based on results** - expand function grammar as needed
+1. **Create `ExpandedGraphModal.tsx`** with basic dialog structure and large canvas
+2. **Add expand button** to `GraphPlottingQuestion.tsx` toolbar
+3. **Wire up all props** between parent and modal
+4. **Test draw → close → verify inline** cycle
+5. **Add optional controls** (snap to grid, reset view) if time permits
+6. **Test on iPad/mobile** for touch interaction stability
+
+## Technical Notes
+
+### Modal Sizing
+
+```tsx
+<DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-4">
+  {/* Toolbar: ~60px */}
+  {/* Canvas: remaining height with aspect-[4/3] constraint */}
+  {/* Footer: ~48px */}
+</DialogContent>
+```
+
+### Graph Canvas Height Calculation
+
+```tsx
+// Available height = viewport - toolbar - footer - padding
+const canvasHeight = `calc(95vh - 60px - 48px - 32px)`;
+// Or use aspect ratio and constrain by width
+<div className="w-full" style={{ height: canvasHeight }}>
+  <ResponsiveContainer width="100%" height="100%">
+    ...
+  </ResponsiveContainer>
+</div>
+```
+
+### Preserving Join Mode Across Views
+
+The `joinMode` state and `onJoinModeChange` callback are passed to both views. Selecting "Curved" mode in the modal immediately reflects in the inline toolbar when closed.
 
 ## Expected Outcomes
 
 After implementation:
 
-1. **Mathematically accurate curves** - All graphs computed from functions, not AI-guessed
-2. **Reliable transformations** - Structured data instead of string parsing
-3. **Proper discontinuities** - Sampling-based detection handles edge cases
-4. **Sketch tolerance** - Feature-based marking allows reasonable leeway
-5. **Smart downgrading** - Complex functions gracefully fall back to text questions
-6. **Canonical storage** - Reproducible rendering and marking at any time
+1. **More accurate drawings** - Larger canvas = less coordinate cramming
+2. **Clearer axis increments** - More space for tick labels
+3. **Easier review comparison** - Student curve + expected curve visible without overlapping
+4. **Consistent rendering** - Same drawing in both views, no shifting on submit
+5. **Touch-friendly** - Full-screen works better on iPad than cramped inline view
