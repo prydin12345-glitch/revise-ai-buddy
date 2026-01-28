@@ -8,3 +8,4 @@ export * from './BearingsQuestion';
 export * from './GraphDrawingCanvas';
 export * from './GraphTransformationQuestion';
 export * from './ReferenceDiagram';
+export * from './ExpandedGraphModal';

@@ -16,7 +16,7 @@ import { GraphSeries } from './types';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler } from 'lucide-react';
+import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler, Maximize2 } from 'lucide-react';
 import { 
   GraphPlottingConfig, 
   GraphPoint, 
@@ -29,6 +29,7 @@ import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { ProtractorOverlay, ProtractorState } from './ProtractorOverlay';
 import { AngleMeasurementOverlay } from './AngleMeasurementOverlay';
+import { ExpandedGraphModal } from './ExpandedGraphModal';
 
 // Persisted angle measurement
 export interface AngleMeasurement {
@@ -199,6 +200,9 @@ export function GraphPlottingQuestion({
   
   // Erase mode
   const [eraseMode, setEraseMode] = useState(false);
+  
+  // Expanded modal state
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
@@ -1513,6 +1517,16 @@ export function GraphPlottingQuestion({
           >
             <Eraser className="h-4 w-4" />
           </Button>
+          
+          {/* Expand button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsExpanded(true)}
+            title="Expand graph"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
 
           {/* Join mode toggle */}
           {isJoinModeEnabled && onJoinModeChange && (
@@ -1989,6 +2003,43 @@ export function GraphPlottingQuestion({
           </div>
         </div>
       )}
+
+      {/* Expanded Graph Modal */}
+      <ExpandedGraphModal
+        isOpen={isExpanded}
+        onClose={() => setIsExpanded(false)}
+        config={config}
+        studentPoints={studentPoints}
+        onPointsChange={onPointsChange}
+        segments={segments}
+        onSegmentsChange={onSegmentsChange}
+        drawnPaths={drawnPaths}
+        onDrawnPathsChange={onDrawnPathsChange}
+        joinMode={joinMode}
+        onJoinModeChange={onJoinModeChange}
+        domainX={domainX}
+        domainY={domainY}
+        readOnly={readOnly}
+        showCorrectAnswers={showCorrectAnswers}
+        markingData={markingData}
+        referenceSeries={referenceSeries}
+        expectedCurveSeries={expectedCurveSeries}
+        subjectColor={subjectColor}
+        questionId={questionId}
+        showProtractor={showProtractor}
+        protractorState={protractorState}
+        onProtractorStateChange={onProtractorStateChange}
+        selectedSegmentIds={selectedSegmentIds}
+        onSelectedSegmentIdsChange={onSelectedSegmentIdsChange}
+        angleMeasurements={angleMeasurements}
+        onAngleMeasurementsChange={onAngleMeasurementsChange}
+        onUndo={undo}
+        onRedo={redo}
+        onClearAll={clearAll}
+        canUndo={undoStack.length > 0}
+        canRedo={redoStack.length > 0}
+        canClear={studentPoints.length > 0 || segments.length > 0 || drawnPaths.length > 0}
+      />
     </div>
   );
 }
