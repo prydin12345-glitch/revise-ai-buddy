@@ -3,6 +3,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.25.76";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation } from "../_shared/graph-validator.ts";
+import {
+  parseFunctionFromText,
+  parseTransformFromText,
+  generateCurveData,
+  applyTransform,
+  isSketchable,
+  extractKeyFeatures,
+  IDENTITY_TRANSFORM,
+  logMathEngineOperation,
+  type FunctionType,
+  type TransformSpec,
+  type GraphSeries,
+} from "../_shared/math-engine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1398,351 +1411,89 @@ ${notesSection}`;
           let isDiscontinuous = false;
           let curveBranches: Array<Array<{x: number, y: number}>> = [];
           
-          // ========== FUNCTION EXPRESSION PARSER ==========
-          // Parse specific function expressions from question text
+          // ========== MATH ENGINE INTEGRATION ==========
+          // Use the centralized math engine for function parsing and curve generation
           
-          // Pattern: y = (x - a)^2 * (x + b) or y = (x - a)^2(x + b) - cubic with repeated root
-          const cubicPattern1 = qText.match(/y\s*=\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\^?\s*2\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
-          // Pattern: y = (x + a)^2 * (x - b)
-          const cubicPattern2 = qText.match(/\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\^?\s*2\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
-          // Pattern: y = x(x + a)(x + b) - factored cubic
-          const cubicPattern3 = qText.match(/x\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
-          // Pattern: 1/x or 1/(x + a)
-          const isSimpleReciprocal = /1\/x\b|y\s*=\s*1\/x\b/i.test(qText);
-          // Pattern: 1/(polynomial) - complex reciprocal with potential multiple asymptotes
-          const complexReciprocalMatch = qText.match(/1\/\s*\(?\s*x\s*\^?\s*(\d)?\s*([+-]\s*\d*x?\s*\^?\s*\d*)*\s*\)?/i);
-          // Pattern: 1/(x^3 - 3x^2 + 2x) or similar - has multiple roots = multiple asymptotes
-          const isComplexReciprocal = /1\/\s*\(x\^?3|1\/\s*\(x\^?2[^)]*x|sketch.*1\/\s*\(x/i.test(qText);
-          
-          // Standard checks
-          const isQuadratic = /\b(x-?\d*)?\^2\b|parabola|quadratic/i.test(qText) && !cubicPattern1 && !cubicPattern2;
-          const isCubic = /x\([^)]+\)\([^)]+\)|cubic|x\^3/i.test(qText) || cubicPattern1 || cubicPattern2 || cubicPattern3;
-          const isReciprocal = /1\/\(x|1\/x|reciprocal/i.test(qText);
+          // Parse function type from question text
+          const parsedFunction = parseFunctionFromText(qText);
+          const parsedTransform = parseTransformFromText(qText);
           
           // Detect if this is a "sketch" question (student should get empty grid)
           const isSketchQuestion = /\bsketch\b/i.test(qText);
           
-          // Parse cubic: (x - 2)^2 * (x + 1) → roots at x = 2 (double), x = -1
-          if (cubicPattern1 || cubicPattern2) {
-            const match = cubicPattern1 || cubicPattern2!;
-            const sign1 = match[1] === '-' ? -1 : 1;
-            const a = sign1 * parseFloat(match[2]); // Root 1 (double root at x = -a)
-            const sign2 = match[3] === '-' ? -1 : 1;
-            const b = sign2 * parseFloat(match[4]); // Root 2 at x = -b
-            
-            // The roots are where each factor = 0
-            // (x - 2)^2 means root at x = 2; (x + 1) means root at x = -1
-            const root1 = -a; // x - 2 = 0 → x = 2 (if a = -2)
-            const root2 = -b; // x + 1 = 0 → x = -1 (if b = 1)
-            
-            console.info(`Question ${q.question_number}: Parsed cubic (x${match[1]}${match[2]})^2(x${match[3]}${match[4]}) → roots at ${root1} (double), ${root2}`);
-            
-            // Set domain to show all roots with padding
-            const minRoot = Math.min(root1, root2);
-            const maxRoot = Math.max(root1, root2);
-            domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
-            
-            // Generate curve: y = (x - root1)^2 * (x - root2)
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.12) {
-              const y = Math.pow(x - root1, 2) * (x - root2);
-              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-            
-            // Calculate y range from curve
-            const yValues = baseCurveData.map(p => p.y);
-            domainY = [Math.floor(Math.min(...yValues) - 2), Math.ceil(Math.max(...yValues) + 2)];
-            
-          } else if (cubicPattern3) {
-            // x(x + a)(x + b) - e.g., x(x + 2)(x - 1)
-            const sign1 = cubicPattern3[1] === '-' ? -1 : 1;
-            const a = sign1 * parseFloat(cubicPattern3[2]);
-            const sign2 = cubicPattern3[3] === '-' ? -1 : 1;
-            const b = sign2 * parseFloat(cubicPattern3[4]);
-            
-            // Roots at x = 0, x = -a, x = -b
-            const roots = [0, -a, -b].sort((a, b) => a - b);
-            
-            console.info(`Question ${q.question_number}: Parsed cubic x(x${cubicPattern3[1]}${cubicPattern3[2]})(x${cubicPattern3[3]}${cubicPattern3[4]}) → roots at ${roots.join(', ')}`);
-            
-            domainX = [Math.floor(roots[0] - 2), Math.ceil(roots[2] + 2)];
-            
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.12) {
-              const y = x * (x + a) * (x + b);
-              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-            
-            const yValues = baseCurveData.map(p => p.y);
-            domainY = [Math.floor(Math.min(...yValues) - 2), Math.ceil(Math.max(...yValues) + 2)];
-            
-          } else if (isComplexReciprocal || (isReciprocal && /\^[23]|x\s*\*\s*x/.test(qText))) {
-            // Complex reciprocal with multiple asymptotes: 1/(x^3 - 3x^2 + 2x) = 1/(x(x-1)(x-2))
-            // Has asymptotes at x = 0, 1, 2
-            console.info(`Question ${q.question_number}: Detected complex reciprocal function with multiple asymptotes`);
-            
-            isDiscontinuous = true;
-            domainX = [-2, 4];
-            domainY = [-5, 5];
-            
-            // Find asymptotes by factoring x^3 - 3x^2 + 2x = x(x-1)(x-2)
-            // Asymptotes at x = 0, 1, 2
-            const asymptotes = [0, 1, 2];
-            
-            // Generate separate branches between asymptotes
-            const regions = [
-              [domainX[0], asymptotes[0] - 0.1],
-              [asymptotes[0] + 0.1, asymptotes[1] - 0.1],
-              [asymptotes[1] + 0.1, asymptotes[2] - 0.1],
-              [asymptotes[2] + 0.1, domainX[1]],
-            ];
-            
-            for (const [start, end] of regions) {
-              const branch: Array<{x: number, y: number}> = [];
-              for (let x = start; x <= end; x += 0.08) {
-                const denom = x * (x - 1) * (x - 2);
-                if (Math.abs(denom) > 0.05) {
-                  const y = 1 / denom;
-                  if (Math.abs(y) <= 10) {
-                    branch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-                  }
-                }
-              }
-              if (branch.length >= 3) {
-                curveBranches.push(branch);
-              }
-            }
-            
-            // Use first branch as baseCurveData for backward compatibility
-            baseCurveData = curveBranches[0] || [];
-            
-          } else if (isSimpleReciprocal || isReciprocal) {
-            // Simple 1/x - two branches, no connecting line
-            console.info(`Question ${q.question_number}: Simple reciprocal 1/x - generating two separate branches`);
-            
-            isDiscontinuous = true;
-            domainX = [-6, 6];
-            domainY = [-5, 5];
-            
-            // Negative x branch (x < 0)
-            const negativeBranch: Array<{x: number, y: number}> = [];
-            for (let x = domainX[0]; x <= -0.15; x += 0.1) {
-              const y = 1 / x;
-              if (Math.abs(y) <= 8) {
-                negativeBranch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-              }
-            }
-            
-            // Positive x branch (x > 0)
-            const positiveBranch: Array<{x: number, y: number}> = [];
-            for (let x = 0.15; x <= domainX[1]; x += 0.1) {
-              const y = 1 / x;
-              if (Math.abs(y) <= 8) {
-                positiveBranch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-              }
-            }
-            
-            curveBranches = [negativeBranch, positiveBranch];
-            baseCurveData = negativeBranch.concat(positiveBranch); // For compatibility
-            
-          } else if (extractedPoints.length >= 3) {
-            // Generate curve that passes through extracted key points using Lagrange interpolation
-            const allX = extractedPoints.map(p => p.x);
-            const allY = extractedPoints.map(p => p.y);
-            const minX = Math.min(...allX);
-            const maxX = Math.max(...allX);
-            const minY = Math.min(...allY);
-            const maxY = Math.max(...allY);
-            
-            const xPad = Math.max(2, (maxX - minX) * 0.3);
-            const yPad = Math.max(2, (maxY - minY) * 0.3);
-            domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
-            domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
-            
-            const step = (domainX[1] - domainX[0]) / 50;
-            for (let x = domainX[0]; x <= domainX[1]; x += step) {
-              let y = 0;
-              for (let i = 0; i < extractedPoints.length; i++) {
-                let term = extractedPoints[i].y;
-                for (let j = 0; j < extractedPoints.length; j++) {
-                  if (i !== j) {
-                    term *= (x - extractedPoints[j].x) / (extractedPoints[i].x - extractedPoints[j].x);
-                  }
-                }
-                y += term;
-              }
-              if (Number.isFinite(y) && Math.abs(y) < 100) {
-                baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-              }
-            }
-            
-          } else if (isCubic) {
-            // Default cubic: x(x+2)(1-x)
-            domainX = [-4, 3];
-            domainY = [-6, 4];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
-              const y = x * (x + 2) * (1 - x);
-              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-            
-          } else if (isQuadratic) {
-            // Default quadratic: x^2
-            domainX = [-4, 4];
-            domainY = [-2, 10];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
-              const y = x * x;
-              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-            
-          } else {
-            // Fallback: simple parabola y = x^2
-            domainX = [-4, 4];
-            domainY = [-2, 10];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
-              const y = x * x;
-              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-            }
-          }
+          logMathEngineOperation('ParsedQuestion', {
+            questionNumber: q.question_number,
+            parsedFunction: parsedFunction?.type || 'null',
+            transform: parsedTransform,
+            isSketch: isSketchQuestion
+          });
           
-          // CRITICAL: Apply transformation to generate expectedCurve
-          // The transformation is applied to the CURVE, not to individual x values.
-          // For y = f(x + a): we evaluate y at (x + a), which means we SHIFT the curve LEFT by a
-          // So if baseCurveData has point (2, 4) from f(x), for f(x + 3), the new point is at x = 2 - 3 = -1
-          // The convention: if we want the transformed curve, we take each base point and shift the x-coordinate
-          const transformedCurveData: Array<{x: number, y: number}> = [];
-          
-          for (const point of baseCurveData) {
-            let newX = point.x;
-            let newY = point.y;
+          if (parsedFunction) {
+            // Use math engine to generate curves
+            let domainX: [number, number] = [-5, 5];
             
-            // Apply transformations in correct mathematical order:
-            
-            // 1. Horizontal transformations (affect x-coordinate of the output curve)
-            // For y = f(x + a): shift the curve LEFT by a (so newX = point.x - a)
-            // For y = f(x - a): shift the curve RIGHT by a (so newX = point.x + a)
-            // horizontalShift is stored as: f(x - a) → shift = +a, f(x + a) → shift = -a
-            newX = point.x + transform.horizontalShift;
-            
-            // For y = f(ax): compress horizontally by factor a (so newX = point.x / a)
-            if (transform.horizontalStretch !== 1) {
-              newX = point.x / transform.horizontalStretch;
+            // Adjust domain based on function type
+            if (parsedFunction.type === 'factored_cubic') {
+              const roots = parsedFunction.roots;
+              const minRoot = Math.min(...roots);
+              const maxRoot = Math.max(...roots);
+              domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
+            } else if (parsedFunction.type === 'quadratic_factor') {
+              const minRoot = Math.min(parsedFunction.repeatedRoot, parsedFunction.singleRoot);
+              const maxRoot = Math.max(parsedFunction.repeatedRoot, parsedFunction.singleRoot);
+              domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
+            } else if (parsedFunction.type === 'reciprocal') {
+              domainX = [-6, 6];
             }
             
-            // For y = f(-x): reflect in y-axis (newX = -point.x)
-            if (transform.reflectY) {
-              newX = -point.x;
-            }
-            
-            // 2. Vertical transformations (affect y-coordinate of the output curve)
-            // For y = af(x): stretch vertically by factor a
-            newY = point.y * transform.verticalStretch;
-            
-            // For y = -f(x): reflect in x-axis
-            if (transform.reflectX) {
-              newY = -newY;
-            }
-            
-            // For y = f(x) + a: shift up by a
-            newY = newY + transform.verticalShift;
-            
-            if (Number.isFinite(newX) && Number.isFinite(newY)) {
-              transformedCurveData.push({ 
-                x: Math.round(newX * 100) / 100, 
-                y: Math.round(newY * 100) / 100 
+            // Check if function is reasonable to sketch
+            const sketchability = isSketchable(parsedFunction, domainX);
+            if (!sketchability.sketchable) {
+              logMathEngineOperation('ComplexFunctionDowngrade', {
+                questionNumber: q.question_number,
+                reason: sketchability.reason
               });
-            }
-          }
-          
-          // Sort transformed curve by x-coordinate for proper line rendering
-          transformedCurveData.sort((a, b) => a.x - b.x);
-          
-          // Adjust domain to fit transformed curve
-          if (transformedCurveData.length > 0) {
-            const allX = transformedCurveData.map(p => p.x);
-            const allY = transformedCurveData.map(p => p.y);
-            const minX = Math.min(...allX, ...baseCurveData.map(p => p.x));
-            const maxX = Math.max(...allX, ...baseCurveData.map(p => p.x));
-            const minY = Math.min(...allY, ...baseCurveData.map(p => p.y));
-            const maxY = Math.max(...allY, ...baseCurveData.map(p => p.y));
-            
-            domainX = [Math.floor(minX - 1), Math.ceil(maxX + 1)];
-            domainY = [Math.floor(minY - 1), Math.ceil(maxY + 1)];
-          }
-          
-          console.info(`Question ${q.question_number}: Generated base curve (${baseCurveData.length} pts), transformed curve (${transformedCurveData.length} pts), discontinuous: ${isDiscontinuous}, branches: ${curveBranches.length}`);
-          
-          if (baseCurveData.length >= 10 || curveBranches.length >= 2) {
-            // Build complete graphConfig
-            // For discontinuous functions, use multiple series (one per branch)
-            let referenceSeries: any[] = [];
-            let expectedCurve: any;
-            
-            if (isDiscontinuous && curveBranches.length >= 2) {
-              // Multiple branches for discontinuous functions (1/x, 1/(x(x-1)(x-2)), etc.)
-              // Reference series: multiple branches for the original function
-              referenceSeries = curveBranches.map((branch, idx) => ({
-                id: `reference-branch-${idx}`,
-                label: idx === 0 ? 'y = f(x)' : '', // Only label first branch
-                data: branch,
-                showLine: true,
-                lineStyle: 'solid',
-                color: 'hsl(var(--primary))'
-              }));
-              
-              // Expected curve: array of branches (for review mode, to avoid connecting across asymptotes)
-              // Each branch is transformed independently
-              const transformedBranches = curveBranches.map((branch, idx) => {
-                const transformed = branch.map(point => {
-                  let newX = point.x + transform.horizontalShift;
-                  if (transform.horizontalStretch !== 1) newX = point.x / transform.horizontalStretch;
-                  if (transform.reflectY) newX = -point.x;
-                  
-                  let newY = point.y * transform.verticalStretch;
-                  if (transform.reflectX) newY = -newY;
-                  newY += transform.verticalShift;
-                  
-                  return { 
-                    x: Math.round(newX * 100) / 100, 
-                    y: Math.round(newY * 100) / 100 
-                  };
-                }).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-                
-                transformed.sort((a, b) => a.x - b.x);
-                return {
-                  id: `expected-branch-${idx}`,
-                  label: idx === 0 ? 'Expected' : '',
-                  data: transformed,
-                  showLine: true,
-                  lineStyle: 'dashed',
-                  color: '#22c55e'
-                };
-              });
-              
-              expectedCurve = transformedBranches;
-              
-            } else {
-              // Single continuous curve
-              referenceSeries = [{
-                id: 'reference',
-                label: 'y = f(x)',
-                data: baseCurveData,
-                showLine: true,
-                lineStyle: 'solid',
-                color: 'hsl(var(--primary))'
-              }];
-              
-              expectedCurve = {
-                id: 'expected',
-                label: 'Expected',
-                data: transformedCurveData.length > 0 ? transformedCurveData : baseCurveData,
-                showLine: true,
-                lineStyle: 'dashed',
-                color: '#22c55e'
+              // Downgrade to feature-based question
+              q.question_type = 'short_answer';
+              q.correct_answer = {
+                textAnswer: 'Identify key features: asymptotes, intercepts, and behaviour.',
+                alternatives: []
               };
-            }
-            
-            graphData = {
-              graphType: 'plotting',
-              graphConfig: {
-                chartType: 'line',
+              hasValidData = true;
+            } else {
+              // Generate base curve using math engine
+              const baseBranches = generateCurveData(parsedFunction, domainX, IDENTITY_TRANSFORM);
+              
+              // Generate transformed curve if transform is not identity
+              const hasTransform = parsedTransform.shiftX !== 0 || parsedTransform.shiftY !== 0 ||
+                                   parsedTransform.scaleY !== 1 || parsedTransform.scaleX !== 1 ||
+                                   parsedTransform.reflectX || parsedTransform.reflectY;
+              
+              const transformedBranches = hasTransform 
+                ? applyTransform(baseBranches, parsedTransform)
+                : baseBranches.map(b => ({ ...b, id: `expected-${b.id}`, label: 'Expected', lineStyle: 'dashed' as const, color: '#22c55e' }));
+              
+              // Extract key features for marking
+              const features = extractKeyFeatures(parsedFunction, domainX);
+              
+              // Calculate y domain from curve data
+              const allYValues = baseBranches.flatMap(b => b.data.map(p => p.y))
+                .concat(transformedBranches.flatMap(b => b.data.map(p => p.y)));
+              const minY = Math.floor(Math.min(...allYValues.filter(y => Math.abs(y) < 50)) - 2);
+              const maxY = Math.ceil(Math.max(...allYValues.filter(y => Math.abs(y) < 50)) + 2);
+              const domainY: [number, number] = [minY, maxY];
+              
+              logMathEngineOperation('CurveGenerated', {
+                questionNumber: q.question_number,
+                baseBranches: baseBranches.length,
+                transformedBranches: transformedBranches.length,
+                domain: { x: domainX, y: domainY },
+                features
+              });
+              
+              // Build graphConfig
+              const graphConfig = {
+                chartType: 'line' as const,
                 xLabel: 'x',
                 yLabel: 'y',
                 xDomain: domainX,
@@ -1750,21 +1501,127 @@ ${notesSection}`;
                 domainX: domainX,
                 domainY: domainY,
                 grid: { show: true, stepX: 1, stepY: 1 },
-                series: referenceSeries,
-                // Mark as sketch mode so UI knows to hide reference until review
+                series: baseBranches.map((b, idx) => ({
+                  ...b,
+                  color: 'hsl(var(--primary))',
+                  label: idx === 0 ? 'y = f(x)' : ''
+                })),
                 isSketchMode: isSketchQuestion,
-              },
-              plottingAnswer: {
-                expectedPoints: (transformedCurveData.length > 0 ? transformedCurveData : baseCurveData).slice(0, 5).map(p => ({ x: p.x, y: p.y })),
+                // Store key features for marking
+                keyFeatures: features,
+              };
+              
+              // Build plottingAnswer with expectedCurve
+              const plottingAnswer = {
+                expectedPoints: features.intercepts.x.map(xi => ({ x: xi, y: 0 }))
+                  .concat(features.turningPoints.map(tp => ({ x: tp.x, y: tp.y })))
+                  .slice(0, 5),
                 toleranceUnits: 0.5,
                 marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-                // CRITICAL: expectedCurve can be a single object OR an array of branch objects
-                expectedCurve: expectedCurve
-              }
-            };
+                // expectedCurve can be single object or array of branch objects
+                expectedCurve: transformedBranches.length > 1 
+                  ? transformedBranches 
+                  : transformedBranches[0] || { id: 'expected', label: 'Expected', data: [], showLine: true, lineStyle: 'dashed', color: '#22c55e' },
+                // Store marking tolerances
+                markingTolerance: {
+                  intercepts: 1.0,
+                  turningPoints: 1.5,
+                  asymptoteAvoidance: 0.3
+                },
+                // Store asymptotes for marking
+                asymptotes: features.asymptotes.vertical
+              };
+              
+              graphData = {
+                graphType: 'plotting',
+                graphConfig,
+                plottingAnswer
+              };
+              
+              q.correct_answer = graphData;
+              hasValidData = true;
+            }
+          } else {
+            // Fallback to legacy parsing if math engine couldn't parse
+            // Extract key points mentioned in question
+            const pointMatches = qText.matchAll(/\((-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\)/g);
+            const extractedPoints: Array<{x: number, y: number}> = [];
+            for (const match of pointMatches) {
+              extractedPoints.push({ x: parseFloat(match[1]), y: parseFloat(match[2]) });
+            }
             
-            q.correct_answer = graphData;
-            hasValidData = true;
+            if (extractedPoints.length >= 3) {
+              // Use Lagrange interpolation through key points
+              const allX = extractedPoints.map(p => p.x);
+              const allY = extractedPoints.map(p => p.y);
+              const minX = Math.min(...allX);
+              const maxX = Math.max(...allX);
+              const minY = Math.min(...allY);
+              const maxY = Math.max(...allY);
+              
+              const xPad = Math.max(2, (maxX - minX) * 0.3);
+              const yPad = Math.max(2, (maxY - minY) * 0.3);
+              domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
+              domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
+              
+              const step = (domainX[1] - domainX[0]) / 50;
+              for (let x = domainX[0]; x <= domainX[1]; x += step) {
+                let y = 0;
+                for (let i = 0; i < extractedPoints.length; i++) {
+                  let term = extractedPoints[i].y;
+                  for (let j = 0; j < extractedPoints.length; j++) {
+                    if (i !== j) {
+                      term *= (x - extractedPoints[j].x) / (extractedPoints[i].x - extractedPoints[j].x);
+                    }
+                  }
+                  y += term;
+                }
+                if (Number.isFinite(y) && Math.abs(y) < 100) {
+                  baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+                }
+              }
+              
+              if (baseCurveData.length >= 10) {
+                graphData = {
+                  graphType: 'plotting',
+                  graphConfig: {
+                    chartType: 'line',
+                    xLabel: 'x',
+                    yLabel: 'y',
+                    xDomain: domainX,
+                    yDomain: domainY,
+                    domainX: domainX,
+                    domainY: domainY,
+                    grid: { show: true, stepX: 1, stepY: 1 },
+                    series: [{
+                      id: 'reference',
+                      label: 'y = f(x)',
+                      data: baseCurveData,
+                      showLine: true,
+                      lineStyle: 'solid',
+                      color: 'hsl(var(--primary))'
+                    }],
+                    isSketchMode: /\bsketch\b/i.test(qText),
+                  },
+                  plottingAnswer: {
+                    expectedPoints: extractedPoints.slice(0, 5),
+                    toleranceUnits: 0.5,
+                    marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
+                    expectedCurve: {
+                      id: 'expected',
+                      label: 'Expected',
+                      data: baseCurveData,
+                      showLine: true,
+                      lineStyle: 'dashed',
+                      color: '#22c55e'
+                    }
+                  }
+                };
+                
+                q.correct_answer = graphData;
+                hasValidData = true;
+              }
+            }
           }
         }
         
