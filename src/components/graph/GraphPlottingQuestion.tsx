@@ -1669,9 +1669,14 @@ export function GraphPlottingQuestion({
             )}
 
             {/* Reference curves from graphConfig.series - displays the "shown in diagram" curve */}
+            {/* connectNulls=false ensures discontinuous functions like 1/x don't connect across asymptotes */}
             {referenceSeries.map((series, idx) => {
               // Skip if no data points
               if (!series.data || series.data.length < 2) return null;
+              
+              // Filter out NaN points for proper rendering
+              const validData = series.data.filter(p => Number.isFinite(p.y));
+              if (validData.length < 2) return null;
               
               const lineColor = series.color || 'hsl(var(--primary))';
               const lineStyle = series.lineStyle === 'dashed' ? '5 5' : 
@@ -1681,7 +1686,7 @@ export function GraphPlottingQuestion({
                 <Line
                   key={`reference-${series.id || idx}`}
                   type="monotone"
-                  data={series.data}
+                  data={validData}
                   dataKey="y"
                   stroke={lineColor}
                   strokeWidth={2}
@@ -1689,7 +1694,7 @@ export function GraphPlottingQuestion({
                   dot={false}
                   isAnimationActive={false}
                   name={series.label || `Series ${idx + 1}`}
-                  connectNulls
+                  connectNulls={false}
                 />
               );
             })}
@@ -1718,14 +1723,19 @@ export function GraphPlottingQuestion({
             ))}
 
             {/* Expected answer curve in review mode (dashed green) */}
+            {/* connectNulls=false ensures discontinuous functions like 1/x don't connect across asymptotes */}
             {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {
               if (!series.data || series.data.length < 2) return null;
+              
+              // Filter out NaN points but keep the curve data structure
+              const validData = series.data.filter(p => Number.isFinite(p.y));
+              if (validData.length < 2) return null;
               
               return (
                 <Line
                   key={`expected-curve-${series.id || idx}`}
                   type="monotone"
-                  data={series.data}
+                  data={validData}
                   dataKey="y"
                   stroke="hsl(var(--success, 142 76% 36%))"
                   strokeWidth={2}
@@ -1733,7 +1743,7 @@ export function GraphPlottingQuestion({
                   dot={false}
                   isAnimationActive={false}
                   name={`Expected: ${series.label || `Curve ${idx + 1}`}`}
-                  connectNulls
+                  connectNulls={false}
                 />
               );
             })}

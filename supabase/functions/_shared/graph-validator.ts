@@ -273,15 +273,27 @@ export function generateFallbackGraphSpec(
       }
     }
   } else if (isReciprocal) {
-    // Generate reciprocal y = 1/x
-    domainX = [-5, 5];
+    // Generate reciprocal y = 1/x as TWO SEPARATE BRANCHES
+    // This prevents the rendering engine from connecting across the asymptote
+    domainX = [-6, 6];
     domainY = [-5, 5];
-    for (let x = domainX[0]; x <= domainX[1]; x += 0.1) {
-      if (Math.abs(x) > 0.15) {
-        const y = 1 / x;
-        if (Number.isFinite(y) && Math.abs(y) <= 8) {
-          curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-        }
+    
+    // Negative branch (x < 0)
+    for (let x = domainX[0]; x <= -0.15; x += 0.1) {
+      const y = 1 / x;
+      if (Number.isFinite(y) && Math.abs(y) <= 8) {
+        curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+      }
+    }
+    // Add a break point (NaN y-value) to separate branches visually
+    // Note: connectNulls=false is needed in the renderer for this to work
+    curveData.push({ x: 0, y: NaN });
+    
+    // Positive branch (x > 0)
+    for (let x = 0.15; x <= domainX[1]; x += 0.1) {
+      const y = 1 / x;
+      if (Number.isFinite(y) && Math.abs(y) <= 8) {
+        curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
       }
     }
   } else if (isQuadratic) {
