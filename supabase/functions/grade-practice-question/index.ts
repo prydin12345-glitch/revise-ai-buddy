@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { markSketch, type GraphPoint, type KeyFeatures } from "../_shared/math-engine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -281,7 +282,7 @@ serve(async (req) => {
       }
     }
 
-    // Handle graph_plotting deterministic grading with separate x/y tolerance
+    // Handle graph_plotting deterministic grading with feature-based sketch marking
     if (isGraphPlotting && answerText) {
       try {
         const parsed = JSON.parse(answerText);
@@ -292,73 +293,138 @@ serve(async (req) => {
           // Support separate x/y tolerance (default ±0.2)
           const toleranceX = questionData.graphConfig?.toleranceX ?? toleranceUnits;
           const toleranceY = questionData.graphConfig?.toleranceY ?? toleranceUnits;
-          const studentPoints = parsed.points || [];
+          const studentPoints: GraphPoint[] = parsed.points || [];
           const studentJoinMode = parsed.joinMode;
           const joinPointsMode = questionData.graphConfig?.joinPointsMode;
           
-          // Calculate marks: points + optional join mode
-          const joinModeMarks = joinPointsMode?.graded ? 1 : 0;
-          const pointMarks = question.marks - joinModeMarks;
-          const marksPerPoint = pointMarks / Math.max(expected.length, 1);
+          // Detect if this is a sketch question (requires feature-based marking)
+          const isSketchMode = questionData.graphConfig?.isSketchMode === true ||
+            (question.question_text || '').toLowerCase().includes('sketch');
           
-          let totalScore = 0;
-          const perPointResults: any[] = [];
-          const matchedExpected = new Set<number>();
+          // Get key features and marking tolerances from plottingAnswer
+          const keyFeatures: KeyFeatures | null = questionData.graphConfig?.keyFeatures || null;
+          const markingTolerance = questionData.plottingAnswer?.markingTolerance || {
+            intercepts: 1.0,
+            turningPoints: 1.5,
+            asymptoteAvoidance: 0.3
+          };
+          const asymptotes = questionData.plottingAnswer?.asymptotes || [];
           
-          // Match each student point to closest expected point using separate x/y tolerance
-          for (const sp of studentPoints) {
-            let bestMatch = -1;
-            let bestDist = Infinity;
+          console.log('[graph-grading] Mode:', isSketchMode ? 'SKETCH' : 'POINT-MATCHING', 'keyFeatures:', !!keyFeatures);
+          
+          // FEATURE-BASED SKETCH MARKING
+          if (isSketchMode && keyFeatures && studentPoints.length >= 3) {
+            console.log('[graph-grading] Using feature-based sketch marking');
+            
+            // Build expected features from stored data or derive from expectedCurve
+            const expectedFeatures: KeyFeatures = {
+              intercepts: keyFeatures.intercepts || { x: [], y: null },
+              turningPoints: keyFeatures.turningPoints || [],
+              asymptotes: { 
+                vertical: keyFeatures.asymptotes?.vertical || asymptotes || [],
+                horizontal: keyFeatures.asymptotes?.horizontal || []
+              }
+            };
+            
+            // Use math engine's sketch marking function
+            const sketchResult = markSketch(
+              studentPoints,
+              expectedFeatures,
+              question.marks,
+              markingTolerance
+            );
+            
+            graphResult = {
+              score: sketchResult.totalScore,
+              feedback: sketchResult.feedback,
+              isCorrect: sketchResult.totalScore >= question.marks * 0.7, // 70% threshold for "correct"
+              markingData: {
+                markingType: 'sketch',
+                shapeCorrect: sketchResult.shapeCorrect,
+                shapeMarks: sketchResult.shapeMarks,
+                interceptsCorrect: sketchResult.interceptsCorrect,
+                interceptMarks: sketchResult.interceptMarks,
+                asymptoteRespected: sketchResult.asymptoteRespected,
+                asymptoteMarks: sketchResult.asymptoteMarks,
+                orientationCorrect: sketchResult.orientationCorrect,
+                orientationMarks: sketchResult.orientationMarks,
+                totalScore: sketchResult.totalScore,
+                totalMarks: question.marks
+              }
+            };
+            
+          } else {
+            // POINT-MATCHING MARKING (original logic)
+            // Calculate marks: points + optional join mode
+            const joinModeMarks = joinPointsMode?.graded ? 1 : 0;
+            const pointMarks = question.marks - joinModeMarks;
+            const marksPerPoint = pointMarks / Math.max(expected.length, 1);
+            
+            let totalScore = 0;
+            const perPointResults: any[] = [];
+            const matchedExpected = new Set<number>();
+            
+            // Match each student point to closest expected point using separate x/y tolerance
+            for (const sp of studentPoints) {
+              let bestMatch = -1;
+              let bestDist = Infinity;
+              expected.forEach((ep: any, idx: number) => {
+                if (matchedExpected.has(idx)) return;
+                // Check if within tolerance box (separate x and y)
+                const withinX = Math.abs(sp.x - ep.x) <= toleranceX;
+                const withinY = Math.abs(sp.y - ep.y) <= toleranceY;
+                if (withinX && withinY) {
+                  const dist = Math.sqrt(Math.pow(sp.x - ep.x, 2) + Math.pow(sp.y - ep.y, 2));
+                  if (dist < bestDist) { bestDist = dist; bestMatch = idx; }
+                }
+              });
+              
+              if (bestMatch >= 0) {
+                matchedExpected.add(bestMatch);
+                totalScore += marksPerPoint;
+                perPointResults.push({ studentPoint: sp, expectedPoint: expected[bestMatch], matched: true, distance: bestDist, status: 'correct' });
+              } else {
+                perPointResults.push({ studentPoint: sp, expectedPoint: null, matched: false, status: 'incorrect' });
+              }
+            }
+            
+            // Add missed expected points
             expected.forEach((ep: any, idx: number) => {
-              if (matchedExpected.has(idx)) return;
-              // Check if within tolerance box (separate x and y)
-              const withinX = Math.abs(sp.x - ep.x) <= toleranceX;
-              const withinY = Math.abs(sp.y - ep.y) <= toleranceY;
-              if (withinX && withinY) {
-                const dist = Math.sqrt(Math.pow(sp.x - ep.x, 2) + Math.pow(sp.y - ep.y, 2));
-                if (dist < bestDist) { bestDist = dist; bestMatch = idx; }
+              if (!matchedExpected.has(idx)) {
+                perPointResults.push({ studentPoint: null, expectedPoint: ep, matched: false, status: 'missed' });
               }
             });
             
-            if (bestMatch >= 0) {
-              matchedExpected.add(bestMatch);
-              totalScore += marksPerPoint;
-              perPointResults.push({ studentPoint: sp, expectedPoint: expected[bestMatch], matched: true, distance: bestDist, status: 'correct' });
-            } else {
-              perPointResults.push({ studentPoint: sp, expectedPoint: null, matched: false, status: 'incorrect' });
+            // Grade join mode if enabled
+            let joinModeResult = null;
+            if (joinPointsMode?.graded && joinPointsMode.correctMode) {
+              const isJoinModeCorrect = studentJoinMode === joinPointsMode.correctMode;
+              if (isJoinModeCorrect) {
+                totalScore += joinModeMarks;
+              }
+              joinModeResult = {
+                studentMode: studentJoinMode || 'none',
+                correctMode: joinPointsMode.correctMode,
+                correct: isJoinModeCorrect,
+                earned: isJoinModeCorrect ? joinModeMarks : 0,
+                max: joinModeMarks,
+                status: !studentJoinMode ? 'missed' : isJoinModeCorrect ? 'correct' : 'incorrect'
+              };
             }
-          }
-          
-          // Add missed expected points
-          expected.forEach((ep: any, idx: number) => {
-            if (!matchedExpected.has(idx)) {
-              perPointResults.push({ studentPoint: null, expectedPoint: ep, matched: false, status: 'missed' });
-            }
-          });
-          
-          // Grade join mode if enabled
-          let joinModeResult = null;
-          if (joinPointsMode?.graded && joinPointsMode.correctMode) {
-            const isJoinModeCorrect = studentJoinMode === joinPointsMode.correctMode;
-            if (isJoinModeCorrect) {
-              totalScore += joinModeMarks;
-            }
-            joinModeResult = {
-              studentMode: studentJoinMode || 'none',
-              correctMode: joinPointsMode.correctMode,
-              correct: isJoinModeCorrect,
-              earned: isJoinModeCorrect ? joinModeMarks : 0,
-              max: joinModeMarks,
-              status: !studentJoinMode ? 'missed' : isJoinModeCorrect ? 'correct' : 'incorrect'
+            
+            graphResult = {
+              score: Math.round(totalScore * 100) / 100,
+              feedback: `${matchedExpected.size}/${expected.length} points correct.${joinModeResult ? ` Line type: ${joinModeResult.correct ? 'correct' : 'incorrect'}.` : ''}`,
+              isCorrect: matchedExpected.size === expected.length && (!joinModeResult || joinModeResult.correct),
+              markingData: { 
+                markingType: 'point-matching',
+                perPointResults, 
+                totalScore: Math.round(totalScore * 100) / 100, 
+                totalMarks: question.marks, 
+                joinModeResult 
+              }
             };
           }
-          
-          graphResult = {
-            score: Math.round(totalScore * 100) / 100,
-            feedback: `${matchedExpected.size}/${expected.length} points correct.${joinModeResult ? ` Line type: ${joinModeResult.correct ? 'correct' : 'incorrect'}.` : ''}`,
-            isCorrect: matchedExpected.size === expected.length && (!joinModeResult || joinModeResult.correct),
-            markingData: { perPointResults, totalScore: Math.round(totalScore * 100) / 100, totalMarks: question.marks, joinModeResult }
-          };
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
