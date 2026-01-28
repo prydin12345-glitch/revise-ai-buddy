@@ -1825,9 +1825,15 @@ ${notesSection}`;
         correctAnswer = JSON.stringify(correctAnswer);
       }
       
+      // Parse question_number to extract the integer part for sorting
+      // Examples: "1" -> 1, "2a" -> 2, "10b" -> 10, "3c" -> 3
+      const numMatch = q.question_number.match(/^(\d+)/);
+      const questionNumberInt = numMatch ? parseInt(numMatch[1], 10) : null;
+      
       return {
         set_id: setId,
         question_number: q.question_number,
+        question_number_int: questionNumberInt,
         question_text: q.question_text,
         question_latex: q.question_latex || null,
         question_type: q.question_type,

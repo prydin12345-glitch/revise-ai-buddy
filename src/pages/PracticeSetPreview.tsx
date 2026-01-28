@@ -67,15 +67,28 @@ const PracticeSetPreview = () => {
       if (setError) throw setError;
       setPracticeSet(setData);
 
-      // Fetch questions
+      // Fetch questions with proper sorting
       const { data: questionsData, error: questionsError } = await supabase
         .from('practice_questions')
         .select('*')
         .eq('set_id', setId)
+        .order('question_number_int')
         .order('question_number');
 
       if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      
+      // Sort questions: first by numeric part, then by suffix (a, b, c)
+      const sortedQuestions = (questionsData || []).sort((a, b) => {
+        const numA = a.question_number_int ?? (parseInt(a.question_number) || 0);
+        const numB = b.question_number_int ?? (parseInt(b.question_number) || 0);
+        if (numA !== numB) return numA - numB;
+        
+        const suffixA = a.question_number.replace(/^\d+/, '') || '';
+        const suffixB = b.question_number.replace(/^\d+/, '') || '';
+        return suffixA.localeCompare(suffixB);
+      });
+      
+      setQuestions(sortedQuestions);
 
       // Check for existing progress
       const { data: { user } } = await supabase.auth.getUser();
