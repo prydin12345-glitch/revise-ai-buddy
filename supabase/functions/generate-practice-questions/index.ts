@@ -10,6 +10,7 @@ import {
   applyTransform,
   isSketchable,
   extractKeyFeatures,
+  calculateStudentFriendlyDomain,
   IDENTITY_TRANSFORM,
   logMathEngineOperation,
   type FunctionType,
@@ -1043,8 +1044,36 @@ ${notesSection}`;
     // Validate and transform questions
     const questionsToInsert = questions.map((q: any, idx: number) => {
       
+      const questionTextRaw = q.question_text || '';
+      const questionText = questionTextRaw.toLowerCase();
+      
+      // *** FIX 1: "The graph shows..." pattern MUST have a graph ***
+      // If question says "graph shows" or "diagram shows" but doesn't have graph_plotting type, fix it
+      const hasGraphShowsPattern = /\b(the\s+)?(graph|diagram|curve|figure)\s+(shows|displays|represents|illustrates)\b/i.test(questionTextRaw);
+      const hasSketchVerb = /\bsketch\b/i.test(questionText);
+      const hasPlotVerb = /\bplot\b/i.test(questionText);
+      const hasDrawVerb = /\bdraw\b/i.test(questionText);
+      const needsGraphInput = hasSketchVerb || hasPlotVerb || hasDrawVerb;
+      
+      // *** FIX 2: Sketch questions MUST have graph_plotting input type ***
+      if (needsGraphInput && q.question_type !== 'graph_plotting' && q.question_type !== 'graph_interpretation') {
+        console.info(`Question ${q.question_number}: Converting "${q.question_type}" to graph_plotting - contains "${hasSketchVerb ? 'sketch' : hasPlotVerb ? 'plot' : 'draw'}" command`);
+        q.question_type = 'graph_plotting';
+        
+        // Ensure we have graph data
+        if (!q.correct_answer || typeof q.correct_answer === 'string' && !q.correct_answer.includes('graphConfig')) {
+          q.correct_answer = null; // Will be regenerated below
+        }
+      }
+      
+      // *** FIX 3: "The graph shows..." MUST include visible graph data ***
+      if (hasGraphShowsPattern && q.question_type !== 'graph_plotting' && q.question_type !== 'graph_interpretation') {
+        console.info(`Question ${q.question_number}: Converting to graph_plotting - says "graph shows" but was ${q.question_type}`);
+        q.question_type = needsGraphInput ? 'graph_plotting' : 'graph_interpretation';
+        q.correct_answer = null; // Force regeneration
+      }
+      
       // *** CRITICAL: COMMAND VERB DETECTION - Convert graph questions to short_answer when appropriate ***
-      const questionText = (q.question_text || '').toLowerCase();
       const isGraphType = q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation' || q.question_type === 'graph_transformation';
       
       // *** NEW: Detect MCQ questions wrongly marked as graph_plotting ***
@@ -1067,7 +1096,7 @@ ${notesSection}`;
           q.correct_answer = 'A'; // Default if not specified
         }
       }
-      else if (isGraphType) {
+      else if (isGraphType && !needsGraphInput && !hasGraphShowsPattern) {
         // Verbs that indicate algebraic/numeric answers (NOT graph interaction)
         const algebraicVerbs = /\b(write down|state|find|calculate|determine|give|work out)\b/i;
         // Verbs that indicate graph interaction IS required
@@ -1429,25 +1458,10 @@ ${notesSection}`;
           });
           
           if (parsedFunction) {
-            // Use math engine to generate curves
-            let domainX: [number, number] = [-5, 5];
+            // Check if function is reasonable to sketch first
+            const initialDomain: [number, number] = [-6, 6];
+            const sketchability = isSketchable(parsedFunction, initialDomain);
             
-            // Adjust domain based on function type
-            if (parsedFunction.type === 'factored_cubic') {
-              const roots = parsedFunction.roots;
-              const minRoot = Math.min(...roots);
-              const maxRoot = Math.max(...roots);
-              domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
-            } else if (parsedFunction.type === 'quadratic_factor') {
-              const minRoot = Math.min(parsedFunction.repeatedRoot, parsedFunction.singleRoot);
-              const maxRoot = Math.max(parsedFunction.repeatedRoot, parsedFunction.singleRoot);
-              domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
-            } else if (parsedFunction.type === 'reciprocal') {
-              domainX = [-6, 6];
-            }
-            
-            // Check if function is reasonable to sketch
-            const sketchability = isSketchable(parsedFunction, domainX);
             if (!sketchability.sketchable) {
               logMathEngineOperation('ComplexFunctionDowngrade', {
                 questionNumber: q.question_number,
@@ -1461,7 +1475,26 @@ ${notesSection}`;
               };
               hasValidData = true;
             } else {
-              // Generate base curve using math engine
+              // Extract key features first
+              const features = extractKeyFeatures(parsedFunction, initialDomain);
+              
+              // *** FIX: Use student-friendly domain calculation ***
+              const friendlyDomain = calculateStudentFriendlyDomain(parsedFunction, features);
+              const domainX = friendlyDomain.x;
+              const domainY = friendlyDomain.y;
+              const stepX = friendlyDomain.stepX;
+              const stepY = friendlyDomain.stepY;
+              
+              logMathEngineOperation('DomainCalculated', {
+                questionNumber: q.question_number,
+                domainX,
+                domainY,
+                stepX,
+                stepY,
+                keyFeatures: features
+              });
+              
+              // Generate base curve using math engine with correct domain
               const baseBranches = generateCurveData(parsedFunction, domainX, IDENTITY_TRANSFORM);
               
               // Generate transformed curve if transform is not identity
@@ -1473,16 +1506,6 @@ ${notesSection}`;
                 ? applyTransform(baseBranches, parsedTransform)
                 : baseBranches.map(b => ({ ...b, id: `expected-${b.id}`, label: 'Expected', lineStyle: 'dashed' as const, color: '#22c55e' }));
               
-              // Extract key features for marking
-              const features = extractKeyFeatures(parsedFunction, domainX);
-              
-              // Calculate y domain from curve data
-              const allYValues = baseBranches.flatMap(b => b.data.map(p => p.y))
-                .concat(transformedBranches.flatMap(b => b.data.map(p => p.y)));
-              const minY = Math.floor(Math.min(...allYValues.filter(y => Math.abs(y) < 50)) - 2);
-              const maxY = Math.ceil(Math.max(...allYValues.filter(y => Math.abs(y) < 50)) + 2);
-              const domainY: [number, number] = [minY, maxY];
-              
               logMathEngineOperation('CurveGenerated', {
                 questionNumber: q.question_number,
                 baseBranches: baseBranches.length,
@@ -1491,7 +1514,7 @@ ${notesSection}`;
                 features
               });
               
-              // Build graphConfig
+              // Build graphConfig with student-friendly grid
               const graphConfig = {
                 chartType: 'line' as const,
                 xLabel: 'x',
@@ -1500,7 +1523,7 @@ ${notesSection}`;
                 yDomain: domainY,
                 domainX: domainX,
                 domainY: domainY,
-                grid: { show: true, stepX: 1, stepY: 1 },
+                grid: { show: true, stepX, stepY },
                 series: baseBranches.map((b, idx) => ({
                   ...b,
                   color: 'hsl(var(--primary))',
