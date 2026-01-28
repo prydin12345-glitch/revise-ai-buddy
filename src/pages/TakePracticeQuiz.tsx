@@ -1609,18 +1609,40 @@ const TakePracticeQuiz = () => {
                       const plottingAnswer = graphData.plottingAnswer;
                       
                       // Get reference series from graphConfig.series
-                      const refSeries = (graphData.graphConfig as any)?.series || [];
+                      const rawRefSeries = (graphData.graphConfig as any)?.series || [];
+                      
+                      // CRITICAL: For "sketch" questions, hide reference series until review mode
+                      // This gives students an empty grid to sketch on
+                      const isSketchQuestion = /\bsketch\b/i.test(currentQuestion.question_text);
+                      const isInReviewMode = currentAnswer.submitted && !!currentAnswer.feedback;
+                      
+                      // Only show reference series if:
+                      // 1. It's NOT a sketch question, OR
+                      // 2. We're in review mode (showing correct answer)
+                      const refSeries = (isSketchQuestion && !isInReviewMode) ? [] : rawRefSeries;
                       
                       // For review mode, generate expected curve from plottingAnswer.expectedCurve
                       // expectedCurve can be either:
                       // 1. An object with { id, label, data: [...] } (from edge function)
                       // 2. An array directly (legacy format)
+                      // 3. An array of series (for discontinuous functions with multiple branches)
                       let expectedCurveSeries: GraphSeries[] = [];
-                      if (currentAnswer.submitted && currentAnswer.feedback && plottingAnswer) {
+                      if (isInReviewMode && plottingAnswer) {
                         const expCurve = (plottingAnswer as any).expectedCurve;
                         
-                        // Case 1: expectedCurve is an object with data array
-                        if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
+                        // Case 1: expectedCurve is an array of series objects (discontinuous functions)
+                        if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
+                          expectedCurveSeries = expCurve.map((branch: any, idx: number) => ({
+                            id: branch.id || `expected-branch-${idx}`,
+                            label: branch.label || `Expected ${idx + 1}`,
+                            data: branch.data || [],
+                            color: branch.color || 'hsl(var(--success))',
+                            showLine: branch.showLine !== false,
+                            lineStyle: branch.lineStyle || 'dashed',
+                          }));
+                        }
+                        // Case 2: expectedCurve is a single object with data array
+                        else if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
                           expectedCurveSeries = [{
                             id: expCurve.id || 'expected-answer',
                             label: expCurve.label || 'Expected Answer',
@@ -1630,8 +1652,8 @@ const TakePracticeQuiz = () => {
                             lineStyle: expCurve.lineStyle || 'dashed',
                           }];
                         }
-                        // Case 2: expectedCurve is an array directly (legacy format)
-                        else if (Array.isArray(expCurve) && expCurve.length > 0) {
+                        // Case 3: expectedCurve is an array of points directly (legacy format)
+                        else if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'x' in expCurve[0]) {
                           expectedCurveSeries = [{
                             id: 'expected-answer',
                             label: 'Expected Answer',

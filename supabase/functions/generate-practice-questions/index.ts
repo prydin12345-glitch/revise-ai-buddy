@@ -1394,13 +1394,157 @@ ${notesSection}`;
           let domainX: [number, number] = [-5, 5];
           let domainY: [number, number] = [-5, 10];
           
-          // Check for specific function mentions
-          const isQuadratic = /\b(x-?\d*)?\^2\b|parabola|quadratic/i.test(qText);
-          const isCubic = /x\([^)]+\)\([^)]+\)|cubic|x\^3/i.test(qText);
+          // Track if this is a discontinuous function requiring multiple branches
+          let isDiscontinuous = false;
+          let curveBranches: Array<Array<{x: number, y: number}>> = [];
+          
+          // ========== FUNCTION EXPRESSION PARSER ==========
+          // Parse specific function expressions from question text
+          
+          // Pattern: y = (x - a)^2 * (x + b) or y = (x - a)^2(x + b) - cubic with repeated root
+          const cubicPattern1 = qText.match(/y\s*=\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\^?\s*2\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
+          // Pattern: y = (x + a)^2 * (x - b)
+          const cubicPattern2 = qText.match(/\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\^?\s*2\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
+          // Pattern: y = x(x + a)(x + b) - factored cubic
+          const cubicPattern3 = qText.match(/x\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i);
+          // Pattern: 1/x or 1/(x + a)
+          const isSimpleReciprocal = /1\/x\b|y\s*=\s*1\/x\b/i.test(qText);
+          // Pattern: 1/(polynomial) - complex reciprocal with potential multiple asymptotes
+          const complexReciprocalMatch = qText.match(/1\/\s*\(?\s*x\s*\^?\s*(\d)?\s*([+-]\s*\d*x?\s*\^?\s*\d*)*\s*\)?/i);
+          // Pattern: 1/(x^3 - 3x^2 + 2x) or similar - has multiple roots = multiple asymptotes
+          const isComplexReciprocal = /1\/\s*\(x\^?3|1\/\s*\(x\^?2[^)]*x|sketch.*1\/\s*\(x/i.test(qText);
+          
+          // Standard checks
+          const isQuadratic = /\b(x-?\d*)?\^2\b|parabola|quadratic/i.test(qText) && !cubicPattern1 && !cubicPattern2;
+          const isCubic = /x\([^)]+\)\([^)]+\)|cubic|x\^3/i.test(qText) || cubicPattern1 || cubicPattern2 || cubicPattern3;
           const isReciprocal = /1\/\(x|1\/x|reciprocal/i.test(qText);
           
-          if (extractedPoints.length >= 3) {
-            // Generate curve that passes through extracted key points
+          // Detect if this is a "sketch" question (student should get empty grid)
+          const isSketchQuestion = /\bsketch\b/i.test(qText);
+          
+          // Parse cubic: (x - 2)^2 * (x + 1) → roots at x = 2 (double), x = -1
+          if (cubicPattern1 || cubicPattern2) {
+            const match = cubicPattern1 || cubicPattern2!;
+            const sign1 = match[1] === '-' ? -1 : 1;
+            const a = sign1 * parseFloat(match[2]); // Root 1 (double root at x = -a)
+            const sign2 = match[3] === '-' ? -1 : 1;
+            const b = sign2 * parseFloat(match[4]); // Root 2 at x = -b
+            
+            // The roots are where each factor = 0
+            // (x - 2)^2 means root at x = 2; (x + 1) means root at x = -1
+            const root1 = -a; // x - 2 = 0 → x = 2 (if a = -2)
+            const root2 = -b; // x + 1 = 0 → x = -1 (if b = 1)
+            
+            console.info(`Question ${q.question_number}: Parsed cubic (x${match[1]}${match[2]})^2(x${match[3]}${match[4]}) → roots at ${root1} (double), ${root2}`);
+            
+            // Set domain to show all roots with padding
+            const minRoot = Math.min(root1, root2);
+            const maxRoot = Math.max(root1, root2);
+            domainX = [Math.floor(minRoot - 2), Math.ceil(maxRoot + 2)];
+            
+            // Generate curve: y = (x - root1)^2 * (x - root2)
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.12) {
+              const y = Math.pow(x - root1, 2) * (x - root2);
+              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+            
+            // Calculate y range from curve
+            const yValues = baseCurveData.map(p => p.y);
+            domainY = [Math.floor(Math.min(...yValues) - 2), Math.ceil(Math.max(...yValues) + 2)];
+            
+          } else if (cubicPattern3) {
+            // x(x + a)(x + b) - e.g., x(x + 2)(x - 1)
+            const sign1 = cubicPattern3[1] === '-' ? -1 : 1;
+            const a = sign1 * parseFloat(cubicPattern3[2]);
+            const sign2 = cubicPattern3[3] === '-' ? -1 : 1;
+            const b = sign2 * parseFloat(cubicPattern3[4]);
+            
+            // Roots at x = 0, x = -a, x = -b
+            const roots = [0, -a, -b].sort((a, b) => a - b);
+            
+            console.info(`Question ${q.question_number}: Parsed cubic x(x${cubicPattern3[1]}${cubicPattern3[2]})(x${cubicPattern3[3]}${cubicPattern3[4]}) → roots at ${roots.join(', ')}`);
+            
+            domainX = [Math.floor(roots[0] - 2), Math.ceil(roots[2] + 2)];
+            
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.12) {
+              const y = x * (x + a) * (x + b);
+              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+            
+            const yValues = baseCurveData.map(p => p.y);
+            domainY = [Math.floor(Math.min(...yValues) - 2), Math.ceil(Math.max(...yValues) + 2)];
+            
+          } else if (isComplexReciprocal || (isReciprocal && /\^[23]|x\s*\*\s*x/.test(qText))) {
+            // Complex reciprocal with multiple asymptotes: 1/(x^3 - 3x^2 + 2x) = 1/(x(x-1)(x-2))
+            // Has asymptotes at x = 0, 1, 2
+            console.info(`Question ${q.question_number}: Detected complex reciprocal function with multiple asymptotes`);
+            
+            isDiscontinuous = true;
+            domainX = [-2, 4];
+            domainY = [-5, 5];
+            
+            // Find asymptotes by factoring x^3 - 3x^2 + 2x = x(x-1)(x-2)
+            // Asymptotes at x = 0, 1, 2
+            const asymptotes = [0, 1, 2];
+            
+            // Generate separate branches between asymptotes
+            const regions = [
+              [domainX[0], asymptotes[0] - 0.1],
+              [asymptotes[0] + 0.1, asymptotes[1] - 0.1],
+              [asymptotes[1] + 0.1, asymptotes[2] - 0.1],
+              [asymptotes[2] + 0.1, domainX[1]],
+            ];
+            
+            for (const [start, end] of regions) {
+              const branch: Array<{x: number, y: number}> = [];
+              for (let x = start; x <= end; x += 0.08) {
+                const denom = x * (x - 1) * (x - 2);
+                if (Math.abs(denom) > 0.05) {
+                  const y = 1 / denom;
+                  if (Math.abs(y) <= 10) {
+                    branch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+                  }
+                }
+              }
+              if (branch.length >= 3) {
+                curveBranches.push(branch);
+              }
+            }
+            
+            // Use first branch as baseCurveData for backward compatibility
+            baseCurveData = curveBranches[0] || [];
+            
+          } else if (isSimpleReciprocal || isReciprocal) {
+            // Simple 1/x - two branches, no connecting line
+            console.info(`Question ${q.question_number}: Simple reciprocal 1/x - generating two separate branches`);
+            
+            isDiscontinuous = true;
+            domainX = [-6, 6];
+            domainY = [-5, 5];
+            
+            // Negative x branch (x < 0)
+            const negativeBranch: Array<{x: number, y: number}> = [];
+            for (let x = domainX[0]; x <= -0.15; x += 0.1) {
+              const y = 1 / x;
+              if (Math.abs(y) <= 8) {
+                negativeBranch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+              }
+            }
+            
+            // Positive x branch (x > 0)
+            const positiveBranch: Array<{x: number, y: number}> = [];
+            for (let x = 0.15; x <= domainX[1]; x += 0.1) {
+              const y = 1 / x;
+              if (Math.abs(y) <= 8) {
+                positiveBranch.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+              }
+            }
+            
+            curveBranches = [negativeBranch, positiveBranch];
+            baseCurveData = negativeBranch.concat(positiveBranch); // For compatibility
+            
+          } else if (extractedPoints.length >= 3) {
+            // Generate curve that passes through extracted key points using Lagrange interpolation
             const allX = extractedPoints.map(p => p.x);
             const allY = extractedPoints.map(p => p.y);
             const minX = Math.min(...allX);
@@ -1413,7 +1557,6 @@ ${notesSection}`;
             domainX = [Math.floor(minX - xPad), Math.ceil(maxX + xPad)];
             domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
             
-            // Lagrange interpolation
             const step = (domainX[1] - domainX[0]) / 50;
             for (let x = domainX[0]; x <= domainX[1]; x += step) {
               let y = 0;
@@ -1430,26 +1573,27 @@ ${notesSection}`;
                 baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
               }
             }
-          } else if (isReciprocal) {
-            domainX = [-5, 5];
-            domainY = [-5, 5];
-            for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
-              if (Math.abs(x) > 0.2) {
-                const y = 1 / x;
-                if (Math.abs(y) < 10) {
-                  baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
-                }
-              }
-            }
+            
           } else if (isCubic) {
+            // Default cubic: x(x+2)(1-x)
             domainX = [-4, 3];
             domainY = [-6, 4];
             for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {
               const y = x * (x + 2) * (1 - x);
               baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
             }
+            
+          } else if (isQuadratic) {
+            // Default quadratic: x^2
+            domainX = [-4, 4];
+            domainY = [-2, 10];
+            for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
+              const y = x * x;
+              baseCurveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+            }
+            
           } else {
-            // Default: simple parabola y = x^2
+            // Fallback: simple parabola y = x^2
             domainX = [-4, 4];
             domainY = [-2, 10];
             for (let x = domainX[0]; x <= domainX[1]; x += 0.2) {
@@ -1523,10 +1667,78 @@ ${notesSection}`;
             domainY = [Math.floor(minY - 1), Math.ceil(maxY + 1)];
           }
           
-          console.info(`Question ${q.question_number}: Generated base curve (${baseCurveData.length} pts) and transformed curve (${transformedCurveData.length} pts)`);
+          console.info(`Question ${q.question_number}: Generated base curve (${baseCurveData.length} pts), transformed curve (${transformedCurveData.length} pts), discontinuous: ${isDiscontinuous}, branches: ${curveBranches.length}`);
           
-          if (baseCurveData.length >= 10) {
+          if (baseCurveData.length >= 10 || curveBranches.length >= 2) {
             // Build complete graphConfig
+            // For discontinuous functions, use multiple series (one per branch)
+            let referenceSeries: any[] = [];
+            let expectedCurve: any;
+            
+            if (isDiscontinuous && curveBranches.length >= 2) {
+              // Multiple branches for discontinuous functions (1/x, 1/(x(x-1)(x-2)), etc.)
+              // Reference series: multiple branches for the original function
+              referenceSeries = curveBranches.map((branch, idx) => ({
+                id: `reference-branch-${idx}`,
+                label: idx === 0 ? 'y = f(x)' : '', // Only label first branch
+                data: branch,
+                showLine: true,
+                lineStyle: 'solid',
+                color: 'hsl(var(--primary))'
+              }));
+              
+              // Expected curve: array of branches (for review mode, to avoid connecting across asymptotes)
+              // Each branch is transformed independently
+              const transformedBranches = curveBranches.map((branch, idx) => {
+                const transformed = branch.map(point => {
+                  let newX = point.x + transform.horizontalShift;
+                  if (transform.horizontalStretch !== 1) newX = point.x / transform.horizontalStretch;
+                  if (transform.reflectY) newX = -point.x;
+                  
+                  let newY = point.y * transform.verticalStretch;
+                  if (transform.reflectX) newY = -newY;
+                  newY += transform.verticalShift;
+                  
+                  return { 
+                    x: Math.round(newX * 100) / 100, 
+                    y: Math.round(newY * 100) / 100 
+                  };
+                }).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+                
+                transformed.sort((a, b) => a.x - b.x);
+                return {
+                  id: `expected-branch-${idx}`,
+                  label: idx === 0 ? 'Expected' : '',
+                  data: transformed,
+                  showLine: true,
+                  lineStyle: 'dashed',
+                  color: '#22c55e'
+                };
+              });
+              
+              expectedCurve = transformedBranches;
+              
+            } else {
+              // Single continuous curve
+              referenceSeries = [{
+                id: 'reference',
+                label: 'y = f(x)',
+                data: baseCurveData,
+                showLine: true,
+                lineStyle: 'solid',
+                color: 'hsl(var(--primary))'
+              }];
+              
+              expectedCurve = {
+                id: 'expected',
+                label: 'Expected',
+                data: transformedCurveData.length > 0 ? transformedCurveData : baseCurveData,
+                showLine: true,
+                lineStyle: 'dashed',
+                color: '#22c55e'
+              };
+            }
+            
             graphData = {
               graphType: 'plotting',
               graphConfig: {
@@ -1538,28 +1750,16 @@ ${notesSection}`;
                 domainX: domainX,
                 domainY: domainY,
                 grid: { show: true, stepX: 1, stepY: 1 },
-                series: [{
-                  id: 'reference',
-                  label: 'y = f(x)',
-                  data: baseCurveData,
-                  showLine: true,
-                  lineStyle: 'solid',
-                  color: 'hsl(var(--primary))'
-                }]
+                series: referenceSeries,
+                // Mark as sketch mode so UI knows to hide reference until review
+                isSketchMode: isSketchQuestion,
               },
               plottingAnswer: {
-                expectedPoints: transformedCurveData.slice(0, 5).map(p => ({ x: p.x, y: p.y })),
+                expectedPoints: (transformedCurveData.length > 0 ? transformedCurveData : baseCurveData).slice(0, 5).map(p => ({ x: p.x, y: p.y })),
                 toleranceUnits: 0.5,
                 marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-                // CRITICAL: expectedCurve is the TRANSFORMED curve, not the original
-                expectedCurve: {
-                  id: 'expected',
-                  label: 'Expected',
-                  data: transformedCurveData.length > 0 ? transformedCurveData : baseCurveData,
-                  showLine: true,
-                  lineStyle: 'dashed',
-                  color: '#22c55e'
-                }
+                // CRITICAL: expectedCurve can be a single object OR an array of branch objects
+                expectedCurve: expectedCurve
               }
             };
             
