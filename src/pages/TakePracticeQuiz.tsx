@@ -402,17 +402,24 @@ const TakePracticeQuiz = () => {
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
       // 2. Load questions with numeric sorting
-      const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int");
+      const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int").order("question_number");
       if (!questionsData?.length) {
         toast.error("No questions found");
         navigate("/quizzes");
         return;
       }
 
+      // Sort questions: first by numeric part, then by suffix (a, b, c)
+      // Examples: 1a < 1b < 2 < 10a < 10b
       const sortedQuestions = questionsData.sort((a, b) => {
-        const numA = a.question_number_int || parseInt(a.question_number) || 0;
-        const numB = b.question_number_int || parseInt(b.question_number) || 0;
-        return numA - numB;
+        const numA = a.question_number_int ?? (parseInt(a.question_number) || 0);
+        const numB = b.question_number_int ?? (parseInt(b.question_number) || 0);
+        if (numA !== numB) return numA - numB;
+        
+        // Same number - sort by suffix (extract letters after the number)
+        const suffixA = a.question_number.replace(/^\d+/, '') || '';
+        const suffixB = b.question_number.replace(/^\d+/, '') || '';
+        return suffixA.localeCompare(suffixB);
       });
 
       setQuestions(sortedQuestions);
@@ -1611,15 +1618,22 @@ const TakePracticeQuiz = () => {
                       // Get reference series from graphConfig.series
                       const rawRefSeries = (graphData.graphConfig as any)?.series || [];
                       
-                      // CRITICAL: For "sketch" questions, hide reference series until review mode
-                      // This gives students an empty grid to sketch on
+                      // CRITICAL: For "sketch" questions that mention "graph is shown" or similar,
+                      // we MUST display the reference series (the original f(x) curve).
+                      // Only hide reference series if it's a pure sketch-from-equation question
+                      // (no mention of "shown" or "given" curve).
                       const isSketchQuestion = /\bsketch\b/i.test(currentQuestion.question_text);
+                      const mentionsShownGraph = /\b(graph|curve|diagram)\s+(of\s+)?[^.]*\s*(is\s+)?(shown|given|illustrated|displayed|below|above)\b/i.test(currentQuestion.question_text) ||
+                                                  /\b(shown|given|illustrated)\s+(in\s+)?(the\s+)?(graph|curve|diagram)\b/i.test(currentQuestion.question_text);
                       const isInReviewMode = currentAnswer.submitted && !!currentAnswer.feedback;
                       
-                      // Only show reference series if:
-                      // 1. It's NOT a sketch question, OR
-                      // 2. We're in review mode (showing correct answer)
-                      const refSeries = (isSketchQuestion && !isInReviewMode) ? [] : rawRefSeries;
+                      // Show reference series if:
+                      // 1. The question mentions a "shown" graph (student needs to see original curve), OR
+                      // 2. It's NOT a sketch question (just a plotting question), OR
+                      // 3. We're in review mode
+                      // Hide reference series ONLY for pure "sketch from equation" questions (no shown graph)
+                      const shouldShowReference = mentionsShownGraph || !isSketchQuestion || isInReviewMode;
+                      const refSeries = shouldShowReference ? rawRefSeries : [];
                       
                       // For review mode, generate expected curve from plottingAnswer.expectedCurve
                       // expectedCurve can be either:
