@@ -1801,6 +1801,7 @@ const TakePracticeQuiz = () => {
                             subjectColor={subjectColor}
                             angleMeasurements={angleMeasurements}
                             onAngleMeasurementsChange={setAngleMeasurements}
+                            questionText={currentQuestion.question_text}
                           />
                         </div>
                       );

@@ -74,6 +74,8 @@ interface GraphPlottingQuestionProps {
   referenceSeries?: GraphSeries[];
   /** Expected answer curve to display in review mode (dashed green) */
   expectedCurveSeries?: GraphSeries[];
+  /** Question text to display in expanded graph modal */
+  questionText?: string;
 }
 
 // History state for undo/redo
@@ -127,6 +129,7 @@ export function GraphPlottingQuestion({
   onAngleMeasurementsChange,
   referenceSeries = [],
   expectedCurveSeries = [],
+  questionText,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -2039,6 +2042,7 @@ export function GraphPlottingQuestion({
         canUndo={undoStack.length > 0}
         canRedo={redoStack.length > 0}
         canClear={studentPoints.length > 0 || segments.length > 0 || drawnPaths.length > 0}
+        questionText={questionText}
       />
     </div>
   );
