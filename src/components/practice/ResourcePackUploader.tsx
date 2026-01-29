@@ -78,6 +78,7 @@ export const ResourcePackUploader = ({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         toast.error("Please log in to upload resources");
+        setFile(null);
         return;
       }
 
@@ -87,7 +88,10 @@ export const ResourcePackUploader = ({
         .from("exam-files")
         .upload(filePath, selectedFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw new Error(uploadError.message || "Failed to upload file. Please check your connection and try again.");
+      }
       setProgress(30);
 
       // Call extract-resource-pack edge function
@@ -105,7 +109,10 @@ export const ResourcePackUploader = ({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Failed to extract resources");
+      }
       
       setProgress(100);
 
@@ -123,7 +130,10 @@ export const ResourcePackUploader = ({
       toast.success(`Extracted ${pack.items.length} resources from insert`);
     } catch (error: any) {
       console.error("Error processing resource pack:", error);
-      toast.error(error.message || "Failed to process resource pack");
+      const message = error.message?.includes("Load failed") 
+        ? "Network error. Please check your connection and try again."
+        : error.message || "Failed to process resource pack";
+      toast.error(message);
       setFile(null);
     } finally {
       setUploading(false);
