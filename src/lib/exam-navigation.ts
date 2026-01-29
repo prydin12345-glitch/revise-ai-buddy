@@ -41,7 +41,8 @@ export function getExamNavigationUrl(examId: string, state: ExamState): string {
       return `/exam/${examId}/review`;
     case 'not-started':
     default:
-      return `/exam/${examId}/take`;
+      // Use /in-progress for starting exams - /take is not a valid route
+      return `/exam/${examId}/in-progress?mode=student`;
   }
 }
 

@@ -81,6 +81,9 @@ interface ExpandedGraphModalProps {
   canUndo: boolean;
   canRedo: boolean;
   canClear: boolean;
+  
+  // Question text to display in focus mode
+  questionText?: string;
 }
 
 /**
@@ -130,6 +133,7 @@ export function ExpandedGraphModal({
   canUndo,
   canRedo,
   canClear,
+  questionText,
 }: ExpandedGraphModalProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -194,6 +198,17 @@ export function ExpandedGraphModal({
   
   // Erase mode
   const [eraseMode, setEraseMode] = useState(false);
+  
+  // Question text expansion
+  const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
+  
+  // Truncate question text for display
+  const truncatedQuestionText = useMemo(() => {
+    if (!questionText) return null;
+    const maxLength = 80;
+    if (questionText.length <= maxLength) return questionText;
+    return questionText.substring(0, maxLength).trim() + '…';
+  }, [questionText]);
 
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
@@ -959,17 +974,40 @@ export function ExpandedGraphModal({
         hideCloseButton
       >
         {/* Header */}
-        <DialogHeader className="flex-shrink-0 flex flex-row items-center justify-between">
-          <DialogTitle className="text-lg font-semibold">Graph Focus Mode</DialogTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            className="gap-2"
-          >
-            <Minimize2 className="h-4 w-4" />
-            Exit
-          </Button>
+        <DialogHeader className="flex-shrink-0 flex flex-col gap-2">
+          <div className="flex flex-row items-center justify-between">
+            <DialogTitle className="text-lg font-semibold">Graph Focus Mode</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="gap-2"
+            >
+              <Minimize2 className="h-4 w-4" />
+              Exit
+            </Button>
+          </div>
+          
+          {/* Question text with truncation and click-to-expand */}
+          {questionText && (
+            <div 
+              className={cn(
+                "text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 border border-border/50",
+                !isQuestionExpanded && truncatedQuestionText !== questionText && "cursor-pointer hover:bg-muted/70 transition-colors"
+              )}
+              onClick={() => {
+                if (truncatedQuestionText !== questionText) {
+                  setIsQuestionExpanded(!isQuestionExpanded);
+                }
+              }}
+            >
+              <span className="font-medium text-foreground mr-1">Q:</span>
+              {isQuestionExpanded ? questionText : truncatedQuestionText}
+              {truncatedQuestionText !== questionText && !isQuestionExpanded && (
+                <span className="text-primary ml-1 text-xs">(tap to expand)</span>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         {/* Toolbar */}

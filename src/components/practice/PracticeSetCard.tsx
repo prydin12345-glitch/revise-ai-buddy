@@ -130,7 +130,7 @@ export const PracticeSetCard = ({
   const ButtonIcon = buttonConfig.icon;
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style}>
       <Card 
         className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col"
         style={{
@@ -138,8 +138,8 @@ export const PracticeSetCard = ({
         }}
       >
         <CardContent className="p-0 flex flex-col flex-1">
-          {/* ========== HEADER SECTION ========== */}
-          <div className="p-6 pb-5 flex-1">
+          {/* ========== HEADER SECTION - Drag handle ========== */}
+          <div className="p-6 pb-5 flex-1 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
             {/* Title Row */}
             <div className="flex-1 min-w-0 mb-5">
               {/* Main Title */}

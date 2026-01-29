@@ -348,6 +348,7 @@ export function QuestionItem({
           subjectColor={subjectColor}
           angleMeasurements={angleMeasurements}
           onAngleMeasurementsChange={onAngleMeasurementsChange}
+          questionText={question.question_text}
         />
       );
     }

@@ -1550,6 +1550,7 @@ const ExamInProgress = () => {
                                 };
                               });
                             }}
+                            questionText={question.question_text}
                           />
                         </div>
                       );
