@@ -53,7 +53,7 @@ export const ResourcePackUploader = ({
   const [extracting, setExtracting] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.type !== 'application/pdf') {
@@ -65,12 +65,12 @@ export const ResourcePackUploader = ({
         return;
       }
       setFile(selectedFile);
+      // Auto-extract immediately after file selection
+      await handleUploadAndExtract(selectedFile);
     }
   };
 
-  const handleUploadAndExtract = async () => {
-    if (!file) return;
-
+  const handleUploadAndExtract = async (selectedFile: File) => {
     setUploading(true);
     setProgress(10);
 
@@ -82,10 +82,10 @@ export const ResourcePackUploader = ({
       }
 
       // Upload file to storage
-      const filePath = `${session.user.id}/resources/${crypto.randomUUID()}-${file.name}`;
+      const filePath = `${session.user.id}/resources/${crypto.randomUUID()}-${selectedFile.name}`;
       const { error: uploadError } = await supabase.storage
         .from("exam-files")
-        .upload(filePath, file);
+        .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
       setProgress(30);
@@ -101,7 +101,7 @@ export const ResourcePackUploader = ({
           subjectId,
           educationalTier,
           examBoard,
-          title: file.name.replace('.pdf', ''),
+          title: selectedFile.name.replace('.pdf', ''),
         },
       });
 
@@ -112,7 +112,7 @@ export const ResourcePackUploader = ({
       // Transform response into ResourcePack format
       const pack: ResourcePack = {
         id: data.packId,
-        title: data.title || file.name.replace('.pdf', ''),
+        title: data.title || selectedFile.name.replace('.pdf', ''),
         subject_id: subjectId,
         pack_type: 'uploaded',
         status: 'ready',
@@ -124,6 +124,7 @@ export const ResourcePackUploader = ({
     } catch (error: any) {
       console.error("Error processing resource pack:", error);
       toast.error(error.message || "Failed to process resource pack");
+      setFile(null);
     } finally {
       setUploading(false);
       setExtracting(false);
@@ -198,31 +199,22 @@ export const ResourcePackUploader = ({
                 {(file.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
-              <X className="h-4 w-4" />
-            </Button>
+            {!(uploading || extracting) && (
+              <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
 
-          {(uploading || extracting) ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">
-                  {uploading ? "Uploading..." : "Extracting resources..."}
-                </span>
-              </div>
-              <Progress value={progress} className="h-2" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm text-muted-foreground">
+                {uploading ? "Uploading..." : "Extracting resources..."}
+              </span>
             </div>
-          ) : (
-            <Button 
-              onClick={handleUploadAndExtract} 
-              className="w-full"
-              style={{ backgroundColor: subjectColor }}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Extract Resources
-            </Button>
-          )}
+            <Progress value={progress} className="h-2" />
+          </div>
         </div>
       )}
     </Card>
