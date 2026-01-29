@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriangle, BookOpen } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
@@ -17,6 +17,10 @@ import { TutorExamCompleteModal } from "@/components/tutor/TutorExamCompleteModa
 import { ExamGenerationFailedModal } from "@/components/tutor/ExamGenerationFailedModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
+import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
+import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
+import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 
 const examBoards = [
   { id: "aqa", name: "AQA" },
@@ -112,6 +116,10 @@ export default function CreateTutorExam() {
   // File uploads
   const [file, setFile] = useState<File | null>(null);
   const [specFile, setSpecFile] = useState<File | null>(null);
+  
+  // Resource Pack state
+  const [resourceMode, setResourceMode] = useState<ResourceMode>('none');
+  const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
   
   // Format settings
   const [useOriginal, setUseOriginal] = useState(true);
@@ -303,6 +311,7 @@ export default function CreateTutorExam() {
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (specFile) formData.append('specFile', specFile);
       if (notes) formData.append('notes', notes);
+      if (resourcePack) formData.append('resourcePackId', resourcePack.id);
 
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -507,6 +516,83 @@ export default function CreateTutorExam() {
               onChange={(e) => setNotes(e.target.value)}
               className="min-h-[120px] bg-card border-border resize-none"
             />
+
+            {/* Resource Pack Section */}
+            <Card className="p-6 bg-card/50 border-border">
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Resource Pack / Insert</h2>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button">
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm bg-popover border-border">
+                      <p className="font-medium mb-2">📚 Resource Pack System</p>
+                      <ul className="text-xs space-y-1.5 list-disc list-inside">
+                        <li><strong>Standalone:</strong> Traditional exam without shared resources</li>
+                        <li><strong>Upload Insert:</strong> Upload an exam insert PDF (e.g., AQA English Insert) to link questions to shared sources</li>
+                        <li><strong>AI Generated:</strong> Let AI create realistic case studies, data tables, or text extracts</li>
+                      </ul>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+
+              <ResourceModeSelector
+                value={resourceMode}
+                onChange={setResourceMode}
+                subjectColor={subjectColor}
+                disabled={generating}
+              />
+
+              {resourceMode === 'uploaded' && (
+                <div className="mt-4">
+                  <ResourcePackUploader
+                    subjectId={subjectId}
+                    educationalTier={educationalTier === 'other' ? customTier : educationalTier}
+                    examBoard={examBoard === 'other' ? customExamBoard : examBoard}
+                    onPackReady={setResourcePack}
+                    onPackCleared={() => setResourcePack(null)}
+                    currentPack={resourcePack}
+                    subjectColor={subjectColor}
+                  />
+                </div>
+              )}
+
+              {resourceMode === 'ai_generated' && !resourcePack && (
+                <div className="mt-4">
+                  <AIResourceGenerator
+                    subjectId={subjectId}
+                    educationalTier={educationalTier === 'other' ? customTier : educationalTier}
+                    examBoard={examBoard === 'other' ? customExamBoard : examBoard}
+                    subtopics={[]}
+                    onPackReady={setResourcePack}
+                    subjectColor={subjectColor}
+                  />
+                </div>
+              )}
+
+              {resourcePack && resourceMode !== 'none' && (
+                <div className="mt-4">
+                  <ResourcePackPreview
+                    pack={resourcePack}
+                    subjectColor={subjectColor}
+                    maxHeight="300px"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setResourcePack(null)}
+                    className="mt-3"
+                  >
+                    Clear Resource Pack
+                  </Button>
+                </div>
+              )}
+            </Card>
 
             {/* Row 3: File Uploads & Exam Board */}
             <div className="grid lg:grid-cols-3 gap-4">
