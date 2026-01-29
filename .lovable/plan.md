@@ -1,304 +1,473 @@
 
-# Expand Graph Modal - Technical Implementation Plan
 
-**STATUS: ✅ IMPLEMENTED**
+# Insert / Resource Pack System - Implementation Plan
 
 ## Overview
 
-This feature adds an "Expand Graph" button to all interactive graph questions, opening a full-screen modal with a larger drawing canvas. The goal is to improve drawing accuracy, reduce coordinate rounding issues, and provide clearer axis visibility.
+This plan introduces a Resource Pack system that mirrors how real exams are structured across all subjects (English, History, Geography, Economics, Sciences, etc.). Instead of generating disconnected standalone questions, the system will generate or accept shared resources (inserts) and then build all questions around that unified material.
 
-## Current Architecture Analysis
+## Current State Analysis
 
-The graph system is built around:
+### Existing Architecture
 
-1. **`GraphPlottingQuestion.tsx`** (~2000 lines) - Core interactive graph component with:
-   - Drawing toolbar (Straight, Curved, Freeform, Angle modes)
-   - Point plotting, segment creation, drag handling
-   - Coordinate conversion (data <-> pixel) via `dataToPixel` / `pixelToData`
-   - ResizeObserver for container size tracking
-   - Undo/redo history stack
+**Database Tables:**
+- `practice_question_sets` - Stores metadata for question sets (subject, difficulty, notes, subtopics)
+- `practice_questions` - Individual questions with `set_id` foreign key
+- `exams` - Exam metadata with `file_url` for uploaded PDFs
+- `exam_question_drafts` / `exam_questions` - Questions with `scenario_context` field (partial support)
 
-2. **`GraphDrawingCanvas.tsx`** - Freeform drawing overlay that stores paths in **data coordinates** (not just pixels) for stable rendering
+**Edge Functions:**
+- `generate-practice-questions/index.ts` - Generates questions from subtopics/notes using Lovable AI
+- `extract-exam-questions/index.ts` - Extracts/generates questions from uploaded PDFs
 
-3. **Data Flow**:
-   - `TakePracticeQuiz.tsx` / `QuestionItem.tsx` pass `studentPoints`, `segments`, `drawnPaths` as props
-   - Changes propagate via `onPointsChange`, `onSegmentsChange`, `onDrawnPathsChange` callbacks
-   - All data is already stored in graph coordinates (not pixels)
+**Current Problem:**
+The AI generates questions independently, sometimes inventing content inline within each question. There is no:
+- Shared source text
+- Resource booklet concept
+- Scenario/case study linking
+- Dataset that questions reference together
 
-4. **Coordinate Stability**:
-   - Recent fixes ensure `DrawingPath.dataPoints` are stored in graph coordinates
-   - `GraphSegmentsLayer` uses domain-based coordinate conversion
-   - The system is already designed for stable rendering across viewport sizes
+---
 
-## Implementation Strategy
+## Database Schema Design
 
-### Core Principle: Single Source of Truth
+### New Table: `resource_packs`
 
-The expanded modal will **share state** with the inline graph - no data duplication. When the modal closes, all changes are already committed via the existing callbacks.
+```sql
+CREATE TABLE resource_packs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  
+  -- Basic metadata
+  title TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  educational_tier TEXT,
+  exam_board TEXT,
+  
+  -- Pack type and source
+  pack_type TEXT NOT NULL CHECK (pack_type IN ('uploaded', 'ai_generated', 'extracted')),
+  source_file_url TEXT,  -- For uploaded inserts
+  
+  -- Status tracking
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'processing', 'ready', 'failed')),
+  processing_error TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-### File Structure
+### New Table: `resource_items`
+
+```sql
+CREATE TABLE resource_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pack_id UUID REFERENCES resource_packs(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Resource identification
+  source_label TEXT NOT NULL,  -- e.g., "Source A", "Extract 1", "Figure 3.2"
+  resource_type TEXT NOT NULL CHECK (resource_type IN (
+    'text_extract',      -- English/History source texts
+    'case_study',        -- Economics/Business case studies
+    'data_table',        -- Statistics/Science data tables
+    'map',               -- Geography maps
+    'image',             -- Diagrams, photographs
+    'graph',             -- Pre-drawn graphs for interpretation
+    'transcript',        -- Interview/speech transcripts
+    'article',           -- News articles, reports
+    'experiment_data'    -- Science experiment results
+  )),
+  
+  -- Content storage
+  content_text TEXT,           -- For text-based resources
+  content_html TEXT,           -- For rich formatted content
+  content_url TEXT,            -- For images/files stored in storage
+  content_json JSONB,          -- For structured data (tables, graphs)
+  
+  -- Metadata
+  word_count INTEGER,
+  attribution TEXT,            -- Source attribution for authenticity
+  difficulty_contribution TEXT CHECK (difficulty_contribution IN ('simple', 'moderate', 'complex')),
+  
+  -- Ordering
+  display_order INTEGER DEFAULT 0,
+  
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Modified Table: `practice_question_sets`
+
+```sql
+-- Add column to link sets to resource packs
+ALTER TABLE practice_question_sets
+ADD COLUMN resource_pack_id UUID REFERENCES resource_packs(id);
+
+-- Add column to track resource mode
+ALTER TABLE practice_question_sets
+ADD COLUMN resource_mode TEXT DEFAULT 'none' 
+  CHECK (resource_mode IN ('none', 'uploaded', 'ai_generated'));
+```
+
+### Modified Table: `practice_questions`
+
+```sql
+-- Add columns to link questions to specific resources
+ALTER TABLE practice_questions
+ADD COLUMN resource_item_ids UUID[],  -- Can reference multiple resources
+ADD COLUMN resource_references TEXT[];  -- e.g., ["Source A", "Source B"]
+```
+
+### Modified Table: `exams`
+
+```sql
+ALTER TABLE exams
+ADD COLUMN resource_pack_id UUID REFERENCES resource_packs(id);
+```
+
+---
+
+## Phase 1: Upload Resource + Generate Questions
+
+### User Flow
+
+1. User navigates to Create Practice Questions
+2. User sees new option: "Add Resource Pack"
+3. User uploads Insert PDF (e.g., English sources, History documents)
+4. System extracts and structures resources
+5. User configures question count/difficulty
+6. AI generates questions that ALL reference the uploaded resources
+
+### Technical Implementation
+
+#### Frontend: Updated `CreatePracticeQuestions.tsx`
+
+Add new UI section for resource pack selection:
 
 ```text
-src/components/graph/
-├── GraphPlottingQuestion.tsx     (updated - add expand button trigger)
-├── ExpandedGraphModal.tsx        (NEW - modal wrapper)
-├── GraphPlottingCanvas.tsx       (NEW - extracted core canvas logic)
-└── index.ts                      (updated - export new components)
+┌─────────────────────────────────────────────────────┐
+│  Resource Mode                                       │
+├─────────────────────────────────────────────────────┤
+│  ○ No resources (standalone questions)              │
+│  ● Upload Insert/Resource Pack                       │
+│  ○ Generate AI Resource Pack                        │
+├─────────────────────────────────────────────────────┤
+│  [📄 Upload Insert PDF]                             │
+│  "AQA_English_Insert_June2024.pdf" ✓                │
+└─────────────────────────────────────────────────────┘
 ```
 
-## Phase 1: Create ExpandedGraphModal Component
+New components to create:
+- `ResourceModeSelector.tsx` - Toggle between modes
+- `ResourcePackUploader.tsx` - Upload and preview resources
+- `ResourceItemPreview.tsx` - Display extracted resources
 
-**New file: `src/components/graph/ExpandedGraphModal.tsx`**
-
-A full-screen dialog that:
-- Takes the same props as `GraphPlottingQuestion`
-- Renders the graph at 80-90% of viewport size
-- Provides a pinned toolbar at the top
-- Includes zoom controls and "Reset View" button
-
-```typescript
-interface ExpandedGraphModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  
-  // Pass through all GraphPlottingQuestion props
-  config: GraphPlottingConfig;
-  studentPoints: GraphPoint[];
-  onPointsChange: (points: GraphPoint[]) => void;
-  segments: LineSegment[];
-  onSegmentsChange: (segments: LineSegment[]) => void;
-  drawnPaths?: DrawingPath[];
-  onDrawnPathsChange?: (paths: DrawingPath[]) => void;
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
-  onJoinModeChange?: (mode: ...) => void;
-  
-  // Domain/scale (locked between views)
-  domainX: [number, number];
-  domainY: [number, number];
-  
-  // Review mode data
-  readOnly?: boolean;
-  showCorrectAnswers?: boolean;
-  markingData?: GraphPlottingMarkingResult;
-  referenceSeries?: GraphSeries[];
-  expectedCurveSeries?: GraphSeries[];
-  
-  // Styling
-  subjectColor?: string;
-}
-```
-
-### Modal Layout
+#### New Edge Function: `extract-resource-pack/index.ts`
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  [✕ Close]                     Graph Focus Mode         │
-├─────────────────────────────────────────────────────────┤
-│  [Undo] [Redo] [Clear] [Erase]  |  Straight Curved ...  │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│                                                         │
-│                                                         │
-│               LARGE GRAPH CANVAS                        │
-│               (80% viewport height)                     │
-│                                                         │
-│                                                         │
-│                                                         │
-├─────────────────────────────────────────────────────────┤
-│  Helper text | [Snap to Grid ○] | [Done]               │
-└─────────────────────────────────────────────────────────┘
+Purpose: Parse uploaded Insert PDFs into structured resource items
+
+Process:
+1. Accept PDF file URL
+2. Extract text using pdfjs-serverless
+3. Use AI to identify discrete sources (Source A, Source B, etc.)
+4. Structure each source with:
+   - Label (Source A)
+   - Type (text_extract, data_table, image)
+   - Content (cleaned text)
+   - Metadata (word count, attribution)
+5. Store in resource_items table
+6. Return pack_id for linking
 ```
 
-### Key Implementation Details
+#### Updated Edge Function: `generate-practice-questions/index.ts`
 
-1. **Shared State**: The modal receives the exact same callback props (`onPointsChange`, etc.) as the inline graph. Any drawing in the modal immediately updates the parent state.
+Add resource-aware generation:
 
-2. **Locked Domain**: The `domainX` and `domainY` are passed from the parent and are identical in both views. This prevents scale mismatch.
+```text
+If resource_pack_id is provided:
+1. Fetch all resource_items for the pack
+2. Build resource context section for AI prompt:
+   
+   "=== RESOURCE PACK (SHARED INSERT) ===
+   
+   SOURCE A: [Title]
+   [Full text of Source A]
+   
+   SOURCE B: [Title]  
+   [Full text of Source B]
+   
+   === END RESOURCE PACK ===
+   
+   CRITICAL: ALL questions MUST reference the above sources.
+   - Question 1 should use Source A
+   - Question 2 should compare Sources A and B
+   - Question 3 should evaluate Source B
+   - etc.
+   
+   DO NOT invent new content. Use ONLY the provided sources."
 
-3. **No Data Transformation**: Because `GraphDrawingCanvas` already stores `dataPoints` in graph coordinates, the same strokes render identically regardless of canvas size.
+3. Generate questions with explicit source references
+4. Store resource_item_ids on each question
+```
 
-4. **Aspect Ratio**: The expanded canvas maintains `aspect-[4/3]` (matching inline) but at ~80% viewport width.
+---
 
-## Phase 2: Add Expand Button to GraphPlottingQuestion
+## Phase 2: Upload Resource + Example Paper
 
-**Update: `src/components/graph/GraphPlottingQuestion.tsx`**
+### User Flow
 
-Add state and trigger button:
+1. User uploads Insert PDF
+2. User uploads Past Question Paper PDF
+3. System learns:
+   - Question structure per resource
+   - Difficulty patterns
+   - Command verb usage
+4. System generates NEW questions matching the learned style
+
+### Technical Implementation
+
+Add to resource_packs table:
+
+```sql
+ALTER TABLE resource_packs
+ADD COLUMN example_paper_url TEXT,
+ADD COLUMN learned_patterns JSONB;
+-- learned_patterns stores: {
+--   "questions_per_source": 3,
+--   "typical_marks": [4, 8, 12],
+--   "command_verbs": ["analyse", "evaluate", "compare"],
+--   "difficulty_progression": ["simple", "moderate", "complex"]
+-- }
+```
+
+Update `extract-resource-pack/index.ts`:
+- If example paper provided, analyze question patterns
+- Store learned patterns in `learned_patterns` JSONB
+- Use patterns to guide generation
+
+---
+
+## Phase 3: AI-Generated Resource Pack
+
+### User Flow
+
+1. User selects "Generate AI Resource Pack"
+2. User specifies:
+   - Subject (English Literature, Geography, etc.)
+   - Topic (Victorian novels, Climate change, etc.)
+   - Complexity level (GCSE, A-Level, etc.)
+3. AI generates realistic resources:
+   - English: Prose extracts, poetry excerpts
+   - History: Primary source documents, historian interpretations
+   - Geography: Case study data, maps, statistics
+   - Economics: Company reports, market data
+   - Sciences: Experiment data, result tables
+4. User can preview/edit resources
+5. Questions generated from AI resources
+
+### Technical Implementation
+
+#### New Edge Function: `generate-resource-pack/index.ts`
+
+```text
+Purpose: Generate realistic exam-style resources
+
+Process:
+1. Accept subject, topic, educational tier
+2. Determine appropriate resource types for subject
+3. Use AI to generate:
+   - Authentic-feeling text extracts
+   - Realistic data tables
+   - Appropriate case studies
+4. Apply difficulty scaling based on tier
+5. Store in resource_items
+6. Return pack_id
+```
+
+Subject-specific resource templates:
 
 ```typescript
-// New state
-const [isExpanded, setIsExpanded] = useState(false);
-
-// In the toolbar section (near Undo/Redo)
-<Button
-  variant="outline"
-  size="icon"
-  onClick={() => setIsExpanded(true)}
-  title="Expand graph"
->
-  <Maximize2 className="h-4 w-4" />
-</Button>
-
-// At component end
-{isExpanded && (
-  <ExpandedGraphModal
-    isOpen={isExpanded}
-    onClose={() => setIsExpanded(false)}
-    config={config}
-    studentPoints={studentPoints}
-    onPointsChange={onPointsChange}
-    segments={segments}
-    onSegmentsChange={onSegmentsChange}
-    drawnPaths={drawnPaths}
-    onDrawnPathsChange={onDrawnPathsChange}
-    joinMode={joinMode}
-    onJoinModeChange={onJoinModeChange}
-    domainX={domainX}
-    domainY={domainY}
-    readOnly={readOnly}
-    showCorrectAnswers={showCorrectAnswers}
-    markingData={markingData}
-    referenceSeries={referenceSeries}
-    expectedCurveSeries={expectedCurveSeries}
-    subjectColor={subjectColor}
-    questionId={questionId}
-    showProtractor={showProtractor}
-    protractorState={protractorState}
-    onProtractorStateChange={onProtractorStateChange}
-    selectedSegmentIds={selectedSegmentIds}
-    onSelectedSegmentIdsChange={onSelectedSegmentIdsChange}
-    angleMeasurements={angleMeasurements}
-    onAngleMeasurementsChange={onAngleMeasurementsChange}
-  />
-)}
+const SUBJECT_RESOURCE_TYPES = {
+  'english_literature': ['text_extract', 'poem_excerpt'],
+  'english_language': ['article', 'transcript', 'text_extract'],
+  'history': ['primary_source', 'historian_interpretation', 'image'],
+  'geography': ['case_study', 'data_table', 'map', 'article'],
+  'economics': ['case_study', 'data_table', 'article', 'graph'],
+  'business': ['case_study', 'data_table', 'article'],
+  'biology': ['experiment_data', 'data_table', 'graph', 'image'],
+  'chemistry': ['experiment_data', 'data_table', 'graph'],
+  'physics': ['experiment_data', 'data_table', 'graph'],
+  'psychology': ['case_study', 'data_table', 'article'],
+  'sociology': ['case_study', 'data_table', 'article'],
+};
 ```
 
-## Phase 3: Enhanced Modal Features
+---
 
-### 3.1 Toolbar (Pinned Top)
+## Difficulty Scaling via Resources
 
-The toolbar is duplicated in the modal with the same functionality:
-- Undo / Redo
-- Clear All
-- Erase mode toggle
-- Mode toggle group (Straight, Curved, Freeform, Angle)
-- **New**: Expand button replaced with "Exit Full Screen" button
+Resources control difficulty more than question wording:
 
-### 3.2 Optional Controls Panel
+| Level | Resource Complexity | Example |
+|-------|---------------------|---------|
+| GCSE | Simple, 150-300 words | Clear extract with obvious themes |
+| A-Level | Moderate, 300-500 words | Nuanced source requiring analysis |
+| University | Complex, 500-800 words | Dense academic text with subtle arguments |
 
-**Nice-to-have toggles** (can be added later):
+The system automatically scales:
+- Word count
+- Vocabulary complexity
+- Data density (for tables/graphs)
+- Ambiguity level (simple = clear answers, complex = nuanced interpretation)
 
-```typescript
-// Local UI state (doesn't affect data)
-const [snapToGrid, setSnapToGrid] = useState(false);
-const [showGridLabels, setShowGridLabels] = useState(true);
+---
 
-// In footer area
-<div className="flex items-center gap-4">
-  <label className="flex items-center gap-2 text-sm">
-    <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
-    Snap to grid
-  </label>
-  <Button variant="ghost" size="sm" onClick={resetPan}>
-    Reset View
-  </Button>
-</div>
+## Core System Rules
+
+1. **Every question set can optionally have one shared Resource Pack**
+2. **If a resource exists, ALL questions must reference it**
+3. **No random standalone content if resource mode is enabled**
+4. **Questions explicitly cite sources**: "Using Source A, explain..." / "Compare Sources A and B..."
+5. **Validation layer**: Reject questions that don't reference the pack
+
+---
+
+## UI/UX Design
+
+### Resource Mode Selection
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  How would you like to create this question set?            │
+├─────────────────────────────────────────────────────────────┤
+│  [📝] Standalone Questions                                  │
+│       Traditional questions without shared resources         │
+│                                                             │
+│  [📄] Upload Insert/Resources                               │
+│       Upload an exam insert PDF to generate linked questions │
+│                                                             │
+│  [✨] AI-Generated Resources                                │
+│       Let AI create realistic sources, then build questions │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.3 "Done" Button Behavior
+### Resource Preview (after extraction/generation)
 
-- Clicking "Done" or "✕ Close" simply calls `onClose()`
-- No separate save action needed - state is already synced
-- The inline graph immediately reflects all changes made in the modal
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Resource Pack Preview                      [Edit] [Clear]  │
+├─────────────────────────────────────────────────────────────┤
+│  SOURCE A: "The Impact of Urbanisation" (342 words)         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Extract from a 2023 report on city development...    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  SOURCE B: Population Data Table                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Year | Urban Pop | Rural Pop | Change               │   │
+│  │ 2010 | 3.5bn     | 3.4bn     | +2.9%               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  SOURCE C: World Map (Image)                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ [Map showing urbanisation rates by country]          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Phase 4: Coordinate Stability Verification
-
-### Acceptance Checks
-
-The implementation must pass these tests:
-
-1. **Draw in modal, view inline**: A line drawn in expanded view renders identically when collapsed.
-
-2. **Draw inline, view in modal**: A line drawn in the small view looks the same when expanded.
-
-3. **Submit stability**: After submitting, the student's drawing doesn't shift in the feedback/review overlay.
-
-4. **Review mode parity**: The expected curve overlay (dashed green) aligns perfectly in both views.
-
-### Technical Guarantees
-
-- Both views use the **same `domainX`/`domainY`** (never recalculated)
-- Both views use the **same coordinate conversion formulas** (data <-> pixel via `dataToPixel`/`pixelToData`)
-- `DrawingPath.dataPoints` are stored in graph coordinates, not pixels
-- `LineSegment.from`/`to` use graph coordinates with point IDs for stable matching
-
-## Potential Pitfalls and Mitigations
-
-| Pitfall | Mitigation |
-|---------|------------|
-| Modal causes parent re-render, losing draft state | Use stable callback refs; test with fast open/close cycles |
-| Touch events conflict with modal backdrop | Use `touchAction: none` on canvas; portal modal above all overlays |
-| Axis scale looks different due to ResponsiveContainer | Lock axis domain as props; use same `tickCount` formula |
-| History (undo/redo) resets when entering modal | History state lives in parent `GraphPlottingQuestion`; passed as props |
-| Focus trap in modal breaks keyboard shortcuts | Use `onPointerDownOutside` to close; avoid focus trap on canvas area |
+---
 
 ## Files to Create
 
 | File | Purpose |
 |------|---------|
-| `src/components/graph/ExpandedGraphModal.tsx` | Full-screen modal containing large graph canvas with duplicated toolbar |
+| `src/components/practice/ResourceModeSelector.tsx` | Toggle between resource modes |
+| `src/components/practice/ResourcePackUploader.tsx` | Upload and manage resource PDFs |
+| `src/components/practice/ResourcePackPreview.tsx` | Display extracted/generated resources |
+| `src/components/practice/ResourceItemCard.tsx` | Individual resource item display |
+| `supabase/functions/extract-resource-pack/index.ts` | Parse uploaded inserts |
+| `supabase/functions/generate-resource-pack/index.ts` | AI-generate resources |
 
-## Files to Update
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/graph/GraphPlottingQuestion.tsx` | Add `isExpanded` state, expand button in toolbar, render modal conditionally |
-| `src/components/graph/index.ts` | Export `ExpandedGraphModal` |
+| `src/pages/CreatePracticeQuestions.tsx` | Add resource mode UI, wire up new components |
+| `src/pages/tutor/CreateTutorExam.tsx` | Add resource pack option for tutor exams |
+| `supabase/functions/generate-practice-questions/index.ts` | Resource-aware generation logic |
+| `supabase/functions/extract-exam-questions/index.ts` | Optional resource pack linking |
+| `src/pages/TakePracticeQuiz.tsx` | Display resource pack alongside questions |
+| `src/pages/PracticeSetPreview.tsx` | Show resource pack in preview |
+
+---
+
+## Database Migrations
+
+Three migrations required:
+
+1. **Create resource_packs table**
+2. **Create resource_items table**
+3. **Alter existing tables** (practice_question_sets, practice_questions, exams)
+
+---
 
 ## Implementation Order
 
-1. **Create `ExpandedGraphModal.tsx`** with basic dialog structure and large canvas
-2. **Add expand button** to `GraphPlottingQuestion.tsx` toolbar
-3. **Wire up all props** between parent and modal
-4. **Test draw → close → verify inline** cycle
-5. **Add optional controls** (snap to grid, reset view) if time permits
-6. **Test on iPad/mobile** for touch interaction stability
+### Week 1: Foundation
+1. Create database migrations for new tables
+2. Build `ResourceModeSelector` component
+3. Create `extract-resource-pack` edge function
+4. Basic resource extraction from PDFs
 
-## Technical Notes
+### Week 2: Integration
+5. Update `generate-practice-questions` with resource context
+6. Build resource preview components
+7. Wire up full upload flow
+8. Test with English/History inserts
 
-### Modal Sizing
+### Week 3: AI Generation
+9. Create `generate-resource-pack` edge function
+10. Subject-specific resource templates
+11. AI resource generation UI
+12. Difficulty scaling based on tier
 
-```tsx
-<DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-4">
-  {/* Toolbar: ~60px */}
-  {/* Canvas: remaining height with aspect-[4/3] constraint */}
-  {/* Footer: ~48px */}
-</DialogContent>
-```
+### Week 4: Polish
+13. Update quiz-taking UI to show resources
+14. Add resource editing capabilities
+15. Test across all subject types
+16. Performance optimization
 
-### Graph Canvas Height Calculation
-
-```tsx
-// Available height = viewport - toolbar - footer - padding
-const canvasHeight = `calc(95vh - 60px - 48px - 32px)`;
-// Or use aspect ratio and constrain by width
-<div className="w-full" style={{ height: canvasHeight }}>
-  <ResponsiveContainer width="100%" height="100%">
-    ...
-  </ResponsiveContainer>
-</div>
-```
-
-### Preserving Join Mode Across Views
-
-The `joinMode` state and `onJoinModeChange` callback are passed to both views. Selecting "Curved" mode in the modal immediately reflects in the inline toolbar when closed.
+---
 
 ## Expected Outcomes
 
 After implementation:
 
-1. **More accurate drawings** - Larger canvas = less coordinate cramming
-2. **Clearer axis increments** - More space for tick labels
-3. **Easier review comparison** - Student curve + expected curve visible without overlapping
-4. **Consistent rendering** - Same drawing in both views, no shifting on submit
-5. **Touch-friendly** - Full-screen works better on iPad than cramped inline view
+1. **Realistic exam structure** - Matches how real exam boards work
+2. **Linked questions** - All questions reference shared materials
+3. **Better difficulty control** - Complexity in resources, not just wording
+4. **Cross-subject support** - English, History, Geography, Economics, Sciences
+5. **Three creation paths** - Upload, upload+example, or AI-generate
+6. **Exam simulator** - Not just a question generator
+
+---
+
+## Technical Considerations
+
+### Storage
+- Resource images stored in `exam-files` bucket under `resources/` prefix
+- Text content stored directly in database (efficient for search)
+- Large PDFs processed in background with status polling
+
+### Performance
+- Resource extraction runs async with `EdgeRuntime.waitUntil`
+- Resources cached in state during question generation
+- Lazy load resource previews to avoid blocking UI
+
+### Validation
+- Questions without resource references rejected in resource mode
+- Resource items validated for minimum content length
+- Difficulty scoring applied to resource complexity
+
