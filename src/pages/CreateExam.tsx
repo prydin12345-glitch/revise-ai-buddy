@@ -19,6 +19,10 @@ import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
+import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
+import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
+import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
+import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 
 
 const examBoards = [
@@ -136,6 +140,10 @@ export default function CreateExam() {
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerDuration, setTimerDuration] = useState(60);
   const [durationError, setDurationError] = useState(false);
+  
+  // Resource pack state
+  const [resourceMode, setResourceMode] = useState<ResourceMode>('none');
+  const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
   
   // Generation states
   const [generating, setGenerating] = useState(false);
@@ -301,6 +309,7 @@ export default function CreateExam() {
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (specFile) formData.append('specFile', specFile);
       if (notes) formData.append('notes', notes);
+      if (resourcePack) formData.append('resourcePackId', resourcePack.id);
 
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -523,6 +532,61 @@ export default function CreateExam() {
                 placeholder="Add constraints like topics, style, difficulty..."
               />
             </div>
+
+            {/* Resource Mode Selector */}
+            <ResourceModeSelector 
+              value={resourceMode} 
+              onChange={(mode) => {
+                setResourceMode(mode);
+                if (mode === 'none') setResourcePack(null);
+              }}
+              subjectColor={subjectColor}
+            />
+
+            {/* Resource Pack Uploader (when upload mode selected) */}
+            {resourceMode === 'uploaded' && (
+              <ResourcePackUploader
+                subjectId={subjectId}
+                subjectColor={subjectColor}
+                currentPack={resourcePack}
+                onPackReady={(pack) => setResourcePack(pack)}
+                onPackCleared={() => setResourcePack(null)}
+              />
+            )}
+
+            {/* AI Resource Generator (when AI mode selected) */}
+            {resourceMode === 'ai_generated' && (
+              <AIResourceGenerator
+                subjectId={subjectId}
+                subjectColor={subjectColor}
+                educationalTier={educationalTier === 'other' ? customTier : educationalTier}
+                subtopics={[]}
+                onPackReady={(pack) => setResourcePack(pack)}
+              />
+            )}
+
+            {/* Resource Pack Preview */}
+            {resourcePack && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-sm">Resource Pack Preview</h4>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setResourcePack(null);
+                      setResourceMode('none');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                <ResourcePackPreview
+                  pack={resourcePack}
+                  subjectColor={subjectColor}
+                />
+              </Card>
+            )}
 
             {/* Row 3: File Uploads & Exam Board */}
             <div className="grid lg:grid-cols-3 gap-4">
@@ -864,6 +928,17 @@ export default function CreateExam() {
                     <p className="text-sm text-muted-foreground mb-1">Uploaded Exam</p>
                     <p className="font-medium text-muted-foreground">
                       {file ? file.name : 'No file uploaded'}
+                    </p>
+                  </div>
+
+                  <div className="pb-4 border-b border-border">
+                    <p className="text-sm text-muted-foreground mb-1">Resource Pack</p>
+                    <p className="font-medium">
+                      {resourcePack 
+                        ? `${resourcePack.title} (${resourcePack.items.length} sources)`
+                        : resourceMode === 'none' 
+                          ? 'Standalone questions' 
+                          : 'Not configured'}
                     </p>
                   </div>
 
