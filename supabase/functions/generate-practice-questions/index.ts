@@ -136,6 +136,86 @@ serve(async (req) => {
       }
     }
 
+    // RESOURCE PACK SUPPORT - Fetch linked resources if any
+    let resourcePackContext = '';
+    let hasResourcePack = false;
+    
+    if (setData.resource_pack_id && setData.resource_mode !== 'none') {
+      try {
+        console.log('Fetching resource pack:', setData.resource_pack_id);
+        
+        // Fetch the resource pack
+        const { data: packData, error: packError } = await supabaseClient
+          .from('resource_packs')
+          .select('*')
+          .eq('id', setData.resource_pack_id)
+          .single();
+        
+        if (packError) {
+          console.warn('Failed to fetch resource pack:', packError);
+        } else if (packData && packData.status === 'ready') {
+          // Fetch all resource items for this pack
+          const { data: resourceItems, error: itemsError } = await supabaseClient
+            .from('resource_items')
+            .select('*')
+            .eq('pack_id', setData.resource_pack_id)
+            .order('display_order');
+          
+          if (itemsError) {
+            console.warn('Failed to fetch resource items:', itemsError);
+          } else if (resourceItems && resourceItems.length > 0) {
+            hasResourcePack = true;
+            
+            // Build resource context for AI prompt
+            resourcePackContext = `
+=== RESOURCE PACK (SHARED INSERT) ===
+CRITICAL: ALL questions MUST reference the following shared resources.
+DO NOT invent new content. Use ONLY these sources.
+
+`;
+            for (const item of resourceItems) {
+              resourcePackContext += `--- ${item.source_label} ---\n`;
+              resourcePackContext += `Type: ${item.resource_type}\n`;
+              if (item.attribution) {
+                resourcePackContext += `Attribution: ${item.attribution}\n`;
+              }
+              if (item.content_text) {
+                resourcePackContext += `Content:\n${item.content_text}\n`;
+              }
+              if (item.content_json) {
+                resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
+              }
+              resourcePackContext += `\n`;
+            }
+            
+            resourcePackContext += `=== END RESOURCE PACK ===
+
+MANDATORY RULES FOR RESOURCE-BASED QUESTIONS:
+1. EVERY question MUST explicitly reference at least one source (e.g., "Using Source A...", "Refer to Source B...")
+2. DO NOT invent any content that is not in the resources above
+3. Questions should require students to analyze, compare, or evaluate the provided sources
+4. Appropriate question types based on sources:
+   - Text extracts: analysis questions, quote-based questions
+   - Data tables: calculation questions, interpretation questions
+   - Case studies: evaluation questions, application questions
+   - Multiple sources: comparison questions ("Compare Sources A and B...")
+5. Store the source labels used in the resource_references field of each question
+
+EXAMPLE QUESTION FORMATS:
+- "Using Source A, explain..."
+- "With reference to Source B, calculate..."
+- "Compare the evidence in Sources A and B..."
+- "To what extent does Source C support the view that..."
+- "Using data from Table 1, determine..."
+`;
+            console.log(`Loaded ${resourceItems.length} resource items for context`);
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading resource pack:', err);
+      }
+    }
+
     // Validate and sanitize notes
     const notesValidation = validateNotes(setData.notes);
     logNotesModeration('generate-practice-questions', notesValidation.auditLog);
@@ -544,6 +624,7 @@ ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
 ${complexityInstructions}
 ${transformationInstructions}
+${resourcePackContext}
 
 CRITICAL OUTPUT RULES:
 1) Absolutely NO LaTeX anywhere.

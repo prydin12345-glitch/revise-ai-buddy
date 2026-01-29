@@ -671,6 +671,7 @@ export type Database = {
           id: string
           is_template: boolean | null
           qualification_level: string | null
+          resource_pack_id: string | null
           show_feedback_per_question: boolean | null
           shuffle_questions: boolean | null
           specification_file_url: string | null
@@ -700,6 +701,7 @@ export type Database = {
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          resource_pack_id?: string | null
           show_feedback_per_question?: boolean | null
           shuffle_questions?: boolean | null
           specification_file_url?: string | null
@@ -729,6 +731,7 @@ export type Database = {
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          resource_pack_id?: string | null
           show_feedback_per_question?: boolean | null
           shuffle_questions?: boolean | null
           specification_file_url?: string | null
@@ -744,7 +747,15 @@ export type Database = {
           user_id?: string
           visibility?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "exams_resource_pack_id_fkey"
+            columns: ["resource_pack_id"]
+            isOneToOne: false
+            referencedRelation: "resource_packs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       favourite_exams: {
         Row: {
@@ -1067,6 +1078,8 @@ export type Database = {
           include_tables: boolean | null
           notes: string | null
           question_count: number
+          resource_mode: string | null
+          resource_pack_id: string | null
           set_name: string
           specification_file_url: string | null
           status: string | null
@@ -1090,6 +1103,8 @@ export type Database = {
           include_tables?: boolean | null
           notes?: string | null
           question_count: number
+          resource_mode?: string | null
+          resource_pack_id?: string | null
           set_name: string
           specification_file_url?: string | null
           status?: string | null
@@ -1113,6 +1128,8 @@ export type Database = {
           include_tables?: boolean | null
           notes?: string | null
           question_count?: number
+          resource_mode?: string | null
+          resource_pack_id?: string | null
           set_name?: string
           specification_file_url?: string | null
           status?: string | null
@@ -1122,7 +1139,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "practice_question_sets_resource_pack_id_fkey"
+            columns: ["resource_pack_id"]
+            isOneToOne: false
+            referencedRelation: "resource_packs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       practice_questions: {
         Row: {
@@ -1139,6 +1164,8 @@ export type Database = {
           question_number_int: number | null
           question_text: string
           question_type: string
+          resource_item_ids: string[] | null
+          resource_references: string[] | null
           set_id: string | null
           subtopic: string
           worked_solution: string | null
@@ -1157,6 +1184,8 @@ export type Database = {
           question_number_int?: number | null
           question_text: string
           question_type: string
+          resource_item_ids?: string[] | null
+          resource_references?: string[] | null
           set_id?: string | null
           subtopic: string
           worked_solution?: string | null
@@ -1175,6 +1204,8 @@ export type Database = {
           question_number_int?: number | null
           question_text?: string
           question_type?: string
+          resource_item_ids?: string[] | null
+          resource_references?: string[] | null
           set_id?: string | null
           subtopic?: string
           worked_solution?: string | null
@@ -1303,6 +1334,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      resource_items: {
+        Row: {
+          attribution: string | null
+          content_html: string | null
+          content_json: Json | null
+          content_text: string | null
+          content_url: string | null
+          created_at: string | null
+          difficulty_contribution: string | null
+          display_order: number | null
+          id: string
+          pack_id: string
+          resource_type: string
+          source_label: string
+          word_count: number | null
+        }
+        Insert: {
+          attribution?: string | null
+          content_html?: string | null
+          content_json?: Json | null
+          content_text?: string | null
+          content_url?: string | null
+          created_at?: string | null
+          difficulty_contribution?: string | null
+          display_order?: number | null
+          id?: string
+          pack_id: string
+          resource_type: string
+          source_label: string
+          word_count?: number | null
+        }
+        Update: {
+          attribution?: string | null
+          content_html?: string | null
+          content_json?: Json | null
+          content_text?: string | null
+          content_url?: string | null
+          created_at?: string | null
+          difficulty_contribution?: string | null
+          display_order?: number | null
+          id?: string
+          pack_id?: string
+          resource_type?: string
+          source_label?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_items_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "resource_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_packs: {
+        Row: {
+          created_at: string | null
+          educational_tier: string | null
+          exam_board: string | null
+          example_paper_url: string | null
+          id: string
+          learned_patterns: Json | null
+          pack_type: string
+          processing_error: string | null
+          source_file_url: string | null
+          status: string | null
+          subject_id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          example_paper_url?: string | null
+          id?: string
+          learned_patterns?: Json | null
+          pack_type: string
+          processing_error?: string | null
+          source_file_url?: string | null
+          status?: string | null
+          subject_id: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          educational_tier?: string | null
+          exam_board?: string | null
+          example_paper_url?: string | null
+          id?: string
+          learned_patterns?: Json | null
+          pack_type?: string
+          processing_error?: string | null
+          source_file_url?: string | null
+          status?: string | null
+          subject_id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       revision_goals: {
         Row: {
