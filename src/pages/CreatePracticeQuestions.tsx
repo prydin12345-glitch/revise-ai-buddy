@@ -18,6 +18,10 @@ import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { SubtopicSelector } from "@/components/practice/SubtopicSelector";
 import { DifficultySettings } from "@/components/practice/DifficultySettings";
 import { SpecUploadAdvisory } from "@/components/practice/SpecUploadAdvisory";
+import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
+import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
+import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
+import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PracticeSetCompleteModal } from "@/components/practice/PracticeSetCompleteModal";
@@ -48,6 +52,10 @@ const CreatePracticeQuestions = () => {
   const [customEducationalTier, setCustomEducationalTier] = useState("");
   const [customExamBoard, setCustomExamBoard] = useState("");
   const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
+  
+  // Resource pack state
+  const [resourceMode, setResourceMode] = useState<ResourceMode>('none');
+  const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
   // Visual question types are now auto-detected by the AI based on context
   // Removed manual toggles - AI will include graphs/tables when appropriate
 
@@ -192,6 +200,9 @@ const CreatePracticeQuestions = () => {
           // Graphs and tables are now auto-detected by AI based on context
           include_graphs: true,
           include_tables: true,
+          // Resource pack linking
+          resource_pack_id: resourcePack?.id || null,
+          resource_mode: resourceMode,
         })
         .select()
         .single();
@@ -381,6 +392,55 @@ const CreatePracticeQuestions = () => {
 
             {/* Visual Question Types - Auto-detected */}
             {/* Removed manual toggles - AI automatically includes graphs/tables when relevant to the subject/subtopics */}
+
+            {/* Resource Mode Selection */}
+            <ResourceModeSelector
+              value={resourceMode}
+              onChange={(mode) => {
+                setResourceMode(mode);
+                if (mode === 'none') {
+                  setResourcePack(null);
+                }
+              }}
+              subjectColor={subjectColor}
+              disabled={generating}
+            />
+
+            {/* Resource Pack Upload (when mode is 'uploaded') */}
+            {resourceMode === 'uploaded' && (
+              <ResourcePackUploader
+                subjectId={subjectId}
+                educationalTier={educationalTier}
+                examBoard={examBoard}
+                onPackReady={setResourcePack}
+                onPackCleared={() => setResourcePack(null)}
+                currentPack={resourcePack}
+                subjectColor={subjectColor}
+              />
+            )}
+
+            {/* AI Resource Generation (when mode is 'ai_generated') */}
+            {resourceMode === 'ai_generated' && !resourcePack && (
+              <AIResourceGenerator
+                subjectId={subjectId}
+                educationalTier={educationalTier}
+                examBoard={examBoard}
+                subtopics={selectedSubtopics}
+                onPackReady={setResourcePack}
+                subjectColor={subjectColor}
+              />
+            )}
+
+            {/* Resource Pack Preview (when pack is ready) */}
+            {resourcePack && resourcePack.items.length > 0 && (
+              <Card className="p-4">
+                <ResourcePackPreview
+                  pack={resourcePack}
+                  subjectColor={subjectColor}
+                  maxHeight="300px"
+                />
+              </Card>
+            )}
 
             {/* File Uploads */}
             <Card className="p-4">
