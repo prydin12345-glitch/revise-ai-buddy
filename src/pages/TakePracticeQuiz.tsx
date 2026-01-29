@@ -32,7 +32,10 @@ import {
   Save,
   AlertCircle,
   Loader2,
-  Calculator
+  Calculator,
+  BookOpen,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
@@ -69,6 +72,9 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
@@ -175,6 +181,8 @@ const TakePracticeQuiz = () => {
   });
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
   const [angleMeasurements, setAngleMeasurements] = useState<Array<{ id: string; segmentId1: string; segmentId2: string; angleDegrees: number; labelOffset?: { x: number; y: number } }>>([]);
+  const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
+  const [resourcesExpanded, setResourcesExpanded] = useState(false);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -401,6 +409,42 @@ const TakePracticeQuiz = () => {
       setQuizTitle(quizSet.set_name);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
+      // Load resource pack if exists
+      if (quizSet.resource_pack_id) {
+        const { data: packData } = await supabase
+          .from("resource_packs")
+          .select("*")
+          .eq("id", quizSet.resource_pack_id)
+          .single();
+
+        if (packData) {
+          const { data: itemsData } = await supabase
+            .from("resource_items")
+            .select("*")
+            .eq("pack_id", packData.id)
+            .order("display_order");
+
+          setResourcePack({
+            id: packData.id,
+            title: packData.title,
+            subject_id: packData.subject_id,
+            pack_type: packData.pack_type as 'uploaded' | 'ai_generated' | 'extracted',
+            status: packData.status as 'draft' | 'processing' | 'ready' | 'failed',
+            items: (itemsData || []).map(item => ({
+              id: item.id,
+              source_label: item.source_label,
+              resource_type: item.resource_type,
+              content_text: item.content_text || undefined,
+              content_url: item.content_url || undefined,
+              content_json: item.content_json,
+              word_count: item.word_count || undefined,
+              attribution: item.attribution || undefined,
+              difficulty_contribution: item.difficulty_contribution || undefined,
+              display_order: item.display_order || 0,
+            })),
+          });
+        }
+      }
       // 2. Load questions with numeric sorting
       const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int").order("question_number");
       if (!questionsData?.length) {
@@ -1404,9 +1448,63 @@ const TakePracticeQuiz = () => {
               </div>
               {/* Submit All / Exit button - contextual based on mode */}
               {isReviewMode ? (
-                <Button variant="outline" size="sm" className="mt-auto" onClick={() => navigate('/quizzes')}>Exit Review</Button>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/quizzes')}>Exit Review</Button>
               ) : (
-                <Button variant="destructive" size="sm" className="mt-auto" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+                <Button variant="destructive" size="sm" className="mt-2" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+              )}
+
+              {/* Resource Pack Section - at bottom of sidebar */}
+              {resourcePack && resourcePack.items.length > 0 && (
+                <Collapsible open={resourcesExpanded} onOpenChange={setResourcesExpanded} className="mt-4 pt-4 border-t border-border">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center justify-between w-full text-left group">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4" style={{ color: subjectColor }} />
+                        <span className="text-xs font-semibold text-muted-foreground tracking-wide">RESOURCES</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {resourcePack.items.length}
+                        </Badge>
+                      </div>
+                      {resourcesExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3">
+                    <ScrollArea className="max-h-64">
+                      <div className="space-y-2 pr-2">
+                        {resourcePack.items.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              // Could open a modal here in the future
+                            }}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-xs">{item.source_label}</span>
+                              <Badge variant="outline" className="text-[10px] capitalize px-1">
+                                {item.resource_type.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            {item.content_text && (
+                              <p className="text-[11px] text-muted-foreground line-clamp-2">
+                                {item.content_text.substring(0, 100)}...
+                              </p>
+                            )}
+                            {item.word_count && (
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                {item.word_count} words
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
           </div>
