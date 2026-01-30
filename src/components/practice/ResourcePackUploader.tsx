@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Upload, FileText, Loader2, X, Check } from "lucide-react";
+import { Upload, FileText, X, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,7 +24,8 @@ export interface ResourcePack {
   title: string;
   subject_id: string;
   pack_type: 'uploaded' | 'ai_generated' | 'extracted';
-  status: 'draft' | 'processing' | 'ready' | 'failed';
+  status: 'pending' | 'processing' | 'ready' | 'failed';
+  source_file_url?: string;
   items: ResourceItem[];
 }
 
@@ -50,8 +50,6 @@ export const ResourcePackUploader = ({
 }: ResourcePackUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [extracting, setExtracting] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -65,14 +63,13 @@ export const ResourcePackUploader = ({
         return;
       }
       setFile(selectedFile);
-      // Auto-extract immediately after file selection
-      await handleUploadAndExtract(selectedFile);
+      // Just upload and store - extraction happens at generation time
+      await handleUpload(selectedFile);
     }
   };
 
-  const handleUploadAndExtract = async (selectedFile: File) => {
+  const handleUpload = async (selectedFile: File) => {
     setUploading(true);
-    setProgress(10);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -92,53 +89,50 @@ export const ResourcePackUploader = ({
         console.error("Storage upload error:", uploadError);
         throw new Error(uploadError.message || "Failed to upload file. Please check your connection and try again.");
       }
-      setProgress(30);
 
-      // Call extract-resource-pack edge function
-      setUploading(false);
-      setExtracting(true);
-      setProgress(40);
-
-      const { data, error } = await supabase.functions.invoke('extract-resource-pack', {
-        body: {
-          fileUrl: filePath,
-          subjectId,
-          educationalTier,
-          examBoard,
+      // Create a pending resource pack record - extraction will happen at generation time
+      const { data: packData, error: packError } = await supabase
+        .from('resource_packs')
+        .insert({
+          user_id: session.user.id,
           title: selectedFile.name.replace('.pdf', ''),
-        },
-      });
+          subject_id: subjectId,
+          educational_tier: educationalTier,
+          exam_board: examBoard,
+          pack_type: 'uploaded',
+          source_file_url: filePath,
+          status: 'pending', // Will be processed during generation
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error("Edge function error:", error);
-        throw new Error(error.message || "Failed to extract resources");
+      if (packError) {
+        console.error("Failed to create resource pack record:", packError);
+        throw new Error("Failed to save resource pack");
       }
-      
-      setProgress(100);
 
-      // Transform response into ResourcePack format
+      // Return pack with pending status - extraction happens at generation time
       const pack: ResourcePack = {
-        id: data.packId,
-        title: data.title || selectedFile.name.replace('.pdf', ''),
+        id: packData.id,
+        title: packData.title,
         subject_id: subjectId,
         pack_type: 'uploaded',
-        status: 'ready',
-        items: data.items || [],
+        status: 'pending',
+        source_file_url: filePath,
+        items: [], // Will be populated during generation
       };
 
       onPackReady(pack);
-      toast.success(`Extracted ${pack.items.length} resources from insert`);
+      toast.success("Insert uploaded - will be processed during generation");
     } catch (error: any) {
-      console.error("Error processing resource pack:", error);
+      console.error("Error uploading resource pack:", error);
       const message = error.message?.includes("Load failed") 
         ? "Network error. Please check your connection and try again."
-        : error.message || "Failed to process resource pack";
+        : error.message || "Failed to upload resource pack";
       toast.error(message);
       setFile(null);
     } finally {
       setUploading(false);
-      setExtracting(false);
-      setProgress(0);
     }
   };
 
@@ -151,7 +145,7 @@ export const ResourcePackUploader = ({
     return (
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <Label className="text-sm font-medium">Resource Pack</Label>
+          <Label className="text-sm font-medium">Resource Pack (Insert)</Label>
           <Button variant="ghost" size="sm" onClick={handleClear}>
             <X className="h-4 w-4 mr-1" />
             Clear
@@ -165,7 +159,9 @@ export const ResourcePackUploader = ({
           <div className="flex-1">
             <p className="font-medium text-sm">{currentPack.title}</p>
             <p className="text-xs text-muted-foreground">
-              {currentPack.items.length} resources extracted
+              {currentPack.status === 'pending' 
+                ? "Ready - will be extracted during generation"
+                : `${currentPack.items.length} resources extracted`}
             </p>
           </div>
         </div>
@@ -206,24 +202,14 @@ export const ResourcePackUploader = ({
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(2)} MB
+                {uploading ? "Uploading..." : (file.size / 1024 / 1024).toFixed(2) + " MB"}
               </p>
             </div>
-            {!(uploading || extracting) && (
+            {!uploading && (
               <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
                 <X className="h-4 w-4" />
               </Button>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm text-muted-foreground">
-                {uploading ? "Uploading..." : "Extracting resources..."}
-              </span>
-            </div>
-            <Progress value={progress} className="h-2" />
           </div>
         </div>
       )}

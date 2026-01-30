@@ -136,7 +136,7 @@ serve(async (req) => {
       }
     }
 
-    // RESOURCE PACK SUPPORT - Fetch linked resources if any
+    // RESOURCE PACK SUPPORT - Extract and fetch linked resources if any
     let resourcePackContext = '';
     let hasResourcePack = false;
     
@@ -153,42 +153,202 @@ serve(async (req) => {
         
         if (packError) {
           console.warn('Failed to fetch resource pack:', packError);
-        } else if (packData && packData.status === 'ready') {
-          // Fetch all resource items for this pack
-          const { data: resourceItems, error: itemsError } = await supabaseClient
-            .from('resource_items')
-            .select('*')
-            .eq('pack_id', setData.resource_pack_id)
-            .order('display_order');
-          
-          if (itemsError) {
-            console.warn('Failed to fetch resource items:', itemsError);
-          } else if (resourceItems && resourceItems.length > 0) {
-            hasResourcePack = true;
+        } else if (packData) {
+          // Check if pack needs extraction (status is 'pending')
+          if (packData.status === 'pending' && packData.source_file_url) {
+            console.log('Resource pack is pending extraction, extracting now with context...');
             
-            // Build resource context for AI prompt
-            resourcePackContext = `
+            // Update status to processing
+            await supabaseClient
+              .from('resource_packs')
+              .update({ status: 'processing' })
+              .eq('id', setData.resource_pack_id);
+            
+            // Download the PDF file
+            const { data: fileData, error: downloadError } = await supabaseClient.storage
+              .from('exam-files')
+              .download(packData.source_file_url);
+            
+            if (downloadError) {
+              console.error('Failed to download resource pack file:', downloadError);
+              throw new Error('Failed to download resource pack file');
+            }
+            
+            const pdfText = await fileData.text();
+            console.log('PDF text length:', pdfText.length);
+            
+            // Extract resources with full context (subject, board, tier)
+            const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+            if (!LOVABLE_API_KEY) {
+              throw new Error('LOVABLE_API_KEY is not configured');
+            }
+            
+            const extractionPrompt = `You are an expert at analyzing exam insert/resource booklets and extracting structured resources.
+
+CONTEXT:
+- Subject: ${setData.subject_id}
+- Educational Tier: ${setData.educational_tier || 'Secondary'}
+- Exam Board: ${setData.exam_board || 'UK exam board'}
+
+Given the following PDF text content from an exam insert or resource booklet, identify and extract all discrete resources (sources, texts, data tables, images described, etc.).
+
+PDF CONTENT:
+${pdfText.substring(0, 30000)}
+
+EXTRACTION RULES:
+1. Identify each distinct resource (Source A, Source B, Extract 1, Figure 1, Table 1, etc.)
+2. Preserve the original source labels used in the document
+3. Classify each resource type based on the subject context:
+   - For ${setData.subject_id}: use appropriate types like text_extract, case_study, data_table, map, image, graph, transcript, article, experiment_data, poem_excerpt, primary_source, historian_interpretation
+4. Extract the full text content for text-based resources
+5. For tables, structure as JSON with headers and rows
+6. Include any attribution or source citations
+7. Estimate word count for text resources
+8. Assess difficulty contribution: simple, moderate, or complex
+
+Return a JSON array of resources in this exact format:
+{
+  "resources": [
+    {
+      "source_label": "Source A",
+      "resource_type": "text_extract",
+      "content_text": "Full text content here...",
+      "content_json": null,
+      "word_count": 350,
+      "attribution": "Adapted from The Guardian, 2023",
+      "difficulty_contribution": "moderate",
+      "display_order": 0
+    },
+    {
+      "source_label": "Table 1",
+      "resource_type": "data_table",
+      "content_text": null,
+      "content_json": {
+        "headers": ["Year", "Population", "Growth Rate"],
+        "rows": [["2010", "3.5bn", "+2.1%"], ["2020", "4.2bn", "+2.8%"]]
+      },
+      "word_count": null,
+      "attribution": null,
+      "difficulty_contribution": "simple",
+      "display_order": 1
+    }
+  ]
+}
+
+Extract all resources found. If the document appears to be a question paper rather than an insert, still extract any embedded sources, scenarios, or data that appear within questions.`;
+
+            const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                messages: [
+                  { role: 'system', content: 'You are an expert at analyzing exam documents. Return only valid JSON.' },
+                  { role: 'user', content: extractionPrompt },
+                ],
+                temperature: 0.3,
+              }),
+            });
+
+            if (!aiResponse.ok) {
+              const errorText = await aiResponse.text();
+              console.error('AI extraction failed:', errorText);
+              await supabaseClient
+                .from('resource_packs')
+                .update({ status: 'failed', processing_error: 'AI extraction failed' })
+                .eq('id', setData.resource_pack_id);
+              throw new Error('Failed to extract resources from document');
+            }
+
+            const aiResult = await aiResponse.json();
+            let extractedContent = aiResult.choices?.[0]?.message?.content || '';
+            
+            // Parse JSON from response
+            const jsonMatch = extractedContent.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+              await supabaseClient
+                .from('resource_packs')
+                .update({ status: 'failed', processing_error: 'Failed to parse extraction results' })
+                .eq('id', setData.resource_pack_id);
+              throw new Error('Failed to parse extraction results');
+            }
+
+            const parsedResult = JSON.parse(jsonMatch[0]);
+            const extractedResources = parsedResult.resources || [];
+
+            console.log(`Extracted ${extractedResources.length} resources with context`);
+
+            // Insert resource items
+            for (let i = 0; i < extractedResources.length; i++) {
+              const resource = extractedResources[i];
+              
+              const { error: itemError } = await supabaseClient
+                .from('resource_items')
+                .insert({
+                  pack_id: setData.resource_pack_id,
+                  source_label: resource.source_label || `Resource ${i + 1}`,
+                  resource_type: resource.resource_type || 'text_extract',
+                  content_text: resource.content_text || null,
+                  content_json: resource.content_json || null,
+                  word_count: resource.word_count || null,
+                  attribution: resource.attribution || null,
+                  difficulty_contribution: resource.difficulty_contribution || 'moderate',
+                  display_order: resource.display_order ?? i,
+                });
+
+              if (itemError) {
+                console.error('Error inserting resource item:', itemError);
+              }
+            }
+
+            // Update pack status to ready
+            await supabaseClient
+              .from('resource_packs')
+              .update({ status: 'ready' })
+              .eq('id', setData.resource_pack_id);
+            
+            console.log('Resource pack extraction completed successfully');
+          }
+          
+          // Now fetch the resource items (whether just extracted or already ready)
+          if (packData.status === 'ready' || packData.status === 'pending') {
+            const { data: resourceItems, error: itemsError } = await supabaseClient
+              .from('resource_items')
+              .select('*')
+              .eq('pack_id', setData.resource_pack_id)
+              .order('display_order');
+            
+            if (itemsError) {
+              console.warn('Failed to fetch resource items:', itemsError);
+            } else if (resourceItems && resourceItems.length > 0) {
+              hasResourcePack = true;
+              
+              // Build resource context for AI prompt
+              resourcePackContext = `
 === RESOURCE PACK (SHARED INSERT) ===
 CRITICAL: ALL questions MUST reference the following shared resources.
 DO NOT invent new content. Use ONLY these sources.
 
 `;
-            for (const item of resourceItems) {
-              resourcePackContext += `--- ${item.source_label} ---\n`;
-              resourcePackContext += `Type: ${item.resource_type}\n`;
-              if (item.attribution) {
-                resourcePackContext += `Attribution: ${item.attribution}\n`;
+              for (const item of resourceItems) {
+                resourcePackContext += `--- ${item.source_label} ---\n`;
+                resourcePackContext += `Type: ${item.resource_type}\n`;
+                if (item.attribution) {
+                  resourcePackContext += `Attribution: ${item.attribution}\n`;
+                }
+                if (item.content_text) {
+                  resourcePackContext += `Content:\n${item.content_text}\n`;
+                }
+                if (item.content_json) {
+                  resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
+                }
+                resourcePackContext += `\n`;
               }
-              if (item.content_text) {
-                resourcePackContext += `Content:\n${item.content_text}\n`;
-              }
-              if (item.content_json) {
-                resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
-              }
-              resourcePackContext += `\n`;
-            }
-            
-            resourcePackContext += `=== END RESOURCE PACK ===
+              
+              resourcePackContext += `=== END RESOURCE PACK ===
 
 MANDATORY RULES FOR RESOURCE-BASED QUESTIONS:
 1. EVERY question MUST explicitly reference at least one source (e.g., "Using Source A...", "Refer to Source B...")
@@ -208,7 +368,8 @@ EXAMPLE QUESTION FORMATS:
 - "To what extent does Source C support the view that..."
 - "Using data from Table 1, determine..."
 `;
-            console.log(`Loaded ${resourceItems.length} resource items for context`);
+              console.log(`Loaded ${resourceItems.length} resource items for context`);
+            }
           }
         }
       } catch (err) {
