@@ -308,41 +308,41 @@ Return ONLY valid JSON in this format:
           resourcePackContext = `
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                    ⚠️  RESOURCE-BASED EXAM - STRICT MODE  ⚠️                   ║
+║             🚨 RESOURCE-BASED EXAM - MANDATORY SOURCE ADHERENCE 🚨            ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║  This exam MUST be based EXCLUSIVELY on the following source material.       ║
-║  DO NOT invent characters, scenarios, or content not present in the sources. ║
+║  This exam MUST use ONLY content from the INSERT/SOURCE MATERIAL below.      ║
+║  FAILURE TO USE EXACT SOURCE CONTENT = INVALID EXAM                          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-🔒 ABSOLUTE REQUIREMENTS:
-1. ALL questions MUST reference the sources below (e.g., "Read Source A...", "Using Source A...")
-2. Character names, settings, events MUST come from the source text ONLY
-3. DO NOT invent: new characters, alternative scenarios, unrelated content
-4. If Source A mentions "Rosabel", questions must ask about "Rosabel" - NOT "Elara", "Sarah", etc.
-5. Line references and quotations MUST match the actual source content
+🔒 ABSOLUTE REQUIREMENTS (VIOLATION = FAILURE):
+1. ALL questions MUST explicitly reference sources: "Read Source A...", "Using Source A...", "In Source A..."
+2. Character names MUST be from source: "${uniqueNames}" - USE THESE EXACT NAMES
+3. DO NOT INVENT: "Elara", "Silas", "Sarah" or any name NOT in the sources
+4. Settings, locations, events MUST come from source text verbatim
+5. Line references and quotations MUST match the actual source content exactly
 
-📚 KEY ENTITIES FROM SOURCES (use these, not invented ones):
-${uniqueNames}
+⚠️ VALIDATION BEFORE OUTPUT:
+For EVERY question, verify:
+□ Does it reference "Source A", "Source B", etc.?
+□ Are ALL character names from: ${uniqueNames}?
+□ Could a student answer using ONLY the provided sources?
 
+❌ INVALID EXAMPLE: "Elara walked through the market..." (when source has "Rosabel")
+✅ VALID EXAMPLE: "In Source A, Rosabel thinks about..." (uses actual source name)
+
+📚 MANDATORY SOURCE MATERIAL (use ONLY these):
 `;
           for (const item of resourceItems) {
             resourcePackContext += `\n━━━━━━━━━━ ${item.source_label} ━━━━━━━━━━\n`;
             resourcePackContext += `📂 Type: ${item.resource_type}\n`;
             if (item.attribution) resourcePackContext += `📖 Attribution: ${item.attribution}\n`;
-            if (item.content_text) resourcePackContext += `\n📝 FULL CONTENT (use this text for all questions):\n"""\n${item.content_text}\n"""\n`;
+            if (item.content_text) resourcePackContext += `\n📝 FULL CONTENT (questions MUST reference this text):\n"""\n${item.content_text}\n"""\n`;
             if (item.content_json) resourcePackContext += `📊 Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
           }
           resourcePackContext += `
-━━━━━━━━━━ END OF SOURCES ━━━━━━━━━━
+━━━━━━━━━━ END OF MANDATORY SOURCES ━━━━━━━━━━
 
-⛔ VALIDATION CHECKLIST (apply to EVERY question before output):
-□ Does the question explicitly reference a Source (A, B, etc.)?
-□ Are all character names from the actual source text?
-□ Are all settings/locations from the actual source text?
-□ Are line number references accurate to the source?
-□ Would a student be able to answer using ONLY the provided sources?
-
-If ANY checkbox fails, REWRITE the question to comply.
+🚫 FINAL CHECK: If ANY question uses names/content NOT in sources above, REWRITE it.
 `;
           console.log(`Loaded ${resourceItems.length} resource items for exam context (strict mode)`);
         }
@@ -1084,6 +1084,25 @@ Return a JSON object with this structure:
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
     
+    // CRITICAL: Use different system prompt based on whether resource pack exists
+    const hasResourcePack = resourcePackContext.length > 0;
+    const systemPrompt = hasResourcePack
+      ? `You are an expert exam question generator with STRICT source adherence requirements.
+
+⚠️ CRITICAL: This exam has an INSERT/RESOURCE PACK attached. You MUST:
+1. ONLY use characters, names, places, events from the provided source material
+2. NEVER invent or hallucinate new characters (e.g., if source has "Rosabel", do NOT use "Elara", "Sarah", etc.)
+3. EVERY question must explicitly reference the sources (e.g., "Read Source A...", "Using Source A...")
+4. Line references must be accurate to the actual source content
+5. DO NOT generate "fresh wording" for content - use the SOURCE TEXT directly
+
+If the source mentions "Rosabel in a hat shop", questions MUST be about "Rosabel" and the "hat shop" - NOT about invented alternatives.
+
+Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.`
+      : 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.';
+    
+    console.log('Using resource pack mode:', hasResourcePack);
+    
     let aiResponse;
     try {
       aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -1095,11 +1114,11 @@ Return a JSON object with this structure:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.' },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: extractionPrompt }
           ],
           max_tokens: 32000,
-          temperature: 0.3,
+          temperature: hasResourcePack ? 0.1 : 0.3, // Lower temperature for stricter adherence
           response_format: { type: "json_object" }
         }),
         signal: controller.signal
