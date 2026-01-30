@@ -106,7 +106,13 @@ serve(async (req) => {
     };
 
     const typesToGenerate = resourceTypes || template.types;
-    const count = Math.min(resourceCount || 3, 5);
+    // Enforce: minimum 1 resource, maximum 5 resources (server-side safety)
+    const requestedCountRaw =
+      typeof resourceCount === 'number'
+        ? resourceCount
+        : parseInt(String(resourceCount ?? ''), 10);
+    const requestedCount = Number.isFinite(requestedCountRaw) ? requestedCountRaw : 3;
+    const count = Math.max(1, Math.min(requestedCount, 5));
 
     // Determine complexity based on educational tier
     const tierLower = (educationalTier || '').toLowerCase();
@@ -237,7 +243,26 @@ Generate exactly ${count} high-quality resources that could realistically appear
     }
 
     const parsedResult = JSON.parse(jsonMatch[0]);
-    const resources = parsedResult.resources || [];
+    let resources = parsedResult.resources || [];
+
+    // Hard guarantee: at least 1 resource exists even if the model returns an empty list.
+    if (!Array.isArray(resources) || resources.length === 0) {
+      resources = [
+        {
+          source_label: 'Source A',
+          resource_type: (typesToGenerate?.[0] || 'text_extract'),
+          content_text: `Resource based on topic: ${topic}`,
+          content_json: null,
+          word_count: null,
+          attribution: null,
+          difficulty_contribution: 'moderate',
+          display_order: 0,
+        },
+      ];
+    }
+
+    // Cap to the requested count (safety)
+    resources = resources.slice(0, count);
 
     console.log(`Generated ${resources.length} resources`);
 
