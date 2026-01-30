@@ -429,7 +429,7 @@ const TakePracticeQuiz = () => {
             title: packData.title,
             subject_id: packData.subject_id,
             pack_type: packData.pack_type as 'uploaded' | 'ai_generated' | 'extracted',
-            status: packData.status as 'draft' | 'processing' | 'ready' | 'failed',
+            status: packData.status as 'pending' | 'processing' | 'ready' | 'failed',
             items: (itemsData || []).map(item => ({
               id: item.id,
               source_label: item.source_label,
