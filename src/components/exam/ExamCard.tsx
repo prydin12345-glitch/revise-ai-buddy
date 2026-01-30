@@ -100,81 +100,81 @@ export const ExamCard = ({
   };
 
   return (
-    <Card 
-      className={`group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col ${
-        isArchived ? 'pointer-events-none opacity-60' : ''
-      }`}
-      style={{
-        borderLeft: `3px solid ${subjectColor}`,
-      }}
-    >
-      <CardContent className="p-0 flex flex-col flex-1">
-        {/* ========== HEADER SECTION ========== */}
-        <div className="p-6 pb-5 flex-1">
-          {/* Title Row - Title first, subject second */}
-          <div className="flex-1 min-w-0 mb-5">
-            {/* Main Title (largest) */}
-            <h3 className="font-semibold text-lg leading-tight text-foreground mb-1.5">
-              {exam.title}
-            </h3>
-            {/* Subject (smaller, secondary) */}
-            <p className="text-sm text-muted-foreground">{exam.subject_id}</p>
-            
-            {/* Progress indicator - wider bar with percentage on same row */}
-            <div className="flex items-center gap-3 mt-4">
-              <Progress 
-                value={progress.percentComplete} 
-                className="h-1.5 flex-1 bg-muted"
-                indicatorColor={progress.examState === 'completed' ? 'hsl(var(--success))' : subjectColor}
-              />
-              <span className="text-xs text-muted-foreground font-medium shrink-0">
-                {formatProgress(progress.percentComplete)}
-              </span>
+    <TooltipProvider delayDuration={200}>
+      <Card 
+        className={`group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col ${
+          isArchived ? 'opacity-60' : ''
+        }`}
+        style={{
+          borderLeft: `3px solid ${subjectColor}`,
+        }}
+      >
+        <CardContent className="p-0 flex flex-col flex-1">
+          {/* ========== HEADER SECTION ========== */}
+          <div className="p-6 pb-5 flex-1">
+            {/* Title Row - Title first, subject second */}
+            <div className="flex-1 min-w-0 mb-5">
+              {/* Main Title (largest) */}
+              <h3 className="font-semibold text-lg leading-tight text-foreground mb-1.5">
+                {exam.title}
+              </h3>
+              {/* Subject (smaller, secondary) */}
+              <p className="text-sm text-muted-foreground">{exam.subject_id}</p>
+              
+              {/* Progress indicator - wider bar with percentage on same row */}
+              <div className="flex items-center gap-3 mt-4">
+                <Progress 
+                  value={progress.percentComplete} 
+                  className="h-1.5 flex-1 bg-muted"
+                  indicatorColor={progress.examState === 'completed' ? 'hsl(var(--success))' : subjectColor}
+                />
+                <span className="text-xs text-muted-foreground font-medium shrink-0">
+                  {formatProgress(progress.percentComplete)}
+                </span>
+              </div>
+            </div>
+
+            {/* ========== METADATA SECTION ========== */}
+            <div className="space-y-3 text-sm text-muted-foreground mt-5">
+              {/* Topic */}
+              {exam.exam_topics.length > 0 && (
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{exam.exam_topics[0].topic_name}</span>
+                </div>
+              )}
+              
+              {/* Created date */}
+              <div className="flex items-center gap-2.5">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>Created: {formatDate(exam.created_at)}</span>
+              </div>
+
+              {/* Last accessed */}
+              {progress.lastAccessed && progress.lastAccessed !== 'Never' && (
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Last accessed: {progress.lastAccessed}</span>
+                </div>
+              )}
+
+              {/* Time remaining (if timer active) */}
+              {progress.timeRemaining && progress.timeRemaining !== 'No timer' && progress.timeRemaining !== 'Completed' && (
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Time remaining: {progress.timeRemaining}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ========== METADATA SECTION ========== */}
-          <div className="space-y-3 text-sm text-muted-foreground mt-5">
-            {/* Topic */}
-            {exam.exam_topics.length > 0 && (
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{exam.exam_topics[0].topic_name}</span>
-              </div>
-            )}
-            
-            {/* Created date */}
-            <div className="flex items-center gap-2.5">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>Created: {formatDate(exam.created_at)}</span>
-            </div>
+          {/* ========== DIVIDER ========== */}
+          <Separator />
 
-            {/* Last accessed */}
-            {progress.lastAccessed && progress.lastAccessed !== 'Never' && (
-              <div className="flex items-center gap-2.5">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>Last accessed: {progress.lastAccessed}</span>
-              </div>
-            )}
-
-            {/* Time remaining (if timer active) */}
-            {progress.timeRemaining && progress.timeRemaining !== 'No timer' && progress.timeRemaining !== 'Completed' && (
-              <div className="flex items-center gap-2.5">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>Time remaining: {progress.timeRemaining}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ========== DIVIDER ========== */}
-        <Separator />
-
-        {/* ========== ACTION ROW ========== */}
-        <div className="px-6 py-4 flex items-center justify-between">
-          {/* Left: Secondary Actions (icon-only, subtle) */}
-          <div className="flex items-center gap-1">
-            <TooltipProvider>
+          {/* ========== ACTION ROW ========== */}
+          <div className="px-6 py-4 flex items-center justify-between">
+            {/* Left: Secondary Actions (icon-only, subtle) */}
+            <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -182,6 +182,7 @@ export const ExamCard = ({
                     variant="ghost" 
                     onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    disabled={isArchived}
                   >
                     <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                   </Button>
@@ -190,10 +191,8 @@ export const ExamCard = ({
                   <p>{isFavourite ? 'Remove from favourites' : 'Add to favourites'}</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
 
-            {onDownloadPDF && (
-              <TooltipProvider>
+              {onDownloadPDF && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
@@ -201,6 +200,7 @@ export const ExamCard = ({
                       variant="ghost" 
                       onClick={(e) => { e.stopPropagation(); onDownloadPDF(exam); }}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      disabled={isArchived}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -209,10 +209,8 @@ export const ExamCard = ({
                     <p>Download PDF</p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
-            )}
+              )}
 
-            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -220,6 +218,7 @@ export const ExamCard = ({
                     variant="ghost" 
                     onClick={(e) => { e.stopPropagation(); onEdit(exam); }}
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    disabled={isArchived}
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
@@ -228,9 +227,7 @@ export const ExamCard = ({
                   <p>Edit exam</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
 
-            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -238,6 +235,7 @@ export const ExamCard = ({
                     variant="ghost" 
                     onClick={(e) => { e.stopPropagation(); onDelete(exam); }}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    disabled={isArchived}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -246,12 +244,10 @@ export const ExamCard = ({
                   <p>Delete exam</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          </div>
+            </div>
 
-          {/* Right: Primary Action - Circular Icon Button */}
-          {exam.status === 'published' && (
-            <TooltipProvider>
+            {/* Right: Primary Action - Circular Icon Button */}
+            {exam.status === 'published' && !isArchived && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -270,10 +266,10 @@ export const ExamCard = ({
                   <p>{buttonConfig.label}</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 };
