@@ -78,6 +78,22 @@ serve(async (req) => {
 
     console.log(`Publishing ${drafts.length} extracted questions`);
 
+    // Valid question types for exam_questions table
+    const validQuestionTypes = ['mcq', 'short_answer', 'long_answer', 'fill_blank', 'true_false', 'matching', 'ordering'];
+    
+    // Map invalid types to valid ones
+    const mapQuestionType = (type: string): string => {
+      if (validQuestionTypes.includes(type)) return type;
+      // Map common alternative types
+      if (type === 'essay' || type === 'extended_response') return 'long_answer';
+      if (type === 'multiple_choice') return 'mcq';
+      if (type === 'short' || type === 'brief') return 'short_answer';
+      if (type === 'fill_in_blank' || type === 'fill-blank') return 'fill_blank';
+      // Default fallback
+      console.warn(`Unknown question type "${type}" - mapping to short_answer`);
+      return 'short_answer';
+    };
+
     // Validate MCQ questions have correct_answer set
     const mcqsWithoutAnswer = drafts.filter((d: any) => 
       d.question_type === 'mcq' && (!d.correct_answer || d.correct_answer.trim() === '')
@@ -89,14 +105,15 @@ serve(async (req) => {
 
     // Insert questions from drafts into exam_questions table
     const questionInserts = drafts.map((draft: any) => {
-      const correctAnswer = draft.question_type === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
+      const mappedType = mapQuestionType(draft.question_type);
+      const correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
         ? 'A' // Default to A if missing for MCQs
         : draft.correct_answer;
       
       return {
         exam_id: draft.exam_id,
         question_number: draft.question_number,
-        question_type: draft.question_type,
+        question_type: mappedType,
         question_text: draft.question_text,
         marks: draft.marks,
         options: draft.options,
