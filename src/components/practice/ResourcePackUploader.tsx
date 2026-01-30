@@ -75,6 +75,14 @@ export const ResourcePackUploader = ({
     let attempt = 0;
     let lastError: Error | null = null;
 
+    // Validate subjectId before upload
+    if (!subjectId || subjectId.trim() === '') {
+      toast.error("Please select a subject first");
+      setFile(null);
+      setUploading(false);
+      return;
+    }
+
     while (attempt < maxRetries) {
       attempt++;
       
@@ -90,6 +98,7 @@ export const ResourcePackUploader = ({
         // Upload file to storage with retry
         const filePath = `${session.user.id}/resources/${crypto.randomUUID()}-${selectedFile.name}`;
         console.log(`Upload attempt ${attempt}/${maxRetries} for: ${filePath}`);
+        console.log(`Resource pack details - subject: ${subjectId}, tier: ${educationalTier}, board: ${examBoard}`);
         
         const { error: uploadError } = await supabase.storage
           .from("exam-files")
@@ -115,26 +124,35 @@ export const ResourcePackUploader = ({
           throw lastError;
         }
 
+        console.log(`File uploaded successfully to: ${filePath}`);
+
         // Create a pending resource pack record - extraction will happen at generation time
+        const insertPayload = {
+          user_id: session.user.id,
+          title: selectedFile.name.replace('.pdf', ''),
+          subject_id: subjectId,
+          educational_tier: educationalTier || null,
+          exam_board: examBoard || null,
+          pack_type: 'uploaded',
+          source_file_url: filePath,
+          status: 'pending',
+        };
+        
+        console.log('Creating resource pack with payload:', insertPayload);
+        
         const { data: packData, error: packError } = await supabase
           .from('resource_packs')
-          .insert({
-            user_id: session.user.id,
-            title: selectedFile.name.replace('.pdf', ''),
-            subject_id: subjectId,
-            educational_tier: educationalTier,
-            exam_board: examBoard,
-            pack_type: 'uploaded',
-            source_file_url: filePath,
-            status: 'pending', // Will be processed during generation
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
         if (packError) {
           console.error("Failed to create resource pack record:", packError);
-          throw new Error("Failed to save resource pack");
+          console.error("Pack error details:", JSON.stringify(packError, null, 2));
+          throw new Error(packError.message || "Failed to save resource pack");
         }
+        
+        console.log('Resource pack created successfully:', packData.id);
 
         // Return pack with pending status - extraction happens at generation time
         const pack: ResourcePack = {
