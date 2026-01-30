@@ -93,6 +93,33 @@ const MyExams = () => {
   });
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
+  // Safety cleanup: sometimes a modal (e.g. Quit dialog) can leave the page in a
+  // non-interactive state by setting pointer-events: none on a top-level element.
+  // Ensure My Exams is always clickable when it mounts.
+  const restoreGlobalPointerEvents = useCallback(() => {
+    if (typeof document === 'undefined') return;
+
+    const candidates: Array<HTMLElement | null> = [
+      document.body,
+      document.documentElement,
+      document.getElementById('root'),
+    ];
+
+    for (const el of candidates) {
+      if (!el) continue;
+      if (el.style.pointerEvents === 'none') {
+        el.style.pointerEvents = '';
+      }
+    }
+
+    // Also clear any stale inline pointer-events left on other containers.
+    // (We avoid touching class-based pointer-events like `disabled:pointer-events-none`.)
+    const inlineStyled = document.querySelectorAll<HTMLElement>('[style*="pointer-events"]');
+    inlineStyled.forEach((el) => {
+      if (el.style.pointerEvents === 'none') el.style.pointerEvents = '';
+    });
+  }, []);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -102,6 +129,7 @@ const MyExams = () => {
   }, [searchQuery]);
 
   useEffect(() => {
+    restoreGlobalPointerEvents();
     loadExams();
 
     const channel = supabase
