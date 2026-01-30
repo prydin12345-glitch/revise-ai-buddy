@@ -13,6 +13,7 @@ import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronR
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
+import { ResourceViewerModal } from "@/components/exam/ResourceViewerModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
@@ -142,6 +143,7 @@ const ExamInProgress = () => {
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
   const [resourcesExpanded, setResourcesExpanded] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
@@ -1273,29 +1275,30 @@ const ExamInProgress = () => {
                 <CollapsibleContent className="mt-3">
                   <ScrollArea className="max-h-64">
                     <div className="space-y-2 pr-2">
-                      {resourcePack.items.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-xs">{item.source_label}</span>
-                            <Badge variant="outline" className="text-[10px] capitalize px-1">
-                              {item.resource_type.replace('_', ' ')}
-                            </Badge>
+                        {resourcePack.items.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setSelectedResource(item)}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-xs">{item.source_label}</span>
+                              <Badge variant="outline" className="text-[10px] capitalize px-1">
+                                {item.resource_type.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            {item.content_text && (
+                              <p className="text-[11px] text-muted-foreground line-clamp-2">
+                                {item.content_text.substring(0, 100)}...
+                              </p>
+                            )}
+                            {item.word_count && (
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                {item.word_count} words
+                              </p>
+                            )}
                           </div>
-                          {item.content_text && (
-                            <p className="text-[11px] text-muted-foreground line-clamp-2">
-                              {item.content_text.substring(0, 100)}...
-                            </p>
-                          )}
-                          {item.word_count && (
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              {item.word_count} words
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </ScrollArea>
                 </CollapsibleContent>
@@ -2046,6 +2049,14 @@ const ExamInProgress = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Resource Viewer Modal */}
+      <ResourceViewerModal
+        open={selectedResource !== null}
+        onClose={() => setSelectedResource(null)}
+        item={selectedResource}
+        subjectColor={subjectColor}
+      />
     </div>
   );
 };
