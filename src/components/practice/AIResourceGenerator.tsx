@@ -46,6 +46,9 @@ export const AIResourceGenerator = ({
   const [generating, setGenerating] = useState(false);
 
   const suggestedResourceTypes = SUBJECT_RESOURCE_TYPES[subjectId.toLowerCase()] || ['text_extract', 'data_table'];
+  
+  // Minimum of 1 resource, max of 5
+  const minResourceCount = 1;
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -121,6 +124,7 @@ export const AIResourceGenerator = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1">1 resource</SelectItem>
               <SelectItem value="2">2 resources</SelectItem>
               <SelectItem value="3">3 resources</SelectItem>
               <SelectItem value="4">4 resources</SelectItem>

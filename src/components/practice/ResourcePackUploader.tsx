@@ -71,69 +71,114 @@ export const ResourcePackUploader = ({
   const handleUpload = async (selectedFile: File) => {
     setUploading(true);
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        toast.error("Please log in to upload resources");
-        setFile(null);
-        return;
-      }
+    const maxRetries = 3;
+    let attempt = 0;
+    let lastError: Error | null = null;
 
-      // Upload file to storage
-      const filePath = `${session.user.id}/resources/${crypto.randomUUID()}-${selectedFile.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("exam-files")
-        .upload(filePath, selectedFile);
+    while (attempt < maxRetries) {
+      attempt++;
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          toast.error("Please log in to upload resources");
+          setFile(null);
+          setUploading(false);
+          return;
+        }
 
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        throw new Error(uploadError.message || "Failed to upload file. Please check your connection and try again.");
-      }
+        // Upload file to storage with retry
+        const filePath = `${session.user.id}/resources/${crypto.randomUUID()}-${selectedFile.name}`;
+        console.log(`Upload attempt ${attempt}/${maxRetries} for: ${filePath}`);
+        
+        const { error: uploadError } = await supabase.storage
+          .from("exam-files")
+          .upload(filePath, selectedFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-      // Create a pending resource pack record - extraction will happen at generation time
-      const { data: packData, error: packError } = await supabase
-        .from('resource_packs')
-        .insert({
-          user_id: session.user.id,
-          title: selectedFile.name.replace('.pdf', ''),
+        if (uploadError) {
+          console.error(`Storage upload error (attempt ${attempt}):`, uploadError);
+          lastError = new Error(uploadError.message || "Failed to upload file");
+          
+          // If it's a network error, retry
+          if (uploadError.message?.toLowerCase().includes("load failed") || 
+              uploadError.message?.toLowerCase().includes("network") ||
+              uploadError.message?.toLowerCase().includes("fetch")) {
+            if (attempt < maxRetries) {
+              console.log(`Retrying upload in ${attempt * 1000}ms...`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+              continue;
+            }
+          }
+          throw lastError;
+        }
+
+        // Create a pending resource pack record - extraction will happen at generation time
+        const { data: packData, error: packError } = await supabase
+          .from('resource_packs')
+          .insert({
+            user_id: session.user.id,
+            title: selectedFile.name.replace('.pdf', ''),
+            subject_id: subjectId,
+            educational_tier: educationalTier,
+            exam_board: examBoard,
+            pack_type: 'uploaded',
+            source_file_url: filePath,
+            status: 'pending', // Will be processed during generation
+          })
+          .select()
+          .single();
+
+        if (packError) {
+          console.error("Failed to create resource pack record:", packError);
+          throw new Error("Failed to save resource pack");
+        }
+
+        // Return pack with pending status - extraction happens at generation time
+        const pack: ResourcePack = {
+          id: packData.id,
+          title: packData.title,
           subject_id: subjectId,
-          educational_tier: educationalTier,
-          exam_board: examBoard,
           pack_type: 'uploaded',
+          status: 'pending',
           source_file_url: filePath,
-          status: 'pending', // Will be processed during generation
-        })
-        .select()
-        .single();
+          items: [], // Will be populated during generation
+        };
 
-      if (packError) {
-        console.error("Failed to create resource pack record:", packError);
-        throw new Error("Failed to save resource pack");
+        onPackReady(pack);
+        toast.success("Insert uploaded - will be processed during generation");
+        setUploading(false);
+        return; // Success - exit the function
+        
+      } catch (error: any) {
+        console.error(`Error uploading resource pack (attempt ${attempt}):`, error);
+        lastError = error;
+        
+        // Check if we should retry
+        const isNetworkError = error.message?.toLowerCase().includes("load failed") || 
+                              error.message?.toLowerCase().includes("network") ||
+                              error.message?.toLowerCase().includes("fetch");
+        
+        if (isNetworkError && attempt < maxRetries) {
+          console.log(`Retrying upload in ${attempt * 1000}ms...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+          continue;
+        }
+        
+        // Final failure
+        break;
       }
-
-      // Return pack with pending status - extraction happens at generation time
-      const pack: ResourcePack = {
-        id: packData.id,
-        title: packData.title,
-        subject_id: subjectId,
-        pack_type: 'uploaded',
-        status: 'pending',
-        source_file_url: filePath,
-        items: [], // Will be populated during generation
-      };
-
-      onPackReady(pack);
-      toast.success("Insert uploaded - will be processed during generation");
-    } catch (error: any) {
-      console.error("Error uploading resource pack:", error);
-      const message = error.message?.includes("Load failed") 
-        ? "Network error. Please check your connection and try again."
-        : error.message || "Failed to upload resource pack";
-      toast.error(message);
-      setFile(null);
-    } finally {
-      setUploading(false);
     }
+    
+    // All retries exhausted
+    const message = lastError?.message?.toLowerCase().includes("load failed") 
+      ? "Network error after multiple attempts. Please check your internet connection and try again."
+      : lastError?.message || "Failed to upload resource pack";
+    toast.error(message);
+    setFile(null);
+    setUploading(false);
   };
 
   const handleClear = () => {
