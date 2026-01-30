@@ -381,49 +381,66 @@ Extract all resources found. If the document appears to be a question paper rath
             } else if (resourceItems && resourceItems.length > 0) {
               hasResourcePack = true;
               
-              // Build resource context for AI prompt
+              // Extract key entities (character names, places, etc.) from resources for validation
+              const allResourceText = resourceItems.map((r: any) => r.content_text || '').join(' ');
+              const properNouns = allResourceText.match(/\b[A-Z][a-z]+\b/g) || [];
+              const uniqueNames = [...new Set(properNouns)].slice(0, 20).join(', ');
+              
+              // Build resource context for AI prompt with STRICT enforcement
               resourcePackContext = `
-=== RESOURCE PACK (SHARED INSERT) ===
-CRITICAL: ALL questions MUST reference the following shared resources.
-DO NOT invent new content. Use ONLY these sources.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    ⚠️  RESOURCE-BASED EXAM - STRICT MODE  ⚠️                   ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  This exam MUST be based EXCLUSIVELY on the following source material.       ║
+║  DO NOT invent characters, scenarios, or content not present in the sources. ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🔒 ABSOLUTE REQUIREMENTS:
+1. ALL questions MUST reference the sources below (e.g., "Read Source A...", "Using Source A...")
+2. Character names, settings, events MUST come from the source text ONLY
+3. DO NOT invent: new characters, alternative scenarios, unrelated content
+4. If Source A mentions "Rosabel", questions must ask about "Rosabel" - NOT "Elara", "Sarah", etc.
+5. Line references and quotations MUST match the actual source content
+
+📚 KEY ENTITIES FROM SOURCES (use these, not invented ones):
+${uniqueNames}
 
 `;
               for (const item of resourceItems) {
-                resourcePackContext += `--- ${item.source_label} ---\n`;
-                resourcePackContext += `Type: ${item.resource_type}\n`;
+                resourcePackContext += `\n━━━━━━━━━━ ${item.source_label} ━━━━━━━━━━\n`;
+                resourcePackContext += `📂 Type: ${item.resource_type}\n`;
                 if (item.attribution) {
-                  resourcePackContext += `Attribution: ${item.attribution}\n`;
+                  resourcePackContext += `📖 Attribution: ${item.attribution}\n`;
                 }
                 if (item.content_text) {
-                  resourcePackContext += `Content:\n${item.content_text}\n`;
+                  resourcePackContext += `\n📝 FULL CONTENT (use this text for all questions):\n"""\n${item.content_text}\n"""\n`;
                 }
                 if (item.content_json) {
-                  resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
+                  resourcePackContext += `📊 Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
                 }
-                resourcePackContext += `\n`;
               }
               
-              resourcePackContext += `=== END RESOURCE PACK ===
+              resourcePackContext += `
+━━━━━━━━━━ END OF SOURCES ━━━━━━━━━━
 
-MANDATORY RULES FOR RESOURCE-BASED QUESTIONS:
-1. EVERY question MUST explicitly reference at least one source (e.g., "Using Source A...", "Refer to Source B...")
-2. DO NOT invent any content that is not in the resources above
-3. Questions should require students to analyze, compare, or evaluate the provided sources
-4. Appropriate question types based on sources:
-   - Text extracts: analysis questions, quote-based questions
-   - Data tables: calculation questions, interpretation questions
-   - Case studies: evaluation questions, application questions
-   - Multiple sources: comparison questions ("Compare Sources A and B...")
-5. Store the source labels used in the resource_references field of each question
+⛔ VALIDATION CHECKLIST (apply to EVERY question before output):
+□ Does the question explicitly reference a Source (A, B, etc.)?
+□ Are all character names from the actual source text?
+□ Are all settings/locations from the actual source text?
+□ Are line number references accurate to the source?
+□ Would a student be able to answer using ONLY the provided sources?
+
+If ANY checkbox fails, REWRITE the question to comply.
 
 EXAMPLE QUESTION FORMATS:
-- "Using Source A, explain..."
-- "With reference to Source B, calculate..."
+- "Read Source A from lines 1-5. What four things do we learn about [CHARACTER FROM SOURCE]?"
+- "Using Source A, explain how the writer uses language to..."
 - "Compare the evidence in Sources A and B..."
-- "To what extent does Source C support the view that..."
+- "To what extent does Source A support the view that..."
 - "Using data from Table 1, determine..."
 `;
-              console.log(`Loaded ${resourceItems.length} resource items for context`);
+              console.log(`Loaded ${resourceItems.length} resource items for context (strict mode)`);
             }
           }
         }

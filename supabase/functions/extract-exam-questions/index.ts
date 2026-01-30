@@ -300,17 +300,51 @@ Return ONLY valid JSON in this format:
         if (itemsError) {
           console.warn('Failed to fetch resource items:', itemsError);
         } else if (resourceItems && resourceItems.length > 0) {
-          resourcePackContext = `\n\n=== RESOURCE PACK (INSERT) ===\nCRITICAL: If generating questions based on an insert, you MUST reference at least one of these sources.\nDo not invent sources; use ONLY the content below.\n\n`;
+          // Extract key entities (character names, places, etc.) from resources for validation
+          const allResourceText = resourceItems.map((r: any) => r.content_text || '').join(' ');
+          const properNouns = allResourceText.match(/\b[A-Z][a-z]+\b/g) || [];
+          const uniqueNames = [...new Set(properNouns)].slice(0, 20).join(', ');
+          
+          resourcePackContext = `
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    ⚠️  RESOURCE-BASED EXAM - STRICT MODE  ⚠️                   ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  This exam MUST be based EXCLUSIVELY on the following source material.       ║
+║  DO NOT invent characters, scenarios, or content not present in the sources. ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🔒 ABSOLUTE REQUIREMENTS:
+1. ALL questions MUST reference the sources below (e.g., "Read Source A...", "Using Source A...")
+2. Character names, settings, events MUST come from the source text ONLY
+3. DO NOT invent: new characters, alternative scenarios, unrelated content
+4. If Source A mentions "Rosabel", questions must ask about "Rosabel" - NOT "Elara", "Sarah", etc.
+5. Line references and quotations MUST match the actual source content
+
+📚 KEY ENTITIES FROM SOURCES (use these, not invented ones):
+${uniqueNames}
+
+`;
           for (const item of resourceItems) {
-            resourcePackContext += `--- ${item.source_label} ---\n`;
-            resourcePackContext += `Type: ${item.resource_type}\n`;
-            if (item.attribution) resourcePackContext += `Attribution: ${item.attribution}\n`;
-            if (item.content_text) resourcePackContext += `Content:\n${item.content_text}\n`;
-            if (item.content_json) resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
-            resourcePackContext += `\n`;
+            resourcePackContext += `\n━━━━━━━━━━ ${item.source_label} ━━━━━━━━━━\n`;
+            resourcePackContext += `📂 Type: ${item.resource_type}\n`;
+            if (item.attribution) resourcePackContext += `📖 Attribution: ${item.attribution}\n`;
+            if (item.content_text) resourcePackContext += `\n📝 FULL CONTENT (use this text for all questions):\n"""\n${item.content_text}\n"""\n`;
+            if (item.content_json) resourcePackContext += `📊 Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
           }
-          resourcePackContext += `=== END RESOURCE PACK ===\n\nMANDATORY RULES:\n1) Every question MUST explicitly reference at least one Source/Table/Figure from the insert (e.g., \"Using Source A...\").\n2) Do not invent content beyond the insert.\n`;
-          console.log(`Loaded ${resourceItems.length} resource items for exam context`);
+          resourcePackContext += `
+━━━━━━━━━━ END OF SOURCES ━━━━━━━━━━
+
+⛔ VALIDATION CHECKLIST (apply to EVERY question before output):
+□ Does the question explicitly reference a Source (A, B, etc.)?
+□ Are all character names from the actual source text?
+□ Are all settings/locations from the actual source text?
+□ Are line number references accurate to the source?
+□ Would a student be able to answer using ONLY the provided sources?
+
+If ANY checkbox fails, REWRITE the question to comply.
+`;
+          console.log(`Loaded ${resourceItems.length} resource items for exam context (strict mode)`);
         }
       }
     }
