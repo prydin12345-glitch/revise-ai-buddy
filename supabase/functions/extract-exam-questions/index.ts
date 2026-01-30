@@ -94,11 +94,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const pdfText = await extractPdfText(exam.file_url, supabase);
   const useFallbackMode = pdfText.length < 100;
 
-  // Build prompt and call AI
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, useOriginalStructure, useFallbackMode);
+  // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode);
   const systemPrompt = hasResourcePack
-    ? 'You are an expert exam generator with STRICT source adherence. ONLY use characters/content from provided sources. Return valid JSON.'
-    : 'You are an expert exam generator. Create original questions. Return valid JSON.';
+    ? 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
+    : 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
 
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
@@ -131,16 +131,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     topic_tag: q.topic_tag || null,
     difficulty_level: q.difficulty_level || null,
     extraction_confidence: q.extraction_confidence || 0.9,
-    generation_status: useFallbackMode ? 'ai_generated' : 'extracted',
+    generation_status: 'ai_generated', // Always mark as AI-generated since we're creating new questions
   }));
 
   const { data: inserted, error: insertError } = await supabase.from('exam_question_drafts').insert(drafts).select();
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
-  // Regenerate non-image questions if needed (only when NOT resource-based)
-  if (useOriginalStructure && !hasResourcePack) {
-    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey);
-  }
+  // ALWAYS regenerate questions with new wording (regardless of resource pack)
+  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext);
 
   // Save topics
   if (parsedData.topics?.length) {
@@ -245,20 +243,27 @@ async function extractPdfText(fileUrl: string, supabase: any): Promise<string> {
 
 function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
+  
+  // ALWAYS generate new questions - never copy verbatim
   const mode = fallback 
     ? `Generate typical ${board.toUpperCase()} ${level} ${exam.subject_id} questions (no PDF text available).`
-    : useOriginal ? 'PRESERVE structure but create NEW wording.' : 'Generate NEW questions from content.';
+    : `CRITICAL: Generate COMPLETELY NEW and ORIGINAL questions inspired by this exam paper. 
+DO NOT copy questions from the PDF - create fresh questions that test similar skills but with:
+- Different wording and phrasing
+- Different specific references or examples
+- Fresh scenarios or contexts
+The uploaded PDF is for INSPIRATION ONLY - your questions must be unique.`;
   
   return `${resourceCtx}
-Extract/generate questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
+Generate NEW questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
 ${specList}${mode}
 
 Use LaTeX for math: "$x^2$", "$\\frac{1}{2}$". NEVER use HTML tags.
 
-PDF CONTENT:
+REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer","question_text":"...","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer","question_text":"YOUR COMPLETELY NEW QUESTION HERE","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
@@ -284,9 +289,36 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   catch { return { questions: [], topics: [] }; }
 }
 
-async function regenerateQuestions(questions: any[], supabase: any, apiKey: string) {
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '') {
   for (const q of questions.slice(0, 20)) { // Limit to prevent timeout
-    const prompt = `Create a NEW question testing same concept as: "${q.question_text}"\nTopic: ${q.topic_tag}, Marks: ${q.marks}\n\nReturn ONLY the new question text.`;
+    // Build a stronger prompt that emphasizes creating DIFFERENT questions
+    const basePrompt = hasResourcePack
+      ? `You have access to source material. Create a COMPLETELY NEW and DIFFERENT question that tests similar skills to this original question, but with ENTIRELY DIFFERENT wording, focus, and approach.
+
+ORIGINAL QUESTION (DO NOT COPY THIS - create something NEW):
+"${q.question_text}"
+
+REQUIREMENTS:
+- Test the same SKILL TYPE (e.g., analysis, inference, evaluation) but on DIFFERENT aspects
+- Use DIFFERENT line references or focus on DIFFERENT parts of the source
+- Create FRESH wording - no phrases from the original
+- Same mark allocation: ${q.marks} marks
+- Topic: ${q.topic_tag || 'general'}
+
+${resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}` : ''}
+
+Return ONLY the new question text, nothing else.`
+      : `Create a COMPLETELY NEW question that tests the same concept/skill as the original below, but with ENTIRELY DIFFERENT:
+- Wording and phrasing
+- Context or scenario
+- Specific details or examples
+
+ORIGINAL QUESTION (DO NOT COPY - use only as inspiration):
+"${q.question_text}"
+
+Topic: ${q.topic_tag || 'general'}, Marks: ${q.marks}
+
+Return ONLY the new question text.`;
     
     try {
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -294,20 +326,21 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.4,
+          messages: [{ role: 'user', content: basePrompt }],
+          temperature: 0.7, // Higher temperature for more creativity/variation
         }),
       });
       
       if (resp.ok) {
         const data = await resp.json();
-        const newText = data.choices?.[0]?.message?.content;
-        if (newText) {
+        const newText = data.choices?.[0]?.message?.content?.trim();
+        if (newText && newText.length > 10 && newText !== q.question_text) {
           await supabase.from('exam_question_drafts').update({
             original_question_text: q.question_text,
             question_text: newText,
             generation_status: 'ai_generated',
           }).eq('id', q.id);
+          console.log(`Regenerated Q${q.question_number} with new wording`);
         }
       }
     } catch (e) { console.error('Regen failed for', q.question_number, e); }
