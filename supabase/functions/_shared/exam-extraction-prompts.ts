@@ -67,6 +67,52 @@ export function normalizeQuestionNumber(qNum: string): string {
 // Get subject-specific generation instructions
 export function getSubjectSpecificInstructions(subject: string, examBoard: string, level: string): string {
   const subjectLower = (subject || '').toLowerCase();
+  const boardLower = (examBoard || '').toLowerCase();
+  
+  // AQA English Language specific rules
+  if ((subjectLower.includes('english') && subjectLower.includes('language')) || 
+      (boardLower === 'aqa' && subjectLower.includes('english'))) {
+    return `For ${examBoard.toUpperCase()} ${level} English Language - STRICT AQA SPECIFICATION ADHERENCE:
+
+QUESTION 1 (4 marks) - RETRIEVAL ONLY:
+- Command verb: "List" ONLY (never "examine", "analyze", "explore")
+- Task: "List four things from lines X-Y about [simple topic]"
+- Requires BASIC IDENTIFICATION of explicit facts - NO inference required
+- Example: "List four things from lines 1-10 about Rosabel's journey home"
+- This builds student confidence - keep it LITERAL and LOW-EFFORT
+
+QUESTION 2 (8 marks) - LANGUAGE ANALYSIS (AO2):
+- Focus on HOW the writer uses language to describe/create effect
+- MUST include standard AQA bullet points:
+  "You could include the writer's choice of:
+  • words and phrases
+  • language features and techniques
+  • sentence forms"
+- Focus on "effect" and "atmosphere", not abstract concepts like "social positions"
+
+QUESTION 3 (8 marks) - STRUCTURE ANALYSIS (AO3):
+- Focus PURELY on STRUCTURAL shifts - NOT narrative voice or perspective
+- Use phrases: "at the beginning", "then shifts to", "at the end"
+- Ask how writer structures text to "interest you as a reader"
+- Analyze the JOURNEY of the reader's focus through the text
+- NEVER mention "narrative perspective" or "internal states" - those are AO2/AO4
+
+QUESTION 4 (20 marks) - EVALUATION (AO4):
+- Use "student statement" format with quoted opinion
+- Statement must be BALANCED to allow partial agreement
+- Focus on human-interest themes (sympathy, admiration, concern)
+- Include three guidance bullet points after the statement
+- Avoid overly literary-critical statements like "passive observer"
+
+QUESTION 5 (40 marks) - CREATIVE WRITING (AO5/AO6):
+- PROSE FICTION ONLY - descriptions OR narratives
+- NEVER request scripts, screenplays, plays, or technical formats
+- Two options: "Write a description of..." OR "Write a story about/titled..."
+- Focus on descriptive language and narrative craft
+- Example: "Describe a busy market" or "Write a story titled 'The Discovery'"
+
+CRITICAL: Questions MUST scale in difficulty from 4 marks (simple retrieval) to 40 marks (extended creative writing). Follow the AQA "Assessment Journey".`;
+  }
   
   if (subjectLower.includes('biology')) {
     return `For ${examBoard.toUpperCase()} ${level} Biology: Write CONCISE questions. For MCQs keep options SHORT. Include structured questions and extended response. Topics: Cell biology, Genetics, Ecology, Physiology, Evolution. Marks: 1-2 (recall), 3-4 (application), 6+ (extended). Command words: State, Describe, Explain, Compare, Evaluate, Calculate.`;
