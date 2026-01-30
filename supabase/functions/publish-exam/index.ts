@@ -79,19 +79,37 @@ serve(async (req) => {
     console.log(`Publishing ${drafts.length} extracted questions`);
 
     // Valid question types for exam_questions table
-    const validQuestionTypes = ['mcq', 'short_answer', 'long_answer', 'fill_blank', 'true_false', 'matching', 'ordering'];
+    // (Enforced by DB check constraint: exam_questions_question_type_check)
+    const validQuestionTypes = ['mcq', 'short_answer', 'long_form'];
     
     // Map invalid types to valid ones
-    const mapQuestionType = (type: string): string => {
-      if (validQuestionTypes.includes(type)) return type;
-      // Map common alternative types
-      if (type === 'essay' || type === 'extended_response') return 'long_answer';
-      if (type === 'multiple_choice') return 'mcq';
-      if (type === 'short' || type === 'brief') return 'short_answer';
-      if (type === 'fill_in_blank' || type === 'fill-blank') return 'fill_blank';
-      // Default fallback
-      console.warn(`Unknown question type "${type}" - mapping to short_answer`);
-      return 'short_answer';
+    const mapQuestionType = (type: string, marks?: number): string => {
+      if (!type) return (marks && marks >= 6) ? 'long_form' : 'short_answer';
+      const normalized = String(type).trim().toLowerCase();
+
+      if (validQuestionTypes.includes(normalized)) return normalized;
+
+      // Map common alternative types to DB-accepted values
+      if (
+        normalized === 'essay' ||
+        normalized === 'extended_response' ||
+        normalized === 'extended-response' ||
+        normalized === 'long_answer' ||
+        normalized === 'long-answer' ||
+        normalized === 'long' ||
+        normalized === 'free_response' ||
+        normalized === 'free-response'
+      ) {
+        return 'long_form';
+      }
+
+      if (normalized === 'multiple_choice' || normalized === 'multiple-choice') return 'mcq';
+      if (normalized === 'short' || normalized === 'brief') return 'short_answer';
+
+      // Heuristic fallback: higher-mark questions are usually long-form
+      const fallback = (marks && marks >= 6) ? 'long_form' : 'short_answer';
+      console.warn(`Unknown question type "${type}" - mapping to ${fallback}`);
+      return fallback;
     };
 
     // Validate MCQ questions have correct_answer set
@@ -105,7 +123,7 @@ serve(async (req) => {
 
     // Insert questions from drafts into exam_questions table
     const questionInserts = drafts.map((draft: any) => {
-      const mappedType = mapQuestionType(draft.question_type);
+      const mappedType = mapQuestionType(draft.question_type, draft.marks);
       const correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
         ? 'A' // Default to A if missing for MCQs
         : draft.correct_answer;
