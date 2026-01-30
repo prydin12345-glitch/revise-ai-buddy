@@ -2,10 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 
-// Declare EdgeRuntime global for background task support
-declare const EdgeRuntime: {
-  waitUntil(promise: Promise<any>): void;
-};
+declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,78 +26,46 @@ serve(async (req) => {
     
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const { draftId } = await req.json();
     if (!draftId) {
       return new Response(JSON.stringify({ error: 'Draft ID required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     console.log('Extracting questions for exam:', draftId);
 
-    // Get exam details quickly
-    const { data: exam, error: examError } = await supabase
-      .from('exams')
-      .select('*, exam_format(*), exam_specifications(*)')
-      .eq('id', draftId)
-      .eq('user_id', user.id)
-      .single();
+    await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
 
-    if (examError || !exam) {
-      return new Response(JSON.stringify({ error: 'Exam not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Update status to extracting
-    await supabase
-      .from('exams')
-      .update({ extraction_status: 'extracting' })
-      .eq('id', draftId);
-
-    // Start processing in background using EdgeRuntime.waitUntil to keep it alive
     EdgeRuntime.waitUntil(
       processExamExtraction(draftId, user.id, supabase, lovableApiKey)
         .catch(async (error) => {
           console.error('Background processing error:', error);
-          await supabase
-            .from('exams')
-            .update({ 
-              extraction_status: 'failed',
-              extraction_error: error instanceof Error ? error.message : 'Unknown error'
-            })
-            .eq('id', draftId);
+          await supabase.from('exams').update({ 
+            extraction_status: 'failed',
+            extraction_error: error instanceof Error ? error.message : 'Unknown error'
+          }).eq('id', draftId);
         })
     );
 
-    // Return immediately
-    return new Response(JSON.stringify({ 
-      status: 'processing',
-      message: 'Question extraction started'
-    }), {
+    return new Response(JSON.stringify({ status: 'processing', message: 'Question extraction started' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in extract-exam-questions:', error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-// Main processing function
 async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string) {
   console.log('Starting background extraction for:', draftId);
 
-  // Get exam details with format and specifications
   const { data: exam, error: examError } = await supabase
     .from('exams')
     .select('*, exam_format(*), exam_specifications(*)')
@@ -108,1684 +73,251 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     .eq('user_id', userId)
     .single();
 
-  if (examError || !exam) {
-    throw new Error('Exam not found');
-  }
+  if (examError || !exam) throw new Error('Exam not found');
 
   const examBoard = exam.exam_board || 'generic';
   const qualificationLevel = exam.qualification_level || 'not specified';
   const specTopics = exam.exam_specifications || [];
-  
   const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
-  console.log('Use original structure:', useOriginalStructure);
-  console.log('Exam board:', examBoard, 'Level:', qualificationLevel);
 
-  // RESOURCE PACK SUPPORT (deferred extraction)
-  // If an insert/resource pack was linked at upload time, extract it (once) during generation
-  // so the AI can generate questions that reference it.
+  // Load resource pack if exists
   let resourcePackContext = '';
   let hasResourcePack = false;
-  try {
-    if (exam.resource_pack_id) {
-      console.log('Exam has resource pack:', exam.resource_pack_id);
-
-      const { data: packData, error: packError } = await supabase
-        .from('resource_packs')
-        .select('*')
-        .eq('id', exam.resource_pack_id)
-        .maybeSingle();
-
-      if (packError) {
-        console.warn('Failed to fetch resource pack:', packError);
-      } else if (packData) {
-        // Extract if pending
-        if (packData.status === 'pending' && packData.source_file_url) {
-          console.log('Resource pack pending; extracting now with exam context...');
-
-          await supabase
-            .from('resource_packs')
-            .update({ status: 'processing', processing_error: null })
-            .eq('id', exam.resource_pack_id);
-
-          const { data: packFile, error: packDownloadError } = await supabase.storage
-            .from('exam-files')
-            .download(packData.source_file_url);
-
-          if (packDownloadError || !packFile) {
-            console.warn('Failed to download resource pack file:', packDownloadError);
-          } else {
-            // Extract text from PDF (same technique as exam PDF parsing)
-            const packArrayBuffer = await packFile.arrayBuffer();
-            const packUint8Array = new Uint8Array(packArrayBuffer);
-            let packText = '';
-
-            try {
-              const pdf = await getDocument({ data: packUint8Array, useSystemFonts: true }).promise;
-              const pages: string[] = [];
-              for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
-                const content = await page.getTextContent();
-                pages.push(
-                  content.items
-                    .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
-                    .join(' ')
-                );
-              }
-              packText = pages.join('\n\n');
-              pdf.cleanup();
-            } catch (packPdfError) {
-              console.warn('Resource pack PDF parsing failed, using fallback:', packPdfError);
-              try {
-                const decoder = new TextDecoder('utf-8', { fatal: false });
-                const rawText = decoder.decode(packUint8Array);
-                const matches = rawText.match(/\(([^)]+)\)/g);
-                if (matches && matches.length > 10) {
-                  packText = matches.map((m) => m.slice(1, -1)).join(' ');
-                } else {
-                  packText = rawText;
-                }
-              } catch {
-                packText = '';
-              }
-            }
-
-            packText = packText.replace(/\s+/g, ' ').trim();
-            console.log('Resource pack text length:', packText.length);
-
-            let extractedResources: any[] = [];
-
-            try {
-              const extractionPrompt = `You are an expert at analyzing exam insert/resource booklets and extracting structured resources.
-
-CONTEXT:
-- Subject: ${exam.subject_id}
-- Educational Tier: ${qualificationLevel}
-- Exam Board: ${examBoard}
-
-PDF CONTENT:
-${packText.substring(0, 30000)}
-
-EXTRACTION RULES:
-1. Identify each distinct resource (Source A, Source B, Extract 1, Figure 1, Table 1, etc.)
-2. Preserve original source labels used in the document
-3. Choose an appropriate resource_type (text_extract, data_table, image, graph, article, transcript, case_study, etc.)
-4. Extract full text for text resources
-5. For tables, use JSON with headers and rows
-
-Return ONLY valid JSON in this format:
-{ "resources": [ { "source_label": "Source A", "resource_type": "text_extract", "content_text": "...", "content_json": null, "word_count": 300, "attribution": null, "difficulty_contribution": "moderate", "display_order": 0 } ] }`;
-
-              const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${lovableApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  model: 'google/gemini-2.5-flash',
-                  messages: [
-                    { role: 'system', content: 'You are an expert at analyzing exam documents. Return only valid JSON.' },
-                    { role: 'user', content: extractionPrompt },
-                  ],
-                  temperature: 0.2,
-                  response_format: { type: 'json_object' },
-                }),
-              });
-
-              if (!aiResponse.ok) {
-                const err = await aiResponse.text();
-                console.warn('Resource pack AI extraction failed:', aiResponse.status, err);
-              } else {
-                const envelopeText = await aiResponse.text();
-                const envelope = JSON.parse(envelopeText);
-                const content = envelope.choices?.[0]?.message?.content || '';
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
-                extractedResources = Array.isArray(parsed?.resources) ? parsed.resources : [];
-              }
-            } catch (aiErr) {
-              console.warn('Resource pack extraction parsing error:', aiErr);
-            }
-
-            // Guarantee minimum of 1 resource for uploaded inserts
-            if (!Array.isArray(extractedResources) || extractedResources.length === 0) {
-              extractedResources = [
-                {
-                  source_label: 'Source A',
-                  resource_type: 'text_extract',
-                  content_text: packText ? packText.substring(0, 8000) : 'Insert provided but no readable text could be extracted.',
-                  content_json: null,
-                  word_count: null,
-                  attribution: null,
-                  difficulty_contribution: 'moderate',
-                  display_order: 0,
-                },
-              ];
-            }
-
-            // Clear any previous items (safety) then insert
-            await supabase.from('resource_items').delete().eq('pack_id', exam.resource_pack_id);
-
-            for (let i = 0; i < extractedResources.length; i++) {
-              const r = extractedResources[i] || {};
-              const { error: itemError } = await supabase
-                .from('resource_items')
-                .insert({
-                  pack_id: exam.resource_pack_id,
-                  source_label: r.source_label || `Resource ${i + 1}`,
-                  resource_type: r.resource_type || 'text_extract',
-                  content_text: r.content_text || null,
-                  content_json: r.content_json || null,
-                  word_count: r.word_count || null,
-                  attribution: r.attribution || null,
-                  difficulty_contribution: r.difficulty_contribution || 'moderate',
-                  display_order: r.display_order ?? i,
-                });
-              if (itemError) console.warn('Failed inserting resource item:', itemError);
-            }
-
-            await supabase
-              .from('resource_packs')
-              .update({ status: 'ready' })
-              .eq('id', exam.resource_pack_id);
-          }
-        }
-
-        // Load items for prompt context
-        const { data: resourceItems, error: itemsError } = await supabase
-          .from('resource_items')
-          .select('*')
-          .eq('pack_id', exam.resource_pack_id)
-          .order('display_order');
-
-        if (itemsError) {
-          console.warn('Failed to fetch resource items:', itemsError);
-        } else if (resourceItems && resourceItems.length > 0) {
-          hasResourcePack = true;
-          // Extract key entities (character names, places, etc.) from resources for validation
-          const allResourceText = resourceItems.map((r: any) => r.content_text || '').join(' ');
-          const properNouns = allResourceText.match(/\b[A-Z][a-z]+\b/g) || [];
-          const uniqueNames = [...new Set(properNouns)].slice(0, 20).join(', ');
-          
-          resourcePackContext = `
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║             🚨 RESOURCE-BASED EXAM - MANDATORY SOURCE ADHERENCE 🚨            ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  This exam MUST use ONLY content from the INSERT/SOURCE MATERIAL below.      ║
-║  FAILURE TO USE EXACT SOURCE CONTENT = INVALID EXAM                          ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-🔒 ABSOLUTE REQUIREMENTS (VIOLATION = FAILURE):
-1. ALL questions MUST explicitly reference sources: "Read Source A...", "Using Source A...", "In Source A..."
-2. Character names MUST be from source: "${uniqueNames}" - USE THESE EXACT NAMES
-3. DO NOT INVENT: "Elara", "Silas", "Sarah" or any name NOT in the sources
-4. Settings, locations, events MUST come from source text verbatim
-5. Line references and quotations MUST match the actual source content exactly
-
-⚠️ VALIDATION BEFORE OUTPUT:
-For EVERY question, verify:
-□ Does it reference "Source A", "Source B", etc.?
-□ Are ALL character names from: ${uniqueNames}?
-□ Could a student answer using ONLY the provided sources?
-
-❌ INVALID EXAMPLE: "Elara walked through the market..." (when source has "Rosabel")
-✅ VALID EXAMPLE: "In Source A, Rosabel thinks about..." (uses actual source name)
-
-📚 MANDATORY SOURCE MATERIAL (use ONLY these):
-`;
-          for (const item of resourceItems) {
-            resourcePackContext += `\n━━━━━━━━━━ ${item.source_label} ━━━━━━━━━━\n`;
-            resourcePackContext += `📂 Type: ${item.resource_type}\n`;
-            if (item.attribution) resourcePackContext += `📖 Attribution: ${item.attribution}\n`;
-            if (item.content_text) resourcePackContext += `\n📝 FULL CONTENT (questions MUST reference this text):\n"""\n${item.content_text}\n"""\n`;
-            if (item.content_json) resourcePackContext += `📊 Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
-          }
-          resourcePackContext += `
-━━━━━━━━━━ END OF MANDATORY SOURCES ━━━━━━━━━━
-
-🚫 FINAL CHECK: If ANY question uses names/content NOT in sources above, REWRITE it.
-`;
-          console.log(`Loaded ${resourceItems.length} resource items for exam context (strict mode)`);
-        }
-      }
-    }
-  } catch (resourceErr) {
-    console.warn('Resource pack processing failed (continuing without insert context):', resourceErr);
+  
+  if (exam.resource_pack_id) {
+    const packResult = await loadResourcePack(exam.resource_pack_id, supabase, lovableApiKey, exam);
+    resourcePackContext = packResult.context;
+    hasResourcePack = packResult.hasResourcePack;
   }
 
-  // Update status to extracting (already done above)
-  // await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
+  // Download and extract PDF text
+  const pdfText = await extractPdfText(exam.file_url, supabase);
+  const useFallbackMode = pdfText.length < 100;
 
-  // Download PDF from storage
-  const { data: pdfData, error: downloadError } = await supabase.storage
-    .from('exam-files')
-    .download(exam.file_url);
+  // Build prompt and call AI
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, useOriginalStructure, useFallbackMode);
+  const systemPrompt = hasResourcePack
+    ? 'You are an expert exam generator with STRICT source adherence. ONLY use characters/content from provided sources. Return valid JSON.'
+    : 'You are an expert exam generator. Create original questions. Return valid JSON.';
 
-  if (downloadError || !pdfData) {
-    console.error('Download error:', downloadError);
-    await supabase
-      .from('exams')
-      .update({ 
-        extraction_status: 'failed',
-        extraction_error: 'Failed to download PDF'
-      })
-      .eq('id', draftId);
-    throw new Error('Failed to download PDF');
+  const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
+  
+  if (!parsedData.questions?.length) {
+    await supabase.from('exams').update({ extraction_status: 'failed', extraction_error: 'No questions found' }).eq('id', draftId);
+    throw new Error('No questions found');
   }
 
-    // Extract text and images from PDF using pdfjs-serverless
-    const arrayBuffer = await pdfData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    let pdfText = '';
-    const pageImages: Record<number, string> = {};
-    
-    try {
-      console.log('Attempting PDF parsing with pdfjs-serverless...');
-      const pdf = await getDocument({ data: uint8Array, useSystemFonts: true }).promise;
-      const pages: string[] = [];
-      
-      console.log(`PDF has ${pdf.numPages} pages`);
-      
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
-          .join(' ');
-        pages.push(pageText);
-        
-        // Extract page as image for diagram support
-        try {
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = {
-            width: viewport.width,
-            height: viewport.height,
-            context: null as any
-          };
-          
-          // Note: Full image extraction requires canvas API which isn't available in Deno
-          // This is a placeholder for future enhancement when canvas support is added
-          console.log(`Page ${pageNum} dimensions: ${viewport.width}x${viewport.height}`);
-        } catch (imgError) {
-          console.log(`Could not extract image from page ${pageNum}:`, imgError);
-        }
-      }
-      
-      pdfText = pages.join('\n\n');
-      pdf.cleanup();
-      
-      console.log(`Extracted ${pdfText.length} characters using pdfjs-serverless`);
-    } catch (pdfError) {
-      console.error('pdfjs-serverless parsing failed, trying fallback method:', pdfError);
-      
-      // Fallback: Basic text extraction
-      try {
-        const decoder = new TextDecoder('utf-8', { fatal: false });
-        const rawText = decoder.decode(uint8Array);
-        
-        const textMatches = rawText.match(/\(([^)]+)\)/g);
-        if (textMatches && textMatches.length > 10) {
-          pdfText = textMatches
-            .map(match => match.slice(1, -1))
-            .join(' ')
-            .replace(/\\n/g, '\n')
-            .replace(/\\r/g, '\n')
-            .replace(/\\t/g, ' ')
-            .replace(/\\(.)/g, '$1');
-        }
-        
-        if (!pdfText || pdfText.length < 100) {
-          const cleanedText = rawText
-            .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .split(/[\/\[\]<>{}]/g)
-            .filter(part => {
-              const letters = part.match(/[a-zA-Z]/g);
-              return letters && letters.length > 3;
-            })
-            .join(' ');
-          
-          if (cleanedText.length > pdfText.length) {
-            pdfText = cleanedText;
-          }
-        }
-        
-        console.log(`Fallback extraction yielded ${pdfText.length} characters`);
-      } catch (fallbackError) {
-        console.error('Fallback extraction also failed:', fallbackError);
-      }
-    }
-    
-    // Final cleanup
-    pdfText = pdfText
-      .replace(/\s+/g, ' ')
-      .replace(/\n\s+/g, '\n')
-      .trim();
-    
-    // Validate extracted text with lenient threshold
-    const readableChars = pdfText.match(/[a-zA-Z0-9]/g);
-    const readableRatio = readableChars ? readableChars.length / pdfText.length : 0;
-    
-    console.log(`Final text: ${pdfText.length} chars, readability: ${(readableRatio * 100).toFixed(1)}%`);
-    
-    // Determine if we need fallback mode
-    const useFallbackMode = readableRatio < 0.25 || pdfText.length < 100;
-    
-    if (useFallbackMode) {
-      console.warn('⚠️ FALLBACK MODE ACTIVATED: Text unreadable, generating from metadata');
-      pdfText = ''; // Clear unusable text
-    } else {
-      console.log('✅ TEXT-BASED MODE: Using extracted PDF text');
-    }
+  // Sort and insert questions
+  const questions = parsedData.questions.sort((a: any, b: any) => 
+    normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
+  );
 
-    console.log('Calling Lovable AI for question extraction...');
+  await supabase.from('exam_question_drafts').delete().eq('exam_id', draftId);
+  
+  const drafts = questions.map((q: any, i: number) => ({
+    exam_id: draftId,
+    question_number: String(q.question_number || i + 1),
+    question_type: q.question_type || 'short_answer',
+    question_text: q.question_text || '',
+    question_latex: q.question_latex || null,
+    has_math: q.has_math || false,
+    parent_question_number: q.parent_question_number || null,
+    root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
+    marks: q.marks || 1,
+    options: q.options || null,
+    correct_answer: q.question_type === 'mcq' ? (q.correct_answer || 'A') : q.correct_answer,
+    has_figures: q.has_figures || false,
+    has_tables: q.has_tables || false,
+    topic_tag: q.topic_tag || null,
+    difficulty_level: q.difficulty_level || null,
+    extraction_confidence: q.extraction_confidence || 0.9,
+    generation_status: useFallbackMode ? 'ai_generated' : 'extracted',
+  }));
 
-    // Build exam board-specific guidance
-    const examBoardGuidance: Record<string, string> = {
-      aqa: `
-- Use AQA-style command words (describe, explain, evaluate)
-- Follow AQA mark scheme format (1 mark per valid point)
-- Use clear, direct language
-- Include practical application questions`,
-      edexcel: `
-- Use Edexcel command words (state, discuss, assess)
-- Follow Edexcel levels-based marking
-- Include real-world contexts
-- Use structured question formats`,
-      ocr: `
-- Use OCR command words (outline, analyse, justify)
-- Follow OCR point-based marking
-- Include synoptic elements
-- Use varied question formats`,
-      cie: `
-- Use Cambridge command words (identify, compare, suggest)
-- Follow Cambridge detailed mark schemes
-- Include international contexts
-- Use precise scientific terminology`,
-      ib: `
-- Use IB command words (define, calculate, deduce)
-- Follow IB markband descriptors
-- Include TOK and interdisciplinary links
-- Use inquiry-based approach`,
-      wjec: `
-- Use WJEC command words and marking style
-- Include Welsh/UK contexts where appropriate
-- Follow WJEC mark scheme conventions`,
-    };
+  const { data: inserted, error: insertError } = await supabase.from('exam_question_drafts').insert(drafts).select();
+  if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
-    const boardInstructions = examBoardGuidance[examBoard] || '- Match standard exam board practices';
+  // Regenerate non-image questions if needed (only when NOT resource-based)
+  if (useOriginalStructure && !hasResourcePack) {
+    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey);
+  }
 
-    // Build specification filtering if available
-    const specTopicList = specTopics.map((t: any) => t.topic_name).join(', ');
-    const specInstructions = specTopics.length > 0 
-      ? `\n\n📋 SPECIFICATION CONSTRAINT:
-Only generate questions covering these approved topics:
-${specTopicList}
+  // Save topics
+  if (parsedData.topics?.length) {
+    await supabase.from('exam_topics').delete().eq('exam_id', draftId);
+    await supabase.from('exam_topics').insert(parsedData.topics.map((t: any) => ({
+      exam_id: draftId, topic_name: t.topic_name, confidence_score: t.confidence_score || 0.8
+    })));
+  }
 
-COMMAND VERB DISTRIBUTION (maintain variety):
-- 40% calculation/numerical (calculate, determine, show that, find)
-- 30% explanation (explain, describe, discuss, outline)
-- 20% analysis (deduce, evaluate, assess, compare)
-- 10% recall (state, identify, define, name)
+  // Final update
+  await supabase.from('exams').update({
+    extraction_status: 'completed',
+    total_questions_extracted: questions.length,
+    extraction_error: null,
+    detected_subject: parsedData.detected_subject,
+    subject_confidence: parsedData.subject_confidence,
+  }).eq('id', draftId);
 
-ASSESSMENT OBJECTIVES (aim for balance):
-- AO1 (knowledge & recall): 30-35%
-- AO2 (application & analysis): 40-45%
-- AO3 (evaluation & synthesis): 20-25%
-
-If the exam covers topics NOT in this list, skip them or adapt to spec-approved topics.`
-      : '';
-
-    // Build format-aware instructions
-    const structureInstructions = useFallbackMode
-      ? `🔥 FALLBACK MODE - NO TEXT AVAILABLE:
-
-⚠️ The PDF text could not be extracted (scanned or corrupted document).
-
-📋 GENERATE QUESTIONS FROM METADATA ONLY:
-
-**Exam Details:**
-- Subject: ${exam.subject || exam.title || 'Unknown'}
-- Exam Board: ${examBoard.toUpperCase()}
-- Level: ${qualificationLevel}
-- Format: ${exam.exam_format?.[0]?.format_type || 'Standard exam'}
-
-**Your Task:**
-Generate a TYPICAL exam paper for this board and level. Use your knowledge of typical ${examBoard.toUpperCase()} ${qualificationLevel} ${exam.subject || exam.title} exams.
-
-**Question Structure:**
-${getSubjectSpecificInstructions(exam.subject_id || exam.title, examBoard, qualificationLevel)}
-
-**CRITICAL REQUIREMENTS:**
-1. ALL questions MUST include "question_latex" with proper LaTeX notation for ANY mathematical expressions
-2. Set "has_math": true for any question with equations, formulas, or math symbols
-3. Set "equation_complexity": "simple", "medium", or "complex" based on mathematical content
-4. Use hierarchical numbering: "question_number", "parent_question_number", "root_question_number"
-   - Main question: "17" → parent: null, root: "17"
-   - Sub-part: "17a" → parent: "17", root: "17"
-   - Sub-sub-part: "17a(i)" → parent: "17a", root: "17"
-5. Allocate marks appropriately (simple: 2-3, medium: 4-6, complex: 7-14)
-6. Tag each question with a specific topic
-7. NO diagrams assumed (has_figures: false) since we cannot extract them
-8. Generate REALISTIC, exam-standard questions`
-      : useOriginalStructure
-      ? `✨ STRUCTURE PRESERVATION MODE - FULL AI GENERATION:
-...
-4. **Quality Standards**:
-   - Questions must test identical learning objectives
-   - Difficulty level must match original
-   - Mark allocation must be preserved
-   - All questions must be self-contained (no external references)`
-      : `🎯 FLEXIBLE GENERATION MODE:
-1. Analyze topics and difficulty levels from the document
-2. Generate a balanced set of NEW questions based on:
-   - Topics identified (prioritize most prominent topics)
-   - Mix of question types (MCQ, short answer, long form)
-   - Progressive difficulty (easy → medium → hard)
-3. Total questions and marks can vary from original
-4. Focus on comprehensive topic coverage
-5. All questions must be freshly generated (no verbatim copying)`;
-
-    const extractionPrompt = useFallbackMode
-      ? `🔥 FALLBACK MODE - NO TEXT AVAILABLE
-
-You are generating a ${examBoard.toUpperCase()} ${qualificationLevel} ${exam.subject || exam.title} exam paper from METADATA ONLY (PDF text extraction failed).
-
-${structureInstructions}
-
-🎯 EXAM BOARD REQUIREMENTS:
-${boardInstructions}
-${specInstructions}
-${resourcePackContext}
-
-📐 MATHEMATICAL NOTATION (CRITICAL):
-1. ALWAYS provide LaTeX in "question_latex" for ANY math content
-2. IMPORTANT: In JSON strings, backslashes MUST be escaped as double backslashes (\\)
-3. Examples:
-   - Fractions: "\\\\frac{3x+2}{x-1}"
-   - Powers: "e^{-2x}", "x^{2n+1}"
-   - Integrals: "\\\\int_{0}^{\\\\pi} \\\\sin(x) dx"
-   - Square roots: "\\\\sqrt{x^2 + y^2}"
-   - Greek letters: "\\\\theta", "\\\\alpha", "\\\\pi"
-4. Set "has_math": true for all math questions
-5. Set "equation_complexity" appropriately
-6. In "question_text", you can use inline math notation with $ signs (e.g., "Find $x$ where...")
-7. CRITICAL: Make sure all JSON is properly escaped - backslashes must be doubled in JSON strings
-
-📊 GRAPH & DATA TABLE GENERATION:
-When generating questions involving data:
-1. Create realistic numerical datasets with:
-   - Clear independent/dependent variables
-   - Logical relationships (linear, inverse, quadratic)
-   - Appropriate significant figures (2-3 for physics/chemistry)
-   - Randomized values preserving trends
-
-2. For graphs, populate "graph_description" with:
-   - Clear axes labels and units (e.g., "x-axis: time / s, y-axis: velocity / m s⁻¹")
-   - Trend description (e.g., "linear decrease from 20 m/s at t=0 to 0 m/s at t=5s")
-   - Key features (intercepts, gradients, areas under curve)
-
-📸 FIGURE NUMBERING RULES (MANDATORY):
-When referencing images/figures/diagrams:
-1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
-2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
-3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
-4. NEVER reuse figure numbers across different questions
-5. NEVER invent unrelated figure numbers
-6. If referencing an existing external image from the PDF, match the original figure number
-7. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
-
-Example usage:
-- Q16: "Fig. 16.1 shows the velocity-time graph..."
-- Q16 with two figures: "Fig. 16.1 shows the circuit diagram. Fig. 16.2 shows the oscilloscope trace."
-- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
-
-3. ⚠️ TABLE FORMAT REQUIREMENT (MANDATORY):
-   - Tables MUST be HTML format: <table class="exam-table">...</table>
-   - Tables MUST NOT be markdown format (no |---|---| pipe/dash syntax)
-   - Any markdown tables in source documents must be converted to HTML
-   - Failure to use HTML tables will cause rendering errors
-   
-   Example HTML table structure:
-   <table class="exam-table">
-     <thead>
-       <tr><th>Time (s)</th><th>Vel (m/s)</th></tr>
-     </thead>
-     <tbody>
-       <tr><td>0.0</td><td>20.0</td></tr>
-       <tr><td>1.0</td><td>16.0</td></tr>
-       <tr><td>2.0</td><td>12.0</td></tr>
-     </tbody>
-   </table>
-   - Use <thead> for headers with <th> tags
-   - Use <tbody> for data rows with <td> tags
-   - Always include class="exam-table" for styling
-
-🚀 UNIVERSAL TABLE RULES (MANDATORY FOR PDF RENDERING):
-   1. SHORT HEADERS ONLY (max 14-16 characters):
-      - NEVER use long headers that will truncate in PDF
-      - Always shorten or alias headers:
-        * "Section of Quadrat" → "Quadrat"
-        * "Beetles Count" → "Count"
-        * "Desired concentration of diluted sample" → "Conc (mol/dm³)"
-        * "Volume of stock solution required" → "Stock Vol (cm³)"
-        * "Volume of distilled water required" → "Water Vol (cm³)"
-        * "Temperature / °C" → "Temp (°C)"
-        * "Velocity / m s⁻¹" → "Vel (m/s)"
-        * "Distance / m" → "Dist (m)"
-
-   2. PLAIN TEXT VALUES INSIDE TABLE CELLS:
-      - NEVER output raw LaTeX/math mode inside table cells
-      - Always use plain text with Unicode superscripts:
-        * "$0.4 \\, mol \\, dm^{-3}$" → "0.4 mol dm⁻³"
-        * "$25 \\, cm^3$" → "25 cm³"
-        * "$x^2$" → "x²"
-
-   3. TABLE SIZE LIMITS:
-      - If table has more than 6 rows, consider:
-        (A) Rotating table (swap rows/columns) for better fit
-        (B) Splitting into two smaller tables
-      - Tables MUST NOT break across pages
-
-   4. NARROW TABLES - USE HORIZONTAL LAYOUT:
-      - If table has 2-3 columns and 5+ rows, prefer horizontal format
-
-4. Set "data_type": "graph", "table", "both", or "none"
-5. Set "needs_diagram": true if visual representation is essential
-
-🔍 SUBJECT DETECTION (CRITICAL):
-In addition to extracting questions, you MUST analyze the content to detect the PRIMARY SUBJECT of this exam.
-
-Analyze:
-- Mathematical notation patterns (algebra, calculus, trigonometry = Mathematics)
-- Scientific terminology (forces, energy, circuits = Physics; compounds, reactions = Chemistry)
-- Topic keywords (cells, DNA, ecology = Biology; tenses, literature = English)
-- Equation types (kinematic equations vs organic chemistry vs pure math)
-- Contextual clues (experimental setups, theorem proofs, language analysis)
-
-Return your detection WITHIN THE SAME JSON as questions/topics:
-{
-  "detected_subject": "Physics" | "Mathematics" | "Chemistry" | "Biology" | "English" | "History" | "Geography" | "Computer Science" | "Other",
-  "subject_confidence": 0.95,
-  "subject_reasoning": "Brief explanation (e.g., 'Document contains kinematic equations, circuit diagrams, and force calculations')"
+  console.log('Extraction completed:', questions.length, 'questions');
 }
 
-**Subject Classification Guidelines:**
-- **Physics**: Forces, energy, circuits, waves, mechanics, thermodynamics, electricity
-- **Mathematics**: Pure algebra, calculus, geometry, trigonometry, statistics, proofs
-- **Chemistry**: Elements, compounds, reactions, bonding, organic chemistry, stoichiometry
-- **Biology**: Cells, DNA, evolution, ecology, human body systems, genetics
-- **English**: Literature analysis, grammar, comprehension, creative writing
-- **Computer Science**: Programming, algorithms, data structures, networks
-- **History**: Historical events, dates, civilizations, wars, political movements
-- **Geography**: Maps, climate, physical features, human geography, environmental science
+async function loadResourcePack(packId: string, supabase: any, apiKey: string, exam: any) {
+  const { data: pack } = await supabase.from('resource_packs').select('*').eq('id', packId).maybeSingle();
+  if (!pack) return { context: '', hasResourcePack: false };
 
-**Confidence Score:**
-- 0.9-1.0: Very clear indicators (e.g., heavy use of F=ma, circuit diagrams → Physics)
-- 0.7-0.89: Strong indicators but some ambiguity
-- 0.5-0.69: Moderate confidence, mixed signals
-- < 0.5: Uncertain, document may be multi-subject or unclear
-
-🔌 CIRCUIT DIAGRAM SUPPORT:
-For electrical/electronics questions:
-1. Describe circuit topology clearly in "circuit_description":
-   - "A thermistor and 0.25 kΩ resistor R are connected in series with a 9.0 V supply"
-   - "The output pd is measured across resistor R"
-   - Specify all component values and connections
-
-2. Set "circuit_type": "series", "parallel", "voltage_divider", "complex", or "none"
-
-3. For voltage dividers, include:
-   - Supply voltage and internal resistance if relevant
-   - Fixed resistor values with units
-   - Variable component type (thermistor, LDR, potentiometer)
-   - Output measurement point
-
-4. Set "needs_diagram": true and "diagram_type": "circuit"
-
-🧪 EXPERIMENTAL SCENARIOS:
-Create rich real-world contexts in "scenario_context":
-- Physics: escape lanes with friction, rotating platforms, string instruments, projectile motion
-- Chemistry: reaction rate experiments, titrations, calorimetry
-- Biology: enzyme activity, photosynthesis rates, population studies
-
-For multi-part questions:
-- Build progressively (part a calculates, part b explains, part c evaluates)
-- Reference the same setup throughout all sub-parts
-- Use varied "command_verb" for each part
-
-🔢 QUESTION NUMBERING:
-- Main: "1", "17" → parent: null, root: "1" or "17"
-- Sub: "17a", "17b" → parent: "17", root: "17"
-- Sub-sub: "17a(i)", "17a(ii)" → parent: "17a", root: "17"
-
-Return ONLY valid JSON in this structure:
-{
-  "detected_subject": "string (REQUIRED - Physics, Mathematics, Chemistry, Biology, English, History, Geography, Computer Science, or Other)",
-  "subject_confidence": number (REQUIRED - 0.0 to 1.0),
-  "subject_reasoning": "string (REQUIRED - brief explanation of detected subject)",
-  "questions": [
-    {
-      "question_number": "string",
-      "question_type": "mcq | short_answer | long_form",
-      "question_text": "string",
-      "question_latex": "string (REQUIRED for math)",
-      "has_math": boolean,
-      "equation_complexity": "simple | medium | complex | null",
-      "parent_question_number": "string or null",
-      "root_question_number": "string",
-      "marks": number,
-      "options": ["option without letter prefix", "..."] or null (for MCQ only - DO NOT include A), B) prefixes),
-      "correct_answer": "string (REQUIRED for MCQ)",
-      "original_page_number": 1,
-      "has_figures": false,
-      "has_tables": false,
-      "topic_tag": "string (REQUIRED)",
-      "difficulty_level": "easy | medium | hard",
-      "extraction_confidence": 0.8,
-      "data_type": "graph | table | both | none",
-      "graph_description": "string or null (detailed axes, trend, features)",
-      "table_data": "string or null (HTML table with class='exam-table')",
-      "circuit_type": "series | parallel | voltage_divider | complex | none",
-      "circuit_description": "string or null (topology and component values)",
-      "needs_diagram": boolean,
-      "diagram_type": "circuit | graph | apparatus | geometric | other | null",
-      "scenario_context": "string or null (real-world setup)",
-      "command_verb": "string (calculate, explain, describe, show, deduce, etc.)",
-      "numerical_answer": "string or null (expected answer if calculable)"
-    }
-  ],
-  "topics": [
-    {"topic_name": "string", "confidence_score": 0.9}
-  ]
-}`
-      : `You are an expert exam question GENERATOR specializing in ${examBoard.toUpperCase()} ${qualificationLevel} exams.
-
-🎯 EXAM BOARD REQUIREMENTS:
-${boardInstructions}
-${specInstructions}
-${resourcePackContext}
-
-🎯 YOUR MISSION: Generate BRAND NEW questions inspired by this exam's content.
-
-${structureInstructions}
-
-📐 SCIENTIFIC & MATHEMATICAL NOTATION RULES (ALL SUBJECTS - CRITICAL):
-Apply these rules to Chemistry, Physics, Biology, Math, and ALL STEM subjects.
-
-1. NEVER use HTML tags like <sup>, <sub>, <i>, <b> in question text
-2. ALWAYS use LaTeX notation wrapped in $ delimiters for:
-   
-   ✅ Scientific Notation:
-   - Write: "The energy is $2.15 \\times 10^{-12}$ J"
-   - NOT: "The energy is 2.15 x 10<sup>-12</sup> J"
-   
-   ✅ Units with Exponents:
-   - Write: "velocity of $45 \\, m \\, s^{-1}$"
-   - Write: "concentration in $mol \\, dm^{-3}$"
-   - NOT: "45 m s<sup>-1</sup>" or "mol dm<sup>-3</sup>"
-   
-   ✅ Chemical Formulas:
-   - Write: "$H_2O$" for water
-   - Write: "$Na^+$" and "$Cl^-$" for ions
-   - Write: "$CaCO_3$" for calcium carbonate
-   - NOT: "H<sub>2</sub>O" or "Na<sup>+</sup>"
-   
-   ✅ Mathematical Expressions:
-   - Write: "$v^2$", "$\\frac{1}{2}mv^2$", "$E = mc^2$"
-   - Write: "$\\sqrt{x}$", "$x^{2n+1}$"
-   - NOT: "v<sup>2</sup>" or raw text
-   
-   ✅ Physics Equations:
-   - Write: "$F = ma$", "$KE = \\frac{1}{2}mv^2$"
-   - Write: "$\\Delta H = -572 \\, kJ \\, mol^{-1}$"
-   
-   ✅ Complex Expressions:
-   - Fractions: "$\\frac{numerator}{denominator}$"
-   - Integrals: "$\\int_{0}^{\\pi} \\sin(x) \\, dx$"
-   - Summations: "$\\sum_{i=1}^{n} x_i$"
-
-3. LaTeX Escaping in JSON:
-   - In JSON strings, escape backslashes as double backslashes (\\)
-   - Example: "\\\\frac{3x+2}{x-1}" in JSON becomes "\\frac{3x+2}{x-1}" in LaTeX
-   
-4. Set "has_math": true whenever using LaTeX notation
-
-5. Examples by Subject:
-   
-   CHEMISTRY:
-   ✓ "The $K_a$ value for ethanoic acid is $1.7 \\times 10^{-5}$"
-   ✓ "Calculate the enthalpy change in $kJ \\, mol^{-1}$"
-   ✓ "The compound $CH_3COOH$ reacts with $NaOH$"
-   
-   PHYSICS:
-   ✓ "The velocity is $3.5 \\times 10^8 \\, m \\, s^{-1}$"
-   ✓ "Calculate $KE = \\frac{1}{2}mv^2$ where $m = 0.5$ kg"
-   ✓ "The acceleration is $9.81 \\, m \\, s^{-2}$"
-   
-   BIOLOGY:
-   ✓ "The ATP molecule ($C_{10}H_{16}N_5O_{13}P_3$)"
-   ✓ "DNA concentration is $2.5 \\times 10^{-6} \\, mol \\, dm^{-3}$"
-   
-   MATH:
-   ✓ "Solve $3x^2 + 5x - 2 = 0$"
-   ✓ "Find $\\int x^3 \\, dx$"
-
-📊 TABLE GENERATION (CRITICAL):
-When tables are present in questions:
-1. Embed them directly in "question_text" as HTML tables with the exact format below
-2. Use this exact HTML structure:
-   <table class="exam-table">
-     <thead>
-       <tr>
-         <th>Column Header 1</th>
-         <th>Column Header 2</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr>
-         <td>Cell data</td>
-         <td>X</td>
-       </tr>
-     </tbody>
-   </table>
-3. Use "X" or "✓" for checkmarks/marks in cells
-4. Ensure all text before/after tables is preserved in "question_text"
-5. Set "has_tables": true when tables are present
-6. Tables should be visually formatted with proper spacing and alignment
-
-📊 GRAPH GENERATION:
-When generating questions involving graphs or charts:
-1. Create realistic numerical datasets with logical relationships
-2. Describe axes, units, trends clearly in "graph_description"
-3. Set "data_type": "graph", "table", "both", or "none"
-
-📸 FIGURE NUMBERING RULES (MANDATORY):
-When referencing images/figures/diagrams:
-1. Figure numbers MUST match the question number: Q16 → Fig. 16.X
-2. First figure in a question = Fig. <question>.1 (e.g., Q16's first figure = Fig. 16.1)
-3. Second figure = Fig. <question>.2 (e.g., Q16's second figure = Fig. 16.2)
-4. NEVER reuse figure numbers across different questions
-5. NEVER invent unrelated figure numbers
-6. If referencing an existing external image from the PDF, match the original figure number
-7. For sub-questions (e.g., 17a), use the root question number: Fig. 17.1, not Fig. 17a.1
-
-Example usage:
-- Q16: "Fig. 16.1 shows the velocity-time graph..."
-- Q16 with two figures: "Fig. 16.1 shows the circuit diagram. Fig. 16.2 shows the oscilloscope trace."
-- Q17a: "Refer to Fig. 17.1..." (uses root question number 17)
-
-🔌 CIRCUIT DIAGRAM SUPPORT:
-For electrical questions:
-1. Describe circuit topology in "circuit_description"
-2. Specify all component values and connections
-3. Set "circuit_type": "series", "parallel", "voltage_divider", "complex", or "none"
-4. Set "needs_diagram": true and "diagram_type": "circuit" if visual needed
-
-🧪 EXPERIMENTAL SCENARIOS:
-- Create rich contexts in "scenario_context" (e.g., escape lanes, violin strings, rotating platforms)
-- For multi-part questions: build progressively with varied "command_verb" for each part
-
-🔢 QUESTION NUMBERING FOR HIERARCHICAL QUESTIONS:
-- For main questions: Q1, Q2, Q17 → set "question_number": "1", "parent_question_number": null, "root_question_number": "1"
-- For sub-parts: Q17(a), Q17(b) → set "question_number": "17a", "parent_question_number": "17", "root_question_number": "17"
-- For sub-sub-parts: Q17(a)(i), Q17(a)(ii) → set "question_number": "17a(i)", "parent_question_number": "17a", "root_question_number": "17"
-
-IMPORTANT INSTRUCTIONS:
-1. ⚠️ MCQ FORMATTING (CRITICAL - PREVENTS DUPLICATION):
-   - NEVER include options (A, B, C, D) inside the "question_text" field!
-   - The student exam interface renders interactive A/B/C/D buttons automatically
-   - If you include options in question_text, they will appear TWICE (duplicated)
-   - "question_text" = ONLY the question stem (no A/B/C/D options)
-   - "options" array = Contains the option text WITHOUT letter prefixes
-   - ⚠️ FAILSAFE: Before outputting any MCQ, verify question_text does NOT contain "A)", "B)", "C)", "D)"
-   
-   ✅ CORRECT: "question_text": "Which best describes X?", "options": ["First option", "Second option", ...]
-   ❌ WRONG: "question_text": "Which best describes X?\n\nA) First\nB) Second...", "options": [...]
-
-2. ⚠️ MCQ VALIDATION (CRITICAL - PREVENTS ANSWERLESS MCQs):
-   Before finalizing any extracted MCQ:
-   - If the question involves calculations from provided data (tables, graphs, datasets), COMPUTE the answer yourself
-   - VERIFY the correct_answer field matches one of the options
-   - If data is provided (table, graph, dataset), ensure the answer matches the data mathematically
-   
-   DATA-BASED MCQ VALIDATION:
-   - Mean = sum of all values ÷ count
-   - Median = middle value when sorted
-   - Mode = most frequently occurring value
-   - VERIFY calculations match an option EXACTLY
-   
-   SPECIAL RULE FOR RELEASED EXAMS:
-   - If extracting from an ALREADY RELEASED exam where options appear incorrect:
-     * Set extraction_confidence to 0.3 for problematic MCQs
-     * Add "Review Required - MCQ validation failed" to topic_tag
-     * Extract as-is but flag for human review
-   
-   ⚠️ NEVER output an extracted MCQ where you can verify no option is mathematically correct without flagging it.
-
-3. 📊 TABLE EXTRACTION & INTERACTIVITY RULES:
-   When extracting questions with tables for student completion:
-   
-   - EMPTY CELLS = STUDENT INPUT FIELDS:
-     * Leave cells blank that students should fill in
-     * Use consistent empty cell format: <td></td>
-     * The frontend will convert empty cells to interactive inputs
-   
-   - CELL TYPE DETECTION:
-     * Numeric columns: Headers with units (e.g., "Volume (cm³)", "Count")
-     * Checkbox columns: Headers suggesting ✓/✗ or yes/no responses
-     * Text columns: Standard blank cells
-   
-   - PRESERVE TABLE STRUCTURE:
-     * Extract tables in HTML format with class="exam-table"
-     * Keep headers short and consistent
-     * Maintain empty cells for student input
-   
-   - TABLE ANSWER STORAGE:
-     Student responses are stored as structured JSON:
-     { "row1_col1": "10.0", "row2_col1": true }
-
-4. Identify if questions reference figures, diagrams, tables, or images
-5. Tag each question with a relevant topic (e.g., "Biology - Cell Structure", "Physics - Mechanics", "Maths - Calculus")
-6. Assess difficulty: easy, medium, or hard
-7. Note the page number where each question appears
-8. Extract the marks allocated to each question
-9. Use lowercase variables consistently (e.g., $x$ not $X$, $a$ not $A$)
-
-The exam text is below:
-
----
-${pdfText}
----
-
-Return a JSON object with this structure:
-{
-  "detected_subject": "string (REQUIRED - Physics, Mathematics, Chemistry, Biology, English, History, Geography, Computer Science, or Other)",
-  "subject_confidence": number (REQUIRED - 0.0 to 1.0),
-  "subject_reasoning": "string (REQUIRED - brief explanation of why this subject was detected)",
-  "questions": [
-    {
-      "question_number": "string (e.g., '1', '17a', '17a(i)')",
-      "question_type": "mcq | short_answer | long_form",
-      "question_text": "string (the full question text)",
-      "question_latex": "string or null (LaTeX notation if question contains math)",
-      "has_math": boolean,
-      "equation_complexity": "simple | medium | complex | null",
-      "parent_question_number": "string or null",
-      "root_question_number": "string",
-      "marks": number,
-      "options": ["option text without letter prefix", "..."] (only for MCQ, null otherwise - DO NOT include A), B), C), D) prefixes),
-      "correct_answer": "string (REQUIRED for MCQ - must be 'A', 'B', 'C', or 'D'; for other types can be null if answer not provided)",
-      "original_page_number": number,
-      "has_figures": boolean,
-      "has_tables": boolean,
-      "topic_tag": "string",
-      "difficulty_level": "easy | medium | hard",
-      "extraction_confidence": number (0.0 to 1.0),
-      "data_type": "graph | table | both | none",
-      "graph_description": "string or null (detailed axes, trend, features)",
-      "table_data": "string or null (HTML table with class='exam-table')",
-      "circuit_type": "series | parallel | voltage_divider | complex | none",
-      "circuit_description": "string or null (topology and component values)",
-      "needs_diagram": boolean,
-      "diagram_type": "circuit | graph | apparatus | geometric | other | null",
-      "scenario_context": "string or null (real-world setup description)",
-      "command_verb": "string (calculate, explain, describe, show, deduce, discuss, evaluate, etc.)",
-      "numerical_answer": "string or null (expected numerical answer if calculable)"
-    }
-  ],
-  "topics": [
-    {
-      "topic_name": "string",
-      "confidence_score": number (0.0 to 1.0)
-    }
-  ]
-}`;
-
-    // Helper function to repair incomplete JSON
-    function repairJSON(jsonStr: string): string {
-      let repaired = jsonStr.trim();
-      
-      // Fix common LaTeX escaping issues BEFORE bracket counting
-      // Replace problematic LaTeX patterns that break JSON
-      repaired = repaired
-        // Fix unescaped backslashes in LaTeX (but not already escaped ones or valid escape sequences)
-        .replace(/\\([a-zA-Z]+)\{/g, '\\\\$1{')  // \frac{ -> \\frac{
-        .replace(/\\([a-zA-Z]+)\s/g, '\\\\$1 ')  // \theta  -> \\theta 
-        .replace(/\\_/g, '\\\\_')  // \_ -> \\_
-        .replace(/\\,/g, '\\\\,')  // \, -> \\,
-        .replace(/\\;/g, '\\\\;')  // \; -> \\;
-        // Fix escaped quotes that might be double-escaped
-        .replace(/\\\\"/g, '\\"')
-        // Remove any control characters that break JSON
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-      
-      // Count brackets and braces
-      const openBrackets = (repaired.match(/\[/g) || []).length;
-      const closeBrackets = (repaired.match(/\]/g) || []).length;
-      const openBraces = (repaired.match(/\{/g) || []).length;
-      const closeBraces = (repaired.match(/\}/g) || []).length;
-      
-      // Add missing closing brackets/braces
-      for (let i = 0; i < openBrackets - closeBrackets; i++) {
-        repaired += ']';
-      }
-      for (let i = 0; i < openBraces - closeBraces; i++) {
-        repaired += '}';
-      }
-      
-      // Remove trailing commas before closing brackets/braces
-      repaired = repaired.replace(/,(\s*[\]}])/g, '$1');
-      
-      return repaired;
-    }
-
-    // Make AI request with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
-    
-    // CRITICAL: Use different system prompt based on whether resource pack exists
-  // NOTE: hasResourcePack is set when resource_items were loaded above. We also
-  // treat any non-empty context as a safety fallback.
-  hasResourcePack = hasResourcePack || resourcePackContext.trim().length > 0;
-    const systemPrompt = hasResourcePack
-      ? `You are an expert exam question generator with STRICT source adherence requirements.
-
-⚠️ CRITICAL: This exam has an INSERT/RESOURCE PACK attached. You MUST:
-1. ONLY use characters, names, places, events from the provided source material
-2. NEVER invent or hallucinate new characters (e.g., if source has "Rosabel", do NOT use "Elara", "Sarah", etc.)
-3. EVERY question must explicitly reference the sources (e.g., "Read Source A...", "Using Source A...")
-4. Line references must be accurate to the actual source content
-5. DO NOT generate "fresh wording" for content - use the SOURCE TEXT directly
-
-If the source mentions "Rosabel in a hat shop", questions MUST be about "Rosabel" and the "hat shop" - NOT about invented alternatives.
-
-Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.`
-      : 'You are an expert exam question generator. Your role is to create NEW, original questions inspired by exam content, never copying verbatim. Always generate fresh wording, examples, and data while preserving educational objectives. Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly escaped as double backslashes (\\\\) in JSON strings.';
-    
-    console.log('Using resource pack mode:', hasResourcePack);
-    
-    let aiResponse;
-    try {
-      aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: extractionPrompt }
-          ],
-          max_tokens: 32000,
-          temperature: hasResourcePack ? 0.1 : 0.3, // Lower temperature for stricter adherence
-          response_format: { type: "json_object" }
-        }),
-        signal: controller.signal
-      });
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('AI request timed out after 3 minutes');
-        await supabase
-          .from('exams')
-          .update({ 
-            extraction_status: 'failed',
-            extraction_error: 'AI processing timed out - document may be too large'
-          })
-          .eq('id', draftId);
-        return new Response(JSON.stringify({ error: 'AI processing timed out' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  // Extract pending pack
+  if (pack.status === 'pending' && pack.source_file_url) {
+    const packText = await extractPdfText(pack.source_file_url, supabase);
+    if (packText) {
+      const resources = await extractResources(packText, apiKey, exam);
+      await supabase.from('resource_items').delete().eq('pack_id', packId);
+      for (let i = 0; i < resources.length; i++) {
+        await supabase.from('resource_items').insert({
+          pack_id: packId,
+          source_label: resources[i].source_label || `Resource ${i + 1}`,
+          resource_type: resources[i].resource_type || 'text_extract',
+          content_text: resources[i].content_text,
+          display_order: i,
         });
       }
-      throw fetchError;
+      await supabase.from('resource_packs').update({ status: 'ready' }).eq('id', packId);
     }
-    clearTimeout(timeoutId);
+  }
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: `AI extraction failed: ${aiResponse.status}`
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'AI extraction failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  // Load items
+  const { data: items } = await supabase.from('resource_items').select('*').eq('pack_id', packId).order('display_order');
+  if (!items?.length) return { context: '', hasResourcePack: false };
 
-    // Parse response with better error handling
-    let aiData;
-    let extractedContent;
-    try {
-      const responseText = await aiResponse.text();
-      console.log(`AI response length: ${responseText.length} characters`);
-      console.log('AI response preview:', responseText.substring(0, 500));
-      
-      aiData = JSON.parse(responseText);
-      extractedContent = aiData.choices?.[0]?.message?.content || '{"questions":[],"topics":[]}';
-    } catch (responseError) {
-      console.error('Failed to parse AI response envelope:', responseError);
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: 'AI returned malformed response envelope'
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'AI returned invalid response format' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+  const allText = items.map((r: any) => r.content_text || '').join(' ');
+  const names = [...new Set(allText.match(/\b[A-Z][a-z]+\b/g) || [])].slice(0, 15).join(', ');
 
-    // Clean up markdown code blocks
-    extractedContent = extractedContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    
-    console.log('Extracted content length:', extractedContent.length);
-    console.log('Content preview:', extractedContent.substring(0, 300));
-    console.log('Content ending:', extractedContent.substring(Math.max(0, extractedContent.length - 300)));
+  let context = `\n🚨 RESOURCE-BASED EXAM - USE ONLY SOURCE CONTENT 🚨\nCharacter names MUST be from: "${names}". DO NOT invent names.\n\n📚 SOURCES:\n`;
+  for (const item of items) {
+    context += `--- ${item.source_label} ---\n${item.content_text || ''}\n\n`;
+  }
+  return { context, hasResourcePack: true };
+}
 
-    let parsedData: any = { questions: [], topics: [] };
-    
-    // Attempt 1: Direct parsing
-    try {
-      parsedData = JSON.parse(extractedContent);
-      if (Array.isArray(parsedData)) {
-        parsedData = { questions: parsedData, topics: [] };
-      }
-      console.log('✅ Successfully parsed AI response on first attempt');
-    } catch (parseError) {
-      console.error('❌ Attempt 1 failed:', parseError);
-      console.error('Parse error message:', (parseError as Error).message);
-      
-      // Attempt 2: Repair JSON (fix incomplete brackets/braces)
-      try {
-        console.log('Attempting to repair incomplete JSON...');
-        const repairedContent = repairJSON(extractedContent);
-        console.log('Repaired content ending:', repairedContent.substring(Math.max(0, repairedContent.length - 200)));
-        
-        parsedData = JSON.parse(repairedContent);
-        if (Array.isArray(parsedData)) {
-          parsedData = { questions: parsedData, topics: [] };
-        }
-        console.log('✅ Successfully parsed after JSON repair');
-      } catch (repairError) {
-        console.error('❌ Attempt 2 (repair) failed:', repairError);
-        
-        // Attempt 3: Fix LaTeX escaping issues
-        try {
-          console.log('Attempting to fix LaTeX escaping...');
-          let fixedContent = extractedContent;
-          
-          // Replace unescaped backslashes (but not already escaped ones)
-          fixedContent = fixedContent.replace(/(?<!\\)\\(?!["\\/bfnrtu])/g, '\\\\');
-          
-          // Repair after fixing escapes
-          fixedContent = repairJSON(fixedContent);
-          
-          parsedData = JSON.parse(fixedContent);
-          if (Array.isArray(parsedData)) {
-            parsedData = { questions: parsedData, topics: [] };
-          }
-          console.log('✅ Successfully parsed after LaTeX escape fix');
-        } catch (latexError) {
-          console.error('❌ Attempt 3 (LaTeX fix) failed:', latexError);
-          
-          // Final attempt: Extract what we can from partial JSON
-          try {
-            console.log('Final attempt: extracting partial data...');
-            
-            // Try to find the questions array even if JSON is incomplete
-            const questionsMatch = extractedContent.match(/"questions"\s*:\s*\[([\s\S]*?)(?:\],|\]$)/);
-            const topicsMatch = extractedContent.match(/"topics"\s*:\s*\[([\s\S]*?)(?:\],|\]$)/);
-            
-            let questionsArray = [];
-            let topicsArray = [];
-            
-            if (questionsMatch) {
-              try {
-                const questionsJson = '[' + questionsMatch[1] + ']';
-                const repairedQuestions = repairJSON(questionsJson);
-                questionsArray = JSON.parse(repairedQuestions);
-                console.log(`Extracted ${questionsArray.length} questions from partial JSON`);
-              } catch (e) {
-                console.error('Could not extract questions array:', e);
-              }
-            }
-            
-            if (topicsMatch) {
-              try {
-                const topicsJson = '[' + topicsMatch[1] + ']';
-                const repairedTopics = repairJSON(topicsJson);
-                topicsArray = JSON.parse(repairedTopics);
-                console.log(`Extracted ${topicsArray.length} topics from partial JSON`);
-              } catch (e) {
-                console.error('Could not extract topics array:', e);
-              }
-            }
-            
-            if (questionsArray.length > 0) {
-              parsedData = { questions: questionsArray, topics: topicsArray };
-              console.log('✅ Partial extraction successful');
-            } else {
-              throw new Error('No questions could be extracted from incomplete JSON');
-            }
-          } catch (finalError) {
-            console.error('❌ All parsing attempts failed:', finalError);
-            console.error('Content sample (start):', extractedContent.substring(0, 500));
-            console.error('Content sample (middle):', extractedContent.substring(Math.floor(extractedContent.length / 2), Math.floor(extractedContent.length / 2) + 500));
-            console.error('Content sample (end):', extractedContent.substring(Math.max(0, extractedContent.length - 500)));
-            
-            await supabase
-              .from('exams')
-              .update({ 
-                extraction_status: 'failed',
-                extraction_error: 'Failed to parse AI response - incomplete or invalid JSON. The document may be too large. Try using a shorter document or enabling "Use Original Structure" mode.'
-              })
-              .eq('id', draftId);
-            return new Response(JSON.stringify({ 
-              error: 'Failed to parse extracted questions',
-              details: 'The AI response was incomplete or malformed. This often happens with very large documents. Try a shorter document or contact support.'
-            }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-        }
-      }
-    }
-
-    const extractedQuestions = parsedData.questions || [];
-    const extractedTopics = parsedData.topics || [];
-
-    // Extract subject detection from AI response
-    const detectedSubject = parsedData.detected_subject || null;
-    const subjectConfidence = parsedData.subject_confidence || null;
-    const subjectReasoning = parsedData.subject_reasoning || null;
-
-    // Map detected subject to our subject system (case-insensitive)
-    const subjectMapping: Record<string, string> = {
-      'physics': 'physics',
-      'mathematics': 'mathematics',
-      'math': 'mathematics',
-      'maths': 'mathematics',
-      'chemistry': 'chemistry',
-      'biology': 'biology',
-      'english': 'english',
-      'history': 'history',
-      'geography': 'geography',
-      'computer science': 'computer_science',
-      'computing': 'computer_science',
-    };
-
-    const normalizedDetected = detectedSubject ? (subjectMapping[detectedSubject.toLowerCase()] || detectedSubject.toLowerCase()) : null;
-    const userSelectedSubject = exam.subject_id?.toLowerCase() || exam.title?.toLowerCase();
-
-    // Check for mismatch (only flag if reasonably confident)
-    const CONFIDENCE_THRESHOLD = 0.6;
-    const isMismatch = normalizedDetected && 
-                       userSelectedSubject && 
-                       normalizedDetected !== userSelectedSubject &&
-                       subjectConfidence && subjectConfidence > CONFIDENCE_THRESHOLD;
-
-    console.log('Subject Detection:', {
-      detected: detectedSubject,
-      normalized: normalizedDetected,
-      confidence: subjectConfidence,
-      selected: exam.subject_id,
-      mismatch: isMismatch,
-      reasoning: subjectReasoning
-    });
-
-    if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
-      console.error('No questions extracted');
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: 'No questions found in document'
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'No questions found in document' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log(`Extracted ${extractedQuestions.length} questions and ${extractedTopics.length} topics`);
-
-    // Sort questions by normalized question_number for proper hierarchical ordering
-    extractedQuestions.sort((a: any, b: any) => {
-      const aKey = normalizeQuestionNumber(String(a.question_number || ''));
-      const bKey = normalizeQuestionNumber(String(b.question_number || ''));
-      return aKey.localeCompare(bKey);
-    });
-    console.log('Questions sorted by hierarchical numbering');
-
-    // Delete existing drafts
-    await supabase
-      .from('exam_question_drafts')
-      .delete()
-      .eq('exam_id', draftId);
-
-    // Insert questions with generation status and math support
-    const draftsToInsert = extractedQuestions.map((q: any, index: number) => {
-      const questionType = q.question_type || 'short_answer';
-      const correctAnswer = q.correct_answer || null;
-      
-      // Validate MCQ correct_answer
-      if (questionType === 'mcq' && (!correctAnswer || correctAnswer.trim() === '')) {
-        console.warn(`MCQ question ${q.question_number} missing correct_answer - setting to 'A' as default`);
-      }
-      
-      // Extract parent and root question numbers from question_number
-      const questionNum = String(q.question_number || (index + 1));
-      let parentQuestionNumber = q.parent_question_number || null;
-      let rootQuestionNumber = q.root_question_number || questionNum.match(/^\d+/)?.[0] || questionNum;
-      
-      // Auto-detect parent if not provided (e.g., "17a(i)" -> parent is "17a", root is "17")
-      if (!parentQuestionNumber && questionNum.includes('(')) {
-        const matches = questionNum.match(/^(\d+[a-z]*)\(/i);
-        if (matches) {
-          parentQuestionNumber = matches[1];
-          rootQuestionNumber = matches[1].match(/^\d+/)?.[0] || matches[1];
-        }
-      }
-      
-      return {
-        exam_id: draftId,
-        question_number: questionNum,
-        question_type: questionType,
-        question_text: q.question_text || '',
-        question_latex: q.question_latex || null,
-        has_math: q.has_math || false,
-        equation_complexity: q.equation_complexity || null,
-        parent_question_number: parentQuestionNumber,
-        root_question_number: rootQuestionNumber,
-        marks: q.marks || 1,
-        options: q.options || null,
-        correct_answer: questionType === 'mcq' ? (correctAnswer || 'A') : correctAnswer,
-        original_page_number: q.original_page_number || 1,
-        has_figures: q.has_figures || false,
-        has_tables: q.has_tables || false,
-        figure_urls: q.figure_urls || [],
-        topic_tag: q.topic_tag || null,
-        difficulty_level: q.difficulty_level || null,
-        extraction_confidence: q.extraction_confidence || 0.9,
-        generation_status: useFallbackMode ? 'ai_generated' : (useOriginalStructure ? 'structure_inspired' : 'extracted'),
-        image_handling_strategy: null,
-        original_question_text: null,
-      };
-    });
-
-    const { data: insertedQuestions, error: draftError } = await supabase
-      .from('exam_question_drafts')
-      .insert(draftsToInsert)
-      .select();
-
-    if (draftError) {
-      console.error('Draft insertion error:', draftError);
-      await supabase
-        .from('exams')
-        .update({ 
-          extraction_status: 'failed',
-          extraction_error: `Failed to save questions: ${draftError.message}`
-        })
-        .eq('id', draftId);
-      return new Response(JSON.stringify({ error: 'Failed to save extracted questions' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ✅ INCREMENTAL UPDATE: Update question count immediately after insertion
-    console.log(`✅ Inserted ${insertedQuestions?.length || 0} questions - updating count immediately`);
-    await supabase
-      .from('exams')
-      .update({ 
-        total_questions_extracted: insertedQuestions?.length || 0
-      })
-      .eq('id', draftId);
-    console.log('Question count updated in database');
-
-  // Process ALL questions when use_original_structure is true (Full AI Generation)
-  // IMPORTANT: If a Resource Pack is attached, we MUST NOT run the "be creative / change names"
-  // regeneration pass, because it breaks source-linking (and can hallucinate new passages).
-  if (useOriginalStructure && !hasResourcePack) {
-      console.log('Full AI generation mode: Regenerating ALL questions...');
-      const nonImageQuestions = insertedQuestions?.filter((q: any) => !q.has_figures) || [];
-      
-      for (const question of nonImageQuestions) {
-        try {
-          const regenerationPrompt = `Original question structure: "${question.question_text}"
-Topic: ${question.topic_tag}
-Type: ${question.question_type}
-Marks: ${question.marks}
-Difficulty: ${question.difficulty_level}
-
-Generate a COMPLETELY NEW question that:
-1. Tests the SAME learning objective/concept
-2. Uses DIFFERENT wording, phrasing, and structure
-3. Provides DIFFERENT examples, scenarios, or contexts
-4. If numerical data is involved, use NEW synthetic values
-5. For MCQs: Create ENTIRELY NEW options (if applicable)
-6. Maintains the same difficulty and mark value
-7. Never copies any original text
-
-CRITICAL: Be creative! Change names, locations, scenarios, values - make it fresh while testing the same skill.
-
-Return ONLY the new question text (and options if MCQ), no explanation.`;
-
-          const regenResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${lovableApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [
-                { role: 'system', content: 'You are an expert at creating original exam questions. Never copy verbatim - always generate fresh content while preserving educational value.' },
-                { role: 'user', content: regenerationPrompt }
-              ],
-            }),
-          });
-
-          if (regenResponse.ok) {
-            const regenData = await regenResponse.json();
-            const newQuestionText = regenData.choices?.[0]?.message?.content || question.question_text;
-            
-            await supabase
-              .from('exam_question_drafts')
-              .update({
-                original_question_text: question.question_text,
-                question_text: newQuestionText,
-                generation_status: 'ai_generated',
-              })
-              .eq('id', question.id);
-            
-            console.log(`Regenerated question ${question.question_number} with AI`);
-          }
-        } catch (regenError) {
-          console.error(`Failed to regenerate question ${question.question_number}:`, regenError);
-        }
-      }
-    } else if (useOriginalStructure && hasResourcePack) {
-      console.log('Resource pack detected: skipping per-question regeneration to preserve source adherence.');
-    }
-
-    // Process image-based questions using Hybrid Approach
-    console.log('Processing image-based questions...');
-    const imageQuestions = insertedQuestions?.filter((q: any) => q.has_figures) || [];
-    
-    for (const question of imageQuestions) {
-      try {
-        const strategy = determineImageStrategy(question);
-        console.log(`Question ${question.question_number}: Using ${strategy} strategy`);
-        
-        // If a resource pack exists, avoid rewriting image questions into unrelated contexts.
-        if (strategy === 'concept_replacement' && !hasResourcePack) {
-          const replacementPrompt = `Original question references an image: "${question.question_text}"
-Topic: ${question.topic_tag}
-Marks: ${question.marks}
-Difficulty: ${question.difficulty_level}
-
-Generate a COMPLETELY NEW question that:
-1. Tests the SAME concept/skill without requiring any visual aid
-2. Provides all necessary context in text form
-3. Uses DIFFERENT wording, scenarios, and examples
-4. If the original involves data/measurements, generate NEW synthetic values
-   Example: Change "800,000 births" to "230,000 births"
-   Example: Change "Figure 5 shows..." to "Consider a population where..."
-5. Maintains the same difficulty level and awards the same marks
-6. Includes realistic data that makes analytical sense
-7. Is self-contained with no external references
-
-IMPORTANT: 
-- Generate synthetic data/values where needed
-- Use different contexts (change locations, names, scenarios)
-- Never reference the original document
-- Make the question analytically equivalent but conceptually fresh
-
-Return ONLY the new question text, no additional explanation.`;
-
-          const replaceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${lovableApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [
-                { role: 'system', content: 'You are an expert at creating exam questions that test concepts without requiring visual aids.' },
-                { role: 'user', content: replacementPrompt }
-              ],
-            }),
-          });
-
-          if (replaceResponse.ok) {
-            const replaceData = await replaceResponse.json();
-            const newQuestionText = replaceData.choices?.[0]?.message?.content || question.question_text;
-            
-            await supabase
-              .from('exam_question_drafts')
-              .update({
-                original_question_text: question.question_text,
-                question_text: newQuestionText,
-                generation_status: 'ai_generated',
-                image_handling_strategy: 'concept_replacement',
-                has_figures: false,
-              })
-              .eq('id', question.id);
-            
-            console.log(`Replaced image question ${question.question_number} with concept-based version`);
-          }
-        } else {
-          // Keep original with reference warning
-          const wrappedText = `[📷 IMAGE REFERENCE] ${question.question_text}\n\n⚠️ Note: This question references a diagram from the original document (page ${question.original_page_number}). Students should refer to the uploaded PDF.`;
-          
-          await supabase
-            .from('exam_question_drafts')
-            .update({
-              original_question_text: question.question_text,
-              question_text: wrappedText,
-              generation_status: 'image_referenced',
-              image_handling_strategy: 'original_reference',
-            })
-            .eq('id', question.id);
-          
-          console.log(`Kept image reference for question ${question.question_number}`);
-        }
-      } catch (imgError) {
-        console.error(`Failed to process image question ${question.question_number}:`, imgError);
-      }
-    }
-
-    // Save topics
-    if (extractedTopics.length > 0) {
-      await supabase
-        .from('exam_topics')
-        .delete()
-        .eq('exam_id', draftId);
-
-      const topicsToInsert = extractedTopics.map((topic: any) => ({
-        exam_id: draftId,
-        topic_name: topic.topic_name,
-        confidence_score: topic.confidence_score || 0.8
-      }));
-
-      await supabase
-        .from('exam_topics')
-        .insert(topicsToInsert);
-
-      console.log(`Inserted ${extractedTopics.length} topics`);
-    }
-
-    // ✅ ROBUST FINAL UPDATE: Update exam status to completed with retry logic
-    console.log('Attempting final status update to "completed"...');
-    let updateSuccess = false;
-    let lastError: any = null;
-    
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`Final update attempt ${attempt}/3`);
-        const { error: updateError } = await supabase
-          .from('exams')
-          .update({
-            extraction_status: 'completed',
-            total_questions_extracted: extractedQuestions.length,
-            extraction_error: null,
-            detected_subject: detectedSubject,
-            subject_confidence: subjectConfidence,
-            subject_mismatch: isMismatch
-          })
-          .eq('id', draftId);
-
-        if (updateError) {
-          throw updateError;
-        }
-        
-        console.log(`✅ Final status update successful on attempt ${attempt}`);
-        updateSuccess = true;
-        break;
-      } catch (error) {
-        lastError = error;
-        console.error(`❌ Final update attempt ${attempt} failed:`, error);
-        if (attempt < 3) {
-          console.log(`Retrying in ${attempt} second(s)...`);
-          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-        }
-      }
-    }
-
-    if (!updateSuccess) {
-      console.error('❌ CRITICAL: Failed to update exam status after 3 attempts:', lastError);
-      // Try one last time to at least mark it as completed (even if other fields fail)
-      try {
-        await supabase
-          .from('exams')
-          .update({ extraction_status: 'completed' })
-          .eq('id', draftId);
-        console.log('Emergency fallback update succeeded (status only)');
-      } catch (emergencyError) {
-        console.error('❌ Emergency fallback also failed:', emergencyError);
-      }
-    }
-
-  console.log('✅ Extraction completed successfully:', {
-    questions: extractedQuestions.length,
-    topics: extractedTopics.length,
-    subject: detectedSubject,
-    finalUpdateSuccess: updateSuccess
+async function extractResources(text: string, apiKey: string, exam: any) {
+  const prompt = `Extract resources from this exam insert for ${exam.subject_id}. Return JSON: {"resources":[{"source_label":"Source A","resource_type":"text_extract","content_text":"..."}]}.\n\nTEXT:\n${text.substring(0, 25000)}`;
+  
+  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+    }),
   });
-}
-
-// Helper function to determine image handling strategy (Hybrid Approach)
-function determineImageStrategy(question: any): 'concept_replacement' | 'original_reference' {
-  const imageKeywords = ['graph', 'diagram', 'chart', 'figure', 'table', 'image', 'illustration', 'plot'];
-  const questionLower = question.question_text.toLowerCase();
   
-  const hasComplexVisual = imageKeywords.some(kw => questionLower.includes(kw));
+  if (!resp.ok) return [{ source_label: 'Source A', resource_type: 'text_extract', content_text: text.substring(0, 8000) }];
   
-  // Use original reference for complex analytical questions with high marks
-  if (hasComplexVisual && question.marks >= 4) {
-    return 'original_reference';
+  const data = await resp.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  const match = content.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]).resources || []; } catch { }
   }
-  
-  // Use concept replacement for simpler questions
-  return 'concept_replacement';
+  return [{ source_label: 'Source A', resource_type: 'text_extract', content_text: text.substring(0, 8000) }];
 }
 
-// Helper function to normalize question numbers for sorting
-function normalizeQuestionNumber(qNum: string): string {
-  // Convert "17", "17a", "17a(i)", "17a(ii)" to sortable format
-  // Returns format like "017_a_001" for proper sorting
-  const match = qNum.match(/^(\d+)([a-z]?)(?:\(([ivxlcdm]+)\))?$/i);
-  if (!match) return qNum.padStart(10, '0');
+async function extractPdfText(fileUrl: string, supabase: any): Promise<string> {
+  const { data, error } = await supabase.storage.from('exam-files').download(fileUrl);
+  if (error || !data) return '';
+
+  try {
+    const arr = new Uint8Array(await data.arrayBuffer());
+    const pdf = await getDocument({ data: arr, useSystemFonts: true }).promise;
+    const pages: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item: any) => item.str || '').join(' '));
+    }
+    pdf.cleanup();
+    return pages.join('\n\n').replace(/\s+/g, ' ').trim();
+  } catch {
+    return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(await data.arrayBuffer()));
+  }
+}
+
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean): string {
+  const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
+  const mode = fallback 
+    ? `Generate typical ${board.toUpperCase()} ${level} ${exam.subject_id} questions (no PDF text available).`
+    : useOriginal ? 'PRESERVE structure but create NEW wording.' : 'Generate NEW questions from content.';
   
+  return `${resourceCtx}
+Extract/generate questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
+${specList}${mode}
+
+Use LaTeX for math: "$x^2$", "$\\frac{1}{2}$". NEVER use HTML tags.
+
+PDF CONTENT:
+${pdfText.substring(0, 45000)}
+
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer","question_text":"...","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+}
+
+async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
+  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+      max_tokens: 32000,
+      temperature: hasResourcePack ? 0.1 : 0.3,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!resp.ok) throw new Error('AI extraction failed');
+  
+  const data = await resp.json();
+  let content = data.choices?.[0]?.message?.content || '{}';
+  content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  
+  try { return JSON.parse(content); } 
+  catch { return { questions: [], topics: [] }; }
+}
+
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string) {
+  for (const q of questions.slice(0, 20)) { // Limit to prevent timeout
+    const prompt = `Create a NEW question testing same concept as: "${q.question_text}"\nTopic: ${q.topic_tag}, Marks: ${q.marks}\n\nReturn ONLY the new question text.`;
+    
+    try {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.4,
+        }),
+      });
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        const newText = data.choices?.[0]?.message?.content;
+        if (newText) {
+          await supabase.from('exam_question_drafts').update({
+            original_question_text: q.question_text,
+            question_text: newText,
+            generation_status: 'ai_generated',
+          }).eq('id', q.id);
+        }
+      }
+    } catch (e) { console.error('Regen failed for', q.question_number, e); }
+  }
+}
+
+function normalizeQNum(qNum: string): string {
+  const match = String(qNum || '').match(/^(\d+)([a-z]?)(?:\(([ivx]+)\))?$/i);
+  if (!match) return String(qNum || '').padStart(10, '0');
   const [, num, letter, roman] = match;
-  const paddedNum = num.padStart(3, '0');
-  const letterPart = letter ? `_${letter}` : '';
-  
-  // Convert roman numerals to numbers for sorting
-  const romanMap: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
-  const romanPart = roman ? `_${String(romanMap[roman.toLowerCase()] || 0).padStart(3, '0')}` : '';
-  
-  return `${paddedNum}${letterPart}${romanPart}`;
-}
-
-// Helper function to get subject-specific generation instructions
-function getSubjectSpecificInstructions(subject: string, examBoard: string, level: string): string {
-  const subjectLower = (subject || '').toLowerCase();
-  
-  if (subjectLower.includes('biology')) {
-    return `
-- For ${examBoard.toUpperCase()} ${level} Biology:
-  * QUESTION STYLE: Write CONCISE questions like real OCR/AQA exam papers - avoid verbose descriptions
-  * For MCQs: Keep options SHORT (1-2 sentences max, often just a few words)
-  * Include a mix of structured questions and extended response
-  * Question types: data analysis, experimental design, explanations, calculations
-  * Topics: Cell biology, Genetics & DNA, Ecology, Physiology, Evolution, Biochemistry
-  * Typical marks: 1-2 (recall), 3-4 (application), 6+ (extended response)
-  * Use command words: State, Describe, Explain, Compare, Evaluate, Suggest, Calculate
-  * Include practical and experimental scenarios (enzyme experiments, photosynthesis, etc.)
-  * Use realistic biological data (gene frequencies, population sizes, enzyme rates)
-  * For calculations: Hardy-Weinberg, magnification, Simpson's diversity index
-  * Structure multi-part questions with clear (a), (b), (c) sub-parts
-  * Tables and data should be presented cleanly, not described in prose
-  * Use proper scientific terminology without excessive explanation`;
-  }
-  
-  if (subjectLower.includes('chemistry')) {
-    return `
-- For ${examBoard.toUpperCase()} ${level} Chemistry:
-  * Include calculations with moles, concentrations, and equations
-  * Topics: Atomic structure, Bonding, Organic chemistry, Reactions, Equilibria, Thermodynamics
-  * Question types: Calculations, mechanism drawing, explanations, data analysis
-  * Use correct chemical notation and formulae
-  * Include enthalpy calculations, rate equations, equilibrium constants
-  * Use realistic experimental data (titrations, colorimetry, etc.)`;
-  }
-  
-  if (subjectLower.includes('physics')) {
-    return `
-- For ${examBoard.toUpperCase()} ${level} Physics:
-  * Heavy use of calculations and mathematical formulae
-  * Topics: Mechanics, Waves, Electricity, Fields, Particles, Astrophysics
-  * Include free-body diagrams descriptions, graph analysis
-  * Use SI units consistently
-  * Multi-step problems with "show that" questions
-  * Include experimental scenarios and error analysis`;
-  }
-  
-  if (subjectLower.includes('math')) {
-    return `
-- For ${examBoard.toUpperCase()} ${level} Mathematics:
-  * NO multiple choice questions (all structured/long-form)
-  * Main questions with sub-parts (a), (b), (c) and sub-sub-parts (i), (ii)
-  * Topics: Calculus, Algebra, Trigonometry, Series, Proof, Coordinate Geometry, Vectors
-  * Marks range: 2-14 marks per question
-  * Total paper typically ~100 marks
-  * Heavy use of mathematical notation - ALL questions need question_latex
-  * Include "show that" and "hence" questions`;
-  }
-  
-  // Default for other subjects
-  return `
-- Generate a balanced mix appropriate for ${examBoard.toUpperCase()} ${level}
-- Include various question types based on the subject
-- Use appropriate command words for this exam board
-- Follow typical mark allocations
-- Mix of short answer (1-4 marks) and extended response (6+ marks)`;
+  const romanMap: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5 };
+  return `${num.padStart(3, '0')}${letter ? `_${letter}` : ''}${roman ? `_${romanMap[roman.toLowerCase()] || 0}` : ''}`;
 }
