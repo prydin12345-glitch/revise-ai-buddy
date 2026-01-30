@@ -124,6 +124,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // If an insert/resource pack was linked at upload time, extract it (once) during generation
   // so the AI can generate questions that reference it.
   let resourcePackContext = '';
+  let hasResourcePack = false;
   try {
     if (exam.resource_pack_id) {
       console.log('Exam has resource pack:', exam.resource_pack_id);
@@ -300,6 +301,7 @@ Return ONLY valid JSON in this format:
         if (itemsError) {
           console.warn('Failed to fetch resource items:', itemsError);
         } else if (resourceItems && resourceItems.length > 0) {
+          hasResourcePack = true;
           // Extract key entities (character names, places, etc.) from resources for validation
           const allResourceText = resourceItems.map((r: any) => r.content_text || '').join(' ');
           const properNouns = allResourceText.match(/\b[A-Z][a-z]+\b/g) || [];
@@ -1085,7 +1087,9 @@ Return a JSON object with this structure:
     const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
     
     // CRITICAL: Use different system prompt based on whether resource pack exists
-    const hasResourcePack = resourcePackContext.length > 0;
+  // NOTE: hasResourcePack is set when resource_items were loaded above. We also
+  // treat any non-empty context as a safety fallback.
+  hasResourcePack = hasResourcePack || resourcePackContext.trim().length > 0;
     const systemPrompt = hasResourcePack
       ? `You are an expert exam question generator with STRICT source adherence requirements.
 
@@ -1454,8 +1458,10 @@ Return valid JSON only. CRITICAL: Ensure all backslashes in LaTeX are properly e
       .eq('id', draftId);
     console.log('Question count updated in database');
 
-    // Process ALL questions when use_original_structure is true (Full AI Generation)
-    if (useOriginalStructure) {
+  // Process ALL questions when use_original_structure is true (Full AI Generation)
+  // IMPORTANT: If a Resource Pack is attached, we MUST NOT run the "be creative / change names"
+  // regeneration pass, because it breaks source-linking (and can hallucinate new passages).
+  if (useOriginalStructure && !hasResourcePack) {
       console.log('Full AI generation mode: Regenerating ALL questions...');
       const nonImageQuestions = insertedQuestions?.filter((q: any) => !q.has_figures) || [];
       
@@ -1514,6 +1520,8 @@ Return ONLY the new question text (and options if MCQ), no explanation.`;
           console.error(`Failed to regenerate question ${question.question_number}:`, regenError);
         }
       }
+    } else if (useOriginalStructure && hasResourcePack) {
+      console.log('Resource pack detected: skipping per-question regeneration to preserve source adherence.');
     }
 
     // Process image-based questions using Hybrid Approach
@@ -1525,7 +1533,8 @@ Return ONLY the new question text (and options if MCQ), no explanation.`;
         const strategy = determineImageStrategy(question);
         console.log(`Question ${question.question_number}: Using ${strategy} strategy`);
         
-        if (strategy === 'concept_replacement') {
+        // If a resource pack exists, avoid rewriting image questions into unrelated contexts.
+        if (strategy === 'concept_replacement' && !hasResourcePack) {
           const replacementPrompt = `Original question references an image: "${question.question_text}"
 Topic: ${question.topic_tag}
 Marks: ${question.marks}
