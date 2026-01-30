@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send, Flag } from "lucide-react";
+import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send, Flag, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
@@ -137,6 +140,8 @@ const ExamInProgress = () => {
   const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
+  const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
+  const [resourcesExpanded, setResourcesExpanded] = useState(false);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
   const startTime = useRef<number>(Date.now());
@@ -337,10 +342,10 @@ const ExamInProgress = () => {
 
   const loadQuestions = async () => {
     try {
-      // Fetch exam metadata to get subject and name
+      // Fetch exam metadata to get subject, name, and resource pack
       const { data: examData } = await supabase
         .from('exams')
-        .select('subject_id, title')
+        .select('subject_id, title, resource_pack_id')
         .eq('id', examId)
         .single();
       
@@ -363,6 +368,44 @@ const ExamInProgress = () => {
             setSubjectColor(subjectData.subject_color);
           } else {
             console.log('[Subject Color] No color found for subject:', examData.subject_id, 'using default');
+          }
+        }
+        
+        // Load resource pack if exists
+        if (examData.resource_pack_id) {
+          const { data: packData } = await supabase
+            .from("resource_packs")
+            .select("*")
+            .eq("id", examData.resource_pack_id)
+            .single();
+
+          if (packData) {
+            const { data: itemsData } = await supabase
+              .from("resource_items")
+              .select("*")
+              .eq("pack_id", packData.id)
+              .order("display_order");
+
+            setResourcePack({
+              id: packData.id,
+              title: packData.title,
+              subject_id: packData.subject_id,
+              pack_type: packData.pack_type as 'uploaded' | 'ai_generated' | 'extracted',
+              status: packData.status as 'pending' | 'processing' | 'ready' | 'failed',
+              items: (itemsData || []).map(item => ({
+                id: item.id,
+                source_label: item.source_label,
+                resource_type: item.resource_type,
+                content_text: item.content_text || undefined,
+                content_url: item.content_url || undefined,
+                content_json: item.content_json,
+                word_count: item.word_count || undefined,
+                attribution: item.attribution || undefined,
+                difficulty_contribution: item.difficulty_contribution || undefined,
+                display_order: item.display_order || 0,
+              })),
+            });
+            console.log('[Resource Pack] Loaded:', packData.title, 'with', itemsData?.length || 0, 'items');
           }
         }
       }
@@ -1206,6 +1249,57 @@ const ExamInProgress = () => {
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 End Exam Early
               </Button>
+            )}
+
+            {/* Resource Pack Section - at bottom of sidebar */}
+            {resourcePack && resourcePack.items.length > 0 && (
+              <Collapsible open={resourcesExpanded} onOpenChange={setResourcesExpanded} className="mt-4 pt-4 border-t border-border">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-left group">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" style={{ color: subjectColor }} />
+                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">RESOURCES</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {resourcePack.items.length}
+                      </Badge>
+                    </div>
+                    {resourcesExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <ScrollArea className="max-h-64">
+                    <div className="space-y-2 pr-2">
+                      {resourcePack.items.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-xs">{item.source_label}</span>
+                            <Badge variant="outline" className="text-[10px] capitalize px-1">
+                              {item.resource_type.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                          {item.content_text && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-2">
+                              {item.content_text.substring(0, 100)}...
+                            </p>
+                          )}
+                          {item.word_count && (
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              {item.word_count} words
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </div>
         </div>
