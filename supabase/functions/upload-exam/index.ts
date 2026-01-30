@@ -36,6 +36,7 @@ serve(async (req) => {
     const examBoard = formData.get('examBoard') as string;
     const qualificationLevel = formData.get('qualificationLevel') as string | null;
     const specFile = formData.get('specFile') as File | null;
+    const resourcePackId = formData.get('resourcePackId') as string | null;
 
     if (!file || !subjectId || !examTitle || !examBoard) {
       return new Response(JSON.stringify({ error: 'File, subject, exam board, and file name required' }), {
@@ -101,6 +102,7 @@ serve(async (req) => {
         type: 'uploaded',
         status: 'draft',
         file_url: uploadData.path,
+        resource_pack_id: resourcePackId || null,
       })
       .select()
       .single();

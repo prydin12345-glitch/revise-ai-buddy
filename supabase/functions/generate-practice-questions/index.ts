@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.25.76";
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation } from "../_shared/graph-validator.ts";
 import {
@@ -22,6 +23,44 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function extractPdfTextFromBlob(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+
+  let pdfText = '';
+
+  try {
+    const pdf = await getDocument({ data: uint8Array, useSystemFonts: true }).promise;
+    const pages: string[] = [];
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
+        .join(' ');
+      pages.push(pageText);
+    }
+    pdfText = pages.join('\n\n');
+    pdf.cleanup();
+  } catch (err) {
+    // Fallback: try to salvage readable strings from raw bytes
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      const rawText = decoder.decode(uint8Array);
+      const textMatches = rawText.match(/\(([^)]+)\)/g);
+      if (textMatches && textMatches.length > 10) {
+        pdfText = textMatches.map((m) => m.slice(1, -1)).join(' ');
+      } else {
+        pdfText = rawText;
+      }
+    } catch {
+      pdfText = '';
+    }
+  }
+
+  return pdfText.replace(/\s+/g, ' ').trim();
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -174,7 +213,7 @@ serve(async (req) => {
               throw new Error('Failed to download resource pack file');
             }
             
-            const pdfText = await fileData.text();
+            const pdfText = await extractPdfTextFromBlob(fileData);
             console.log('PDF text length:', pdfText.length);
             
             // Extract resources with full context (subject, board, tier)
@@ -277,7 +316,23 @@ Extract all resources found. If the document appears to be a question paper rath
             }
 
             const parsedResult = JSON.parse(jsonMatch[0]);
-            const extractedResources = parsedResult.resources || [];
+            let extractedResources = parsedResult.resources || [];
+
+            // Guarantee minimum of 1 resource so packs are always usable.
+            if (!Array.isArray(extractedResources) || extractedResources.length === 0) {
+              extractedResources = [
+                {
+                  source_label: 'Source A',
+                  resource_type: 'text_extract',
+                  content_text: pdfText ? pdfText.substring(0, 8000) : 'Insert provided but no readable text could be extracted.',
+                  content_json: null,
+                  word_count: null,
+                  attribution: null,
+                  difficulty_contribution: 'moderate',
+                  display_order: 0,
+                },
+              ];
+            }
 
             console.log(`Extracted ${extractedResources.length} resources with context`);
 

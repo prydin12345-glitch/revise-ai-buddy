@@ -120,6 +120,204 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   console.log('Use original structure:', useOriginalStructure);
   console.log('Exam board:', examBoard, 'Level:', qualificationLevel);
 
+  // RESOURCE PACK SUPPORT (deferred extraction)
+  // If an insert/resource pack was linked at upload time, extract it (once) during generation
+  // so the AI can generate questions that reference it.
+  let resourcePackContext = '';
+  try {
+    if (exam.resource_pack_id) {
+      console.log('Exam has resource pack:', exam.resource_pack_id);
+
+      const { data: packData, error: packError } = await supabase
+        .from('resource_packs')
+        .select('*')
+        .eq('id', exam.resource_pack_id)
+        .maybeSingle();
+
+      if (packError) {
+        console.warn('Failed to fetch resource pack:', packError);
+      } else if (packData) {
+        // Extract if pending
+        if (packData.status === 'pending' && packData.source_file_url) {
+          console.log('Resource pack pending; extracting now with exam context...');
+
+          await supabase
+            .from('resource_packs')
+            .update({ status: 'processing', processing_error: null })
+            .eq('id', exam.resource_pack_id);
+
+          const { data: packFile, error: packDownloadError } = await supabase.storage
+            .from('exam-files')
+            .download(packData.source_file_url);
+
+          if (packDownloadError || !packFile) {
+            console.warn('Failed to download resource pack file:', packDownloadError);
+          } else {
+            // Extract text from PDF (same technique as exam PDF parsing)
+            const packArrayBuffer = await packFile.arrayBuffer();
+            const packUint8Array = new Uint8Array(packArrayBuffer);
+            let packText = '';
+
+            try {
+              const pdf = await getDocument({ data: packUint8Array, useSystemFonts: true }).promise;
+              const pages: string[] = [];
+              for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const content = await page.getTextContent();
+                pages.push(
+                  content.items
+                    .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
+                    .join(' ')
+                );
+              }
+              packText = pages.join('\n\n');
+              pdf.cleanup();
+            } catch (packPdfError) {
+              console.warn('Resource pack PDF parsing failed, using fallback:', packPdfError);
+              try {
+                const decoder = new TextDecoder('utf-8', { fatal: false });
+                const rawText = decoder.decode(packUint8Array);
+                const matches = rawText.match(/\(([^)]+)\)/g);
+                if (matches && matches.length > 10) {
+                  packText = matches.map((m) => m.slice(1, -1)).join(' ');
+                } else {
+                  packText = rawText;
+                }
+              } catch {
+                packText = '';
+              }
+            }
+
+            packText = packText.replace(/\s+/g, ' ').trim();
+            console.log('Resource pack text length:', packText.length);
+
+            let extractedResources: any[] = [];
+
+            try {
+              const extractionPrompt = `You are an expert at analyzing exam insert/resource booklets and extracting structured resources.
+
+CONTEXT:
+- Subject: ${exam.subject_id}
+- Educational Tier: ${qualificationLevel}
+- Exam Board: ${examBoard}
+
+PDF CONTENT:
+${packText.substring(0, 30000)}
+
+EXTRACTION RULES:
+1. Identify each distinct resource (Source A, Source B, Extract 1, Figure 1, Table 1, etc.)
+2. Preserve original source labels used in the document
+3. Choose an appropriate resource_type (text_extract, data_table, image, graph, article, transcript, case_study, etc.)
+4. Extract full text for text resources
+5. For tables, use JSON with headers and rows
+
+Return ONLY valid JSON in this format:
+{ "resources": [ { "source_label": "Source A", "resource_type": "text_extract", "content_text": "...", "content_json": null, "word_count": 300, "attribution": null, "difficulty_contribution": "moderate", "display_order": 0 } ] }`;
+
+              const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${lovableApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  messages: [
+                    { role: 'system', content: 'You are an expert at analyzing exam documents. Return only valid JSON.' },
+                    { role: 'user', content: extractionPrompt },
+                  ],
+                  temperature: 0.2,
+                  response_format: { type: 'json_object' },
+                }),
+              });
+
+              if (!aiResponse.ok) {
+                const err = await aiResponse.text();
+                console.warn('Resource pack AI extraction failed:', aiResponse.status, err);
+              } else {
+                const envelopeText = await aiResponse.text();
+                const envelope = JSON.parse(envelopeText);
+                const content = envelope.choices?.[0]?.message?.content || '';
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
+                extractedResources = Array.isArray(parsed?.resources) ? parsed.resources : [];
+              }
+            } catch (aiErr) {
+              console.warn('Resource pack extraction parsing error:', aiErr);
+            }
+
+            // Guarantee minimum of 1 resource for uploaded inserts
+            if (!Array.isArray(extractedResources) || extractedResources.length === 0) {
+              extractedResources = [
+                {
+                  source_label: 'Source A',
+                  resource_type: 'text_extract',
+                  content_text: packText ? packText.substring(0, 8000) : 'Insert provided but no readable text could be extracted.',
+                  content_json: null,
+                  word_count: null,
+                  attribution: null,
+                  difficulty_contribution: 'moderate',
+                  display_order: 0,
+                },
+              ];
+            }
+
+            // Clear any previous items (safety) then insert
+            await supabase.from('resource_items').delete().eq('pack_id', exam.resource_pack_id);
+
+            for (let i = 0; i < extractedResources.length; i++) {
+              const r = extractedResources[i] || {};
+              const { error: itemError } = await supabase
+                .from('resource_items')
+                .insert({
+                  pack_id: exam.resource_pack_id,
+                  source_label: r.source_label || `Resource ${i + 1}`,
+                  resource_type: r.resource_type || 'text_extract',
+                  content_text: r.content_text || null,
+                  content_json: r.content_json || null,
+                  word_count: r.word_count || null,
+                  attribution: r.attribution || null,
+                  difficulty_contribution: r.difficulty_contribution || 'moderate',
+                  display_order: r.display_order ?? i,
+                });
+              if (itemError) console.warn('Failed inserting resource item:', itemError);
+            }
+
+            await supabase
+              .from('resource_packs')
+              .update({ status: 'ready' })
+              .eq('id', exam.resource_pack_id);
+          }
+        }
+
+        // Load items for prompt context
+        const { data: resourceItems, error: itemsError } = await supabase
+          .from('resource_items')
+          .select('*')
+          .eq('pack_id', exam.resource_pack_id)
+          .order('display_order');
+
+        if (itemsError) {
+          console.warn('Failed to fetch resource items:', itemsError);
+        } else if (resourceItems && resourceItems.length > 0) {
+          resourcePackContext = `\n\n=== RESOURCE PACK (INSERT) ===\nCRITICAL: If generating questions based on an insert, you MUST reference at least one of these sources.\nDo not invent sources; use ONLY the content below.\n\n`;
+          for (const item of resourceItems) {
+            resourcePackContext += `--- ${item.source_label} ---\n`;
+            resourcePackContext += `Type: ${item.resource_type}\n`;
+            if (item.attribution) resourcePackContext += `Attribution: ${item.attribution}\n`;
+            if (item.content_text) resourcePackContext += `Content:\n${item.content_text}\n`;
+            if (item.content_json) resourcePackContext += `Data:\n${JSON.stringify(item.content_json, null, 2)}\n`;
+            resourcePackContext += `\n`;
+          }
+          resourcePackContext += `=== END RESOURCE PACK ===\n\nMANDATORY RULES:\n1) Every question MUST explicitly reference at least one Source/Table/Figure from the insert (e.g., \"Using Source A...\").\n2) Do not invent content beyond the insert.\n`;
+          console.log(`Loaded ${resourceItems.length} resource items for exam context`);
+        }
+      }
+    }
+  } catch (resourceErr) {
+    console.warn('Resource pack processing failed (continuing without insert context):', resourceErr);
+  }
+
   // Update status to extracting (already done above)
   // await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
 
@@ -364,6 +562,7 @@ ${structureInstructions}
 🎯 EXAM BOARD REQUIREMENTS:
 ${boardInstructions}
 ${specInstructions}
+${resourcePackContext}
 
 📐 MATHEMATICAL NOTATION (CRITICAL):
 1. ALWAYS provide LaTeX in "question_latex" for ANY math content
@@ -571,6 +770,7 @@ Return ONLY valid JSON in this structure:
 🎯 EXAM BOARD REQUIREMENTS:
 ${boardInstructions}
 ${specInstructions}
+${resourcePackContext}
 
 🎯 YOUR MISSION: Generate BRAND NEW questions inspired by this exam's content.
 
