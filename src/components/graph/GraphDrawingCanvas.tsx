@@ -136,7 +136,8 @@ export function GraphDrawingCanvas({
   }, [isDrawing, active, readOnly, getCursorPosition]);
 
   /**
-   * End drawing - save the path with BOTH pixel and data coordinates.
+   * End drawing - save the path with ONLY data/graph coordinates.
+   * Pixel coordinates are NOT stored (deprecated) - they are computed at render time.
    */
   const handlePointerUp = useCallback(() => {
     if (!isDrawing) return;
@@ -150,8 +151,8 @@ export function GraphDrawingCanvas({
       
       const newPath: DrawingPath = {
         id: `path_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        points: currentPath,
-        dataPoints: dataPoints, // Canonical coords for stable rendering
+        dataPoints: dataPoints, // Canonical coords for stable rendering (ONLY data coords)
+        // Note: 'points' (pixel coords) is deprecated and not stored for new paths
       };
       onPathsChange([...paths, newPath]);
     }
@@ -161,10 +162,10 @@ export function GraphDrawingCanvas({
 
   /**
    * Convert path to SVG polyline points string.
-   * Uses data coordinates if available (stable), falls back to pixel coords (legacy).
+   * Uses data coordinates (stable) - falls back to legacy pixel coords if needed.
    */
   const pathToPolylinePoints = useCallback((path: DrawingPath): string => {
-    // Prefer data coordinates for stable rendering across different viewport sizes
+    // Primary: use data coordinates for stable rendering across viewports
     if (path.dataPoints && path.dataPoints.length > 0) {
       return path.dataPoints
         .map(p => {
@@ -173,8 +174,12 @@ export function GraphDrawingCanvas({
         })
         .join(' ');
     }
-    // Fallback to legacy pixel coordinates
-    return path.points.map(p => `${p.pixelX},${p.pixelY}`).join(' ');
+    // Legacy fallback: use pixel coordinates if dataPoints not available
+    // This handles old saved paths from before the camera-based refactor
+    if (path.points && path.points.length > 0) {
+      return path.points.map(p => `${p.pixelX},${p.pixelY}`).join(' ');
+    }
+    return '';
   }, [dataToPixel]);
 
   /**
