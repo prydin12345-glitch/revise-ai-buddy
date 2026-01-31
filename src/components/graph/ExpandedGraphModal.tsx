@@ -869,7 +869,8 @@ export function ExpandedGraphModal({
     }
 
     const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
-    const hitRadius = isInDragMode ? Math.max(POINT_HIT_RADIUS, 48) : 20;
+    // Hit radius: larger for drag mode, but also ensure reasonable size for mouse double-click
+    const hitRadius = isInDragMode ? Math.max(POINT_HIT_RADIUS, 48) : Math.max(visualRadius + 12, 24);
     
     return (
       <g 
@@ -877,6 +878,8 @@ export function ExpandedGraphModal({
         style={{ 
           cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', 
           touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
         }}
         pointerEvents="all"
       >
@@ -888,7 +891,12 @@ export function ExpandedGraphModal({
           fillOpacity={0.001}
           stroke="none"
           pointerEvents="all"
-          style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
+          style={{ 
+            touchAction: 'none', 
+            cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
           onPointerDown={(e) => handlePointPointerDown(point, e)}
           onPointerMove={handlePointPointerMove}
           onPointerUp={(e) => handlePointPointerUp(point, e)}
@@ -1137,12 +1145,18 @@ export function ExpandedGraphModal({
         {/* Chart - takes remaining space */}
         <div 
           ref={chartContainerRef}
-          className="flex-1 relative w-full border rounded-lg bg-card min-h-0"
+          className="flex-1 relative w-full border rounded-lg bg-card min-h-0 select-none"
           onPointerDown={handleChartContainerPointerDown}
           onPointerMove={handlePointPointerMove}
           onPointerUp={handleChartContainerPointerUp}
           onPointerCancel={handleChartContainerPointerCancel}
-          style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
+          style={{ 
+            cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', 
+            touchAction: 'none', 
+            overflow: 'visible',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+          }}
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
