@@ -141,15 +141,92 @@ export interface LineSegment {
   controlPoint?: GraphPoint;
 }
 
+// ============= Camera-Based Graph System Types =============
+
+/**
+ * Camera state for Desmos-style graph viewport.
+ * 
+ * The camera defines how we view the infinite graph coordinate space.
+ * All graph data is stored in graph coordinates; the camera only affects rendering.
+ * 
+ * Core principle: "Graph data lives in math space. Camera controls how we look at it."
+ */
+export interface CameraState {
+  /** Graph x-coordinate at the center of the viewport */
+  centerX: number;
+  /** Graph y-coordinate at the center of the viewport */
+  centerY: number;
+  /** Graph units per 100 pixels (unified scale for x and y) */
+  scale: number;
+}
+
+/**
+ * Complete viewport information combining camera state with pixel dimensions.
+ */
+export interface GraphViewport {
+  /** Viewport width in pixels */
+  width: number;
+  /** Viewport height in pixels */
+  height: number;
+  /** Current camera state */
+  camera: CameraState;
+}
+
+/**
+ * Calculate the visible domain from camera state and viewport dimensions.
+ */
+export function getVisibleDomain(
+  camera: CameraState,
+  viewportWidth: number,
+  viewportHeight: number
+): { domainX: [number, number]; domainY: [number, number] } {
+  const halfWidthUnits = (viewportWidth * camera.scale) / 200;
+  const halfHeightUnits = (viewportHeight * camera.scale) / 200;
+  
+  return {
+    domainX: [camera.centerX - halfWidthUnits, camera.centerX + halfWidthUnits],
+    domainY: [camera.centerY - halfHeightUnits, camera.centerY + halfHeightUnits],
+  };
+}
+
+/**
+ * Create a default camera state that centers on a given domain.
+ */
+export function createCameraFromDomain(
+  domainX: [number, number],
+  domainY: [number, number],
+  viewportWidth: number,
+  viewportHeight: number
+): CameraState {
+  const centerX = (domainX[0] + domainX[1]) / 2;
+  const centerY = (domainY[0] + domainY[1]) / 2;
+  
+  // Calculate scale to fit the larger dimension
+  const rangeX = domainX[1] - domainX[0];
+  const rangeY = domainY[1] - domainY[0];
+  
+  // Scale = graph units per 100 pixels
+  // We want the domain to fit with some padding
+  const scaleX = (rangeX * 100) / (viewportWidth * 0.9);
+  const scaleY = (rangeY * 100) / (viewportHeight * 0.9);
+  
+  // Use the larger scale to ensure both dimensions fit
+  const scale = Math.max(scaleX, scaleY, 0.5); // Minimum scale of 0.5 units per 100px
+  
+  return { centerX, centerY, scale };
+}
+
 // Freeform drawing path
-// IMPORTANT: We store BOTH pixel coordinates (for immediate rendering at capture time)
-// and data coordinates (for stable re-rendering across different viewport sizes).
-// The dataPoints are canonical for grading/review; pixels are for immediate display.
+// IMPORTANT: We store data coordinates as the canonical representation.
+// Legacy pixel coordinates are supported for backward compatibility but should not be used for new paths.
 export interface DrawingPath {
   id: string;
-  /** Legacy: pixel coordinates relative to canvas at capture time. Used for immediate rendering. */
+  /** 
+   * @deprecated Legacy pixel coordinates. Use dataPoints instead.
+   * Kept for backward compatibility with existing saved responses.
+   */
   points: Array<{ pixelX: number; pixelY: number }>;
-  /** Canonical: data coordinates (graph x,y). Used for stable re-rendering and grading. */
+  /** Canonical: data coordinates (graph x,y). Used for stable rendering across viewports. */
   dataPoints?: Array<{ x: number; y: number }>;
 }
 
