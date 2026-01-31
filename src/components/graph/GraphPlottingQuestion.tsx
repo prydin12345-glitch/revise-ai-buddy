@@ -1360,9 +1360,11 @@ export function GraphPlottingQuestion({
     // Use the constant HIT_RADIUS for touch targets (44px for iPad-friendly tapping)
     const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
 
-    // ONLY the active drag point gets a large hit target to avoid overlap issues.
-    // All other points rely on container-level distance-based hit testing.
-    const hitRadius = isInDragMode ? Math.max(POINT_HIT_RADIUS, 48) : 20;
+    // Hit radius for point interaction:
+    // - Active drag point gets large hit target for reliable dragging
+    // - All points get a reasonable hit target centered on the point for mouse users
+    // The key fix: ensure the hit circle is large enough AND centered properly
+    const hitRadius = isInDragMode ? Math.max(POINT_HIT_RADIUS, 48) : Math.max(visualRadius + 12, 24);
     
     return (
       <g 
@@ -1370,10 +1372,13 @@ export function GraphPlottingQuestion({
         style={{ 
           cursor: readOnly ? 'default' : eraseMode ? 'pointer' : isDragging ? 'grabbing' : isInDragMode ? 'grab' : 'pointer', 
           touchAction: 'none',
+          // Prevent text selection on the SVG group
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
         }}
         pointerEvents="all"
       >
-        {/* Small invisible touch target - container handles distance-based hit testing */}
+        {/* Invisible hit target - centered on point for reliable mouse double-click */}
         <circle
           cx={displayCx}
           cy={displayCy}
@@ -1383,7 +1388,13 @@ export function GraphPlottingQuestion({
           fillOpacity={0.001}
           stroke="none"
           pointerEvents="all"
-          style={{ touchAction: 'none', cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
+          style={{ 
+            touchAction: 'none', 
+            cursor: isInDragMode ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+            // Ensure no text selection interference
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
           onPointerDown={(e) => handlePointPointerDown(point, e)}
           onPointerMove={handlePointPointerMove}
           onPointerUp={(e) => handlePointPointerUp(point, e)}
@@ -1618,12 +1629,18 @@ export function GraphPlottingQuestion({
       {/* Chart */}
       <div 
         ref={chartContainerRef}
-        className="relative w-full aspect-[4/3] border rounded-lg bg-card"
+        className="relative w-full aspect-[4/3] border rounded-lg bg-card select-none"
         onPointerDown={handleChartContainerPointerDown}
         onPointerMove={handlePointPointerMove}
         onPointerUp={handleChartContainerPointerUp}
         onPointerCancel={handleChartContainerPointerCancel}
-        style={{ cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', touchAction: 'none', overflow: 'visible' }}
+        style={{ 
+          cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', 
+          touchAction: 'none', 
+          overflow: 'visible',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+        }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
