@@ -217,17 +217,21 @@ export function createCameraFromDomain(
 }
 
 // Freeform drawing path
-// IMPORTANT: We store data coordinates as the canonical representation.
-// Legacy pixel coordinates are supported for backward compatibility but should not be used for new paths.
+// IMPORTANT: All coordinates are stored in graph/data coordinates for stability.
+// The camera system converts to pixels only at render time.
 export interface DrawingPath {
   id: string;
   /** 
-   * @deprecated Legacy pixel coordinates. Use dataPoints instead.
-   * Kept for backward compatibility with existing saved responses.
+   * Canonical: data/graph coordinates (x, y in math space).
+   * This is the primary storage format - stable across viewports, zoom, and resize.
    */
-  points: Array<{ pixelX: number; pixelY: number }>;
-  /** Canonical: data coordinates (graph x,y). Used for stable rendering across viewports. */
-  dataPoints?: Array<{ x: number; y: number }>;
+  dataPoints: Array<{ x: number; y: number }>;
+  /** 
+   * @deprecated Legacy pixel coordinates. Only used for backward compatibility 
+   * with existing saved responses from before the camera-based refactor.
+   * New paths should NOT populate this field.
+   */
+  points?: Array<{ pixelX: number; pixelY: number }>;
 }
 
 /**
