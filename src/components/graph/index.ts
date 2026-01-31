@@ -10,3 +10,4 @@ export * from './GraphTransformationQuestion';
 export * from './ReferenceDiagram';
 export * from './ExpandedGraphModal';
 export * from './GraphCanvas';
+export * from './GraphCanvasPlot';
