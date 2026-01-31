@@ -11,16 +11,11 @@ import {
   ZAxis,
   Line,
 } from 'recharts';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler, Minimize2, Check } from 'lucide-react';
+import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   GraphPlottingConfig,
   GraphPoint,
@@ -94,10 +89,14 @@ function generatePointId(): string {
 }
 
 /**
- * ExpandedGraphModal - Full-screen modal for larger graph drawing canvas.
+ * ExpandedGraphModal - Full-page graph workspace for larger drawing canvas.
  * 
- * Shares state with the inline GraphPlottingQuestion - no data duplication.
- * All changes made in the modal immediately update the parent state via callbacks.
+ * This is NOT a modal/popup - it's a full-page takeover that provides:
+ * - Square-ish aspect ratio for natural sketching (not wide/shallow)
+ * - Vertical scrolling when needed for larger graphs
+ * - Fixed header with question text (collapsible)
+ * - Sticky toolbar for drawing tools
+ * - All state shared with inline GraphPlottingQuestion via callbacks
  */
 export function ExpandedGraphModal({
   isOpen,
@@ -975,94 +974,100 @@ export function ExpandedGraphModal({
       .map(r => r.expectedPoint);
   }, [showCorrectAnswers, markingData]);
 
+  // Don't render anything if not open
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent 
-        className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-4 flex flex-col gap-3"
-        hideCloseButton
-      >
-        {/* Header */}
-        <DialogHeader className="flex-shrink-0 flex flex-col gap-2">
-          <div className="flex flex-row items-center justify-between">
-            <DialogTitle className="text-lg font-semibold">Graph Focus Mode</DialogTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="gap-2"
-            >
-              <Minimize2 className="h-4 w-4" />
-              Exit
-            </Button>
-          </div>
-          
-          {/* Question text with truncation and click-to-expand */}
-          {questionText && (
-            <div 
-              className={cn(
-                "text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 border border-border/50",
-                !isQuestionExpanded && truncatedQuestionText !== questionText && "cursor-pointer hover:bg-muted/70 transition-colors"
-              )}
-              onClick={() => {
-                if (truncatedQuestionText !== questionText) {
-                  setIsQuestionExpanded(!isQuestionExpanded);
-                }
-              }}
-            >
-              <span className="font-medium text-foreground mr-1">Q:</span>
-              {isQuestionExpanded ? questionText : truncatedQuestionText}
-              {truncatedQuestionText !== questionText && !isQuestionExpanded && (
-                <span className="text-primary ml-1 text-xs">(tap to expand)</span>
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {/* Fixed header bar */}
+      <header className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex items-center justify-between px-4 py-3">
+          <h1 className="text-lg font-semibold">Graph Workspace</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
+            Exit
+          </Button>
+        </div>
+        
+        {/* Collapsible question text */}
+        {questionText && (
+          <div 
+            className={cn(
+              "px-4 pb-3 cursor-pointer select-none",
+              isQuestionExpanded ? "" : "max-h-[3.5rem] overflow-hidden"
+            )}
+            onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
+          >
+            <div className="flex items-start gap-2 text-sm bg-muted/50 rounded-md px-3 py-2 border border-border/50">
+              <span className="flex-1">
+                <span className="font-medium text-foreground mr-1">Q:</span>
+                <span className="text-muted-foreground">
+                  {isQuestionExpanded ? questionText : truncatedQuestionText}
+                </span>
+              </span>
+              {truncatedQuestionText !== questionText && (
+                <span className="flex-shrink-0 text-primary">
+                  {isQuestionExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </span>
               )}
             </div>
-          )}
-        </DialogHeader>
+          </div>
+        )}
+      </header>
 
-        {/* Toolbar */}
-        {!readOnly && (
-          <div className="flex-shrink-0 flex flex-wrap items-center gap-2 border-b pb-3">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onUndo}
-              disabled={!canUndo}
-              title="Undo"
-            >
-              <Undo2 className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onRedo}
-              disabled={!canRedo}
-              title="Redo"
-            >
-              <Redo2 className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onClearAll}
-              disabled={!canClear}
-              title="Clear all"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant={eraseMode ? "default" : "outline"}
-              size="icon"
-              onClick={() => {
-                setEraseMode(!eraseMode);
-                setActiveDragPointId(null);
-              }}
-              title={eraseMode ? "Exit erase mode" : "Erase mode"}
-              className={eraseMode ? "bg-destructive hover:bg-destructive/90" : ""}
-            >
-              <Eraser className="h-4 w-4" />
-            </Button>
+      {/* Main scrollable content area */}
+      <ScrollArea className="flex-1">
+        <div className="p-4 flex flex-col gap-4">
+          {/* Toolbar */}
+          {!readOnly && (
+            <div className="flex flex-wrap items-center gap-2 sticky top-0 bg-background/95 backdrop-blur py-2 -mt-2 z-10">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onUndo}
+                disabled={!canUndo}
+                title="Undo"
+              >
+                <Undo2 className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onRedo}
+                disabled={!canRedo}
+                title="Redo"
+              >
+                <Redo2 className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onClearAll}
+                disabled={!canClear}
+                title="Clear all"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant={eraseMode ? "default" : "outline"}
+                size="icon"
+                onClick={() => {
+                  setEraseMode(!eraseMode);
+                  setActiveDragPointId(null);
+                }}
+                title={eraseMode ? "Exit erase mode" : "Erase mode"}
+                className={eraseMode ? "bg-destructive hover:bg-destructive/90" : ""}
+              >
+                <Eraser className="h-4 w-4" />
+              </Button>
 
             {isJoinModeEnabled && onJoinModeChange && (
               <ToggleGroup
@@ -1142,23 +1147,28 @@ export function ExpandedGraphModal({
           </p>
         )}
 
-        {/* Chart - takes remaining space */}
-        <div 
-          ref={chartContainerRef}
-          className="flex-1 relative w-full border rounded-lg bg-card min-h-0 select-none"
-          onPointerDown={handleChartContainerPointerDown}
-          onPointerMove={handlePointPointerMove}
-          onPointerUp={handleChartContainerPointerUp}
-          onPointerCancel={handleChartContainerPointerCancel}
-          style={{ 
-            cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', 
-            touchAction: 'none', 
-            overflow: 'visible',
-            WebkitUserSelect: 'none',
-            userSelect: 'none',
-          }}
-        >
-          <ResponsiveContainer width="100%" height="100%">
+          {/* Chart - square-ish aspect ratio with good minimum height */}
+          <div 
+            ref={chartContainerRef}
+            className="relative w-full border rounded-lg bg-card select-none"
+            onPointerDown={handleChartContainerPointerDown}
+            onPointerMove={handlePointPointerMove}
+            onPointerUp={handleChartContainerPointerUp}
+            onPointerCancel={handleChartContainerPointerCancel}
+            style={{ 
+              cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', 
+              touchAction: 'none', 
+              overflow: 'visible',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+              // Square-ish aspect ratio: min 500px height, or 80% of viewport width
+              // This ensures the graph is tall enough for proper sketching
+              minHeight: 'min(80vw, max(500px, calc(100vh - 280px)))',
+              aspectRatio: '1 / 1',
+              maxWidth: '100%',
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               ref={chartRef}
               margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
@@ -1411,7 +1421,7 @@ export function ExpandedGraphModal({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 flex items-center justify-between border-t pt-3">
+        <div className="flex items-center justify-between border-t pt-4 mt-4">
           <p className="text-sm text-muted-foreground">
             {studentPoints.length} point{studentPoints.length !== 1 ? 's' : ''} plotted
             {segments.length > 0 && ` • ${segments.length} segment${segments.length !== 1 ? 's' : ''}`}
@@ -1421,8 +1431,9 @@ export function ExpandedGraphModal({
             Done
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
