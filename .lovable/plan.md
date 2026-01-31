@@ -10,11 +10,40 @@
 - Created `GraphCanvas` component with GridLayer, AxisLayer
 - Created `CurveLayer` and `PointLayer` helper components
 
-## 🔄 Phase 3-4: Integration (Next)
-- Integrate GraphCanvas into GraphPlottingQuestion (replace Recharts)
-- Add pan/zoom gesture handling
-- Migrate drawing storage to graph-only coordinates
+## ✅ Phase 3 Complete: GraphCanvasPlot Integration Component
+- Created `GraphCanvasPlot` as a drop-in camera-based graph component
+- Supports all existing features: points, segments, curves, freeform drawing
+- Integrates with useGraphCamera for pan/zoom functionality
+- Ready for use in new components or gradual migration
 
+## 🔄 Phase 4: Gradual Migration (Recommended Approach)
+The existing `GraphPlottingQuestion` and `ExpandedGraphModal` are large (2000+ lines each) 
+with complex interaction logic that works well. Rather than a risky full rewrite:
+
+### Option A: New Components for New Features
+- Use `GraphCanvasPlot` for new graph-based features
+- Existing components continue working with Recharts
+- Migrate when touching those files for other reasons
+
+### Option B: Incremental Replacement
+1. Add feature flag to switch between Recharts and GraphCanvas
+2. Test thoroughly before removing Recharts code
+3. Migrate ExpandedGraphModal first (less critical path)
+
+## Files Created
+- `src/hooks/useGraphCamera.ts` - Camera state management
+- `src/components/graph/GraphCanvas.tsx` - Core SVG renderer
+- `src/components/graph/GraphCanvasPlot.tsx` - Full plotting component
+
+## Files Modified
+- `src/components/graph/types.ts` - Added camera types
+- `src/components/graph/index.ts` - Updated exports
+
+## Next Steps
+1. Test GraphCanvasPlot in isolation
+2. Create a test page or use in a new feature
+3. Validate pan/zoom works on touch devices
+4. Consider adding "Use new graph renderer" toggle in Settings
 
 # Desmos-Style Camera-Based Graph System
 
