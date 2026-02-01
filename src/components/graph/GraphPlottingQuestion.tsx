@@ -30,6 +30,7 @@ import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { ProtractorOverlay, ProtractorState } from './ProtractorOverlay';
 import { AngleMeasurementOverlay } from './AngleMeasurementOverlay';
 import { ExpandedGraphModal } from './ExpandedGraphModal';
+import { GraphCanvasPlot } from './GraphCanvasPlot';
 
 // Persisted angle measurement
 export interface AngleMeasurement {
@@ -76,6 +77,8 @@ interface GraphPlottingQuestionProps {
   expectedCurveSeries?: GraphSeries[];
   /** Question text to display in expanded graph modal */
   questionText?: string;
+  /** Use the new camera-based renderer with pan/zoom support */
+  useCameraRenderer?: boolean;
 }
 
 // History state for undo/redo
@@ -130,6 +133,7 @@ export function GraphPlottingQuestion({
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
+  useCameraRenderer = false,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -1626,7 +1630,56 @@ export function GraphPlottingQuestion({
         </p>
       )}
 
-      {/* Chart */}
+      {/* Chart - conditionally use camera-based renderer or legacy Recharts */}
+      {useCameraRenderer ? (
+        <div 
+          ref={chartContainerRef}
+          className="relative w-full aspect-square border rounded-lg bg-card select-none"
+          style={{ 
+            touchAction: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+          }}
+        >
+          {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
+            <GraphCanvasPlot
+              width={chartContainerSize.width}
+              height={chartContainerSize.height}
+              config={config}
+              domainX={domainX}
+              domainY={domainY}
+              studentPoints={studentPoints}
+              segments={segments}
+              drawnPaths={drawnPaths}
+              joinMode={joinMode}
+              referenceSeries={referenceSeries}
+              expectedCurveSeries={expectedCurveSeries}
+              markingData={markingData}
+              subjectColor={subjectColor}
+              readOnly={readOnly}
+              showCorrectAnswers={showCorrectAnswers}
+              panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
+              eraseMode={eraseMode}
+              angleMeasurements={angleMeasurements}
+              selectedSegmentIds={selectedSegmentIds}
+              activeDragPointId={activeDragPointId}
+              draggingPointId={draggingPointId}
+              draggingPosition={draggingPosition}
+              selectedJoinPoints={selectedJoinPoints}
+              onPointPointerDown={handlePointPointerDown}
+              onPointPointerMove={handlePointPointerMove}
+              onPointPointerUp={handlePointPointerUp}
+              onContainerPointerDown={handleChartContainerPointerDown}
+              onContainerPointerMove={handlePointPointerMove}
+              onContainerPointerUp={handleChartContainerPointerUp}
+              onContainerPointerCancel={handleChartContainerPointerCancel}
+              onDrawnPathsChange={onDrawnPathsChange}
+              onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
+              cursor={readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair'}
+            />
+          )}
+        </div>
+      ) : (
       <div 
         ref={chartContainerRef}
         className="relative w-full aspect-[4/3] border rounded-lg bg-card select-none"
@@ -1921,6 +1974,7 @@ export function GraphPlottingQuestion({
           </div>
         )}
       </div>
+      )}
 
       {/* Segments list */}
       {segments.length > 0 && !readOnly && (

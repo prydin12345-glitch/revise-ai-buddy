@@ -29,18 +29,27 @@
 - Vertical scrolling via `ScrollArea`
 - Shares state with inline view via callbacks
 
+### ✅ Phase 7: Integration (Complete)
+- Added `useCameraRenderer` prop to `GraphPlottingQuestion` component
+- When `useCameraRenderer={true}`, uses new `GraphCanvasPlot` with pan/zoom
+- Backward compatible - default is false (uses existing Recharts)
+- Created `/graph-test` route for testing the new camera system
+
 ---
 
 ## Files Created
 - `src/hooks/useGraphCamera.ts` - Camera state management with pan/zoom
 - `src/components/graph/GraphCanvas.tsx` - Core SVG renderer with layers
 - `src/components/graph/GraphCanvasPlot.tsx` - Full plotting component
+- `src/pages/GraphTest.tsx` - Test page for new camera-based graph
 
 ## Files Modified
 - `src/components/graph/types.ts` - Added camera types, updated DrawingPath
 - `src/components/graph/index.ts` - Updated exports
 - `src/components/graph/GraphDrawingCanvas.tsx` - Graph-coord-only storage
+- `src/components/graph/GraphPlottingQuestion.tsx` - Added `useCameraRenderer` prop
 - `src/pages/TakePracticeQuiz.tsx` - Updated UserAnswer types
+- `src/App.tsx` - Added `/graph-test` route
 
 ---
 

@@ -28,6 +28,7 @@ import AdminVerifications from "./pages/AdminVerifications";
 import NotFound from "./pages/NotFound";
 import ManageExams from "./pages/tutor/ManageExams";
 import ManagePracticeSets from "./pages/tutor/ManagePracticeSets";
+import GraphTest from "./pages/GraphTest";
 
 import StudentProgress from "./pages/tutor/StudentProgress";
 import CreateTutorExam from "./pages/tutor/CreateTutorExam";
@@ -61,6 +62,7 @@ const App = () => {
             <Route path="/stats" element={<Stats />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin/verifications" element={<AdminVerifications />} />
+            <Route path="/graph-test" element={<GraphTest />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/my-classes" element={<MyClasses />} />
             <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
