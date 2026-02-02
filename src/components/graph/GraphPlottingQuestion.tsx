@@ -133,7 +133,7 @@ export function GraphPlottingQuestion({
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
-  useCameraRenderer = false,
+  useCameraRenderer = true, // Default to camera-based renderer
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -155,6 +155,9 @@ export function GraphPlottingQuestion({
     top: 20,
     bottom: 40,
   });
+  
+  // Store the screenToGraph function from camera renderer for coordinate conversion
+  const screenToGraphRef = useRef<((x: number, y: number) => { x: number; y: number }) | null>(null);
 
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
@@ -851,6 +854,7 @@ export function GraphPlottingQuestion({
 
   /**
    * Find the nearest point within a given pixel radius.
+   * Uses Recharts coordinate conversion.
    */
   const findNearestPoint = useCallback((pixelX: number, pixelY: number, maxRadius: number): GraphPoint | null => {
     let nearest: GraphPoint | null = null;
@@ -867,6 +871,32 @@ export function GraphPlottingQuestion({
 
     return nearest;
   }, [studentPoints, dataToPixel]);
+
+  /**
+   * Find the nearest point using camera-based coordinate conversion.
+   * Takes a screenToGraph function from the camera renderer.
+   */
+  const findNearestPointCamera = useCallback((
+    pixelX: number, 
+    pixelY: number, 
+    maxRadius: number,
+    screenToGraph: (x: number, y: number) => { x: number; y: number },
+    graphToScreen: (x: number, y: number) => { x: number; y: number }
+  ): GraphPoint | null => {
+    let nearest: GraphPoint | null = null;
+    let nearestDistance = maxRadius;
+
+    for (const point of studentPoints) {
+      const screen = graphToScreen(point.x, point.y);
+      const distance = Math.sqrt(Math.pow(pixelX - screen.x, 2) + Math.pow(pixelY - screen.y, 2));
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = point;
+      }
+    }
+
+    return nearest;
+  }, [studentPoints]);
 
   /**
    * Handle pointer down on a point - start potential drag
@@ -1328,6 +1358,267 @@ export function GraphPlottingQuestion({
   }, [eraseMode, readOnly, segments, onSegmentsChange, saveToHistory]);
 
   /**
+   * Camera-aware container pointer down handler.
+   * Receives screenToGraph from the camera renderer for coordinate conversion.
+   */
+  const handleCameraContainerPointerDown = useCallback((
+    e: React.PointerEvent,
+    screenToGraph: (x: number, y: number) => { x: number; y: number }
+  ) => {
+    if (readOnly) return;
+    
+    // Store screenToGraph for use in move/up handlers
+    screenToGraphRef.current = screenToGraph;
+    
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Create a graphToScreen function for hit testing
+    // This is derived from screenToGraph by computing the inverse
+    const graphToScreen = (gx: number, gy: number): { x: number; y: number } => {
+      // We compute this by projecting based on viewport
+      const width = rect.width;
+      const height = rect.height;
+      
+      // Get bounds from domain
+      const domainWidth = domainX[1] - domainX[0];
+      const domainHeight = domainY[1] - domainY[0];
+      
+      // screenToGraph at corners to determine mapping
+      const topLeft = screenToGraph(0, 0);
+      const bottomRight = screenToGraph(width, height);
+      
+      const scaleX = width / (bottomRight.x - topLeft.x);
+      const scaleY = height / (topLeft.y - bottomRight.y); // Y is inverted
+      
+      const screenX = (gx - topLeft.x) * scaleX;
+      const screenY = (topLeft.y - gy) * scaleY;
+      
+      return { x: screenX, y: screenY };
+    };
+    
+    // Use camera-aware hit testing
+    const nearestPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
+    
+    if (!nearestPoint) return; // No point nearby
+    
+    // Mark that pointer started on a point
+    pointerStartedOnPointRef.current = true;
+    e.stopPropagation();
+    
+    // Handle erase mode - erase is handled on pointerUp
+    if (eraseMode) return;
+    
+    // Handle join/angle modes - selection is handled on pointerUp
+    if (isJoinModeActive || isAngleMode) return;
+    
+    // Check for double-tap to activate drag mode
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+    const timeDiff = now - lastTap.time;
+    const isSamePoint = lastTap.pointId === nearestPoint.id;
+    const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+    const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+    
+    lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+    
+    if (isDoubleTap) {
+      const currentDragId = activeDragPointIdRef.current;
+      if (currentDragId === nearestPoint.id) {
+        setActiveDragPointId(null);
+      } else {
+        setActiveDragPointId(nearestPoint.id || null);
+      }
+      lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
+      return;
+    }
+    
+    // If this point is in drag mode, start potential drag
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (currentDragPointId && currentDragPointId === nearestPoint.id) {
+      dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    }
+  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPointCamera, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, domainX, domainY]);
+
+  /**
+   * Camera-aware container pointer up handler.
+   * Handles adding points, selecting for join mode, and other interactions.
+   */
+  const handleCameraContainerPointerUp = useCallback((
+    e: React.PointerEvent,
+    screenToGraph: (x: number, y: number) => { x: number; y: number }
+  ) => {
+    if (readOnly) return;
+    
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Create graphToScreen for hit testing
+    const width = rect.width;
+    const height = rect.height;
+    const topLeft = screenToGraph(0, 0);
+    const bottomRight = screenToGraph(width, height);
+    const graphToScreen = (gx: number, gy: number): { x: number; y: number } => {
+      const scaleX = width / (bottomRight.x - topLeft.x);
+      const scaleY = height / (topLeft.y - bottomRight.y);
+      const screenX = (gx - topLeft.x) * scaleX;
+      const screenY = (topLeft.y - gy) * scaleY;
+      return { x: screenX, y: screenY };
+    };
+    
+    // If we were dragging, handle drag commit
+    const currentDragPointId = activeDragPointIdRef.current;
+    if (dragStartRef.current && dragStartRef.current.pointerId === e.pointerId && currentDragPointId) {
+      const activePoint = findPointById(currentDragPointId);
+      if (activePoint) {
+        handlePointPointerUp(activePoint, e);
+      }
+      pointerStartedOnPointRef.current = false;
+      dragStartRef.current = null;
+      return;
+    }
+    
+    // If pointer started on a point, handle point click
+    if (pointerStartedOnPointRef.current) {
+      pointerStartedOnPointRef.current = false;
+      
+      const nearestPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
+      
+      if (nearestPoint) {
+        if (isJoinModeActive || isAngleMode || eraseMode) {
+          handlePointClick(nearestPoint, e);
+          return;
+        }
+        
+        // Single tap on a point in drag mode exits drag mode
+        const currentDragId = activeDragPointIdRef.current;
+        if (currentDragId === nearestPoint.id) {
+          setActiveDragPointId(null);
+        }
+      }
+      return;
+    }
+    
+    // If pointer started on a segment, don't process further
+    if (pointerStartedOnLineRef.current) {
+      pointerStartedOnLineRef.current = false;
+      return;
+    }
+    
+    // Clear active drag point when tapping empty space
+    if (activeDragPointId) {
+      setActiveDragPointId(null);
+      return;
+    }
+    
+    // In erase mode, don't add points
+    if (eraseMode) {
+      const nearestPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
+      if (nearestPoint) {
+        handlePointClick(nearestPoint, e);
+      }
+      if (selectedJoinPoints.length > 0) setSelectedJoinPoints([]);
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) onSelectedSegmentIdsChange([]);
+      return;
+    }
+    
+    // In angle mode, clear transient selection
+    if (isAngleMode) {
+      if (selectedSegmentIds.length > 0 && onSelectedSegmentIdsChange) onSelectedSegmentIdsChange([]);
+      return;
+    }
+    
+    // In join mode, handle point selection for segment creation
+    if (isJoinModeActive) {
+      const nearestPoint = findNearestPointCamera(clickX, clickY, 30, screenToGraph, graphToScreen);
+      
+      if (nearestPoint) {
+        if (isPointSelected(nearestPoint)) {
+          setSelectedJoinPoints([]);
+          return;
+        }
+        
+        if (selectedJoinPoints.length === 1) {
+          const fromPoint = selectedJoinPoints[0];
+          const toPoint = nearestPoint;
+          
+          const segmentExists = segments.some(s => 
+            (s.from.x === fromPoint.x && s.from.y === fromPoint.y && s.to.x === toPoint.x && s.to.y === toPoint.y) ||
+            (s.from.x === toPoint.x && s.from.y === toPoint.y && s.to.x === fromPoint.x && s.to.y === fromPoint.y)
+          );
+          
+          if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
+            saveToHistory();
+            const newSegment: LineSegment = {
+              id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              from: { x: fromPoint.x, y: fromPoint.y },
+              to: { x: toPoint.x, y: toPoint.y },
+              mode: currentJoinMode as 'straight' | 'curved',
+            };
+            onSegmentsChange([...segments, newSegment]);
+          }
+          
+          setSelectedJoinPoints([]);
+          return;
+        }
+        
+        setSelectedJoinPoints([nearestPoint]);
+        return;
+      }
+      
+      if (selectedJoinPoints.length > 0) setSelectedJoinPoints([]);
+      return;
+    }
+    
+    // If we have a point selected, clear selection
+    if (selectedJoinPoints.length > 0) {
+      setSelectedJoinPoints([]);
+      return;
+    }
+    
+    // Check if tap is near an existing point
+    const nearbyPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
+    if (nearbyPoint) {
+      // Handle double-tap for drag mode
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      const timeDiff = now - lastTap.time;
+      const isSamePoint = lastTap.pointId === nearbyPoint.id;
+      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+      
+      lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+      
+      if (isDoubleTap) {
+        if (activeDragPointId === nearbyPoint.id) {
+          setActiveDragPointId(null);
+        } else {
+          setActiveDragPointId(nearbyPoint.id || null);
+        }
+        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
+      }
+      return;
+    }
+    
+    // Add a new point at the tap location
+    const graphCoords = screenToGraph(clickX, clickY);
+    
+    // Clamp to domain and snap
+    const clampedX = Math.max(domainX[0], Math.min(domainX[1], graphCoords.x));
+    const clampedY = Math.max(domainY[0], Math.min(domainY[1], graphCoords.y));
+    
+    addPoint(clampedX, clampedY);
+  }, [
+    readOnly, selectedJoinPoints, domainX, domainY, addPoint, isJoinModeActive, 
+    findNearestPointCamera, isPointSelected, segments, currentJoinMode, onSegmentsChange, 
+    activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, 
+    saveToHistory, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS,
+    DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE
+  ]);
+
+  /**
    * Custom dot renderer for points.
    * Supports dragging for repositioning with live tooltip.
    */
@@ -1669,9 +1960,9 @@ export function GraphPlottingQuestion({
               onPointPointerDown={handlePointPointerDown}
               onPointPointerMove={handlePointPointerMove}
               onPointPointerUp={handlePointPointerUp}
-              onContainerPointerDown={handleChartContainerPointerDown}
+              onContainerPointerDown={handleCameraContainerPointerDown}
               onContainerPointerMove={handlePointPointerMove}
-              onContainerPointerUp={handleChartContainerPointerUp}
+              onContainerPointerUp={handleCameraContainerPointerUp}
               onContainerPointerCancel={handleChartContainerPointerCancel}
               onDrawnPathsChange={onDrawnPathsChange}
               onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
