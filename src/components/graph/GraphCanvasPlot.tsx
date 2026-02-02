@@ -111,10 +111,12 @@ interface GraphCanvasPlotProps {
   onPointPointerDown?: (point: GraphPoint, e: React.PointerEvent) => void;
   onPointPointerMove?: (e: React.PointerEvent) => void;
   onPointPointerUp?: (point: GraphPoint, e: React.PointerEvent) => void;
-  /** Container pointer callbacks */
-  onContainerPointerDown?: (e: React.PointerEvent) => void;
+  /** Callback to add a new point at graph coordinates (called on tap) */
+  onAddPoint?: (graphX: number, graphY: number) => void;
+  /** Container pointer callbacks - these receive screenToGraph for coordinate conversion */
+  onContainerPointerDown?: (e: React.PointerEvent, screenToGraph: (x: number, y: number) => { x: number; y: number }) => void;
   onContainerPointerMove?: (e: React.PointerEvent) => void;
-  onContainerPointerUp?: (e: React.PointerEvent) => void;
+  onContainerPointerUp?: (e: React.PointerEvent, screenToGraph: (x: number, y: number) => { x: number; y: number }) => void;
   onContainerPointerCancel?: (e: React.PointerEvent) => void;
   /** Drawn paths change callback */
   onDrawnPathsChange?: (paths: DrawingPath[]) => void;
@@ -157,6 +159,7 @@ export function GraphCanvasPlot({
   onPointPointerDown,
   onPointPointerMove,
   onPointPointerUp,
+  onAddPoint,
   onContainerPointerDown,
   onContainerPointerMove,
   onContainerPointerUp,
@@ -165,6 +168,11 @@ export function GraphCanvasPlot({
   onSegmentClick,
   cursor,
 }: GraphCanvasPlotProps) {
+  
+  // Track tap detection (to distinguish taps from pans)
+  const tapStartRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
+  const TAP_THRESHOLD_PX = 10; // Max movement to be considered a tap
+  const TAP_THRESHOLD_MS = 300; // Max duration to be considered a tap
   
   // Initialize camera hook
   const {
@@ -217,17 +225,29 @@ export function GraphCanvasPlot({
     return catmullRomSpline(studentPoints);
   }, [joinMode, studentPoints]);
   
-  // Combine camera handlers with our custom handlers
+  // Combine camera handlers with our custom handlers - with tap detection
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Start tap detection
+    tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now(), pointerId: e.pointerId };
+    
     // Let camera handle pan/zoom if enabled
     if (panZoomEnabled && !readOnly) {
       cameraHandlers.onPointerDown(e);
     }
-    // Also call custom handler
-    onContainerPointerDown?.(e);
-  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerDown]);
+    // Also call custom handler with screenToGraph for coordinate conversion
+    onContainerPointerDown?.(e, screenToGraph);
+  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerDown, screenToGraph]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Check if we've moved too far to be a tap
+    if (tapStartRef.current && tapStartRef.current.pointerId === e.pointerId) {
+      const dx = Math.abs(e.clientX - tapStartRef.current.x);
+      const dy = Math.abs(e.clientY - tapStartRef.current.y);
+      if (dx > TAP_THRESHOLD_PX || dy > TAP_THRESHOLD_PX) {
+        tapStartRef.current = null; // Cancel tap detection
+      }
+    }
+    
     if (panZoomEnabled && !readOnly) {
       cameraHandlers.onPointerMove(e);
     }
@@ -236,13 +256,31 @@ export function GraphCanvasPlot({
   }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerMove, onPointPointerMove]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Check if this was a tap (quick, minimal movement)
+    const wasTap = tapStartRef.current && 
+      tapStartRef.current.pointerId === e.pointerId &&
+      Date.now() - tapStartRef.current.time < TAP_THRESHOLD_MS;
+    
+    tapStartRef.current = null;
+    
     if (panZoomEnabled && !readOnly) {
       cameraHandlers.onPointerUp(e);
     }
-    onContainerPointerUp?.(e);
-  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerUp]);
+    
+    // If it was a tap and we have an onAddPoint handler, add a point
+    if (wasTap && onAddPoint && !readOnly && !isPanning) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const graphCoords = screenToGraph(screenX, screenY);
+      // Let the parent handle the tap through the callback with coordinates
+    }
+    
+    onContainerPointerUp?.(e, screenToGraph);
+  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerUp, screenToGraph, onAddPoint, isPanning]);
   
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
+    tapStartRef.current = null;
     if (panZoomEnabled && !readOnly) {
       cameraHandlers.onPointerCancel(e);
     }
@@ -347,27 +385,53 @@ export function GraphCanvasPlot({
             const from = graphToScreen(seg.from.x, seg.from.y);
             const to = graphToScreen(seg.to.x, seg.to.y);
             
-            const isHighlighted = selectedSegmentIds.includes(seg.id);
-            const segmentColor = isHighlighted ? '#f97316' : '#3b82f6'; // Orange when selected for angle
+            // Check if this segment is part of an angle measurement
+            const isInAngleMeasurement = angleMeasurements.some(
+              m => m.segmentId1 === seg.id || m.segmentId2 === seg.id
+            );
+            const isHighlighted = selectedSegmentIds.includes(seg.id) || isInAngleMeasurement;
+            const segmentColor = isHighlighted ? '#f97316' : '#3b82f6'; // Orange when selected/in measurement
+            
+            const isClickable = eraseMode || joinMode === 'angle';
+            
+            // Handler for segment tap/click
+            const handleSegmentTap = (e: React.PointerEvent | React.MouseEvent) => {
+              if (!isClickable || !onSegmentClick) return;
+              e.stopPropagation();
+              e.preventDefault();
+              onSegmentClick(seg.id);
+            };
+            
+            // Common props for hit area
+            const hitAreaProps = {
+              stroke: 'transparent',
+              strokeWidth: 20, // Wider hit area for touch
+              fill: 'none',
+              style: { cursor: isClickable ? 'pointer' : 'default' },
+              onPointerUp: handleSegmentTap,
+              pointerEvents: 'stroke' as const,
+            };
             
             if (seg.mode === 'curved' && seg.controlPoint) {
-              // Quadratic bezier with control point
               const cp = graphToScreen(seg.controlPoint.x, seg.controlPoint.y);
+              const pathD = `M ${from.x} ${from.y} Q ${cp.x} ${cp.y} ${to.x} ${to.y}`;
               return (
-                <path
-                  key={seg.id}
-                  d={`M ${from.x} ${from.y} Q ${cp.x} ${cp.y} ${to.x} ${to.y}`}
-                  fill="none"
-                  stroke={segmentColor}
-                  strokeWidth={4}
-                  strokeLinecap="round"
-                  style={{ cursor: (eraseMode || joinMode === 'angle') ? 'pointer' : 'default' }}
-                  onClick={() => onSegmentClick?.(seg.id)}
-                />
+                <g key={seg.id}>
+                  {/* Hit area */}
+                  <path d={pathD} {...hitAreaProps} />
+                  {/* Visible line */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={segmentColor}
+                    strokeWidth={4}
+                    strokeLinecap="round"
+                    pointerEvents="none"
+                  />
+                </g>
               );
             }
             
-            // Straight line or curved without control point (uses default arc)
             if (seg.mode === 'curved') {
               const midX = (from.x + to.x) / 2;
               const midY = (from.y + to.y) / 2;
@@ -375,37 +439,50 @@ export function GraphCanvasPlot({
               const dy = to.y - from.y;
               const length = Math.sqrt(dx * dx + dy * dy);
               const bulge = length * 0.2;
-              const perpX = -dy / length * bulge;
-              const perpY = dx / length * bulge;
+              const perpX = length > 0 ? -dy / length * bulge : 0;
+              const perpY = length > 0 ? dx / length * bulge : 0;
+              const pathD = `M ${from.x} ${from.y} Q ${midX + perpX} ${midY + perpY} ${to.x} ${to.y}`;
               
               return (
-                <path
-                  key={seg.id}
-                  d={`M ${from.x} ${from.y} Q ${midX + perpX} ${midY + perpY} ${to.x} ${to.y}`}
-                  fill="none"
-                  stroke={segmentColor}
-                  strokeWidth={4}
-                  strokeLinecap="round"
-                  style={{ cursor: (eraseMode || joinMode === 'angle') ? 'pointer' : 'default' }}
-                  onClick={() => onSegmentClick?.(seg.id)}
-                />
+                <g key={seg.id}>
+                  {/* Hit area */}
+                  <path d={pathD} {...hitAreaProps} />
+                  {/* Visible line */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={segmentColor}
+                    strokeWidth={4}
+                    strokeLinecap="round"
+                    pointerEvents="none"
+                  />
+                </g>
               );
             }
             
             // Straight line
             return (
-              <line
-                key={seg.id}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={segmentColor}
-                strokeWidth={4}
-                strokeLinecap="round"
-                style={{ cursor: (eraseMode || joinMode === 'angle') ? 'pointer' : 'default' }}
-                onClick={() => onSegmentClick?.(seg.id)}
-              />
+              <g key={seg.id}>
+                {/* Hit area */}
+                <line
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  {...hitAreaProps}
+                />
+                {/* Visible line */}
+                <line
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  stroke={segmentColor}
+                  strokeWidth={4}
+                  strokeLinecap="round"
+                  pointerEvents="none"
+                />
+              </g>
             );
           })}
         </g>
