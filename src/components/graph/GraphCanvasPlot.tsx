@@ -175,6 +175,8 @@ export function GraphCanvasPlot({
   const TAP_THRESHOLD_MS = 300; // Max duration to be considered a tap
   
   // Initialize camera hook
+  // NOTE: Camera pan/zoom is ALWAYS enabled when panZoomEnabled is true,
+  // even in readOnly mode. readOnly only prevents editing (adding points, etc.)
   const {
     camera,
     visibleDomain,
@@ -188,7 +190,7 @@ export function GraphCanvasPlot({
     initialDomainY: domainY,
     viewportWidth: width,
     viewportHeight: height,
-    interactionEnabled: panZoomEnabled && !readOnly,
+    interactionEnabled: panZoomEnabled, // Allow pan/zoom even in readOnly mode
     minScale: 0.3,
     maxScale: 15,
   });
@@ -226,17 +228,18 @@ export function GraphCanvasPlot({
   }, [joinMode, studentPoints]);
   
   // Combine camera handlers with our custom handlers - with tap detection
+  // NOTE: Camera pan/zoom should work even in readOnly mode for exploration
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     // Start tap detection
     tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now(), pointerId: e.pointerId };
     
-    // Let camera handle pan/zoom if enabled
-    if (panZoomEnabled && !readOnly) {
+    // Let camera handle pan/zoom if enabled (works in readOnly too)
+    if (panZoomEnabled) {
       cameraHandlers.onPointerDown(e);
     }
     // Also call custom handler with screenToGraph for coordinate conversion
     onContainerPointerDown?.(e, screenToGraph);
-  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerDown, screenToGraph]);
+  }, [panZoomEnabled, cameraHandlers, onContainerPointerDown, screenToGraph]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // Check if we've moved too far to be a tap
@@ -248,12 +251,13 @@ export function GraphCanvasPlot({
       }
     }
     
-    if (panZoomEnabled && !readOnly) {
+    // Camera pan works even in readOnly mode
+    if (panZoomEnabled) {
       cameraHandlers.onPointerMove(e);
     }
     onContainerPointerMove?.(e);
     onPointPointerMove?.(e);
-  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerMove, onPointPointerMove]);
+  }, [panZoomEnabled, cameraHandlers, onContainerPointerMove, onPointPointerMove]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     // Check if this was a tap (quick, minimal movement)
@@ -263,11 +267,12 @@ export function GraphCanvasPlot({
     
     tapStartRef.current = null;
     
-    if (panZoomEnabled && !readOnly) {
+    // Camera handlers work even in readOnly mode
+    if (panZoomEnabled) {
       cameraHandlers.onPointerUp(e);
     }
     
-    // If it was a tap and we have an onAddPoint handler, add a point
+    // If it was a tap and we have an onAddPoint handler, add a point (only if not readOnly)
     if (wasTap && onAddPoint && !readOnly && !isPanning) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
@@ -281,14 +286,15 @@ export function GraphCanvasPlot({
   
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
     tapStartRef.current = null;
-    if (panZoomEnabled && !readOnly) {
+    if (panZoomEnabled) {
       cameraHandlers.onPointerCancel(e);
     }
     onContainerPointerCancel?.(e);
-  }, [panZoomEnabled, readOnly, cameraHandlers, onContainerPointerCancel]);
+  }, [panZoomEnabled, cameraHandlers, onContainerPointerCancel]);
   
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (panZoomEnabled && !readOnly) {
+    // Wheel zoom works even in readOnly mode
+    if (panZoomEnabled) {
       cameraHandlers.onWheel(e);
     }
   }, [panZoomEnabled, readOnly, cameraHandlers]);
