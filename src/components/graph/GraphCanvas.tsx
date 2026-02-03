@@ -422,6 +422,24 @@ export function GraphCanvas({
     }
   }, [interactionEnabled, cameraHandlers]);
   
+  // Add native wheel event listener with { passive: false } to properly prevent page zoom
+  // React's synthetic onWheel uses passive listeners by default which can't preventDefault
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || !interactionEnabled) return;
+    
+    const handleNativeWheel = (e: WheelEvent) => {
+      // Prevent browser page zoom when wheeling on the graph
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    
+    svg.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      svg.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, [interactionEnabled]);
+  
   // Determine cursor
   const effectiveCursor = cursor || (isPanning ? 'grabbing' : interactionEnabled ? 'crosshair' : 'default');
   
