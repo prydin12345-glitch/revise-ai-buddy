@@ -214,11 +214,14 @@ export function useGraphCamera({
   
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!interactionEnabled) return;
-    e.preventDefault();
     
-    // Zoom factor based on wheel delta
-    // Positive deltaY = scroll down = zoom out
-    const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+    // Prevent page zoom - must stop propagation and prevent default
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Zoom factor based on wheel delta - REDUCED for smoother feel
+    // Smaller values = finer control (was 1.1/0.9, now 1.03/0.97)
+    const zoomFactor = e.deltaY > 0 ? 1.03 : 0.97;
     
     // Get cursor position relative to the container
     const rect = e.currentTarget.getBoundingClientRect();
@@ -273,8 +276,11 @@ export function useGraphCamera({
         const dy = touches[1].y - touches[0].y;
         const currentDistance = Math.sqrt(dx * dx + dy * dy);
         
-        // Calculate zoom factor
-        const zoomFactor = initialPinchDistanceRef.current / currentDistance;
+        // Calculate zoom factor with damping for smoother pinch zoom
+        // Raw ratio can be too sensitive, so we dampen it
+        const rawRatio = initialPinchDistanceRef.current / currentDistance;
+        // Apply damping: move 30% toward the raw ratio (was 100%)
+        const zoomFactor = 1 + (rawRatio - 1) * 0.3;
         const newScale = Math.max(minScale, Math.min(maxScale, initialPinchScaleRef.current! * zoomFactor));
         
         // Zoom centered on pinch midpoint
