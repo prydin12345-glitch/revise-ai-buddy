@@ -1254,19 +1254,50 @@ const TakePracticeQuiz = () => {
   /**
    * Find reference diagram series for a question that mentions "shown in the diagram".
    * Looks in sibling questions (same root) for graph_plotting questions with series data.
+   * Also handles sub-questions that reference "the same original graph from part (a)".
    */
   const findReferenceSeries = useCallback((questionText: string, questionId: string, questionNumber: string): { series: GraphSeries[]; domainX: [number, number]; domainY: [number, number] } | null => {
-    // Check if question mentions diagram
-    const mentionsDiagram = /shown in the diagram|in the diagram|the diagram shows/i.test(questionText);
+    // Expanded patterns to catch more variations:
+    // - "shown in the diagram" / "the diagram shows"
+    // - "The graph shows..." / "curve is shown"
+    // - "Using the same original graph from part (a)"
+    const mentionsDiagram = 
+      /shown in the diagram|in the diagram|the diagram shows/i.test(questionText) ||
+      /\b(graph|curve)\s+shows\b/i.test(questionText) ||
+      /\b(graph|curve|diagram)\s+(of\s+)?[^.]*\s*(is\s+)?(shown|given)\b/i.test(questionText) ||
+      /\busing\s+the\s+same\s+(original\s+)?graph\b/i.test(questionText) ||
+      /\bfrom\s+part\s*\(?[a-zA-Z]\)?/i.test(questionText);
+    
     if (!mentionsDiagram) return null;
     
-    // Look through sibling questions in the same group for graph data
-    const rootNum = getRootQuestionNumber(questionNumber);
-    const siblingQuestions = questions.filter(q => 
-      getRootQuestionNumber(q.question_number) === rootNum && q.id !== questionId
-    );
+    // First check the current question's own graphConfig for series
+    const currentGraphData = parseGraphQuestionData(questions.find(q => q.id === questionId)?.correct_answer || null);
+    if (currentGraphData?.graphConfig && 'series' in currentGraphData.graphConfig) {
+      const config = currentGraphData.graphConfig as GraphInterpretationConfig;
+      if (config.series && config.series.length > 0) {
+        return {
+          series: config.series,
+          domainX: config.domainX || [-5, 5],
+          domainY: config.domainY || [-5, 5],
+        };
+      }
+    }
     
-    // First check if any sibling has graphConfig with series
+    // Look through sibling questions in the same group for graph data
+    // Prioritize part (a) as it usually contains the original curve
+    const rootNum = getRootQuestionNumber(questionNumber);
+    const siblingQuestions = questions
+      .filter(q => getRootQuestionNumber(q.question_number) === rootNum && q.id !== questionId)
+      .sort((a, b) => {
+        // Sort to put part 'a' first
+        const aEndsWithA = a.question_number.toLowerCase().endsWith('a');
+        const bEndsWithA = b.question_number.toLowerCase().endsWith('a');
+        if (aEndsWithA && !bEndsWithA) return -1;
+        if (!aEndsWithA && bEndsWithA) return 1;
+        return 0;
+      });
+    
+    // Check siblings for graphConfig with series
     for (const sibling of siblingQuestions) {
       const graphData = parseGraphQuestionData(sibling.correct_answer);
       if (graphData?.graphConfig && 'series' in graphData.graphConfig) {
@@ -1714,16 +1745,44 @@ const TakePracticeQuiz = () => {
                       const plottingAnswer = graphData.plottingAnswer;
                       
                       // Get reference series from graphConfig.series
-                      const rawRefSeries = (graphData.graphConfig as any)?.series || [];
+                      let rawRefSeries = (graphData.graphConfig as any)?.series || [];
                       
                       // CRITICAL: For "sketch" questions that mention "graph is shown" or similar,
                       // we MUST display the reference series (the original f(x) curve).
                       // Only hide reference series if it's a pure sketch-from-equation question
                       // (no mention of "shown" or "given" curve).
                       const isSketchQuestion = /\bsketch\b/i.test(currentQuestion.question_text);
-                      const mentionsShownGraph = /\b(graph|curve|diagram)\s+(of\s+)?[^.]*\s*(is\s+)?(shown|given|illustrated|displayed|below|above)\b/i.test(currentQuestion.question_text) ||
-                                                  /\b(shown|given|illustrated)\s+(in\s+)?(the\s+)?(graph|curve|diagram)\b/i.test(currentQuestion.question_text);
+                      
+                      // Expanded patterns to catch more variations:
+                      // - "The graph shows..." / "graph of y=f(x) is shown"
+                      // - "Using the same original graph" (for sub-questions)
+                      // - "the curve shown" / "diagram shown"
+                      const mentionsShownGraph = 
+                        /\b(graph|curve|diagram)\s+(of\s+)?[^.]*\s*(is\s+)?(shown|given|illustrated|displayed|below|above)\b/i.test(currentQuestion.question_text) ||
+                        /\b(shown|given|illustrated)\s+(in\s+)?(the\s+)?(graph|curve|diagram)\b/i.test(currentQuestion.question_text) ||
+                        /\b(graph|curve)\s+shows\b/i.test(currentQuestion.question_text) ||
+                        /\busing\s+the\s+same\s+(original\s+)?graph\b/i.test(currentQuestion.question_text) ||
+                        /\bfrom\s+part\s*\(?[a-zA-Z]\)?/i.test(currentQuestion.question_text);
+                      
                       const isInReviewMode = currentAnswer.submitted && !!currentAnswer.feedback;
+                      
+                      // For sub-questions that reference "the same original graph from part (a)",
+                      // we need to look up the parent question's reference series
+                      if (mentionsShownGraph && rawRefSeries.length === 0) {
+                        // Try to find parent question's series data
+                        const rootNum = getRootQuestionNumber(currentQuestion.question_number);
+                        const parentQuestion = questions.find(q => 
+                          getRootQuestionNumber(q.question_number) === rootNum && 
+                          q.question_number !== currentQuestion.question_number &&
+                          q.question_number.endsWith('a') // Usually part (a) has the original curve
+                        );
+                        if (parentQuestion) {
+                          const parentGraphData = parseGraphQuestionData(parentQuestion.correct_answer || null);
+                          if (parentGraphData?.graphConfig && 'series' in parentGraphData.graphConfig) {
+                            rawRefSeries = (parentGraphData.graphConfig as any).series || [];
+                          }
+                        }
+                      }
                       
                       // Show reference series if:
                       // 1. The question mentions a "shown" graph (student needs to see original curve), OR
