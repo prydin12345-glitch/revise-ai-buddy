@@ -1564,8 +1564,16 @@ const TakePracticeQuiz = () => {
                     <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
                   </div>
 
-                  {/* Reference diagram for "shown in the diagram" questions */}
+                  {/* Reference diagram for "shown in the diagram" questions - SKIP for graph_plotting as it has its own curve rendering */}
                   {(() => {
+                    // Parse graph data to check if this is a graph_plotting question
+                    const graphData = parseGraphQuestionData(currentQuestion.correct_answer || null);
+                    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || 
+                      (graphData?.graphConfig && graphData?.plottingAnswer);
+                    
+                    // Skip ReferenceDiagram for graph_plotting - the curve is shown inside GraphPlottingQuestion
+                    if (isGraphPlotting) return null;
+                    
                     const refSeries = findReferenceSeries(currentQuestion.question_text, currentQuestion.id, currentQuestion.question_number);
                     if (refSeries && refSeries.series.length > 0) {
                       return (

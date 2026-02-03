@@ -938,18 +938,25 @@ export function GraphPlottingQuestion({
       const pixelX = e.clientX - rect.left;
       const pixelY = e.clientY - rect.top;
       
-      // Convert to data coordinates and snap to 1dp
-      const { dataX, dataY } = pixelToData(pixelX, pixelY);
+      // Convert to data coordinates
+      // Use screenToGraphRef if available (camera-based), otherwise fallback to pixelToData
+      let dataX: number, dataY: number;
+      if (screenToGraphRef.current) {
+        const coords = screenToGraphRef.current(pixelX, pixelY);
+        dataX = coords.x;
+        dataY = coords.y;
+      } else {
+        const coords = pixelToData(pixelX, pixelY);
+        dataX = coords.dataX;
+        dataY = coords.dataY;
+      }
       
-      // Clamp to domain
-      const clampedX = Math.max(domainX[0], Math.min(domainX[1], dataX));
-      const clampedY = Math.max(domainY[0], Math.min(domainY[1], dataY));
-      
-      const snapped = snapPoint(clampedX, clampedY);
+      // Snap to 1dp - do NOT clamp to initial domain (allows pan/zoom plotting)
+      const snapped = snapPoint(dataX, dataY);
       
       setDraggingPosition(snapped);
     }
-  }, [readOnly, pixelToData, snapPoint, domainX, domainY, saveToHistory]); // Remove activeDragPointId - use ref
+  }, [readOnly, pixelToData, snapPoint, saveToHistory]); // Remove domainX, domainY deps
 
   /**
    * Handle pointer up - end drag or trigger click.
@@ -1587,13 +1594,11 @@ export function GraphPlottingQuestion({
     }
     
     // Add a new point at the tap location
+    // NOTE: Do NOT clamp to initial domainX/domainY - the camera can pan/zoom beyond it
+    // Points can be placed anywhere in the visible graph space
     const graphCoords = screenToGraph(clickX, clickY);
     
-    // Clamp to domain and snap
-    const clampedX = Math.max(domainX[0], Math.min(domainX[1], graphCoords.x));
-    const clampedY = Math.max(domainY[0], Math.min(domainY[1], graphCoords.y));
-    
-    addPoint(clampedX, clampedY);
+    addPoint(graphCoords.x, graphCoords.y);
   }, [
     readOnly, selectedJoinPoints, domainX, domainY, addPoint, isJoinModeActive, 
     findNearestPointCamera, isPointSelected, segments, currentJoinMode, onSegmentsChange, 
