@@ -1,17 +1,4 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  ResponsiveContainer,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ReferenceDot,
-  ComposedChart,
-  ZAxis,
-  Line,
-} from 'recharts';
 import { GraphSeries } from './types';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -77,8 +64,6 @@ interface GraphPlottingQuestionProps {
   expectedCurveSeries?: GraphSeries[];
   /** Question text to display in expanded graph modal */
   questionText?: string;
-  /** Use the new camera-based renderer with pan/zoom support */
-  useCameraRenderer?: boolean;
 }
 
 // History state for undo/redo
@@ -133,7 +118,6 @@ export function GraphPlottingQuestion({
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
-  useCameraRenderer = true, // Default to camera-based renderer
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -1921,351 +1905,54 @@ export function GraphPlottingQuestion({
         </p>
       )}
 
-      {/* Chart - conditionally use camera-based renderer or legacy Recharts */}
-      {useCameraRenderer ? (
-        <div 
-          ref={chartContainerRef}
-          className="relative w-full aspect-square border rounded-lg bg-card select-none"
-          style={{ 
-            touchAction: 'none',
-            WebkitUserSelect: 'none',
-            userSelect: 'none',
-          }}
-        >
-          {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
-            <GraphCanvasPlot
-              width={chartContainerSize.width}
-              height={chartContainerSize.height}
-              config={config}
-              domainX={domainX}
-              domainY={domainY}
-              studentPoints={studentPoints}
-              segments={segments}
-              drawnPaths={drawnPaths}
-              joinMode={joinMode}
-              referenceSeries={referenceSeries}
-              expectedCurveSeries={expectedCurveSeries}
-              markingData={markingData}
-              subjectColor={subjectColor}
-              readOnly={readOnly}
-              showCorrectAnswers={showCorrectAnswers}
-              panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
-              eraseMode={eraseMode}
-              angleMeasurements={angleMeasurements}
-              selectedSegmentIds={selectedSegmentIds}
-              activeDragPointId={activeDragPointId}
-              draggingPointId={draggingPointId}
-              draggingPosition={draggingPosition}
-              selectedJoinPoints={selectedJoinPoints}
-              onPointPointerDown={handlePointPointerDown}
-              onPointPointerMove={handlePointPointerMove}
-              onPointPointerUp={handlePointPointerUp}
-              onContainerPointerDown={handleCameraContainerPointerDown}
-              onContainerPointerMove={handlePointPointerMove}
-              onContainerPointerUp={handleCameraContainerPointerUp}
-              onContainerPointerCancel={handleChartContainerPointerCancel}
-              onDrawnPathsChange={onDrawnPathsChange}
-              onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
-              cursor={readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair'}
-            />
-          )}
-        </div>
-      ) : (
+      {/* Camera-based graph renderer with pan/zoom support */}
       <div 
         ref={chartContainerRef}
-        className="relative w-full aspect-[4/3] border rounded-lg bg-card select-none"
-        onPointerDown={handleChartContainerPointerDown}
-        onPointerMove={handlePointPointerMove}
-        onPointerUp={handleChartContainerPointerUp}
-        onPointerCancel={handleChartContainerPointerCancel}
+        className="relative w-full aspect-square border rounded-lg bg-card select-none"
         style={{ 
-          cursor: readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair', 
-          touchAction: 'none', 
-          overflow: 'visible',
+          touchAction: 'none',
           WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            ref={chartRef}
-            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            
-            <XAxis
-              type="number"
-              dataKey="x"
-              domain={domainX}
-              tickCount={Math.min(11, domainX[1] - domainX[0] + 1)}
-              allowDecimals={true}
-              label={{ 
-                value: 'x', 
-                position: 'bottom', 
-                offset: 5,
-                style: { fill: 'hsl(var(--foreground))' }
-              }}
-              tick={{ fill: 'hsl(var(--foreground))' }}
-              stroke="hsl(var(--foreground))"
-            />
-            
-            <YAxis
-              type="number"
-              dataKey="y"
-              domain={domainY}
-              tickCount={Math.min(11, domainY[1] - domainY[0] + 1)}
-              allowDecimals={true}
-              label={{ 
-                value: 'y', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { fill: 'hsl(var(--foreground))' }
-              }}
-              stroke="hsl(var(--foreground))"
-            />
-            
-            <ZAxis range={[100, 100]} />
-            
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const point = payload[0].payload as GraphPoint;
-                return (
-                  <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-md font-mono">
-                    ({point.x.toFixed(1)}, {point.y.toFixed(1)})
-                  </div>
-                );
-              }}
-            />
-
-            {/* Reference lines at 0 if in domain */}
-            {domainX[0] <= 0 && domainX[1] >= 0 && (
-              <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-            )}
-            {domainY[0] <= 0 && domainY[1] >= 0 && (
-              <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-            )}
-
-            {/* Reference curves from graphConfig.series - displays the "shown in diagram" curve */}
-            {/* connectNulls=false ensures discontinuous functions like 1/x don't connect across asymptotes */}
-            {referenceSeries.map((series, idx) => {
-              // Skip if no data points
-              if (!series.data || series.data.length < 2) return null;
-              
-              // Filter out NaN points for proper rendering
-              const validData = series.data.filter(p => Number.isFinite(p.y));
-              if (validData.length < 2) return null;
-              
-              const lineColor = series.color || 'hsl(var(--primary))';
-              const lineStyle = series.lineStyle === 'dashed' ? '5 5' : 
-                               series.lineStyle === 'dotted' ? '2 2' : undefined;
-              
-              return (
-                <Line
-                  key={`reference-${series.id || idx}`}
-                  type="monotone"
-                  data={validData}
-                  dataKey="y"
-                  stroke={lineColor}
-                  strokeWidth={2}
-                  strokeDasharray={lineStyle}
-                  dot={false}
-                  isAnimationActive={false}
-                  name={series.label || `Series ${idx + 1}`}
-                  connectNulls={false}
-                />
-              );
-            })}
-
-
-            <Scatter
-              name="Points"
-              data={studentPoints}
-              fill={subjectColor}
-              shape={renderDot}
-              isAnimationActive={false}
-            />
-
-            {/* Missed expected points (when showing correct answers) */}
-            {showCorrectAnswers && missedPoints.map((point, idx) => (
-              <ReferenceDot
-                key={`missed-${idx}`}
-                x={point.x}
-                y={point.y}
-                r={8}
-                fill="transparent"
-                stroke="hsl(var(--success, 142 76% 36%))"
-                strokeWidth={2}
-                strokeDasharray="4 2"
-              />
-            ))}
-
-            {/* Expected answer curve in review mode (dashed green) */}
-            {/* connectNulls=false ensures discontinuous functions like 1/x don't connect across asymptotes */}
-            {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {
-              if (!series.data || series.data.length < 2) return null;
-              
-              // Filter out NaN points but keep the curve data structure
-              const validData = series.data.filter(p => Number.isFinite(p.y));
-              if (validData.length < 2) return null;
-              
-              return (
-                <Line
-                  key={`expected-curve-${series.id || idx}`}
-                  type="monotone"
-                  data={validData}
-                  dataKey="y"
-                  stroke="hsl(var(--success, 142 76% 36%))"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  isAnimationActive={false}
-                  name={`Expected: ${series.label || `Curve ${idx + 1}`}`}
-                  connectNulls={false}
-                />
-              );
-            })}
-          </ComposedChart>
-        </ResponsiveContainer>
-
-        {/* Segments overlay - ONLY renders explicitly created segments */}
-        {segments.length > 0 && (() => {
-          // Compute all segment IDs that should be highlighted in angle mode:
-          // 1. Segments from persisted angle measurements (always orange)
-          // 2. Segments from current transient selection (also orange while selecting)
-          const measurementSegmentIds = new Set<string>();
-          angleMeasurements.forEach(m => {
-            measurementSegmentIds.add(m.segmentId1);
-            measurementSegmentIds.add(m.segmentId2);
-          });
-          
-          // Combine persisted and transient selections
-          const allHighlightedSegmentIds = isAngleMode 
-            ? [...new Set([...measurementSegmentIds, ...selectedSegmentIds])]
-            : [];
-          
-          return (
-            <GraphSegmentsLayer
-              segments={segments}
-              onSegmentsChange={readOnly ? undefined : onSegmentsChange}
-              stroke="#3b82f6"
-              strokeWidth={4}
-              containerWidth={chartContainerSize.width}
-              containerHeight={chartContainerSize.height}
-              domainX={domainX}
-              domainY={domainY}
-              xScale={axisScales.x}
-              yScale={axisScales.y}
-              marginLeft={chartMargins.left}
-              marginRight={chartMargins.right}
-              marginTop={chartMargins.top}
-              marginBottom={chartMargins.bottom}
-              readOnly={readOnly}
-              debug={false}
-              selectedSegmentIds={allHighlightedSegmentIds}
-              onSegmentSelect={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
-              onPointerStartedOnSegment={(eraseMode || isAngleMode) ? () => {
-                pointerStartedOnLineRef.current = true;
-              } : undefined}
-            />
-          );
-        })()}
-
-        {/* Freeform drawing canvas overlay */}
-        {isJoinModeEnabled && onDrawnPathsChange && (
-          <GraphDrawingCanvas
-            containerWidth={chartContainerSize.width}
-            containerHeight={chartContainerSize.height}
-            marginLeft={chartMargins.left}
-            marginTop={chartMargins.top}
-            marginRight={chartMargins.right}
-            marginBottom={chartMargins.bottom}
-            paths={drawnPaths}
-            onPathsChange={onDrawnPathsChange}
-            readOnly={readOnly}
-            active={isJoinModeActive && currentJoinMode === 'freeform'}
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
+        {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
+          <GraphCanvasPlot
+            width={chartContainerSize.width}
+            height={chartContainerSize.height}
+            config={config}
             domainX={domainX}
             domainY={domainY}
-          />
-        )}
-
-        {/* Protractor overlay */}
-        {showProtractor && (
-          <ProtractorOverlay
-            containerWidth={chartContainerSize.width}
-            containerHeight={chartContainerSize.height}
-            marginLeft={chartMargins.left}
-            marginRight={chartMargins.right}
-            marginTop={chartMargins.top}
-            marginBottom={chartMargins.bottom}
-            protractorState={protractorState}
-            onProtractorStateChange={onProtractorStateChange}
-            readOnly={readOnly}
-          />
-        )}
-
-        {/* Persisted angle measurements - render ALL saved measurements */}
-        {angleMeasurements.map((measurement) => (
-          <AngleMeasurementOverlay
-            key={measurement.id}
+            studentPoints={studentPoints}
             segments={segments}
-            selectedSegmentIds={[measurement.segmentId1, measurement.segmentId2]}
-            containerWidth={chartContainerSize.width}
-            containerHeight={chartContainerSize.height}
-            marginLeft={chartMargins.left}
-            marginRight={chartMargins.right}
-            marginTop={chartMargins.top}
-            marginBottom={chartMargins.bottom}
-            domainX={domainX}
-            domainY={domainY}
-            xScale={axisScales.x}
-            yScale={axisScales.y}
-            measurementId={measurement.id}
-            onErase={eraseMode ? handleAngleMeasurementErase : undefined}
-            labelOffset={measurement.labelOffset}
-            onLabelOffsetChange={handleAngleLabelOffsetChange}
+            drawnPaths={drawnPaths}
+            joinMode={joinMode}
+            referenceSeries={referenceSeries}
+            expectedCurveSeries={expectedCurveSeries}
+            markingData={markingData}
+            subjectColor={subjectColor}
             readOnly={readOnly}
-          />
-        ))}
-
-        {/* Current selection preview (when selecting 2nd segment) */}
-        {selectedSegmentIds.length === 2 && (
-          <AngleMeasurementOverlay
-            segments={segments}
+            showCorrectAnswers={showCorrectAnswers}
+            panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
+            eraseMode={eraseMode}
+            angleMeasurements={angleMeasurements}
             selectedSegmentIds={selectedSegmentIds}
-            containerWidth={chartContainerSize.width}
-            containerHeight={chartContainerSize.height}
-            marginLeft={chartMargins.left}
-            marginRight={chartMargins.right}
-            marginTop={chartMargins.top}
-            marginBottom={chartMargins.bottom}
-            domainX={domainX}
-            domainY={domainY}
-            xScale={axisScales.x}
-            yScale={axisScales.y}
-            isPreview={true}
+            activeDragPointId={activeDragPointId}
+            draggingPointId={draggingPointId}
+            draggingPosition={draggingPosition}
+            selectedJoinPoints={selectedJoinPoints}
+            onPointPointerDown={handlePointPointerDown}
+            onPointPointerMove={handlePointPointerMove}
+            onPointPointerUp={handlePointPointerUp}
+            onContainerPointerDown={handleCameraContainerPointerDown}
+            onContainerPointerMove={handlePointPointerMove}
+            onContainerPointerUp={handleCameraContainerPointerUp}
+            onContainerPointerCancel={handleChartContainerPointerCancel}
+            onDrawnPathsChange={onDrawnPathsChange}
+            onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
+            cursor={readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair'}
           />
-        )}
-
-        {/* Drag tooltip - shows live coordinates while dragging a point */}
-        {draggingPointId && draggingPosition && (
-          <div 
-            className="absolute pointer-events-none z-50"
-            style={{
-              left: dataToPixel(draggingPosition.x, draggingPosition.y).px,
-              top: dataToPixel(draggingPosition.x, draggingPosition.y).py - 40,
-              transform: 'translateX(-50%)',
-            }}
-          >
-            <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-lg font-mono whitespace-nowrap">
-              ({draggingPosition.x.toFixed(1)}, {draggingPosition.y.toFixed(1)})
-            </div>
-          </div>
         )}
       </div>
-      )}
 
       {/* Segments list */}
       {segments.length > 0 && !readOnly && (

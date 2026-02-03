@@ -29,11 +29,11 @@
 - Vertical scrolling via `ScrollArea`
 - Shares state with inline view via callbacks
 
-### ✅ Phase 7: Integration (Complete)
-- Added `useCameraRenderer` prop to `GraphPlottingQuestion` component
-- When `useCameraRenderer={true}`, uses new `GraphCanvasPlot` with pan/zoom
-- Backward compatible - default is false (uses existing Recharts)
-- Created `/graph-test` route for testing the new camera system
+### ✅ Phase 7: Integration & Legacy Removal (Complete)
+- Removed `useCameraRenderer` prop - camera-based system is now the ONLY renderer
+- Removed all legacy Recharts rendering code (~300 lines)
+- Cleaned up unused Recharts imports
+- All graph questions now use the Desmos-style camera-based system by default
 
 ---
 
