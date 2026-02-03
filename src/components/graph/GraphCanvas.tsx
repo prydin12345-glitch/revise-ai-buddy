@@ -639,6 +639,11 @@ export function PointLayer({
           screenPos = graphToScreen(point.x, point.y);
         }
         
+        // Skip if coordinates are invalid (NaN guard)
+        if (!Number.isFinite(screenPos.x) || !Number.isFinite(screenPos.y)) {
+          return null;
+        }
+        
         const displayRadius = isSelected || isDragging || isInDragMode ? radius + 2 : radius;
         const hitRadius = Math.max(displayRadius + 12, 24);
         
