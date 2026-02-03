@@ -201,9 +201,14 @@ export function createCameraFromDomain(
   const centerX = (domainX[0] + domainX[1]) / 2;
   const centerY = (domainY[0] + domainY[1]) / 2;
   
+  // Guard against invalid viewport dimensions
+  if (viewportWidth <= 0 || viewportHeight <= 0) {
+    return { centerX, centerY, scale: 1 }; // Safe default
+  }
+  
   // Calculate scale to fit the larger dimension
-  const rangeX = domainX[1] - domainX[0];
-  const rangeY = domainY[1] - domainY[0];
+  const rangeX = Math.max(domainX[1] - domainX[0], 0.1); // Avoid zero range
+  const rangeY = Math.max(domainY[1] - domainY[0], 0.1);
   
   // Scale = graph units per 100 pixels
   // We want the domain to fit with some padding
@@ -211,7 +216,9 @@ export function createCameraFromDomain(
   const scaleY = (rangeY * 100) / (viewportHeight * 0.9);
   
   // Use the larger scale to ensure both dimensions fit
-  const scale = Math.max(scaleX, scaleY, 0.5); // Minimum scale of 0.5 units per 100px
+  // Clamp to reasonable range to prevent rendering issues
+  const rawScale = Math.max(scaleX, scaleY);
+  const scale = Math.max(0.5, Math.min(100, rawScale)); // Between 0.5 and 100
   
   return { centerX, centerY, scale };
 }

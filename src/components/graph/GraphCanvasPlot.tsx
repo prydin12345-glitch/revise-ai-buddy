@@ -391,6 +391,12 @@ export function GraphCanvasPlot({
             const from = graphToScreen(seg.from.x, seg.from.y);
             const to = graphToScreen(seg.to.x, seg.to.y);
             
+            // Skip if coordinates are invalid (prevents NaN errors)
+            if (!Number.isFinite(from.x) || !Number.isFinite(from.y) || 
+                !Number.isFinite(to.x) || !Number.isFinite(to.y)) {
+              return null;
+            }
+            
             // Check if this segment is part of an angle measurement
             const isInAngleMeasurement = angleMeasurements.some(
               m => m.segmentId1 === seg.id || m.segmentId2 === seg.id
@@ -524,6 +530,11 @@ export function GraphCanvasPlot({
               screenPos = graphToScreen(draggingPosition.x, draggingPosition.y);
             } else {
               screenPos = graphToScreen(point.x, point.y);
+            }
+            
+            // Skip rendering if coordinates are invalid (prevents NaN errors)
+            if (!Number.isFinite(screenPos.x) || !Number.isFinite(screenPos.y)) {
+              return null;
             }
             
             // Determine fill color

@@ -118,6 +118,11 @@ export function useGraphCamera({
    * (0, 0) is top-left of the viewport.
    */
   const graphToScreen = useCallback((graphX: number, graphY: number): { x: number; y: number } => {
+    // Guard against invalid camera state or viewport dimensions
+    if (camera.scale <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+      return { x: NaN, y: NaN };
+    }
+    
     // camera.scale = graph units per 100 pixels
     // So 1 graph unit = 100 / camera.scale pixels
     const pixelsPerUnit = 100 / camera.scale;
@@ -137,6 +142,11 @@ export function useGraphCamera({
    * Convert screen pixels to graph coordinates.
    */
   const screenToGraph = useCallback((screenX: number, screenY: number): { x: number; y: number } => {
+    // Guard against invalid camera state or viewport dimensions
+    if (camera.scale <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+      return { x: NaN, y: NaN };
+    }
+    
     const pixelsPerUnit = 100 / camera.scale;
     
     // Distance from center in pixels
@@ -155,11 +165,21 @@ export function useGraphCamera({
    * factor > 1 = zoom out, factor < 1 = zoom in
    */
   const zoom = useCallback((factor: number, centerScreenX?: number, centerScreenY?: number) => {
+    // Guard against invalid camera or viewport state
+    if (camera.scale <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+      return;
+    }
+    
     const cx = centerScreenX ?? viewportWidth / 2;
     const cy = centerScreenY ?? viewportHeight / 2;
     
     // Get the graph point under the cursor before zoom
     const graphPoint = screenToGraph(cx, cy);
+    
+    // Guard against NaN coordinates
+    if (!Number.isFinite(graphPoint.x) || !Number.isFinite(graphPoint.y)) {
+      return;
+    }
     
     // Apply zoom factor to scale
     const newScale = Math.max(minScale, Math.min(maxScale, camera.scale * factor));
@@ -173,6 +193,11 @@ export function useGraphCamera({
     const newCenterX = graphPoint.x - deltaPixelX / pixelsPerUnit;
     const newCenterY = graphPoint.y + deltaPixelY / pixelsPerUnit;
     
+    // Final guard - ensure we don't set NaN values
+    if (!Number.isFinite(newCenterX) || !Number.isFinite(newCenterY) || !Number.isFinite(newScale)) {
+      return;
+    }
+    
     setCamera({
       centerX: newCenterX,
       centerY: newCenterY,
@@ -184,16 +209,25 @@ export function useGraphCamera({
    * Pan the camera by a delta in screen pixels.
    */
   const pan = useCallback((deltaScreenX: number, deltaScreenY: number) => {
+    // Guard against invalid camera state
+    if (camera.scale <= 0) return;
+    
     const pixelsPerUnit = 100 / camera.scale;
     
     // Convert pixel delta to graph units (Y is inverted)
     const deltaGraphX = -deltaScreenX / pixelsPerUnit;
     const deltaGraphY = deltaScreenY / pixelsPerUnit;
     
+    const newCenterX = camera.centerX + deltaGraphX;
+    const newCenterY = camera.centerY + deltaGraphY;
+    
+    // Guard against NaN
+    if (!Number.isFinite(newCenterX) || !Number.isFinite(newCenterY)) return;
+    
     setCamera({
       ...camera,
-      centerX: camera.centerX + deltaGraphX,
-      centerY: camera.centerY + deltaGraphY,
+      centerX: newCenterX,
+      centerY: newCenterY,
     });
   }, [camera, setCamera]);
   
