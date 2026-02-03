@@ -2309,7 +2309,7 @@ export function GraphPlottingQuestion({
               >
                 <span>Path {idx + 1}</span>
                 <span className="text-muted-foreground text-xs">
-                  ({path.points.length} pts)
+                  ({(path.dataPoints?.length ?? path.points?.length ?? 0)} pts)
                 </span>
                 <Button
                   variant="ghost"
