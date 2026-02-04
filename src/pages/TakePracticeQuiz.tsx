@@ -1793,12 +1793,35 @@ const TakePracticeQuiz = () => {
                         }
                       }
                       
+                      // ===============================================================
+                      // SHADOW GRAPH: Display parent f(x) as visual reference
+                      // ===============================================================
+                      // For sub-questions with transformations (e.g., "sketch f(x-2)"),
+                      // we show the original f(x) curve as a faint dashed "shadow" line.
+                      // This is stored in plottingAnswer.shadowCurve by the edge function.
+                      const shadowCurve = (plottingAnswer as any)?.shadowCurve;
+                      if (shadowCurve && shadowCurve.data && shadowCurve.data.length > 0) {
+                        // Add shadow curve to reference series for display
+                        const shadowSeries: GraphSeries = {
+                          id: shadowCurve.id || 'shadow-reference',
+                          label: shadowCurve.label || 'y = f(x) (reference)',
+                          data: shadowCurve.data,
+                          showLine: true,
+                          lineStyle: 'dashed' as const,
+                          color: 'hsl(220 8.9% 66.1%)', // Muted grey for shadow
+                        };
+                        // Prepend shadow to series so it renders behind other curves
+                        rawRefSeries = [shadowSeries, ...rawRefSeries];
+                      }
+                      
                       // Show reference series if:
                       // 1. The question mentions a "shown" graph (student needs to see original curve), OR
                       // 2. It's NOT a sketch question (just a plotting question), OR
                       // 3. We're in review mode
+                      // 4. There's a shadow curve from a parent question
                       // Hide reference series ONLY for pure "sketch from equation" questions (no shown graph)
-                      const shouldShowReference = mentionsShownGraph || !isSketchQuestion || isInReviewMode;
+                      const hasShadowCurve = !!shadowCurve;
+                      const shouldShowReference = mentionsShownGraph || !isSketchQuestion || isInReviewMode || hasShadowCurve;
                       const refSeries = shouldShowReference ? rawRefSeries : [];
                       
                       // For review mode, generate expected curve from plottingAnswer

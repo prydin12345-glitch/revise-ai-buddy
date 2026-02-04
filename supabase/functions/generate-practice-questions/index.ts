@@ -1291,6 +1291,11 @@ ${notesSection}`;
       baseDomainY?: [number, number];
       baseSeries?: any[];           // Full series array for reuse
       baseGraphConfig?: any;        // Full graphConfig for reuse
+      /** 
+       * CRITICAL: The marking formula from part (a) - e.g., "(x-1)*(x-3)*(x+2)"
+       * This is the algebraic source of truth for all sub-question transformations.
+       */
+      baseMarkingFormula?: string;
       questions: number[];          // Indices into questions array
     }
     
@@ -1359,6 +1364,20 @@ ${notesSection}`;
             group.baseDomainX = graphData.graphConfig.domainX || graphData.graphConfig.xDomain;
             group.baseDomainY = graphData.graphConfig.domainY || graphData.graphConfig.yDomain;
             console.log(`Group ${rootNum}: Captured base curve with ${series[0].data.length} points`);
+          }
+        }
+        
+        // CRITICAL: Extract and store the markingFormula from the first question
+        // This is the algebraic source of truth for sub-question transformations
+        if (graphData?.plottingAnswer?.markingFormula) {
+          group.baseMarkingFormula = graphData.plottingAnswer.markingFormula;
+          console.log(`Group ${rootNum}: Captured base markingFormula = "${group.baseMarkingFormula}"`);
+        } else if (baseFunc) {
+          // Try to extract formula from the baseFunction string
+          const formulaFromText = extractMarkingFormula(`y = ${baseFunc}`);
+          if (formulaFromText) {
+            group.baseMarkingFormula = formulaFromText;
+            console.log(`Group ${rootNum}: Derived markingFormula from baseFunction = "${group.baseMarkingFormula}"`);
           }
         }
       } catch (e) {
@@ -1454,127 +1473,186 @@ ${notesSection}`;
       }
       
       // =====================================================================
-      // INHERIT BASE GRAPH FROM PARENT QUESTION (1a -> 1b, 1c, etc.)
+      // FORMULA-DRIVEN INHERITANCE FROM PARENT QUESTION (1a -> 1b, 1c, etc.)
       // =====================================================================
+      // This ensures sub-questions inherit the EXACT mathematical context from
+      // the parent question and apply transformations ALGEBRAICALLY to the formula.
       if (isSubQuestion && (referencesFWithoutDefining || mentionsUndefinedGraph)) {
-        console.info(`Question ${q.question_number}: Sub-question references f(x) - checking for inherited base graph`);
+        console.info(`Question ${q.question_number}: Sub-question references f(x) - checking for inherited base formula`);
         
-        // Try to get base curve from group
-        if (group?.baseCurveData && group?.baseGraphConfig) {
-          // Parse transformation from question text to apply to base curve
-          let transformSpec: TransformSpec = { ...IDENTITY_TRANSFORM };
+        // Try to get base formula and curve from group
+        if (group?.baseGraphConfig) {
+          // Parse transformation from question text
+          const transformSpec = parseTransformFromText(questionTextRaw);
           
-          // Parse f(x + a) or f(x - a) - horizontal shift
-          const horizMatch = questionTextRaw.match(/f\s*\(\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)/i);
-          if (horizMatch) {
-            // f(x - 3) shifts RIGHT by 3, f(x + 2) shifts LEFT by 2
-            const sign = horizMatch[1] === '-' ? 1 : -1;
-            transformSpec.shiftX = sign * parseFloat(horizMatch[2]);
-          }
+          const hasTransform = transformSpec.shiftX !== 0 || transformSpec.shiftY !== 0 ||
+                               transformSpec.scaleY !== 1 || transformSpec.scaleX !== 1 ||
+                               transformSpec.reflectX || transformSpec.reflectY;
           
-          // Parse f(x) + a or f(x) - a - vertical shift
-          const vertMatch = questionTextRaw.match(/f\s*\(\s*x\s*\)\s*([+-])\s*(\d+(?:\.\d+)?)/i);
-          if (vertMatch) {
-            const sign = vertMatch[1] === '+' ? 1 : -1;
-            transformSpec.shiftY = sign * parseFloat(vertMatch[2]);
-          }
-          
-          // Parse af(x) - vertical stretch
-          const stretchMatch = questionTextRaw.match(/(\d+(?:\.\d+)?)\s*f\s*\(\s*x\s*\)/i);
-          if (stretchMatch) {
-            transformSpec.scaleY = parseFloat(stretchMatch[1]);
-          }
-          
-          // Parse -f(x) - reflection in x-axis
-          if (/-\s*f\s*\(\s*x\s*\)/i.test(questionTextRaw)) {
-            transformSpec.reflectX = true;
-          }
-          
-          // Parse f(-x) - reflection in y-axis
-          if (/f\s*\(\s*-\s*x\s*\)/i.test(questionTextRaw)) {
-            transformSpec.reflectY = true;
-          }
-          
-          // Apply transformation to base curve data
-          const transformedData = group.baseCurveData.map(pt => {
-            let newX = pt.x;
-            let newY = pt.y;
-            
-            // Horizontal transformations
-            newX = pt.x + transformSpec.shiftX;
-            if (transformSpec.reflectY) {
-              newX = -pt.x;
-            }
-            
-            // Vertical transformations
-            newY = pt.y * transformSpec.scaleY;
-            if (transformSpec.reflectX) {
-              newY = -newY;
-            }
-            newY = newY + transformSpec.shiftY;
-            
-            return { 
-              x: Math.round(newX * 100) / 100, 
-              y: Math.round(newY * 100) / 100 
-            };
+          logMathEngineOperation('SubQuestionTransformParsed', {
+            questionNumber: q.question_number,
+            rootNumber,
+            baseMarkingFormula: group.baseMarkingFormula || 'none',
+            parsedTransform: transformSpec,
+            hasTransform
           });
           
-          // Calculate new domain based on transformation
-          let domainX = group.baseDomainX || [-6, 6];
-          let domainY = group.baseDomainY || [-6, 6];
+          // =================================================================
+          // CRITICAL: FORMULA-DRIVEN TRANSFORMATION (Source of Truth)
+          // =================================================================
+          // If we have a base markingFormula, apply the transformation ALGEBRAICALLY
+          // e.g., if f(x) = (x-1)*(x-3)*(x+2) and we need f(x-2),
+          // the result is ((x-2)-1)*((x-2)-3)*((x-2)+2) = (x-3)*(x-5)*x
+          let transformedMarkingFormula: string | null = null;
+          let transformedCurveBranches: any[] = [];
           
-          // Adjust domain for horizontal shift
-          if (transformSpec.shiftX !== 0) {
-            domainX = [domainX[0] + transformSpec.shiftX, domainX[1] + transformSpec.shiftX];
+          if (group.baseMarkingFormula) {
+            // Apply algebraic transformation to the formula
+            transformedMarkingFormula = applyFormulaTransform(group.baseMarkingFormula, transformSpec);
+            
+            logMathEngineOperation('FormulaAlgebraicTransform', {
+              questionNumber: q.question_number,
+              baseFormula: group.baseMarkingFormula,
+              transform: transformSpec,
+              transformedFormula: transformedMarkingFormula
+            });
+            
+            // Generate curve data from the transformed formula (mathematically accurate)
+            const domainX: [number, number] = group.baseDomainX || [-6, 6];
+            transformedCurveBranches = generateCurveFromMarkingFormula(transformedMarkingFormula, domainX);
+            
+            if (transformedCurveBranches.length > 0) {
+              console.log(`Question ${q.question_number}: Generated ${transformedCurveBranches.reduce((sum, b) => sum + b.data.length, 0)} points from transformed formula`);
+            }
+          } else if (group.baseCurveData) {
+            // Fallback: Apply coordinate transformation if no formula available
+            console.warn(`Question ${q.question_number}: No baseMarkingFormula - falling back to coordinate transformation`);
+            
+            const transformedData = group.baseCurveData.map(pt => {
+              let newX = pt.x;
+              let newY = pt.y;
+              
+              // Horizontal transformations
+              newX = pt.x + transformSpec.shiftX;
+              if (transformSpec.reflectY) {
+                newX = -pt.x;
+              }
+              
+              // Vertical transformations
+              newY = pt.y * transformSpec.scaleY;
+              if (transformSpec.reflectX) {
+                newY = -newY;
+              }
+              newY = newY + transformSpec.shiftY;
+              
+              return { 
+                x: Math.round(newX * 1000) / 1000, 
+                y: Math.round(newY * 1000) / 1000 
+              };
+            });
+            
+            transformedCurveBranches = [{
+              id: 'expected',
+              label: 'Expected',
+              data: transformedData,
+              showLine: true,
+              lineStyle: 'dashed',
+              color: '#22c55e'
+            }];
           }
           
-          // Adjust domain for vertical transformations
-          if (transformSpec.shiftY !== 0 || transformSpec.scaleY !== 1 || transformSpec.reflectX) {
-            const yValues = transformedData.map(p => p.y).filter(y => Math.abs(y) < 50);
-            if (yValues.length > 0) {
-              const minY = Math.min(...yValues);
-              const maxY = Math.max(...yValues);
+          // =================================================================
+          // SHADOW GRAPH: Show parent curve as visual reference
+          // =================================================================
+          // The "shadow" is the original f(x) curve rendered in grey/muted
+          // so students can see the transformation context without going back
+          const shadowSeries = group.baseCurveData ? [{
+            id: 'shadow-reference',
+            label: 'y = f(x) (reference)',
+            data: group.baseCurveData,
+            showLine: true,
+            lineStyle: 'dashed' as const,
+            color: 'hsl(220 8.9% 46.1%)', // Muted grey
+          }] : [];
+          
+          // Calculate domain - use base domain but adjust for transformation
+          let domainX: [number, number] = group.baseDomainX || [-6, 6];
+          let domainY: [number, number] = group.baseDomainY || [-6, 6];
+          
+          // Expand domain to fit both shadow and transformed curves
+          if (transformSpec.shiftX !== 0) {
+            const shift = transformSpec.shiftX;
+            domainX = [
+              Math.min(domainX[0], domainX[0] + shift) - 1,
+              Math.max(domainX[1], domainX[1] + shift) + 1
+            ];
+          }
+          
+          // Adjust y domain for vertical transformations
+          if (transformedCurveBranches.length > 0) {
+            const allY = transformedCurveBranches.flatMap(b => b.data.map((p: any) => p.y));
+            const validY = allY.filter((y: number) => Math.abs(y) < 50);
+            if (validY.length > 0) {
+              const minY = Math.min(...validY);
+              const maxY = Math.max(...validY);
               const yPad = Math.max(2, (maxY - minY) * 0.2);
               domainY = [Math.floor(minY - yPad), Math.ceil(maxY + yPad)];
             }
           }
           
-          // Build the graph config using inherited base + transformation
+          // Build the graph config with shadow reference
           const inheritedGraphConfig = {
             ...group.baseGraphConfig,
             domainX,
             domainY,
             xDomain: domainX,
             yDomain: domainY,
-            series: [
-              // Include original curve as reference (lighter)
-              {
-                id: 'reference',
-                label: 'y = f(x)',
-                data: group.baseCurveData,
-                showLine: true,
-                lineStyle: 'solid',
-                color: 'hsl(var(--muted-foreground))'
-              }
-            ]
+            // Include shadow curve as the only visible series during answering
+            series: shadowSeries,
+            // Flag that this uses inherited data
+            isInheritedFromParent: true,
+            parentQuestionId: `${rootNumber}a`,
           };
           
-          // Build plottingAnswer with expected transformed curve
+          // Build the expected curve for marking
+          const expectedCurve = transformedCurveBranches.length > 1
+            ? transformedCurveBranches
+            : transformedCurveBranches[0] || {
+                id: 'expected',
+                label: 'Expected',
+                data: [],
+                showLine: true,
+                lineStyle: 'dashed',
+                color: '#22c55e'
+              };
+          
+          // Build plottingAnswer with formula-driven curve
           const graphData = {
             graphType: 'plotting',
             graphConfig: inheritedGraphConfig,
             plottingAnswer: {
-              expectedPoints: transformedData.filter((p, i) => i % 10 === 0).slice(0, 5),
+              // THE FORMULA IS THE PRIMARY SOURCE OF TRUTH
+              markingFormula: transformedMarkingFormula,
+              baseFormula: group.baseMarkingFormula || null,
+              appliedTransform: hasTransform ? transformSpec : null,
+              
+              // Use key points from transformed curve for grading
+              expectedPoints: transformedCurveBranches.length > 0
+                ? transformedCurveBranches[0].data.filter((_: any, i: number) => i % 20 === 0).slice(0, 5)
+                : [],
               toleranceUnits: 0.5,
               marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-              expectedCurve: {
-                id: 'expected',
-                label: 'Expected',
-                data: transformedData,
+              expectedCurve,
+              
+              // Store shadow curve reference for client rendering
+              shadowCurve: group.baseCurveData ? {
+                id: 'shadow',
+                label: 'y = f(x)',
+                data: group.baseCurveData,
                 showLine: true,
                 lineStyle: 'dashed',
-                color: '#22c55e'
-              }
+                color: 'hsl(220 8.9% 46.1%)',
+              } : null,
             }
           };
           

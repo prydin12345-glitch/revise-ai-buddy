@@ -1312,6 +1312,16 @@ export function generateCurveFromMarkingFormula(
 
 /**
  * Apply a transformation to a formula string algebraically.
+ * 
+ * CRITICAL EXAM MATH CONVENTIONS:
+ * - f(x - a) means shift RIGHT by a (standard notation)
+ * - f(x + a) means shift LEFT by a
+ * - For f(x-2): we replace 'x' with '(x-2)' in the formula
+ * 
+ * Example: If f(x) = x^2 + 2x, then:
+ *   f(x-2) = (x-2)^2 + 2(x-2) = (x-2)^2 + 2*(x-2)
+ * 
+ * The transformation is ALGEBRAIC: we substitute the new expression for x.
  */
 export function applyFormulaTransform(
   baseFormula: string,
@@ -1319,41 +1329,90 @@ export function applyFormulaTransform(
 ): string {
   let formula = baseFormula;
   
-  // Horizontal shift: f(x-a) means replace x with (x-a) where a is shiftX
+  logMathEngineOperation('ApplyFormulaTransform:Input', {
+    baseFormula,
+    transform
+  });
+  
+  // =================================================================
+  // HORIZONTAL TRANSFORMATIONS: Replace 'x' with transformed expression
+  // =================================================================
+  
+  // f(x - a): shift RIGHT by a → replace x with (x - a)
+  // f(x + a): shift LEFT by a → replace x with (x + a)
+  // Note: shiftX > 0 means shift RIGHT, which is f(x - shiftX)
   if (transform.shiftX !== 0) {
     const shift = transform.shiftX;
-    // shiftX > 0 means shift RIGHT, so f(x-shiftX)
+    // shiftX > 0 means shift RIGHT, so f(x - shiftX)
+    // shiftX < 0 means shift LEFT, so f(x - shiftX) where shiftX is negative
     const replacement = shift > 0 ? `(x-${shift})` : `(x+${Math.abs(shift)})`;
+    // Use word boundary to avoid replacing 'x' inside other variable names
     formula = formula.replace(/\bx\b/g, replacement);
+    
+    logMathEngineOperation('ApplyFormulaTransform:HorizontalShift', {
+      shift,
+      replacement,
+      result: formula
+    });
   }
   
-  // Horizontal reflection: f(-x)
+  // f(-x): Horizontal reflection (reflect in y-axis)
   if (transform.reflectY) {
     formula = formula.replace(/\bx\b/g, '(-x)');
+    
+    logMathEngineOperation('ApplyFormulaTransform:HorizontalReflection', {
+      result: formula
+    });
   }
   
-  // Vertical scale and reflection
+  // f(ax): Horizontal compression/stretch (less common but supported)
+  if (transform.scaleX !== 1 && transform.scaleX !== 0) {
+    formula = formula.replace(/\bx\b/g, `(${transform.scaleX}*x)`);
+    
+    logMathEngineOperation('ApplyFormulaTransform:HorizontalScale', {
+      scaleX: transform.scaleX,
+      result: formula
+    });
+  }
+  
+  // =================================================================
+  // VERTICAL TRANSFORMATIONS: Wrap the entire formula
+  // =================================================================
+  
   let prefix = '';
   let suffix = '';
   
+  // a*f(x): Vertical stretch/compression
   if (transform.scaleY !== 1) {
     prefix = `${transform.scaleY}*(`;
     suffix = ')';
   }
   
+  // -f(x): Reflect in x-axis
   if (transform.reflectX) {
     prefix = '(-1)*(' + prefix;
     suffix = suffix + ')';
   }
   
+  // f(x) + a or f(x) - a: Vertical shift
   if (transform.shiftY !== 0) {
     const shift = transform.shiftY;
     suffix = suffix + (shift > 0 ? `+${shift}` : `${shift}`);
   }
   
+  // Apply vertical transformations by wrapping
   if (prefix || suffix) {
     formula = prefix + '(' + formula + ')' + suffix;
   }
+  
+  // Normalize the result to clean up redundant operators
+  formula = normalizeFormulaExpression(formula);
+  
+  logMathEngineOperation('ApplyFormulaTransform:Output', {
+    baseFormula,
+    transformedFormula: formula,
+    transform
+  });
   
   return formula;
 }
