@@ -1,223 +1,253 @@
 
-# Fix Graph Marking: Transformed Curve Data & Expected Points
+# Formula-Driven Graphing Architecture ("The Desmos Method")
 
-## Problem Summary
-When students submit graph answers for transformation questions (e.g., "Sketch y = f(x) + 3"), the green "correct answer" curve and points displayed in review mode are **wrong** - they show the original base function coordinates instead of the mathematically transformed coordinates.
+## Executive Summary
 
-**Example Issue:**
-- Question: "Sketch y = f(x) + 3" where f(x) has turning points at (-1, 2) and (1, -2)
-- Expected correct answer: Turning points at (-1, 5) and (1, 1) [shifted UP by 3]
-- What's currently displayed: Turning points at (-1, 2) and (1, -2) [original curve]
+This plan implements a **formula-driven source of truth** for all graph questions. Instead of letting the AI generate coordinate lists (which leads to hallucinations like showing parabolas for cubic questions), the system will:
 
----
-
-## Root Cause Analysis
-
-The bug is in `supabase/functions/generate-practice-questions/index.ts` at lines 2207-2209:
-
-```typescript
-expectedPoints: features.intercepts.x.map(xi => ({ x: xi, y: 0 }))
-  .concat(features.turningPoints.map(tp => ({ x: tp.x, y: tp.y })))
-  .slice(0, 5),
-```
-
-**The `features` object contains the BASE function's key points, NOT the transformed points.**
-
-While `expectedCurve` correctly uses `transformedBranches` (the curve data IS transformed), the `expectedPoints` array (used for point-matching marking and the green dots in review mode) pulls from the untransformed `features`.
+1. **Store a mathematical formula** (`markingFormula`) with each graph question
+2. **Evaluate the formula mathematically** to generate the "correct answer" curve
+3. **Mark by coordinate sampling** - compare student Y values against formula-calculated Y values
 
 ---
 
-## Sign Logic Verification (Per User Request)
+## Problem Analysis
 
-I verified the existing horizontal shift logic is **CORRECT**:
+### Current Failure Mode (from screenshots)
+- **Question**: "Sketch y = (x-1)(x-3)(x+2)"
+- **Expected**: Cubic curve crossing x-axis at x=1, x=3, x=-2
+- **Displayed**: Parabola (quadratic curve)
 
-### Standard Function Notation Rules
-- `f(x - 2)` → shifts graph **RIGHT** by 2 (positive direction)
-- `f(x + 2)` → shifts graph **LEFT** by 2 (negative direction)
+### Root Cause
+The `parseFunctionFromText` function in `math-engine.ts` **cannot parse general factored cubics** like `(x-1)(x-3)(x+2)`. It only handles:
+- Cubics through origin: `x(x+a)(x+b)` 
+- Quadratic factors: `(x-a)^2(x+b)`
 
-### Current Implementation in `parseTransformFromText` (lines 793-803)
-```typescript
-// f(x + a) → shift LEFT by a (shiftX = -a for display)
-const shiftLeftMatch = text.match(/f\s*\(\s*x\s*\+\s*(\d+(?:\.\d+)?)\s*\)/i);
-if (shiftLeftMatch) {
-  transform.shiftX = -parseFloat(shiftLeftMatch[1]); // ✓ Correct: negative
-}
-
-// f(x - a) → shift RIGHT by a (shiftX = +a for display)
-const shiftRightMatch = text.match(/f\s*\(\s*x\s*-\s*(\d+(?:\.\d+)?)\s*\)/i);
-if (shiftRightMatch) {
-  transform.shiftX = parseFloat(shiftRightMatch[1]); // ✓ Correct: positive
-}
-```
-
-### How It's Applied in Curve Generation (line 436)
-```typescript
-inputX = inputX - transforms.shiftX;
-// With shiftX = +2 (from "f(x-2)"):
-// For output x=2, we compute f(2 - 2) = f(0)
-// → Point originally at x=0 now renders at x=2 ✓ (shifted RIGHT)
-```
-
-### How It's Applied in applyTransform (line 486)
-```typescript
-newX = point.x + transforms.shiftX;
-// With shiftX = +2: point at x=0 → x=0+2 = 2 ✓ (shifted RIGHT)
-```
-
-**Conclusion: The sign convention is already implemented correctly.** The issue is purely that `expectedPoints` isn't using the transform at all.
+When parsing fails (returns `null`), the system falls back to a default quadratic or uses the AI's (incorrect) coordinate data.
 
 ---
 
-## Solution Design
+## Solution Architecture
 
-### Part A: Create `transformKeyFeatures` Utility
+### New Field: `markingFormula`
 
-Add a new function to `supabase/functions/_shared/math-engine.ts`:
+Every graph question will store a **mathematical formula string** that can be evaluated:
 
 ```typescript
-export interface TransformedKeyFeatures extends KeyFeatures {
-  // Same structure as KeyFeatures, but coordinates are transformed
+// In plottingAnswer (stored in correct_answer JSON)
+{
+  markingFormula: "(x-1)*(x-3)*(x+2)",  // New: evaluable expression
+  formulaType: "factored_cubic",          // Type hint for UI
+  expectedCurve: [...],                   // Computed from formula, not AI-generated
+  expectedPoints: [...]                   // Computed turning points/intercepts
 }
+```
 
-/**
- * Apply transformation to key features (intercepts, turning points, asymptotes).
- * Uses the same sign convention as curve generation.
- */
-export function transformKeyFeatures(
-  features: KeyFeatures,
-  transform: TransformSpec
-): KeyFeatures {
+### Architecture Overview
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    GENERATION PIPELINE                           │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. AI generates question text with function (validated)         │
+│ 2. Parser extracts markingFormula from question text             │
+│ 3. Math evaluator computes expectedCurve from formula           │
+│ 4. Store: { markingFormula, expectedCurve (computed), ... }     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      REVIEW/DISPLAY                              │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Load question with markingFormula                             │
+│ 2. Re-evaluate formula to generate "green line" coordinates     │
+│ 3. Render curve from formula (not cached AI data)               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      MARKING ENGINE                              │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Get student's plotted X values                                │
+│ 2. Evaluate markingFormula at each X                             │
+│ 3. Compare student Y vs formula Y (within tolerance)            │
+│ 4. Award marks for shape, intercepts, key features              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Technical Implementation
+
+### Phase 1: Enhanced Formula Parser
+
+**File**: `supabase/functions/_shared/math-engine.ts`
+
+Add support for general factored cubics and other common forms:
+
+```typescript
+// NEW: General factored cubic (x-a)(x-b)(x-c)
+// Matches: (x-1)(x-3)(x+2), (x+1)(x-2)(x+4), etc.
+const generalFactoredCubicMatch = text.match(
+  /\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i
+);
+if (generalFactoredCubicMatch) {
+  // (x ± a)(x ± b)(x ± c) → roots at ∓a, ∓b, ∓c
+  const roots = [
+    (generalFactoredCubicMatch[1] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[2]),
+    (generalFactoredCubicMatch[3] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[4]),
+    (generalFactoredCubicMatch[5] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[6])
+  ];
   return {
-    intercepts: {
-      // X-intercepts: x-coordinate shifts, y stays 0 then shifts
-      // For f(x-a)+b, the x-intercept solves: f(x-a)+b = 0 → f(x-a) = -b
-      // Original x-intercept xi has f(xi) = 0
-      // New intercept: x - a = xi → x = xi + a (shiftX is already +a for f(x-a))
-      x: features.intercepts.x.map(xi => xi + transform.shiftX),
-      // Y-intercept transforms: if original y-int is y0, new is y0 * scaleY * reflectX + shiftY
-      y: features.intercepts.y !== null
-        ? (features.intercepts.y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY
-        : null
-    },
-    turningPoints: features.turningPoints.map(tp => ({
-      x: tp.x + transform.shiftX,
-      y: (tp.y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY,
-      type: transform.reflectX 
-        ? (tp.type === 'max' ? 'min' : 'max') // Reflection in x-axis swaps max/min
-        : tp.type
-    })),
-    asymptotes: {
-      // Vertical asymptotes shift horizontally
-      vertical: features.asymptotes.vertical.map(x => x + transform.shiftX),
-      // Horizontal asymptotes transform vertically
-      horizontal: features.asymptotes.horizontal.map(y =>
-        (y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY
-      )
-    }
+    type: 'factored_cubic',
+    roots: roots.sort((a, b) => a - b)
   };
 }
 ```
 
-### Part B: Fix Generation Pipeline
+### Phase 2: Store markingFormula in Generation
 
-Update `supabase/functions/generate-practice-questions/index.ts` (around lines 2206-2224):
+**File**: `supabase/functions/generate-practice-questions/index.ts`
 
-**Before:**
+When generating/processing graph questions:
+
+1. **Extract formula from question text**:
+```typescript
+function extractMarkingFormula(questionText: string): string | null {
+  // Match y = expression patterns
+  const yEqualsMatch = questionText.match(/y\s*=\s*([^,.\s]+(?:\s*[^,.\s]+)*)/i);
+  if (yEqualsMatch) {
+    // Normalize to evaluable format: (x-1)(x-3)(x+2) → (x-1)*(x-3)*(x+2)
+    return normalizeExpression(yEqualsMatch[1]);
+  }
+  return null;
+}
+```
+
+2. **Store in plottingAnswer**:
 ```typescript
 const plottingAnswer = {
-  expectedPoints: features.intercepts.x.map(xi => ({ x: xi, y: 0 }))
-    .concat(features.turningPoints.map(tp => ({ x: tp.x, y: tp.y })))
-    .slice(0, 5),
+  markingFormula: extractMarkingFormula(q.question_text),
+  formulaType: parsedFunction?.type || 'unknown',
+  // Compute curve from formula, not from AI
+  expectedCurve: generateCurveFromFormula(markingFormula, domainX),
+  expectedPoints: computeKeyPoints(markingFormula),
   // ...
 };
 ```
 
-**After:**
-```typescript
-// Transform key features if transformation detected
-const transformedFeatures = hasTransform 
-  ? transformKeyFeatures(features, parsedTransform)
-  : features;
+### Phase 3: Formula Evaluator (Safe Math Parser)
 
-const plottingAnswer = {
-  expectedPoints: transformedFeatures.intercepts.x.map(xi => ({ 
-    x: xi, 
-    y: transformedFeatures.intercepts.y ?? 0  // Use transformed y-intercept value at x-intercepts
-  })).concat(transformedFeatures.turningPoints.map(tp => ({ x: tp.x, y: tp.y })))
-    .slice(0, 5),
-  toleranceUnits: 0.5,
-  marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-  expectedCurve: transformedBranches.length > 1 
-    ? transformedBranches 
-    : transformedBranches[0] || { /* ... */ },
-  markingTolerance: {
-    intercepts: 1.0,
-    turningPoints: 1.5,
-    asymptoteAvoidance: 0.3
-  },
-  asymptotes: transformedFeatures.asymptotes.vertical, // Use transformed asymptotes
-  // Store transformation metadata for marking verification
-  appliedTransform: hasTransform ? parsedTransform : null,
-  baseFeatures: features, // Keep original for reference
-};
+**File**: `supabase/functions/_shared/math-engine.ts`
+
+Add a safe mathematical expression evaluator:
+
+```typescript
+/**
+ * Safely evaluate a mathematical formula at a given x value.
+ * Supports: +, -, *, /, ^, parentheses, sqrt, sin, cos, tan
+ */
+export function evaluateFormula(formula: string, x: number): number | null {
+  // Tokenize and parse the expression
+  // Build an AST and evaluate
+  // Return null for invalid/undefined results
+}
+
+/**
+ * Generate curve data from a formula string.
+ */
+export function generateCurveFromFormula(
+  formula: string,
+  domain: [number, number],
+  pointDensity: number = 150
+): GraphSeries[] {
+  const points: GraphPoint[] = [];
+  const step = (domain[1] - domain[0]) / pointDensity;
+  
+  for (let x = domain[0]; x <= domain[1]; x += step) {
+    const y = evaluateFormula(formula, x);
+    if (y !== null && Number.isFinite(y) && Math.abs(y) <= 200) {
+      points.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+    }
+  }
+  
+  // Split into branches at discontinuities
+  return splitIntoBranches(points);
+}
 ```
 
-### Part C: Handle X-Intercepts After Vertical Shifts
+### Phase 4: Transformation Chaining
 
-**Important Edge Case:** When a vertical shift is applied (e.g., f(x) + 3), the original x-intercepts are no longer at y = 0. The curve now crosses the x-axis at different x values (or not at all).
+When a sub-question references a transformed function:
 
-For sketch marking purposes, we should:
-1. Keep the transformed turning points (these remain important landmarks)
-2. Recalculate new x-intercepts only if needed for specific questions
-3. For general sketch questions, focus on shape, turning points, and asymptotes rather than exact x-intercepts
+```typescript
+// Question 1a: y = f(x) where f(x) = x(x+2)(1-x)
+// Question 1b: Sketch y = f(x-2)
+
+// For 1b, the markingFormula becomes:
+const baseFormula = "(x)*(x+2)*(1-x)";
+const transformedFormula = applyFormulaTransform(baseFormula, { shiftX: 2 });
+// Result: "(x-2)*((x-2)+2)*(1-(x-2))" = "(x-2)*(x)*(3-x)"
+```
+
+### Phase 5: Frontend Formula-Based Rendering
+
+**File**: `src/pages/TakePracticeQuiz.tsx`
+
+In review mode, compute the curve from `markingFormula` instead of using cached `expectedCurve`:
+
+```typescript
+// In review mode, if markingFormula exists, re-compute the curve
+let expectedCurveSeries: GraphSeries[] = [];
+
+if (isInReviewMode && plottingAnswer?.markingFormula) {
+  // Compute curve client-side from formula (deterministic)
+  expectedCurveSeries = computeCurveFromFormula(
+    plottingAnswer.markingFormula,
+    [config.domainX[0], config.domainX[1]]
+  );
+} else if (isInReviewMode && plottingAnswer?.expectedCurve) {
+  // Fallback to cached curve data
+  expectedCurveSeries = normalizeExpectedCurve(plottingAnswer.expectedCurve);
+}
+```
 
 ---
 
 ## Files to Modify
 
-| File | Change | Purpose |
-|------|--------|---------|
-| `supabase/functions/_shared/math-engine.ts` | Add `transformKeyFeatures()` function | Utility to apply transforms to extracted features |
-| `supabase/functions/generate-practice-questions/index.ts` | Call `transformKeyFeatures()` before building `expectedPoints` | Ensure correct coordinates are stored for marking |
-| `supabase/functions/generate-practice-questions/index.ts` | Store `appliedTransform` in `plottingAnswer` | Enable marking engine to verify transformation logic |
+| File | Changes |
+|------|---------|
+| `supabase/functions/_shared/math-engine.ts` | Add general cubic parser, formula evaluator, `generateCurveFromFormula()` |
+| `supabase/functions/generate-practice-questions/index.ts` | Extract and store `markingFormula`, compute curve from formula |
+| `supabase/functions/grade-practice-question/index.ts` | Mark by evaluating formula at student X coordinates |
+| `src/lib/formula-evaluator.ts` (NEW) | Client-side safe formula parser for review rendering |
+| `src/pages/TakePracticeQuiz.tsx` | Use formula to compute green line in review mode |
 
 ---
 
-## Technical Implementation Steps
+## Key Benefits
 
-### Step 1: Add `transformKeyFeatures` to math-engine.ts
-- Add the function after the `extractKeyFeatures` function (around line 780)
-- Export it for use in generation pipeline
-- Include proper handling of all transform types (shift, scale, reflect)
-
-### Step 2: Update generation pipeline
-- Import `transformKeyFeatures` at the top of the file
-- After `const hasTransform = ...` check (line 2169), add call to `transformKeyFeatures`
-- Replace the `features.intercepts.x` references with `transformedFeatures.intercepts.x`
-- Replace `features.turningPoints` with `transformedFeatures.turningPoints`
-- Replace `features.asymptotes` with `transformedFeatures.asymptotes`
-
-### Step 3: Deploy and test
-- Deploy edge function
-- Generate a new practice set with transformation questions
-- Verify the green "expected" curve matches the mathematical transformation
-- Verify marking awards correct marks
+1. **No More Wrong Curve Shapes**: A cubic formula MUST produce a cubic curve
+2. **Transformation Accuracy**: `f(x-2)` mathematically transforms the formula
+3. **Self-Healing**: Even if stored `expectedCurve` is wrong, formula re-evaluation produces correct curve
+4. **Consistent Marking**: Same formula used for generation, display, and marking
 
 ---
 
-## Verification Checklist
+## Migration Strategy
+
+1. **New questions**: Generate with `markingFormula` field
+2. **Existing questions**: Optional migration script to extract formula from `question_text` and recalculate `expectedCurve`
+3. **Fallback**: If no `markingFormula`, use existing `expectedCurve` data
+
+---
+
+## Validation Checklist
+
 After implementation:
-- [ ] `f(x - 2)` shifts turning points RIGHT by 2 units
-- [ ] `f(x + 2)` shifts turning points LEFT by 2 units
-- [ ] `f(x) + 3` shifts turning points UP by 3 units
-- [ ] `-f(x)` reflects turning points across x-axis (max ↔ min swap)
-- [ ] `2f(x)` stretches y-coordinates by factor of 2
-- [ ] Green expected curve matches the transformed function
-- [ ] Marking awards full marks for correctly transformed sketches
-
----
-
-## Note on Existing Data
-Existing questions with incorrect `expectedPoints` will continue to display incorrectly. Options:
-1. Re-generate affected practice sets (recommended)
-2. Create a one-time migration script to recalculate stored `correct_answer` data for transformation questions
+- [ ] `y = (x-1)(x-3)(x+2)` displays correct cubic with 3 x-intercepts
+- [ ] `y = x^2` displays parabola
+- [ ] `y = f(x-2)` correctly shifts the base function RIGHT by 2
+- [ ] Review mode green line matches the mathematical function
+- [ ] Marking awards points for correct curve shape and key features
