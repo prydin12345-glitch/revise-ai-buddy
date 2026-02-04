@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { markSketch, type GraphPoint, type KeyFeatures } from "../_shared/math-engine.ts";
+import { markSketch, type GraphPoint, type KeyFeatures, evaluateFormulaAtX } from "../_shared/math-engine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -297,6 +297,10 @@ serve(async (req) => {
           const studentJoinMode = parsed.joinMode;
           const joinPointsMode = questionData.graphConfig?.joinPointsMode;
           
+          // CRITICAL: Check for markingFormula (THE PRIMARY KEY for marking)
+          // If present, use formula-based coordinate sampling instead of stored points
+          const markingFormula = questionData.plottingAnswer?.markingFormula || null;
+          
           // Detect if this is a sketch question (requires feature-based marking)
           const isSketchMode = questionData.graphConfig?.isSketchMode === true ||
             (question.question_text || '').toLowerCase().includes('sketch');
@@ -310,10 +314,71 @@ serve(async (req) => {
           };
           const asymptotes = questionData.plottingAnswer?.asymptotes || [];
           
+          console.log('[graph-grading] markingFormula:', markingFormula ? 'PRESENT' : 'ABSENT');
           console.log('[graph-grading] Mode:', isSketchMode ? 'SKETCH' : 'POINT-MATCHING', 'keyFeatures:', !!keyFeatures);
           
-          // FEATURE-BASED SKETCH MARKING
-          if (isSketchMode && keyFeatures && studentPoints.length >= 3) {
+          // ======================================================
+          // FORMULA-BASED COORDINATE SAMPLING (PRIMARY METHOD)
+          // When markingFormula exists, it is the source of truth.
+          // We evaluate the formula at student's X values and compare Y values.
+          // ======================================================
+          if (markingFormula && studentPoints.length > 0 && !isSketchMode) {
+            console.log('[graph-grading] Using FORMULA-BASED marking (primary method)');
+            
+            const formulaTolerance = questionData.plottingAnswer?.formulaTolerance ?? 0.5;
+            let correctPoints = 0;
+            const perPointResults: any[] = [];
+            
+            for (const sp of studentPoints) {
+              // Evaluate the formula at the student's x coordinate
+              const expectedY = evaluateFormulaAtX(markingFormula, sp.x);
+              
+              if (expectedY !== null && Number.isFinite(expectedY)) {
+                const yDiff = Math.abs(sp.y - expectedY);
+                const isCorrect = yDiff <= formulaTolerance;
+                
+                if (isCorrect) correctPoints++;
+                
+                perPointResults.push({
+                  studentPoint: sp,
+                  expectedY: Math.round(expectedY * 100) / 100,
+                  yDifference: Math.round(yDiff * 100) / 100,
+                  matched: isCorrect,
+                  status: isCorrect ? 'correct' : 'incorrect'
+                });
+              } else {
+                // Point is at a discontinuity or undefined region
+                perPointResults.push({
+                  studentPoint: sp,
+                  expectedY: null,
+                  matched: false,
+                  status: 'undefined_region'
+                });
+              }
+            }
+            
+            // Calculate score based on proportion of correct points
+            const scoreRatio = studentPoints.length > 0 ? correctPoints / studentPoints.length : 0;
+            const totalScore = Math.round(question.marks * scoreRatio * 100) / 100;
+            
+            graphResult = {
+              score: totalScore,
+              feedback: `${correctPoints}/${studentPoints.length} points lie on the curve (y = f(x) evaluated at your x values).`,
+              isCorrect: scoreRatio >= 0.8, // 80% threshold for "correct"
+              markingData: {
+                markingType: 'formula-sampling',
+                markingFormula: markingFormula,
+                tolerance: formulaTolerance,
+                perPointResults,
+                correctPoints,
+                totalPoints: studentPoints.length,
+                totalScore,
+                totalMarks: question.marks
+              }
+            };
+            
+          } else if (isSketchMode && keyFeatures && studentPoints.length >= 3) {
+            // FEATURE-BASED SKETCH MARKING
             console.log('[graph-grading] Using feature-based sketch marking');
             
             // Build expected features from stored data or derive from expectedCurve

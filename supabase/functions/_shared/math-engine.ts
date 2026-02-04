@@ -1018,17 +1018,58 @@ export function extractMarkingFormula(questionText: string): string | null {
  * Normalize a mathematical expression to evaluable format.
  * - Adds explicit multiplication: (x-1)(x-3) → (x-1)*(x-3)
  * - Handles exponents: x^2 → x^2 (unchanged, evaluator handles it)
+ * 
+ * CRITICAL: Sign handling for exam math:
+ * - (x-1) means root at x=1 (solving x-1=0 gives x=1)
+ * - (x+2) means root at x=-2 (solving x+2=0 gives x=-2)
+ * The normalizer preserves signs exactly as written.
  */
 export function normalizeFormulaExpression(expr: string): string {
-  return expr
-    .replace(/\s+/g, '') // Remove whitespace
-    .replace(/\)\(/g, ')*(') // Add multiplication between parentheses
-    .replace(/(\d)\(/g, '$1*(') // 2(x) → 2*(x)
-    .replace(/\)(\d)/g, ')*$1') // (x)2 → (x)*2
-    .replace(/(\d)x/gi, '$1*x') // 2x → 2*x
-    .replace(/x(\d)/gi, 'x*$1') // x2 → x*2
-    .replace(/\)x/gi, ')*x') // (...)x → (...)*x
-    .replace(/x\(/gi, 'x*('); // x(...) → x*(...)
+  let result = expr;
+  
+  // Step 1: Remove whitespace first
+  result = result.replace(/\s+/g, '');
+  
+  // Step 2: Handle double negatives FIRST before other transformations
+  // --x → x, --( → (, -(-x) → x
+  result = result.replace(/--/g, '+');
+  
+  // Step 3: Handle sign at start of parentheses content: (-x) stays as (-x)
+  // But we need to ensure operators aren't duplicated: +-x → -x, -+x → -x
+  result = result.replace(/\+-/g, '-');
+  result = result.replace(/-\+/g, '-');
+  
+  // Step 4: Add explicit multiplication operators
+  // (...)(...) → (...)*(...)
+  result = result.replace(/\)\(/g, ')*(');
+  
+  // Step 5: Number followed by parenthesis: 2(x) → 2*(x)
+  result = result.replace(/(\d)\(/g, '$1*(');
+  
+  // Step 6: Parenthesis followed by number: (x)2 → (x)*2
+  result = result.replace(/\)(\d)/g, ')*$1');
+  
+  // Step 7: Number followed by x: 2x → 2*x (but preserve -x as -x)
+  result = result.replace(/(\d)x/gi, '$1*x');
+  
+  // Step 8: x followed by number: x2 → x*2
+  result = result.replace(/x(\d)/gi, 'x*$1');
+  
+  // Step 9: Parenthesis followed by x: (...)x → (...)*x  
+  result = result.replace(/\)x/gi, ')*x');
+  
+  // Step 10: x followed by parenthesis: x(...) → x*(...)
+  result = result.replace(/x\(/gi, 'x*(');
+  
+  // Step 11: Parenthesis followed by negative: )- with no operator → )*-
+  // e.g., (x-1)-(x+2) stays as subtraction, but (x-1)(-2) → (x-1)*(-2)
+  // We only add * when ) is followed by ( or a number or x
+  // Already handled above
+  
+  // Step 12: Clean up any ++ that might have appeared
+  result = result.replace(/\+\+/g, '+');
+  
+  return result;
 }
 
 /**
@@ -1212,11 +1253,14 @@ function parseAndEvaluateTokens(tokens: string[], x: number): number | null {
 
 /**
  * Generate curve data from a formula string with discontinuity detection.
+ * 
+ * REFINEMENT: Uses 300 points by default (not 150) to ensure smooth curves
+ * for cubic and reciprocal functions with sharp turns.
  */
 export function generateCurveFromMarkingFormula(
   formula: string,
   domain: [number, number],
-  pointDensity: number = 150
+  pointDensity: number = 300 // INCREASED for smoother curves
 ): GraphSeries[] {
   const branches: GraphSeries[] = [];
   let currentBranch: GraphPoint[] = [];
@@ -1226,8 +1270,9 @@ export function generateCurveFromMarkingFormula(
   for (let x = domain[0]; x <= domain[1]; x += step) {
     const y = evaluateFormulaAtX(formula, x);
     
+    // Discontinuity detection with adjusted thresholds
     const isDisc = y === null || !Number.isFinite(y) || Math.abs(y) > 200 ||
-      (prevY !== null && Math.abs(y - prevY) > 50);
+      (prevY !== null && Math.abs(y - prevY) > 30); // Lowered from 50 for better detection
     
     if (isDisc) {
       if (currentBranch.length >= 3) {
@@ -1244,8 +1289,8 @@ export function generateCurveFromMarkingFormula(
       prevY = null;
     } else {
       currentBranch.push({
-        x: Math.round(x * 100) / 100,
-        y: Math.round(y * 100) / 100,
+        x: Math.round(x * 1000) / 1000, // 3 decimal places for smoother curves
+        y: Math.round(y * 1000) / 1000,
       });
       prevY = y;
     }
