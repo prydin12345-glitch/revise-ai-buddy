@@ -469,7 +469,15 @@ export function extractKeyPointsFromFormula(
 }
 
 /**
- * Apply a transformation to a formula string.
+ * Apply a transformation to a formula string algebraically.
+ * 
+ * CRITICAL EXAM MATH CONVENTIONS:
+ * - f(x - a) means shift RIGHT by a (standard notation)
+ * - f(x + a) means shift LEFT by a
+ * - For f(x-2): we replace 'x' with '(x-2)' in the formula
+ * 
+ * Example: If f(x) = x^2 + 2x, then:
+ *   f(x-2) = (x-2)^2 + 2(x-2) = (x-2)^2 + 2*(x-2)
  * 
  * @param baseFormula - Original formula like "x*(x+2)*(1-x)"
  * @param transform - Transformation specification
@@ -481,45 +489,73 @@ export function applyFormulaTransform(
     shiftX?: number;
     shiftY?: number;
     scaleY?: number;
+    scaleX?: number;
     reflectX?: boolean;
+    reflectY?: boolean;
   }
 ): string {
   let formula = baseFormula;
   
-  // Horizontal shift: f(x - a) means replace x with (x - a)
+  // =================================================================
+  // HORIZONTAL TRANSFORMATIONS: Replace 'x' with transformed expression
+  // =================================================================
+  
+  // f(x - a): shift RIGHT by a → replace x with (x - a)
+  // f(x + a): shift LEFT by a → replace x with (x + a)
+  // Note: shiftX > 0 means shift RIGHT, which is f(x - shiftX)
   if (transform.shiftX && transform.shiftX !== 0) {
     const shift = transform.shiftX;
-    // Replace x with (x - shift)
-    // Note: shiftX > 0 means shift RIGHT, so we use (x - shiftX)
+    // shiftX > 0 means shift RIGHT, so f(x - shiftX)
     const replacement = shift > 0 ? `(x-${shift})` : `(x+${Math.abs(shift)})`;
     formula = formula.replace(/\bx\b/g, replacement);
   }
   
-  // Vertical transformations are applied to the whole expression
+  // f(-x): Horizontal reflection (reflect in y-axis)
+  if (transform.reflectY) {
+    formula = formula.replace(/\bx\b/g, '(-x)');
+  }
+  
+  // f(ax): Horizontal compression/stretch
+  if (transform.scaleX && transform.scaleX !== 1 && transform.scaleX !== 0) {
+    formula = formula.replace(/\bx\b/g, `(${transform.scaleX}*x)`);
+  }
+  
+  // =================================================================
+  // VERTICAL TRANSFORMATIONS: Wrap the entire formula
+  // =================================================================
+  
   let prefix = '';
   let suffix = '';
   
-  // Vertical scale: a*f(x)
+  // a*f(x): Vertical stretch/compression
   if (transform.scaleY && transform.scaleY !== 1) {
     prefix = `${transform.scaleY}*(`;
     suffix = ')';
   }
   
-  // Vertical reflection: -f(x)
+  // -f(x): Reflect in x-axis
   if (transform.reflectX) {
-    prefix = '-(' + prefix;
+    prefix = '(-1)*(' + prefix;
     suffix = suffix + ')';
   }
   
-  // Vertical shift: f(x) + b
+  // f(x) + a or f(x) - a: Vertical shift
   if (transform.shiftY && transform.shiftY !== 0) {
     const shift = transform.shiftY;
     suffix = suffix + (shift > 0 ? `+${shift}` : `${shift}`);
   }
   
+  // Apply vertical transformations by wrapping
   if (prefix || suffix) {
-    formula = prefix + formula + suffix;
+    formula = prefix + '(' + formula + ')' + suffix;
   }
+  
+  // Normalize the result to clean up redundant operators
+  formula = formula
+    .replace(/--/g, '+')
+    .replace(/\+-/g, '-')
+    .replace(/-\+/g, '-')
+    .replace(/\+\+/g, '+');
   
   return formula;
 }
