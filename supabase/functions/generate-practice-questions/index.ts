@@ -1141,7 +1141,10 @@ ${notesSection}`;
           body: JSON.stringify({
             model,
             temperature: 0,
-            max_tokens: 8000,
+            // Use max_completion_tokens for OpenAI models (max_tokens is deprecated)
+            ...(model.startsWith('openai/') 
+              ? { max_completion_tokens: 8000 } 
+              : { max_tokens: 8000 }),
             messages: [
               { role: 'system', content: sys },
               { role: 'user', content: prompt },
