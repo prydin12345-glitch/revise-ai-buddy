@@ -1922,6 +1922,7 @@ export function GraphPlottingQuestion({
       >
         {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
           <GraphCanvasPlot
+            key={`canvas-${questionId}`}
             width={chartContainerSize.width}
             height={chartContainerSize.height}
             config={config}
@@ -2063,6 +2064,7 @@ export function GraphPlottingQuestion({
 
       {/* Expanded Graph Modal */}
       <ExpandedGraphModal
+        key={`expanded-${questionId}`}
         isOpen={isExpanded}
         onClose={() => setIsExpanded(false)}
         config={config}
