@@ -422,42 +422,9 @@ export function GraphCanvas({
     }
   }, [interactionEnabled, cameraHandlers]);
   
-  // Add native wheel event listener with { passive: false } to properly prevent page zoom
-  // React's synthetic onWheel uses passive listeners by default which can't preventDefault
-  // We store the cameraHandlers in a ref so the native event can call them
-  const cameraHandlersRef = useRef(cameraHandlers);
-  useEffect(() => {
-    cameraHandlersRef.current = cameraHandlers;
-  }, [cameraHandlers]);
-  
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg || !interactionEnabled) return;
-    
-    const handleNativeWheel = (e: WheelEvent) => {
-      // Prevent browser page zoom when wheeling on the graph
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Call the camera's wheel handler manually since we've prevented the event
-      // Create a synthetic-like event object that the handler can use
-      if (cameraHandlersRef.current?.onWheel) {
-        const syntheticEvent = {
-          ...e,
-          currentTarget: svg,
-          preventDefault: () => {},
-          stopPropagation: () => {},
-          nativeEvent: e,
-        } as unknown as React.WheelEvent;
-        cameraHandlersRef.current.onWheel(syntheticEvent);
-      }
-    };
-    
-    svg.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => {
-      svg.removeEventListener('wheel', handleNativeWheel);
-    };
-  }, [interactionEnabled]);
+  // NOTE: Native wheel listener with { passive: false } is now handled by the
+  // parent container (GraphCanvasPlot) to properly prevent page zoom.
+  // The SVG still accepts onWheel for consistency but the real prevention happens above.
   
   // Determine cursor
   const effectiveCursor = cursor || (isPanning ? 'grabbing' : interactionEnabled ? 'crosshair' : 'default');

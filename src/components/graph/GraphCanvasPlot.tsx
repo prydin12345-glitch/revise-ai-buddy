@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useRef } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { GraphCanvas, CurveLayer } from './GraphCanvas';
 import { useGraphCamera } from '@/hooks/useGraphCamera';
 import { 
@@ -307,10 +307,54 @@ export function GraphCanvasPlot({
     'crosshair'
   );
   
+  // Store graphToScreen in a ref so native wheel handler can use it for hit testing
+  const graphToScreenRef = useRef(graphToScreen);
+  useEffect(() => {
+    graphToScreenRef.current = graphToScreen;
+  }, [graphToScreen]);
+  
+  // Add a native wheel listener to the container div with { passive: false }
+  // This is necessary because React's synthetic onWheel uses passive listeners
+  // which cannot call preventDefault() to stop page zoom
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !panZoomEnabled) return;
+    
+    const handleNativeWheel = (e: WheelEvent) => {
+      // Prevent browser page zoom/scroll when wheeling on the graph
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Debug: verify wheel events are captured
+      console.debug('[GraphCanvasPlot] Wheel event captured', { 
+        deltaY: e.deltaY, 
+        clientX: e.clientX, 
+        clientY: e.clientY 
+      });
+      
+      // Call the camera's wheel handler
+      cameraHandlers.onWheel({
+        ...e,
+        currentTarget: container,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        nativeEvent: e,
+      } as unknown as React.WheelEvent);
+    };
+    
+    container.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, [panZoomEnabled, cameraHandlers]);
+  
   if (width <= 0 || height <= 0) return null;
   
   return (
     <div 
+      ref={containerRef}
       className="relative select-none"
       style={{ 
         width, 

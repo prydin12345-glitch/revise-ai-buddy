@@ -153,20 +153,22 @@ export function GraphPlottingQuestion({
     x: 0,
     y: 0
   });
-  const DOUBLE_TAP_THRESHOLD = 500; // ms - increased for touch reliability
-  const DOUBLE_TAP_DISTANCE = 60; // px max movement - generous for finger variance on iPad
+  // INCREASED thresholds for reliable double-tap detection
+  const DOUBLE_TAP_THRESHOLD = 600; // ms - generous for touch reliability
+  const DOUBLE_TAP_DISTANCE = 80; // px max movement - very generous for finger variance
 
-  // Hit radius for touch targets (larger for iPad/tablets)
+  // Hit radius for touch targets (larger for all devices to fix "dead zone" issue)
   const isCoarsePointer = useMemo(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(pointer: coarse)').matches;
   }, []);
 
+  // INCREASED hit radius for all devices - minimum 40px for mouse, 60px+ for touch
   const POINT_HIT_RADIUS = useMemo(() => {
-    if (!isCoarsePointer) return 32;
-    // Heuristic: on phones keep it moderate; on tablets (iPad) make it much larger.
-    if (chartContainerSize.width < 480) return 44;
-    return 72;
+    if (!isCoarsePointer) return 40; // Desktop: increased from 32 to 40
+    // Touch devices: generous hit targets
+    if (chartContainerSize.width < 480) return 60; // Phone: increased from 44 to 60
+    return 80; // Tablet: increased from 72 to 80
   }, [isCoarsePointer, chartContainerSize.width]);
   
   // Track if pointer event started on a point (to prevent bubbling issues)
