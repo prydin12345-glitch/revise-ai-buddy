@@ -11,12 +11,14 @@ import {
   applyTransform,
   isSketchable,
   extractKeyFeatures,
+  transformKeyFeatures,
   calculateStudentFriendlyDomain,
   IDENTITY_TRANSFORM,
   logMathEngineOperation,
   type FunctionType,
   type TransformSpec,
   type GraphSeries,
+  type KeyFeatures,
 } from "../_shared/math-engine.ts";
 
 const corsHeaders = {
@@ -2198,30 +2200,56 @@ ${notesSection}`;
                   label: idx === 0 ? 'y = f(x)' : ''
                 })),
                 isSketchMode: isSketchQuestion,
-                // Store key features for marking
-                keyFeatures: features,
-              };
-              
-              // Build plottingAnswer with expectedCurve
-              const plottingAnswer = {
-                expectedPoints: features.intercepts.x.map(xi => ({ x: xi, y: 0 }))
-                  .concat(features.turningPoints.map(tp => ({ x: tp.x, y: tp.y })))
-                  .slice(0, 5),
-                toleranceUnits: 0.5,
-                marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-                // expectedCurve can be single object or array of branch objects
-                expectedCurve: transformedBranches.length > 1 
-                  ? transformedBranches 
-                  : transformedBranches[0] || { id: 'expected', label: 'Expected', data: [], showLine: true, lineStyle: 'dashed', color: '#22c55e' },
-                // Store marking tolerances
-                markingTolerance: {
-                  intercepts: 1.0,
-                  turningPoints: 1.5,
-                  asymptoteAvoidance: 0.3
-                },
-                // Store asymptotes for marking
-                asymptotes: features.asymptotes.vertical
-              };
+              // Store key features for marking
+              keyFeatures: features,
+            };
+            
+            // Transform key features if transformation was detected
+            // This ensures expectedPoints match the TRANSFORMED curve, not the base function
+            const transformedFeatures = hasTransform 
+              ? transformKeyFeatures(features, parsedTransform)
+              : features;
+            
+            logMathEngineOperation('FeatureTransformation', {
+              questionNumber: q.question_number,
+              hasTransform,
+              baseFeatures: features,
+              transformedFeatures: hasTransform ? transformedFeatures : 'no transform applied',
+              appliedTransform: hasTransform ? parsedTransform : null
+            });
+            
+            // Build plottingAnswer with TRANSFORMED expectedPoints for correct marking
+            const plottingAnswer = {
+              // Use transformed features for marking - these are the coordinates
+              // where the student should plot turning points, etc.
+              expectedPoints: transformedFeatures.turningPoints
+                .map(tp => ({ x: tp.x, y: tp.y }))
+                .concat(
+                  // Only include x-intercepts if no vertical shift (otherwise they're at different y values)
+                  parsedTransform.shiftY === 0 
+                    ? transformedFeatures.intercepts.x.map(xi => ({ x: xi, y: 0 }))
+                    : []
+                )
+                .slice(0, 5),
+              toleranceUnits: 0.5,
+              marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
+              // expectedCurve can be single object or array of branch objects
+              expectedCurve: transformedBranches.length > 1 
+                ? transformedBranches 
+                : transformedBranches[0] || { id: 'expected', label: 'Expected', data: [], showLine: true, lineStyle: 'dashed', color: '#22c55e' },
+              // Store marking tolerances
+              markingTolerance: {
+                intercepts: 1.0,
+                turningPoints: 1.5,
+                asymptoteAvoidance: 0.3
+              },
+              // Use TRANSFORMED asymptotes for marking
+              asymptotes: transformedFeatures.asymptotes.vertical,
+              // Store transformation metadata for marking verification
+              appliedTransform: hasTransform ? parsedTransform : null,
+              // Keep original base features for reference
+              baseFeatures: features
+            };
               
               graphData = {
                 graphType: 'plotting',

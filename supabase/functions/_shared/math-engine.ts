@@ -666,6 +666,52 @@ export function extractKeyFeatures(
 }
 
 /**
+ * Apply transformation to key features (intercepts, turning points, asymptotes).
+ * Uses the same sign convention as curve generation:
+ * - f(x - a) → shiftX = +a (shift RIGHT)
+ * - f(x + a) → shiftX = -a (shift LEFT)
+ * - f(x) + a → shiftY = +a (shift UP)
+ * - -f(x) → reflectX = true (reflect in x-axis, swaps max/min)
+ * - af(x) → scaleY = a (stretch vertically)
+ */
+export function transformKeyFeatures(
+  features: KeyFeatures,
+  transform: TransformSpec
+): KeyFeatures {
+  return {
+    intercepts: {
+      // X-intercepts: shift horizontally
+      // For f(x-a)+b: original x-intercept xi where f(xi)=0
+      // New curve: f(x-a)+b = 0 when x = xi + a (shifted right by a)
+      x: features.intercepts.x.map(xi => xi + transform.shiftX),
+      // Y-intercept: transform vertically
+      // Original y-intercept y0 becomes y0 * scaleY * (reflectX ? -1 : 1) + shiftY
+      y: features.intercepts.y !== null
+        ? (features.intercepts.y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY
+        : null
+    },
+    turningPoints: features.turningPoints.map(tp => ({
+      // Turning points shift horizontally
+      x: tp.x + transform.shiftX,
+      // Turning points transform vertically
+      y: (tp.y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY,
+      // Reflection in x-axis swaps max ↔ min
+      type: transform.reflectX 
+        ? (tp.type === 'max' ? 'min' : 'max') 
+        : tp.type
+    })),
+    asymptotes: {
+      // Vertical asymptotes shift horizontally
+      vertical: features.asymptotes.vertical.map(x => x + transform.shiftX),
+      // Horizontal asymptotes transform vertically
+      horizontal: features.asymptotes.horizontal.map(y =>
+        (y * transform.scaleY * (transform.reflectX ? -1 : 1)) + transform.shiftY
+      )
+    }
+  };
+}
+
+/**
  * Binary search to find a zero crossing.
  */
 function findZero(fn: FunctionType, x1: number, x2: number): number | null {
