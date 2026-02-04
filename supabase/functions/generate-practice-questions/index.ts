@@ -68,89 +68,19 @@ async function extractPdfTextFromBlob(blob: Blob): Promise<string> {
   return pdfText.replace(/\s+/g, ' ').trim();
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  let setId: string | null = null;
+// Background generation function - runs after response is sent
+async function generateQuestionsInBackground(
+  setId: string,
+  userId: string,
+  setData: any
+): Promise<void> {
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
 
   try {
-    // Validate JWT token from request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.error('Missing or invalid Authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Authentication required. Please log in and try again.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-
-    // Create client with user's auth to validate the token
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Validate the JWT and get user claims
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      console.error('JWT validation failed:', claimsError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Your session has expired. Please refresh and try again.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-
-    const userId = claimsData.claims.sub;
-    console.log('Authenticated user:', userId);
-
-    // Use service role key for server-side operations to bypass RLS
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-
-    const body = await req.json();
-    setId = body.setId;
-
-    if (!setId) {
-      throw new Error('Set ID is required');
-    }
-
-    console.log('Generating practice questions for set:', setId);
-
-    // Get practice set details - use maybeSingle to avoid error if not found
-    const { data: setData, error: setError } = await supabaseClient
-      .from('practice_question_sets')
-      .select('*')
-      .eq('id', setId)
-      .maybeSingle();
-
-    if (setError) throw setError;
-    if (!setData) {
-      throw new Error(`Practice set not found: ${setId}`);
-    }
-
-    // Verify the user owns this practice set
-    if (setData.user_id !== userId) {
-      console.error('User does not own this practice set:', { userId, setUserId: setData.user_id });
-      return new Response(
-        JSON.stringify({ error: 'You do not have permission to generate this practice set.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-      );
-    }
-
-    console.log('Set data:', setData);
-
-    // Update status to extracting
-    await supabaseClient
-      .from('practice_question_sets')
-      .update({ extraction_status: 'extracting' })
-      .eq('id', setId);
+    console.log('Starting background generation for set:', setId);
 
     // Download spec file if available
     let specContent = '';
@@ -470,10 +400,8 @@ EXAMPLE QUESTION FORMATS:
         })
         .eq('id', setId);
       
-      return new Response(
-        JSON.stringify({ error: 'Notes validation failed', details: notesValidation.auditLog.blockedPhrases }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      // In background function, throw error instead of returning Response
+      throw new Error('Notes validation failed: Notes contain disallowed content');
     }
 
     // Format notes for safe inclusion in prompt
@@ -2622,34 +2550,130 @@ ${notesSection}`;
 
     console.log('Questions generated successfully');
 
+  } catch (error: any) {
+    console.error('Error generating practice questions:', error);
+    
+    // Update set status to failed
+    await supabaseClient
+      .from('practice_question_sets')
+      .update({
+        extraction_status: 'failed',
+        extraction_error: error.message,
+      })
+      .eq('id', setId);
+  }
+}
+
+// Main request handler
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Validate JWT token from request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required. Please log in and try again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Create client with user's auth to validate the token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Validate the JWT and get user claims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation failed:', claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Your session has expired. Please refresh and try again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+    console.log('Authenticated user:', userId);
+
+    // Parse request body
+    const body = await req.json();
+    const setId = body.setId;
+
+    if (!setId) {
+      return new Response(
+        JSON.stringify({ error: 'Set ID is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    console.log('Generating practice questions for set:', setId);
+
+    // Use service role key for server-side operations
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // Get practice set details
+    const { data: setData, error: setError } = await supabaseClient
+      .from('practice_question_sets')
+      .select('*')
+      .eq('id', setId)
+      .maybeSingle();
+
+    if (setError) {
+      throw setError;
+    }
+    if (!setData) {
+      return new Response(
+        JSON.stringify({ error: `Practice set not found: ${setId}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    // Verify the user owns this practice set
+    if (setData.user_id !== userId) {
+      console.error('User does not own this practice set:', { userId, setUserId: setData.user_id });
+      return new Response(
+        JSON.stringify({ error: 'You do not have permission to generate this practice set.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+
+    // Update status to extracting immediately
+    await supabaseClient
+      .from('practice_question_sets')
+      .update({ extraction_status: 'extracting' })
+      .eq('id', setId);
+
+    // Start background generation using EdgeRuntime.waitUntil
+    // This ensures the work completes even after the response is sent
+    (globalThis as any).EdgeRuntime?.waitUntil(
+      generateQuestionsInBackground(setId, userId, setData)
+    );
+
+    // Return immediate response - client will poll for status
+    console.log('Background generation started for set:', setId);
     return new Response(
-      JSON.stringify({ success: true, questionsGenerated: questions.length }),
+      JSON.stringify({ 
+        success: true, 
+        status: 'started',
+        message: 'Generation started. Poll for status updates.',
+        setId 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {
-    console.error('Error generating practice questions:', error);
-    
-    // Update set status to failed if we have a setId
-    if (setId) {
-      try {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        );
-        
-        await supabaseClient
-          .from('practice_question_sets')
-          .update({
-            extraction_status: 'failed',
-            extraction_error: error.message,
-          })
-          .eq('id', setId);
-      } catch (updateError) {
-        console.error('Failed to update error status:', updateError);
-      }
-    }
-
+    console.error('Error starting practice question generation:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
