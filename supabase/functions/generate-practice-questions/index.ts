@@ -2250,6 +2250,52 @@ ${notesSection}`;
               // Keep original base features for reference
               baseFeatures: features
             };
+            
+            // ========== VALIDATION STEP ==========
+            // Verify that the expectedCurve data matches the transformation
+            // This catches any mismatch between question text and stored answer data
+            
+            // Sample a point from the expected curve to validate
+            const curveData = transformedBranches[0]?.data;
+            if (curveData && curveData.length > 0 && transformedFeatures.turningPoints.length > 0) {
+              // Check if a turning point in transformed features matches a point on the curve
+              const tp = transformedFeatures.turningPoints[0];
+              const nearestPoint = curveData.reduce((prev, curr) => 
+                Math.abs(curr.x - tp.x) < Math.abs(prev.x - tp.x) ? curr : prev
+              );
+              
+              const yDiff = Math.abs(nearestPoint.y - tp.y);
+              
+              if (yDiff > 1.0) {
+                // Mismatch detected! The curve data doesn't match transformed features
+                // Re-apply transformation to ensure consistency
+                logMathEngineOperation('TransformationMismatchDetected', {
+                  questionNumber: q.question_number,
+                  expectedTurningPoint: tp,
+                  nearestCurvePoint: nearestPoint,
+                  yDiff,
+                  action: 'Re-applying transformation to ensure data consistency'
+                });
+                
+                // Force recalculate using applyTransform
+                const correctedBranches = applyTransform(baseBranches, parsedTransform);
+                plottingAnswer.expectedCurve = correctedBranches.length > 1 
+                  ? correctedBranches 
+                  : correctedBranches[0] || plottingAnswer.expectedCurve;
+              }
+            }
+            
+            // Log final validated state
+            logMathEngineOperation('ValidationComplete', {
+              questionNumber: q.question_number,
+              functionType: parsedFunction?.type || 'unknown',
+              hasTransform,
+              transformApplied: hasTransform ? parsedTransform : null,
+              expectedPointsCount: plottingAnswer.expectedPoints?.length || 0,
+              expectedCurvePoints: Array.isArray(plottingAnswer.expectedCurve) 
+                ? plottingAnswer.expectedCurve.reduce((sum, b) => sum + (b.data?.length || 0), 0)
+                : plottingAnswer.expectedCurve?.data?.length || 0
+            });
               
               graphData = {
                 graphType: 'plotting',

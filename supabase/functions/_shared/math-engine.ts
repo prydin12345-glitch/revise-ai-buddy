@@ -309,6 +309,21 @@ export function calculateStudentFriendlyDomain(
     // Vertex at x = -b/(2a)
     const vertex = -fn.b / (2 * fn.a);
     keyXValues = [vertex, 0];
+  } else if (fn.type === 'linear') {
+    // For linear functions: show x-intercept (where y = 0) and y-intercept
+    // x-intercept: mx + b = 0 → x = -b/m (if slope != 0)
+    if (fn.slope !== 0) {
+      const xInt = -fn.intercept / fn.slope;
+      keyXValues = [xInt, 0, -3, 3];
+    } else {
+      // Horizontal line (m = 0)
+      keyXValues = [-5, 0, 5];
+    }
+    keyYValues = [fn.intercept, 0];
+  } else if (fn.type === 'constant') {
+    // Horizontal line at y = value
+    keyXValues = [-5, 0, 5];
+    keyYValues = [fn.value, 0];
   }
   
   // Add key features if provided
@@ -816,6 +831,52 @@ export function parseFunctionFromText(text: string): FunctionType | null {
       return { type: 'quadratic', a: 1, b: -2 * h, c: h * h };
     }
     return { type: 'quadratic', a: 1, b: 0, c: 0 };
+  }
+  
+  // ============================================
+  // LINEAR FUNCTION PATTERNS (y = mx + b, y = x + c, y = ax)
+  // These must come AFTER quadratic checks to avoid matching x^2 as linear
+  // ============================================
+  
+  // Pattern: y = ax + b (full linear with both slope and intercept)
+  // Match "y = 2x + 3" or "y = -3x - 5" etc.
+  const fullLinearMatch = text.match(/y\s*=\s*(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i);
+  if (fullLinearMatch) {
+    const slope = parseFloat(fullLinearMatch[1]);
+    const sign = fullLinearMatch[2] === '-' ? -1 : 1;
+    const intercept = sign * parseFloat(fullLinearMatch[3]);
+    return { type: 'linear', slope, intercept };
+  }
+  
+  // Pattern: y = x + b or y = x - b (slope = 1)
+  // Match "y = x + 2" or "y = x - 1"
+  const xPlusConstMatch = text.match(/y\s*=\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*(?:\.|,|$)/i);
+  if (xPlusConstMatch) {
+    const sign = xPlusConstMatch[1] === '-' ? -1 : 1;
+    const intercept = sign * parseFloat(xPlusConstMatch[2]);
+    return { type: 'linear', slope: 1, intercept };
+  }
+  
+  // Pattern: y = ax (no constant, just slope)
+  // Match "y = 2x" or "y = -3x"
+  const slopeOnlyMatch = text.match(/y\s*=\s*(-?\d+(?:\.\d+)?)\s*x\s*(?:\.|,|$)/i);
+  if (slopeOnlyMatch) {
+    const slope = parseFloat(slopeOnlyMatch[1]);
+    return { type: 'linear', slope, intercept: 0 };
+  }
+  
+  // Pattern: y = x (identity line)
+  // Must check explicitly to avoid false matches
+  if (/y\s*=\s*x\s*(?:\.|,|$)/i.test(text) && !/y\s*=\s*x\s*[\^2\+\-\*]/i.test(text)) {
+    return { type: 'linear', slope: 1, intercept: 0 };
+  }
+  
+  // Pattern: y = b (constant/horizontal line)
+  const constantMatch = text.match(/y\s*=\s*(-?\d+(?:\.\d+)?)\s*(?:\.|,|$)/i);
+  if (constantMatch && !/y\s*=\s*(-?\d+(?:\.\d+)?)\s*x/i.test(text)) {
+    // Only match if there's no 'x' after the number
+    const value = parseFloat(constantMatch[1]);
+    return { type: 'constant', value };
   }
   
   // Default: simple parabola
