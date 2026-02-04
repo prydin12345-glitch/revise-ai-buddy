@@ -1149,7 +1149,7 @@ ${notesSection}`;
                   has_math: { type: 'boolean' },
                   equation_complexity: { type: 'string', nullable: true },
                   correct_answer: {},
-                  options: { type: 'array', nullable: true },
+                  options: { type: 'array', items: { type: 'string' }, nullable: true },
                   worked_solution: { type: 'string', nullable: true },
                   table_data: { type: 'object', nullable: true },
                 },
