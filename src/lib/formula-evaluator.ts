@@ -274,9 +274,14 @@ export function evaluateFormula(formula: string, x: number): number | null {
   }
   
   try {
-    // Normalize the formula
+    // CRITICAL: Strict sign handling for exam math
+    // (x-1) means root at x=1; (x+2) means root at x=-2
     let normalized = formula
       .replace(/\s+/g, '') // Remove whitespace
+      .replace(/--/g, '+') // Handle double negatives first
+      .replace(/\+-/g, '-') // Clean up sign combinations
+      .replace(/-\+/g, '-')
+      .replace(/\+\+/g, '+')
       .replace(/\)\(/g, ')*(') // Add implicit multiplication between parentheses
       .replace(/(\d)\(/g, '$1*(') // Add implicit multiplication: 2(x) -> 2*(x)
       .replace(/\)(\d)/g, ')*$1') // Add implicit multiplication: (x)2 -> (x)*2
@@ -309,15 +314,17 @@ export function evaluateFormula(formula: string, x: number): number | null {
  * Generate curve data from a formula string.
  * Automatically splits into branches at discontinuities (asymptotes).
  * 
+ * REFINEMENT: Uses 300 points by default for smooth cubic/reciprocal curves.
+ * 
  * @param formula - Mathematical expression
  * @param domain - [minX, maxX] range
- * @param pointDensity - Number of points to sample (default 150)
+ * @param pointDensity - Number of points to sample (default 300 for smoothness)
  * @returns Array of GraphSeries (one per continuous branch)
  */
 export function generateCurveFromFormula(
   formula: string,
   domain: [number, number],
-  pointDensity: number = 150
+  pointDensity: number = 300 // INCREASED from 150 for smoother curves
 ): GraphSeries[] {
   const branches: GraphSeries[] = [];
   let currentBranch: GraphPoint[] = [];
@@ -328,11 +335,11 @@ export function generateCurveFromFormula(
   for (let x = domain[0]; x <= domain[1]; x += step) {
     const y = evaluateFormula(formula, x);
     
-    // Check for discontinuity
+    // Check for discontinuity with refined thresholds
     const isDiscontinuity = y === null || 
       !Number.isFinite(y) || 
       Math.abs(y) > 200 || // Clamp to reasonable range
-      (prevY !== null && Math.abs(y - prevY) > 50); // Large jump
+      (prevY !== null && Math.abs(y - prevY) > 30); // Lowered from 50 for better detection
     
     if (isDiscontinuity) {
       // Save current branch if it has enough points
@@ -350,8 +357,8 @@ export function generateCurveFromFormula(
       prevY = null;
     } else {
       currentBranch.push({
-        x: Math.round(x * 100) / 100,
-        y: Math.round(y * 100) / 100,
+        x: Math.round(x * 1000) / 1000, // 3 decimal places for smoother curves
+        y: Math.round(y * 1000) / 1000,
       });
       prevY = y;
     }
