@@ -1140,11 +1140,11 @@ ${notesSection}`;
           },
           body: JSON.stringify({
             model,
-            temperature: 0,
-            // Use max_completion_tokens for OpenAI models (max_tokens is deprecated)
+            // OpenAI models only support temperature=1 (default), so omit it for OpenAI
+            // For other models (Google), use temperature=0 for deterministic output
             ...(model.startsWith('openai/') 
               ? { max_completion_tokens: 8000 } 
-              : { max_tokens: 8000 }),
+              : { temperature: 0, max_tokens: 8000 }),
             messages: [
               { role: 'system', content: sys },
               { role: 'user', content: prompt },
