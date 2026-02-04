@@ -451,6 +451,7 @@ export function ExpandedGraphModal({
           >
             {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
               <GraphCanvasPlot
+                key={`expanded-canvas-${questionId}`}
                 width={chartContainerSize.width}
                 height={chartContainerSize.height}
                 config={config}

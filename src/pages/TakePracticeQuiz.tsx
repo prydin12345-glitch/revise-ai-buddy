@@ -1825,27 +1825,36 @@ const TakePracticeQuiz = () => {
                       const refSeries = shouldShowReference ? rawRefSeries : [];
                       
                       // For review mode, generate expected curve from plottingAnswer
-                      // PRIORITY: Use markingFormula if available (formula-driven source of truth)
-                      // FALLBACK: Use expectedCurve data if no formula
+                      // CRITICAL: Use markingFormula ONLY (Desmos Method) - disable ALL fallbacks
+                      // when a formula exists to prevent mismatched curve issues
                       let expectedCurveSeries: GraphSeries[] = [];
+                      let formulaDrivenMode = false;
+                      
                       if (isInReviewMode && plottingAnswer) {
                         const markingFormula = (plottingAnswer as any).markingFormula;
                         const expCurve = (plottingAnswer as any).expectedCurve;
                         
-                        // FORMULA-DRIVEN RENDERING (Desmos Method)
+                        // FORMULA-DRIVEN RENDERING (Desmos Method - EXCLUSIVE)
                         // If markingFormula exists, compute the curve mathematically
-                        if (markingFormula && typeof markingFormula === 'string') {
+                        // and IGNORE all cached expectedCurve data to prevent mismatches
+                        if (markingFormula && typeof markingFormula === 'string' && markingFormula.trim() !== '') {
+                          formulaDrivenMode = true;
                           const domainX: [number, number] = config.domainX || [-10, 10];
                           const formulaCurve = generateCurveFromFormula(markingFormula, domainX);
                           
                           if (formulaCurve.length > 0) {
                             expectedCurveSeries = formulaCurve;
-                            console.log('[Review] Using markingFormula for curve:', markingFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
+                            console.log('[Review] DESMOS MODE: Using markingFormula for curve:', markingFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
+                          } else {
+                            console.warn('[Review] markingFormula failed to generate curve:', markingFormula);
                           }
+                          // DO NOT FALL BACK - formula is source of truth
                         }
                         
-                        // FALLBACK: Use cached expectedCurve data if no formula or formula failed
-                        if (expectedCurveSeries.length === 0 && expCurve) {
+                        // LEGACY FALLBACK: Only use cached expectedCurve if NO formula exists
+                        // This handles old questions that don't have a markingFormula
+                        if (!formulaDrivenMode && expectedCurveSeries.length === 0 && expCurve) {
+                          console.log('[Review] LEGACY MODE: Using cached expectedCurve (no markingFormula)');
                           // Case 1: expectedCurve is an array of series objects (discontinuous functions)
                           if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
                             expectedCurveSeries = expCurve.map((branch: any, idx: number) => ({
@@ -1884,7 +1893,10 @@ const TakePracticeQuiz = () => {
                       
                       return (
                         <div className="space-y-4">
+                          {/* CRITICAL: Use composite key to FORCE complete re-mount when question changes */}
+                          {/* This ensures all internal state (camera, undo/redo, selections) resets cleanly */}
                           <GraphPlottingQuestion
+                            key={`graph-plotting-${currentQuestion.id}-${currentIndex}`}
                             questionId={currentQuestion.id}
                             config={{
                               ...config,
