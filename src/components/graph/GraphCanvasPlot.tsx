@@ -319,41 +319,54 @@ export function GraphCanvasPlot({
   // which cannot call preventDefault() to stop page zoom
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Store zoom function for use in native wheel handler
-  const zoomRef = useRef<typeof zoom | null>(null);
+  // Store zoom function in ref for use in native wheel handler
+  // IMPORTANT: Initialize with the current zoom function immediately, not null
+  // This prevents race conditions where wheel events fire before useEffect runs
+  const zoomRef = useRef(zoom);
+  
+  // Keep the ref updated when zoom function changes (shouldn't change much, but be safe)
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
   
+  // Add a native wheel listener to the container div with { passive: false }
+  // This is necessary because React's synthetic onWheel uses passive listeners
+  // which cannot call preventDefault() to stop page zoom
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !panZoomEnabled) return;
+    if (!container) return;
     
     const handleNativeWheel = (e: WheelEvent) => {
-      // Prevent browser page zoom/scroll when wheeling on the graph
+      // Always prevent default when over the graph area to stop page zoom/scroll
       e.preventDefault();
       e.stopPropagation();
       
-      // Calculate zoom factor based on wheel delta
+      // Only apply zoom if pan/zoom is enabled
+      if (!panZoomEnabled) return;
+      
+      // Calculate zoom factor based on wheel delta - SMOOTH zooming
       // deltaY > 0 = scroll down = zoom out, deltaY < 0 = scroll up = zoom in
-      const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
+      // Use normalized deltaY for consistent behavior across browsers/trackpads
+      const normalizedDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 100);
+      const zoomFactor = 1 + (normalizedDelta / 100) * 0.08; // 8% zoom per scroll unit
       
       // Get cursor position relative to the container
       const rect = container.getBoundingClientRect();
       const cursorX = e.clientX - rect.left;
       const cursorY = e.clientY - rect.top;
       
-      // Call zoom directly instead of trying to convert native event to React event
-      if (zoomRef.current) {
-        zoomRef.current(zoomFactor, cursorX, cursorY);
-      }
+      // Guard against invalid coordinates
+      if (!Number.isFinite(cursorX) || !Number.isFinite(cursorY)) return;
+      
+      // Call zoom function from ref (guaranteed to be valid since initialized with zoom)
+      zoomRef.current(zoomFactor, cursorX, cursorY);
     };
     
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
     return () => {
       container.removeEventListener('wheel', handleNativeWheel);
     };
-  }, [panZoomEnabled]);
+  }, [panZoomEnabled]); // Don't depend on zoom - use ref instead to avoid effect re-runs
   
   if (width <= 0 || height <= 0) return null;
   
