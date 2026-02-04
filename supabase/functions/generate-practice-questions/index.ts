@@ -2666,6 +2666,17 @@ ${notesSection}`;
       const numMatch = q.question_number.match(/^(\d+)/);
       const questionNumberInt = numMatch ? parseInt(numMatch[1], 10) : null;
       
+      // CRITICAL FIX: For graph_plotting and graph_interpretation questions,
+      // the graph data is stored in correct_answer but the frontend reads from options.
+      // Copy graph data to options field for these question types.
+      let options = q.options || null;
+      if ((q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation') && 
+          typeof q.correct_answer === 'object' && q.correct_answer !== null) {
+        // The correct_answer contains the graphConfig and plottingAnswer - copy to options
+        options = q.correct_answer;
+        console.log(`Question ${q.question_number}: Copied graph data to options field`);
+      }
+      
       return {
         set_id: setId,
         question_number: q.question_number,
@@ -2679,7 +2690,7 @@ ${notesSection}`;
         has_math: q.has_math || false,
         equation_complexity: q.equation_complexity || null,
         correct_answer: correctAnswer,
-        options: q.options || null,
+        options: options,
       };
     });
     
