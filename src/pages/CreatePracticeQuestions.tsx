@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, FileText, Upload, Info } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +35,11 @@ const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const { getSubjectColor } = useUserSubjects();
 
+  const pollIntervalRef = useRef<number | null>(null);
+  const pollTimeoutRef = useRef<number | null>(null);
+  const pollInFlightRef = useRef(false);
+  const generatingRef = useRef(false);
+
   // Form state
   const [setName, setSetName] = useState("");
   const [notes, setNotes] = useState("");
@@ -65,6 +70,31 @@ const CreatePracticeQuestions = () => {
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
   const [generatedSetId, setGeneratedSetId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
+
+  const clearPolling = () => {
+    if (pollIntervalRef.current) {
+      window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      window.clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+    pollInFlightRef.current = false;
+  };
+
+  const stopGenerating = () => {
+    clearPolling();
+    generatingRef.current = false;
+    setGenerating(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearPolling();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
@@ -122,6 +152,8 @@ const CreatePracticeQuestions = () => {
   };
 
   const proceedWithGeneration = async () => {
+    clearPolling();
+    generatingRef.current = true;
     setGenerating(true);
     try {
       // Check session first (faster, from cache)
@@ -138,7 +170,7 @@ const CreatePracticeQuestions = () => {
             },
             duration: 10000,
           });
-          setGenerating(false);
+          stopGenerating();
           return;
         }
         session = refreshData.session;
@@ -153,7 +185,7 @@ const CreatePracticeQuestions = () => {
           },
           duration: 10000,
         });
-        setGenerating(false);
+        stopGenerating();
         return;
       }
 
@@ -229,39 +261,59 @@ const CreatePracticeQuestions = () => {
             },
             duration: 10000,
           });
-          setGenerating(false);
+          stopGenerating();
           return;
         }
         throw genError;
       }
 
       // Poll for completion
-      const pollInterval = setInterval(async () => {
-        const { data: checkData } = await supabase
-          .from("practice_question_sets")
-          .select("extraction_status, total_questions_generated")
-          .eq("id", setData.id)
-          .single();
+      pollIntervalRef.current = window.setInterval(async () => {
+        if (!generatingRef.current) return;
+        if (pollInFlightRef.current) return;
+        pollInFlightRef.current = true;
 
-        if (checkData?.extraction_status === "completed") {
-          clearInterval(pollInterval);
-          setTotalQuestionsGenerated(checkData.total_questions_generated || 0);
-          setGenerating(false);
-          setShowGenerationComplete(true);
-        } else if (checkData?.extraction_status === "failed") {
-          clearInterval(pollInterval);
-          setGenerating(false);
-          toast.error("Failed to generate questions. Please try again.");
+        try {
+          const { data: checkData, error: checkError } = await supabase
+            .from("practice_question_sets")
+            .select("extraction_status, total_questions_generated, extraction_error")
+            .eq("id", setData.id)
+            .single();
+
+          if (checkError) throw checkError;
+          if (!checkData) return;
+
+          if (checkData.extraction_status === "completed") {
+            clearPolling();
+            generatingRef.current = false;
+            setTotalQuestionsGenerated(checkData.total_questions_generated || 0);
+            setGenerating(false);
+            setShowGenerationComplete(true);
+          } else if (checkData.extraction_status === "failed") {
+            clearPolling();
+            generatingRef.current = false;
+            setGenerating(false);
+            toast.error(checkData.extraction_error || "Failed to generate questions. Please try again.");
+          }
+        } catch (e: any) {
+          console.error("Polling error:", e);
+          stopGenerating();
+          toast.error(
+            e?.message ||
+              "Lost connection while checking generation status. Please refresh and try again."
+          );
+        } finally {
+          pollInFlightRef.current = false;
         }
       }, 2000);
 
       // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (generating) {
-          setGenerating(false);
-          toast.error("Generation timed out. Please try again.");
-        }
+      pollTimeoutRef.current = window.setTimeout(() => {
+        if (!generatingRef.current) return;
+        clearPolling();
+        generatingRef.current = false;
+        setGenerating(false);
+        toast.error("Generation timed out. Please try again.");
       }, 300000);
     } catch (error: any) {
       console.error("Error generating practice set:", error);
@@ -279,7 +331,7 @@ const CreatePracticeQuestions = () => {
       } else {
         toast.error(error.message || "Failed to generate practice set");
       }
-      setGenerating(false);
+      stopGenerating();
     }
   };
 
