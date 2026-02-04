@@ -13,6 +13,10 @@ import {
   extractKeyFeatures,
   transformKeyFeatures,
   calculateStudentFriendlyDomain,
+  extractMarkingFormula,
+  normalizeFormulaExpression,
+  generateCurveFromMarkingFormula,
+  applyFormulaTransform,
   IDENTITY_TRANSFORM,
   logMathEngineOperation,
   type FunctionType,
@@ -2210,16 +2214,54 @@ ${notesSection}`;
               ? transformKeyFeatures(features, parsedTransform)
               : features;
             
+            // ========== FORMULA-DRIVEN SOURCE OF TRUTH ==========
+            // Extract markingFormula from question text for mathematically accurate rendering
+            const rawMarkingFormula = extractMarkingFormula(qText);
+            let markingFormula = rawMarkingFormula;
+            
+            // If we have a transform, apply it to the formula algebraically
+            if (markingFormula && hasTransform) {
+              markingFormula = applyFormulaTransform(markingFormula, parsedTransform);
+              logMathEngineOperation('FormulaTransformed', {
+                questionNumber: q.question_number,
+                baseFormula: rawMarkingFormula,
+                transform: parsedTransform,
+                transformedFormula: markingFormula
+              });
+            }
+            
+            // If we have a markingFormula, use it to generate curve data (more reliable than struct-based)
+            let formulaDerivedCurve = transformedBranches;
+            if (markingFormula) {
+              const formulaCurve = generateCurveFromMarkingFormula(markingFormula, domainX);
+              if (formulaCurve.length > 0 && formulaCurve[0].data.length >= 10) {
+                formulaDerivedCurve = formulaCurve;
+                logMathEngineOperation('CurveFromFormula', {
+                  questionNumber: q.question_number,
+                  markingFormula,
+                  pointCount: formulaCurve.reduce((sum, b) => sum + b.data.length, 0),
+                  branches: formulaCurve.length
+                });
+              }
+            }
+            
             logMathEngineOperation('FeatureTransformation', {
               questionNumber: q.question_number,
               hasTransform,
+              markingFormula: markingFormula || 'none',
               baseFeatures: features,
               transformedFeatures: hasTransform ? transformedFeatures : 'no transform applied',
               appliedTransform: hasTransform ? parsedTransform : null
             });
             
             // Build plottingAnswer with TRANSFORMED expectedPoints for correct marking
+            // AND the markingFormula for deterministic curve rendering
             const plottingAnswer = {
+              // *** THE FORMULA-DRIVEN SOURCE OF TRUTH ***
+              // This formula can be evaluated to generate the "correct answer" curve
+              markingFormula: markingFormula || null,
+              formulaType: parsedFunction?.type || 'unknown',
+              
               // Use transformed features for marking - these are the coordinates
               // where the student should plot turning points, etc.
               expectedPoints: transformedFeatures.turningPoints
@@ -2233,10 +2275,10 @@ ${notesSection}`;
                 .slice(0, 5),
               toleranceUnits: 0.5,
               marksPerPoint: Math.max(1, Math.floor(q.marks / 3)),
-              // expectedCurve can be single object or array of branch objects
-              expectedCurve: transformedBranches.length > 1 
-                ? transformedBranches 
-                : transformedBranches[0] || { id: 'expected', label: 'Expected', data: [], showLine: true, lineStyle: 'dashed', color: '#22c55e' },
+              // expectedCurve: now computed from markingFormula when available
+              expectedCurve: formulaDerivedCurve.length > 1 
+                ? formulaDerivedCurve 
+                : formulaDerivedCurve[0] || { id: 'expected', label: 'Expected', data: [], showLine: true, lineStyle: 'dashed', color: '#22c55e' },
               // Store marking tolerances
               markingTolerance: {
                 intercepts: 1.0,
@@ -2247,8 +2289,9 @@ ${notesSection}`;
               asymptotes: transformedFeatures.asymptotes.vertical,
               // Store transformation metadata for marking verification
               appliedTransform: hasTransform ? parsedTransform : null,
-              // Keep original base features for reference
-              baseFeatures: features
+              // Keep original base features and formula for reference
+              baseFeatures: features,
+              baseFormula: rawMarkingFormula || null
             };
             
             // ========== VALIDATION STEP ==========
