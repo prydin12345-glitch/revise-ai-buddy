@@ -182,6 +182,7 @@ export function GraphCanvasPlot({
     visibleDomain,
     graphToScreen,
     screenToGraph,
+    zoom,
     handlers: cameraHandlers,
     isPanning,
     resetCamera,
@@ -318,6 +319,12 @@ export function GraphCanvasPlot({
   // which cannot call preventDefault() to stop page zoom
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Store zoom function for use in native wheel handler
+  const zoomRef = useRef<typeof zoom | null>(null);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !panZoomEnabled) return;
@@ -327,28 +334,26 @@ export function GraphCanvasPlot({
       e.preventDefault();
       e.stopPropagation();
       
-      // Debug: verify wheel events are captured
-      console.debug('[GraphCanvasPlot] Wheel event captured', { 
-        deltaY: e.deltaY, 
-        clientX: e.clientX, 
-        clientY: e.clientY 
-      });
+      // Calculate zoom factor based on wheel delta
+      // deltaY > 0 = scroll down = zoom out, deltaY < 0 = scroll up = zoom in
+      const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
       
-      // Call the camera's wheel handler
-      cameraHandlers.onWheel({
-        ...e,
-        currentTarget: container,
-        preventDefault: () => {},
-        stopPropagation: () => {},
-        nativeEvent: e,
-      } as unknown as React.WheelEvent);
+      // Get cursor position relative to the container
+      const rect = container.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+      
+      // Call zoom directly instead of trying to convert native event to React event
+      if (zoomRef.current) {
+        zoomRef.current(zoomFactor, cursorX, cursorY);
+      }
     };
     
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
     return () => {
       container.removeEventListener('wheel', handleNativeWheel);
     };
-  }, [panZoomEnabled, cameraHandlers]);
+  }, [panZoomEnabled]);
   
   if (width <= 0 || height <= 0) return null;
   

@@ -273,6 +273,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+      // Gemini uses max_tokens, OpenAI uses max_completion_tokens
       max_tokens: 32000,
       temperature: hasResourcePack ? 0.1 : 0.3,
       response_format: { type: 'json_object' },
