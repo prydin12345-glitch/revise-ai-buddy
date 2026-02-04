@@ -126,12 +126,12 @@ const MyQuizzes = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: sets, error } = await supabase
-        .from('practice_question_sets')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
+       const { data: sets, error } = await supabase
+         .from('practice_question_sets')
+         .select('*')
+         .eq('user_id', user.id)
+         .eq('extraction_status', 'completed')
+         .order('created_at', { ascending: false });
 
       if (error) throw error;
 

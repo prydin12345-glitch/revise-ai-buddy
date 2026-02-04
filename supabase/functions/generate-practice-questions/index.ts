@@ -82,6 +82,22 @@ async function generateQuestionsInBackground(
   try {
     console.log('Starting background generation for set:', setId);
 
+    // Make retries idempotent: clear any previously inserted questions + reset status/error.
+    // (If a previous attempt partially inserted rows, this prevents duplicates.)
+    await supabaseClient
+      .from('practice_questions')
+      .delete()
+      .eq('set_id', setId);
+
+    await supabaseClient
+      .from('practice_question_sets')
+      .update({
+        extraction_status: 'extracting',
+        extraction_error: null,
+        total_questions_generated: 0,
+      })
+      .eq('id', setId);
+
     // Download spec file if available
     let specContent = '';
     if (setData.specification_file_url) {
@@ -90,7 +106,8 @@ async function generateQuestionsInBackground(
         .download(setData.specification_file_url);
       
       if (specFile) {
-        specContent = await specFile.text();
+        // Cap read size to avoid huge files causing slowdowns/timeouts.
+        specContent = await specFile.slice(0, 200_000).text();
       }
     }
 
@@ -103,7 +120,8 @@ async function generateQuestionsInBackground(
           .download(setData.example_questions_file_url);
         
         if (exampleFile) {
-          exampleQuestionsContent = await exampleFile.text();
+          // Cap read size to avoid huge files causing slowdowns/timeouts.
+          exampleQuestionsContent = await exampleFile.slice(0, 200_000).text();
           console.log('Loaded example questions file, length:', exampleQuestionsContent.length);
         }
       } catch (err) {
@@ -1100,23 +1118,46 @@ ${notesSection}`;
     const callAi = async (attempt: 0 | 1) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          temperature: 0,
-          messages: [
-            { role: 'system', content: sys },
-            { role: 'user', content: prompt },
-          ],
-          tools: [tool],
-          tool_choice: { type: 'function', function: { name: 'generate_practice_questions' } },
-        }),
-      });
+      // Reliability fallback:
+      // - Attempt 1: Gemini Flash (fast/cheap)
+      // - Attempt 2: OpenAI (more consistent tool-call output)
+      const model = attempt === 0 ? 'google/gemini-2.5-flash' : 'openai/gpt-5-mini';
+
+      const controller = new AbortController();
+      // Slightly shorter for Gemini to reduce 524s, a bit longer for OpenAI fallback.
+      const timeoutMs = attempt === 0 ? 70_000 : 110_000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      let response: Response;
+      try {
+        console.log(`Calling Lovable AI (tool mode) with model: ${model}`);
+        response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: 8000,
+            messages: [
+              { role: 'system', content: sys },
+              { role: 'user', content: prompt },
+            ],
+            tools: [tool],
+            tool_choice: { type: 'function', function: { name: 'generate_practice_questions' } },
+          }),
+        });
+      } catch (e: any) {
+        if (e?.name === 'AbortError') {
+          throw new Error(`AI request timed out after ${Math.round(timeoutMs / 1000)}s (model=${model}).`);
+        }
+        throw e;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1129,7 +1170,8 @@ ${notesSection}`;
           throw new Error('AI usage limit reached. Please add credits and try again.');
         }
 
-        throw new Error(`AI API error: ${response.status}`);
+        // Include response body snippet for clearer debugging.
+        throw new Error(`AI API error (${response.status}): ${errorText.slice(0, 300)}`);
       }
 
       return await response.json();
@@ -1187,11 +1229,36 @@ ${notesSection}`;
     };
 
     const extractToolArgs = (ai: any) => {
+      // Gateway/provider-level errors come back in a different shape (no tool_calls).
+      if (ai?.error) {
+        const code = ai.error?.code;
+        const message = ai.error?.message || 'Unknown AI provider error';
+        const provider = ai.error?.metadata?.provider_name;
+        const raw = ai.error?.metadata?.raw;
+        const extra = [provider ? `provider=${provider}` : null, raw ? `raw=${raw}` : null].filter(Boolean).join(' ');
+        throw new Error(`AI provider error${code ? ` (${code})` : ''}: ${message}${extra ? ` (${extra})` : ''}`);
+      }
+
       const msg = ai?.choices?.[0]?.message;
       const toolCalls = msg?.tool_calls;
       const call = Array.isArray(toolCalls) ? toolCalls[0] : null;
 
       if (!call?.function?.arguments) {
+        // Some models occasionally place JSON in message.content instead of tool_calls.
+        const content = msg?.content;
+        if (typeof content === 'string' && content.trim().length > 0) {
+          const trimmed = content.trim();
+          const jsonCandidate = trimmed.startsWith('{') ? trimmed : (trimmed.match(/\{[\s\S]*\}$/)?.[0] ?? null);
+          if (jsonCandidate) {
+            try {
+              return JSON.parse(jsonCandidate);
+            } catch {
+              const sanitized = sanitizeJsonString(jsonCandidate);
+              return JSON.parse(sanitized);
+            }
+          }
+        }
+
         console.error('Unexpected AI response shape (missing tool_calls):', JSON.stringify(ai).slice(0, 2000));
         throw new Error('AI response missing tool output');
       }
@@ -1224,25 +1291,32 @@ ${notesSection}`;
         throw new Error('AI returned invalid question data (schema validation failed)');
       }
 
-      if (parsed.data.questions.length !== setData.question_count) {
-        throw new Error(`AI returned ${parsed.data.questions.length} questions, expected ${setData.question_count}`);
+      // If the model returns EXTRA questions, keep the first N rather than failing and retrying.
+      // This dramatically improves reliability and reduces timeouts for graph-heavy sets.
+      let normalizedQuestions = parsed.data.questions;
+      if (normalizedQuestions.length < setData.question_count) {
+        throw new Error(`AI returned ${normalizedQuestions.length} questions, expected ${setData.question_count}`);
+      }
+      if (normalizedQuestions.length > setData.question_count) {
+        console.warn(`AI returned ${normalizedQuestions.length} questions; trimming to ${setData.question_count}`);
+        normalizedQuestions = normalizedQuestions.slice(0, setData.question_count);
       }
 
       // Enforce: question_latex must be null
-      for (const q of parsed.data.questions) {
+      for (const q of normalizedQuestions) {
         if (q.question_latex !== null && q.question_latex !== undefined) {
           throw new Error('question_latex must be null');
         }
       }
 
       // Enforce: no LaTeX/backslashes/non-ASCII in ANY string fields
-      const violations = findStringViolations(parsed.data);
+      const violations = findStringViolations({ ...parsed.data, questions: normalizedQuestions });
       if (violations.length) {
         console.error('String violations found:', violations.slice(0, 50));
         throw new Error('AI returned forbidden characters (LaTeX/backslashes/non-ASCII)');
       }
 
-      return parsed.data;
+      return { ...parsed.data, questions: normalizedQuestions };
     };
 
     let generated: z.infer<typeof GeneratePracticeQuestionsSchema> | null = null;
