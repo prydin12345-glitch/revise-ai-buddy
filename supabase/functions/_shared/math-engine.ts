@@ -761,6 +761,10 @@ function findZero(fn: FunctionType, x1: number, x2: number): number | null {
 /**
  * Parse a function expression from question text into a FunctionType.
  * This is more robust than regex-only parsing.
+ * 
+ * Enhanced with general factored cubic support for expressions like:
+ * - (x-1)(x-3)(x+2) → roots at 1, 3, -2
+ * - (x+1)(x-2)(x+4) → roots at -1, 2, -4
  */
 export function parseFunctionFromText(text: string): FunctionType | null {
   const lowerText = text.toLowerCase();
@@ -777,6 +781,33 @@ export function parseFunctionFromText(text: string): FunctionType | null {
       type: 'quadratic_factor',
       repeatedRoot,
       singleRoot,
+    };
+  }
+  
+  // ============================================
+  // NEW: General factored cubic (x±a)(x±b)(x±c)
+  // This matches cubics NOT through origin like (x-1)(x-3)(x+2)
+  // ============================================
+  const generalFactoredCubicMatch = text.match(
+    /\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)\s*\*?\s*\(x\s*([+-])\s*(\d+(?:\.\d+)?)\)/i
+  );
+  if (generalFactoredCubicMatch) {
+    // (x ± a)(x ± b)(x ± c) → roots at ∓a, ∓b, ∓c
+    // e.g., (x-1)(x-3)(x+2) has roots at x=1, x=3, x=-2
+    const roots = [
+      (generalFactoredCubicMatch[1] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[2]),
+      (generalFactoredCubicMatch[3] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[4]),
+      (generalFactoredCubicMatch[5] === '-' ? 1 : -1) * parseFloat(generalFactoredCubicMatch[6])
+    ];
+    
+    logMathEngineOperation('ParsedGeneralFactoredCubic', {
+      match: generalFactoredCubicMatch[0],
+      roots
+    });
+    
+    return {
+      type: 'factored_cubic',
+      roots: roots.sort((a, b) => a - b),
     };
   }
   
@@ -944,6 +975,342 @@ export function parseTransformFromText(text: string): TransformSpec {
   }
   
   return transform;
+}
+
+// ============================================
+// FORMULA STRING EVALUATION
+// ============================================
+
+/**
+ * Extract a marking formula from question text.
+ * Converts expressions like "y = (x-1)(x-3)(x+2)" to evaluable format "(x-1)*(x-3)*(x+2)"
+ */
+export function extractMarkingFormula(questionText: string): string | null {
+  // Try to match "y = expression" patterns
+  const yEqualsPatterns = [
+    // y = (x-1)(x-3)(x+2)
+    /y\s*=\s*(\([^)]+\)\s*\([^)]+\)(?:\s*\([^)]+\))?)/i,
+    // y = x^2 + 2x - 1
+    /y\s*=\s*(x\s*\^?\s*\d+[^,.\n]*)/i,
+    // y = x(x+a)(x+b)
+    /y\s*=\s*(x\s*\([^)]+\)\s*\([^)]+\))/i,
+    // y = 1/x or y = 1/(x+a)
+    /y\s*=\s*(1\s*\/\s*(?:x|\([^)]+\)))/i,
+    // y = ax + b
+    /y\s*=\s*(-?\d*x\s*[+-]\s*\d+)/i,
+    // y = ax
+    /y\s*=\s*(-?\d*x)(?:\s|,|\.)/i,
+    // y = c (constant)
+    /y\s*=\s*(-?\d+(?:\.\d+)?)(?:\s|,|\.)/i,
+  ];
+  
+  for (const pattern of yEqualsPatterns) {
+    const match = questionText.match(pattern);
+    if (match && match[1]) {
+      return normalizeFormulaExpression(match[1]);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Normalize a mathematical expression to evaluable format.
+ * - Adds explicit multiplication: (x-1)(x-3) → (x-1)*(x-3)
+ * - Handles exponents: x^2 → x^2 (unchanged, evaluator handles it)
+ */
+export function normalizeFormulaExpression(expr: string): string {
+  return expr
+    .replace(/\s+/g, '') // Remove whitespace
+    .replace(/\)\(/g, ')*(') // Add multiplication between parentheses
+    .replace(/(\d)\(/g, '$1*(') // 2(x) → 2*(x)
+    .replace(/\)(\d)/g, ')*$1') // (x)2 → (x)*2
+    .replace(/(\d)x/gi, '$1*x') // 2x → 2*x
+    .replace(/x(\d)/gi, 'x*$1') // x2 → x*2
+    .replace(/\)x/gi, ')*x') // (...)x → (...)*x
+    .replace(/x\(/gi, 'x*('); // x(...) → x*(...)
+}
+
+/**
+ * Safely evaluate a mathematical formula at a given x value.
+ * This is a safe evaluator that doesn't use eval().
+ */
+export function evaluateFormulaAtX(formula: string, x: number): number | null {
+  try {
+    // Tokenize and parse the expression
+    const tokens = tokenizeFormula(formula);
+    if (tokens.length === 0) return null;
+    
+    return parseAndEvaluateTokens(tokens, x);
+  } catch (e) {
+    console.warn('[MathEngine] Formula evaluation error:', e);
+    return null;
+  }
+}
+
+/**
+ * Tokenize a formula string into tokens for parsing.
+ */
+function tokenizeFormula(formula: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  
+  while (i < formula.length) {
+    const char = formula[i];
+    
+    // Skip whitespace
+    if (/\s/.test(char)) { i++; continue; }
+    
+    // Numbers (including decimals)
+    if (/[0-9.]/.test(char)) {
+      let num = '';
+      while (i < formula.length && /[0-9.]/.test(formula[i])) {
+        num += formula[i++];
+      }
+      tokens.push(num);
+      continue;
+    }
+    
+    // Variable x
+    if (char === 'x' || char === 'X') {
+      tokens.push('x');
+      i++;
+      continue;
+    }
+    
+    // Operators and parentheses
+    if ('+-*/^()'.includes(char)) {
+      tokens.push(char);
+      i++;
+      continue;
+    }
+    
+    // Function names
+    if (/[a-zA-Z]/.test(char)) {
+      let fn = '';
+      while (i < formula.length && /[a-zA-Z]/.test(formula[i])) {
+        fn += formula[i++];
+      }
+      tokens.push(fn.toLowerCase());
+      continue;
+    }
+    
+    i++;
+  }
+  
+  return tokens;
+}
+
+/**
+ * Parse and evaluate tokenized expression using recursive descent.
+ */
+function parseAndEvaluateTokens(tokens: string[], x: number): number | null {
+  let pos = 0;
+  
+  function peek(): string | null { return pos < tokens.length ? tokens[pos] : null; }
+  function consume(): string { return tokens[pos++]; }
+  
+  function parseExpression(): number | null {
+    let left = parseTerm();
+    if (left === null) return null;
+    
+    while (peek() === '+' || peek() === '-') {
+      const op = consume();
+      const right = parseTerm();
+      if (right === null) return null;
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+  
+  function parseTerm(): number | null {
+    let left = parsePower();
+    if (left === null) return null;
+    
+    while (peek() === '*' || peek() === '/') {
+      const op = consume();
+      const right = parsePower();
+      if (right === null) return null;
+      if (op === '/') {
+        if (right === 0) return null;
+        left = left / right;
+      } else {
+        left = left * right;
+      }
+    }
+    
+    // Implicit multiplication
+    while (peek() && (peek() === 'x' || peek() === '(' || /^[a-z]/.test(peek()!))) {
+      const right = parsePower();
+      if (right === null) return null;
+      left = left * right;
+    }
+    
+    return left;
+  }
+  
+  function parsePower(): number | null {
+    let base = parseUnary();
+    if (base === null) return null;
+    
+    if (peek() === '^') {
+      consume();
+      const exp = parsePower();
+      if (exp === null) return null;
+      return Math.pow(base, exp);
+    }
+    return base;
+  }
+  
+  function parseUnary(): number | null {
+    if (peek() === '-') { consume(); const v = parseUnary(); return v === null ? null : -v; }
+    if (peek() === '+') { consume(); return parseUnary(); }
+    return parsePrimary();
+  }
+  
+  function parsePrimary(): number | null {
+    const token = peek();
+    if (token === null) return null;
+    
+    if (/^[0-9.]/.test(token)) { consume(); return parseFloat(token); }
+    if (token === 'x') { consume(); return x; }
+    
+    if (token === '(') {
+      consume();
+      const val = parseExpression();
+      if (peek() === ')') consume();
+      return val;
+    }
+    
+    // Functions
+    if (['sin', 'cos', 'tan', 'sqrt', 'abs'].includes(token)) {
+      consume();
+      if (peek() !== '(') return null;
+      consume();
+      const arg = parseExpression();
+      if (arg === null) return null;
+      if (peek() === ')') consume();
+      
+      switch (token) {
+        case 'sin': return Math.sin(arg);
+        case 'cos': return Math.cos(arg);
+        case 'tan': return Math.tan(arg);
+        case 'sqrt': return arg < 0 ? null : Math.sqrt(arg);
+        case 'abs': return Math.abs(arg);
+        default: return null;
+      }
+    }
+    
+    if (token === 'pi') { consume(); return Math.PI; }
+    if (token === 'e') { consume(); return Math.E; }
+    
+    return null;
+  }
+  
+  return parseExpression();
+}
+
+/**
+ * Generate curve data from a formula string with discontinuity detection.
+ */
+export function generateCurveFromMarkingFormula(
+  formula: string,
+  domain: [number, number],
+  pointDensity: number = 150
+): GraphSeries[] {
+  const branches: GraphSeries[] = [];
+  let currentBranch: GraphPoint[] = [];
+  const step = (domain[1] - domain[0]) / pointDensity;
+  let prevY: number | null = null;
+  
+  for (let x = domain[0]; x <= domain[1]; x += step) {
+    const y = evaluateFormulaAtX(formula, x);
+    
+    const isDisc = y === null || !Number.isFinite(y) || Math.abs(y) > 200 ||
+      (prevY !== null && Math.abs(y - prevY) > 50);
+    
+    if (isDisc) {
+      if (currentBranch.length >= 3) {
+        branches.push({
+          id: `branch-${branches.length}`,
+          label: branches.length === 0 ? 'Expected' : '',
+          data: [...currentBranch],
+          showLine: true,
+          lineStyle: 'dashed',
+          color: '#22c55e',
+        });
+      }
+      currentBranch = [];
+      prevY = null;
+    } else {
+      currentBranch.push({
+        x: Math.round(x * 100) / 100,
+        y: Math.round(y * 100) / 100,
+      });
+      prevY = y;
+    }
+  }
+  
+  if (currentBranch.length >= 3) {
+    branches.push({
+      id: `branch-${branches.length}`,
+      label: branches.length === 0 ? 'Expected' : '',
+      data: currentBranch,
+      showLine: true,
+      lineStyle: 'dashed',
+      color: '#22c55e',
+    });
+  }
+  
+  return branches;
+}
+
+/**
+ * Apply a transformation to a formula string algebraically.
+ */
+export function applyFormulaTransform(
+  baseFormula: string,
+  transform: TransformSpec
+): string {
+  let formula = baseFormula;
+  
+  // Horizontal shift: f(x-a) means replace x with (x-a) where a is shiftX
+  if (transform.shiftX !== 0) {
+    const shift = transform.shiftX;
+    // shiftX > 0 means shift RIGHT, so f(x-shiftX)
+    const replacement = shift > 0 ? `(x-${shift})` : `(x+${Math.abs(shift)})`;
+    formula = formula.replace(/\bx\b/g, replacement);
+  }
+  
+  // Horizontal reflection: f(-x)
+  if (transform.reflectY) {
+    formula = formula.replace(/\bx\b/g, '(-x)');
+  }
+  
+  // Vertical scale and reflection
+  let prefix = '';
+  let suffix = '';
+  
+  if (transform.scaleY !== 1) {
+    prefix = `${transform.scaleY}*(`;
+    suffix = ')';
+  }
+  
+  if (transform.reflectX) {
+    prefix = '(-1)*(' + prefix;
+    suffix = suffix + ')';
+  }
+  
+  if (transform.shiftY !== 0) {
+    const shift = transform.shiftY;
+    suffix = suffix + (shift > 0 ? `+${shift}` : `${shift}`);
+  }
+  
+  if (prefix || suffix) {
+    formula = prefix + '(' + formula + ')' + suffix;
+  }
+  
+  return formula;
 }
 
 // ============================================

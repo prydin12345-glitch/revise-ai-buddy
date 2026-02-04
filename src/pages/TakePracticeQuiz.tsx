@@ -72,6 +72,7 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
+import { generateCurveFromFormula } from "@/lib/formula-evaluator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
@@ -1800,47 +1801,61 @@ const TakePracticeQuiz = () => {
                       const shouldShowReference = mentionsShownGraph || !isSketchQuestion || isInReviewMode;
                       const refSeries = shouldShowReference ? rawRefSeries : [];
                       
-                      // For review mode, generate expected curve from plottingAnswer.expectedCurve
-                      // expectedCurve can be either:
-                      // 1. An object with { id, label, data: [...] } (from edge function)
-                      // 2. An array directly (legacy format)
-                      // 3. An array of series (for discontinuous functions with multiple branches)
+                      // For review mode, generate expected curve from plottingAnswer
+                      // PRIORITY: Use markingFormula if available (formula-driven source of truth)
+                      // FALLBACK: Use expectedCurve data if no formula
                       let expectedCurveSeries: GraphSeries[] = [];
                       if (isInReviewMode && plottingAnswer) {
+                        const markingFormula = (plottingAnswer as any).markingFormula;
                         const expCurve = (plottingAnswer as any).expectedCurve;
                         
-                        // Case 1: expectedCurve is an array of series objects (discontinuous functions)
-                        if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
-                          expectedCurveSeries = expCurve.map((branch: any, idx: number) => ({
-                            id: branch.id || `expected-branch-${idx}`,
-                            label: branch.label || `Expected ${idx + 1}`,
-                            data: branch.data || [],
-                            color: branch.color || 'hsl(var(--success))',
-                            showLine: branch.showLine !== false,
-                            lineStyle: branch.lineStyle || 'dashed',
-                          }));
+                        // FORMULA-DRIVEN RENDERING (Desmos Method)
+                        // If markingFormula exists, compute the curve mathematically
+                        if (markingFormula && typeof markingFormula === 'string') {
+                          const domainX: [number, number] = config.domainX || [-10, 10];
+                          const formulaCurve = generateCurveFromFormula(markingFormula, domainX);
+                          
+                          if (formulaCurve.length > 0) {
+                            expectedCurveSeries = formulaCurve;
+                            console.log('[Review] Using markingFormula for curve:', markingFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
+                          }
                         }
-                        // Case 2: expectedCurve is a single object with data array
-                        else if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
-                          expectedCurveSeries = [{
-                            id: expCurve.id || 'expected-answer',
-                            label: expCurve.label || 'Expected Answer',
-                            data: expCurve.data,
-                            color: expCurve.color || 'hsl(var(--success))',
-                            showLine: expCurve.showLine !== false,
-                            lineStyle: expCurve.lineStyle || 'dashed',
-                          }];
-                        }
-                        // Case 3: expectedCurve is an array of points directly (legacy format)
-                        else if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'x' in expCurve[0]) {
-                          expectedCurveSeries = [{
-                            id: 'expected-answer',
-                            label: 'Expected Answer',
-                            data: expCurve,
-                            color: 'hsl(var(--success))',
-                            showLine: true,
-                            lineStyle: 'dashed',
-                          }];
+                        
+                        // FALLBACK: Use cached expectedCurve data if no formula or formula failed
+                        if (expectedCurveSeries.length === 0 && expCurve) {
+                          // Case 1: expectedCurve is an array of series objects (discontinuous functions)
+                          if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
+                            expectedCurveSeries = expCurve.map((branch: any, idx: number) => ({
+                              id: branch.id || `expected-branch-${idx}`,
+                              label: branch.label || `Expected ${idx + 1}`,
+                              data: branch.data || [],
+                              color: branch.color || 'hsl(var(--success))',
+                              showLine: branch.showLine !== false,
+                              lineStyle: branch.lineStyle || 'dashed',
+                            }));
+                          }
+                          // Case 2: expectedCurve is a single object with data array
+                          else if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
+                            expectedCurveSeries = [{
+                              id: expCurve.id || 'expected-answer',
+                              label: expCurve.label || 'Expected Answer',
+                              data: expCurve.data,
+                              color: expCurve.color || 'hsl(var(--success))',
+                              showLine: expCurve.showLine !== false,
+                              lineStyle: expCurve.lineStyle || 'dashed',
+                            }];
+                          }
+                          // Case 3: expectedCurve is an array of points directly (legacy format)
+                          else if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'x' in expCurve[0]) {
+                            expectedCurveSeries = [{
+                              id: 'expected-answer',
+                              label: 'Expected Answer',
+                              data: expCurve,
+                              color: 'hsl(var(--success))',
+                              showLine: true,
+                              lineStyle: 'dashed',
+                            }];
+                          }
                         }
                       }
                       
