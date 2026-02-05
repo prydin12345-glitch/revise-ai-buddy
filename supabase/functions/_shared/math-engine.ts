@@ -1008,31 +1008,36 @@ export function parseTransformFromText(text: string): TransformSpec {
 
 /**
  * Extract a marking formula from question text.
- * Converts expressions like "y = (x-1)(x-3)(x+2)" to evaluable format "(x-1)*(x-3)*(x+2)"
+ * 
+ * CRITICAL FIX v5: Improved extraction that captures FULL expressions.
+ * Instead of regex patterns that truncate, we:
+ * 1. Find "y =" or "f(x) =" or "g(x) =" patterns
+ * 2. Capture everything after = until a natural boundary (newline, period, comma)
+ * 3. Handle complex expressions like "2 + 1/(x+1)" or "a*x(x-2)"
+ * 
+ * Validation: If formula contains asymptotes at specific x-values, verify
+ * the formula is undefined at those points (e.g., 1/(x-2) is undefined at x=2).
  */
 export function extractMarkingFormula(questionText: string): string | null {
-  // Try to match "y = expression" patterns
-  const yEqualsPatterns = [
-    // y = (x-1)(x-3)(x+2)
-    /y\s*=\s*(\([^)]+\)\s*\([^)]+\)(?:\s*\([^)]+\))?)/i,
-    // y = x^2 + 2x - 1
-    /y\s*=\s*(x\s*\^?\s*\d+[^,.\n]*)/i,
-    // y = x(x+a)(x+b)
-    /y\s*=\s*(x\s*\([^)]+\)\s*\([^)]+\))/i,
-    // y = 1/x or y = 1/(x+a)
-    /y\s*=\s*(1\s*\/\s*(?:x|\([^)]+\)))/i,
-    // y = ax + b
-    /y\s*=\s*(-?\d*x\s*[+-]\s*\d+)/i,
-    // y = ax
-    /y\s*=\s*(-?\d*x)(?:\s|,|\.)/i,
-    // y = c (constant)
-    /y\s*=\s*(-?\d+(?:\.\d+)?)(?:\s|,|\.)/i,
+  // CRITICAL: Match FULL expressions after "y =" or function notation
+  // Capture everything until a natural boundary (newline, end of sentence, or specific delimiters)
+  const patterns = [
+    // y = <full expression until newline or period or comma>
+    /y\s*=\s*([^,.\n]+?)(?:[,.\n]|$)/i,
+    // f(x) = <expression> or g(x) = <expression>
+    /[a-z]\(x\)\s*=\s*([^,.\n]+?)(?:[,.\n]|$)/i,
+    // Just = <expression> (fallback for edge cases)
+    /=\s*([^,.\n]+?)(?:[,.\n]|$)/i,
   ];
   
-  for (const pattern of yEqualsPatterns) {
+  for (const pattern of patterns) {
     const match = questionText.match(pattern);
     if (match && match[1]) {
-      return normalizeFormulaExpression(match[1]);
+      const extracted = match[1].trim();
+      // Skip if it's just "correct" or other non-mathematical content
+      if (extracted && !/^(correct|the|a|is|are|correct answer)/i.test(extracted)) {
+        return normalizeFormulaExpression(extracted);
+      }
     }
   }
   

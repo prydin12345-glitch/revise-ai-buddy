@@ -938,15 +938,26 @@ General field expectations:
 - has_math: true/false
 - equation_complexity: "simple" | "medium" | "complex" (optional)
 
+***** UNIQUENESS & RANDOMIZATION RULES (CRITICAL) *****
+IMPORTANT: Even if the same PDF or resource is uploaded multiple times, YOU MUST generate COMPLETELY DIFFERENT questions:
+1. RANDOM CONSTANTS: If the example uses f(x) = x(x+2)(1-x), use different roots like f(x) = x(x+3)(2-x) or f(x) = (x-1)(x+1)(3-x)
+2. DIFFERENT FUNCTION LETTERS: If examples use f(x), you use g(x), h(x), or p(x) instead
+3. VARIED TRANSFORMATIONS: Don't repeat the same transformations (f(x+2), f(x-2), etc.) - mix up the shifts: f(x+3), f(2x), 2f(x), -f(x), etc.
+4. UNIQUE DOMAINS: Calculate different x-domains and y-domains based on new roots and asymptotes
+5. RANDOM QUESTION STRUCTURE: Vary whether questions ask for coordinates, equations, sketches, or interpretations
+6. Example: If provided examples show "sketch f(x) = 1/(x+1)", you generate "find the asymptotes of g(x) = 1/(x-2)" with completely different asymptote positions
+
 ${specContent ? 'Specification (excerpt):\n' + specContent.substring(0, 5000) : ''}
 ${exampleQuestionsContent ? `
-EXAMPLE QUESTIONS TO REPLICATE (IMPORTANT):
-The user has provided example questions. Study these carefully and:
-1. Match the STYLE of graph questions (curve shapes, axis labels, grid setup)
-2. Match the STRUCTURE of multi-part questions (a, b, c sub-parts)
-3. Match the COMMAND VERBS used (Sketch, State, Find, etc.)
-4. For graph questions, ensure your graphConfig.series data produces similar curve shapes
-5. Use similar marks allocation patterns
+EXAMPLE QUESTIONS - STYLE GUIDE ONLY (NOT TO BE REPEATED):
+The user has provided example questions. Study these ONLY for:
+1. STYLE of questions (how they're worded, complexity level)
+2. STRUCTURE of multi-part questions (a, b, c patterns)
+3. COMMAND VERBS used (Sketch, State, Find, etc.)
+4. GRAPH SETUP (grid, domains, labels)
+5. MARKS allocation patterns
+** DO NOT repeat the same constants, function letters, or transformation directions from the examples **
+** Generate completely new mathematical content while maintaining the same STYLE **
 
 Example content (excerpt):
 ${exampleQuestionsContent.substring(0, 8000)}
