@@ -417,10 +417,10 @@ export function GraphCanvasPlot({
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
           
-          // In review mode with marking data, significantly reduce opacity of ghost lines
-          // to prioritize the Red/Green answer line visibility
+          // In review mode with marking data, HIDE reference curves entirely
+          // to eliminate visual clutter and prioritize the Red/Green answer line
           const isMarkedReview = showCorrectAnswers && markingData !== undefined;
-          const ghostOpacity = isMarkedReview ? 0.25 : 0.6;
+          const ghostOpacity = isMarkedReview ? 0.05 : 0.6; // Nearly invisible when marked
           
           // STYLE HIERARCHY: Reference curves are ALWAYS dashed grey (the "Ghost Layer")
           return (
