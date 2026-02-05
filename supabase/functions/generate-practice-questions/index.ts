@@ -19,6 +19,9 @@ import {
   applyFormulaTransform,
   IDENTITY_TRANSFORM,
   logMathEngineOperation,
+  // Audit v5 additions - Secret Formula & Asymptote Validation
+  generateSecretMarkingFormula,
+  validateAsymptoteQuestion,
   type FunctionType,
   type TransformSpec,
   type GraphSeries,
@@ -2422,6 +2425,71 @@ ${notesSection}`;
                 ? plottingAnswer.expectedCurve.reduce((sum, b) => sum + (b.data?.length || 0), 0)
                 : plottingAnswer.expectedCurve?.data?.length || 0
             });
+            
+            // ========== AUDIT V5 FIX #2: SECRET MARKING FORMULA ==========
+            // If no explicit markingFormula but question describes features,
+            // reverse-engineer a formula from the described turning points/intercepts
+            if (!plottingAnswer.markingFormula) {
+              const secretResult = generateSecretMarkingFormula(qText);
+              
+              if (secretResult.formula) {
+                plottingAnswer.markingFormula = secretResult.formula;
+                (plottingAnswer as any)._isSecretFormula = true;
+                
+                // Regenerate expectedCurve from secret formula
+                const secretCurve = generateCurveFromMarkingFormula(secretResult.formula, domainX);
+                if (secretCurve.length > 0 && secretCurve[0].data.length >= 10) {
+                  plottingAnswer.expectedCurve = secretCurve.length > 1 
+                    ? secretCurve 
+                    : secretCurve[0];
+                }
+                
+                logMathEngineOperation('SecretFormulaApplied', {
+                  questionNumber: q.question_number,
+                  features: secretResult.features,
+                  secretFormula: secretResult.formula,
+                  curvePointCount: secretCurve.reduce((sum, b) => sum + b.data.length, 0)
+                });
+              }
+            }
+            
+            // ========== AUDIT V5 FIX #3: ASYMPTOTE VALIDATION ==========
+            // For questions mentioning asymptotes, validate the formula has correct behavior
+            const hasAsymptoteMention = /asymptote|1\/|reciprocal|undefined\s*at/i.test(qText);
+            if (hasAsymptoteMention && plottingAnswer.markingFormula) {
+              const asymptoteValidation = validateAsymptoteQuestion(qText, plottingAnswer.markingFormula);
+              
+              logMathEngineOperation('AsymptoteValidationResult', {
+                questionNumber: q.question_number,
+                valid: asymptoteValidation.valid,
+                reason: asymptoteValidation.reason,
+                plotPointCount: asymptoteValidation.plotPointCount,
+                expectedAsymptotes: asymptoteValidation.expectedAsymptotes,
+                actualAsymptotes: asymptoteValidation.actualAsymptotes
+              });
+              
+              // If invalid, flag for potential re-generation
+              if (!asymptoteValidation.valid) {
+                console.warn(`Question ${q.question_number}: Asymptote validation failed - ${asymptoteValidation.reason}`);
+                (plottingAnswer as any)._asymptoteValidationFailed = true;
+                (plottingAnswer as any)._asymptoteValidationReason = asymptoteValidation.reason;
+                
+                // If we have too few points, the curve won't render properly
+                if (asymptoteValidation.plotPointCount < 50) {
+                  // Try to create a basic reciprocal function
+                  const asymptotes = asymptoteValidation.expectedAsymptotes;
+                  if (asymptotes.length > 0) {
+                    const newFormula = `1/(x-${asymptotes[0]})`;
+                    const newCurve = generateCurveFromMarkingFormula(newFormula, domainX);
+                    if (newCurve.length > 0 && newCurve[0].data.length >= 50) {
+                      plottingAnswer.markingFormula = newFormula;
+                      plottingAnswer.expectedCurve = newCurve.length > 1 ? newCurve : newCurve[0];
+                      console.log(`Question ${q.question_number}: Auto-corrected to basic reciprocal: ${newFormula}`);
+                    }
+                  }
+                }
+              }
+            }
               
               graphData = {
                 graphType: 'plotting',

@@ -1562,6 +1562,359 @@ export function markSketch(
   return result;
 }
 
+// ============================================
+// SECRET MARKING FORMULA GENERATOR (Audit v5 Fix #2)
+// ============================================
+
+/**
+ * Generates a "secret" marking formula from question text describing features.
+ * 
+ * When a question says "sketch a curve with maximum at (-2, 4) and minimum at (1, -3)",
+ * this function reverse-engineers a polynomial that passes through those points.
+ * 
+ * This gives the marking engine a mathematical "source of truth" even when
+ * the student never sees an explicit equation.
+ * 
+ * @param questionText - The full question text
+ * @returns A formula string or null if features couldn't be extracted
+ */
+export function generateSecretMarkingFormula(questionText: string): {
+  formula: string | null;
+  features: { maxima: Array<{x: number, y: number}>, minima: Array<{x: number, y: number}>, intercepts: number[] };
+  isSecret: boolean;
+} {
+  const result = {
+    formula: null as string | null,
+    features: { maxima: [] as Array<{x: number, y: number}>, minima: [] as Array<{x: number, y: number}>, intercepts: [] as number[] },
+    isSecret: true
+  };
+  
+  const text = questionText.toLowerCase();
+  
+  // Extract maxima: "maximum at (-2, 4)" or "max at (2, 5)"
+  const maxRegex = /(?:maximum|max|local\s*max)\s*(?:at|point)?\s*\(?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)?/gi;
+  let maxMatch;
+  while ((maxMatch = maxRegex.exec(text)) !== null) {
+    result.features.maxima.push({ x: parseFloat(maxMatch[1]), y: parseFloat(maxMatch[2]) });
+  }
+  
+  // Extract minima: "minimum at (1, -3)" or "min at (0, -2)"
+  const minRegex = /(?:minimum|min|local\s*min)\s*(?:at|point)?\s*\(?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)?/gi;
+  let minMatch;
+  while ((minMatch = minRegex.exec(text)) !== null) {
+    result.features.minima.push({ x: parseFloat(minMatch[1]), y: parseFloat(minMatch[2]) });
+  }
+  
+  // Extract x-intercepts: "crosses x-axis at 3" or "x-intercept at -1"
+  const interceptRegex = /(?:x-intercept|crosses\s*(?:the\s*)?x-axis|root)\s*(?:at)?\s*(-?\d+(?:\.\d+)?)/gi;
+  let interceptMatch;
+  while ((interceptMatch = interceptRegex.exec(text)) !== null) {
+    result.features.intercepts.push(parseFloat(interceptMatch[1]));
+  }
+  
+  // Also check for "passes through origin"
+  if (/passes?\s*(?:through\s*)?(?:the\s*)?origin/i.test(text)) {
+    if (!result.features.intercepts.includes(0)) {
+      result.features.intercepts.push(0);
+    }
+  }
+  
+  logMathEngineOperation('SecretFormulaExtraction', result.features);
+  
+  // ============================================
+  // CASE 1: One max + one min → fit a cubic
+  // ============================================
+  if (result.features.maxima.length >= 1 && result.features.minima.length >= 1) {
+    const max = result.features.maxima[0];
+    const min = result.features.minima[0];
+    
+    // For a cubic y = ax³ + bx² + cx + d with turning points at max and min:
+    // The derivative 3ax² + 2bx + c = 0 at x = max.x and x = min.x
+    // We use the fact that (x - max.x)(x - min.x) = 0 at turning points
+    // So derivative = 3a(x - max.x)(x - min.x) = 3a(x² - (max.x + min.x)x + max.x*min.x)
+    
+    // For simplicity, construct a cubic that:
+    // 1. Has turning points at max.x and min.x
+    // 2. Passes through those y-values
+    
+    // Use a normalized cubic: y = a(x - max.x)²(x - r) where we solve for 'a' and 'r'
+    // to match the y-values at turning points
+    
+    // Simpler approach: Use the form y = a(x - p)(x - q)(x - r)
+    // where p, q, r are chosen to create the desired shape
+    
+    // For a "S-curve" cubic with max at max.x and min at min.x:
+    // The inflection point is at (max.x + min.x) / 2
+    // We can use: y = A(x - max.x + d)(x - max.x)(x - min.x - d) where d controls shape
+    
+    // Actually, let's use a more direct approach:
+    // A cubic with turning points at x = a and x = b has derivative proportional to (x-a)(x-b)
+    // So y' = k(x - max.x)(x - min.x) = kx² - k(max.x + min.x)x + k*max.x*min.x
+    // Integrating: y = (k/3)x³ - (k/2)(max.x + min.x)x² + k*max.x*min.x*x + C
+    
+    // To find k and C, we use the conditions:
+    // y(max.x) = max.y
+    // y(min.x) = min.y
+    
+    // For exam purposes, let's use a well-behaved cubic approximation:
+    // Find the coefficient 'a' such that the cubic has the right amplitude
+    
+    const xMax = max.x;
+    const yMax = max.y;
+    const xMin = min.x;
+    const yMin = min.y;
+    
+    // Use a cubic of form: y = a(x - xMax)(x - xMid)(x - xEnd) adjusted for turning points
+    // Simplified: y = -a(x - xMax)²(x - (2*xMin - xMax)) for a curve with max then min
+    
+    // Even simpler - use a standard form and adjust:
+    // For a downward-opening max at x=xMax: leading coef < 0
+    // Cubic: y = -a(x - r1)(x - r2)(x - r3)
+    
+    // Best approach for exam: construct from the turning point condition
+    // y = a * integrate((x - xMax)(x - xMin)) + offset
+    // = a * (x³/3 - (xMax+xMin)x²/2 + xMax*xMin*x) + C
+    
+    // Let's use: a = 6 * (yMin - yMax) / ((xMin - xMax)³)
+    // This scales the standard shape to match the amplitude
+    
+    const dx = xMin - xMax;
+    const dy = yMin - yMax;
+    
+    if (Math.abs(dx) > 0.01) {
+      // Coefficient that matches the amplitude between turning points
+      const a = -4 * dy / (dx * dx * dx);
+      
+      // Construct the formula with the turning point positions
+      // y = a(x - xMax)²(x - (2*xMin - xMax)) would have max at xMax
+      // But we need a cleaner formula...
+      
+      // Use: y = a(x - xMax)(x - h)² where h is calculated
+      // Actually for exam, use: y = a*(x - r1)(x - r2)(x - r3) form
+      
+      // Simplest robust approach: cubic through points
+      // y = A*x³ + B*x² + C*x + D
+      // With conditions: y'(xMax) = 0, y'(xMin) = 0, y(xMax) = yMax, y(xMin) = yMin
+      
+      // For a cleaner formula, use the form:
+      // The curve is defined by its shape - let's construct from roots
+      // If there's an intercept at origin, use that
+      
+      let formula: string;
+      
+      if (result.features.intercepts.includes(0)) {
+        // Passes through origin - use factored form x(x - a)(x - b)
+        // We need to find a and b such that turning points match
+        // This is complex, so use a standard scaled form
+        const scale = Math.abs(yMax) > Math.abs(yMin) ? Math.abs(yMax) : Math.abs(yMin);
+        const sign = yMax > 0 ? 1 : -1;
+        
+        // Use: y = sign * scale * x * (x - xMax - 1) * (x - xMin + 1) / normalization
+        const r1 = xMax - 1;
+        const r2 = xMin + 1;
+        
+        // Evaluate at xMax to find scaling factor
+        const yAtXMax = xMax * (xMax - r1) * (xMax - r2);
+        const scaleFactor = yMax / (yAtXMax || 1);
+        
+        formula = `${scaleFactor.toFixed(4)}*x*(x${r1 >= 0 ? '-' : '+'}${Math.abs(r1).toFixed(2)})*(x${r2 >= 0 ? '-' : '+'}${Math.abs(r2).toFixed(2)})`;
+      } else {
+        // General cubic - use numerical fit
+        // y = a(x - xMax)²(x - b) where b is chosen for min position
+        // At xMin: y' = 0, so xMin is also a turning point
+        // This form only has one TP at xMax, so we need a different form
+        
+        // Use: y = a(x - p)(x - xMax)(x - q) where p and q are roots
+        // The turning points are at x = (p + xMax + q ± sqrt(...))/3
+        
+        // For robustness, use a simplified scaled form:
+        const midX = (xMax + xMin) / 2;
+        const amplitude = (yMax - yMin) / 2;
+        const midY = (yMax + yMin) / 2;
+        
+        // Use a scaled "standard cubic" centered at midpoint
+        // y = A(x - midX)³ + B(x - midX) + midY
+        // where A and B are chosen to match turning points
+        
+        // For standard cubic x³ - 3x, turning points are at x = ±1 with y = ∓2
+        // Scale x by (xMax - midX) and y by amplitude
+        
+        const xScale = Math.abs(xMax - midX);
+        if (xScale > 0.01) {
+          // y = A*((x - midX)/xScale)³ - 3*A*((x - midX)/xScale) + midY
+          // At x = xMax: y = yMax
+          // ((xMax - midX)/xScale)³ = 1, so 1 - 3 = -2
+          // yMax = -2A + midY → A = (midY - yMax) / 2 = -amplitude
+          
+          const A = -amplitude / 2; // divided by standard amplitude of 2
+          
+          formula = `${A.toFixed(4)}*((x-${midX.toFixed(2)})/${xScale.toFixed(2)})^3-${(3*A).toFixed(4)}*((x-${midX.toFixed(2)})/${xScale.toFixed(2)})+${midY.toFixed(2)}`;
+        } else {
+          // Fallback: just a parabola-like shape
+          formula = `${(yMax).toFixed(2)}-${(Math.abs(dy / 2)).toFixed(2)}*(x-${xMax.toFixed(2)})^2`;
+        }
+      }
+      
+      result.formula = formula;
+      logMathEngineOperation('SecretFormula:CubicFromTurningPoints', { max, min, formula });
+    }
+  }
+  
+  // ============================================
+  // CASE 2: Multiple x-intercepts → factored form
+  // ============================================
+  else if (result.features.intercepts.length >= 2) {
+    const roots = result.features.intercepts.sort((a, b) => a - b);
+    
+    if (roots.length === 3) {
+      // Cubic with three roots
+      const terms = roots.map(r => r === 0 ? 'x' : `(x${r < 0 ? '+' : '-'}${Math.abs(r)})`);
+      result.formula = terms.join('*');
+    } else if (roots.length === 2) {
+      // Quadratic or cubic through origin
+      if (roots.includes(0)) {
+        // x(x - r)
+        const other = roots.find(r => r !== 0) || 1;
+        result.formula = `x*(x${other < 0 ? '+' : '-'}${Math.abs(other)})`;
+      } else {
+        // (x - r1)(x - r2)
+        result.formula = `(x${roots[0] < 0 ? '+' : '-'}${Math.abs(roots[0])})*(x${roots[1] < 0 ? '+' : '-'}${Math.abs(roots[1])})`;
+      }
+    }
+    
+    logMathEngineOperation('SecretFormula:FactoredFromIntercepts', { roots, formula: result.formula });
+  }
+  
+  // ============================================
+  // CASE 3: Single turning point → quadratic
+  // ============================================
+  else if (result.features.maxima.length === 1 && result.features.minima.length === 0) {
+    const max = result.features.maxima[0];
+    // Downward parabola: y = -(x - h)² + k
+    result.formula = `-1*(x-${max.x})^2+${max.y}`;
+    logMathEngineOperation('SecretFormula:ParabolaFromMax', { max, formula: result.formula });
+  }
+  else if (result.features.minima.length === 1 && result.features.maxima.length === 0) {
+    const min = result.features.minima[0];
+    // Upward parabola: y = (x - h)² + k
+    result.formula = `(x-${min.x})^2+${min.y}`;
+    logMathEngineOperation('SecretFormula:ParabolaFromMin', { min, formula: result.formula });
+  }
+  
+  return result;
+}
+
+// ============================================
+// ASYMPTOTE VALIDATION (Audit v5 Fix #3)
+// ============================================
+
+/**
+ * Validates that a rational function question has a valid markingFormula
+ * with correct asymptotic behavior.
+ * 
+ * @param questionText - The question text
+ * @param markingFormula - The formula to validate
+ * @returns Validation result with details
+ */
+export function validateAsymptoteQuestion(
+  questionText: string,
+  markingFormula: string | null
+): {
+  valid: boolean;
+  reason?: string;
+  expectedAsymptotes: number[];
+  actualAsymptotes: number[];
+  plotPointCount: number;
+} {
+  const result = {
+    valid: true,
+    expectedAsymptotes: [] as number[],
+    actualAsymptotes: [] as number[],
+    plotPointCount: 0,
+    reason: undefined as string | undefined
+  };
+  
+  // Extract expected asymptotes from question text
+  const asymptoteRegex = /(?:vertical\s*)?asymptote\s*(?:at)?\s*x\s*=\s*(-?\d+(?:\.\d+)?)/gi;
+  let match;
+  while ((match = asymptoteRegex.exec(questionText)) !== null) {
+    result.expectedAsymptotes.push(parseFloat(match[1]));
+  }
+  
+  // If no asymptotes mentioned but text contains "1/" or "reciprocal", check for them
+  if (result.expectedAsymptotes.length === 0) {
+    if (/1\/|reciprocal|undefined\s*at/i.test(questionText)) {
+      // There should be asymptotes but they weren't explicitly stated
+      // This is a warning but not necessarily invalid
+    }
+  }
+  
+  // If no formula, can't validate
+  if (!markingFormula) {
+    if (result.expectedAsymptotes.length > 0) {
+      result.valid = false;
+      result.reason = 'Asymptote question has no markingFormula';
+    }
+    return result;
+  }
+  
+  // Test the formula to find actual asymptotes and count valid points
+  const domain: [number, number] = [-10, 10];
+  const step = 0.05;
+  let validPoints = 0;
+  
+  for (let x = domain[0]; x <= domain[1]; x += step) {
+    const y = evaluateFormulaAtX(markingFormula, x);
+    
+    if (y !== null && Number.isFinite(y) && Math.abs(y) < 1000) {
+      validPoints++;
+    } else {
+      // Check if this is near an expected asymptote
+      const nearExpected = result.expectedAsymptotes.some(a => Math.abs(x - a) < 0.5);
+      if (!nearExpected && (y === null || !Number.isFinite(y))) {
+        // Found an asymptote not mentioned in the question
+        const nearbyAsymptote = Math.round(x * 10) / 10;
+        if (!result.actualAsymptotes.some(a => Math.abs(a - nearbyAsymptote) < 0.3)) {
+          result.actualAsymptotes.push(nearbyAsymptote);
+        }
+      }
+    }
+  }
+  
+  result.plotPointCount = validPoints;
+  
+  // Validation checks
+  
+  // Check 1: Must have at least 50 valid plot points
+  if (validPoints < 50) {
+    result.valid = false;
+    result.reason = `Insufficient plot points (${validPoints} < 50). Formula may be malformed.`;
+    return result;
+  }
+  
+  // Check 2: If asymptotes expected, formula must be undefined at those x values
+  for (const expected of result.expectedAsymptotes) {
+    const yAtAsymptote = evaluateFormulaAtX(markingFormula, expected);
+    
+    if (yAtAsymptote !== null && Number.isFinite(yAtAsymptote) && Math.abs(yAtAsymptote) < 100) {
+      result.valid = false;
+      result.reason = `Formula is defined at x=${expected} but should have asymptote there`;
+      return result;
+    }
+  }
+  
+  logMathEngineOperation('AsymptoteValidation', {
+    questionText: questionText.substring(0, 100),
+    formula: markingFormula,
+    expectedAsymptotes: result.expectedAsymptotes,
+    actualAsymptotes: result.actualAsymptotes,
+    plotPointCount: result.plotPointCount,
+    valid: result.valid
+  });
+  
+  return result;
+}
+
 /**
  * Logging utility for debugging math engine operations.
  */

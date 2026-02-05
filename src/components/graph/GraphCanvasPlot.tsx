@@ -420,20 +420,35 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Expected answer curve in review mode - SOLID GREEN (Primary Answer) */}
+        {/* Expected answer curve in review mode - RED/GREEN based on marking status */}
         {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {
           if (!series.data || series.data.length < 2) return null;
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
           
-          // STYLE HIERARCHY FIX: Expected answer is ALWAYS SOLID GREEN
-          // This overrides any lineStyle property from the data - answer must stand out
+          // ============================================================
+          // MARKING STATE SWITCH (Audit v5 Fix #1)
+          // ============================================================
+          // If markingData exists and has isCorrect:
+          //   - TRUE  → Solid Green (student got it right)
+          //   - FALSE → Solid Red (student got it wrong)
+          // If no marking data (just review mode), default to green
+          const isMarked = markingData !== undefined;
+          const isCorrect = markingData?.totalScore !== undefined && markingData?.totalMarks !== undefined
+            ? markingData.totalScore >= markingData.totalMarks * 0.8 // 80% threshold
+            : null;
+          
+          // Color selection: Green if correct or ungraded, Red if incorrect
+          const strokeColor = isMarked && isCorrect === false
+            ? 'hsl(0, 84%, 60%)' // RED for incorrect
+            : 'hsl(142, 76%, 36%)'; // GREEN for correct or ungraded review
+          
           return (
             <CurveLayer
               key={`expected-${series.id || idx}`}
               data={validData}
               graphToScreen={graphToScreen}
-              stroke="hsl(142, 76%, 36%)" // Solid green (success color)
+              stroke={strokeColor}
               strokeWidth={3} // Thicker for emphasis
               strokeDasharray={undefined} // CRITICAL: NO dash - SOLID line for answers
             />
