@@ -497,6 +497,8 @@ export interface CurveLayerProps {
   strokeWidth?: number;
   /** Stroke dash array (for dashed lines) */
   strokeDasharray?: string;
+  /** Opacity (0-1) */
+  opacity?: number;
   /** Unique key for the curve */
   id?: string;
 }
@@ -510,6 +512,7 @@ export function CurveLayer({
   stroke = 'hsl(var(--primary))',
   strokeWidth = 2,
   strokeDasharray,
+  opacity = 1,
   id,
 }: CurveLayerProps) {
   // Convert points to screen coordinates and build path
@@ -541,6 +544,7 @@ export function CurveLayer({
       stroke={stroke}
       strokeWidth={strokeWidth}
       strokeDasharray={strokeDasharray}
+      strokeOpacity={opacity}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
