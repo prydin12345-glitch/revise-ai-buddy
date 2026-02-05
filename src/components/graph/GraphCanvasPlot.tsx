@@ -401,11 +401,26 @@ export function GraphCanvasPlot({
         readOnly={readOnly}
         cursor={effectiveCursor}
       >
-        {/* Reference curves (Ghost/Shadow lines - dashed grey) */}
+        {/* ============================================================
+           VISUAL STYLE HIERARCHY (Audit v5 Fix #3)
+           ============================================================
+           ASYMPTOTES: Thin Dashed Grey lines (from config.asymptotes)
+           REFERENCE/GHOST CURVES: Faint Dashed Grey (parent function for transformations)
+           EXPECTED ANSWER CURVE: SOLID line (Green if correct, Red if incorrect)
+           ============================================================ */}
+        
+        {/* Reference curves (Ghost/Shadow lines - faint dashed grey) */}
+        {/* CRITICAL FIX: In review mode when showing correct answers, HIDE or significantly 
+            fade the reference curves to avoid visual clutter with the answer line */}
         {referenceSeries.map((series, idx) => {
           if (!series.data || series.data.length < 2) return null;
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
+          
+          // In review mode with marking data, significantly reduce opacity of ghost lines
+          // to prioritize the Red/Green answer line visibility
+          const isMarkedReview = showCorrectAnswers && markingData !== undefined;
+          const ghostOpacity = isMarkedReview ? 0.25 : 0.6;
           
           // STYLE HIERARCHY: Reference curves are ALWAYS dashed grey (the "Ghost Layer")
           return (
@@ -413,9 +428,10 @@ export function GraphCanvasPlot({
               key={`reference-${series.id || idx}`}
               data={validData}
               graphToScreen={graphToScreen}
-              stroke={series.color || 'hsl(var(--muted-foreground) / 0.6)'}
-              strokeWidth={2}
+              stroke={series.color || `hsl(var(--muted-foreground) / ${ghostOpacity})`}
+              strokeWidth={1.5}
               strokeDasharray="6 4" // ALWAYS dashed for reference/ghost lines
+              opacity={ghostOpacity}
             />
           );
         })}
@@ -429,9 +445,9 @@ export function GraphCanvasPlot({
           // ============================================================
           // MARKING STATE SWITCH (Audit v5 Fix #1)
           // ============================================================
-          // If markingData exists and has isCorrect:
-          //   - TRUE  → Solid Green (student got it right)
-          //   - FALSE → Solid Red (student got it wrong)
+          // If markingData exists and question was graded:
+          //   - CORRECT (≥80%) → Solid Green (student got it right)
+          //   - INCORRECT      → Solid Red (student got it wrong)
           // If no marking data (just review mode), default to green
           const isMarked = markingData !== undefined;
           const isCorrect = markingData?.totalScore !== undefined && markingData?.totalMarks !== undefined
