@@ -1118,17 +1118,23 @@ ${notesSection}`;
 
     const strictRetryPrompt = 'Return valid data. No LaTeX. No backslashes. ASCII only.';
 
-    const callAi = async (attempt: 0 | 1) => {
+    const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
-      // Reliability fallback:
-      // - Attempt 1: Gemini Flash (fast/cheap)
-      // - Attempt 2: OpenAI (more consistent tool-call output)
-      const model = attempt === 0 ? 'google/gemini-2.5-flash' : 'openai/gpt-5-mini';
+      // Reliability fallback chain with faster models:
+      // - Attempt 1: Gemini Flash Lite (fastest)
+      // - Attempt 2: Gemini Flash (good balance)
+      // - Attempt 3: GPT-5-nano (fast & reliable tool calls)
+      const modelChain = [
+        'google/gemini-2.5-flash-lite',
+        'google/gemini-2.5-flash',
+        'openai/gpt-5-nano'
+      ];
+      const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Slightly shorter for Gemini to reduce 524s, a bit longer for OpenAI fallback.
-      const timeoutMs = attempt === 0 ? 70_000 : 110_000;
+      // Shorter timeouts to fail-fast and try next model
+      const timeoutMs = attempt === 0 ? 50_000 : attempt === 1 ? 70_000 : 90_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
@@ -1328,15 +1334,20 @@ ${notesSection}`;
     let generated: z.infer<typeof GeneratePracticeQuestionsSchema> | null = null;
     let lastErr: unknown = null;
 
-    for (const attempt of [0, 1] as const) {
+    for (const attempt of [0, 1, 2] as const) {
       try {
         const ai = await callAi(attempt);
         const toolPayload = extractToolArgs(ai);
         generated = validateOrThrow(toolPayload);
+        console.log(`AI generation succeeded on attempt ${attempt + 1}`);
         break;
       } catch (e) {
         lastErr = e;
         console.warn(`AI generation attempt ${attempt + 1} failed:`, e);
+        // If this isn't the last attempt, continue to next model
+        if (attempt < 2) {
+          console.log(`Retrying with next model in fallback chain...`);
+        }
       }
     }
 
