@@ -924,54 +924,79 @@ export function parseFunctionFromText(text: string): FunctionType | null {
 
 /**
  * Parse transformation specification from question text.
+ * 
+ * CRITICAL FIX v4: Now supports ANY function name (f, g, h, p, etc.) not just 'f'.
+ * Uses [a-zA-Z] to match any single-letter function name.
  */
 export function parseTransformFromText(text: string): TransformSpec {
   const transform: TransformSpec = { ...IDENTITY_TRANSFORM };
   
-  // f(x + a) → shift LEFT by a (shiftX = -a for display)
-  const shiftLeftMatch = text.match(/f\s*\(\s*x\s*\+\s*(\d+(?:\.\d+)?)\s*\)/i);
+  // Pattern for any single-letter function name: f, g, h, p, etc.
+  const funcName = '[a-zA-Z]';
+  
+  // CRITICAL: Build regex patterns with dynamic function name matching
+  
+  // f(x + a) or g(x + a) → shift LEFT by a (shiftX = -a for display)
+  const shiftLeftRegex = new RegExp(`${funcName}\\s*\\(\\s*x\\s*\\+\\s*(\\d+(?:\\.\\d+)?)\\s*\\)`, 'i');
+  const shiftLeftMatch = text.match(shiftLeftRegex);
   if (shiftLeftMatch) {
     transform.shiftX = -parseFloat(shiftLeftMatch[1]);
+    console.log(`[Transform] Detected shift LEFT: ${funcName}(x+${shiftLeftMatch[1]}) → shiftX = ${transform.shiftX}`);
   }
   
-  // f(x - a) → shift RIGHT by a (shiftX = +a for display)
-  const shiftRightMatch = text.match(/f\s*\(\s*x\s*-\s*(\d+(?:\.\d+)?)\s*\)/i);
+  // f(x - a) or g(x - a) → shift RIGHT by a (shiftX = +a for display)
+  const shiftRightRegex = new RegExp(`${funcName}\\s*\\(\\s*x\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*\\)`, 'i');
+  const shiftRightMatch = text.match(shiftRightRegex);
   if (shiftRightMatch) {
     transform.shiftX = parseFloat(shiftRightMatch[1]);
+    console.log(`[Transform] Detected shift RIGHT: ${funcName}(x-${shiftRightMatch[1]}) → shiftX = ${transform.shiftX}`);
   }
   
-  // f(x) + a → shift UP
-  const shiftUpMatch = text.match(/f\s*\(\s*x\s*\)\s*\+\s*(\d+(?:\.\d+)?)/i);
+  // f(x) + a or g(x) + a → shift UP
+  const shiftUpRegex = new RegExp(`${funcName}\\s*\\(\\s*x\\s*\\)\\s*\\+\\s*(\\d+(?:\\.\\d+)?)`, 'i');
+  const shiftUpMatch = text.match(shiftUpRegex);
   if (shiftUpMatch) {
     transform.shiftY = parseFloat(shiftUpMatch[1]);
+    console.log(`[Transform] Detected shift UP: ${funcName}(x)+${shiftUpMatch[1]} → shiftY = ${transform.shiftY}`);
   }
   
-  // f(x) - a → shift DOWN
-  const shiftDownMatch = text.match(/f\s*\(\s*x\s*\)\s*-\s*(\d+(?:\.\d+)?)/i);
+  // f(x) - a or g(x) - a → shift DOWN
+  const shiftDownRegex = new RegExp(`${funcName}\\s*\\(\\s*x\\s*\\)\\s*-\\s*(\\d+(?:\\.\\d+)?)`, 'i');
+  const shiftDownMatch = text.match(shiftDownRegex);
   if (shiftDownMatch) {
     transform.shiftY = -parseFloat(shiftDownMatch[1]);
+    console.log(`[Transform] Detected shift DOWN: ${funcName}(x)-${shiftDownMatch[1]} → shiftY = ${transform.shiftY}`);
   }
   
-  // af(x) → vertical stretch by a
-  const scaleYMatch = text.match(/(\d+(?:\.\d+)?)\s*f\s*\(\s*x\s*\)/i);
+  // af(x) or 2g(x) → vertical stretch by a
+  const scaleYRegex = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${funcName}\\s*\\(\\s*x\\s*\\)`, 'i');
+  const scaleYMatch = text.match(scaleYRegex);
   if (scaleYMatch) {
     transform.scaleY = parseFloat(scaleYMatch[1]);
+    console.log(`[Transform] Detected vertical scale: ${scaleYMatch[1]}*${funcName}(x) → scaleY = ${transform.scaleY}`);
   }
   
-  // f(ax) → horizontal compress by a
-  const scaleXMatch = text.match(/f\s*\(\s*(\d+(?:\.\d+)?)\s*x\s*\)/i);
+  // f(ax) or g(2x) → horizontal compress by a
+  const scaleXRegex = new RegExp(`${funcName}\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*x\\s*\\)`, 'i');
+  const scaleXMatch = text.match(scaleXRegex);
   if (scaleXMatch) {
     transform.scaleX = parseFloat(scaleXMatch[1]);
+    console.log(`[Transform] Detected horizontal compress: ${funcName}(${scaleXMatch[1]}x) → scaleX = ${transform.scaleX}`);
   }
   
-  // -f(x) → reflect in x-axis
-  if (/-\s*f\s*\(\s*x\s*\)/i.test(text) && !/\d\s*-\s*f/.test(text)) {
+  // -f(x) or -g(x) → reflect in x-axis
+  // CRITICAL: Must not match "a - f(x)" pattern (subtraction)
+  const reflectXRegex = new RegExp(`(?:^|[^\\d])\\s*-\\s*${funcName}\\s*\\(\\s*x\\s*\\)`, 'i');
+  if (reflectXRegex.test(text) && !/\d\s*-\s*[a-zA-Z]\s*\(/i.test(text)) {
     transform.reflectX = true;
+    console.log(`[Transform] Detected reflect in x-axis: -${funcName}(x)`);
   }
   
-  // f(-x) → reflect in y-axis
-  if (/f\s*\(\s*-\s*x\s*\)/i.test(text)) {
+  // f(-x) or g(-x) → reflect in y-axis
+  const reflectYRegex = new RegExp(`${funcName}\\s*\\(\\s*-\\s*x\\s*\\)`, 'i');
+  if (reflectYRegex.test(text)) {
     transform.reflectY = true;
+    console.log(`[Transform] Detected reflect in y-axis: ${funcName}(-x)`);
   }
   
   return transform;

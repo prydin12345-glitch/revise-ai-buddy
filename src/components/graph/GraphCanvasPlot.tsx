@@ -401,38 +401,41 @@ export function GraphCanvasPlot({
         readOnly={readOnly}
         cursor={effectiveCursor}
       >
-        {/* Reference curves */}
+        {/* Reference curves (Ghost/Shadow lines - dashed grey) */}
         {referenceSeries.map((series, idx) => {
           if (!series.data || series.data.length < 2) return null;
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
           
+          // STYLE HIERARCHY: Reference curves are ALWAYS dashed grey (the "Ghost Layer")
           return (
             <CurveLayer
               key={`reference-${series.id || idx}`}
               data={validData}
               graphToScreen={graphToScreen}
-              stroke={series.color || 'hsl(var(--primary))'}
+              stroke={series.color || 'hsl(var(--muted-foreground) / 0.6)'}
               strokeWidth={2}
-              strokeDasharray={series.lineStyle === 'dashed' ? '5 5' : series.lineStyle === 'dotted' ? '2 2' : undefined}
+              strokeDasharray="6 4" // ALWAYS dashed for reference/ghost lines
             />
           );
         })}
         
-        {/* Expected answer curve in review mode */}
+        {/* Expected answer curve in review mode - SOLID GREEN (Primary Answer) */}
         {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {
           if (!series.data || series.data.length < 2) return null;
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
           
+          // STYLE HIERARCHY FIX: Expected answer is ALWAYS SOLID GREEN
+          // This overrides any lineStyle property from the data - answer must stand out
           return (
             <CurveLayer
               key={`expected-${series.id || idx}`}
               data={validData}
               graphToScreen={graphToScreen}
-              stroke="hsl(var(--success, 142 76% 36%))"
-              strokeWidth={2}
-              strokeDasharray="6 4"
+              stroke="hsl(142, 76%, 36%)" // Solid green (success color)
+              strokeWidth={3} // Thicker for emphasis
+              strokeDasharray={undefined} // CRITICAL: NO dash - SOLID line for answers
             />
           );
         })}

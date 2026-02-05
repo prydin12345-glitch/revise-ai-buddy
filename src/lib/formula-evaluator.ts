@@ -314,7 +314,10 @@ export function evaluateFormula(formula: string, x: number): number | null {
  * Generate curve data from a formula string.
  * Automatically splits into branches at discontinuities (asymptotes).
  * 
- * REFINEMENT: Uses 300 points by default for smooth cubic/reciprocal curves.
+ * REFINEMENT v4:
+ * - Extended domain: Calculates points BEYOND visible axes to prevent "clipped" lines
+ * - Increased Y-threshold: Allows curves to extend further before triggering discontinuity
+ * - NO visual clamping: Let the SVG/canvas handle clipping naturally
  * 
  * @param formula - Mathematical expression
  * @param domain - [minX, maxX] range
@@ -324,22 +327,33 @@ export function evaluateFormula(formula: string, x: number): number | null {
 export function generateCurveFromFormula(
   formula: string,
   domain: [number, number],
-  pointDensity: number = 300 // INCREASED from 150 for smoother curves
+  pointDensity: number = 300
 ): GraphSeries[] {
   const branches: GraphSeries[] = [];
   let currentBranch: GraphPoint[] = [];
-  const step = (domain[1] - domain[0]) / pointDensity;
+  
+  // CRITICAL FIX: Extend domain by 20% on each side to prevent edge truncation
+  // This ensures curves continue beyond the visible viewport
+  const domainRange = domain[1] - domain[0];
+  const extendedDomain: [number, number] = [
+    domain[0] - domainRange * 0.2,
+    domain[1] + domainRange * 0.2
+  ];
+  
+  const step = (extendedDomain[1] - extendedDomain[0]) / (pointDensity * 1.4); // More points for extended domain
   
   let prevY: number | null = null;
   
-  for (let x = domain[0]; x <= domain[1]; x += step) {
+  for (let x = extendedDomain[0]; x <= extendedDomain[1]; x += step) {
     const y = evaluateFormula(formula, x);
     
-    // Check for discontinuity with refined thresholds
+    // CRITICAL FIX: Greatly increased Y-threshold to prevent premature cutoff
+    // Y values up to 1000 are allowed - let the canvas clipping handle overflow
+    // Only true discontinuities (asymptotes, NaN) should trigger branch splits
     const isDiscontinuity = y === null || 
       !Number.isFinite(y) || 
-      Math.abs(y) > 200 || // Clamp to reasonable range
-      (prevY !== null && Math.abs(y - prevY) > 30); // Lowered from 50 for better detection
+      Math.abs(y) > 1000 || // INCREASED from 200 to 1000 to prevent truncation
+      (prevY !== null && Math.abs(y - prevY) > 100); // INCREASED from 30 to 100 for smooth cubics
     
     if (isDiscontinuity) {
       // Save current branch if it has enough points
@@ -349,7 +363,7 @@ export function generateCurveFromFormula(
           label: branches.length === 0 ? 'Correct Answer' : '',
           data: [...currentBranch],
           showLine: true,
-          lineStyle: 'dashed',
+          lineStyle: 'solid', // FIXED: Answer lines should be SOLID, not dashed
           color: 'hsl(var(--success))',
         });
       }
@@ -371,7 +385,7 @@ export function generateCurveFromFormula(
       label: branches.length === 0 ? 'Correct Answer' : '',
       data: currentBranch,
       showLine: true,
-      lineStyle: 'dashed',
+      lineStyle: 'solid', // FIXED: Answer lines should be SOLID, not dashed
       color: 'hsl(var(--success))',
     });
   }
