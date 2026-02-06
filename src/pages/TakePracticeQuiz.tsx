@@ -873,6 +873,13 @@ const TakePracticeQuiz = () => {
       if (error) throw error;
 
       setShowQuitDialog(false);
+      
+      // Clean up any stale pointer-events left by dialog/overlay
+      document.body.style.pointerEvents = '';
+      document.documentElement.style.pointerEvents = '';
+      const root = document.getElementById('root');
+      if (root) root.style.pointerEvents = '';
+      
       toast.success("Progress saved successfully!");
       navigate('/quizzes');
       
