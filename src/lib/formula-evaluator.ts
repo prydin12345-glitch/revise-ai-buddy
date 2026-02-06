@@ -490,11 +490,12 @@ export function extractKeyPointsFromFormula(
 export function parseTransformFromQuestionText(text: string): {
   shiftX: number;
   shiftY: number;
+  scaleX: number;
   scaleY: number;
   reflectX: boolean;
   reflectY: boolean;
 } | null {
-  const transform = { shiftX: 0, shiftY: 0, scaleY: 1, reflectX: false, reflectY: false };
+  const transform = { shiftX: 0, shiftY: 0, scaleX: 1, scaleY: 1, reflectX: false, reflectY: false };
   let found = false;
   
   // Match any single-letter function name: f, g, h, p, etc.
@@ -532,6 +533,14 @@ export function parseTransformFromQuestionText(text: string): {
         found = true;
       }
     }
+    // f(ax) or h(2x) → horizontal compression by factor a
+    else if (/^(\d+\.?\d*)\s*x$/i.test(innerExpr)) {
+      const scaleMatch = innerExpr.match(/^(\d+\.?\d*)\s*x$/i);
+      if (scaleMatch) {
+        transform.scaleX = parseFloat(scaleMatch[1]);
+        found = true;
+      }
+    }
     // Just "x" means no horizontal transform
     else if (/^x$/i.test(innerExpr)) {
       found = true; // Still valid, just no horizontal transform
@@ -565,11 +574,17 @@ export function parseTransformFromQuestionText(text: string): {
  */
 export function applyCoordinateTransform(
   points: GraphPoint[],
-  transform: { shiftX: number; shiftY: number; scaleY: number; reflectX: boolean; reflectY: boolean }
+  transform: { shiftX: number; shiftY: number; scaleX?: number; scaleY: number; reflectX: boolean; reflectY: boolean }
 ): GraphPoint[] {
   return points.map(pt => {
     let x = pt.x;
     let y = pt.y;
+    
+    // Horizontal scale: f(ax) compresses x by factor a
+    // Each point (x, y) on f(x) maps to (x/a, y) on f(ax)
+    if (transform.scaleX && transform.scaleX !== 1 && transform.scaleX !== 0) {
+      x = x / transform.scaleX;
+    }
     
     // Horizontal shift: f(x - a) shifts the curve RIGHT by a
     // Each point (x, y) on f(x) maps to (x + a, y) on f(x - a)
