@@ -72,7 +72,7 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
-import { generateCurveFromFormula, parseTransformFromQuestionText, applyCoordinateTransform, applyFormulaTransform } from "@/lib/formula-evaluator";
+import { generateCurveFromFormula, evaluateFormula, parseTransformFromQuestionText, applyCoordinateTransform, applyFormulaTransform } from "@/lib/formula-evaluator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
@@ -1841,39 +1841,42 @@ const TakePracticeQuiz = () => {
                           formulaDrivenMode = true;
                           const domainX: [number, number] = config.domainX || [-10, 10];
                           
-                          // CRITICAL: Check if the markingFormula is just the BASE formula
-                          // and the question text asks for a transformation.
-                          // If so, apply the transform to the formula BEFORE generating the curve.
+                          // CRITICAL: Check if markingFormula is the BASE (untransformed) formula
+                          // by comparing it against the reference series. Only apply transforms
+                          // if the formula matches the reference — otherwise it's already correct.
                           let effectiveFormula = markingFormula;
                           const questionTransform = parseTransformFromQuestionText(currentQuestion.question_text);
                           if (questionTransform) {
-                            const transformedFormula = applyFormulaTransform(markingFormula, {
-                              shiftX: questionTransform.shiftX,
-                              shiftY: questionTransform.shiftY,
-                              scaleX: questionTransform.scaleX,
-                              scaleY: questionTransform.scaleY,
-                              reflectX: questionTransform.reflectX,
-                              reflectY: questionTransform.reflectY,
-                            });
+                            // Compare markingFormula output against reference series data
+                            // If they match, markingFormula is the BASE and needs transforming
+                            // If they don't match, markingFormula is already the correct answer
+                            const refData = rawRefSeries.length > 0 ? (rawRefSeries[0]?.data || []) : [];
+                            let formulaMatchesReference = false;
                             
-                            // Only use the transformed formula if it's actually different
-                            // (avoids double-transforming if markingFormula was already correct)
-                            const baseCurve = generateCurveFromFormula(markingFormula, domainX);
-                            const transformedCurve = generateCurveFromFormula(transformedFormula, domainX);
-                            
-                            if (baseCurve.length > 0 && transformedCurve.length > 0) {
-                              const baseData = baseCurve[0].data;
-                              const transData = transformedCurve[0].data;
-                              // Check if transformed formula actually changes the curve
-                              const isDifferent = baseData.length >= 5 && transData.length >= 5 &&
-                                !baseData.slice(0, 5).every((pt, i) => 
-                                  transData[i] && Math.abs(pt.x - transData[i].x) < 0.05 && Math.abs(pt.y - transData[i].y) < 0.05
-                                );
-                              
-                              if (isDifferent) {
-                                console.log('[Review] FORMULA TRANSFORM: Applied transform to markingFormula:', markingFormula, '→', transformedFormula);
-                                effectiveFormula = transformedFormula;
+                            if (refData.length >= 5) {
+                              // Sample reference points and evaluate formula at those x-coords
+                              const sampleCount = Math.min(8, refData.length);
+                              const step = Math.max(1, Math.floor(refData.length / sampleCount));
+                              let matchCount = 0;
+                              let totalSampled = 0;
+                              for (let i = 0; i < refData.length && totalSampled < sampleCount; i += step) {
+                                const refPt = refData[i];
+                                const formulaY = evaluateFormula(markingFormula, refPt.x);
+                                if (formulaY !== null && Math.abs(formulaY - refPt.y) < 0.5) {
+                                  matchCount++;
+                                }
+                                totalSampled++;
                               }
+                              formulaMatchesReference = totalSampled > 0 && matchCount >= totalSampled * 0.7;
+                            }
+                            
+                            if (formulaMatchesReference) {
+                              // Formula IS the base function — apply transform
+                              const transformedFormula = applyFormulaTransform(markingFormula, questionTransform);
+                              console.log('[Review] FORMULA TRANSFORM: markingFormula matches reference, applying:', markingFormula, '→', transformedFormula);
+                              effectiveFormula = transformedFormula;
+                            } else {
+                              console.log('[Review] FORMULA ALREADY CORRECT: markingFormula differs from reference, using as-is:', markingFormula);
                             }
                           }
                           
