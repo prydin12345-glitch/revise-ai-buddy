@@ -483,6 +483,119 @@ export function extractKeyPointsFromFormula(
 }
 
 /**
+ * Parse a graph transformation from question text.
+ * Detects patterns like f(x-2), -f(x), f(x)+3, 2f(x), f(-x), etc.
+ * Returns a transform spec that can be applied to coordinate data or formulas.
+ */
+export function parseTransformFromQuestionText(text: string): {
+  shiftX: number;
+  shiftY: number;
+  scaleY: number;
+  reflectX: boolean;
+  reflectY: boolean;
+} | null {
+  const transform = { shiftX: 0, shiftY: 0, scaleY: 1, reflectX: false, reflectY: false };
+  let found = false;
+  
+  // Match any single-letter function name: f, g, h, p, etc.
+  // Pattern: [optional -][optional number] letter(expression) [optional +/- number]
+  const fullPattern = /(-?\s*)?(\d+\.?\d*)?\s*([a-zA-Z])\s*\(\s*([^)]+)\s*\)\s*([+-]\s*\d+\.?\d*)?/;
+  const match = text.match(fullPattern);
+  
+  if (!match) return null;
+  
+  const negPrefix = match[1]?.trim() === '-';
+  const scaleFactor = match[2] ? parseFloat(match[2]) : 1;
+  const innerExpr = match[4]?.trim();
+  const verticalShift = match[5] ? parseFloat(match[5].replace(/\s/g, '')) : 0;
+  
+  // Parse inner expression for horizontal transforms
+  if (innerExpr) {
+    // f(-x) → reflect in y-axis
+    if (/^-\s*x$/i.test(innerExpr)) {
+      transform.reflectY = true;
+      found = true;
+    }
+    // f(x - a) → shift RIGHT by a
+    else if (/^x\s*-\s*(\d+\.?\d*)$/i.test(innerExpr)) {
+      const shiftMatch = innerExpr.match(/^x\s*-\s*(\d+\.?\d*)$/i);
+      if (shiftMatch) {
+        transform.shiftX = parseFloat(shiftMatch[1]);
+        found = true;
+      }
+    }
+    // f(x + a) → shift LEFT by a
+    else if (/^x\s*\+\s*(\d+\.?\d*)$/i.test(innerExpr)) {
+      const shiftMatch = innerExpr.match(/^x\s*\+\s*(\d+\.?\d*)$/i);
+      if (shiftMatch) {
+        transform.shiftX = -parseFloat(shiftMatch[1]);
+        found = true;
+      }
+    }
+    // Just "x" means no horizontal transform
+    else if (/^x$/i.test(innerExpr)) {
+      found = true; // Still valid, just no horizontal transform
+    }
+  }
+  
+  // Vertical scale
+  if (scaleFactor !== 1) {
+    transform.scaleY = scaleFactor;
+    found = true;
+  }
+  
+  // -f(x) → reflect in x-axis
+  if (negPrefix) {
+    transform.reflectX = true;
+    found = true;
+  }
+  
+  // Vertical shift: f(x) + a or f(x) - a
+  if (verticalShift !== 0) {
+    transform.shiftY = verticalShift;
+    found = true;
+  }
+  
+  return found ? transform : null;
+}
+
+/**
+ * Apply a coordinate-level transformation to an array of graph points.
+ * Used as a fallback when no formula is available.
+ */
+export function applyCoordinateTransform(
+  points: GraphPoint[],
+  transform: { shiftX: number; shiftY: number; scaleY: number; reflectX: boolean; reflectY: boolean }
+): GraphPoint[] {
+  return points.map(pt => {
+    let x = pt.x;
+    let y = pt.y;
+    
+    // Horizontal shift: f(x - a) shifts the curve RIGHT by a
+    // Each point (x, y) on f(x) maps to (x + a, y) on f(x - a)
+    x += transform.shiftX;
+    
+    // Horizontal reflection: f(-x) reflects in y-axis
+    if (transform.reflectY) {
+      x = -pt.x; // Use original x, not shifted
+    }
+    
+    // Vertical scale
+    y *= transform.scaleY;
+    
+    // Vertical reflection: -f(x)
+    if (transform.reflectX) {
+      y = -y;
+    }
+    
+    // Vertical shift
+    y += transform.shiftY;
+    
+    return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+  });
+}
+
+/**
  * Apply a transformation to a formula string algebraically.
  * 
  * CRITICAL EXAM MATH CONVENTIONS:
