@@ -2658,8 +2658,76 @@ ${notesSection}`;
             q.correct_answer = 'This question requires graphical analysis. Show your working.';
           }
         }
-      }
-      
+        }
+        
+        // ========== TRANSFORMATION RECOVERY POST-PROCESSING ==========
+        // Detect graph questions where the AI generated an expectedCurve identical to the
+        // reference series, despite the question asking for a transformation (e.g., f(x-2), -f(x)).
+        // Apply coordinate transformation to fix the expectedCurve.
+        if (q.question_type === 'graph_plotting') {
+          try {
+            const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
+            const refSeries = gd?.graphConfig?.series;
+            const expCurve = gd?.plottingAnswer?.expectedCurve;
+            const existingFormula = gd?.plottingAnswer?.markingFormula;
+            const qText = q.question_text || '';
+            
+            // Only run if: no markingFormula, has reference, has expectedCurve, question mentions transform
+            if (!existingFormula && refSeries?.length > 0 && expCurve) {
+              const refData = refSeries[0]?.data;
+              const expData = Array.isArray(expCurve) ? expCurve[0]?.data : expCurve?.data;
+              
+              if (refData?.length >= 5 && expData?.length >= 5) {
+                // Compare first 5 points to detect identical (untransformed) data
+                const isIdentical = refData.slice(0, 5).every((pt: any, i: number) =>
+                  expData[i] && Math.abs(pt.x - expData[i].x) < 0.05 && Math.abs(pt.y - expData[i].y) < 0.05
+                );
+                
+                if (isIdentical) {
+                  // Parse transformation from question text
+                  const parsedTransform = parseTransformFromText(qText);
+                  const hasTransform = parsedTransform.shiftX !== 0 || parsedTransform.shiftY !== 0 ||
+                                       parsedTransform.scaleY !== 1 || parsedTransform.reflectX || parsedTransform.reflectY;
+                  
+                  if (hasTransform) {
+                    console.log(`Question ${q.question_number}: TRANSFORM RECOVERY - expectedCurve identical to reference, applying:`, parsedTransform);
+                    
+                    // Apply coordinate transformation to reference data
+                    const transformedData = refData.map((pt: any) => {
+                      let x = pt.x + parsedTransform.shiftX;
+                      let y = pt.y;
+                      if (parsedTransform.reflectY) x = -pt.x;
+                      y *= parsedTransform.scaleY;
+                      if (parsedTransform.reflectX) y = -y;
+                      y += parsedTransform.shiftY;
+                      return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+                    });
+                    
+                    const fixedCurve = {
+                      id: 'expected',
+                      label: 'Expected',
+                      data: transformedData,
+                      showLine: true,
+                      lineStyle: 'dashed',
+                      color: '#22c55e'
+                    };
+                    
+                    if (gd.plottingAnswer) {
+                      gd.plottingAnswer.expectedCurve = fixedCurve;
+                      gd.plottingAnswer.appliedTransform = parsedTransform;
+                      gd.plottingAnswer._transformRecovered = true;
+                    }
+                    
+                    q.correct_answer = gd;
+                    console.log(`Question ${q.question_number}: TRANSFORM RECOVERY complete - ${transformedData.length} points transformed`);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Non-critical - skip recovery
+          }
+        }
       // GRAPH TRANSFORMATION VALIDATION - Convert to graph_plotting since that's what renders
       if (q.question_type === 'graph_transformation') {
         console.info(`Question ${q.question_number}: Converting graph_transformation to graph_plotting for proper rendering`);

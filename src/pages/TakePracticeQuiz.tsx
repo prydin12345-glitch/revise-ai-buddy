@@ -72,7 +72,7 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
-import { generateCurveFromFormula } from "@/lib/formula-evaluator";
+import { generateCurveFromFormula, parseTransformFromQuestionText, applyCoordinateTransform } from "@/lib/formula-evaluator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
@@ -1887,6 +1887,41 @@ const TakePracticeQuiz = () => {
                               showLine: true,
                               lineStyle: 'dashed',
                             }];
+                          }
+                        }
+                        
+                        // ===============================================================
+                        // TRANSFORMATION RECOVERY (for quizzes missing markingFormula)
+                        // ===============================================================
+                        // If we're in review mode and the expectedCurve looks identical to
+                        // the reference series, but the question text describes a transformation,
+                        // apply the transformation client-side to fix the display.
+                        if (isInReviewMode && !formulaDrivenMode && expectedCurveSeries.length > 0 && refSeries.length > 0) {
+                          const refData = refSeries.find(s => s.id !== 'shadow-reference')?.data || refSeries[0]?.data;
+                          const expData = expectedCurveSeries[0]?.data;
+                          
+                          if (refData && expData && refData.length >= 5 && expData.length >= 5) {
+                            // Compare first 5 points to detect if expectedCurve is untransformed
+                            const sampleRef = refData.slice(0, 5);
+                            const sampleExp = expData.slice(0, 5);
+                            const isIdentical = sampleRef.every((pt, i) =>
+                              sampleExp[i] && Math.abs(pt.x - sampleExp[i].x) < 0.05 && Math.abs(pt.y - sampleExp[i].y) < 0.05
+                            );
+                            
+                            if (isIdentical) {
+                              // Parse transformation from question text
+                              const transform = parseTransformFromQuestionText(currentQuestion.question_text);
+                              if (transform) {
+                                console.log('[Review] TRANSFORM RECOVERY: Detected untransformed expectedCurve, applying:', transform);
+                                const transformedData = applyCoordinateTransform(refData, transform);
+                                expectedCurveSeries = [{
+                                  ...expectedCurveSeries[0],
+                                  data: transformedData,
+                                  color: 'hsl(var(--success))',
+                                  lineStyle: 'solid',
+                                }];
+                              }
+                            }
                           }
                         }
                       }
