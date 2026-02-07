@@ -1848,25 +1848,42 @@ const TakePracticeQuiz = () => {
                           formulaDrivenMode = true;
                           const domainX: [number, number] = config.domainX || [-10, 10];
                           
-                          // INSTRUCTION-BASED TRANSFORM: If the question text contains a
-                          // transformation instruction (e.g. f(x-2), h(2x)), ALWAYS apply it
-                          // to the markingFormula. No comparison checks, no "detection" —
-                          // the question text is the commander.
+                          // CRITICAL: Check if markingFormula is the BASE (untransformed) formula
+                          // by comparing it against the reference series. Only apply transforms
+                          // if the formula matches the reference — otherwise it's already correct.
                           let effectiveFormula = markingFormula;
                           const questionTransform = parseTransformFromQuestionText(currentQuestion.question_text);
                           if (questionTransform) {
-                            // Check if any actual transformation is requested
-                            const hasTransform = questionTransform.shiftX !== 0 || 
-                              questionTransform.shiftY !== 0 || 
-                              questionTransform.scaleY !== 1 || 
-                              (questionTransform.scaleX !== undefined && questionTransform.scaleX !== 1) ||
-                              questionTransform.reflectX || 
-                              questionTransform.reflectY;
+                            // Compare markingFormula output against reference series data
+                            // If they match, markingFormula is the BASE and needs transforming
+                            // If they don't match, markingFormula is already the correct answer
+                            const refData = rawRefSeries.length > 0 ? (rawRefSeries[0]?.data || []) : [];
+                            let formulaMatchesReference = false;
                             
-                            if (hasTransform) {
+                            if (refData.length >= 5) {
+                              // Sample reference points and evaluate formula at those x-coords
+                              const sampleCount = Math.min(8, refData.length);
+                              const step = Math.max(1, Math.floor(refData.length / sampleCount));
+                              let matchCount = 0;
+                              let totalSampled = 0;
+                              for (let i = 0; i < refData.length && totalSampled < sampleCount; i += step) {
+                                const refPt = refData[i];
+                                const formulaY = evaluateFormula(markingFormula, refPt.x);
+                                if (formulaY !== null && Math.abs(formulaY - refPt.y) < 0.5) {
+                                  matchCount++;
+                                }
+                                totalSampled++;
+                              }
+                              formulaMatchesReference = totalSampled > 0 && matchCount >= totalSampled * 0.7;
+                            }
+                            
+                            if (formulaMatchesReference) {
+                              // Formula IS the base function — apply transform
                               const transformedFormula = applyFormulaTransform(markingFormula, questionTransform);
-                              console.log('[Review] FORCED TRANSFORM:', markingFormula, '→', transformedFormula, 'transform:', questionTransform);
+                              console.log('[Review] FORMULA TRANSFORM: markingFormula matches reference, applying:', markingFormula, '→', transformedFormula);
                               effectiveFormula = transformedFormula;
+                            } else {
+                              console.log('[Review] FORMULA ALREADY CORRECT: markingFormula differs from reference, using as-is:', markingFormula);
                             }
                           }
                           
