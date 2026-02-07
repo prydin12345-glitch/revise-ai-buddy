@@ -1132,14 +1132,14 @@ ${notesSection}`;
     const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
-      // Reliability fallback chain with faster models:
+      // Reliability fallback chain:
       // - Attempt 1: Gemini Flash Lite (fastest)
       // - Attempt 2: Gemini Flash (good balance)
-      // - Attempt 3: GPT-5-nano (fast & reliable tool calls)
+      // - Attempt 3: GPT-5-mini (reliable tool calls, higher token limit)
       const modelChain = [
         'google/gemini-2.5-flash-lite',
         'google/gemini-2.5-flash',
-        'openai/gpt-5-nano'
+        'openai/gpt-5-mini'
       ];
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
@@ -1160,11 +1160,11 @@ ${notesSection}`;
           },
           body: JSON.stringify({
             model,
-            // OpenAI models only support temperature=1 (default), so omit it for OpenAI
-            // For other models (Google), use temperature=0 for deterministic output
+            // OpenAI models: use max_completion_tokens (higher for graph-heavy output)
+            // Google models: use temperature=0 for deterministic output
             ...(model.startsWith('openai/') 
-              ? { max_completion_tokens: 8000 } 
-              : { temperature: 0, max_tokens: 8000 }),
+              ? { max_completion_tokens: 16000 } 
+              : { temperature: 0, max_tokens: 16000 }),
             messages: [
               { role: 'system', content: sys },
               { role: 'user', content: prompt },
