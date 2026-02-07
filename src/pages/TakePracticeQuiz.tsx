@@ -1849,41 +1849,67 @@ const TakePracticeQuiz = () => {
                           const domainX: [number, number] = config.domainX || [-10, 10];
                           
                           // CRITICAL: Check if markingFormula is the BASE (untransformed) formula
-                          // by comparing it against the reference series. Only apply transforms
-                          // if the formula matches the reference — otherwise it's already correct.
+                          // and needs a transformation applied, or if it's already correct.
                           let effectiveFormula = markingFormula;
                           const questionTransform = parseTransformFromQuestionText(currentQuestion.question_text);
                           if (questionTransform) {
-                            // Compare markingFormula output against reference series data
-                            // If they match, markingFormula is the BASE and needs transforming
-                            // If they don't match, markingFormula is already the correct answer
-                            const refData = rawRefSeries.length > 0 ? (rawRefSeries[0]?.data || []) : [];
-                            let formulaMatchesReference = false;
+                            // STRATEGY: Check if the formula text already contains the transform pattern.
+                            // e.g., if question says f(x-3), check if markingFormula contains "(x-3)".
+                            // If it does, the AI already applied the transform. If not, we must apply it.
+                            const formulaNormalized = markingFormula.replace(/\s+/g, '');
+                            let formulaAlreadyTransformed = false;
                             
-                            if (refData.length >= 5) {
-                              // Sample reference points and evaluate formula at those x-coords
-                              const sampleCount = Math.min(8, refData.length);
-                              const step = Math.max(1, Math.floor(refData.length / sampleCount));
-                              let matchCount = 0;
-                              let totalSampled = 0;
-                              for (let i = 0; i < refData.length && totalSampled < sampleCount; i += step) {
-                                const refPt = refData[i];
-                                const formulaY = evaluateFormula(markingFormula, refPt.x);
-                                if (formulaY !== null && Math.abs(formulaY - refPt.y) < 0.5) {
-                                  matchCount++;
-                                }
-                                totalSampled++;
+                            // Check horizontal shift: f(x-a) → formula should contain (x-a) or (x+a)
+                            if (questionTransform.shiftX !== 0) {
+                              const shift = questionTransform.shiftX;
+                              // shiftX > 0 means f(x - shiftX), so look for (x-shiftX)
+                              const shiftPattern = shift > 0 
+                                ? `(x-${shift})` 
+                                : `(x+${Math.abs(shift)})`;
+                              if (formulaNormalized.includes(shiftPattern.replace(/\s/g, ''))) {
+                                formulaAlreadyTransformed = true;
                               }
-                              formulaMatchesReference = totalSampled > 0 && matchCount >= totalSampled * 0.7;
                             }
                             
-                            if (formulaMatchesReference) {
+                            // Check horizontal scale: f(ax) → formula should contain (ax) pattern
+                            if (questionTransform.scaleX && questionTransform.scaleX !== 1) {
+                              const scalePattern = `(${questionTransform.scaleX}*x)`;
+                              const altPattern = `${questionTransform.scaleX}x`;
+                              if (formulaNormalized.includes(scalePattern.replace(/\s/g, '')) || 
+                                  formulaNormalized.includes(altPattern.replace(/\s/g, ''))) {
+                                formulaAlreadyTransformed = true;
+                              }
+                            }
+                            
+                            // Check reflection: f(-x) → formula should contain (-x)
+                            if (questionTransform.reflectY) {
+                              if (formulaNormalized.includes('(-x)')) {
+                                formulaAlreadyTransformed = true;
+                              }
+                            }
+                            
+                            // SECONDARY CHECK: Compare formula output at shifted vs unshifted points
+                            // If formula(shiftX) ≈ formula(0) for a shifted function, it's NOT transformed
+                            if (!formulaAlreadyTransformed && questionTransform.shiftX !== 0) {
+                              const y0 = evaluateFormula(markingFormula, 0);
+                              const yShifted = evaluateFormula(markingFormula, questionTransform.shiftX);
+                              // For f(x-a), the value at x=a should equal the base at x=0
+                              // If markingFormula(a) ≈ markingFormula(0), it's likely NOT shifted yet
+                              // This is a heuristic — if f(0) = f(a) it could be coincidence, but unlikely
+                              if (y0 !== null && yShifted !== null && Math.abs(y0 - yShifted) < 0.01) {
+                                // Formula is symmetric or constant at these points — inconclusive
+                                // Default to applying the transform (safer for horizontal shifts)
+                                formulaAlreadyTransformed = false;
+                              }
+                            }
+                            
+                            if (!formulaAlreadyTransformed) {
                               // Formula IS the base function — apply transform
                               const transformedFormula = applyFormulaTransform(markingFormula, questionTransform);
-                              console.log('[Review] FORMULA TRANSFORM: markingFormula matches reference, applying:', markingFormula, '→', transformedFormula);
+                              console.log('[Review] FORMULA TRANSFORM: applying:', markingFormula, '→', transformedFormula);
                               effectiveFormula = transformedFormula;
                             } else {
-                              console.log('[Review] FORMULA ALREADY CORRECT: markingFormula differs from reference, using as-is:', markingFormula);
+                              console.log('[Review] FORMULA ALREADY TRANSFORMED: using as-is:', markingFormula);
                             }
                           }
                           
