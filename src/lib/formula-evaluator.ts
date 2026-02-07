@@ -276,7 +276,11 @@ export function evaluateFormula(formula: string, x: number): number | null {
   try {
     // CRITICAL: Strict sign handling for exam math
     // (x-1) means root at x=1; (x+2) means root at x=-2
-    let normalized = formula
+    // Strip function definition prefixes like "f(x)=", "g(x)=", "p(x)=", "y="
+    // These are common in AI-generated formulas but the evaluator only needs the RHS
+    let stripped = formula.replace(/^[a-zA-Z]\(x\)\s*=\s*/, '').replace(/^y\s*=\s*/, '');
+    
+    let normalized = stripped
       .replace(/\s+/g, '') // Remove whitespace
       .replace(/--/g, '+') // Handle double negatives first
       .replace(/\+-/g, '-') // Clean up sign combinations
