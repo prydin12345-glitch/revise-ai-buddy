@@ -331,20 +331,19 @@ export function evaluateFormula(formula: string, x: number): number | null {
 export function generateCurveFromFormula(
   formula: string,
   domain: [number, number],
-  pointDensity: number = 300
+  pointDensity: number = 500
 ): GraphSeries[] {
   const branches: GraphSeries[] = [];
   let currentBranch: GraphPoint[] = [];
   
-  // CRITICAL FIX: Extend domain by 20% on each side to prevent edge truncation
-  // This ensures curves continue beyond the visible viewport
+  // Extend domain by 30% on each side to prevent edge truncation
   const domainRange = domain[1] - domain[0];
   const extendedDomain: [number, number] = [
-    domain[0] - domainRange * 0.2,
-    domain[1] + domainRange * 0.2
+    domain[0] - domainRange * 0.3,
+    domain[1] + domainRange * 0.3
   ];
   
-  const step = (extendedDomain[1] - extendedDomain[0]) / (pointDensity * 1.4); // More points for extended domain
+  const step = (extendedDomain[1] - extendedDomain[0]) / (pointDensity * 1.6); // More points for extended domain
   
   let prevY: number | null = null;
   

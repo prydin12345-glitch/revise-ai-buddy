@@ -1627,141 +1627,59 @@ export function generateSecretMarkingFormula(questionText: string): {
   logMathEngineOperation('SecretFormulaExtraction', result.features);
   
   // ============================================
-  // CASE 1: One max + one min → fit a cubic
+  // CASE 1: One max + one min → fit a cubic using calculus
+  // ============================================
+  // A cubic with turning points at x=p (max) and x=q (min) has:
+  //   y'(x) = k(x - p)(x - q) for some constant k
+  // Integrating: y(x) = k * [x³/3 - (p+q)x²/2 + p*q*x] + C
+  // We solve for k and C using y(p)=yMax, y(q)=yMin
   // ============================================
   if (result.features.maxima.length >= 1 && result.features.minima.length >= 1) {
     const max = result.features.maxima[0];
     const min = result.features.minima[0];
     
-    // For a cubic y = ax³ + bx² + cx + d with turning points at max and min:
-    // The derivative 3ax² + 2bx + c = 0 at x = max.x and x = min.x
-    // We use the fact that (x - max.x)(x - min.x) = 0 at turning points
-    // So derivative = 3a(x - max.x)(x - min.x) = 3a(x² - (max.x + min.x)x + max.x*min.x)
-    
-    // For simplicity, construct a cubic that:
-    // 1. Has turning points at max.x and min.x
-    // 2. Passes through those y-values
-    
-    // Use a normalized cubic: y = a(x - max.x)²(x - r) where we solve for 'a' and 'r'
-    // to match the y-values at turning points
-    
-    // Simpler approach: Use the form y = a(x - p)(x - q)(x - r)
-    // where p, q, r are chosen to create the desired shape
-    
-    // For a "S-curve" cubic with max at max.x and min at min.x:
-    // The inflection point is at (max.x + min.x) / 2
-    // We can use: y = A(x - max.x + d)(x - max.x)(x - min.x - d) where d controls shape
-    
-    // Actually, let's use a more direct approach:
-    // A cubic with turning points at x = a and x = b has derivative proportional to (x-a)(x-b)
-    // So y' = k(x - max.x)(x - min.x) = kx² - k(max.x + min.x)x + k*max.x*min.x
-    // Integrating: y = (k/3)x³ - (k/2)(max.x + min.x)x² + k*max.x*min.x*x + C
-    
-    // To find k and C, we use the conditions:
-    // y(max.x) = max.y
-    // y(min.x) = min.y
-    
-    // For exam purposes, let's use a well-behaved cubic approximation:
-    // Find the coefficient 'a' such that the cubic has the right amplitude
-    
-    const xMax = max.x;
+    const p = max.x; // x of maximum
+    const q = min.x; // x of minimum
     const yMax = max.y;
-    const xMin = min.x;
     const yMin = min.y;
     
-    // Use a cubic of form: y = a(x - xMax)(x - xMid)(x - xEnd) adjusted for turning points
-    // Simplified: y = -a(x - xMax)²(x - (2*xMin - xMax)) for a curve with max then min
-    
-    // Even simpler - use a standard form and adjust:
-    // For a downward-opening max at x=xMax: leading coef < 0
-    // Cubic: y = -a(x - r1)(x - r2)(x - r3)
-    
-    // Best approach for exam: construct from the turning point condition
-    // y = a * integrate((x - xMax)(x - xMin)) + offset
-    // = a * (x³/3 - (xMax+xMin)x²/2 + xMax*xMin*x) + C
-    
-    // Let's use: a = 6 * (yMin - yMax) / ((xMin - xMax)³)
-    // This scales the standard shape to match the amplitude
-    
-    const dx = xMin - xMax;
-    const dy = yMin - yMax;
-    
-    if (Math.abs(dx) > 0.01) {
-      // Coefficient that matches the amplitude between turning points
-      const a = -4 * dy / (dx * dx * dx);
+    if (Math.abs(p - q) > 0.01) {
+      // Evaluate the antiderivative F(x) = x³/3 - (p+q)x²/2 + p*q*x at turning points
+      const F = (x: number) => (x * x * x) / 3 - ((p + q) * x * x) / 2 + p * q * x;
+      const Fp = F(p);
+      const Fq = F(q);
+      const deltaF = Fp - Fq;
       
-      // Construct the formula with the turning point positions
-      // y = a(x - xMax)²(x - (2*xMin - xMax)) would have max at xMax
-      // But we need a cleaner formula...
-      
-      // Use: y = a(x - xMax)(x - h)² where h is calculated
-      // Actually for exam, use: y = a*(x - r1)(x - r2)(x - r3) form
-      
-      // Simplest robust approach: cubic through points
-      // y = A*x³ + B*x² + C*x + D
-      // With conditions: y'(xMax) = 0, y'(xMin) = 0, y(xMax) = yMax, y(xMin) = yMin
-      
-      // For a cleaner formula, use the form:
-      // The curve is defined by its shape - let's construct from roots
-      // If there's an intercept at origin, use that
-      
-      let formula: string;
-      
-      if (result.features.intercepts.includes(0)) {
-        // Passes through origin - use factored form x(x - a)(x - b)
-        // We need to find a and b such that turning points match
-        // This is complex, so use a standard scaled form
-        const scale = Math.abs(yMax) > Math.abs(yMin) ? Math.abs(yMax) : Math.abs(yMin);
-        const sign = yMax > 0 ? 1 : -1;
+      if (Math.abs(deltaF) > 0.001) {
+        // k * (Fp - Fq) = yMax - yMin → k = (yMax - yMin) / deltaF
+        const k = (yMax - yMin) / deltaF;
+        // C = yMax - k * Fp
+        const C = yMax - k * Fp;
         
-        // Use: y = sign * scale * x * (x - xMax - 1) * (x - xMin + 1) / normalization
-        const r1 = xMax - 1;
-        const r2 = xMin + 1;
+        // Final cubic: y = k*(x³/3 - (p+q)*x²/2 + p*q*x) + C
+        // Expand: y = (k/3)*x³ - (k*(p+q)/2)*x² + (k*p*q)*x + C
+        const a3 = k / 3;
+        const a2 = -k * (p + q) / 2;
+        const a1 = k * p * q;
+        const a0 = C;
         
-        // Evaluate at xMax to find scaling factor
-        const yAtXMax = xMax * (xMax - r1) * (xMax - r2);
-        const scaleFactor = yMax / (yAtXMax || 1);
-        
-        formula = `${scaleFactor.toFixed(4)}*x*(x${r1 >= 0 ? '-' : '+'}${Math.abs(r1).toFixed(2)})*(x${r2 >= 0 ? '-' : '+'}${Math.abs(r2).toFixed(2)})`;
-      } else {
-        // General cubic - use numerical fit
-        // y = a(x - xMax)²(x - b) where b is chosen for min position
-        // At xMin: y' = 0, so xMin is also a turning point
-        // This form only has one TP at xMax, so we need a different form
-        
-        // Use: y = a(x - p)(x - xMax)(x - q) where p and q are roots
-        // The turning points are at x = (p + xMax + q ± sqrt(...))/3
-        
-        // For robustness, use a simplified scaled form:
-        const midX = (xMax + xMin) / 2;
-        const amplitude = (yMax - yMin) / 2;
-        const midY = (yMax + yMin) / 2;
-        
-        // Use a scaled "standard cubic" centered at midpoint
-        // y = A(x - midX)³ + B(x - midX) + midY
-        // where A and B are chosen to match turning points
-        
-        // For standard cubic x³ - 3x, turning points are at x = ±1 with y = ∓2
-        // Scale x by (xMax - midX) and y by amplitude
-        
-        const xScale = Math.abs(xMax - midX);
-        if (xScale > 0.01) {
-          // y = A*((x - midX)/xScale)³ - 3*A*((x - midX)/xScale) + midY
-          // At x = xMax: y = yMax
-          // ((xMax - midX)/xScale)³ = 1, so 1 - 3 = -2
-          // yMax = -2A + midY → A = (midY - yMax) / 2 = -amplitude
-          
-          const A = -amplitude / 2; // divided by standard amplitude of 2
-          
-          formula = `${A.toFixed(4)}*((x-${midX.toFixed(2)})/${xScale.toFixed(2)})^3-${(3*A).toFixed(4)}*((x-${midX.toFixed(2)})/${xScale.toFixed(2)})+${midY.toFixed(2)}`;
-        } else {
-          // Fallback: just a parabola-like shape
-          formula = `${(yMax).toFixed(2)}-${(Math.abs(dy / 2)).toFixed(2)}*(x-${xMax.toFixed(2)})^2`;
+        // Build clean formula string
+        const terms: string[] = [];
+        if (Math.abs(a3) > 0.0001) terms.push(`${a3.toFixed(4)}*x^3`);
+        if (Math.abs(a2) > 0.0001) {
+          terms.push(`${a2 >= 0 ? '+' : ''}${a2.toFixed(4)}*x^2`);
         }
+        if (Math.abs(a1) > 0.0001) {
+          terms.push(`${a1 >= 0 ? '+' : ''}${a1.toFixed(4)}*x`);
+        }
+        if (Math.abs(a0) > 0.0001) {
+          terms.push(`${a0 >= 0 ? '+' : ''}${a0.toFixed(4)}`);
+        }
+        
+        const formula = terms.join('') || '0';
+        result.formula = formula;
+        logMathEngineOperation('SecretFormula:CubicFromTurningPoints', { max, min, k, C, formula });
       }
-      
-      result.formula = formula;
-      logMathEngineOperation('SecretFormula:CubicFromTurningPoints', { max, min, formula });
     }
   }
   

@@ -2,7 +2,7 @@
  * QuestionItem - Renders a single question within a grouped question display.
  * Used by TakePracticeQuiz to display multiple sub-questions (e.g., 5a, 5b, 5c) on one page.
  */
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import {
   type TableGridData
 } from '@/components/exam/TableGridQuestion';
 import type { AngleMeasurement } from '@/components/graph/GraphPlottingQuestion';
+import { generateCurveFromFormula } from '@/lib/formula-evaluator';
 
 interface Question {
   id: string;
@@ -265,8 +266,52 @@ export function QuestionItem({
       const config = graphData.graphConfig as GraphPlottingConfig;
       const plottingAnswer = graphData.plottingAnswer;
       
+      // Generate expectedCurveSeries for review mode
+      const isInReview = answer.submitted && !!answer.feedback;
+      const expectedCurveSeries: GraphSeries[] = (() => {
+        if (!isInReview || !plottingAnswer) return [];
+        
+        // Priority: markingFormula (Desmos method)
+        const pa = plottingAnswer as any;
+        const formula = pa.markingFormula;
+        const domainX = config.domainX || [-10, 10];
+        if (formula) {
+          const curves = generateCurveFromFormula(formula, domainX);
+          if (curves.length > 0) return curves;
+        }
+        
+        // Fallback: cached expectedCurve
+        const expCurve = pa.expectedCurve;
+        if (!expCurve) return [];
+        if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
+          return expCurve.map((branch: any, idx: number) => ({
+            id: branch.id || `expected-branch-${idx}`,
+            label: branch.label || '',
+            data: branch.data || [],
+            showLine: true,
+            lineStyle: 'solid' as const,
+            color: 'hsl(142, 76%, 36%)',
+          }));
+        }
+        if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray((expCurve as any).data)) {
+          return [{
+            id: 'expected-answer',
+            label: 'Expected Answer',
+            data: (expCurve as any).data,
+            showLine: true,
+            lineStyle: 'solid' as const,
+            color: 'hsl(142, 76%, 36%)',
+          }];
+        }
+        return [];
+      })();
+
+      // In review mode, hide reference series to avoid clutter with the answer line
+      const effectiveRefSeries = isInReview ? [] : ((graphData.graphConfig as any)?.series || []);
+      
       return (
         <GraphPlottingQuestion
+          key={`graph-plotting-${question.id}`}
           questionId={question.id}
           config={{
             ...config,
@@ -282,7 +327,8 @@ export function QuestionItem({
           showProtractor={showProtractor}
           selectedSegmentIds={selectedSegmentIds}
           onSelectedSegmentIdsChange={onSelectedSegmentIdsChange}
-          referenceSeries={(graphData.graphConfig as any)?.series || []}
+          referenceSeries={effectiveRefSeries}
+          expectedCurveSeries={expectedCurveSeries}
           onPointsChange={(points) => {
             const serialized = serializeGraphPlottingResponse(
               points,
@@ -339,7 +385,7 @@ export function QuestionItem({
             });
           }}
           readOnly={answer.submitted}
-          showCorrectAnswers={answer.submitted && !!answer.feedback}
+          showCorrectAnswers={isInReview}
           markingData={answer.graphMarkingData?.perPointResults ? {
             perPointResults: answer.graphMarkingData.perPointResults,
             totalScore: answer.score || 0,
