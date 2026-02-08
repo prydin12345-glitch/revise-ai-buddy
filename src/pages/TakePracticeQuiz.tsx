@@ -1844,7 +1844,9 @@ const TakePracticeQuiz = () => {
                         // FORMULA-DRIVEN RENDERING (Desmos Method - EXCLUSIVE)
                         // If markingFormula exists, compute the curve mathematically
                         // and IGNORE all cached expectedCurve data to prevent mismatches
-                        if (markingFormula && typeof markingFormula === 'string' && markingFormula.trim() !== '') {
+                        // Skip bare function references like "f(x)", "g(x)" — these have no actual expression
+                        const isBareRef = /^[a-zA-Z]\(x\)$/.test(markingFormula.trim());
+                        if (markingFormula && typeof markingFormula === 'string' && markingFormula.trim() !== '' && !isBareRef) {
                           formulaDrivenMode = true;
                           const domainX: [number, number] = config.domainX || [-10, 10];
                           

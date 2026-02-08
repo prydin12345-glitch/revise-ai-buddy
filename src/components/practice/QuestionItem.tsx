@@ -275,7 +275,8 @@ export function QuestionItem({
         const pa = plottingAnswer as any;
         const formula = pa.markingFormula;
         const domainX = config.domainX || [-10, 10];
-        if (formula) {
+        const isBareRef = formula && /^[a-zA-Z]\(x\)$/.test(formula.trim());
+        if (formula && !isBareRef) {
           const curves = generateCurveFromFormula(formula, domainX);
           if (curves.length > 0) return curves;
         }
