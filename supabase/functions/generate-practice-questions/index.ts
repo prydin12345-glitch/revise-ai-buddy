@@ -2807,6 +2807,24 @@ ${notesSection}`;
         }
       }
       
+      // ========== PRE-STORAGE ASSERTION: markingFormula must be a real expression ==========
+      // If markingFormula is a bare function reference like "f(x)" or "g(x)", it cannot
+      // be evaluated. Log a warning and null it out so the frontend falls back to expectedCurve.
+      if (q.question_type === 'graph_plotting') {
+        try {
+          const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
+          if (gd?.plottingAnswer?.markingFormula) {
+            const mf = String(gd.plottingAnswer.markingFormula).trim();
+            const isBareRef = /^[a-zA-Z]\(x\)$/.test(mf);
+            if (isBareRef) {
+              console.error(`Question ${q.question_number}: PRE-STORAGE ASSERTION FAILED — markingFormula is bare reference "${mf}", nulling out`);
+              gd.plottingAnswer.markingFormula = null;
+              q.correct_answer = gd;
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+      
       // Serialize table_data into correct_answer if it's a table_grid
       let correctAnswer = q.correct_answer;
       if (q.question_type === 'table_grid' && q.table_data) {

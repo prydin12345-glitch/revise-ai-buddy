@@ -72,7 +72,7 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
-import { generateCurveFromFormula, evaluateFormula, parseTransformFromQuestionText, applyCoordinateTransform, applyFormulaTransform } from "@/lib/formula-evaluator";
+import { generateCurveFromFormula } from "@/lib/formula-evaluator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
@@ -1831,106 +1831,35 @@ const TakePracticeQuiz = () => {
                       const shouldShowReference = mentionsShownGraph || !isSketchQuestion || isInReviewMode || hasShadowCurve;
                       const refSeries = shouldShowReference ? rawRefSeries : [];
                       
-                      // For review mode, generate expected curve from plottingAnswer
-                      // CRITICAL: Use markingFormula ONLY (Desmos Method) - disable ALL fallbacks
-                      // when a formula exists to prevent mismatched curve issues
+                      // ===============================================================
+                      // PRE-CALCULATED SOURCE OF TRUTH — No Runtime Transform Guessing
+                      // ===============================================================
+                      // The database stores the FINAL, already-transformed markingFormula.
+                      // We simply evaluate it. No parseTransformFromQuestionText, no
+                      // formulaAlreadyTransformed heuristics, no applyFormulaTransform.
                       let expectedCurveSeries: GraphSeries[] = [];
-                      let formulaDrivenMode = false;
                       
                       if (isInReviewMode && plottingAnswer) {
                         const markingFormula = (plottingAnswer as any).markingFormula;
                         const expCurve = (plottingAnswer as any).expectedCurve;
+                        const domainX: [number, number] = config.domainX || [-10, 10];
                         
-                        // FORMULA-DRIVEN RENDERING (Desmos Method - EXCLUSIVE)
-                        // If markingFormula exists, compute the curve mathematically
-                        // and IGNORE all cached expectedCurve data to prevent mismatches
-                        // Skip bare function references like "f(x)", "g(x)" — these have no actual expression
-                        const isBareRef = /^[a-zA-Z]\(x\)$/.test(markingFormula.trim());
+                        // Step 1: If markingFormula exists and is a real expression, use it directly
+                        const isBareRef = markingFormula && /^[a-zA-Z]\(x\)$/.test(String(markingFormula).trim());
+                        
                         if (markingFormula && typeof markingFormula === 'string' && markingFormula.trim() !== '' && !isBareRef) {
-                          formulaDrivenMode = true;
-                          const domainX: [number, number] = config.domainX || [-10, 10];
-                          
-                          // CRITICAL: Check if markingFormula is the BASE (untransformed) formula
-                          // and needs a transformation applied, or if it's already correct.
-                          let effectiveFormula = markingFormula;
-                          const questionTransform = parseTransformFromQuestionText(currentQuestion.question_text);
-                          if (questionTransform) {
-                            // STRATEGY: Check if the formula text already contains the transform pattern.
-                            // e.g., if question says f(x-3), check if markingFormula contains "(x-3)".
-                            // If it does, the AI already applied the transform. If not, we must apply it.
-                            const formulaNormalized = markingFormula.replace(/\s+/g, '');
-                            let formulaAlreadyTransformed = false;
-                            
-                            // Check horizontal shift: f(x-a) → formula should contain (x-a) or (x+a)
-                            if (questionTransform.shiftX !== 0) {
-                              const shift = questionTransform.shiftX;
-                              // shiftX > 0 means f(x - shiftX), so look for (x-shiftX)
-                              const shiftPattern = shift > 0 
-                                ? `(x-${shift})` 
-                                : `(x+${Math.abs(shift)})`;
-                              if (formulaNormalized.includes(shiftPattern.replace(/\s/g, ''))) {
-                                formulaAlreadyTransformed = true;
-                              }
-                            }
-                            
-                            // Check horizontal scale: f(ax) → formula should contain (ax) pattern
-                            if (questionTransform.scaleX && questionTransform.scaleX !== 1) {
-                              const scalePattern = `(${questionTransform.scaleX}*x)`;
-                              const altPattern = `${questionTransform.scaleX}x`;
-                              if (formulaNormalized.includes(scalePattern.replace(/\s/g, '')) || 
-                                  formulaNormalized.includes(altPattern.replace(/\s/g, ''))) {
-                                formulaAlreadyTransformed = true;
-                              }
-                            }
-                            
-                            // Check reflection: f(-x) → formula should contain (-x)
-                            if (questionTransform.reflectY) {
-                              if (formulaNormalized.includes('(-x)')) {
-                                formulaAlreadyTransformed = true;
-                              }
-                            }
-                            
-                            // SECONDARY CHECK: Compare formula output at shifted vs unshifted points
-                            // If formula(shiftX) ≈ formula(0) for a shifted function, it's NOT transformed
-                            if (!formulaAlreadyTransformed && questionTransform.shiftX !== 0) {
-                              const y0 = evaluateFormula(markingFormula, 0);
-                              const yShifted = evaluateFormula(markingFormula, questionTransform.shiftX);
-                              // For f(x-a), the value at x=a should equal the base at x=0
-                              // If markingFormula(a) ≈ markingFormula(0), it's likely NOT shifted yet
-                              // This is a heuristic — if f(0) = f(a) it could be coincidence, but unlikely
-                              if (y0 !== null && yShifted !== null && Math.abs(y0 - yShifted) < 0.01) {
-                                // Formula is symmetric or constant at these points — inconclusive
-                                // Default to applying the transform (safer for horizontal shifts)
-                                formulaAlreadyTransformed = false;
-                              }
-                            }
-                            
-                            if (!formulaAlreadyTransformed) {
-                              // Formula IS the base function — apply transform
-                              const transformedFormula = applyFormulaTransform(markingFormula, questionTransform);
-                              console.log('[Review] FORMULA TRANSFORM: applying:', markingFormula, '→', transformedFormula);
-                              effectiveFormula = transformedFormula;
-                            } else {
-                              console.log('[Review] FORMULA ALREADY TRANSFORMED: using as-is:', markingFormula);
-                            }
-                          }
-                          
-                          const formulaCurve = generateCurveFromFormula(effectiveFormula, domainX);
-                          
+                          const formulaCurve = generateCurveFromFormula(markingFormula, domainX);
                           if (formulaCurve.length > 0) {
                             expectedCurveSeries = formulaCurve;
-                            console.log('[Review] DESMOS MODE: Using formula for curve:', effectiveFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
+                            console.log('[Review] SOURCE OF TRUTH: Using pre-calculated markingFormula:', markingFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
                           } else {
-                            console.warn('[Review] Formula failed to generate curve:', effectiveFormula);
+                            console.warn('[Review] markingFormula failed to evaluate:', markingFormula);
                           }
-                          // DO NOT FALL BACK - formula is source of truth
                         }
                         
-                        // LEGACY FALLBACK: Only use cached expectedCurve if NO formula exists
-                        // This handles old questions that don't have a markingFormula
-                        if (!formulaDrivenMode && expectedCurveSeries.length === 0 && expCurve) {
-                          console.log('[Review] LEGACY MODE: Using cached expectedCurve (no markingFormula)');
-                          // Case 1: expectedCurve is an array of series objects (discontinuous functions)
+                        // Step 2: Legacy fallback — use cached expectedCurve coordinates
+                        if (expectedCurveSeries.length === 0 && expCurve) {
+                          console.log('[Review] LEGACY FALLBACK: Using cached expectedCurve (no valid markingFormula)');
                           if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'data' in expCurve[0]) {
                             expectedCurveSeries = expCurve.map((branch: any, idx: number) => ({
                               id: branch.id || `expected-branch-${idx}`,
@@ -1938,66 +1867,32 @@ const TakePracticeQuiz = () => {
                               data: branch.data || [],
                               color: branch.color || 'hsl(var(--success))',
                               showLine: branch.showLine !== false,
-                              lineStyle: branch.lineStyle || 'dashed',
+                              lineStyle: 'solid' as const,
                             }));
-                          }
-                          // Case 2: expectedCurve is a single object with data array
-                          else if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
+                          } else if (expCurve && typeof expCurve === 'object' && !Array.isArray(expCurve) && Array.isArray(expCurve.data)) {
                             expectedCurveSeries = [{
                               id: expCurve.id || 'expected-answer',
                               label: expCurve.label || 'Expected Answer',
                               data: expCurve.data,
                               color: expCurve.color || 'hsl(var(--success))',
                               showLine: expCurve.showLine !== false,
-                              lineStyle: expCurve.lineStyle || 'dashed',
+                              lineStyle: 'solid' as const,
                             }];
-                          }
-                          // Case 3: expectedCurve is an array of points directly (legacy format)
-                          else if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'x' in expCurve[0]) {
+                          } else if (Array.isArray(expCurve) && expCurve.length > 0 && typeof expCurve[0] === 'object' && 'x' in expCurve[0]) {
                             expectedCurveSeries = [{
                               id: 'expected-answer',
                               label: 'Expected Answer',
                               data: expCurve,
                               color: 'hsl(var(--success))',
                               showLine: true,
-                              lineStyle: 'dashed',
+                              lineStyle: 'solid' as const,
                             }];
                           }
                         }
                         
-                        // ===============================================================
-                        // TRANSFORMATION RECOVERY (for quizzes missing markingFormula)
-                        // ===============================================================
-                        // If we're in review mode and the expectedCurve looks identical to
-                        // the reference series, but the question text describes a transformation,
-                        // apply the transformation client-side to fix the display.
-                        if (isInReviewMode && !formulaDrivenMode && expectedCurveSeries.length > 0 && refSeries.length > 0) {
-                          const refData = refSeries.find(s => s.id !== 'shadow-reference')?.data || refSeries[0]?.data;
-                          const expData = expectedCurveSeries[0]?.data;
-                          
-                          if (refData && expData && refData.length >= 5 && expData.length >= 5) {
-                            // Compare first 5 points to detect if expectedCurve is untransformed
-                            const sampleRef = refData.slice(0, 5);
-                            const sampleExp = expData.slice(0, 5);
-                            const isIdentical = sampleRef.every((pt, i) =>
-                              sampleExp[i] && Math.abs(pt.x - sampleExp[i].x) < 0.05 && Math.abs(pt.y - sampleExp[i].y) < 0.05
-                            );
-                            
-                            if (isIdentical) {
-                              // Parse transformation from question text
-                              const transform = parseTransformFromQuestionText(currentQuestion.question_text);
-                              if (transform) {
-                                console.log('[Review] TRANSFORM RECOVERY: Detected untransformed expectedCurve, applying:', transform);
-                                const transformedData = applyCoordinateTransform(refData, transform);
-                                expectedCurveSeries = [{
-                                  ...expectedCurveSeries[0],
-                                  data: transformedData,
-                                  color: 'hsl(var(--success))',
-                                  lineStyle: 'solid',
-                                }];
-                              }
-                            }
-                          }
+                        // Step 3: No answer line available
+                        if (expectedCurveSeries.length === 0) {
+                          console.warn('[Review] No markingFormula or expectedCurve — no answer line will be shown');
                         }
                       }
                       
