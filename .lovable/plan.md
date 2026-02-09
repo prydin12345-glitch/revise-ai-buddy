@@ -1,293 +1,102 @@
 
-# Comprehensive Graph Exam Audit & Generation Plan
 
-## Executive Summary
+# Pre-Calculated Source of Truth: Eliminating Runtime Transform Guessing
 
-This plan outlines a systematic approach to generate a comprehensive Graph Practice Quiz and perform a "Deep Audit" against the Success Checklist you provided. The audit will verify the "Desmos Method" implementation across all graph question types.
+## Problem Summary
 
----
+The current system stores formulas ambiguously -- sometimes as the base function, sometimes already transformed -- then runs ~100 lines of heuristic detection on the frontend (TakePracticeQuiz.tsx lines 1848-1966) to "guess" whether to apply a transformation. This causes:
 
-## Current System Analysis
+- **1b bleeding**: Wrong curve appears because the runtime detection picks up the wrong formula
+- **3a/3b wrong shape**: Cubic turning points not locked in at generation time
+- **4a truncated/missing lines**: Runtime formula evaluation fails or produces partial curves
 
-### Architecture Overview
+## Solution: Three-Layer Fix
+
+### Layer 1 -- Generation Pipeline (Backend)
+
+**File**: `supabase/functions/generate-practice-questions/index.ts`
+
+Enforce that `markingFormula` is **always the final, expanded expression** before storing to the database:
+
+1. For transformation sub-questions (e.g., "sketch f(x-2)"):
+   - After calling `applyFormulaTransform()`, store the **result** as `markingFormula`
+   - Remove `baseFormula` from `plottingAnswer` -- only the final formula matters
+   - Add a validation step: evaluate the formula at the expected turning points to confirm they match
+
+2. For cubic "sketch" questions describing max/min:
+   - `generateSecretMarkingFormula()` must produce a fully expanded cubic `ax^3 + bx^2 + cx + d`
+   - Validate by checking `f'(p) = 0` and `f'(q) = 0` at the described turning point x-coordinates
+   - Store this expanded formula directly as `markingFormula`
+
+3. Add a final "pre-storage assertion": if `markingFormula` is a bare reference like `f(x)` or `g(x)`, log an error and fall back to `expectedCurve` coordinate data
+
+### Layer 2 -- Frontend Rendering (Remove Runtime Detection)
+
+**File**: `src/pages/TakePracticeQuiz.tsx`
+
+Delete the entire runtime transform detection block (~lines 1848-1966) and replace with a simple pipeline:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    GRAPH QUESTION FLOW                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  [Edge Function]                    [Frontend]                          │
-│  generate-practice-questions        TakePracticeQuiz.tsx                │
-│         │                                   │                           │
-│         ▼                                   ▼                           │
-│  ┌─────────────────┐              ┌────────────────────┐               │
-│  │ parseFunctionFromText()        │ parseGraphQuestionData()           │
-│  │ parseTransformFromText()       │ generateCurveFromFormula()         │
-│  │ extractMarkingFormula()        │                    │               │
-│  └─────────────────┘              └────────────────────┘               │
-│         │                                   │                           │
-│         ▼                                   ▼                           │
-│  ┌─────────────────┐              ┌────────────────────┐               │
-│  │ math-engine.ts  │              │ formula-evaluator.ts               │
-│  │ (Server-side)   │              │ (Client-side)      │               │
-│  └─────────────────┘              └────────────────────┘               │
-│         │                                   │                           │
-│         ▼                                   ▼                           │
-│  ┌─────────────────┐              ┌────────────────────┐               │
-│  │ markingFormula  │───stored────▶│ GraphPlottingQuestion              │
-│  │ expectedCurve   │   in DB      │ GraphCanvasPlot    │               │
-│  │ shadowCurve     │              │ useGraphCamera     │               │
-│  └─────────────────┘              └────────────────────┘               │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+if (markingFormula exists AND is not bare reference)
+  -> generateCurveFromFormula(markingFormula, domainX)
+  -> done (no transform guessing)
+else if (expectedCurve coordinate data exists)
+  -> use legacy fallback
+else
+  -> no answer line (log warning)
 ```
 
-### Key Components Under Test
+No `parseTransformFromQuestionText()`, no `formulaAlreadyTransformed` heuristic, no `evaluateFormula()` comparison. The formula in the database IS the answer.
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `generate-practice-questions` | `supabase/functions/` | AI question generation + graph config |
-| `math-engine.ts` | `supabase/functions/_shared/` | Server-side formula parsing & curve generation |
-| `formula-evaluator.ts` | `src/lib/` | Client-side formula evaluation for green line |
-| `GraphPlottingQuestion.tsx` | `src/components/graph/` | Interactive graph canvas with state management |
-| `GraphCanvasPlot.tsx` | `src/components/graph/` | Camera-based renderer with zoom/pan |
-| `useGraphCamera.ts` | `src/hooks/` | Desmos-style camera state hook |
-| `TakePracticeQuiz.tsx` | `src/pages/` | Quiz orchestration + formula-driven review mode |
+**File**: `src/components/practice/QuestionItem.tsx`
 
----
+Same simplification in the `expectedCurveSeries` computation (lines 270-300) -- trust the formula, skip detection.
 
-## Phase 1: Issue Diagnosis
+### Layer 3 -- State Isolation and Cleanup
 
-### Issue #1: Zoom Interaction Not Working
+**File**: `src/components/graph/GraphCanvasPlot.tsx`
 
-**Root Cause Identified:**
-The native wheel event listener in `GraphCanvasPlot.tsx` is correctly implemented, BUT there may be a race condition where:
-1. The `zoomRef` is set via `useEffect` which runs after render
-2. If the wheel event fires before the effect runs, `zoomRef.current` is `null`
+1. Ensure the component key includes the question ID (already `key={graph-plotting-${question.id}}` in QuestionItem) -- verify GraphCanvasPlot itself also resets internal state (camera, undo stack) on key change
 
-**Current Code (Line 322-326):**
-```typescript
-const zoomRef = useRef<typeof zoom | null>(null);
-useEffect(() => {
-  zoomRef.current = zoom;
-}, [zoom]);
-```
+**File**: `src/components/practice/QuestionItem.tsx`
 
-**Fix Required:** Initialize `zoomRef` with the zoom function directly or use a more robust pattern.
+2. When `isGraded` is true (answer.submitted and feedback exists):
+   - Set `referenceSeries` to empty array (already done, but verify)
+   - Ensure no "blue ghost" temporary drag points leak through
+   - `expectedCurveSeries` becomes the sole visual authority
 
-### Issue #2: Double-Tap Point Selection Dead Zones
+### Layer 4 -- Curve Rendering Quality
 
-**Root Cause Identified:**
-The hit detection uses `POINT_HIT_RADIUS` which was increased, but the fundamental issue is the **coordinate conversion chain**:
-1. `screenToGraph()` converts click position to graph coordinates
-2. `findNearestPointCamera()` compares against stored point coordinates
-3. If camera state is stale during rapid interactions, coordinates may mismatch
+**File**: `src/lib/formula-evaluator.ts`
 
-**Current Thresholds:**
-- Desktop: 40px hit radius
-- Touch: 60-80px hit radius
-- Double-tap threshold: 600ms, 80px distance
-
----
-
-## Phase 2: Deep Audit Implementation
-
-### Checklist Item 1: Formula-to-Line Mapping
-
-**What We'll Verify:**
-- Every graph question has a `markingFormula` in `plottingAnswer`
-- The formula correctly renders the "Green Line" using `generateCurveFromFormula()`
-- No fallbacks to generic parabolas when formula exists
-
-**Current Implementation Status:**
-```typescript
-// TakePracticeQuiz.tsx line 1840-1852
-if (markingFormula && typeof markingFormula === 'string' && markingFormula.trim() !== '') {
-  formulaDrivenMode = true;
-  const formulaCurve = generateCurveFromFormula(markingFormula, domainX);
-  if (formulaCurve.length > 0) {
-    expectedCurveSeries = formulaCurve;
-  }
-  // DO NOT FALL BACK - formula is source of truth
-}
-```
-
-**Audit Action:** Generate questions with Quadratics, Cubics, Reciprocals and verify `markingFormula` is populated and renders correctly.
-
-### Checklist Item 2: Sub-Question Inheritance
-
-**What We'll Verify:**
-- Part (b), (c) questions inherit `baseMarkingFormula` from part (a)
-- `applyFormulaTransform()` performs algebraic substitution correctly
-- Example: If f(x) = (x-1)(x-3)(x+2), then f(x-2) = ((x-2)-1)((x-2)-3)((x-2)+2)
-
-**Current Implementation Status:**
-```typescript
-// generate-practice-questions/index.ts line 1586-1599
-if (group.baseMarkingFormula) {
-  transformedMarkingFormula = applyFormulaTransform(group.baseMarkingFormula, transformSpec);
-  transformedCurveBranches = generateCurveFromMarkingFormula(transformedMarkingFormula, domainX);
-}
-```
-
-**Audit Action:** Generate multi-part transformation questions (1a, 1b, 1c) and verify formula inheritance chain.
-
-### Checklist Item 3: Coordinate Mapping Integrity
-
-**What We'll Verify:**
-- `expectedPoints` (turning points, intercepts) are mathematically derived from `markingFormula`
-- Visual render aligns perfectly with stored coordinates
-
-**Current Implementation:**
-```typescript
-// generate-practice-questions/index.ts line 2350-2358
-expectedPoints: transformedFeatures.turningPoints
-  .map(tp => ({ x: tp.x, y: tp.y }))
-  .concat(transformedFeatures.intercepts.x.map(xi => ({ x: xi, y: 0 })))
-```
-
-**Audit Action:** Sample several questions and verify turning points/intercepts match formula evaluation.
-
-### Checklist Item 4: Canvas State Reset
-
-**What We'll Verify:**
-- Moving from Q1 to Q2 (or 1a to 1b) triggers full canvas clear
-- No "ghost" lines from previous questions persist
-
-**Current Implementation:**
-```typescript
-// TakePracticeQuiz.tsx line 1898-1899
-<GraphPlottingQuestion
-  key={`graph-plotting-${currentQuestion.id}-${currentIndex}`}
-  // ...
-/>
-```
-
-**Status:** Component key includes both ID and index, which should force re-mount. Need to verify this works in practice.
-
-### Checklist Item 5: Interactive Alignment
-
-**What We'll Verify:**
-- Mouse wheel zoom updates camera scale
-- Double-tap point selection works reliably
-- Coordinate hitboxes align with rendered points
-
----
-
-## Phase 3: Fixes Required
-
-### Fix 1: Robust Zoom Handler Initialization
-
-**File:** `src/components/graph/GraphCanvasPlot.tsx`
-
-**Change:** Replace the `useRef` + `useEffect` pattern with direct initialization or a more robust callback pattern to ensure zoom is always available.
-
-### Fix 2: Camera Initialization Guard
-
-**File:** `src/hooks/useGraphCamera.ts`
-
-**Change:** Add validation to ensure camera is properly initialized before zoom operations. The current guards exist but may not cover all edge cases during initial render.
-
-### Fix 3: Edge Function Model Parameter Fix
-
-**File:** `supabase/functions/generate-practice-questions/index.ts`
-
-**Status:** Already fixed in previous edit - using `max_completion_tokens` for OpenAI models.
-
----
-
-## Phase 4: Test Generation & Verification
-
-### Step 1: Generate Comprehensive Graph Quiz
-
-Create a quiz with:
-- **Topic:** Polynomial Sketches, Transformations, Reciprocals
-- **Educational Tier:** A-Level
-- **Question Count:** 10-15 questions
-- **Difficulty:** Hard
-
-This will exercise:
-- Quadratic functions: y = x², y = (x-a)²
-- Cubic functions: y = x(x+a)(x-b), factored cubics
-- Reciprocal functions: y = 1/x, y = 1/(x+a)
-- Transformations: f(x+k), f(x)+k, af(x), -f(x)
-
-### Step 2: Run Automated Verification
-
-After generation, verify in database:
-1. All graph_plotting questions have `markingFormula` populated
-2. Sub-questions have `appliedTransform` and `baseFormula` fields
-3. `expectedCurve.data` has sufficient points (>50) for smooth rendering
-
-### Step 3: Manual UI Testing
-
-Test in browser:
-1. Navigate through all questions - verify no ghost lines
-2. Test zoom with mouse wheel on each graph
-3. Test double-tap point selection
-4. Submit and verify green line renders from formula
-
----
+Already has 500-point density and 30% domain extension. Verify these values are applied consistently and the Y-threshold of 1000 units is not clipping valid curves.
 
 ## Technical Details
 
-### Formula Transformation Logic (`applyFormulaTransform`)
+### Files Modified
 
-**Location:** `src/lib/formula-evaluator.ts` lines 486-561
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-practice-questions/index.ts` | Enforce pre-expanded markingFormula, add validation assertion |
+| `src/pages/TakePracticeQuiz.tsx` | Delete ~100 lines of runtime transform detection, replace with direct formula lookup |
+| `src/components/practice/QuestionItem.tsx` | Simplify expectedCurveSeries computation to trust database formula |
+| `src/lib/formula-evaluator.ts` | Minor: ensure prefix stripping handles all edge cases |
 
-**Key Logic:**
-```typescript
-// Horizontal shift: f(x - a) means shift RIGHT by a
-if (transform.shiftX && transform.shiftX !== 0) {
-  const replacement = shift > 0 ? `(x-${shift})` : `(x+${Math.abs(shift)})`;
-  formula = formula.replace(/\bx\b/g, replacement);
-}
+### What This Removes
 
-// Vertical transformations: wrap entire formula
-if (transform.reflectX) {
-  prefix = '(-1)*(' + prefix;
-  suffix = suffix + ')';
-}
-```
+- `parseTransformFromQuestionText()` usage in review rendering
+- `formulaAlreadyTransformed` heuristic
+- `applyFormulaTransform()` calls on the frontend
+- Secondary numerical comparison checks (`evaluateFormula` at shifted points)
 
-**Example:**
-- Base formula: `(x-1)*(x-3)*(x+2)`
-- Transform: f(x-2) → shiftX = 2
-- Result: `((x-2)-1)*((x-2)-3)*((x-2)+2)` → `(x-3)*(x-5)*(x)`
+### What This Preserves
 
-### Camera-Based Coordinate System
+- Legacy fallback for old quizzes without `markingFormula`
+- Bare reference detection (`f(x)` regex guard)
+- Secret formula generation for sketch questions
+- All pan/zoom/interaction features
 
-**Location:** `src/hooks/useGraphCamera.ts`
+### Risk Mitigation
 
-**Key Formula:**
-```typescript
-// Scale = graph units per 100 pixels
-const pixelsPerUnit = 100 / camera.scale;
+Existing quizzes that stored base (untransformed) formulas will still work via the legacy `expectedCurve` fallback. Only **newly generated** quizzes will benefit from the pre-calculated formula guarantee. No database migration is needed -- the `markingFormula` field already exists in the JSON.
 
-// Graph to Screen:
-screenX = viewportWidth / 2 + (graphX - camera.centerX) * pixelsPerUnit;
-screenY = viewportHeight / 2 - (graphY - camera.centerY) * pixelsPerUnit;
-```
-
----
-
-## Implementation Order
-
-1. **Fix zoom handler initialization** - Ensures mouse wheel zoom works reliably
-2. **Deploy edge function** - Already done with model parameter fix
-3. **Generate test quiz** - Using the corrected generation pipeline
-4. **Run database verification queries** - Check markingFormula population
-5. **Manual UI verification** - Test all 5 checklist items in browser
-
----
-
-## Success Metrics
-
-| Metric | Target | Verification Method |
-|--------|--------|---------------------|
-| markingFormula populated | 100% of graph questions | Database query |
-| Sub-question inheritance | Formula transforms correctly | Visual inspection of green line |
-| Coordinate alignment | < 0.5 unit tolerance | Compare expectedPoints to formula evaluation |
-| Canvas reset | No ghost lines | Navigate between questions |
-| Zoom functional | Mouse wheel updates scale | Browser interaction test |
-| Point selection | < 3 attempts to select | Touch/click testing |
