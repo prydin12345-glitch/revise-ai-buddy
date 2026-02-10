@@ -1422,17 +1422,31 @@ ${notesSection}`;
     console.log(`Question groups: ${Array.from(questionGroups.keys()).join(', ')}`);
     
     // Helper function to extract function from question text
+    // Matches ANY function letter: f(x), g(x), q(x), p(x), h(x), etc.
     const extractBaseFunctionFromText = (text: string): string | null => {
-      // Pattern: f(x) = expression
-      const fxMatch = text.match(/f\s*\(\s*x\s*\)\s*=\s*([^,.]+?)(?:[,.]|is\s+shown|\s+has|\s+where|$)/i);
+      // Pattern: <letter>(x) = expression
+      const fxMatch = text.match(/[a-zA-Z]\s*\(\s*x\s*\)\s*=\s*([^,.]+?)(?:[,.]|is\s+shown|\s+has|\s+where|$)/i);
       if (fxMatch) {
         return fxMatch[1].trim();
       }
-      // Pattern: y = expression (not involving f)
-      const yMatch = text.match(/y\s*=\s*([^,f]+?)(?:[,.]|is\s+shown|\s+has|$)/i);
-      if (yMatch && !yMatch[1].includes('f(x)')) {
+      // Pattern: y = expression (not involving function notation)
+      const yMatch = text.match(/y\s*=\s*([^,]+?)(?:[,.]|is\s+shown|\s+has|$)/i);
+      if (yMatch && !/[a-zA-Z]\(x\)/.test(yMatch[1])) {
         return yMatch[1].trim();
       }
+      return null;
+    };
+
+    // Helper: extract a polynomial formula from a textual algebraic answer
+    // e.g., "q(x) = -2x^3 + 6x + 4" → "-2x^3 + 6x + 4"
+    const extractFormulaFromAlgebraicAnswer = (answer: string): string | null => {
+      if (!answer || typeof answer !== 'string') return null;
+      // Match patterns like "q(x) = -2x^3 + 6x + 4" or "p(x) = (x+1)(x-2)(x+3)"
+      const match = answer.match(/[a-zA-Z]\s*\(\s*x\s*\)\s*=\s*(.+)/i);
+      if (match) return match[1].trim();
+      // Match "y = expression"
+      const yMatch = answer.match(/y\s*=\s*(.+)/i);
+      if (yMatch) return yMatch[1].trim();
       return null;
     };
     
@@ -1470,12 +1484,10 @@ ${notesSection}`;
         }
         
         // CRITICAL: Extract and store the markingFormula from the first question
-        // This is the algebraic source of truth for sub-question transformations
         if (graphData?.plottingAnswer?.markingFormula) {
           group.baseMarkingFormula = graphData.plottingAnswer.markingFormula;
           console.log(`Group ${rootNum}: Captured base markingFormula = "${group.baseMarkingFormula}"`);
         } else if (baseFunc) {
-          // Try to extract formula from the baseFunction string
           const formulaFromText = extractMarkingFormula(`y = ${baseFunc}`);
           if (formulaFromText) {
             group.baseMarkingFormula = formulaFromText;
@@ -1484,6 +1496,64 @@ ${notesSection}`;
         }
       } catch (e) {
         // Ignore parse errors - base will be generated later if needed
+      }
+      
+      // =====================================================================
+      // NEW: Extract formula from ALGEBRAIC parent answers (e.g., 3a → 3b)
+      // =====================================================================
+      // When 3a is "find q(x) = ..." (short_answer), and 3b is "sketch q(x)",
+      // the formula from 3a's correct_answer becomes the markingFormula for 3b.
+      if (!group.baseMarkingFormula) {
+        const firstAnswer = typeof firstQ.correct_answer === 'string' 
+          ? firstQ.correct_answer 
+          : JSON.stringify(firstQ.correct_answer);
+        
+        const algebraicFormula = extractFormulaFromAlgebraicAnswer(firstAnswer);
+        if (algebraicFormula) {
+          // Normalize the formula for evaluation (replace ^ with proper notation, etc.)
+          const normalized = normalizeFormulaExpression(algebraicFormula);
+          if (normalized) {
+            group.baseMarkingFormula = normalized;
+            console.log(`Group ${rootNum}: Extracted markingFormula from algebraic answer = "${normalized}"`);
+            
+            // Also generate curve data from this formula for the group
+            const domainX: [number, number] = [-5, 5];
+            const curveBranches = generateCurveFromMarkingFormula(normalized, domainX);
+            if (curveBranches.length > 0 && curveBranches[0].data.length >= 3) {
+              group.baseCurveData = curveBranches[0].data;
+              group.baseGraphConfig = {
+                chartType: 'line',
+                xLabel: 'x',
+                yLabel: 'y',
+                domainX,
+                domainY: [-10, 10],
+                xDomain: domainX,
+                yDomain: [-10, 10],
+                grid: { show: true, stepX: 1, stepY: 1 },
+                series: curveBranches.map(b => ({
+                  id: b.id || 'reference',
+                  label: b.label || 'y = q(x)',
+                  data: b.data,
+                  showLine: true,
+                  lineStyle: 'solid'
+                }))
+              };
+              group.baseDomainX = domainX;
+              
+              // Auto-fit Y domain from curve data
+              const yVals = curveBranches.flatMap(b => b.data.map(p => p.y));
+              const validY = yVals.filter(y => Math.abs(y) < 100);
+              if (validY.length > 0) {
+                const yPad = Math.max(2, (Math.max(...validY) - Math.min(...validY)) * 0.2);
+                group.baseDomainY = [Math.floor(Math.min(...validY) - yPad), Math.ceil(Math.max(...validY) + yPad)];
+                group.baseGraphConfig.domainY = group.baseDomainY;
+                group.baseGraphConfig.yDomain = group.baseDomainY;
+              }
+              
+              console.log(`Group ${rootNum}: Generated ${curveBranches[0].data.length} curve points from algebraic formula`);
+            }
+          }
+        }
       }
     }
     
@@ -1547,13 +1617,15 @@ ${notesSection}`;
       const isSubQuestion = group && group.questions.length > 1 && group.questions[0] !== idx;
       const isFirstInGroup = group && group.questions[0] === idx;
       
-      // Check if this question references f(x) without defining it (depends on parent)
-      const referencesFWithoutDefining = /\bf\s*\(\s*x\s*[+-]|\bf\s*\(\s*-?\s*x\s*\)|\b[0-9]+f\s*\(x\)|-f\s*\(x\)/i.test(questionTextRaw) &&
-                                          !/f\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
+      // Check if this question references ANY function letter without defining it (depends on parent)
+      // Matches: f(x+...), q(x), p(-x), 2f(x), -g(x), etc.
+      const referencesFWithoutDefining = /\b[a-zA-Z]\s*\(\s*x\s*[+-]|\b[a-zA-Z]\s*\(\s*-?\s*x\s*\)|\b[0-9]+[a-zA-Z]\s*\(x\)|-[a-zA-Z]\s*\(x\)/i.test(questionTextRaw) &&
+                                          !/[a-zA-Z]\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
       
-      // Check if question says "graph shows" g(x) or y without defining it
-      const mentionsUndefinedGraph = /\b(the\s+)?(graph|diagram|curve)\s+(shows|of)\s+(y\s*=\s*)?g\s*\(\s*x\s*\)/i.test(questionTextRaw) &&
-                                     !/g\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
+      // Check if question says "graph shows/of" or "sketch y = <letter>(x)" without defining it
+      const mentionsUndefinedGraph = (/\b(the\s+)?(graph|diagram|curve)\s+(shows|of)\s+(y\s*=\s*)?[a-zA-Z]\s*\(\s*x\s*\)/i.test(questionTextRaw) ||
+                                      /\b(sketch|plot|draw)\s+(the\s+)?(graph|curve)?\s*(of\s+)?y\s*=\s*[a-zA-Z]\s*\(\s*x\s*\)/i.test(questionTextRaw)) &&
+                                     !/[a-zA-Z]\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
       
       // *** FIX 1: "The graph shows..." pattern MUST have a graph ***
       // If question says "graph shows" or "diagram shows" but doesn't have graph_plotting type, fix it
