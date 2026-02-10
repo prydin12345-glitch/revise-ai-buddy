@@ -1133,19 +1133,19 @@ ${notesSection}`;
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
       // Reliability fallback chain:
-      // - Attempt 1: Gemini Flash Lite (fastest)
-      // - Attempt 2: Gemini Flash (good balance)
-      // - Attempt 3: GPT-5-mini (reliable tool calls, higher token limit)
+      // - Attempt 1: Gemini Flash (best balance of speed + quality for complex prompts)
+      // - Attempt 2: Gemini Flash (retry - transient failures are common)
+      // - Attempt 3: GPT-5-mini (different provider as final fallback)
       const modelChain = [
-        'google/gemini-2.5-flash-lite',
+        'google/gemini-2.5-flash',
         'google/gemini-2.5-flash',
         'openai/gpt-5-mini'
       ];
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Shorter timeouts to fail-fast and try next model
-      const timeoutMs = attempt === 0 ? 50_000 : attempt === 1 ? 70_000 : 90_000;
+      // Generous timeouts - complex graph prompts with tool calling need time
+      const timeoutMs = attempt === 0 ? 90_000 : attempt === 1 ? 120_000 : 150_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
