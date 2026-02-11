@@ -1623,8 +1623,10 @@ ${notesSection}`;
                                           !/[a-zA-Z]\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
       
       // Check if question says "graph shows/of" or "sketch y = <letter>(x)" without defining it
-      const mentionsUndefinedGraph = (/\b(the\s+)?(graph|diagram|curve)\s+(shows|of)\s+(y\s*=\s*)?[a-zA-Z]\s*\(\s*x\s*\)/i.test(questionTextRaw) ||
-                                      /\b(sketch|plot|draw)\s+(the\s+)?(graph|curve)?\s*(of\s+)?y\s*=\s*[a-zA-Z]\s*\(\s*x\s*\)/i.test(questionTextRaw)) &&
+      // CRITICAL FIX: Also match "y = -h(x)", "y = 2f(x)", "y = -p(x+1)" etc.
+      // The regex now allows an optional sign/coefficient between "y =" and the function letter
+      const mentionsUndefinedGraph = (/\b(the\s+)?(graph|diagram|curve)\s+(shows|of)\s+(y\s*=\s*)?-?\s*\d*\s*[a-zA-Z]\s*\(/i.test(questionTextRaw) ||
+                                      /\b(sketch|plot|draw)\s+(the\s+)?(graph|curve)?\s*(of\s+)?y\s*=\s*-?\s*\d*\s*[a-zA-Z]\s*\(/i.test(questionTextRaw)) &&
                                      !/[a-zA-Z]\s*\(\s*x\s*\)\s*=/i.test(questionTextRaw);
       
       // *** FIX 1: "The graph shows..." pattern MUST have a graph ***

@@ -36,7 +36,7 @@ import {
   type TableGridData
 } from '@/components/exam/TableGridQuestion';
 import type { AngleMeasurement } from '@/components/graph/GraphPlottingQuestion';
-import { generateCurveFromFormula } from '@/lib/formula-evaluator';
+import { generateCurveFromFormula, parseTransformFromQuestionText, applyFormulaTransform } from '@/lib/formula-evaluator';
 
 interface Question {
   id: string;
