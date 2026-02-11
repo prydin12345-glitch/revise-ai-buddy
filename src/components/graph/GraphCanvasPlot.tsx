@@ -781,8 +781,8 @@ export function GraphCanvasPlot({
         })}
       </GraphCanvas>
       
-      {/* Freeform drawing overlay */}
-      {joinMode === 'freeform' && onDrawnPathsChange && (
+      {/* Freeform drawing overlay - ALWAYS render saved paths, only active for drawing in freeform mode */}
+      {(joinMode === 'freeform' || drawnPaths.length > 0) && (
         <div className="absolute inset-0 pointer-events-auto" style={{ zIndex: 10 }}>
           <GraphDrawingCanvas
             containerWidth={width}
@@ -792,13 +792,14 @@ export function GraphCanvasPlot({
             marginRight={0}
             marginBottom={0}
             paths={drawnPaths}
-            onPathsChange={onDrawnPathsChange}
+            onPathsChange={onDrawnPathsChange || (() => {})}
             readOnly={readOnly}
-            active={true}
+            active={joinMode === 'freeform'}
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             domainX={visibleDomain.domainX}
             domainY={visibleDomain.domainY}
+            eraseMode={eraseMode}
           />
         </div>
       )}

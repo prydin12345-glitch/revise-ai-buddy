@@ -273,7 +273,7 @@ export function useGraphCamera({
       touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       
       if (touchesRef.current.size === 2) {
-        // Start pinch gesture
+        // Start pinch gesture - also initiate pan from pinch midpoint
         const touches = Array.from(touchesRef.current.values());
         const dx = touches[1].x - touches[0].x;
         const dy = touches[1].y - touches[0].y;
@@ -283,11 +283,20 @@ export function useGraphCamera({
           y: (touches[0].y + touches[1].y) / 2,
         };
         initialPinchScaleRef.current = camera.scale;
+        
+        // Start two-finger pan
+        const midX = (touches[0].x + touches[1].x) / 2;
+        const midY = (touches[0].y + touches[1].y) / 2;
+        panStartRef.current = { x: midX, y: midY, camera: { ...camera } };
+        setIsPanning(true);
         return;
       }
+      
+      // Single finger on touch: do NOT start panning (reserved for drawing/plotting)
+      return;
     }
     
-    // Single pointer pan
+    // Mouse/pen: Single pointer pan
     if (pointerIdRef.current === null) {
       pointerIdRef.current = e.pointerId;
       panStartRef.current = { x: e.clientX, y: e.clientY, camera: { ...camera } };
@@ -303,28 +312,32 @@ export function useGraphCamera({
     if (e.pointerType === 'touch' && touchesRef.current.has(e.pointerId)) {
       touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       
-      // Handle pinch gesture
+      // Handle two-finger pinch + pan gesture
       if (touchesRef.current.size === 2 && initialPinchDistanceRef.current !== null) {
         const touches = Array.from(touchesRef.current.values());
         const dx = touches[1].x - touches[0].x;
         const dy = touches[1].y - touches[0].y;
         const currentDistance = Math.sqrt(dx * dx + dy * dy);
         
-        // Calculate zoom factor with damping for smoother pinch zoom
-        // Raw ratio can be too sensitive, so we dampen it
+        // Calculate zoom factor with damping
         const rawRatio = initialPinchDistanceRef.current / currentDistance;
-        // Apply damping: move 30% toward the raw ratio (was 100%)
         const zoomFactor = 1 + (rawRatio - 1) * 0.3;
         const newScale = Math.max(minScale, Math.min(maxScale, initialPinchScaleRef.current! * zoomFactor));
         
-        // Zoom centered on pinch midpoint
-        if (initialPinchCenterRef.current) {
+        // Compute two-finger pan + zoom centered on pinch midpoint
+        const midX = (touches[0].x + touches[1].x) / 2;
+        const midY = (touches[0].y + touches[1].y) / 2;
+        
+        if (initialPinchCenterRef.current && panStartRef.current) {
           const rect = e.currentTarget.getBoundingClientRect();
           const cx = initialPinchCenterRef.current.x - rect.left;
           const cy = initialPinchCenterRef.current.y - rect.top;
           
-          // Use initial camera state for calculation
-          const initialCamera = { ...camera, scale: initialPinchScaleRef.current! };
+          // Pan delta from midpoint movement
+          const panDeltaX = midX - initialPinchCenterRef.current.x;
+          const panDeltaY = midY - initialPinchCenterRef.current.y;
+          
+          const initialCamera = panStartRef.current.camera;
           const pixelsPerUnit = 100 / initialCamera.scale;
           const graphPoint = {
             x: initialCamera.centerX + (cx - viewportWidth / 2) / pixelsPerUnit,
@@ -332,8 +345,8 @@ export function useGraphCamera({
           };
           
           const newPixelsPerUnit = 100 / newScale;
-          const deltaPixelX = cx - viewportWidth / 2;
-          const deltaPixelY = cy - viewportHeight / 2;
+          const deltaPixelX = (cx + panDeltaX) - viewportWidth / 2;
+          const deltaPixelY = (cy + panDeltaY) - viewportHeight / 2;
           
           setCamera({
             centerX: graphPoint.x - deltaPixelX / newPixelsPerUnit,
@@ -343,9 +356,12 @@ export function useGraphCamera({
         }
         return;
       }
+      
+      // Single finger touch: do NOT pan (reserved for drawing/plotting)
+      return;
     }
     
-    // Single pointer pan
+    // Mouse/pen: Single pointer pan
     if (pointerIdRef.current === e.pointerId && panStartRef.current) {
       const deltaX = e.clientX - panStartRef.current.x;
       const deltaY = e.clientY - panStartRef.current.y;

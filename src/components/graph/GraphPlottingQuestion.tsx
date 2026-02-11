@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { GraphSeries } from './types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler, Maximize2 } from 'lucide-react';
@@ -194,11 +195,22 @@ export function GraphPlottingQuestion({
   const isDraggingRef = useRef(false);
   const DRAG_THRESHOLD = 8; // px - minimum movement to start drag
   
+  // Jitter buffer: track pointer-down position for camera container handlers
+  const cameraPointerDownRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const JITTER_THRESHOLD_PX = 5; // Max movement to count as a "clean tap"
+  
+  // Multi-touch guard: track active touch count
+  const activeTouchCountRef = useRef(0);
+  
   // Erase mode
   const [eraseMode, setEraseMode] = useState(false);
   
   // Expanded modal state
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Manual coordinate entry state
+  const [manualX, setManualX] = useState('');
+  const [manualY, setManualY] = useState('');
 
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
@@ -1360,6 +1372,16 @@ export function GraphPlottingQuestion({
   ) => {
     if (readOnly) return;
     
+    // Palm rejection: reject touches with large contact area (width/height > 30px)
+    if (e.pointerType === 'touch') {
+      if (e.width > 30 || e.height > 30) return; // Palm/arm resting on screen
+      activeTouchCountRef.current++;
+      if (activeTouchCountRef.current > 1) return; // Multi-touch guard
+    }
+    
+    // Record pointer-down position for jitter buffer
+    cameraPointerDownRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+    
     // Store screenToGraph for use in move/up handlers
     screenToGraphRef.current = screenToGraph;
     
@@ -1443,6 +1465,19 @@ export function GraphPlottingQuestion({
     screenToGraph: (x: number, y: number) => { x: number; y: number }
   ) => {
     if (readOnly) return;
+    
+    // Decrement touch counter
+    if (e.pointerType === 'touch') {
+      activeTouchCountRef.current = Math.max(0, activeTouchCountRef.current - 1);
+    }
+    
+    // Jitter buffer: check if pointer moved too far to be a clean tap
+    const pointerStart = cameraPointerDownRef.current;
+    cameraPointerDownRef.current = null;
+    const wasCleanTap = pointerStart
+      ? (Math.abs(e.clientX - pointerStart.x) <= JITTER_THRESHOLD_PX &&
+         Math.abs(e.clientY - pointerStart.y) <= JITTER_THRESHOLD_PX)
+      : false;
     
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -1595,9 +1630,9 @@ export function GraphPlottingQuestion({
       return;
     }
     
-    // Add a new point at the tap location
-    // NOTE: Do NOT clamp to initial domainX/domainY - the camera can pan/zoom beyond it
-    // Points can be placed anywhere in the visible graph space
+    // Add a new point at the tap location - ONLY if it was a clean tap (jitter buffer)
+    if (!wasCleanTap) return; // Pointer moved too far - this was a drag, not a tap
+    
     const graphCoords = screenToGraph(clickX, clickY);
     
     addPoint(graphCoords.x, graphCoords.y);
@@ -2020,10 +2055,75 @@ export function GraphPlottingQuestion({
         </div>
       )}
 
-      {/* Points table */}
-      {studentPoints.length > 0 && (
-        <div className="border rounded-lg p-3 bg-muted/30">
-          <div className="text-sm font-medium mb-2">Plotted points ({studentPoints.length})</div>
+      {/* Points table with manual coordinate entry */}
+      <div className="border rounded-lg p-3 bg-muted/30">
+        <div className="text-sm font-medium mb-2">Plotted points ({studentPoints.length})</div>
+        
+        {/* Manual coordinate entry */}
+        {!readOnly && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-muted-foreground">(</span>
+            <Input
+              type="number"
+              step="0.1"
+              placeholder="x"
+              value={manualX}
+              onChange={(e) => setManualX(e.target.value)}
+              className="w-20 h-8 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const x = parseFloat(manualX);
+                  const y = parseFloat(manualY);
+                  if (!isNaN(x) && !isNaN(y)) {
+                    addPoint(x, y);
+                    setManualX('');
+                    setManualY('');
+                  }
+                }
+              }}
+            />
+            <span className="text-sm text-muted-foreground">,</span>
+            <Input
+              type="number"
+              step="0.1"
+              placeholder="y"
+              value={manualY}
+              onChange={(e) => setManualY(e.target.value)}
+              className="w-20 h-8 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const x = parseFloat(manualX);
+                  const y = parseFloat(manualY);
+                  if (!isNaN(x) && !isNaN(y)) {
+                    addPoint(x, y);
+                    setManualX('');
+                    setManualY('');
+                  }
+                }
+              }}
+            />
+            <span className="text-sm text-muted-foreground">)</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                const x = parseFloat(manualX);
+                const y = parseFloat(manualY);
+                if (!isNaN(x) && !isNaN(y)) {
+                  addPoint(x, y);
+                  setManualX('');
+                  setManualY('');
+                }
+              }}
+              disabled={isNaN(parseFloat(manualX)) || isNaN(parseFloat(manualY))}
+            >
+              Add
+            </Button>
+          </div>
+        )}
+
+        {studentPoints.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {studentPoints.map((point, idx) => {
               const status = getPointStatus(point);
@@ -2052,8 +2152,8 @@ export function GraphPlottingQuestion({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Score summary when showing correct answers */}
       {showCorrectAnswers && markingData && (
