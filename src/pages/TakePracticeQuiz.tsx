@@ -72,7 +72,7 @@ import {
   type BearingsMarkingResult,
   type GraphSeries,
 } from "@/components/graph";
-import { generateCurveFromFormula } from "@/lib/formula-evaluator";
+import { generateCurveFromFormula, parseTransformFromQuestionText, applyFormulaTransform } from "@/lib/formula-evaluator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
@@ -1854,6 +1854,71 @@ const TakePracticeQuiz = () => {
                             console.log('[Review] SOURCE OF TRUTH: Using pre-calculated markingFormula:', markingFormula, 'points:', formulaCurve.reduce((s, b) => s + b.data.length, 0));
                           } else {
                             console.warn('[Review] markingFormula failed to evaluate:', markingFormula);
+                          }
+                        }
+                        
+                        // Step 1.5: PARENT FORMULA INHERITANCE FALLBACK
+                        // If no markingFormula, check if this is a sub-question (e.g., 4b)
+                        // that references a parent function (e.g., -h(x) from 4a).
+                        // Strip "y =" from question text, detect the transform, and apply
+                        // it to the parent's markingFormula.
+                        if (expectedCurveSeries.length === 0) {
+                          const qNum = currentQuestion.question_number || '';
+                          const rootNum = getRootQuestionNumber(qNum);
+                          const isSubQ = qNum !== rootNum && rootNum !== '';
+                          
+                          if (isSubQ) {
+                            // Find parent question (usually part 'a')
+                            const parentQ = questions.find(q => 
+                              getRootQuestionNumber(q.question_number) === rootNum &&
+                              q.question_number !== qNum &&
+                              q.question_number.endsWith('a')
+                            );
+                            
+                            if (parentQ) {
+                              const parentGraphData = parseGraphQuestionData(parentQ.correct_answer || null);
+                              const parentFormula = (parentGraphData?.plottingAnswer as any)?.markingFormula;
+                              
+                              if (parentFormula && typeof parentFormula === 'string' && parentFormula.trim() !== '') {
+                                // Strip "y =" from question text before parsing transform
+                                const strippedText = currentQuestion.question_text.replace(/y\s*=\s*/gi, '');
+                                const transform = parseTransformFromQuestionText(strippedText);
+                                
+                                if (transform) {
+                                  const hasTransform = transform.shiftX !== 0 || transform.shiftY !== 0 ||
+                                    transform.scaleY !== 1 || (transform.scaleX !== undefined && transform.scaleX !== 1) ||
+                                    transform.reflectX || transform.reflectY;
+                                  
+                                  if (hasTransform) {
+                                    const transformedFormula = applyFormulaTransform(parentFormula, transform);
+                                    console.log('[Review] PARENT INHERITANCE: Applying transform to parent formula', {
+                                      parentFormula, transform, transformedFormula
+                                    });
+                                    
+                                    const formulaCurve = generateCurveFromFormula(transformedFormula, domainX);
+                                    if (formulaCurve.length > 0) {
+                                      expectedCurveSeries = formulaCurve;
+                                      console.log('[Review] SUCCESS: Generated curve from parent formula + transform, points:', 
+                                        formulaCurve.reduce((s, b) => s + b.data.length, 0));
+                                    }
+                                  } else {
+                                    // No transform detected but references parent - use parent formula directly
+                                    const formulaCurve = generateCurveFromFormula(parentFormula, domainX);
+                                    if (formulaCurve.length > 0) {
+                                      expectedCurveSeries = formulaCurve;
+                                      console.log('[Review] PARENT DIRECT: Using parent formula directly:', parentFormula);
+                                    }
+                                  }
+                                } else {
+                                  // parseTransformFromQuestionText returned null, try parent formula directly
+                                  const formulaCurve = generateCurveFromFormula(parentFormula, domainX);
+                                  if (formulaCurve.length > 0) {
+                                    expectedCurveSeries = formulaCurve;
+                                    console.log('[Review] PARENT FALLBACK: No transform detected, using parent formula:', parentFormula);
+                                  }
+                                }
+                              }
+                            }
                           }
                         }
                         
