@@ -211,7 +211,9 @@ export function GraphPlottingQuestion({
   // Manual coordinate entry state
   const [manualX, setManualX] = useState('');
   const [manualY, setManualY] = useState('');
-
+  
+  // Curve mode: 'auto' uses Catmull-Rom spline, 'manual' shows Bézier handles
+  const [curveMode, setCurveMode] = useState<'auto' | 'manual'>('auto');
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
     if (!id) return undefined;
@@ -649,12 +651,26 @@ export function GraphPlottingQuestion({
 
       if (!segmentExists && currentJoinMode && currentJoinMode !== 'freeform') {
         saveToHistory();
+        // Calculate default control point for curved segments
+        let controlPoint: GraphPoint | undefined;
+        if ((currentJoinMode as string) === 'curved') {
+          const midX = (fromPoint.x + toPoint.x) / 2;
+          const midY = (fromPoint.y + toPoint.y) / 2;
+          const dx = toPoint.x - fromPoint.x;
+          const dy = toPoint.y - fromPoint.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const bulge = length * 0.2;
+          const perpX = length > 0 ? -dy / length * bulge : 0;
+          const perpY = length > 0 ? dx / length * bulge : 0;
+          controlPoint = { x: midX + perpX, y: midY + perpY };
+        }
         // Include point IDs in the segment for reliable vertex matching
         const newSegment: LineSegment = {
           id: `seg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           from: { id: fromPoint.id, x: fromPoint.x, y: fromPoint.y },
           to: { id: toPoint.id, x: toPoint.x, y: toPoint.y },
           mode: currentJoinMode as 'straight' | 'curved',
+          controlPoint,
         };
         const updatedSegments = [...segments, newSegment];
         console.debug('[Segment Created]', {
@@ -1911,6 +1927,42 @@ export function GraphPlottingQuestion({
               </ToggleGroupItem>
             </ToggleGroup>
           )}
+          
+          {/* Auto/Manual curve mode toggle - only when curved mode is active */}
+          {currentJoinMode === 'curved' && !readOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newMode = curveMode === 'auto' ? 'manual' : 'auto';
+                if (newMode === 'manual') {
+                  // Freeze auto-generated control points into segments
+                  saveToHistory();
+                  const updatedSegments = segments.map(seg => {
+                    if (seg.mode === 'curved' && !seg.controlPoint) {
+                      // Generate default control point from auto bulge
+                      const midX = (seg.from.x + seg.to.x) / 2;
+                      const midY = (seg.from.y + seg.to.y) / 2;
+                      const dx = seg.to.x - seg.from.x;
+                      const dy = seg.to.y - seg.from.y;
+                      const length = Math.sqrt(dx * dx + dy * dy);
+                      const bulge = length * 0.2;
+                      const perpX = length > 0 ? -dy / length * bulge : 0;
+                      const perpY = length > 0 ? dx / length * bulge : 0;
+                      return { ...seg, controlPoint: { x: midX + perpX, y: midY + perpY } };
+                    }
+                    return seg;
+                  });
+                  onSegmentsChange(updatedSegments);
+                }
+                setCurveMode(newMode);
+              }}
+              title={curveMode === 'auto' ? 'Switch to Manual curve control' : 'Switch to Auto curve smoothing'}
+              className="ml-1 px-2 font-mono text-xs"
+            >
+              {curveMode === 'auto' ? 'A' : 'M'}
+            </Button>
+          )}
         </div>
       )}
 
@@ -1983,6 +2035,8 @@ export function GraphPlottingQuestion({
             draggingPointId={draggingPointId}
             draggingPosition={draggingPosition}
             selectedJoinPoints={selectedJoinPoints}
+            curveMode={curveMode}
+            onSegmentsChange={onSegmentsChange}
             onPointPointerDown={handlePointPointerDown}
             onPointPointerMove={handlePointPointerMove}
             onPointPointerUp={handlePointPointerUp}

@@ -107,6 +107,10 @@ interface GraphCanvasPlotProps {
   draggingPosition?: { x: number; y: number } | null;
   /** Selected join points */
   selectedJoinPoints?: GraphPoint[];
+  /** Curve mode: 'auto' = Catmull-Rom spline, 'manual' = Bézier control handles */
+  curveMode?: 'auto' | 'manual';
+  /** Callback to update segments (for control handle dragging) */
+  onSegmentsChange?: (segments: LineSegment[]) => void;
   /** Point interaction callbacks */
   onPointPointerDown?: (point: GraphPoint, e: React.PointerEvent) => void;
   onPointPointerMove?: (e: React.PointerEvent) => void;
@@ -156,6 +160,8 @@ export function GraphCanvasPlot({
   draggingPointId,
   draggingPosition,
   selectedJoinPoints = [],
+  curveMode = 'auto',
+  onSegmentsChange,
   onPointPointerDown,
   onPointPointerMove,
   onPointPointerUp,
@@ -171,8 +177,17 @@ export function GraphCanvasPlot({
   
   // Track tap detection (to distinguish taps from pans)
   const tapStartRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
-  const TAP_THRESHOLD_PX = 10; // Max movement to be considered a tap
-  const TAP_THRESHOLD_MS = 300; // Max duration to be considered a tap
+  const TAP_THRESHOLD_PX = 10;
+  const TAP_THRESHOLD_MS = 300;
+  
+  // Control handle dragging state
+  const [draggingControlHandle, setDraggingControlHandle] = useState<{
+    segmentId: string;
+    startX: number;
+    startY: number;
+    pointerId: number;
+  } | null>(null);
+  const [controlHandlePosition, setControlHandlePosition] = useState<{ x: number; y: number } | null>(null);
   
   // Initialize camera hook
   // NOTE: Camera pan/zoom is ALWAYS enabled when panZoomEnabled is true,
@@ -222,11 +237,49 @@ export function GraphCanvasPlot({
       .map(r => r.expectedPoint!);
   }, [showCorrectAnswers, markingData]);
   
-  // Generate curved line data when in curved mode
+  // Generate curved line data when in curved mode (auto only)
   const curvedLineData = useMemo(() => {
-    if (joinMode !== 'curved' || studentPoints.length < 3) return null;
+    if (joinMode !== 'curved' || curveMode !== 'auto' || studentPoints.length < 3) return null;
     return catmullRomSpline(studentPoints);
-  }, [joinMode, studentPoints]);
+  }, [joinMode, curveMode, studentPoints]);
+  
+  // Control handle drag handlers
+  const handleControlHandlePointerDown = useCallback((segmentId: string, e: React.PointerEvent) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingControlHandle({ segmentId, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId });
+    (e.target as Element).setPointerCapture(e.pointerId);
+  }, [readOnly]);
+  
+  const handleControlHandlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingControlHandle || draggingControlHandle.pointerId !== e.pointerId) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const graphCoords = screenToGraph(screenX, screenY);
+    setControlHandlePosition(graphCoords);
+  }, [draggingControlHandle, screenToGraph]);
+  
+  const handleControlHandlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!draggingControlHandle || draggingControlHandle.pointerId !== e.pointerId) return;
+    e.stopPropagation();
+    try { (e.target as Element).releasePointerCapture(e.pointerId); } catch {}
+    
+    if (controlHandlePosition && onSegmentsChange) {
+      const updatedSegments = segments.map(seg => 
+        seg.id === draggingControlHandle.segmentId
+          ? { ...seg, controlPoint: { x: controlHandlePosition.x, y: controlHandlePosition.y } }
+          : seg
+      );
+      onSegmentsChange(updatedSegments);
+    }
+    setDraggingControlHandle(null);
+    setControlHandlePosition(null);
+  }, [draggingControlHandle, controlHandlePosition, segments, onSegmentsChange]);
   
   // Combine camera handlers with our custom handlers - with tap detection
   // NOTE: Camera pan/zoom should work even in readOnly mode for exploration
@@ -445,10 +498,6 @@ export function GraphCanvasPlot({
           // ============================================================
           // MARKING STATE SWITCH (Audit v5 Fix #1)
           // ============================================================
-          // If markingData exists and question was graded:
-          //   - CORRECT (≥80%) → Solid Green (student got it right)
-          //   - INCORRECT      → Solid Red (student got it wrong)
-          // If no marking data (just review mode), default to green
           const isMarked = markingData !== undefined;
           const isCorrect = markingData?.totalScore !== undefined && markingData?.totalMarks !== undefined
             ? markingData.totalScore >= markingData.totalMarks * 0.8 // 80% threshold
@@ -459,20 +508,39 @@ export function GraphCanvasPlot({
             ? 'hsl(0, 84%, 60%)' // RED for incorrect
             : 'hsl(142, 76%, 36%)'; // GREEN for correct or ungraded review
           
+          // ============================================================
+          // ALIGNMENT FIX: Perfect overlap detection
+          // ============================================================
+          // Check if student's curved spline or segments closely match the expected curve.
+          // If ≥80% correct, merge into a single "glow" line to confirm perfect alignment.
+          const isPerfectMatch = isMarked && isCorrect === true;
+          
           return (
-            <CurveLayer
-              key={`expected-${series.id || idx}`}
-              data={validData}
-              graphToScreen={graphToScreen}
-              stroke={strokeColor}
-              strokeWidth={3} // Thicker for emphasis
-              strokeDasharray={undefined} // CRITICAL: NO dash - SOLID line for answers
-            />
+            <React.Fragment key={`expected-${series.id || idx}`}>
+              {/* Glow effect for perfect matches - wider, semi-transparent halo */}
+              {isPerfectMatch && (
+                <CurveLayer
+                  data={validData}
+                  graphToScreen={graphToScreen}
+                  stroke="hsl(142, 76%, 36%)"
+                  strokeWidth={8}
+                  opacity={0.25}
+                />
+              )}
+              {/* Main answer curve */}
+              <CurveLayer
+                data={validData}
+                graphToScreen={graphToScreen}
+                stroke={strokeColor}
+                strokeWidth={isPerfectMatch ? 4 : 3}
+                strokeDasharray={undefined} // CRITICAL: NO dash - SOLID line for answers
+              />
+            </React.Fragment>
           );
         })}
         
-        {/* Curved mode spline through all points */}
-        {curvedLineData && (
+        {/* Curved mode spline through all points - HIDE in review mode when correct to avoid offset */}
+        {curvedLineData && !(showCorrectAnswers && markingData) && (
           <CurveLayer
             data={curvedLineData}
             graphToScreen={graphToScreen}
@@ -594,6 +662,60 @@ export function GraphCanvasPlot({
             );
           })}
         </g>
+        
+        {/* Bézier control handles for manual curve mode */}
+        {curveMode === 'manual' && !readOnly && segments.filter(s => s.mode === 'curved').map((seg) => {
+          const cp = draggingControlHandle?.segmentId === seg.id && controlHandlePosition
+            ? controlHandlePosition
+            : seg.controlPoint;
+          if (!cp) return null;
+          
+          const from = graphToScreen(seg.from.x, seg.from.y);
+          const to = graphToScreen(seg.to.x, seg.to.y);
+          const cpScreen = graphToScreen(cp.x, cp.y);
+          
+          if (!Number.isFinite(cpScreen.x) || !Number.isFinite(cpScreen.y)) return null;
+          
+          return (
+            <g key={`handle-${seg.id}`}>
+              {/* Tether lines from endpoints to control point */}
+              <line
+                x1={from.x} y1={from.y} x2={cpScreen.x} y2={cpScreen.y}
+                stroke="hsl(var(--muted-foreground))"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                opacity={0.5}
+                pointerEvents="none"
+              />
+              <line
+                x1={to.x} y1={to.y} x2={cpScreen.x} y2={cpScreen.y}
+                stroke="hsl(var(--muted-foreground))"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                opacity={0.5}
+                pointerEvents="none"
+              />
+              {/* Invisible hit area for control handle */}
+              <circle
+                cx={cpScreen.x} cy={cpScreen.y} r={20}
+                fill="transparent"
+                style={{ cursor: 'grab', touchAction: 'none' }}
+                pointerEvents="all"
+                onPointerDown={(e) => handleControlHandlePointerDown(seg.id, e)}
+                onPointerMove={handleControlHandlePointerMove}
+                onPointerUp={handleControlHandlePointerUp}
+              />
+              {/* Visible control handle */}
+              <circle
+                cx={cpScreen.x} cy={cpScreen.y} r={6}
+                fill="hsl(var(--muted))"
+                stroke="hsl(var(--muted-foreground))"
+                strokeWidth={1.5}
+                pointerEvents="none"
+              />
+            </g>
+          );
+        })}
         
         {/* Missed expected points (correct answer indicators) */}
         {showCorrectAnswers && missedPoints.map((point, idx) => {
