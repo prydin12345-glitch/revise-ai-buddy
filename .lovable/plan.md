@@ -1,102 +1,183 @@
 
 
-# Pre-Calculated Source of Truth: Eliminating Runtime Transform Guessing
+# Universal Subject-Aware Graphing Engine
 
-## Problem Summary
+## Overview
 
-The current system stores formulas ambiguously -- sometimes as the base function, sometimes already transformed -- then runs ~100 lines of heuristic detection on the frontend (TakePracticeQuiz.tsx lines 1848-1966) to "guess" whether to apply a transformation. This causes:
+Add an **Annotation Layer** and **Subject Profile** system on top of the existing math graph engine. This is purely additive -- the current math graphing system remains untouched as the default. New optional props and config fields enable subject-specific axis labels, point annotations, region shading, and quadrant restrictions.
 
-- **1b bleeding**: Wrong curve appears because the runtime detection picks up the wrong formula
-- **3a/3b wrong shape**: Cubic turning points not locked in at generation time
-- **4a truncated/missing lines**: Runtime formula evaluation fails or produces partial curves
+## What Changes (and What Doesn't)
 
-## Solution: Three-Layer Fix
+**UNCHANGED (the 90% that works):**
+- All math formula evaluation, marking, camera, pan/zoom, touch input, curve rendering
+- Existing `GraphPlottingConfig`, `GraphCanvasPlot`, `GraphCanvas` core logic
+- Backend marking engine, formula inheritance, sub-question logic
 
-### Layer 1 -- Generation Pipeline (Backend)
+**NEW (additive layers):**
+- Annotation overlay (point labels, text annotations)
+- Subject-aware axis labels (replacing hardcoded "x"/"y")
+- Quadrant restriction mode
+- Region shading (fill between curve and axis)
 
-**File**: `supabase/functions/generate-practice-questions/index.ts`
+---
 
-Enforce that `markingFormula` is **always the final, expanded expression** before storing to the database:
+## Phase 1: Annotation Data Types
 
-1. For transformation sub-questions (e.g., "sketch f(x-2)"):
-   - After calling `applyFormulaTransform()`, store the **result** as `markingFormula`
-   - Remove `baseFormula` from `plottingAnswer` -- only the final formula matters
-   - Add a validation step: evaluate the formula at the expected turning points to confirm they match
+**File: `src/components/graph/types.ts`**
 
-2. For cubic "sketch" questions describing max/min:
-   - `generateSecretMarkingFormula()` must produce a fully expanded cubic `ax^3 + bx^2 + cx + d`
-   - Validate by checking `f'(p) = 0` and `f'(q) = 0` at the described turning point x-coordinates
-   - Store this expanded formula directly as `markingFormula`
+Add new interfaces at the bottom (no existing types modified):
 
-3. Add a final "pre-storage assertion": if `markingFormula` is a bare reference like `f(x)` or `g(x)`, log an error and fall back to `expectedCurve` coordinate data
+```typescript
+// Annotation for labeling points on the graph
+interface GraphAnnotation {
+  id: string;
+  type: 'point' | 'intercept' | 'text' | 'region';
+  // For point/intercept: the coordinates to label
+  coords?: { x: number; y: number };
+  // For intercept: which axis
+  axis?: 'x' | 'y';
+  // Display label (e.g., "Terminal Velocity", "A(3, 5)")
+  label: string;
+  // Whether to show coordinate values in the label
+  showCoordinates?: boolean;
+  // For region shading
+  fillBetween?: {
+    curveSeriesId: string;    // which series to shade under
+    fromX?: number;           // start x (defaults to domainX[0])
+    toX?: number;             // end x (defaults to domainX[1])
+    fillColor?: string;       // defaults to subject color with low opacity
+  };
+}
 
-### Layer 2 -- Frontend Rendering (Remove Runtime Detection)
-
-**File**: `src/pages/TakePracticeQuiz.tsx`
-
-Delete the entire runtime transform detection block (~lines 1848-1966) and replace with a simple pipeline:
-
-```text
-if (markingFormula exists AND is not bare reference)
-  -> generateCurveFromFormula(markingFormula, domainX)
-  -> done (no transform guessing)
-else if (expectedCurve coordinate data exists)
-  -> use legacy fallback
-else
-  -> no answer line (log warning)
+// Subject profile for axis/viewport defaults
+interface SubjectProfile {
+  subject?: string;           // 'Mathematics' | 'Physics' | 'Economics' | etc.
+  axisLabels?: { x: string; y: string };  // Override "x"/"y"
+  quadrantMode?: 'all' | 'q1' | 'q1q2';  // Default: 'all'
+}
 ```
 
-No `parseTransformFromQuestionText()`, no `formulaAlreadyTransformed` heuristic, no `evaluateFormula()` comparison. The formula in the database IS the answer.
+Extend `GraphPlottingConfig` (additive, all optional):
 
-**File**: `src/components/practice/QuestionItem.tsx`
+```typescript
+// Added to existing GraphPlottingConfig:
+annotations?: GraphAnnotation[];
+subjectProfile?: SubjectProfile;
+```
 
-Same simplification in the `expectedCurveSeries` computation (lines 270-300) -- trust the formula, skip detection.
+---
 
-### Layer 3 -- State Isolation and Cleanup
+## Phase 2: Axis Label Override
 
-**File**: `src/components/graph/GraphCanvasPlot.tsx`
+**File: `src/components/graph/GraphCanvas.tsx` -- `AxisLayer` component**
 
-1. Ensure the component key includes the question ID (already `key={graph-plotting-${question.id}}` in QuestionItem) -- verify GraphCanvasPlot itself also resets internal state (camera, undo stack) on key change
+Currently the axis labels are hardcoded as `"x"` and `"y"` (lines 283-303). Change to accept optional props:
 
-**File**: `src/components/practice/QuestionItem.tsx`
+- Add `xAxisLabel?: string` and `yAxisLabel?: string` props to `AxisLayer`
+- Replace the hardcoded `"x"` text with `xAxisLabel || "x"` and `"y"` with `yAxisLabel || "y"`
+- Thread these through from `GraphCanvas` props (new optional `axisLabels` prop)
 
-2. When `isGraded` is true (answer.submitted and feedback exists):
-   - Set `referenceSeries` to empty array (already done, but verify)
-   - Ensure no "blue ghost" temporary drag points leak through
-   - `expectedCurveSeries` becomes the sole visual authority
+**File: `src/components/graph/GraphCanvasPlot.tsx`**
 
-### Layer 4 -- Curve Rendering Quality
+- Read `config.subjectProfile?.axisLabels` or fall back to `config.xLabel` / `config.yLabel`
+- Pass to `GraphCanvas` as `axisLabels={{ x: label, y: label }}`
 
-**File**: `src/lib/formula-evaluator.ts`
+This is a ~10-line change total. Existing math questions have no `subjectProfile`, so they keep "x"/"y".
 
-Already has 500-point density and 30% domain extension. Verify these values are applied consistently and the Y-threshold of 1000 units is not clipping valid curves.
+---
+
+## Phase 3: Annotation Overlay Component
+
+**New file: `src/components/graph/AnnotationLayer.tsx`**
+
+A pure SVG `<g>` component that renders labels near graph coordinates:
+
+- **Point labels**: A small tag near the coordinate showing the label text (e.g., "Maximum (3, 5)"). Uses `graphToScreen` to position. Renders as an SVG `<text>` with a subtle background `<rect>` for readability.
+- **Intercept labels**: Automatically finds where a series crosses the specified axis and places a label there.
+- **Region shading**: Renders an SVG `<path>` that follows the curve data and closes along the x-axis, filled with a semi-transparent color.
+
+Props:
+```typescript
+interface AnnotationLayerProps {
+  annotations: GraphAnnotation[];
+  graphToScreen: (x: number, y: number) => { x: number; y: number };
+  referenceSeries?: GraphSeries[];  // for intercept auto-detection
+  subjectColor?: string;
+}
+```
+
+**Integration in `GraphCanvasPlot.tsx`**: Render `<AnnotationLayer>` as a child of `<GraphCanvas>` after the curves layer but before the points layer (~line 565). Only renders if `config.annotations?.length > 0`.
+
+---
+
+## Phase 4: Quadrant Mode
+
+**File: `src/components/graph/GraphCanvasPlot.tsx`**
+
+When `config.subjectProfile?.quadrantMode === 'q1'`:
+- Clamp `domainX[0]` and `domainY[0]` to `0` (or a small negative for axis visibility, e.g., -0.5)
+- This restricts the initial camera view to Quadrant 1 only
+- Pan/zoom still works freely (the student can scroll if needed)
+
+This is a 5-line addition in the camera initialization block.
+
+---
+
+## Phase 5: Generation Pipeline Update
+
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+Update the AI prompt schema to include optional annotation and subject profile fields when generating graph questions:
+
+- Add `annotations` array to the graph question JSON schema (optional)
+- Add `subjectProfile` object to the schema (optional)
+- For Physics/Economics/Biology subtopics, include subject-specific axis label hints in the system prompt (e.g., "For a force-time graph, use axisLabels: { x: 'Time (s)', y: 'Force (N)' }")
+- Detect subject from the `subject` field already passed to the generation function
+- When subject is not Mathematics, include a prompt addendum: "Include appropriate axis labels with units and annotate key features"
+
+**File: `supabase/functions/_shared/math-engine.ts`**
+
+No changes needed -- formula evaluation is subject-agnostic.
+
+---
+
+## Phase 6: Point Labels on Math Graphs (the missing feature)
+
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+For math "sketch" questions that mention turning points, roots, or intercepts:
+- Add annotations to `graphConfig.annotations` with `type: 'point'`, `showCoordinates: true`
+- Extract from the question text or `expectedPoints` data
+- Example: if `expectedPoints` includes `{ x: 3, y: 5, label: "Maximum" }`, generate annotation `{ type: 'point', coords: { x: 3, y: 5 }, label: 'Maximum', showCoordinates: true }`
+
+This also works for the review/marking line -- annotations render on the expected curve in review mode.
+
+---
 
 ## Technical Details
 
 ### Files Modified
 
-| File | Change |
-|------|--------|
-| `supabase/functions/generate-practice-questions/index.ts` | Enforce pre-expanded markingFormula, add validation assertion |
-| `src/pages/TakePracticeQuiz.tsx` | Delete ~100 lines of runtime transform detection, replace with direct formula lookup |
-| `src/components/practice/QuestionItem.tsx` | Simplify expectedCurveSeries computation to trust database formula |
-| `src/lib/formula-evaluator.ts` | Minor: ensure prefix stripping handles all edge cases |
+| File | Change | Risk |
+|------|--------|------|
+| `src/components/graph/types.ts` | Add `GraphAnnotation`, `SubjectProfile` interfaces; extend `GraphPlottingConfig` | None -- additive only |
+| `src/components/graph/GraphCanvas.tsx` | Add optional `axisLabels` prop to `AxisLayer` and `GraphCanvas` | Minimal -- defaults preserve current behavior |
+| `src/components/graph/GraphCanvasPlot.tsx` | Thread axis labels, render `AnnotationLayer`, quadrant clamping | Low -- all behind optional config checks |
+| `src/components/graph/AnnotationLayer.tsx` | **NEW** -- SVG annotation renderer | None -- new file |
+| `supabase/functions/generate-practice-questions/index.ts` | Add annotations/subjectProfile to schema and prompt | Low -- optional fields, existing questions unaffected |
 
-### What This Removes
+### Files NOT Modified
 
-- `parseTransformFromQuestionText()` usage in review rendering
-- `formulaAlreadyTransformed` heuristic
-- `applyFormulaTransform()` calls on the frontend
-- Secondary numerical comparison checks (`evaluateFormula` at shifted points)
+- `useGraphCamera.ts` -- no changes
+- `GraphDrawingCanvas.tsx` -- no changes
+- `GraphPlottingQuestion.tsx` -- no changes (annotations are rendered inside `GraphCanvasPlot`)
+- `formula-evaluator.ts` -- no changes
+- `math-engine.ts` -- no changes
 
-### What This Preserves
+### Safety Guarantees
 
-- Legacy fallback for old quizzes without `markingFormula`
-- Bare reference detection (`f(x)` regex guard)
-- Secret formula generation for sketch questions
-- All pan/zoom/interaction features
-
-### Risk Mitigation
-
-Existing quizzes that stored base (untransformed) formulas will still work via the legacy `expectedCurve` fallback. Only **newly generated** quizzes will benefit from the pre-calculated formula guarantee. No database migration is needed -- the `markingFormula` field already exists in the JSON.
+1. Every new field is **optional** with sensible defaults
+2. Existing questions with no `annotations` or `subjectProfile` render identically to today
+3. No marking logic is affected -- annotations are visual-only
+4. The annotation layer is a separate SVG `<g>` element that cannot interfere with point hit-testing or curve rendering
 
