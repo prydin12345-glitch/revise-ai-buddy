@@ -45,6 +45,36 @@ export interface GraphInterpretationConfig extends GraphConfig {
   };
 }
 
+// ============= Universal Subject-Aware Graphing Engine Types =============
+
+// Annotation for labeling points, intercepts, text, or regions on the graph
+export interface GraphAnnotation {
+  id: string;
+  type: 'point' | 'intercept' | 'text' | 'region';
+  /** For point/intercept: the coordinates to label */
+  coords?: { x: number; y: number };
+  /** For intercept: which axis */
+  axis?: 'x' | 'y';
+  /** Display label (e.g., "Terminal Velocity", "A(3, 5)") */
+  label: string;
+  /** Whether to show coordinate values in the label */
+  showCoordinates?: boolean;
+  /** For region shading */
+  fillBetween?: {
+    curveSeriesId: string;
+    fromX?: number;
+    toX?: number;
+    fillColor?: string;
+  };
+}
+
+// Subject profile for axis/viewport defaults
+export interface SubjectProfile {
+  subject?: string; // 'Mathematics' | 'Physics' | 'Economics' | etc.
+  axisLabels?: { x: string; y: string }; // Override "x"/"y"
+  quadrantMode?: 'all' | 'q1' | 'q1q2'; // Default: 'all'
+}
+
 // Configuration for plotting questions
 export interface GraphPlottingConfig extends GraphConfig {
   maxPoints?: number; // Maximum points student can plot
@@ -64,6 +94,9 @@ export interface GraphPlottingConfig extends GraphConfig {
   // Tolerance for x and y separately (default ±0.2)
   toleranceX?: number;
   toleranceY?: number;
+  // Universal Subject-Aware Graphing Engine (additive, all optional)
+  annotations?: GraphAnnotation[];
+  subjectProfile?: SubjectProfile;
 }
 
 // Configuration for bearings questions
@@ -561,6 +594,8 @@ export function parseGraphResponse(
 export function pointDistance(p1: GraphPoint, p2: GraphPoint): number {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
+
+
 
 // Helper to serialize graph transformation response
 export function serializeGraphTransformationResponse(

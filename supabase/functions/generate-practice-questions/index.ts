@@ -446,7 +446,11 @@ EXAMPLE QUESTION FORMATS:
       'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function', 
       'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
       'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
-      'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine'
+      'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine',
+      // Subject-aware graph keywords (Physics, Economics, etc.)
+      'velocity', 'acceleration', 'force', 'displacement', 'momentum', 'energy',
+      'supply', 'demand', 'cost', 'revenue', 'profit', 'equilibrium',
+      'concentration', 'rate', 'temperature', 'pressure', 'volume'
     ];
     
     const tableKeywords = [
@@ -503,6 +507,38 @@ VISUAL QUESTION GUIDELINES:
 - Use table_grid when the question involves data entry or tabular information
 - IMPORTANT: If a question says "sketch", "plot", "draw", or "the graph shows", it MUST use graph_plotting type
 - Never use "extended" type for questions that require visual/graphical answers`;
+    }
+
+    // SUBJECT-AWARE GRAPHING: Add annotations and subject profile instructions for non-Math subjects
+    const subjectId = (setData.subject_id || '').toLowerCase();
+    const isMathSubject = subjectId.includes('math') || subjectId.includes('maths');
+    
+    let subjectGraphInstructions = '';
+    if (!isMathSubject && needsGraphs) {
+      subjectGraphInstructions = `
+SUBJECT-AWARE GRAPHING (${setData.subject_id}):
+Since this is NOT a Mathematics subject, graph questions MUST include:
+1. A "subjectProfile" object in graphConfig with appropriate axis labels and units:
+   - Physics: axisLabels like {"x": "Time (s)", "y": "Velocity (m/s)"}, quadrantMode: "q1"
+   - Economics: axisLabels like {"x": "Quantity", "y": "Price ($)"}, quadrantMode: "q1"
+   - Biology: axisLabels like {"x": "Time (min)", "y": "Rate of reaction"}, quadrantMode: "q1"
+   - Chemistry: axisLabels like {"x": "Volume (cm^3)", "y": "Temperature (C)"}, quadrantMode: "q1"
+2. An "annotations" array to label key features on the graph:
+   - Use type "point" with showCoordinates: true for key values (e.g., terminal velocity, equilibrium)
+   - Use type "intercept" for axis crossings with meaningful labels
+   - Use type "region" with fillBetween for areas under curves (e.g., work done, consumer surplus)
+3. Axis labels MUST include units in parentheses
+4. Most science/economics graphs only use positive values, so use quadrantMode: "q1"
+`;
+    } else if (isMathSubject && needsGraphs) {
+      subjectGraphInstructions = `
+MATH GRAPH ANNOTATIONS:
+For graph questions that mention specific features, include an "annotations" array in graphConfig:
+- If question mentions turning points/maxima/minima: add annotation with type "point", showCoordinates: true
+- If question mentions roots/intercepts: add annotation with type "intercept" and the axis
+- Example: {"id": "max1", "type": "point", "coords": {"x": -0.55, "y": 1.63}, "label": "Maximum", "showCoordinates": true}
+These annotations are visual-only and do NOT affect marking.
+`;
     }
 
     // Determine educational tier for complexity scaling
@@ -812,6 +848,7 @@ ${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
 - ${difficultyInstructions}
 ${complexityInstructions}
 ${transformationInstructions}
+${subjectGraphInstructions}
 ${resourcePackContext}
 
 CRITICAL OUTPUT RULES:
@@ -856,7 +893,17 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
           "lineStyle": "solid"
         }
       ],
-      "grid": {"show": true, "stepX": 1, "stepY": 1}
+      "grid": {"show": true, "stepX": 1, "stepY": 1},
+      "annotations": [  // OPTIONAL - for labeling key features
+        {"id": "ann1", "type": "point", "coords": {"x": 3, "y": 5}, "label": "Maximum", "showCoordinates": true},
+        {"id": "ann2", "type": "intercept", "axis": "x", "label": "Root"},
+        {"id": "ann3", "type": "region", "label": "Area", "fillBetween": {"curveSeriesId": "reference", "fromX": 0, "toX": 3}}
+      ],
+      "subjectProfile": {  // OPTIONAL - for non-Math subjects
+        "subject": "Physics",
+        "axisLabels": {"x": "Time (s)", "y": "Force (N)"},
+        "quadrantMode": "q1"
+      }
     },
     "plottingAnswer": {
       "expectedPoints": [{"x": val, "y": val}, ...],
