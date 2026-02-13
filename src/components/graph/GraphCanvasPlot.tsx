@@ -109,6 +109,8 @@ interface GraphCanvasPlotProps {
   selectedJoinPoints?: GraphPoint[];
   /** Curve mode: 'auto' = Catmull-Rom spline, 'manual' = Bézier control handles */
   curveMode?: 'auto' | 'manual';
+  /** Callback when curve mode changes (e.g. auto-switch to manual on handle drag) */
+  onCurveModeChange?: (mode: 'auto' | 'manual') => void;
   /** Callback to update segments (for control handle dragging) */
   onSegmentsChange?: (segments: LineSegment[]) => void;
   /** Point interaction callbacks */
@@ -161,6 +163,7 @@ export function GraphCanvasPlot({
   draggingPosition,
   selectedJoinPoints = [],
   curveMode = 'auto',
+  onCurveModeChange,
   onSegmentsChange,
   onPointPointerDown,
   onPointPointerMove,
@@ -248,9 +251,31 @@ export function GraphCanvasPlot({
     if (readOnly) return;
     e.stopPropagation();
     e.preventDefault();
+    // Auto-switch to manual mode when user drags a handle in auto mode
+    if (curveMode === 'auto' && onCurveModeChange) {
+      onCurveModeChange('manual');
+      // Also ensure this segment gets a control point stored
+      if (onSegmentsChange) {
+        const seg = segments.find(s => s.id === segmentId);
+        if (seg && !seg.controlPoint) {
+          const midX = (seg.from.x + seg.to.x) / 2;
+          const midY = (seg.from.y + seg.to.y) / 2;
+          const dx = seg.to.x - seg.from.x;
+          const dy = seg.to.y - seg.from.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const bulge = length * 0.2;
+          const perpX = length > 0 ? -dy / length * bulge : 0;
+          const perpY = length > 0 ? dx / length * bulge : 0;
+          const updatedSegments = segments.map(s => 
+            s.id === segmentId ? { ...s, controlPoint: { x: midX + perpX, y: midY + perpY } } : s
+          );
+          onSegmentsChange(updatedSegments);
+        }
+      }
+    }
     setDraggingControlHandle({ segmentId, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId });
     (e.target as Element).setPointerCapture(e.pointerId);
-  }, [readOnly]);
+  }, [readOnly, curveMode, onCurveModeChange, segments, onSegmentsChange]);
   
   const handleControlHandlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingControlHandle || draggingControlHandle.pointerId !== e.pointerId) return;
@@ -663,12 +688,51 @@ export function GraphCanvasPlot({
           })}
         </g>
         
-        {/* Bézier control handles for manual curve mode */}
-        {curveMode === 'manual' && !readOnly && segments.filter(s => s.mode === 'curved').map((seg) => {
+        {/* Bézier control handles - faint in auto mode, solid in manual mode */}
+        {(curveMode === 'manual' || curveMode === 'auto') && !readOnly && segments.filter(s => s.mode === 'curved').map((seg) => {
           const cp = draggingControlHandle?.segmentId === seg.id && controlHandlePosition
             ? controlHandlePosition
             : seg.controlPoint;
-          if (!cp) return null;
+          if (!cp) {
+            // In auto mode, generate a default control point for display
+            if (curveMode === 'auto') {
+              const midX = (seg.from.x + seg.to.x) / 2;
+              const midY = (seg.from.y + seg.to.y) / 2;
+              const dx = seg.to.x - seg.from.x;
+              const dy = seg.to.y - seg.from.y;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              const bulge = length * 0.2;
+              const perpX = length > 0 ? -dy / length * bulge : 0;
+              const perpY = length > 0 ? dx / length * bulge : 0;
+              const autoCP = { x: midX + perpX, y: midY + perpY };
+              const from = graphToScreen(seg.from.x, seg.from.y);
+              const to = graphToScreen(seg.to.x, seg.to.y);
+              const cpScreen = graphToScreen(autoCP.x, autoCP.y);
+              if (!Number.isFinite(cpScreen.x) || !Number.isFinite(cpScreen.y)) return null;
+              
+              const handleOpacity = 0.3; // Faint in auto mode
+              return (
+                <g key={`handle-${seg.id}`}>
+                  <line x1={from.x} y1={from.y} x2={cpScreen.x} y2={cpScreen.y}
+                    stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="3 3" opacity={handleOpacity * 0.6} pointerEvents="none" />
+                  <line x1={to.x} y1={to.y} x2={cpScreen.x} y2={cpScreen.y}
+                    stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="3 3" opacity={handleOpacity * 0.6} pointerEvents="none" />
+                  <circle cx={cpScreen.x} cy={cpScreen.y} r={20} fill="transparent"
+                    style={{ cursor: 'grab', touchAction: 'none' }} pointerEvents="all"
+                    onPointerDown={(e) => {
+                      // Auto-switch to manual when dragging a handle in auto mode
+                      handleControlHandlePointerDown(seg.id, e);
+                    }}
+                    onPointerMove={handleControlHandlePointerMove}
+                    onPointerUp={handleControlHandlePointerUp}
+                  />
+                  <circle cx={cpScreen.x} cy={cpScreen.y} r={5}
+                    fill="hsl(var(--muted))" stroke="hsl(var(--muted-foreground))" strokeWidth={1} opacity={handleOpacity} pointerEvents="none" />
+                </g>
+              );
+            }
+            return null;
+          }
           
           const from = graphToScreen(seg.from.x, seg.from.y);
           const to = graphToScreen(seg.to.x, seg.to.y);
@@ -676,43 +740,26 @@ export function GraphCanvasPlot({
           
           if (!Number.isFinite(cpScreen.x) || !Number.isFinite(cpScreen.y)) return null;
           
+          const isManual = curveMode === 'manual';
+          const handleOpacity = isManual ? 1 : 0.3;
+          const handleRadius = isManual ? 6 : 5;
+          
           return (
             <g key={`handle-${seg.id}`}>
-              {/* Tether lines from endpoints to control point */}
-              <line
-                x1={from.x} y1={from.y} x2={cpScreen.x} y2={cpScreen.y}
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                opacity={0.5}
-                pointerEvents="none"
-              />
-              <line
-                x1={to.x} y1={to.y} x2={cpScreen.x} y2={cpScreen.y}
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                opacity={0.5}
-                pointerEvents="none"
-              />
-              {/* Invisible hit area for control handle */}
-              <circle
-                cx={cpScreen.x} cy={cpScreen.y} r={20}
-                fill="transparent"
-                style={{ cursor: 'grab', touchAction: 'none' }}
-                pointerEvents="all"
+              <line x1={from.x} y1={from.y} x2={cpScreen.x} y2={cpScreen.y}
+                stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="3 3" opacity={handleOpacity * 0.5} pointerEvents="none" />
+              <line x1={to.x} y1={to.y} x2={cpScreen.x} y2={cpScreen.y}
+                stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="3 3" opacity={handleOpacity * 0.5} pointerEvents="none" />
+              <circle cx={cpScreen.x} cy={cpScreen.y} r={20} fill="transparent"
+                style={{ cursor: 'grab', touchAction: 'none' }} pointerEvents="all"
                 onPointerDown={(e) => handleControlHandlePointerDown(seg.id, e)}
                 onPointerMove={handleControlHandlePointerMove}
                 onPointerUp={handleControlHandlePointerUp}
               />
-              {/* Visible control handle */}
-              <circle
-                cx={cpScreen.x} cy={cpScreen.y} r={6}
-                fill="hsl(var(--muted))"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={1.5}
-                pointerEvents="none"
-              />
+              <circle cx={cpScreen.x} cy={cpScreen.y} r={handleRadius}
+                fill={isManual ? "hsl(var(--background))" : "hsl(var(--muted))"}
+                stroke={isManual ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+                strokeWidth={isManual ? 2 : 1} opacity={handleOpacity} pointerEvents="none" />
             </g>
           );
         })}

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { GraphSeries } from './types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { Undo2, Redo2, Trash2, Eraser, Minus, Spline, Pencil, Ruler, Maximize2 } from 'lucide-react';
@@ -1928,40 +1929,44 @@ export function GraphPlottingQuestion({
             </ToggleGroup>
           )}
           
-          {/* Auto/Manual curve mode toggle - only when curved mode is active */}
+          {/* Auto/Manual curve mode switch toggle - centered above Curved tool */}
           {currentJoinMode === 'curved' && !readOnly && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newMode = curveMode === 'auto' ? 'manual' : 'auto';
-                if (newMode === 'manual') {
-                  // Freeze auto-generated control points into segments
-                  saveToHistory();
-                  const updatedSegments = segments.map(seg => {
-                    if (seg.mode === 'curved' && !seg.controlPoint) {
-                      // Generate default control point from auto bulge
-                      const midX = (seg.from.x + seg.to.x) / 2;
-                      const midY = (seg.from.y + seg.to.y) / 2;
-                      const dx = seg.to.x - seg.from.x;
-                      const dy = seg.to.y - seg.from.y;
-                      const length = Math.sqrt(dx * dx + dy * dy);
-                      const bulge = length * 0.2;
-                      const perpX = length > 0 ? -dy / length * bulge : 0;
-                      const perpY = length > 0 ? dx / length * bulge : 0;
-                      return { ...seg, controlPoint: { x: midX + perpX, y: midY + perpY } };
-                    }
-                    return seg;
-                  });
-                  onSegmentsChange(updatedSegments);
-                }
-                setCurveMode(newMode);
-              }}
-              title={curveMode === 'auto' ? 'Switch to Manual curve control' : 'Switch to Auto curve smoothing'}
-              className="ml-1 px-2 font-mono text-xs"
-            >
-              {curveMode === 'auto' ? 'A' : 'M'}
-            </Button>
+            <div className="flex items-center gap-2 ml-2">
+              <span className={cn(
+                "text-xs font-medium transition-colors",
+                curveMode === 'auto' ? "text-foreground" : "text-muted-foreground"
+              )}>Auto</span>
+              <Switch
+                checked={curveMode === 'manual'}
+                onCheckedChange={(checked) => {
+                  const newMode = checked ? 'manual' : 'auto';
+                  if (newMode === 'manual') {
+                    // Freeze auto-generated control points into segments
+                    saveToHistory();
+                    const updatedSegments = segments.map(seg => {
+                      if (seg.mode === 'curved' && !seg.controlPoint) {
+                        const midX = (seg.from.x + seg.to.x) / 2;
+                        const midY = (seg.from.y + seg.to.y) / 2;
+                        const dx = seg.to.x - seg.from.x;
+                        const dy = seg.to.y - seg.from.y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        const bulge = length * 0.2;
+                        const perpX = length > 0 ? -dy / length * bulge : 0;
+                        const perpY = length > 0 ? dx / length * bulge : 0;
+                        return { ...seg, controlPoint: { x: midX + perpX, y: midY + perpY } };
+                      }
+                      return seg;
+                    });
+                    onSegmentsChange(updatedSegments);
+                  }
+                  setCurveMode(newMode);
+                }}
+              />
+              <span className={cn(
+                "text-xs font-medium transition-colors",
+                curveMode === 'manual' ? "text-foreground" : "text-muted-foreground"
+              )}>Manual</span>
+            </div>
           )}
         </div>
       )}
@@ -2036,6 +2041,7 @@ export function GraphPlottingQuestion({
             draggingPosition={draggingPosition}
             selectedJoinPoints={selectedJoinPoints}
             curveMode={curveMode}
+            onCurveModeChange={setCurveMode}
             onSegmentsChange={onSegmentsChange}
             onPointPointerDown={handlePointPointerDown}
             onPointPointerMove={handlePointPointerMove}
