@@ -345,11 +345,15 @@ export function generateCurveFromFormula(
     domain[1] + domainRange * 0.3
   ];
   
-  const step = (extendedDomain[1] - extendedDomain[0]) / (pointDensity * 1.6); // More points for extended domain
+  const totalPoints = Math.round(pointDensity * 1.6);
+  const step = (extendedDomain[1] - extendedDomain[0]) / totalPoints;
   
   let prevY: number | null = null;
   
-  for (let x = extendedDomain[0]; x <= extendedDomain[1]; x += step) {
+  // Use index-based loop to guarantee we hit both boundary values exactly
+  for (let i = 0; i <= totalPoints; i++) {
+    // Force exact boundary values on first and last iteration
+    const x = i === 0 ? extendedDomain[0] : i === totalPoints ? extendedDomain[1] : extendedDomain[0] + i * step;
     const y = evaluateFormula(formula, x);
     
     // CRITICAL FIX: Greatly increased Y-threshold to prevent premature cutoff
