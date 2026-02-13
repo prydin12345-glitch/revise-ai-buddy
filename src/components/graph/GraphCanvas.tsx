@@ -147,12 +147,14 @@ interface AxisLayerProps {
   graphToScreen: (x: number, y: number) => { x: number; y: number };
   visibleDomain: { domainX: [number, number]; domainY: [number, number] };
   scale: number;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
 }
 
 /**
  * Renders X and Y axes with tick labels.
  */
-function AxisLayer({ width, height, graphToScreen, visibleDomain, scale }: AxisLayerProps) {
+function AxisLayer({ width, height, graphToScreen, visibleDomain, scale, xAxisLabel, yAxisLabel }: AxisLayerProps) {
   const { domainX, domainY } = visibleDomain;
   
   // Calculate tick spacing
@@ -289,7 +291,7 @@ function AxisLayer({ width, height, graphToScreen, visibleDomain, scale }: AxisL
         fontWeight={500}
         fill="hsl(var(--foreground))"
       >
-        x
+        {xAxisLabel || 'x'}
       </text>
       <text
         x={yAxisX + 8}
@@ -299,7 +301,7 @@ function AxisLayer({ width, height, graphToScreen, visibleDomain, scale }: AxisL
         fontWeight={500}
         fill="hsl(var(--foreground))"
       >
-        y
+        {yAxisLabel || 'y'}
       </text>
       
       {xTicks}
@@ -344,6 +346,8 @@ export interface GraphCanvasProps {
   readOnly?: boolean;
   /** Custom cursor */
   cursor?: string;
+  /** Custom axis labels (for subject-aware graphing) */
+  axisLabels?: { x: string; y: string };
 }
 
 /**
@@ -370,6 +374,7 @@ export function GraphCanvas({
   onClick,
   readOnly = false,
   cursor,
+  axisLabels,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   
@@ -476,6 +481,8 @@ export function GraphCanvas({
         graphToScreen={graphToScreen}
         visibleDomain={visibleDomain}
         scale={camera.scale}
+        xAxisLabel={axisLabels?.x}
+        yAxisLabel={axisLabels?.y}
       />
       
       {/* Custom content (curves, points, segments, etc.) */}

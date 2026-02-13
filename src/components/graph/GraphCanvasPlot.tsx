@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { GraphCanvas, CurveLayer } from './GraphCanvas';
+import { AnnotationLayer } from './AnnotationLayer';
 import { useGraphCamera } from '@/hooks/useGraphCamera';
 import { 
   GraphPoint, 
@@ -195,6 +196,17 @@ export function GraphCanvasPlot({
   // Initialize camera hook
   // NOTE: Camera pan/zoom is ALWAYS enabled when panZoomEnabled is true,
   // even in readOnly mode. readOnly only prevents editing (adding points, etc.)
+  // Apply quadrant mode clamping
+  let effectiveDomainX = domainX;
+  let effectiveDomainY = domainY;
+  const quadrantMode = config.subjectProfile?.quadrantMode;
+  if (quadrantMode === 'q1') {
+    effectiveDomainX = [Math.max(-0.5, domainX[0]), domainX[1]];
+    effectiveDomainY = [Math.max(-0.5, domainY[0]), domainY[1]];
+  } else if (quadrantMode === 'q1q2') {
+    effectiveDomainY = [Math.max(-0.5, domainY[0]), domainY[1]];
+  }
+
   const {
     camera,
     visibleDomain,
@@ -205,8 +217,8 @@ export function GraphCanvasPlot({
     isPanning,
     resetCamera,
   } = useGraphCamera({
-    initialDomainX: domainX,
-    initialDomainY: domainY,
+    initialDomainX: effectiveDomainX,
+    initialDomainY: effectiveDomainY,
     viewportWidth: width,
     viewportHeight: height,
     interactionEnabled: panZoomEnabled, // Allow pan/zoom even in readOnly mode
@@ -478,6 +490,7 @@ export function GraphCanvasPlot({
         isPanning={isPanning}
         readOnly={readOnly}
         cursor={effectiveCursor}
+        axisLabels={config.subjectProfile?.axisLabels || (config.xLabel !== 'x' || config.yLabel !== 'y' ? { x: config.xLabel, y: config.yLabel } : undefined)}
       >
         {/* ============================================================
            VISUAL STYLE HIERARCHY (Audit v5 Fix #3)
@@ -571,6 +584,17 @@ export function GraphCanvasPlot({
             graphToScreen={graphToScreen}
             stroke="#3b82f6"
             strokeWidth={2}
+          />
+        )}
+        
+        {/* Annotation layer (subject-aware labels, intercepts, region shading) */}
+        {config.annotations && config.annotations.length > 0 && (
+          <AnnotationLayer
+            annotations={config.annotations}
+            graphToScreen={graphToScreen}
+            referenceSeries={referenceSeries}
+            subjectColor={subjectColor}
+            visibleDomain={visibleDomain}
           />
         )}
         
