@@ -1,183 +1,130 @@
 
+# Discrete Path Rendering for Non-Math Graph Questions
 
-# Universal Subject-Aware Graphing Engine
+## Problem
 
-## Overview
+The expected answer system is hardcoded around continuous mathematical formulas (`markingFormula`). For Physics (distance-time), Economics (supply/demand), and other subjects, the correct answer is a **piecewise sequence of vertices** (e.g., move, stop, move again). The current engine either tries to fit a smooth curve or falls back to a single best-fit line, producing scientifically incorrect visuals.
 
-Add an **Annotation Layer** and **Subject Profile** system on top of the existing math graph engine. This is purely additive -- the current math graphing system remains untouched as the default. New optional props and config fields enable subject-specific axis labels, point annotations, region shading, and quadrant restrictions.
+## Solution: "expectedPath" as an Alternative Answer Source
 
-## What Changes (and What Doesn't)
+Add an optional `expectedPath` field to `GraphPlottingAnswer`. When present, the rendering and marking engines switch from formula evaluation to **straight-line vertex connection** ("connect-the-dots" mode). This is purely additive -- when `expectedPath` is absent, the existing `markingFormula` logic is unchanged.
 
-**UNCHANGED (the 90% that works):**
-- All math formula evaluation, marking, camera, pan/zoom, touch input, curve rendering
-- Existing `GraphPlottingConfig`, `GraphCanvasPlot`, `GraphCanvas` core logic
-- Backend marking engine, formula inheritance, sub-question logic
+```text
+Decision flow in review mode:
 
-**NEW (additive layers):**
-- Annotation overlay (point labels, text annotations)
-- Subject-aware axis labels (replacing hardcoded "x"/"y")
-- Quadrant restriction mode
-- Region shading (fill between curve and axis)
-
----
-
-## Phase 1: Annotation Data Types
-
-**File: `src/components/graph/types.ts`**
-
-Add new interfaces at the bottom (no existing types modified):
-
-```typescript
-// Annotation for labeling points on the graph
-interface GraphAnnotation {
-  id: string;
-  type: 'point' | 'intercept' | 'text' | 'region';
-  // For point/intercept: the coordinates to label
-  coords?: { x: number; y: number };
-  // For intercept: which axis
-  axis?: 'x' | 'y';
-  // Display label (e.g., "Terminal Velocity", "A(3, 5)")
-  label: string;
-  // Whether to show coordinate values in the label
-  showCoordinates?: boolean;
-  // For region shading
-  fillBetween?: {
-    curveSeriesId: string;    // which series to shade under
-    fromX?: number;           // start x (defaults to domainX[0])
-    toX?: number;             // end x (defaults to domainX[1])
-    fillColor?: string;       // defaults to subject color with low opacity
-  };
-}
-
-// Subject profile for axis/viewport defaults
-interface SubjectProfile {
-  subject?: string;           // 'Mathematics' | 'Physics' | 'Economics' | etc.
-  axisLabels?: { x: string; y: string };  // Override "x"/"y"
-  quadrantMode?: 'all' | 'q1' | 'q1q2';  // Default: 'all'
-}
-```
-
-Extend `GraphPlottingConfig` (additive, all optional):
-
-```typescript
-// Added to existing GraphPlottingConfig:
-annotations?: GraphAnnotation[];
-subjectProfile?: SubjectProfile;
+  markingFormula exists?
+       |
+  YES: Use formula-driven curve (current math behavior)
+       |
+  NO:  expectedPath exists?
+          |
+     YES: Connect vertices with straight lines
+          |
+     NO:  Legacy expectedCurve fallback
 ```
 
 ---
 
-## Phase 2: Axis Label Override
+## Changes
 
-**File: `src/components/graph/GraphCanvas.tsx` -- `AxisLayer` component**
+### 1. Type Extension (`src/components/graph/types.ts`)
 
-Currently the axis labels are hardcoded as `"x"` and `"y"` (lines 283-303). Change to accept optional props:
+Add to `GraphPlottingAnswer`:
 
-- Add `xAxisLabel?: string` and `yAxisLabel?: string` props to `AxisLayer`
-- Replace the hardcoded `"x"` text with `xAxisLabel || "x"` and `"y"` with `yAxisLabel || "y"`
-- Thread these through from `GraphCanvas` props (new optional `axisLabels` prop)
-
-**File: `src/components/graph/GraphCanvasPlot.tsx`**
-
-- Read `config.subjectProfile?.axisLabels` or fall back to `config.xLabel` / `config.yLabel`
-- Pass to `GraphCanvas` as `axisLabels={{ x: label, y: label }}`
-
-This is a ~10-line change total. Existing math questions have no `subjectProfile`, so they keep "x"/"y".
-
----
-
-## Phase 3: Annotation Overlay Component
-
-**New file: `src/components/graph/AnnotationLayer.tsx`**
-
-A pure SVG `<g>` component that renders labels near graph coordinates:
-
-- **Point labels**: A small tag near the coordinate showing the label text (e.g., "Maximum (3, 5)"). Uses `graphToScreen` to position. Renders as an SVG `<text>` with a subtle background `<rect>` for readability.
-- **Intercept labels**: Automatically finds where a series crosses the specified axis and places a label there.
-- **Region shading**: Renders an SVG `<path>` that follows the curve data and closes along the x-axis, filled with a semi-transparent color.
-
-Props:
 ```typescript
-interface AnnotationLayerProps {
-  annotations: GraphAnnotation[];
-  graphToScreen: (x: number, y: number) => { x: number; y: number };
-  referenceSeries?: GraphSeries[];  // for intercept auto-detection
-  subjectColor?: string;
-}
+// Optional: For piecewise/event-based answers (Physics, Economics, etc.)
+// When present, overrides formula-based rendering with straight-line vertex connection.
+expectedPath?: GraphPoint[];
+// Optional: Labels bound to specific path vertices
+pathAnnotations?: Array<{ pointIndex: number; label: string }>;
 ```
 
-**Integration in `GraphCanvasPlot.tsx`**: Render `<AnnotationLayer>` as a child of `<GraphCanvas>` after the curves layer but before the points layer (~line 565). Only renders if `config.annotations?.length > 0`.
+No existing fields are modified. The `expectedPoints` array (used for point-matching marking) remains separate and unchanged.
+
+### 2. Frontend Rendering (`src/pages/TakePracticeQuiz.tsx`)
+
+In the review-mode `expectedCurveSeries` construction block (lines 1840-1961), add a new step between Step 1 (markingFormula) and Step 2 (legacy fallback):
+
+```
+Step 1:   markingFormula -> formula curve (unchanged)
+Step 1.5: parent inheritance fallback (unchanged)
+NEW Step 1.7: expectedPath -> straight-line series
+Step 2:   legacy expectedCurve fallback (unchanged)
+```
+
+**Step 1.7 logic**: If `expectedCurveSeries` is still empty and `plottingAnswer.expectedPath` exists with 2+ points, create a single `GraphSeries` from those points directly. No smoothing, no curve fitting -- just the raw vertex array rendered as a solid polyline.
+
+**Annotation binding**: If `plottingAnswer.pathAnnotations` exists, convert them to `GraphAnnotation` objects and merge into `config.annotations` so labels like "Bus Stop" or "Point B" appear at the correct vertices via the existing `AnnotationLayer`.
+
+### 3. Backend Marking (`supabase/functions/grade-practice-question/index.ts`)
+
+Add a new marking branch before the existing formula-based and sketch-based logic (around line 325):
+
+**"Segment proximity" marking**: When `expectedPath` exists and `markingFormula` is absent:
+- For each student point, find the nearest line segment in the expected path
+- A point is "correct" if its perpendicular distance to the nearest segment is within `toleranceUnits`
+- Score = (correct points / total student points) * marks
+- Also check if student captured all key vertices (the path's corner points) within tolerance
+
+This is more appropriate than formula sampling because piecewise paths have sharp corners and flat segments that cannot be expressed as y = f(x).
+
+### 4. AI Generation Prompt (`supabase/functions/generate-practice-questions/index.ts`)
+
+Add a new section to the prompt for non-mathematics subjects:
+
+**Trigger**: When the detected subject is Physics, Economics, Biology, Geography, or any non-Mathematics subject, AND the question involves plotting/sketching a graph.
+
+**Instruction addition**:
+```
+For non-mathematics graph_plotting questions (Physics, Economics, Biology, etc.):
+- Use "expectedPath" instead of "markingFormula" in plottingAnswer
+- expectedPath is an ordered array of vertices that define the correct journey/path
+- Connect vertices with straight lines (no curve fitting)
+- Each vertex represents a KEY EVENT (start, stop, direction change, equilibrium)
+- Include "pathAnnotations" to label important vertices
+- Example for a distance-time journey:
+  "expectedPath": [
+    {"x": 0, "y": 0},        // Start
+    {"x": 100, "y": 300},    // Walking at constant speed
+    {"x": 200, "y": 300},    // Stationary (bus stop)
+    {"x": 300, "y": 600}     // Moving again
+  ],
+  "pathAnnotations": [
+    {"pointIndex": 2, "label": "Bus Stop"}
+  ]
+- Do NOT provide markingFormula for piecewise journeys
+- ALWAYS provide subjectProfile with appropriate axis labels
+```
+
+**Schema update**: Add `expectedPath` and `pathAnnotations` to the JSON schema definition for `plottingAnswer`.
+
+### 5. GraphCanvasPlot Rendering (`src/components/graph/GraphCanvasPlot.tsx`)
+
+No changes needed. The `expectedCurveSeries` is already rendered as a polyline through `CurveLayer`, which connects data points in order. As long as `TakePracticeQuiz.tsx` feeds the path vertices as a `GraphSeries`, the existing rendering handles it correctly -- straight segments between sequential points with no smoothing applied.
 
 ---
 
-## Phase 4: Quadrant Mode
-
-**File: `src/components/graph/GraphCanvasPlot.tsx`**
-
-When `config.subjectProfile?.quadrantMode === 'q1'`:
-- Clamp `domainX[0]` and `domainY[0]` to `0` (or a small negative for axis visibility, e.g., -0.5)
-- This restricts the initial camera view to Quadrant 1 only
-- Pan/zoom still works freely (the student can scroll if needed)
-
-This is a 5-line addition in the camera initialization block.
-
----
-
-## Phase 5: Generation Pipeline Update
-
-**File: `supabase/functions/generate-practice-questions/index.ts`**
-
-Update the AI prompt schema to include optional annotation and subject profile fields when generating graph questions:
-
-- Add `annotations` array to the graph question JSON schema (optional)
-- Add `subjectProfile` object to the schema (optional)
-- For Physics/Economics/Biology subtopics, include subject-specific axis label hints in the system prompt (e.g., "For a force-time graph, use axisLabels: { x: 'Time (s)', y: 'Force (N)' }")
-- Detect subject from the `subject` field already passed to the generation function
-- When subject is not Mathematics, include a prompt addendum: "Include appropriate axis labels with units and annotate key features"
-
-**File: `supabase/functions/_shared/math-engine.ts`**
-
-No changes needed -- formula evaluation is subject-agnostic.
-
----
-
-## Phase 6: Point Labels on Math Graphs (the missing feature)
-
-**File: `supabase/functions/generate-practice-questions/index.ts`**
-
-For math "sketch" questions that mention turning points, roots, or intercepts:
-- Add annotations to `graphConfig.annotations` with `type: 'point'`, `showCoordinates: true`
-- Extract from the question text or `expectedPoints` data
-- Example: if `expectedPoints` includes `{ x: 3, y: 5, label: "Maximum" }`, generate annotation `{ type: 'point', coords: { x: 3, y: 5 }, label: 'Maximum', showCoordinates: true }`
-
-This also works for the review/marking line -- annotations render on the expected curve in review mode.
-
----
-
-## Technical Details
-
-### Files Modified
+## Files Modified
 
 | File | Change | Risk |
 |------|--------|------|
-| `src/components/graph/types.ts` | Add `GraphAnnotation`, `SubjectProfile` interfaces; extend `GraphPlottingConfig` | None -- additive only |
-| `src/components/graph/GraphCanvas.tsx` | Add optional `axisLabels` prop to `AxisLayer` and `GraphCanvas` | Minimal -- defaults preserve current behavior |
-| `src/components/graph/GraphCanvasPlot.tsx` | Thread axis labels, render `AnnotationLayer`, quadrant clamping | Low -- all behind optional config checks |
-| `src/components/graph/AnnotationLayer.tsx` | **NEW** -- SVG annotation renderer | None -- new file |
-| `supabase/functions/generate-practice-questions/index.ts` | Add annotations/subjectProfile to schema and prompt | Low -- optional fields, existing questions unaffected |
+| `src/components/graph/types.ts` | Add `expectedPath` and `pathAnnotations` to `GraphPlottingAnswer` | None -- additive |
+| `src/pages/TakePracticeQuiz.tsx` | Add Step 1.7 for expectedPath rendering + annotation binding | Low -- only triggers when new field exists |
+| `supabase/functions/grade-practice-question/index.ts` | Add segment-proximity marking branch | Low -- only triggers when expectedPath present, no markingFormula |
+| `supabase/functions/generate-practice-questions/index.ts` | Add expectedPath schema + non-math prompt addendum | Low -- only affects non-math generation |
 
-### Files NOT Modified
+## Files NOT Modified
 
-- `useGraphCamera.ts` -- no changes
-- `GraphDrawingCanvas.tsx` -- no changes
-- `GraphPlottingQuestion.tsx` -- no changes (annotations are rendered inside `GraphCanvasPlot`)
-- `formula-evaluator.ts` -- no changes
-- `math-engine.ts` -- no changes
+- `GraphCanvasPlot.tsx` -- existing `CurveLayer` already handles polyline rendering
+- `GraphPlottingQuestion.tsx` -- no changes needed
+- `GraphCanvas.tsx` -- no changes needed
+- `AnnotationLayer.tsx` -- already supports point annotations
+- `math-engine.ts` -- formula evaluation is unchanged
+- `formula-evaluator.ts` -- unchanged
 
-### Safety Guarantees
+## Safety Guarantees
 
-1. Every new field is **optional** with sensible defaults
-2. Existing questions with no `annotations` or `subjectProfile` render identically to today
-3. No marking logic is affected -- annotations are visual-only
-4. The annotation layer is a separate SVG `<g>` element that cannot interfere with point hit-testing or curve rendering
-
+1. `expectedPath` is optional -- when absent, all existing math logic is identical
+2. Marking priority: `markingFormula` (if present) always wins over `expectedPath`
+3. Existing math quizzes have no `expectedPath` field, so they are completely unaffected
+4. The only way `expectedPath` gets populated is through the AI generation prompt for non-math subjects
