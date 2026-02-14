@@ -1922,6 +1922,39 @@ const TakePracticeQuiz = () => {
                           }
                         }
                         
+                        // Step 1.7: expectedPath — connect-the-dots for piecewise/non-math answers
+                        if (expectedCurveSeries.length === 0 && plottingAnswer) {
+                          const expectedPath = (plottingAnswer as any).expectedPath;
+                          if (Array.isArray(expectedPath) && expectedPath.length >= 2) {
+                            expectedCurveSeries = [{
+                              id: 'expected-path',
+                              label: 'Expected Answer',
+                              data: expectedPath.map((p: any) => ({ x: p.x, y: p.y })),
+                              color: 'hsl(var(--success))',
+                              showLine: true,
+                              lineStyle: 'solid' as const,
+                            }];
+                            console.log('[Review] EXPECTED PATH: Using connect-the-dots mode with', expectedPath.length, 'vertices');
+                            
+                            // Bind pathAnnotations to the AnnotationLayer
+                            const pathAnnotations = (plottingAnswer as any).pathAnnotations;
+                            if (Array.isArray(pathAnnotations) && pathAnnotations.length > 0) {
+                              const pathAnns = pathAnnotations
+                                .filter((pa: any) => pa.pointIndex >= 0 && pa.pointIndex < expectedPath.length)
+                                .map((pa: any, i: number) => ({
+                                  id: `path-ann-${i}`,
+                                  type: 'point' as const,
+                                  coords: { x: expectedPath[pa.pointIndex].x, y: expectedPath[pa.pointIndex].y },
+                                  label: pa.label,
+                                  showCoordinates: true,
+                                }));
+                              // Merge into config annotations
+                              if (!config.annotations) config.annotations = [];
+                              config.annotations = [...config.annotations, ...pathAnns];
+                            }
+                          }
+                        }
+                        
                         // Step 2: Legacy fallback — use cached expectedCurve coordinates
                         if (expectedCurveSeries.length === 0 && expCurve) {
                           console.log('[Review] LEGACY FALLBACK: Using cached expectedCurve (no valid markingFormula)');

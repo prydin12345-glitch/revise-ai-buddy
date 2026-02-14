@@ -151,6 +151,12 @@ export interface GraphPlottingAnswer {
   toleranceUnits: number;
   marksPerPoint?: number;
   requireOrder?: boolean; // Whether points must be in specific order
+  // Optional: For piecewise/event-based answers (Physics, Economics, etc.)
+  // When present AND markingFormula is absent, overrides formula-based rendering
+  // with straight-line vertex connection ("connect-the-dots" mode).
+  expectedPath?: GraphPoint[];
+  // Optional: Labels bound to specific path vertices
+  pathAnnotations?: Array<{ pointIndex: number; label: string }>;
 }
 
 // Student response for interpretation

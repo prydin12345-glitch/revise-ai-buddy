@@ -529,6 +529,57 @@ Since this is NOT a Mathematics subject, graph questions MUST include:
    - Use type "region" with fillBetween for areas under curves (e.g., work done, consumer surplus)
 3. Axis labels MUST include units in parentheses
 4. Most science/economics graphs only use positive values, so use quadrantMode: "q1"
+
+DISCRETE PATH RENDERING (CRITICAL FOR NON-MATH GRAPH PLOTTING):
+For non-mathematics graph_plotting questions (Physics distance-time, Economics supply/demand, etc.):
+- Use "expectedPath" instead of "markingFormula" in plottingAnswer
+- expectedPath is an ORDERED array of vertices that define the correct journey/path
+- The rendering engine connects these vertices with STRAIGHT lines (no curve fitting)
+- Each vertex represents a KEY EVENT (start, stop, direction change, equilibrium shift)
+- Include "pathAnnotations" to label important vertices with meaningful text
+- Do NOT provide markingFormula for piecewise journeys or event-based paths
+- ALWAYS provide subjectProfile with appropriate axis labels and units
+
+EXAMPLE - Distance-Time Journey:
+{
+  "graphType": "plotting",
+  "graphConfig": {
+    "chartType": "line",
+    "xLabel": "Time (s)",
+    "yLabel": "Distance (m)",
+    "domainX": [0, 350],
+    "domainY": [0, 700],
+    "series": [],
+    "subjectProfile": {
+      "subject": "Physics",
+      "axisLabels": {"x": "Time (s)", "y": "Distance (m)"},
+      "quadrantMode": "q1"
+    }
+  },
+  "plottingAnswer": {
+    "expectedPoints": [{"x": 0, "y": 0}, {"x": 100, "y": 300}, {"x": 200, "y": 300}, {"x": 300, "y": 600}],
+    "toleranceUnits": 15,
+    "expectedPath": [
+      {"x": 0, "y": 0},
+      {"x": 100, "y": 300},
+      {"x": 200, "y": 300},
+      {"x": 300, "y": 600}
+    ],
+    "pathAnnotations": [
+      {"pointIndex": 0, "label": "Start"},
+      {"pointIndex": 2, "label": "Bus Stop (stationary)"},
+      {"pointIndex": 3, "label": "Arrives"}
+    ]
+  }
+}
+
+RULES FOR expectedPath:
+1. Every stage described in the question text MUST map to specific vertices in expectedPath
+2. If the question says "stays stationary for 100 seconds at 300m", expectedPath MUST have two consecutive points with the same y-value
+3. Sharp direction changes (acceleration, deceleration, price shifts) = new vertex
+4. pathAnnotations bind labels to vertices by index (0-based)
+5. expectedPoints should contain the same key vertices for point-matching marking
+6. toleranceUnits should be appropriate for the scale (e.g., 15 for a 0-600 range, not 0.3)
 `;
     } else if (isMathSubject && needsGraphs) {
       subjectGraphInstructions = `
@@ -916,7 +967,9 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
         "showLine": true,
         "lineStyle": "dashed",
         "color": "#22c55e"
-      }
+      },
+      "expectedPath": [{"x": 0, "y": 0}, {"x": 100, "y": 300}, ...],  // OPTIONAL: for piecewise/non-math paths only
+      "pathAnnotations": [{"pointIndex": 0, "label": "Start"}, ...]     // OPTIONAL: labels for expectedPath vertices
     }
   }
 
