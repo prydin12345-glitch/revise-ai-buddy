@@ -1839,6 +1839,31 @@ const TakePracticeQuiz = () => {
                       // formulaAlreadyTransformed heuristics, no applyFormulaTransform.
                       let expectedCurveSeries: GraphSeries[] = [];
                       
+                      // Bind pathAnnotations for BOTH answering and review phases
+                      // so students see labels like "Bus Stop" or "Point B" while plotting
+                      if (plottingAnswer) {
+                        const expectedPath = (plottingAnswer as any).expectedPath;
+                        const pathAnnotations = (plottingAnswer as any).pathAnnotations;
+                        if (Array.isArray(expectedPath) && expectedPath.length >= 2 && Array.isArray(pathAnnotations) && pathAnnotations.length > 0) {
+                          const pathAnns = pathAnnotations
+                            .filter((pa: any) => pa.pointIndex >= 0 && pa.pointIndex < expectedPath.length)
+                            .map((pa: any, i: number) => ({
+                              id: `path-ann-${i}`,
+                              type: 'point' as const,
+                              coords: { x: expectedPath[pa.pointIndex].x, y: expectedPath[pa.pointIndex].y },
+                              label: pa.label,
+                              showCoordinates: true,
+                            }));
+                          if (!config.annotations) config.annotations = [];
+                          // Avoid duplicates if already added
+                          const existingIds = new Set(config.annotations.map((a: any) => a.id));
+                          const newAnns = pathAnns.filter((a: any) => !existingIds.has(a.id));
+                          if (newAnns.length > 0) {
+                            config.annotations = [...config.annotations, ...newAnns];
+                          }
+                        }
+                      }
+                      
                       if (isInReviewMode && plottingAnswer) {
                         const markingFormula = (plottingAnswer as any).markingFormula;
                         const expCurve = (plottingAnswer as any).expectedCurve;
@@ -1935,23 +1960,6 @@ const TakePracticeQuiz = () => {
                               lineStyle: 'solid' as const,
                             }];
                             console.log('[Review] EXPECTED PATH: Using connect-the-dots mode with', expectedPath.length, 'vertices');
-                            
-                            // Bind pathAnnotations to the AnnotationLayer
-                            const pathAnnotations = (plottingAnswer as any).pathAnnotations;
-                            if (Array.isArray(pathAnnotations) && pathAnnotations.length > 0) {
-                              const pathAnns = pathAnnotations
-                                .filter((pa: any) => pa.pointIndex >= 0 && pa.pointIndex < expectedPath.length)
-                                .map((pa: any, i: number) => ({
-                                  id: `path-ann-${i}`,
-                                  type: 'point' as const,
-                                  coords: { x: expectedPath[pa.pointIndex].x, y: expectedPath[pa.pointIndex].y },
-                                  label: pa.label,
-                                  showCoordinates: true,
-                                }));
-                              // Merge into config annotations
-                              if (!config.annotations) config.annotations = [];
-                              config.annotations = [...config.annotations, ...pathAnns];
-                            }
                           }
                         }
                         
