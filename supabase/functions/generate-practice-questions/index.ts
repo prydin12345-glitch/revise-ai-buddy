@@ -1408,6 +1408,25 @@ ${notesSection}`;
     };
 
     const validateOrThrow = (payload: unknown) => {
+      // Pre-validation: remap invalid question types the AI sometimes invents
+      if (payload && typeof payload === 'object' && 'questions' in payload && Array.isArray((payload as any).questions)) {
+        const typeRemap: Record<string, string> = {
+          'numeric': 'short_answer',
+          'numeric_entry': 'short_answer',
+          'fill_in_blank': 'short_answer',
+          'calculation': 'short_answer',
+          'open_ended': 'extended',
+          'long_answer': 'extended',
+          'free_response': 'extended',
+          'multiple_choice': 'mcq',
+        };
+        for (const q of (payload as any).questions) {
+          if (q.question_type && typeRemap[q.question_type]) {
+            console.warn(`Remapping invalid question_type "${q.question_type}" -> "${typeRemap[q.question_type]}"`);
+            q.question_type = typeRemap[q.question_type];
+          }
+        }
+      }
       const parsed = GeneratePracticeQuestionsSchema.safeParse(payload);
       if (!parsed.success) {
         console.error('Schema validation failed:', parsed.error.flatten());
