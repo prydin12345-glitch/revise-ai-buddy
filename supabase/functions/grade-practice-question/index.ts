@@ -318,11 +318,80 @@ serve(async (req) => {
           console.log('[graph-grading] Mode:', isSketchMode ? 'SKETCH' : 'POINT-MATCHING', 'keyFeatures:', !!keyFeatures);
           
           // ======================================================
+          // EXPECTED PATH: Segment-proximity marking for piecewise paths
+          // When expectedPath exists and markingFormula is absent,
+          // use perpendicular distance to nearest segment.
+          // ======================================================
+          const expectedPath = questionData.plottingAnswer?.expectedPath;
+          if (!markingFormula && Array.isArray(expectedPath) && expectedPath.length >= 2 && studentPoints.length > 0) {
+            console.log('[graph-grading] Using SEGMENT-PROXIMITY marking (expectedPath mode)');
+            
+            // Helper: perpendicular distance from point to line segment
+            const pointToSegmentDist = (px: number, py: number, ax: number, ay: number, bx: number, by: number): number => {
+              const dx = bx - ax, dy = by - ay;
+              const lenSq = dx * dx + dy * dy;
+              if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+              let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+              t = Math.max(0, Math.min(1, t));
+              const cx = ax + t * dx, cy = ay + t * dy;
+              return Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+            };
+
+            const pathTolerance = questionData.plottingAnswer?.toleranceUnits ?? toleranceUnits;
+            let correctPoints = 0;
+            const perPointResults: any[] = [];
+
+            for (const sp of studentPoints) {
+              let minDist = Infinity;
+              for (let i = 0; i < expectedPath.length - 1; i++) {
+                const d = pointToSegmentDist(sp.x, sp.y, expectedPath[i].x, expectedPath[i].y, expectedPath[i + 1].x, expectedPath[i + 1].y);
+                if (d < minDist) minDist = d;
+              }
+              const isCorrect = minDist <= pathTolerance;
+              if (isCorrect) correctPoints++;
+              perPointResults.push({
+                studentPoint: sp,
+                nearestSegmentDistance: Math.round(minDist * 100) / 100,
+                matched: isCorrect,
+                status: isCorrect ? 'correct' : 'incorrect'
+              });
+            }
+
+            // Also check vertex coverage: did student hit all key vertices?
+            let vertexHits = 0;
+            for (const v of expectedPath) {
+              const hit = studentPoints.some(sp => Math.sqrt((sp.x - v.x) ** 2 + (sp.y - v.y) ** 2) <= pathTolerance * 1.5);
+              if (hit) vertexHits++;
+            }
+
+            const segmentScore = studentPoints.length > 0 ? correctPoints / studentPoints.length : 0;
+            const vertexScore = expectedPath.length > 0 ? vertexHits / expectedPath.length : 0;
+            const combinedRatio = segmentScore * 0.6 + vertexScore * 0.4;
+            const totalScore = Math.round(question.marks * combinedRatio * 100) / 100;
+
+            graphResult = {
+              score: totalScore,
+              feedback: `${correctPoints}/${studentPoints.length} points on path, ${vertexHits}/${expectedPath.length} key vertices captured.`,
+              isCorrect: combinedRatio >= 0.7,
+              markingData: {
+                markingType: 'segment-proximity',
+                tolerance: pathTolerance,
+                perPointResults,
+                correctPoints,
+                totalPoints: studentPoints.length,
+                vertexHits,
+                totalVertices: expectedPath.length,
+                totalScore,
+                totalMarks: question.marks
+              }
+            };
+          }
+          // ======================================================
           // FORMULA-BASED COORDINATE SAMPLING (PRIMARY METHOD)
           // When markingFormula exists, it is the source of truth.
           // We evaluate the formula at student's X values and compare Y values.
           // ======================================================
-          if (markingFormula && studentPoints.length > 0 && !isSketchMode) {
+          else if (markingFormula && studentPoints.length > 0 && !isSketchMode) {
             console.log('[graph-grading] Using FORMULA-BASED marking (primary method)');
             
             const formulaTolerance = questionData.plottingAnswer?.formulaTolerance ?? 0.5;
