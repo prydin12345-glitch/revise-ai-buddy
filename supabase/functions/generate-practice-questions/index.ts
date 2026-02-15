@@ -922,6 +922,58 @@ MCQ rules (avoid duplication in UI):
 - options MUST be an array of 4 strings WITHOUT letter prefixes.
 - correct_answer MUST be one of: "A", "B", "C", "D".
 
+${!isMathSubject ? `
+Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE):
+- For graph_plotting questions, you MUST use expectedPath (array of vertices), NOT markingFormula.
+- Do NOT compute smooth mathematical curves. The answer is a SEQUENCE OF KEY EVENTS connected by straight lines.
+- correct_answer MUST be an object with ALL of the following:
+  {
+    "graphType": "plotting",
+    "graphConfig": {
+      "chartType": "line",
+      "xLabel": "Time (s)",
+      "yLabel": "Distance (m)",
+      "xDomain": [0, max],
+      "yDomain": [0, max],
+      "domainX": [0, max],
+      "domainY": [0, max],
+      "series": [],
+      "grid": {"show": true, "stepX": appropriate_step, "stepY": appropriate_step},
+      "subjectProfile": {
+        "subject": "${setData.subject_id}",
+        "axisLabels": {"x": "appropriate label with units", "y": "appropriate label with units"},
+        "quadrantMode": "q1"
+      }
+    },
+    "plottingAnswer": {
+      "expectedPoints": [same vertices as expectedPath],
+      "toleranceUnits": appropriate_for_scale,
+      "marksPerPoint": 1,
+      "expectedPath": [
+        {"x": 0, "y": 0},
+        {"x": 100, "y": 300},
+        {"x": 200, "y": 300},
+        {"x": 300, "y": 600}
+      ],
+      "pathAnnotations": [
+        {"pointIndex": 0, "label": "Start"},
+        {"pointIndex": 2, "label": "Stationary"},
+        {"pointIndex": 3, "label": "End"}
+      ]
+    }
+  }
+
+***** CRITICAL RULES FOR NON-MATH GRAPH PLOTTING *****
+1. series.data MUST be an EMPTY array [] - the student plots from scratch
+2. expectedPath is REQUIRED - it defines the correct answer as connected vertices
+3. Do NOT provide markingFormula - it will break rendering for piecewise paths
+4. Do NOT provide expectedCurve - expectedPath replaces it
+5. expectedPoints MUST contain the same key vertices as expectedPath
+6. toleranceUnits must be appropriate for the axis scale (e.g., 15 for 0-600 range, NOT 0.3)
+7. pathAnnotations is REQUIRED - label every key vertex with its meaning
+8. All coordinates must be positive (first quadrant only for science/economics)
+9. If the question describes "stays at 300m for 100 seconds", TWO consecutive points must share y=300
+` : `
 Graph questions (CRITICAL - must ALWAYS render a visible graph):
 - For graph_interpretation and graph_plotting, you MUST generate a complete chart with MATHEMATICAL DATA.
 - correct_answer MUST be an object with ALL of the following:
@@ -945,16 +997,11 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
         }
       ],
       "grid": {"show": true, "stepX": 1, "stepY": 1},
-      "annotations": [  // OPTIONAL - for labeling key features
+      "annotations": [
         {"id": "ann1", "type": "point", "coords": {"x": 3, "y": 5}, "label": "Maximum", "showCoordinates": true},
         {"id": "ann2", "type": "intercept", "axis": "x", "label": "Root"},
         {"id": "ann3", "type": "region", "label": "Area", "fillBetween": {"curveSeriesId": "reference", "fromX": 0, "toX": 3}}
-      ],
-      "subjectProfile": {  // OPTIONAL - for non-Math subjects
-        "subject": "Physics",
-        "axisLabels": {"x": "Time (s)", "y": "Force (N)"},
-        "quadrantMode": "q1"
-      }
+      ]
     },
     "plottingAnswer": {
       "expectedPoints": [{"x": val, "y": val}, ...],
@@ -967,9 +1014,7 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
         "showLine": true,
         "lineStyle": "dashed",
         "color": "#22c55e"
-      },
-      "expectedPath": [{"x": 0, "y": 0}, {"x": 100, "y": 300}, ...],  // OPTIONAL: for piecewise/non-math paths only
-      "pathAnnotations": [{"pointIndex": 0, "label": "Start"}, ...]     // OPTIONAL: labels for expectedPath vertices
+      }
     }
   }
 
@@ -981,6 +1026,7 @@ Graph questions (CRITICAL - must ALWAYS render a visible graph):
 5. Set xDomain/yDomain to encompass all key points mentioned in the question
 6. NEVER use placeholder data like [{"x":0,"y":1},{"x":2,"y":5}] - compute real values
 7. Copy the same curve data into plottingAnswer.expectedCurve for review mode
+`}
 
 Example computation for y = x(x+2)(1-x):
 x=-3: y = -3*(-1)*4 = 12
