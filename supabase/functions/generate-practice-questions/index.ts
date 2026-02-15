@@ -1546,6 +1546,111 @@ ${notesSection}`;
     console.log(`Generated ${questions.length} questions`);
     
     // =====================================================================
+    // PHASE 5.5: NON-MATH GRAPH ENFORCEMENT (Deterministic Post-Processing)
+    // =====================================================================
+    // The AI often ignores the "use expectedPath" instruction and generates
+    // smooth math curves for Physics/Economics questions. This step enforces
+    // the discrete path mode by stripping conflicting data and ensuring
+    // expectedPath exists for non-math graph_plotting questions.
+    if (!isMathSubject) {
+      for (const q of questions) {
+        if (q.question_type !== 'graph_plotting') continue;
+        
+        let graphData: any = null;
+        try {
+          graphData = typeof q.correct_answer === 'string'
+            ? JSON.parse(q.correct_answer)
+            : q.correct_answer;
+        } catch { continue; }
+        
+        if (!graphData || graphData.graphType !== 'plotting') continue;
+        
+        const pa = graphData.plottingAnswer;
+        if (!pa) continue;
+        
+        // RULE 1: Strip markingFormula — it causes the engine to render smooth curves
+        if (pa.markingFormula) {
+          console.warn(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Stripping markingFormula "${pa.markingFormula}" — not allowed for ${setData.subject_id}`);
+          delete pa.markingFormula;
+        }
+        
+        // RULE 2: If expectedPath exists, strip expectedCurve to prevent conflict
+        if (Array.isArray(pa.expectedPath) && pa.expectedPath.length >= 2) {
+          if (pa.expectedCurve) {
+            console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Stripping expectedCurve — expectedPath takes priority`);
+            delete pa.expectedCurve;
+          }
+          // Sync expectedPoints with expectedPath vertices
+          pa.expectedPoints = pa.expectedPath.map((p: any) => ({ x: p.x, y: p.y }));
+          console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: expectedPath OK with ${pa.expectedPath.length} vertices`);
+        } else {
+          // RULE 3: AI didn't provide expectedPath — try to salvage from expectedCurve or series data
+          // Check if the existing curve data looks piecewise (few points with sharp corners)
+          const curveData = pa.expectedCurve?.data || graphData.graphConfig?.series?.[0]?.data;
+          if (Array.isArray(curveData) && curveData.length >= 2) {
+            if (curveData.length <= 20) {
+              // Few enough points — likely already piecewise, promote to expectedPath
+              pa.expectedPath = curveData.map((p: any) => ({ x: p.x, y: p.y }));
+              pa.expectedPoints = pa.expectedPath;
+              delete pa.expectedCurve;
+              console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Promoted ${curveData.length}-point curve to expectedPath`);
+            } else {
+              // Too many points (smooth curve) — extract key vertices (corners/inflection points)
+              const keyPoints: Array<{x: number; y: number}> = [];
+              keyPoints.push({ x: curveData[0].x, y: curveData[0].y });
+              for (let i = 1; i < curveData.length - 1; i++) {
+                const prev = curveData[i - 1];
+                const curr = curveData[i];
+                const next = curveData[i + 1];
+                // Detect direction changes (slope sign change)
+                const slopeBefore = (curr.y - prev.y) / (curr.x - prev.x || 0.001);
+                const slopeAfter = (next.y - curr.y) / (next.x - curr.x || 0.001);
+                if (Math.sign(slopeBefore) !== Math.sign(slopeAfter) || 
+                    Math.abs(slopeAfter - slopeBefore) > 0.5) {
+                  keyPoints.push({ x: curr.x, y: curr.y });
+                }
+              }
+              keyPoints.push({ x: curveData[curveData.length - 1].x, y: curveData[curveData.length - 1].y });
+              
+              if (keyPoints.length >= 2) {
+                pa.expectedPath = keyPoints;
+                pa.expectedPoints = keyPoints;
+                delete pa.expectedCurve;
+                console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Extracted ${keyPoints.length} key vertices from ${curveData.length}-point smooth curve`);
+              }
+            }
+          } else {
+            console.warn(`[NON-MATH ENFORCEMENT] Q${q.question_number}: No expectedPath and no salvageable curve data — graph may not render correctly`);
+          }
+        }
+        
+        // RULE 4: Clear series.data for plotting questions (student plots from scratch)
+        if (graphData.graphConfig?.series) {
+          for (const s of graphData.graphConfig.series) {
+            if (Array.isArray(s.data) && s.data.length > 0) {
+              console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Clearing series "${s.id}" data (${s.data.length} points) — student plots from scratch`);
+              s.data = [];
+            }
+          }
+        }
+        
+        // RULE 5: Ensure toleranceUnits is appropriate for scale
+        if (pa.toleranceUnits && pa.toleranceUnits < 1 && pa.expectedPath?.length > 0) {
+          const maxCoord = Math.max(
+            ...pa.expectedPath.map((p: any) => Math.max(Math.abs(p.x), Math.abs(p.y)))
+          );
+          if (maxCoord > 10) {
+            pa.toleranceUnits = Math.max(1, Math.round(maxCoord * 0.05));
+            console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Adjusted toleranceUnits to ${pa.toleranceUnits} for scale ${maxCoord}`);
+          }
+        }
+        
+        // Write back the corrected data
+        q.correct_answer = graphData;
+      }
+    }
+    
+    // =====================================================================
     // PHASE 6: SUB-QUESTION GROUPING - Share base graph data across 1a, 1b, 1c, etc.
     // =====================================================================
     // Group questions by their root number (e.g., "1a", "1b", "1c" all belong to group "1")
