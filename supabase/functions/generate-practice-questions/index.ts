@@ -1459,17 +1459,26 @@ ${notesSection}`;
         const typeRemap: Record<string, string> = {
           'numeric': 'short_answer',
           'numeric_entry': 'short_answer',
+          'numeric_response': 'short_answer',
           'fill_in_blank': 'short_answer',
           'calculation': 'short_answer',
+          'standard': 'short_answer',
           'open_ended': 'extended',
           'long_answer': 'extended',
           'free_response': 'extended',
+          'essay': 'extended',
+          'extended_response': 'extended',
           'multiple_choice': 'mcq',
+          'true_false': 'mcq',
         };
         for (const q of (payload as any).questions) {
           if (q.question_type && typeRemap[q.question_type]) {
             console.warn(`Remapping invalid question_type "${q.question_type}" -> "${typeRemap[q.question_type]}"`);
             q.question_type = typeRemap[q.question_type];
+          } else if (q.question_type && !['short_answer', 'extended', 'mcq', 'table_grid', 'graph_interpretation', 'graph_plotting', 'graph_transformation'].includes(q.question_type)) {
+            const fallback = (q.marks && q.marks >= 6) ? 'extended' : 'short_answer';
+            console.warn(`Unknown question_type "${q.question_type}" -> fallback "${fallback}"`);
+            q.question_type = fallback;
           }
         }
       }
