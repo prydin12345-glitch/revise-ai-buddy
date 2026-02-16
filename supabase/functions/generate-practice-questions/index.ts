@@ -963,16 +963,35 @@ Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE
     }
   }
 
-***** CRITICAL RULES FOR NON-MATH GRAPH PLOTTING *****
-1. series.data MUST be an EMPTY array [] - the student plots from scratch
-2. expectedPath is REQUIRED - it defines the correct answer as connected vertices
-3. Do NOT provide markingFormula - it will break rendering for piecewise paths
-4. Do NOT provide expectedCurve - expectedPath replaces it
-5. expectedPoints MUST contain the same key vertices as expectedPath
-6. toleranceUnits must be appropriate for the axis scale (e.g., 15 for 0-600 range, NOT 0.3)
-7. pathAnnotations is REQUIRED - label every key vertex with its meaning
-8. All coordinates must be positive (first quadrant only for science/economics)
-9. If the question describes "stays at 300m for 100 seconds", TWO consecutive points must share y=300
+***** ABSOLUTE RULES FOR NON-MATH GRAPH PLOTTING — VIOLATION = BROKEN GRAPH *****
+1. series.data MUST be an EMPTY array [] — student plots from scratch
+2. expectedPath is REQUIRED — array of discrete vertices defining the correct piecewise path
+3. markingFormula is STRICTLY FORBIDDEN — causes cubic/polynomial rendering bugs
+4. expectedCurve is STRICTLY FORBIDDEN — expectedPath replaces it entirely
+5. expectedPoints MUST match expectedPath vertices exactly
+6. toleranceUnits: use 1 for scales 0-30, use 5 for scales 0-100, use 15 for scales 0-600
+7. pathAnnotations is REQUIRED — label EVERY vertex with its physical meaning
+8. All coordinates must be positive (quadrant 1 only)
+9. Flat segments: "stays at 300m for 100s" = TWO points with same y-value
+10. NEVER use polynomial functions (x^2, x^3, sin(x), etc.) — only straight-line segments
+11. subjectProfile is REQUIRED with correct axis labels and units
+
+GOLD STANDARD — copy this structure for ALL speed-time and distance-time graphs:
+{
+  "graphType": "plotting",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Time (s)", "yLabel": "Speed (m/s)",
+    "domainX": [0, 25], "domainY": [0, 25], "xDomain": [0, 25], "yDomain": [0, 25],
+    "series": [], "grid": {"show": true, "stepX": 5, "stepY": 5},
+    "subjectProfile": {"subject": "Physics", "axisLabels": {"x": "Time (s)", "y": "Speed (m/s)"}, "quadrantMode": "q1"}
+  },
+  "plottingAnswer": {
+    "expectedPoints": [{"x": 0, "y": 0}, {"x": 10, "y": 20}, {"x": 20, "y": 20}],
+    "toleranceUnits": 1, "marksPerPoint": 1,
+    "expectedPath": [{"x": 0, "y": 0}, {"x": 10, "y": 20}, {"x": 20, "y": 20}],
+    "pathAnnotations": [{"pointIndex": 0, "label": "Start (at rest)"}, {"pointIndex": 1, "label": "Reaches 20 m/s"}, {"pointIndex": 2, "label": "Constant speed"}]
+  }
+}
 ` : `
 Graph questions (CRITICAL - must ALWAYS render a visible graph):
 - For graph_interpretation and graph_plotting, you MUST generate a complete chart with MATHEMATICAL DATA.
@@ -1266,12 +1285,21 @@ ${notesSection}`;
       },
     } as const;
 
+    const nonMathGraphWarning = !isMathSubject && needsGraphs
+      ? ' CRITICAL: This is a NON-MATH subject. For graph_plotting questions you MUST use expectedPath (array of discrete vertices). ' +
+        'You are STRICTLY FORBIDDEN from using markingFormula or expectedCurve. ' +
+        'You are STRICTLY FORBIDDEN from generating polynomial/cubic/quadratic curves. ' +
+        'Every graph answer MUST be a piecewise linear path with pathAnnotations. ' +
+        'Use the DISCRETE PATH template from the instructions — no smooth curves allowed.'
+      : '';
+
     const baseSystemPrompt =
       'You are an expert practice question generator. ' +
       'You MUST call the function generate_practice_questions. ' +
       'Do not output any other text. ' +
       'No LaTeX, no backslashes, ASCII only. ' +
-      'Math must be plain ASCII like sqrt(16), 3/4, (x+1)/(x-1), pi, !=, <=, >=.';
+      'Math must be plain ASCII like sqrt(16), 3/4, (x+1)/(x-1), pi, !=, <=, >=.' +
+      nonMathGraphWarning;
 
     const strictRetryPrompt = 'Return valid data. No LaTeX. No backslashes. ASCII only.';
 
@@ -1604,29 +1632,19 @@ ${notesSection}`;
               delete pa.expectedCurve;
               console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Promoted ${curveData.length}-point curve to expectedPath`);
             } else {
-              // Too many points (smooth curve) — extract key vertices (corners/inflection points)
-              const keyPoints: Array<{x: number; y: number}> = [];
-              keyPoints.push({ x: curveData[0].x, y: curveData[0].y });
-              for (let i = 1; i < curveData.length - 1; i++) {
-                const prev = curveData[i - 1];
-                const curr = curveData[i];
-                const next = curveData[i + 1];
-                // Detect direction changes (slope sign change)
-                const slopeBefore = (curr.y - prev.y) / (curr.x - prev.x || 0.001);
-                const slopeAfter = (next.y - curr.y) / (next.x - curr.x || 0.001);
-                if (Math.sign(slopeBefore) !== Math.sign(slopeAfter) || 
-                    Math.abs(slopeAfter - slopeBefore) > 0.5) {
-                  keyPoints.push({ x: curr.x, y: curr.y });
-                }
+              // Too many points = smooth polynomial curve (EXACTLY the cubic bug).
+              // DO NOT salvage — this produces the broken cubic rendering.
+              // Instead, discard the curve entirely and downgrade to short_answer.
+              console.warn(`[NON-MATH ENFORCEMENT] Q${q.question_number}: REJECTING ${curveData.length}-point smooth curve — AI generated a polynomial instead of discrete path. Downgrading to short_answer.`);
+              delete pa.expectedCurve;
+              // Clear all curve data to prevent any rendering
+              if (graphData.graphConfig?.series) {
+                graphData.graphConfig.series = [];
               }
-              keyPoints.push({ x: curveData[curveData.length - 1].x, y: curveData[curveData.length - 1].y });
-              
-              if (keyPoints.length >= 2) {
-                pa.expectedPath = keyPoints;
-                pa.expectedPoints = keyPoints;
-                delete pa.expectedCurve;
-                console.info(`[NON-MATH ENFORCEMENT] Q${q.question_number}: Extracted ${keyPoints.length} key vertices from ${curveData.length}-point smooth curve`);
-              }
+              // Downgrade question type since we can't render this correctly
+              q.question_type = 'short_answer';
+              q.correct_answer = 'See worked solution for the correct graph description.';
+              continue; // Skip remaining rules for this question
             }
           } else {
             console.warn(`[NON-MATH ENFORCEMENT] Q${q.question_number}: No expectedPath and no salvageable curve data — graph may not render correctly`);
