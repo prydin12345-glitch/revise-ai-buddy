@@ -1839,9 +1839,9 @@ const TakePracticeQuiz = () => {
                       // formulaAlreadyTransformed heuristics, no applyFormulaTransform.
                       let expectedCurveSeries: GraphSeries[] = [];
                       
-                      // Bind pathAnnotations for BOTH answering and review phases
-                      // so students see labels like "Bus Stop" or "Point B" while plotting
-                      if (plottingAnswer) {
+                      // Bind pathAnnotations only in REVIEW mode for non-math subjects
+                      // to avoid "spoiling" the answer during the answering phase
+                      if (plottingAnswer && isInReviewMode) {
                         const expectedPath = (plottingAnswer as any).expectedPath;
                         const pathAnnotations = (plottingAnswer as any).pathAnnotations;
                         if (Array.isArray(expectedPath) && expectedPath.length >= 2 && Array.isArray(pathAnnotations) && pathAnnotations.length > 0) {
