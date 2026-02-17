@@ -2471,11 +2471,20 @@ ${notesSection}`;
           graphData = typeof q.correct_answer === 'string' 
             ? JSON.parse(q.correct_answer) 
             : q.correct_answer;
-          const series = graphData?.graphConfig?.series;
-          if (Array.isArray(series) && series.length > 0) {
-            const firstSeries = series[0];
-            if (Array.isArray(firstSeries?.data) && firstSeries.data.length >= 3) {
-              hasValidData = true;
+          
+          // NEW: For non-math subjects, expectedPath IS the valid data — skip math engine entirely
+          if (!isMathSubject && graphData?.plottingAnswer?.expectedPath?.length >= 2) {
+            hasValidData = true;
+            console.info(`Q${q.question_number}: expectedPath has ${graphData.plottingAnswer.expectedPath.length} vertices — skipping math curve generation`);
+          }
+          
+          if (!hasValidData) {
+            const series = graphData?.graphConfig?.series;
+            if (Array.isArray(series) && series.length > 0) {
+              const firstSeries = series[0];
+              if (Array.isArray(firstSeries?.data) && firstSeries.data.length >= 3) {
+                hasValidData = true;
+              }
             }
           }
         } catch (e) {
@@ -3192,6 +3201,12 @@ ${notesSection}`;
               gd.plottingAnswer.markingFormula = null;
               q.correct_answer = gd;
             }
+          }
+          // FINAL SAFETY NET: Strip markingFormula for non-math subjects no matter what
+          if (!isMathSubject && gd?.plottingAnswer?.markingFormula) {
+            console.warn(`Q${q.question_number}: FINAL SAFETY NET — stripping markingFormula for non-math subject`);
+            gd.plottingAnswer.markingFormula = null;
+            q.correct_answer = gd;
           }
         } catch { /* non-critical */ }
       }
