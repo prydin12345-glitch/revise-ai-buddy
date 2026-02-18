@@ -646,6 +646,7 @@ export async function generateExamPDF(
 
   const addPageNumbers = () => {
     const pageCount = doc.getNumberOfPages();
+    const disclaimer = "Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.";
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(9);
@@ -655,10 +656,17 @@ export async function generateExamPDF(
       
       setColor(COLORS.separator, "draw");
       doc.setLineWidth(0.3);
-      doc.line(MARGIN, A4_HEIGHT - 15, A4_WIDTH - MARGIN, A4_HEIGHT - 15);
+      doc.line(MARGIN, A4_HEIGHT - 18, A4_WIDTH - MARGIN, A4_HEIGHT - 18);
       
+      // Disclaimer footer
+      doc.setFontSize(6);
+      setColor(COLORS.muted);
+      doc.text(disclaimer, A4_WIDTH / 2, A4_HEIGHT - 14, { align: "center" });
+      
+      // Page number
+      doc.setFontSize(9);
       if (i > 1) {
-        doc.text(`${i - 1}`, A4_WIDTH / 2, A4_HEIGHT - 10, { align: "center" });
+        doc.text(`${i - 1}`, A4_WIDTH / 2, A4_HEIGHT - 8, { align: "center" });
       }
     }
   };
@@ -688,7 +696,14 @@ export async function generateExamPDF(
       setColor(COLORS.secondary);
       const subtitleParts: string[] = [];
       if (examData.subject) subtitleParts.push(examData.subject);
-      if (examData.exam_board) subtitleParts.push(examData.exam_board);
+      if (examData.exam_board) {
+        // Scrub board name for PDF export
+        const boardMap: Record<string, string> = {
+          aqa: 'UK Board A', edexcel: 'UK Board B', ocr: 'UK Board C',
+          cie: 'International Board', wjec: 'Welsh Board', ib: 'IB Programme',
+        };
+        subtitleParts.push(boardMap[examData.exam_board.toLowerCase()] || examData.exam_board);
+      }
       if (examData.qualification_level) subtitleParts.push(examData.qualification_level);
       doc.text(subtitleParts.join("  ·  "), A4_WIDTH / 2, yPosition, { align: "center" });
       yPosition += 12;

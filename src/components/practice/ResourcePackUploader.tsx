@@ -254,7 +254,7 @@ export const ResourcePackUploader = ({
               Click to upload Insert PDF
             </span>
             <span className="text-xs text-muted-foreground mt-1">
-              e.g., AQA English Insert, Geography Resource Booklet
+              e.g., English Insert, Geography Resource Booklet
             </span>
           </label>
         </div>

@@ -666,6 +666,7 @@ export type Database = {
           exam_board: string | null
           extraction_error: string | null
           extraction_status: string | null
+          file_processed_at: string | null
           file_url: string | null
           grade_released: boolean | null
           id: string
@@ -696,6 +697,7 @@ export type Database = {
           exam_board?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
+          file_processed_at?: string | null
           file_url?: string | null
           grade_released?: boolean | null
           id?: string
@@ -726,6 +728,7 @@ export type Database = {
           exam_board?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
+          file_processed_at?: string | null
           file_url?: string | null
           grade_released?: boolean | null
           id?: string
@@ -1397,6 +1400,7 @@ export type Database = {
           educational_tier: string | null
           exam_board: string | null
           example_paper_url: string | null
+          file_processed_at: string | null
           id: string
           learned_patterns: Json | null
           pack_type: string
@@ -1413,6 +1417,7 @@ export type Database = {
           educational_tier?: string | null
           exam_board?: string | null
           example_paper_url?: string | null
+          file_processed_at?: string | null
           id?: string
           learned_patterns?: Json | null
           pack_type: string
@@ -1429,6 +1434,7 @@ export type Database = {
           educational_tier?: string | null
           exam_board?: string | null
           example_paper_url?: string | null
+          file_processed_at?: string | null
           id?: string
           learned_patterns?: Json | null
           pack_type?: string

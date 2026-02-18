@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Info } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { EXAM_BOARD_OPTIONS, BOARD_SELECTOR_TOOLTIP, UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -20,15 +23,7 @@ const subjects = [
   { id: "other", name: "Other" },
 ];
 
-const examBoards = [
-  { id: "aqa", name: "AQA" },
-  { id: "edexcel", name: "Edexcel" },
-  { id: "ocr", name: "OCR" },
-  { id: "cie", name: "Cambridge International (CIE)" },
-  { id: "ib", name: "International Baccalaureate (IB)" },
-  { id: "wjec", name: "WJEC" },
-  { id: "other", name: "Other" }
-];
+const examBoards = EXAM_BOARD_OPTIONS;
 
 const qualificationLevels = [
   { id: "gcse", name: "GCSE" },
@@ -49,6 +44,8 @@ export default function UploadExam() {
   const [qualificationLevel, setQualificationLevel] = useState<string>("");
   const [specFile, setSpecFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [declarationChecked, setDeclarationChecked] = useState(false);
+  const [titleWarning, setTitleWarning] = useState<string | null>(null);
   const [errors, setErrors] = useState({ subject: "", file: "", fileName: "", examBoard: "" });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,7 +154,13 @@ export default function UploadExam() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger><Info className="h-3 w-3" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{BOARD_SELECTOR_TOOLTIP}</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 Used to match question style, command words, and mark scheme format
               </p>
               {errors.examBoard && <p className="text-destructive text-sm mt-1">{errors.examBoard}</p>}
@@ -241,16 +244,31 @@ export default function UploadExam() {
                 onChange={(e) => {
                   setFileName(e.target.value);
                   setErrors({ ...errors, fileName: "" });
+                  setTitleWarning(checkTitleForBoardReferences(e.target.value));
                 }}
                 className="h-11"
               />
               {errors.fileName && <p className="text-destructive text-sm mt-1">{errors.fileName}</p>}
+              {titleWarning && <p className="text-amber-600 text-xs mt-1">{titleWarning}</p>}
+            </div>
+
+            {/* Declaration Checkbox */}
+            <div className="flex items-start space-x-3 p-4 border border-border rounded-lg bg-muted/30">
+              <Checkbox
+                id="declaration"
+                checked={declarationChecked}
+                onCheckedChange={(checked) => setDeclarationChecked(checked === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="declaration" className="text-sm leading-relaxed cursor-pointer">
+                {UPLOAD_DECLARATION}
+              </Label>
             </div>
           </div>
 
           <Button
             onClick={handleUpload}
-            disabled={uploading}
+            disabled={uploading || !declarationChecked}
             className="w-full h-12 text-base font-medium button-glow mt-8"
           >
             {uploading ? (

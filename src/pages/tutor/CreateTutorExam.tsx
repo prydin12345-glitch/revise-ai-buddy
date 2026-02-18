@@ -23,12 +23,12 @@ import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 
 const examBoards = [
-  { id: "aqa", name: "AQA" },
-  { id: "edexcel", name: "Edexcel" },
-  { id: "ocr", name: "OCR" },
-  { id: "cie", name: "Cambridge International (CIE)" },
-  { id: "ib", name: "International Baccalaureate (IB)" },
-  { id: "wjec", name: "WJEC" },
+  { id: "aqa", name: "UK Board A (command-verb style)" },
+  { id: "edexcel", name: "UK Board B (Pearson style)" },
+  { id: "ocr", name: "UK Board C (structured response)" },
+  { id: "cie", name: "International Board (Cambridge style)" },
+  { id: "ib", name: "IB Programme" },
+  { id: "wjec", name: "Welsh Board (WJEC style)" },
   { id: "other", name: "Other" }
 ];
 
