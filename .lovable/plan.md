@@ -1,86 +1,183 @@
 
-# Fix: Stop Math Curve Regeneration from Overwriting Non-Math Graph Data
 
-## Root Cause (The Real Bug)
+# Legal and Privacy Compliance Framework
 
-The pipeline has two conflicting phases that run in sequence:
+## Overview
 
-1. **Phase 5.5** (lines 1592-1678): Correctly strips `markingFormula`, validates `expectedPath`, and clears `series.data` for non-math subjects.
+This plan implements a comprehensive legal and privacy layer across the platform to mitigate copyright and trademark liability while preserving full educational functionality. The changes span frontend UI, backend edge functions, and post-processing logic.
 
-2. **Graph Question Validation** (lines 2462-3031): Checks if `series[0].data.length >= 3` to determine `hasValidData`. Since Phase 5.5 just emptied `series.data`, this check **always returns false** for non-math subjects. The code then enters the `!hasValidData` branch, which runs the full math engine -- parsing functions from question text, generating polynomial curves, creating `markingFormula`, running Lagrange interpolation, and generating "secret marking formulas." This **overwrites** the correct `expectedPath` data with cubic/polynomial curves.
+---
 
-In short: Phase 5.5 does its job perfectly, then the Graph Validation block undoes all of it.
+## 1. Ephemeral PDF Processing (Zero-Persistence)
 
-## The Fix
+### Current State
+- Uploaded PDFs are stored permanently in the `exam-files` Supabase Storage bucket
+- Files remain accessible indefinitely after upload
 
-### Change 1: Update `hasValidData` to recognize `expectedPath` as valid (line ~2468-2483)
+### Changes
 
-Before checking series data, check if this is a non-math question with a valid `expectedPath`. If so, mark `hasValidData = true` and skip the entire math curve generation block.
+**A. Upload Declaration Checkbox**
+- Add a mandatory checkbox to all upload forms before the submit button:
+  - `src/pages/UploadExam.tsx` (exam upload)
+  - `src/pages/CreatePracticeQuestions.tsx` (spec/example file upload)
+  - `src/components/practice/ResourcePackUploader.tsx` (resource pack upload)
+  - `src/pages/CreateExam.tsx` (tutor exam creation)
+- Checkbox text: "I confirm I have lawful access to this material and am using it for private study and non-commercial educational purposes only."
+- Submit button remains disabled until checkbox is ticked
+
+**B. Scheduled File Cleanup**
+- Create a new edge function `cleanup-expired-files/index.ts` that:
+  - Queries the `exams` table for records older than 24 hours with a non-null `file_url`
+  - Deletes the corresponding file from storage
+  - Sets `file_url` to `NULL` in the database
+  - Does the same for `specification_file_url`, `source_file_url` on `resource_packs`, and practice set spec/example URLs
+- The function processes in batches and logs deletions
+- Note: The actual PDF content is already extracted into structured text/JSON during analysis -- the original file is not needed after processing
+
+**C. Immediate Cleanup After Processing**
+- In `upload-exam/index.ts` and `extract-resource-pack/index.ts`: after the AI has finished extracting content, delete the source file from storage immediately rather than waiting for the scheduled cleanup
+- Add a `file_processed_at` timestamp column to track when extraction completed
+
+---
+
+## 2. Trademark and Branding Scrubbing
+
+### Current State
+- Exam board names (AQA, Edexcel, OCR, etc.) appear verbatim in:
+  - Dropdown menus
+  - AI prompts
+  - Generated question text
+  - PDF exports
+  - Database records
+
+### Changes
+
+**A. Rebrand Dropdown Labels (Frontend)**
+- Replace exam board dropdowns in `UploadExam.tsx`, `CreateExam.tsx`, `CreatePracticeQuestions.tsx`, and `tutor/EditExam.tsx` with generic descriptors:
 
 ```text
-// After parsing graphData (around line 2470):
-// NEW: For non-math subjects, expectedPath IS the valid data -- don't regenerate
-if (!isMathSubject && graphData?.plottingAnswer?.expectedPath?.length >= 2) {
-  hasValidData = true;
-  console.info(`Q${q.question_number}: expectedPath has ${graphData.plottingAnswer.expectedPath.length} vertices -- skipping math curve generation`);
-}
+Current                          -->  New Label
+AQA                              -->  "UK Board A (command-verb style)"
+Edexcel                          -->  "UK Board B (Pearson style)"  
+OCR                              -->  "UK Board C (structured response)"
+Cambridge International (CIE)    -->  "International Board (Cambridge style)"
+International Baccalaureate (IB) -->  "IB Programme"
+WJEC                             -->  "Welsh Board (WJEC style)"
 ```
 
-This single guard prevents the entire 500+ line math engine block from running on physics/economics questions.
+- Internal `id` values remain unchanged so existing database records still work
+- Add a small info tooltip: "Board selection determines question style, command verbs, and mark scheme format. We are not affiliated with any examination board."
 
-### Change 2: Final safety net before storage (around line 3181-3197)
+**B. AI Prompt Translation (Edge Functions)**
+- In `generate-practice-questions/index.ts` (line ~898): before injecting the exam board into the prompt, translate it:
+  - `aqa` becomes "UK exam board using command verbs like 'evaluate', 'explain', 'compare'; structured mark schemes"
+  - `edexcel` becomes "UK exam board (Pearson) with data-response and multi-part questions"
+  - `ocr` becomes "UK exam board with structured response format and synoptic assessment"
+- The AI never sees the actual trademarked name in its system prompt
 
-Add a second check in the existing "pre-storage assertion" block: if a non-math `graph_plotting` question somehow still has a `markingFormula` at storage time, strip it.
+**C. Output Scrubbing (Post-Processing)**
+- Create a utility function `scrubBoardReferences(text: string): string` used in the edge function after AI generation
+- Removes:
+  - Exam board names: AQA, Edexcel, OCR, WJEC, Pearson, Cambridge International, CIE
+  - Year/session codes: "June 2023", "Jan 2011", "Paper 1 2022"
+  - Original question references: "Question 21a", "Q3(b)(ii) from Paper 2"
+- Applied to: `question_text`, `correct_answer` text fields, `feedback` text
+- Does NOT touch: numerical values, coordinates, graph data, table data, or `expectedPath` arrays
 
-```text
-// Extend the existing pre-storage assertion block:
-if (!isMathSubject && gd?.plottingAnswer?.markingFormula) {
-  console.warn(`Q${q.question_number}: FINAL SAFETY NET -- stripping markingFormula for non-math subject`);
-  gd.plottingAnswer.markingFormula = null;
-  q.correct_answer = gd;
-}
-```
+**D. PDF Export Scrubbing**
+- In `src/lib/exam-pdf-generator.ts`: run the subtitle line (line 691) through the scrubber so exported PDFs don't display raw board names
 
-### Change 3: Live test via edge function call
+---
 
-After deploying the fix, I will:
-1. Call the `generate-practice-questions` edge function with a "Speed-Time" physics quiz configuration for the `prydin12345@gmail.com` account
-2. Inspect the raw JSON output from the edge function logs
-3. Verify: no `markingFormula`, valid `expectedPath` with discrete vertices, `pathAnnotations` present, `quadrantMode: "q1"`, and `series.data` is empty
-4. If anything is wrong, iterate on the fix before finalizing
+## 3. Content Authenticity Disclaimer
 
-### Change 4: Insert verified quiz data
+### Changes
 
-If the automated generation now works correctly, the quiz will appear on the account automatically. If it still has issues, I will manually insert a correct "Speed-Time Challenge v2" quiz using the same Gold Standard structure as the working quiz.
+**A. Quiz/Exam Footer (UI)**
+- Add a persistent footer text to:
+  - `src/pages/TakePracticeQuiz.tsx` -- bottom of the quiz interface
+  - `src/pages/ExamInProgress.tsx` -- bottom of the exam interface
+  - `src/pages/ExamReview.tsx` -- bottom of review pages
+- Text: "Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board."
+- Styled as a small, muted footer that doesn't interfere with the educational content
 
-## Why This Permanently Fixes It
+**B. PDF Export Footer**
+- In `exam-pdf-generator.ts`: add the same disclaimer text at the bottom of every generated PDF page as a footer line
 
-- The previous attempts added more instructions to the AI prompt and more post-processing rules, but never addressed the fact that the downstream code **re-generates math curves regardless**
-- This fix attacks the actual code path: the `hasValidData` boolean gate that controls whether the math engine runs
-- Even if the AI produces perfect `expectedPath` data and Phase 5.5 validates it, the math engine was always overwriting it -- this fix stops that from happening
+**C. Generated Data Metadata**
+- In the edge function, stamp each generated question's metadata with `{ "content_origin": "ai_generated", "disclaimer_version": "1.0" }` for audit trail
+
+---
+
+## 4. Account Type Awareness
+
+### Changes
+
+**A. Tutor Content Sharing Warning**
+- When a tutor assigns an AI-generated exam to a group, show a one-time advisory modal:
+  - "This content is AI-generated for educational practice. Sharing AI-generated materials that closely replicate copyrighted exam structures may have legal implications. Please ensure all distributed content is sufficiently original."
+- Track dismissal in `tutor_profiles.settings` JSON so it only shows once
+
+**B. Quiz Transformativeness Enforcement**
+- In the AI prompt for practice quiz generation, add an explicit instruction:
+  - "All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills."
+- For "Mock Exam" generation (tutor flow), strengthen this to:
+  - "The structure (number of questions, mark distribution, question types) should follow the specified board style, but ALL content -- scenarios, data, source texts, numerical values -- MUST be 100% original."
+
+---
+
+## 5. Engine Integrity Safeguard
+
+### The Rule
+- The scrubbing layer operates exclusively on string fields: `question_text`, `feedback`, `correct_answer` (when it's a text string), and display labels
+- It explicitly skips:
+  - `graphConfig` (series data, domain ranges, axis configuration)
+  - `plottingAnswer` (expectedPath, pathAnnotations coordinates)
+  - `options` arrays (MCQ choices -- these are scrubbed separately for text only)
+  - `table_data`, `content_json` in resource items
+  - Any numeric or coordinate data
+
+---
+
+## 6. Additional Enforcement Items Identified
+
+**A. Landing Page Copy**
+- Update `src/components/LandingPage.tsx` feature descriptions to avoid implying we host or distribute copyrighted papers:
+  - Change "Upload Past Papers" to "Upload Study Materials"
+  - Change "Upload your past exam papers as PDFs" to "Upload your study documents for AI-powered practice generation"
+
+**B. Notes Field Board Name Advisory**
+- In `src/lib/notes-sanitizer.ts`, update the example text (line 231) from "GCSE AQA style" to "GCSE style; structured mark scheme format"
+- Add a soft warning (not a block) when users type board names in notes: "Tip: Board names are used internally for style matching only. Generated content will not reference specific boards."
+
+**C. Exam Title Validation**
+- Add a soft warning when users name their exam/quiz with board names + year codes (e.g., "AQA Physics June 2024") suggesting they use a generic title instead
+
+---
 
 ## Files to Modify
 
-- `supabase/functions/generate-practice-questions/index.ts` (2 surgical changes + redeploy)
+| File | Change |
+|------|--------|
+| `src/pages/UploadExam.tsx` | Add declaration checkbox, rebrand board dropdown, title warning |
+| `src/pages/CreateExam.tsx` | Add declaration checkbox, rebrand board dropdown |
+| `src/pages/CreatePracticeQuestions.tsx` | Add declaration checkbox, rebrand board dropdown |
+| `src/components/practice/ResourcePackUploader.tsx` | Add declaration checkbox |
+| `src/pages/tutor/EditExam.tsx` | Rebrand board dropdown |
+| `src/pages/tutor/CreateTutorExam.tsx` | Rebrand board dropdown |
+| `src/pages/TakePracticeQuiz.tsx` | Add disclaimer footer |
+| `src/pages/ExamInProgress.tsx` | Add disclaimer footer |
+| `src/pages/ExamReview.tsx` | Add disclaimer footer |
+| `src/components/LandingPage.tsx` | Update marketing copy |
+| `src/lib/notes-sanitizer.ts` | Update examples, add board name advisory |
+| `src/lib/exam-pdf-generator.ts` | Add disclaimer footer, scrub board names |
+| `src/lib/board-scrubber.ts` | NEW -- shared scrubbing utility |
+| `supabase/functions/generate-practice-questions/index.ts` | Prompt translation, output scrubbing, originality instructions |
+| `supabase/functions/cleanup-expired-files/index.ts` | NEW -- scheduled file deletion |
+| `supabase/functions/upload-exam/index.ts` | Post-processing file deletion |
+| `supabase/functions/extract-resource-pack/index.ts` | Post-processing file deletion |
 
-## Technical Summary
+## Database Migration
+- Add `file_processed_at` timestamp column to `exams` table (nullable, default NULL)
+- Add `file_processed_at` timestamp column to `resource_packs` table (nullable, default NULL)
 
-```text
-Before:
-  Phase 5.5 strips markingFormula, validates expectedPath, clears series.data
-     |
-     v
-  hasValidData = (series[0].data.length >= 3)  --> FALSE (series was cleared!)
-     |
-     v
-  Math engine generates cubic curves, overwrites correct_answer  --> BROKEN
-
-After:
-  Phase 5.5 strips markingFormula, validates expectedPath, clears series.data
-     |
-     v
-  hasValidData = (expectedPath.length >= 2)  --> TRUE (path exists!)
-     |
-     v
-  Math engine SKIPPED  --> CORRECT expectedPath preserved
-```
