@@ -2532,6 +2532,12 @@ const TakePracticeQuiz = () => {
           </AlertDialogContent>
         </AlertDialog>
       )}
+      {/* Content Disclaimer Footer */}
+      <div className="border-t border-border bg-muted/30 py-3 px-6 text-center mt-auto">
+        <p className="text-xs text-muted-foreground">
+          Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.
+        </p>
+      </div>
     </div>
   );
 };

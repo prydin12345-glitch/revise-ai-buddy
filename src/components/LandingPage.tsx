@@ -16,8 +16,8 @@ const LandingPage = () => {
   const features = [
     {
       icon: Upload,
-      title: "Upload Past Papers",
-      description: "Simply upload your exam papers as PDFs and let AI extract the questions and topics"
+      title: "Upload Study Materials",
+      description: "Upload your study documents for AI-powered practice generation"
     },
     {
       icon: Sparkles,
@@ -153,7 +153,7 @@ const LandingPage = () => {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { step: "1", title: "Upload Papers", description: "Upload your past exam papers as PDFs" },
+              { step: "1", title: "Upload Materials", description: "Upload your study documents as PDFs" },
               { step: "2", title: "AI Generates", description: "Our AI analyzes and creates personalized exams" },
               { step: "3", title: "Practice & Improve", description: "Take tests, track progress, and ace your exams" },
             ].map((item, index) => (

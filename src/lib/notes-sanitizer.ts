@@ -228,7 +228,7 @@ export function validateNotesQuick(input: string): { valid: boolean; reason?: st
  */
 export const NOTES_EXAMPLES = [
   "Focus on meiosis and mitosis; include 2 table questions",
-  "GCSE AQA style; medium difficulty; no calculus required",
+  "GCSE style; structured mark scheme format; medium difficulty; no calculus required",
   "Include 5 MCQs and 3 short answer questions",
   "10 minutes time limit; show working required",
   "Focus on photosynthesis; avoid cellular respiration",

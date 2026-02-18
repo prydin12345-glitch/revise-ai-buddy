@@ -184,7 +184,7 @@ async function generateQuestionsInBackground(
 CONTEXT:
 - Subject: ${setData.subject_id}
 - Educational Tier: ${setData.educational_tier || 'Secondary'}
-- Exam Board: ${setData.exam_board || 'UK exam board'}
+- Question Style: ${setData.exam_board || 'UK exam board'}
 
 Given the following PDF text content from an exam insert or resource booklet, identify and extract all discrete resources (sources, texts, data tables, images described, etc.).
 
@@ -889,15 +889,31 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
 `;
     }
 
+    // Translate exam board to generic style description (no trademarked names in prompt)
+    const boardTranslation: Record<string, string> = {
+      aqa: "UK exam board using command verbs like 'evaluate', 'explain', 'compare'; structured mark schemes with AO1/AO2/AO3 weighting",
+      edexcel: "UK exam board (Pearson style) with data-response and multi-part questions; emphasis on application and analysis",
+      ocr: "UK exam board with structured response format and synoptic assessment; clear command terms",
+      cie: "International exam board (Cambridge style) with structured data response and essay-type questions",
+      wjec: "Welsh exam board with structured mark schemes; emphasis on Welsh context where appropriate",
+      ib: "International Baccalaureate programme with internal assessment style and extended response questions",
+      college_board: "US standardized testing style with multiple-choice and free-response sections",
+    };
+    const translatedBoard = setData.exam_board
+      ? (boardTranslation[setData.exam_board.toLowerCase()] || `Exam board style: ${setData.exam_board}`)
+      : '';
+
     const prompt = `Generate ${setData.question_count} practice questions.
 
 Context:
 - Subject: ${setData.subject_id}
 - Subtopics: ${setData.subtopics.join(', ')}
 - Educational Level: ${setData.educational_tier || 'not specified'}
-${setData.exam_board ? `- Exam Board: ${setData.exam_board}` : ''}
+${translatedBoard ? `- Question Style: ${translatedBoard}` : ''}
 - ${difficultyInstructions}
 ${complexityInstructions}
+
+IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
 ${transformationInstructions}
 ${subjectGraphInstructions}
 ${resourcePackContext}

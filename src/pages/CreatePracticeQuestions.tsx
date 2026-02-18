@@ -627,13 +627,13 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select board..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="aqa">AQA</SelectItem>
-                      <SelectItem value="edexcel">Edexcel</SelectItem>
-                      <SelectItem value="ocr">OCR</SelectItem>
-                      <SelectItem value="wjec">WJEC</SelectItem>
-                      <SelectItem value="cie">Cambridge (CIE)</SelectItem>
-                      <SelectItem value="ib">IB</SelectItem>
-                      <SelectItem value="college_board">College Board</SelectItem>
+                      <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
+                      <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
+                      <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
+                      <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
+                      <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
+                      <SelectItem value="ib">IB Programme</SelectItem>
+                      <SelectItem value="college_board">US Board (College Board style)</SelectItem>
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -808,13 +808,13 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select board..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="aqa">AQA</SelectItem>
-                      <SelectItem value="edexcel">Edexcel</SelectItem>
-                      <SelectItem value="ocr">OCR</SelectItem>
-                      <SelectItem value="wjec">WJEC</SelectItem>
-                      <SelectItem value="cie">Cambridge (CIE)</SelectItem>
-                      <SelectItem value="ib">IB</SelectItem>
-                      <SelectItem value="college_board">College Board</SelectItem>
+                      <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
+                      <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
+                      <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
+                      <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
+                      <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
+                      <SelectItem value="ib">IB Programme</SelectItem>
+                      <SelectItem value="college_board">US Board (College Board style)</SelectItem>
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
