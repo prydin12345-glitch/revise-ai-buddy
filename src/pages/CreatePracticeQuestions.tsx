@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
-import { SubtopicSelector } from "@/components/practice/SubtopicSelector";
+import { SubtopicSelector, detectBoardFingerprint, type BoardDetectionResult, type DetectedBoard } from "@/components/practice/SubtopicSelector";
 import { DifficultySettings } from "@/components/practice/DifficultySettings";
 import { SpecUploadAdvisory } from "@/components/practice/SpecUploadAdvisory";
 import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
@@ -57,12 +57,15 @@ const CreatePracticeQuestions = () => {
   const [customEducationalTier, setCustomEducationalTier] = useState("");
   const [customExamBoard, setCustomExamBoard] = useState("");
   const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
-  
+
+  // Board detection + deep topic scan state
+  const [detectedBoard, setDetectedBoard] = useState<BoardDetectionResult | null>(null);
+  const [autoExtractedTopics, setAutoExtractedTopics] = useState<string[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+
   // Resource pack state
   const [resourceMode, setResourceMode] = useState<ResourceMode>('none');
   const [resourcePack, setResourcePack] = useState<ResourcePack | null>(null);
-  // Visual question types are now auto-detected by the AI based on context
-  // Removed manual toggles - AI will include graphs/tables when appropriate
 
   // Generation states
   const [generating, setGenerating] = useState(false);
@@ -99,6 +102,63 @@ const CreatePracticeQuestions = () => {
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
     setSubjectColor(getSubjectColor(value));
+  };
+
+  // Deep Topic Scan: reads text from uploaded PDF and detects board + topics
+  const handleExampleFileChange = async (file: File | null) => {
+    setExampleFile(file);
+    if (!file) {
+      setDetectedBoard(null);
+      setAutoExtractedTopics([]);
+      return;
+    }
+
+    setIsScanning(true);
+    setDetectedBoard(null);
+    setAutoExtractedTopics([]);
+
+    try {
+      // Read file as text (best-effort — PDFs may be partially readable)
+      const text = await file.text().catch(() => '');
+      const scannedText = text.length > 50 ? text : '';
+
+      // Board fingerprint detection (client-side, instant)
+      const boardResult = detectBoardFingerprint(scannedText);
+      setDetectedBoard(boardResult);
+
+      // If board detected and no examBoard selected yet, set it silently (not aqa default)
+      if (boardResult.board && !examBoard) {
+        setExamBoard(boardResult.board);
+      }
+
+      // Simple keyword topic extraction from text (fallback without server call)
+      if (scannedText.length > 100) {
+        const topicKeywords = [
+          'algebra', 'calculus', 'trigonometry', 'statistics', 'probability',
+          'mechanics', 'kinematics', 'forces', 'energy', 'waves', 'optics',
+          'electricity', 'magnetism', 'thermodynamics', 'genetics', 'evolution',
+          'ecology', 'cell biology', 'organic chemistry', 'inorganic chemistry',
+          'economics', 'microeconomics', 'macroeconomics', 'history', 'geography',
+          'differentiation', 'integration', 'sequences', 'series', 'matrices',
+          'vectors', 'complex numbers', 'logarithms', 'exponentials',
+          'quadratics', 'polynomials', 'inequalities', 'coordinate geometry',
+        ];
+        const found = topicKeywords.filter(kw =>
+          scannedText.toLowerCase().includes(kw)
+        );
+        if (found.length > 0) {
+          // Capitalise and limit to 12 topics
+          const formatted = found.slice(0, 12).map(t =>
+            t.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+          );
+          setAutoExtractedTopics(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Deep scan error:', err);
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -430,6 +490,9 @@ const CreatePracticeQuestions = () => {
                   examBoard={examBoard}
                   useAIInterpretation={useAIInterpretation}
                   onAIInterpretationChange={setUseAIInterpretation}
+                  autoExtractedTopics={autoExtractedTopics.length > 0 ? autoExtractedTopics : undefined}
+                  detectedBoard={detectedBoard}
+                  isScanning={isScanning}
                 />
               </Card>
             )}
@@ -536,7 +599,7 @@ const CreatePracticeQuestions = () => {
                     id="example-file"
                     accept=".pdf"
                     className="hidden"
-                    onChange={(e) => setExampleFile(e.target.files?.[0] || null)}
+                    onChange={(e) => handleExampleFileChange(e.target.files?.[0] || null)}
                   />
                   <TooltipProvider>
                     <Tooltip>
@@ -585,14 +648,9 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gcse">GCSE</SelectItem>
-                      <SelectItem value="a_level">A-Level</SelectItem>
-                      <SelectItem value="ib">IB</SelectItem>
-                      <SelectItem value="ks3">KS3</SelectItem>
-                      <SelectItem value="ks4">KS4</SelectItem>
-                      <SelectItem value="sat">SAT</SelectItem>
-                      <SelectItem value="act">ACT</SelectItem>
-                      <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                      <SelectItem value="secondary_14_16">Level 1 — High School / Secondary (Ages 14–16)</SelectItem>
+                      <SelectItem value="college_16_18">Level 2 — College / Sixth Form (Ages 16–18)</SelectItem>
+                      <SelectItem value="university_18plus">Level 3 — University / Undergraduate (Ages 18+)</SelectItem>
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -766,14 +824,9 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gcse">GCSE</SelectItem>
-                      <SelectItem value="a_level">A-Level</SelectItem>
-                      <SelectItem value="ib">IB</SelectItem>
-                      <SelectItem value="ks3">KS3</SelectItem>
-                      <SelectItem value="ks4">KS4</SelectItem>
-                      <SelectItem value="sat">SAT</SelectItem>
-                      <SelectItem value="act">ACT</SelectItem>
-                      <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                      <SelectItem value="secondary_14_16">Level 1 — High School / Secondary (Ages 14–16)</SelectItem>
+                      <SelectItem value="college_16_18">Level 2 — College / Sixth Form (Ages 16–18)</SelectItem>
+                      <SelectItem value="university_18plus">Level 3 — University / Undergraduate (Ages 18+)</SelectItem>
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
