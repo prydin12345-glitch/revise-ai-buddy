@@ -594,10 +594,14 @@ These annotations are visual-only and do NOT affect marking.
 
     // Determine educational tier for complexity scaling
     const tier = (setData.educational_tier || '').toLowerCase();
+    // New universal tier IDs (primary), plus legacy IDs for backward compat
     const isFoundation = tier.includes('foundation') || tier.includes('basic');
-    const isGCSE = tier.includes('gcse') || tier.includes('ks4') || tier.includes('o-level') || tier.includes('secondary');
-    const isALevel = tier.includes('a-level') || tier.includes('a level') || tier.includes('ib') || tier.includes('pre-u') || tier.includes('advanced');
-    const isUniversity = tier.includes('university') || tier.includes('undergraduate') || tier.includes('degree') || tier.includes('postgraduate') || tier.includes('masters');
+    const isGCSE = tier === 'secondary_14_16' || tier.includes('gcse') || tier.includes('ks4') || tier.includes('o-level') || tier.includes('secondary');
+    const isALevel = tier === 'college_16_18' || tier.includes('a-level') || tier.includes('a level') || tier.includes('ib') || tier.includes('pre-u') || tier.includes('advanced') || tier.includes('college');
+    const isUniversity = tier === 'university_18plus' || tier.includes('university') || tier.includes('undergraduate') || tier.includes('degree') || tier.includes('postgraduate') || tier.includes('masters');
+    
+    // Map universal tier to internal rigor label for prompt context
+    const rigorLabel = isUniversity ? 'Expert' : isALevel ? 'Advanced' : isGCSE ? 'Foundation' : 'Standard';
     
     // Detect transformation topics for special handling
     const hasTransformationTopic = subtopicsLower.some((s: string) => 
@@ -648,7 +652,7 @@ ${uniqueCommands.length > 0 ? `- Command words used: ${uniqueCommands.slice(0, 1
     
     if (isFoundation) {
       complexityInstructions = `
-COMPLEXITY LEVEL: Foundation/Basic
+COMPLEXITY LEVEL: Foundation / Basic Rigor
 - Use simple, scaffolded questions with clear step-by-step guidance
 - Avoid abstract notation; use concrete numbers and straightforward language
 - Include worked examples within multi-part questions
@@ -657,7 +661,7 @@ COMPLEXITY LEVEL: Foundation/Basic
 - Provide visual aids (diagrams, number lines) where helpful`;
     } else if (isGCSE) {
       complexityInstructions = `
-COMPLEXITY LEVEL: GCSE/Secondary (Higher)
+COMPLEXITY LEVEL: Foundation Rigor — High School / Secondary (Ages 14–16)
 - Questions should require multi-step reasoning
 - Use standard mathematical notation but explain any unfamiliar symbols
 - Include some abstract elements but ground in practical contexts
@@ -665,10 +669,10 @@ COMPLEXITY LEVEL: GCSE/Secondary (Higher)
 - 2-4 mark questions with clear mark allocation
 - Include "show that" and "explain" command words`;
     } else if (isALevel || isUniversity) {
-      // PHASE 3: Enhanced A-Level enforcement
+      // PHASE 3: Enhanced enforcement for Advanced/Expert tiers
       const minMarks = isUniversity ? 6 : 4;
       complexityInstructions = `
-COMPLEXITY LEVEL: ${isUniversity ? 'University/Undergraduate+' : 'A-Level/IB/Advanced'}
+COMPLEXITY LEVEL: ${isUniversity ? `Expert Rigor — University / Undergraduate (Ages 18+)` : `Advanced Rigor — College / Sixth Form (Ages 16–18)`}
 CRITICAL REQUIREMENTS:
 - Use formal mathematical language and notation throughout
 - Require abstract reasoning and proof-style arguments
@@ -914,6 +918,14 @@ ${translatedBoard ? `- Question Style: ${translatedBoard}` : ''}
 ${complexityInstructions}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
+
+SOURCE TEXT / INSERT TRANSFORMATION RULE:
+If the example or resource material contains a case study, source text, passage, or experimental setup (e.g., a UK factory, a specific political speech, or a named experiment):
+1. EXTRACT: Identify the numerical values, logical relationships, and skill being tested.
+2. TRANSFORM: Rewrite the scenario entirely using a completely different real-world context (different industry, country, time period, or fictional setting) while preserving the identical mathematical/analytical relationship. Example: "London Bus distance-time graph" -> "Singapore Metro distance-time graph".
+3. VISUAL SYNC: When a scenario is transformed, also generate updated axis labels and annotations for any GraphCanvas or table headers so the visual data matches the new narrative. Example: if changing from "London Bus" to "Singapore Metro", update the pathAnnotations labels and xLabel/yLabel in graphConfig to reflect the new context. The numerical coordinates must remain unchanged.
+4. ENSURE: The rewritten scenario tests exactly the same Assessment Objective and skill level. The numbers may be similar but the narrative must be 100% original.
+5. NEVER reproduce verbatim passages from the source document.
 ${transformationInstructions}
 ${subjectGraphInstructions}
 ${resourcePackContext}
