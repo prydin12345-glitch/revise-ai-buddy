@@ -193,32 +193,7 @@ export default function UploadExam() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="examBoard" className="text-base font-medium">Exam Board Style</Label>
-                  <Select value={examBoard} onValueChange={setExamBoard}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select board style (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {examBoards.map((board) => (
-                        <SelectItem key={board.id} value={board.id}>
-                          {board.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger><Info className="h-3 w-3" /></TooltipTrigger>
-                        <TooltipContent><p className="text-xs max-w-[200px]">{BOARD_SELECTOR_TOOLTIP}</p></TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    Optional — AI will detect board style from your document automatically
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="qualification" className="text-base font-medium">Qualification (Optional)</Label>
+                  <Label htmlFor="qualification" className="text-base font-medium">Qualification Level (Optional)</Label>
                   <Select value={qualificationLevel} onValueChange={setQualificationLevel}>
                     <SelectTrigger className="h-11">
                       <SelectValue placeholder="Select qualification level" />
@@ -232,7 +207,7 @@ export default function UploadExam() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Optional but helps calibrate difficulty level
+                    Optional — AI detects board style automatically from your document
                   </p>
                 </div>
               </CollapsibleContent>

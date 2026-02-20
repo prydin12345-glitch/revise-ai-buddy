@@ -613,47 +613,9 @@ const CreatePracticeQuestions = () => {
                   )}
                 </div>
 
-                {/* Exam Board — Advanced, collapsible */}
-                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-full flex items-center justify-between h-9 px-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Settings2 className="h-3.5 w-3.5" />
-                        Advanced Options
-                      </span>
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-3 pt-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="exam-board-mobile" className="text-sm">Board Style Override</Label>
-                      <Select value={examBoard} onValueChange={setExamBoard}>
-                        <SelectTrigger id="exam-board-mobile">
-                          <SelectValue placeholder="Auto-detected from document" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
-                          <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
-                          <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
-                          <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
-                          <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
-                          <SelectItem value="ib">IB Programme</SelectItem>
-                          <SelectItem value="college_board">US Board (College Board style)</SelectItem>
-                          <SelectItem value="other">Other (Custom)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {examBoard === "other" && (
-                        <Input
-                          placeholder="Enter custom exam board..."
-                          value={customExamBoard}
-                          onChange={(e) => setCustomExamBoard(e.target.value)}
-                          className="mt-2"
-                        />
-                      )}
-                      <p className="text-xs text-muted-foreground">AI auto-detects board style from uploaded documents. Override only if needed.</p>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                <p className="text-xs text-muted-foreground">
+                  Board style is auto-detected from your uploaded document.
+                </p>
               </div>
             </Card>
           </div>
@@ -788,47 +750,9 @@ const CreatePracticeQuestions = () => {
                   )}
                 </div>
 
-                {/* Advanced Options — Exam Board hidden by default */}
-                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-full flex items-center justify-between h-9 px-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Settings2 className="h-3.5 w-3.5" />
-                        Advanced Options
-                      </span>
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-3 pt-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="exam-board" className="text-sm">Board Style Override</Label>
-                      <Select value={examBoard} onValueChange={setExamBoard}>
-                        <SelectTrigger id="exam-board">
-                          <SelectValue placeholder="Auto-detected from document" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
-                          <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
-                          <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
-                          <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
-                          <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
-                          <SelectItem value="ib">IB Programme</SelectItem>
-                          <SelectItem value="college_board">US Board (College Board style)</SelectItem>
-                          <SelectItem value="other">Other (Custom)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {examBoard === "other" && (
-                        <Input
-                          placeholder="Enter custom exam board..."
-                          value={customExamBoard}
-                          onChange={(e) => setCustomExamBoard(e.target.value)}
-                          className="mt-2"
-                        />
-                      )}
-                      <p className="text-xs text-muted-foreground">AI auto-detects board style from your uploaded document. Override only if needed.</p>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Board style is auto-detected from your uploaded document.
+                </p>
               </div>
             </Card>
           </div>
