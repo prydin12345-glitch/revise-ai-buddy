@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, FileText, Upload, Info } from "lucide-react";
+import { Sparkles, Upload, Info, Settings2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -15,9 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
-import { SubtopicSelector, detectBoardFingerprint, type BoardDetectionResult, type DetectedBoard } from "@/components/practice/SubtopicSelector";
+import { SubtopicSelector, detectBoardFingerprint, type BoardDetectionResult } from "@/components/practice/SubtopicSelector";
 import { DifficultySettings } from "@/components/practice/DifficultySettings";
-import { SpecUploadAdvisory } from "@/components/practice/SpecUploadAdvisory";
 import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
 import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
 import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
@@ -49,7 +49,6 @@ const CreatePracticeQuestions = () => {
   const [questionCount, setQuestionCount] = useState(20);
   const [difficultyMode, setDifficultyMode] = useState<"fixed" | "increasing" | "mixed">("increasing");
   const [difficultyLevel, setDifficultyLevel] = useState<"easy" | "medium" | "hard">("medium");
-  const [specFile, setSpecFile] = useState<File | null>(null);
   const [exampleFile, setExampleFile] = useState<File | null>(null);
   const [educationalTier, setEducationalTier] = useState("");
   const [examBoard, setExamBoard] = useState("");
@@ -57,6 +56,7 @@ const CreatePracticeQuestions = () => {
   const [customEducationalTier, setCustomEducationalTier] = useState("");
   const [customExamBoard, setCustomExamBoard] = useState("");
   const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Board detection + deep topic scan state
   const [detectedBoard, setDetectedBoard] = useState<BoardDetectionResult | null>(null);
@@ -69,7 +69,6 @@ const CreatePracticeQuestions = () => {
 
   // Generation states
   const [generating, setGenerating] = useState(false);
-  const [showSpecAdvisory, setShowSpecAdvisory] = useState(false);
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
   const [generatedSetId, setGeneratedSetId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
@@ -202,12 +201,6 @@ const CreatePracticeQuestions = () => {
       }
     }
 
-    // Show advisory if no spec uploaded
-    if (!specFile) {
-      setShowSpecAdvisory(true);
-      return;
-    }
-
     await proceedWithGeneration();
   };
 
@@ -250,17 +243,7 @@ const CreatePracticeQuestions = () => {
       }
 
       // Upload files if provided
-      let specFileUrl = null;
       let exampleFileUrl = null;
-
-      if (specFile) {
-        const specPath = `${user.id}/specs/${crypto.randomUUID()}-${specFile.name}`;
-        const { error: specUploadError } = await supabase.storage
-          .from("exam-files")
-          .upload(specPath, specFile);
-        if (specUploadError) throw specUploadError;
-        specFileUrl = specPath;
-      }
 
       if (exampleFile) {
         const examplePath = `${user.id}/examples/${crypto.randomUUID()}-${exampleFile.name}`;
@@ -283,7 +266,7 @@ const CreatePracticeQuestions = () => {
           question_count: questionCount,
           difficulty_mode: difficultyMode,
           difficulty_level: difficultyLevel,
-          specification_file_url: specFileUrl,
+          specification_file_url: null,
           example_questions_file_url: exampleFileUrl,
           educational_tier: educationalTier === "other" ? customEducationalTier : educationalTier,
           exam_board: examBoard === "other" ? customExamBoard : (examBoard || null),
@@ -557,75 +540,41 @@ const CreatePracticeQuestions = () => {
               </Card>
             )}
 
-            {/* File Uploads */}
+            {/* File Uploads — Example Questions only */}
             <Card className="p-4">
-              <Label className="text-sm font-medium mb-3 block">Optional File Uploads</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Specification Upload */}
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    id="spec-file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={(e) => setSpecFile(e.target.files?.[0] || null)}
-                  />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full h-20 flex-col gap-2"
-                          onClick={() => document.getElementById("spec-file")?.click()}
-                        >
-                          <FileText className="h-5 w-5" />
-                          <span className="text-xs text-center">
-                            {specFile ? specFile.name.slice(0, 12) + "..." : "📄 Specification"}
-                          </span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Upload exam specification (advised)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                {/* Example Questions Upload */}
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    id="example-file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={(e) => handleExampleFileChange(e.target.files?.[0] || null)}
-                  />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full h-20 flex-col gap-2"
-                          onClick={() => document.getElementById("example-file")?.click()}
-                        >
-                          <Upload className="h-5 w-5" />
-                          <span className="text-xs text-center">
-                            {exampleFile ? exampleFile.name.slice(0, 12) + "..." : "📎 Examples"}
-                          </span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Upload example questions (optional)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+              <Label className="text-sm font-medium mb-3 block">Example Questions (Optional)</Label>
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  id="example-file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={(e) => handleExampleFileChange(e.target.files?.[0] || null)}
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-16 flex-col gap-2"
+                        onClick={() => document.getElementById("example-file")?.click()}
+                      >
+                        <Upload className="h-5 w-5" />
+                        <span className="text-xs text-center">
+                          {exampleFile ? exampleFile.name.slice(0, 20) + "..." : "📎 Upload Example Questions PDF"}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Upload example questions — AI will scan for topics and board style automatically</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </Card>
 
-            {/* Educational Level & Exam Board - MOVED to left column for mobile */}
+            {/* Educational Level & Exam Board - Mobile */}
             <Card className="p-4 lg:hidden">
               <div className="space-y-4">
                 {/* Educational Level */}
@@ -654,7 +603,6 @@ const CreatePracticeQuestions = () => {
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
-                  
                   {educationalTier === "other" && (
                     <Input
                       placeholder="Enter custom educational level..."
@@ -665,46 +613,47 @@ const CreatePracticeQuestions = () => {
                   )}
                 </div>
 
-                {/* Exam Board */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="exam-board-mobile">Exam Board</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">Select board or enter custom</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Select value={examBoard} onValueChange={setExamBoard}>
-                    <SelectTrigger id="exam-board-mobile">
-                      <SelectValue placeholder="Select board..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
-                      <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
-                      <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
-                      <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
-                      <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
-                      <SelectItem value="ib">IB Programme</SelectItem>
-                      <SelectItem value="college_board">US Board (College Board style)</SelectItem>
-                      <SelectItem value="other">Other (Custom)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {examBoard === "other" && (
-                    <Input
-                      placeholder="Enter custom exam board..."
-                      value={customExamBoard}
-                      onChange={(e) => setCustomExamBoard(e.target.value)}
-                      className="mt-2"
-                    />
-                  )}
-                </div>
+                {/* Exam Board — Advanced, collapsible */}
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full flex items-center justify-between h-9 px-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Advanced Options
+                      </span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="exam-board-mobile" className="text-sm">Board Style Override</Label>
+                      <Select value={examBoard} onValueChange={setExamBoard}>
+                        <SelectTrigger id="exam-board-mobile">
+                          <SelectValue placeholder="Auto-detected from document" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
+                          <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
+                          <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
+                          <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
+                          <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
+                          <SelectItem value="ib">IB Programme</SelectItem>
+                          <SelectItem value="college_board">US Board (College Board style)</SelectItem>
+                          <SelectItem value="other">Other (Custom)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {examBoard === "other" && (
+                        <Input
+                          placeholder="Enter custom exam board..."
+                          value={customExamBoard}
+                          onChange={(e) => setCustomExamBoard(e.target.value)}
+                          className="mt-2"
+                        />
+                      )}
+                      <p className="text-xs text-muted-foreground">AI auto-detects board style from uploaded documents. Override only if needed.</p>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             </Card>
           </div>
@@ -740,8 +689,8 @@ const CreatePracticeQuestions = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Specification Uploaded</p>
-                    <p className="font-medium">{specFile ? "Yes" : "No"}</p>
+                    <p className="text-sm text-muted-foreground">Example Questions</p>
+                    <p className="font-medium">{exampleFile ? exampleFile.name.slice(0, 20) + "…" : "None"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Educational Level</p>
@@ -802,9 +751,8 @@ const CreatePracticeQuestions = () => {
                 </div>
               </div>
 
-              {/* Educational Level & Exam Board - Desktop */}
+              {/* Educational Level - Desktop */}
               <div className="border-t pt-6 space-y-4">
-                {/* Educational Level */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="educational-tier">Educational Level</Label>
@@ -830,7 +778,6 @@ const CreatePracticeQuestions = () => {
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
-                  
                   {educationalTier === "other" && (
                     <Input
                       placeholder="Enter custom educational level..."
@@ -841,46 +788,47 @@ const CreatePracticeQuestions = () => {
                   )}
                 </div>
 
-                {/* Exam Board */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="exam-board">Exam Board</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">Select board or enter custom</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Select value={examBoard} onValueChange={setExamBoard}>
-                    <SelectTrigger id="exam-board">
-                      <SelectValue placeholder="Select board..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
-                      <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
-                      <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
-                      <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
-                      <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
-                      <SelectItem value="ib">IB Programme</SelectItem>
-                      <SelectItem value="college_board">US Board (College Board style)</SelectItem>
-                      <SelectItem value="other">Other (Custom)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {examBoard === "other" && (
-                    <Input
-                      placeholder="Enter custom exam board..."
-                      value={customExamBoard}
-                      onChange={(e) => setCustomExamBoard(e.target.value)}
-                      className="mt-2"
-                    />
-                  )}
-                </div>
+                {/* Advanced Options — Exam Board hidden by default */}
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full flex items-center justify-between h-9 px-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Advanced Options
+                      </span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="exam-board" className="text-sm">Board Style Override</Label>
+                      <Select value={examBoard} onValueChange={setExamBoard}>
+                        <SelectTrigger id="exam-board">
+                          <SelectValue placeholder="Auto-detected from document" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="aqa">UK Board A (command-verb style)</SelectItem>
+                          <SelectItem value="edexcel">UK Board B (Pearson style)</SelectItem>
+                          <SelectItem value="ocr">UK Board C (structured response)</SelectItem>
+                          <SelectItem value="wjec">Welsh Board (WJEC style)</SelectItem>
+                          <SelectItem value="cie">International Board (Cambridge style)</SelectItem>
+                          <SelectItem value="ib">IB Programme</SelectItem>
+                          <SelectItem value="college_board">US Board (College Board style)</SelectItem>
+                          <SelectItem value="other">Other (Custom)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {examBoard === "other" && (
+                        <Input
+                          placeholder="Enter custom exam board..."
+                          value={customExamBoard}
+                          onChange={(e) => setCustomExamBoard(e.target.value)}
+                          className="mt-2"
+                        />
+                      )}
+                      <p className="text-xs text-muted-foreground">AI auto-detects board style from your uploaded document. Override only if needed.</p>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             </Card>
           </div>
@@ -956,15 +904,6 @@ const CreatePracticeQuestions = () => {
         />
       )}
 
-      <SpecUploadAdvisory
-        open={showSpecAdvisory}
-        onClose={() => setShowSpecAdvisory(false)}
-        onContinueAnyway={proceedWithGeneration}
-        onUploadSpec={() => {
-          setShowSpecAdvisory(false);
-          document.getElementById("spec-file")?.click();
-        }}
-      />
 
       <PracticeSetCompleteModal
         open={showGenerationComplete}

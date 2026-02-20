@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Info } from "lucide-react";
+import { Upload, FileText, Info, ChevronDown, Settings2 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -42,11 +43,11 @@ export default function UploadExam() {
   const [fileName, setFileName] = useState<string>("");
   const [examBoard, setExamBoard] = useState<string>("");
   const [qualificationLevel, setQualificationLevel] = useState<string>("");
-  const [specFile, setSpecFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
-  const [errors, setErrors] = useState({ subject: "", file: "", fileName: "", examBoard: "" });
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [errors, setErrors] = useState({ subject: "", file: "", fileName: "" });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -56,16 +57,15 @@ export default function UploadExam() {
 
   const handleUpload = async () => {
     // Validate fields
-    const newErrors = { subject: "", file: "", fileName: "", examBoard: "" };
+    const newErrors = { subject: "", file: "", fileName: "" };
     
     if (!subjectId) newErrors.subject = "Please select a subject";
     if (!file) newErrors.file = "Please choose a file";
     if (!fileName.trim()) newErrors.fileName = "Please name this exam";
-    if (!examBoard) newErrors.examBoard = "Please select an exam board";
     
     setErrors(newErrors);
     
-    if (newErrors.subject || newErrors.file || newErrors.fileName || newErrors.examBoard) {
+    if (newErrors.subject || newErrors.file || newErrors.fileName) {
       return;
     }
 
@@ -76,9 +76,8 @@ export default function UploadExam() {
       formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      formData.append('examBoard', examBoard);
+      if (examBoard) formData.append('examBoard', examBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
-      if (specFile) formData.append('specFile', specFile);
 
       const { data, error } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -138,54 +137,6 @@ export default function UploadExam() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="examBoard" className="text-base font-medium">Exam Board *</Label>
-              <Select value={examBoard} onValueChange={(value) => {
-                setExamBoard(value);
-                setErrors({ ...errors, examBoard: "" });
-              }}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select exam board" />
-                </SelectTrigger>
-                <SelectContent>
-                  {examBoards.map((board) => (
-                    <SelectItem key={board.id} value={board.id}>
-                      {board.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger><Info className="h-3 w-3" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{BOARD_SELECTOR_TOOLTIP}</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                Used to match question style, command words, and mark scheme format
-              </p>
-              {errors.examBoard && <p className="text-destructive text-sm mt-1">{errors.examBoard}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="qualification" className="text-base font-medium">Qualification (Optional)</Label>
-              <Select value={qualificationLevel} onValueChange={setQualificationLevel}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select qualification level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {qualificationLevels.map((level) => (
-                    <SelectItem key={level.id} value={level.id}>
-                      {level.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Optional but helps calibrate difficulty level
-              </p>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="file" className="text-base font-medium">Exam Document *</Label>
               <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
                 <Input
@@ -212,29 +163,6 @@ export default function UploadExam() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="specFile" className="text-base font-medium">Upload Specification (Optional)</Label>
-              <Input
-                id="specFile"
-                type="file"
-                accept=".pdf,.docx"
-                onChange={(e) => setSpecFile(e.target.files?.[0] || null)}
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-              />
-              {specFile && (
-                <div className="mt-2 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md">
-                  <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{specFile.name}</p>
-                    <p className="text-xs text-muted-foreground">{(specFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Upload your exam specification to improve question relevance and ensure spec alignment
-              </p>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="fileName" className="text-base font-medium">Name this exam *</Label>
               <Input
                 id="fileName"
@@ -251,6 +179,64 @@ export default function UploadExam() {
               {errors.fileName && <p className="text-destructive text-sm mt-1">{errors.fileName}</p>}
               {titleWarning && <p className="text-amber-600 text-xs mt-1">{titleWarning}</p>}
             </div>
+
+            {/* Advanced Options */}
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-between h-10 px-3 border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground">
+                  <span className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    Advanced Options
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="examBoard" className="text-base font-medium">Exam Board Style</Label>
+                  <Select value={examBoard} onValueChange={setExamBoard}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select board style (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {examBoards.map((board) => (
+                        <SelectItem key={board.id} value={board.id}>
+                          {board.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger><Info className="h-3 w-3" /></TooltipTrigger>
+                        <TooltipContent><p className="text-xs max-w-[200px]">{BOARD_SELECTOR_TOOLTIP}</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    Optional — AI will detect board style from your document automatically
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qualification" className="text-base font-medium">Qualification (Optional)</Label>
+                  <Select value={qualificationLevel} onValueChange={setQualificationLevel}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select qualification level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {qualificationLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Optional but helps calibrate difficulty level
+                  </p>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Declaration Checkbox */}
             <div className="flex items-start space-x-3 p-4 border border-border rounded-lg bg-muted/30">
