@@ -80,7 +80,7 @@ serve(async (req) => {
 
     // Valid question types for exam_questions table
     // (Enforced by DB check constraint: exam_questions_question_type_check)
-    const validQuestionTypes = ['mcq', 'short_answer', 'long_form'];
+    const validQuestionTypes = ['mcq', 'short_answer', 'long_form', 'graph_plotting', 'graph_interpretation', 'bearings', 'table_grid'];
     
     // Map invalid types to valid ones
     const mapQuestionType = (type: string, marks?: number): string => {
@@ -128,14 +128,26 @@ serve(async (req) => {
         ? 'A' // Default to A if missing for MCQs
         : draft.correct_answer;
       
+      // For graph questions, correct_answer contains graphConfig — also copy to options for frontend
+      let options = draft.options;
+      if ((mappedType === 'graph_plotting' || mappedType === 'graph_interpretation') && correctAnswer) {
+        try {
+          const graphData = typeof correctAnswer === 'string' ? JSON.parse(correctAnswer) : correctAnswer;
+          if (graphData?.graphConfig) {
+            options = graphData;
+            console.log(`Question ${draft.question_number}: Copied graph data to options field`);
+          }
+        } catch { /* not JSON, keep original options */ }
+      }
+
       return {
         exam_id: draft.exam_id,
         question_number: draft.question_number,
         question_type: mappedType,
         question_text: draft.question_text,
         marks: draft.marks,
-        options: draft.options,
-        correct_answer: correctAnswer,
+        options,
+        correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
         original_page_number: draft.original_page_number,
         has_figures: draft.has_figures,
         has_tables: draft.has_tables,
@@ -143,6 +155,7 @@ serve(async (req) => {
         topic_tag: draft.topic_tag,
         difficulty_level: draft.difficulty_level,
         extraction_confidence: draft.extraction_confidence,
+        graph_description: draft.graph_description,
         is_verified: true,
       };
     });

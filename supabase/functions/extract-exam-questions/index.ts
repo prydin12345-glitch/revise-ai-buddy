@@ -114,25 +114,42 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   await supabase.from('exam_question_drafts').delete().eq('exam_id', draftId);
   
-  const drafts = questions.map((q: any, i: number) => ({
-    exam_id: draftId,
-    question_number: String(q.question_number || i + 1),
-    question_type: q.question_type || 'short_answer',
-    question_text: q.question_text || '',
-    question_latex: q.question_latex || null,
-    has_math: q.has_math || false,
-    parent_question_number: q.parent_question_number || null,
-    root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
-    marks: q.marks || 1,
-    options: q.options || null,
-    correct_answer: q.question_type === 'mcq' ? (q.correct_answer || 'A') : q.correct_answer,
-    has_figures: q.has_figures || false,
-    has_tables: q.has_tables || false,
-    topic_tag: q.topic_tag || null,
-    difficulty_level: q.difficulty_level || null,
-    extraction_confidence: q.extraction_confidence || 0.9,
-    generation_status: 'ai_generated', // Always mark as AI-generated since we're creating new questions
-  }));
+  const drafts = questions.map((q: any, i: number) => {
+    const qType = q.question_type || 'short_answer';
+    // For graph questions, correct_answer is a JSON object — stringify for storage and copy to options
+    let correctAnswer = q.correct_answer;
+    let options = q.options || null;
+    
+    if ((qType === 'graph_plotting' || qType === 'graph_interpretation') && typeof correctAnswer === 'object' && correctAnswer !== null) {
+      // Copy graph data to options field for frontend rendering
+      options = correctAnswer;
+      correctAnswer = JSON.stringify(correctAnswer);
+      console.log(`Q${q.question_number}: Graph question detected, synced to options`);
+    } else if (qType === 'mcq') {
+      correctAnswer = correctAnswer || 'A';
+    }
+
+    return {
+      exam_id: draftId,
+      question_number: String(q.question_number || i + 1),
+      question_type: qType,
+      question_text: q.question_text || '',
+      question_latex: q.question_latex || null,
+      has_math: q.has_math || false,
+      parent_question_number: q.parent_question_number || null,
+      root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
+      marks: q.marks || 1,
+      options,
+      correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
+      has_figures: q.has_figures || false,
+      has_tables: q.has_tables || false,
+      topic_tag: q.topic_tag || null,
+      difficulty_level: q.difficulty_level || null,
+      extraction_confidence: q.extraction_confidence || 0.9,
+      generation_status: 'ai_generated',
+      graph_description: q.graph_description || null,
+    };
+  });
 
   const { data: inserted, error: insertError } = await supabase.from('exam_question_drafts').insert(drafts).select();
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
@@ -244,7 +261,6 @@ async function extractPdfText(fileUrl: string, supabase: any): Promise<string> {
 function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
   
-  // ALWAYS generate new questions - never copy verbatim
   const mode = fallback 
     ? `Generate typical ${board.toUpperCase()} ${level} ${exam.subject_id} questions (no PDF text available).`
     : `CRITICAL: Generate COMPLETELY NEW and ORIGINAL questions inspired by this exam paper. 
@@ -253,17 +269,93 @@ DO NOT copy questions from the PDF - create fresh questions that test similar sk
 - Different specific references or examples
 - Fresh scenarios or contexts
 The uploaded PDF is for INSPIRATION ONLY - your questions must be unique.`;
+
+  // Detect if the subject warrants automatic graph generation
+  const subjectId = (exam.subject_id || '').toLowerCase();
+  const topicNames = specs.map((s: any) => (s.topic_name || '').toLowerCase()).join(' ');
+  const pdfLower = pdfText.substring(0, 5000).toLowerCase();
+  const combinedText = `${subjectId} ${topicNames} ${pdfLower}`;
+  
+  const graphPriorityKeywords = [
+    'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function',
+    'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
+    'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
+    'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine',
+    'velocity', 'acceleration', 'force', 'displacement', 'momentum', 'energy',
+    'supply', 'demand', 'cost', 'revenue', 'profit', 'equilibrium',
+    'concentration', 'rate', 'temperature', 'pressure', 'volume',
+    'distance-time', 'velocity-time', 'force-extension', 'current-voltage',
+    'ph curve', 'market equilibrium', 'projectile motion', 'kinetic energy'
+  ];
+  
+  const needsGraphs = graphPriorityKeywords.some(kw => combinedText.includes(kw));
+  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths');
+
+  let graphInstructions = '';
+  if (needsGraphs) {
+    graphInstructions = `
+
+AUTOMATIC GRAPH GENERATION (VISUAL-HEAVY TOPICS DETECTED):
+When a question covers a topic that is better tested visually, you MUST generate a graph question.
+Supported question_types: "graph_plotting", "graph_interpretation", "short_answer", "mcq", "long_form"
+
+For graph_plotting questions, correct_answer MUST be a JSON object (not a string):
+{
+  "graphType": "plotting",
+  "graphConfig": {
+    "chartType": "line",
+    "xLabel": "x-axis label with units",
+    "yLabel": "y-axis label with units",
+    "domainX": [min, max],
+    "domainY": [min, max],
+    "series": [{"name": "Reference", "data": [{"x":0,"y":0}, ...], "color": "#3b82f6"}]${!isMathSubject ? `,
+    "subjectProfile": {"subject": "${exam.subject_id}", "quadrantMode": "q1"}` : ''}
+  },
+  "plottingAnswer": {${isMathSubject ? `
+    "markingFormula": "algebraic expression e.g. x^2 - 3*x + 2",
+    "expectedCurve": [{"x":0,"y":2}, {"x":1,"y":0}, ...at least 10 points],
+    "tolerancePercent": 8` : `
+    "expectedPath": [{"x":0,"y":0}, {"x":100,"y":300}, ...ordered vertices],
+    "pathAnnotations": [{"pointIndex":0,"label":"Start"}, ...],
+    "toleranceUnits": 15`}
+  }
+}
+
+For graph_interpretation questions, correct_answer MUST be:
+{
+  "graphType": "interpretation",
+  "graphConfig": { ...same as above with populated series.data... },
+  "interpretationFields": [
+    {"id": "field1", "label": "What is the gradient?", "expectedAnswer": "2.5", "tolerance": 0.2}
+  ]
+}
+
+GRAPH-PRIORITY SUBTOPICS (auto-generate graph when these appear):
+- Physics: distance-time, velocity-time, force-extension, current-voltage, pressure-volume, projectile motion
+- Economics: supply & demand, market equilibrium, cost curves, revenue curves, price elasticity
+- Chemistry: pH curves, rate of reaction, concentration-time, gas laws
+- Mathematics: coordinate geometry, transformations, functions, calculus sketching
+- Biology: population growth, enzyme activity, rate of reaction
+
+RULES:
+- At least 20% of questions should be graph questions when visual topics are detected
+- If a question says "sketch", "plot", "draw" or "the graph shows" it MUST be graph_plotting
+- Graph questions MUST have complete graphConfig with series.data containing at least 10 points
+- LaTeX is ONLY for text fields. NEVER put LaTeX in graphConfig numeric data or coordinate arrays
+`;
+  }
   
   return `${resourceCtx}
 Generate NEW questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
 ${specList}${mode}
 
-Use LaTeX for math: "$x^2$", "$\\frac{1}{2}$". NEVER use HTML tags.
-
+Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
+Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta
+${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer","question_text":"YOUR COMPLETELY NEW QUESTION HERE","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
