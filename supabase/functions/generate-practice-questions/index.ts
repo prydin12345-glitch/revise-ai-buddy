@@ -931,18 +931,13 @@ ${subjectGraphInstructions}
 ${resourcePackContext}
 
 CRITICAL OUTPUT RULES:
-1) Absolutely NO LaTeX anywhere.
-2) Absolutely NO backslashes anywhere.
-3) ASCII only in ALL text fields (no special symbols, no unicode).
-4) Math must be plain ASCII, examples:
-   - sqrt(16)
-   - 3/4
-   - (x+1)/(x-1)
-   - pi
-   - !=, <=, >=
-   - y = mx + c
-5) Do not output markdown. Do not output code fences.
+1) Wrap ALL mathematical expressions in LaTeX delimiters: $...$ for inline math, $$...$$ for standalone equations.
+2) Use proper LaTeX commands: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\leq, \\geq, \\neq, \\times, \\div, \\pm
+3) Example: instead of "h_max = (m*u^2) / (2*(mg + R))", output "$$h_{max} = \\frac{mu^2}{2(mg + R)}$$"
+4) Use $...$ for inline math within sentences, $$...$$ for standalone block equations.
+5) Do not output markdown code fences.
 6) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
+7) IMPORTANT: LaTeX is ONLY for display text fields (question_text, feedback, worked_solution, correct_answer for short-answer). NEVER put LaTeX in markingFormula, graphConfig numeric data, or coordinate arrays.
 ${visualQuestionInstructions}
 
 MCQ rules (avoid duplication in UI):
@@ -1217,10 +1212,7 @@ ${notesSection}`;
 
       const walk = (v: unknown, path: string) => {
         if (typeof v === 'string') {
-          if (v.includes('\\')) issues.push({ path, issue: 'contains backslash' });
-          if (v.includes('$')) issues.push({ path, issue: 'contains dollar sign (LaTeX)' });
           if (v.includes('```')) issues.push({ path, issue: 'contains markdown fence' });
-          if (!isAsciiOnly(v)) issues.push({ path, issue: 'contains non-ASCII characters' });
           return;
         }
         if (Array.isArray(v)) {
@@ -1325,11 +1317,10 @@ ${notesSection}`;
       'You are an expert practice question generator. ' +
       'You MUST call the function generate_practice_questions. ' +
       'Do not output any other text. ' +
-      'No LaTeX, no backslashes, ASCII only. ' +
-      'Math must be plain ASCII like sqrt(16), 3/4, (x+1)/(x-1), pi, !=, <=, >=.' +
+      'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}.' +
       nonMathGraphWarning;
 
-    const strictRetryPrompt = 'Return valid data. No LaTeX. No backslashes. ASCII only.';
+    const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
 
     const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
@@ -1596,13 +1587,8 @@ ${notesSection}`;
       throw lastErr instanceof Error ? lastErr : new Error('AI generation failed');
     }
 
-    // Apply fail-safe sanitizer only if needed (should be rare due to strict validation)
-    const escaped = escapeBackslashesDeep(generated);
-    if (escaped.didEscape) {
-      console.warn(`Fail-safe sanitizer: escaped backslashes in model output (count approx: ${escaped.count})`);
-    }
-
-    const questions = escaped.value.questions;
+    // Backslash escaping disabled — backslashes are now intentional LaTeX commands (e.g. \frac, \sqrt)
+    const questions = generated.questions;
 
     if (!questions || !Array.isArray(questions)) {
       throw new Error('AI response does not contain a valid questions array');
