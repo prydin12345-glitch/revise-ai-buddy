@@ -1,88 +1,92 @@
 
-# Fix Economics Graph Generation Timeout + Add Multi-Colored Lines with Legend
 
-## Problem Analysis
+# Fix Math-Visual Mismatch in Economics/Science Graphs
 
-**Root Cause of Infinite Generation**: The AI generation is timing out on all 3 attempts (90s, 120s, 150s). The logs confirm: `AI request timed out after 150s (model=openai/gpt-5-mini)`. This happens because:
+## Root Cause (Confirmed from Database)
 
-1. **Massive prompt size**: The economics graph prompt includes enormous instruction blocks (non-math discrete path rules, gold standard examples, command verb tables, transformation instructions) -- easily 4000+ tokens of system instructions
-2. **Tool calling overhead**: The function schema itself is large, and combined with the huge prompt, causes the AI to take too long to respond
-3. **Wrong model for the job**: The fallback chain uses `openai/gpt-5-mini` as the final attempt, which is slower than Gemini Flash for structured output generation
+The database shows that ALL three economics graph questions (2a, 2b, 4) contain **identical** `y = x^2` parabola data with domain [-4, 4] and labels "x"/"y" -- despite the question text describing linear Supply/Demand equations like `P_D = 150 - 3Q`.
 
-**Secondary issue**: The `findStringViolations` error message on line 1560 still says "LaTeX/backslashes/non-ASCII" but the actual function (lines 1210-1231) was already updated to only check markdown fences. This is just a misleading error message but not the blocker.
+The failure chain:
+1. The AI outputs `correct_answer` as an invalid JSON string (logs: `"correct_answer is not valid JSON"`)
+2. The non-math enforcement logic (line 1618) can't parse it, skips
+3. The validation step sets `hasValidData = false`
+4. The coordinate extractor finds no `(x, y)` patterns in economics text (which uses `P = 150 - 3Q` format, not coordinate pairs)
+5. `generateFallbackGraphSpec()` in `graph-validator.ts` runs and detects no function type keywords, falling to the **default case: `y = x^2` parabola** (line 326)
+6. This generic parabola completely replaces the economics graph data
 
-## Plan
+So the user's diagnosis is correct: the AI's "correct_answer" JSON fails validation, and the fallback system always produces a parabola regardless of subject.
 
-### Part 1: Fix Timeout (Edge Function)
+## The Fix (3 Changes)
 
-**File: `supabase/functions/generate-practice-questions/index.ts`**
+### Change 1: Add Economics/Science-Aware Fallback to `graph-validator.ts`
 
-**A. Increase timeouts for graph-heavy subjects**
+**File: `supabase/functions/_shared/graph-validator.ts`**
 
-Update the timeout chain (line 1341) to be more generous when graph questions are expected:
-- Attempt 1: 120s (up from 90s)
-- Attempt 2: 150s (up from 120s)  
-- Attempt 3: 180s (up from 150s)
+Before the default `y = x^2` fallback (line 326), add detection for linear economics equations:
 
-**B. Use faster model chain for economics/science**
+- Detect patterns like `P = 150 - 3Q`, `P_D = 30 + 2Q`, `Y = mX + c` in the question text
+- Extract slope and intercept from the equation
+- Generate linear data points with correct domain (e.g., Q from 0 to 60 for `P = 150 - 3Q`)
+- Support multiple equations in one question (Supply AND Demand) with different colors
+- Use economics-appropriate axis labels ("Quantity (Q)" / "Price (P)") instead of "x"/"y"
 
-Replace `openai/gpt-5-mini` (final fallback) with `google/gemini-2.5-flash` for all 3 attempts. Gemini Flash handles structured JSON tool calls significantly faster than GPT-5-mini, especially with large prompts. The chain becomes:
-- Attempt 1: `google/gemini-2.5-flash`
-- Attempt 2: `google/gemini-2.5-flash`
-- Attempt 3: `google/gemini-2.5-flash` (same model, retry -- transient failures are common)
+This ensures that even when the AI's JSON fails, the fallback produces a correct linear graph.
 
-**C. Fix misleading error message**
+### Change 2: Add Linear Equation Extraction to the Coordinate Extractor
 
-Update line 1560 from `'AI returned forbidden characters (LaTeX/backslashes/non-ASCII)'` to `'AI returned forbidden characters (markdown fences)'` to match the actual check.
+**File: `supabase/functions/generate-practice-questions/index.ts` (lines 2520-2550)**
 
-### Part 2: Multi-Colored Reference Lines
+The current coordinate extractor only looks for `(x, y)` patterns. Add parsing for:
+- `P = 150 - 3Q` format: extract intercept=150, slope=-3, calculate points
+- `P_S = 30 + 2Q` format: same extraction
+- `C = aQ + b` and similar economics notation
+- When detected, generate the correct `expectedPath` directly from the equation
 
-The `GraphSeries` type already supports `color?: string` and `label: string`. The `GraphRenderer` (used for interpretation graphs) already renders a Recharts `<Legend>`. However, `GraphCanvasPlot` (used for plotting graphs) has no legend.
+### Change 3: Add a Linear Economics Gold Standard Example to the Prompt
 
-**A. Update AI prompt to support multi-series economics graphs**
+**File: `supabase/functions/generate-practice-questions/index.ts` (around line 1014)**
 
-**File: `supabase/functions/generate-practice-questions/index.ts`**
+After the existing Physics gold standard, add a Supply/Demand gold standard that shows:
+- Economics axis labels with units ("Quantity (units)" / "Price ($)")
+- Correct domain scaling (e.g., domainX: [0, 60], domainY: [0, 160])
+- Multi-series with colors for Supply and Demand
+- `graph_interpretation` type (not plotting) since students read from pre-drawn curves
+- Linear data points computed from the equations
 
-Add instruction in the non-math graph section telling the AI it can generate multiple series in `graphConfig.series` for interpretation graphs (e.g., Supply and Demand curves), each with a distinct `color` and `label`. Provide a color palette: `#3b82f6` (blue), `#ef4444` (red), `#22c55e` (green), `#f59e0b` (amber), `#8b5cf6` (purple).
+Also add a strict instruction:
+> "CRITICAL: For economics linear equations like P = a - bQ, the data points MUST be calculated from the equation. If P = 150 - 3Q, then at Q=0 P=150, at Q=10 P=120, at Q=50 P=0. NEVER use parabolic or curved data for linear equations."
 
-Example added to prompt:
+### Change 4: Dynamic Axis Scaling Rule
+
+In the prompt instructions (around line 961), add:
+> "Axis domains MUST encompass the full range of the equation. If P-intercept is 150, domainY must extend to at least 160. If Q-intercept is 50, domainX must extend to at least 55. NEVER use default [-4,4] or [0,10] domains for economics graphs."
+
+## Technical Details
+
+### Linear equation parser (for Change 1 and 2)
+
+```text
+Regex patterns to add:
+  /(?:P|P_[DS]|Y|C)\s*=\s*(-?\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\s*Q/i
+  /(?:P|P_[DS]|Y|C)\s*=\s*(\d+(?:\.\d+)?)\s*Q\s*([+-])\s*(\d+(?:\.\d+)?)/i
+
+For P = 150 - 3Q:
+  intercept = 150, slope = -3
+  Q range: 0 to ceil(150/3) = 50
+  Points: [{x:0, y:150}, {x:10, y:120}, {x:20, y:90}, {x:30, y:60}, {x:40, y:30}, {x:50, y:0}]
 ```
-For economics graphs with multiple curves (e.g., Supply & Demand):
-- Use multiple entries in series[] with different colors and labels
-- Example: [
-    {"id": "supply", "label": "Supply", "data": [...], "color": "#3b82f6", "showLine": true},
-    {"id": "demand", "label": "Demand", "data": [...], "color": "#ef4444", "showLine": true}
-  ]
-```
 
-**B. Add Legend to GraphCanvasPlot**
-
-**File: `src/components/graph/GraphCanvasPlot.tsx`**
-
-Add a small legend/key overlay when multiple reference series exist. Render it as a small box in the top-right corner of the graph showing each series label with its corresponding color swatch. This only appears when there are 2+ reference series with labels.
-
-The legend will be an SVG group positioned inside the graph canvas (top-right), showing:
-- A small colored line segment matching each series color
-- The series label text next to it
-- Semi-transparent background for readability
-
-**C. Render reference series with their actual colors**
-
-Currently line 522 overrides series colors with a ghost opacity style. Update this so that when NOT in review mode, reference series use their own `series.color` if provided (for pre-populated interpretation/multi-curve graphs), falling back to the current ghost style only when no color is set.
-
-### Part 3: Ensure Colors Carry Through for Plotting Graphs
-
-For `graph_plotting` questions where `series` has pre-populated data with colors (e.g., an economics graph showing Supply/Demand where the student plots an equilibrium point), the `GraphPlottingQuestion` component already passes `referenceSeries` to `GraphCanvasPlot`. No additional wiring is needed -- the legend and color rendering from Part 2 will automatically apply.
-
-## Files Modified
+### Files Modified
 
 | File | Changes |
 |---|---|
-| `supabase/functions/generate-practice-questions/index.ts` | Increase timeouts, fix model chain, add multi-series prompt instructions, fix error message |
-| `src/components/graph/GraphCanvasPlot.tsx` | Add legend overlay for multi-series graphs, respect series colors in non-review mode |
+| `supabase/functions/_shared/graph-validator.ts` | Add linear equation detection before default parabola fallback; economics-aware axis labels |
+| `supabase/functions/generate-practice-questions/index.ts` | Add economics gold standard example; add linear equation extraction to coordinate parser; add axis scaling instruction |
 
-## What This Does NOT Touch
+### What This Does NOT Touch
 
-- Graph coordinate data, marking engine, formula evaluator -- zero changes
-- Frontend quiz/exam rendering pipeline -- no structural changes
-- Database schema -- no changes needed
+- Frontend rendering components -- zero changes
+- Graph marking engine -- zero changes
+- Database schema -- no changes
+- Math subject graph generation -- unaffected (the new logic only activates for non-math subjects with linear equation patterns)
+
