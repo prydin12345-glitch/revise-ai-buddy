@@ -500,32 +500,88 @@ export function GraphCanvasPlot({
            EXPECTED ANSWER CURVE: SOLID line (Green if correct, Red if incorrect)
            ============================================================ */}
         
-        {/* Reference curves (Ghost/Shadow lines - faint dashed grey) */}
-        {/* CRITICAL FIX: In review mode when showing correct answers, HIDE or significantly 
-            fade the reference curves to avoid visual clutter with the answer line */}
+        {/* Reference curves (Ghost/Shadow lines OR colored multi-series) */}
         {referenceSeries.map((series, idx) => {
           if (!series.data || series.data.length < 2) return null;
           const validData = series.data.filter(p => Number.isFinite(p.y));
           if (validData.length < 2) return null;
           
-          // In review mode with marking data, HIDE reference curves entirely
-          // to eliminate visual clutter and prioritize the Red/Green answer line
           const isMarkedReview = showCorrectAnswers && markingData !== undefined;
-          const ghostOpacity = isMarkedReview ? 0.05 : 0.6; // Nearly invisible when marked
+          const hasExplicitColor = !!series.color && !series.color.includes('var(--');
           
-          // STYLE HIERARCHY: Reference curves are ALWAYS dashed grey (the "Ghost Layer")
+          // Multi-series with explicit colors: render in full color (not ghost)
+          // Single/uncolored reference: use ghost style
+          const ghostOpacity = isMarkedReview ? 0.05 : hasExplicitColor ? 1 : 0.6;
+          const strokeColor = hasExplicitColor 
+            ? series.color! 
+            : `hsl(var(--muted-foreground) / ${isMarkedReview ? 0.05 : 0.6})`;
+          const dashArray = hasExplicitColor ? undefined : "6 4";
+          const lineWidth = hasExplicitColor ? 2.5 : 1.5;
+          
           return (
             <CurveLayer
               key={`reference-${series.id || idx}`}
               data={validData}
               graphToScreen={graphToScreen}
-              stroke={series.color || `hsl(var(--muted-foreground) / ${ghostOpacity})`}
-              strokeWidth={1.5}
-              strokeDasharray="6 4" // ALWAYS dashed for reference/ghost lines
+              stroke={strokeColor}
+              strokeWidth={lineWidth}
+              strokeDasharray={dashArray}
               opacity={ghostOpacity}
             />
           );
         })}
+        
+        {/* Legend for multi-series graphs (top-right corner) */}
+        {(() => {
+          const coloredSeries = referenceSeries.filter(s => 
+            s.color && !s.color.includes('var(--') && s.label && s.data && s.data.length >= 2
+          );
+          if (coloredSeries.length < 2) return null;
+          
+          const legendX = width - 16;
+          const legendY = 12;
+          const itemHeight = 20;
+          const legendH = coloredSeries.length * itemHeight + 12;
+          // Measure approximate max label width
+          const maxLabelLen = Math.max(...coloredSeries.map(s => (s.label || '').length));
+          const legendW = Math.min(maxLabelLen * 7 + 40, 160);
+          
+          return (
+            <g>
+              <rect
+                x={legendX - legendW}
+                y={legendY}
+                width={legendW}
+                height={legendH}
+                rx={4}
+                fill="hsl(var(--background) / 0.85)"
+                stroke="hsl(var(--border))"
+                strokeWidth={0.5}
+              />
+              {coloredSeries.map((s, i) => (
+                <g key={`legend-${s.id || i}`}>
+                  <line
+                    x1={legendX - legendW + 8}
+                    y1={legendY + 14 + i * itemHeight}
+                    x2={legendX - legendW + 28}
+                    y2={legendY + 14 + i * itemHeight}
+                    stroke={s.color!}
+                    strokeWidth={2.5}
+                  />
+                  <text
+                    x={legendX - legendW + 34}
+                    y={legendY + 18 + i * itemHeight}
+                    fill="hsl(var(--foreground))"
+                    fontSize={11}
+                    fontFamily="inherit"
+                  >
+                    {s.label}
+                  </text>
+                </g>
+              ))}
+            </g>
+          );
+        })()}
         
         {/* Expected answer curve in review mode - RED/GREEN based on marking status */}
         {showCorrectAnswers && expectedCurveSeries.map((series, idx) => {

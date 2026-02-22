@@ -946,6 +946,18 @@ MCQ rules (avoid duplication in UI):
 - correct_answer MUST be one of: "A", "B", "C", "D".
 
 ${!isMathSubject ? `
+MULTI-SERIES GRAPHS (Economics, Science, etc.):
+For graph_interpretation questions with multiple curves (e.g., Supply & Demand, Force vs Extension with multiple materials):
+- Use multiple entries in graphConfig.series[] with DIFFERENT colors and labels
+- Color palette: "#3b82f6" (blue), "#ef4444" (red), "#22c55e" (green), "#f59e0b" (amber), "#8b5cf6" (purple)
+- Example for Supply & Demand:
+  "series": [
+    {"id": "supply", "label": "Supply", "data": [{x:0,y:50},{x:10,y:60},...], "color": "#3b82f6", "showLine": true},
+    {"id": "demand", "label": "Demand", "data": [{x:0,y:100},{x:10,y:90},...], "color": "#ef4444", "showLine": true}
+  ]
+- Each series MUST have a unique "id", descriptive "label", and a distinct "color" from the palette above
+- The graph will automatically render a legend/key showing each series color and label
+
 Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE):
 - For graph_plotting questions, you MUST use expectedPath (array of vertices), NOT markingFormula.
 - Do NOT compute smooth mathematical curves. The answer is a SEQUENCE OF KEY EVENTS connected by straight lines.
@@ -1332,13 +1344,13 @@ ${notesSection}`;
       const modelChain = [
         'google/gemini-2.5-flash',
         'google/gemini-2.5-flash',
-        'openai/gpt-5-mini'
+        'google/gemini-2.5-flash'
       ];
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
       // Generous timeouts - complex graph prompts with tool calling need time
-      const timeoutMs = attempt === 0 ? 90_000 : attempt === 1 ? 120_000 : 150_000;
+      const timeoutMs = attempt === 0 ? 120_000 : attempt === 1 ? 150_000 : 180_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
@@ -1557,7 +1569,7 @@ ${notesSection}`;
       const violations = findStringViolations({ ...parsed.data, questions: normalizedQuestions });
       if (violations.length) {
         console.error('String violations found:', violations.slice(0, 50));
-        throw new Error('AI returned forbidden characters (LaTeX/backslashes/non-ASCII)');
+        throw new Error('AI returned forbidden characters (markdown fences)');
       }
 
       return { ...parsed.data, questions: normalizedQuestions };
