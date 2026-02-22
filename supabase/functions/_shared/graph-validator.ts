@@ -216,6 +216,47 @@ ${graphData.graphType === 'plotting' ? '- plottingAnswer: { expectedPoints: [{x,
 }
 
 /**
+ * Parses linear economics equations from question text.
+ * Detects patterns like P = 150 - 3Q, P_D = 30 + 2Q, C = 5Q + 10
+ */
+export function parseLinearEquations(questionText: string): Array<{
+  label: string;
+  slope: number;
+  intercept: number;
+  variable: string;
+}> {
+  const equations: Array<{label: string; slope: number; intercept: number; variable: string}> = [];
+  
+  // Pattern 1: P = 150 - 3Q (intercept first, then slope*Q)
+  const pattern1 = /(?:(P_?[DS]?|C|Y|TC|TR|MC|MR|AC|AR))\s*=\s*(-?\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\s*Q/gi;
+  let match;
+  while ((match = pattern1.exec(questionText)) !== null) {
+    const varName = match[1];
+    const intercept = parseFloat(match[2]);
+    const sign = match[3] === '+' ? 1 : -1;
+    const slopeAbs = parseFloat(match[4]);
+    const label = varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName;
+    equations.push({ label, slope: sign * slopeAbs, intercept, variable: 'Q' });
+  }
+  
+  // Pattern 2: P = 3Q + 30 (slope*Q first, then intercept)
+  const pattern2 = /(?:(P_?[DS]?|C|Y|TC|TR|MC|MR|AC|AR))\s*=\s*(-?\d+(?:\.\d+)?)\s*Q\s*([+-])\s*(\d+(?:\.\d+)?)/gi;
+  while ((match = pattern2.exec(questionText)) !== null) {
+    const varName = match[1];
+    const slope = parseFloat(match[2]);
+    const sign = match[3] === '+' ? 1 : -1;
+    const intercept = sign * parseFloat(match[4]);
+    // Skip if we already found this variable from pattern 1
+    if (!equations.some(e => e.label === (varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName))) {
+      const label = varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName;
+      equations.push({ label, slope, intercept, variable: 'Q' });
+    }
+  }
+  
+  return equations;
+}
+
+/**
  * Generates a fallback graphSpec when LLM fails to provide one.
  * Now tries to intelligently parse the question to generate appropriate curves.
  */
@@ -323,7 +364,99 @@ export function generateFallbackGraphSpec(
       }
     }
   } else {
-    // Default: simple parabola y = x^2
+    // *** NEW: Detect linear economics equations before defaulting to parabola ***
+    const linearEquations = parseLinearEquations(questionText);
+    
+    if (linearEquations.length > 0) {
+      console.info(`[Graph Fallback] Detected ${linearEquations.length} linear equation(s) in question text`);
+      
+      // Build multi-series from detected equations
+      const colors = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6'];
+      const allPoints: Array<{x: number, y: number}> = [];
+      const series: Array<{id: string; label: string; data: Array<{x: number; y: number}>; showLine: boolean; lineStyle: 'solid'; color: string}> = [];
+      
+      linearEquations.forEach((eq, idx) => {
+        const points: Array<{x: number; y: number}> = [];
+        // Calculate x-intercept (where y=0) and y-intercept
+        const xIntercept = eq.slope !== 0 ? -eq.intercept / eq.slope : 50;
+        const maxX = Math.max(Math.abs(xIntercept), 10);
+        const numPoints = 6;
+        const step = maxX / (numPoints - 1);
+        
+        for (let i = 0; i < numPoints; i++) {
+          const x = Math.round(i * step * 100) / 100;
+          const y = Math.round((eq.intercept + eq.slope * x) * 100) / 100;
+          if (y >= 0) { // Economics: only positive quadrant
+            points.push({ x, y });
+          }
+        }
+        
+        if (points.length < 2) {
+          // Ensure at least 2 points
+          points.length = 0;
+          points.push({ x: 0, y: eq.intercept });
+          const endX = eq.slope !== 0 ? Math.abs(eq.intercept / eq.slope) : 50;
+          points.push({ x: endX, y: 0 });
+        }
+        
+        allPoints.push(...points);
+        series.push({
+          id: eq.label.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          label: eq.label,
+          data: points,
+          showLine: true,
+          lineStyle: 'solid',
+          color: colors[idx % colors.length]
+        });
+      });
+      
+      // Calculate domains from all points
+      const allXs = allPoints.map(p => p.x);
+      const allYs = allPoints.map(p => p.y);
+      const maxXVal = Math.max(...allXs);
+      const maxYVal = Math.max(...allYs);
+      domainX = [0, Math.ceil(maxXVal * 1.1 / 5) * 5]; // Round up to nearest 5
+      domainY = [0, Math.ceil(maxYVal * 1.1 / 10) * 10]; // Round up to nearest 10
+      
+      // Return early with multi-series economics graph
+      const ecoConfig: GraphSpec = {
+        chartType: 'line',
+        xLabel: 'Quantity (Q)',
+        yLabel: 'Price (P)',
+        xDomain: domainX,
+        yDomain: domainY,
+        grid: { show: true, stepX: Math.ceil(domainX[1] / 10), stepY: Math.ceil(domainY[1] / 10) },
+        series
+      };
+      
+      if (isInterpretation) {
+        return {
+          graphType: 'interpretation',
+          graphConfig: ecoConfig,
+          interpretationFields: [{
+            id: 'answer',
+            type: 'text',
+            question: 'Enter your answer based on the graph',
+            correctAnswer: '',
+            marks: 2,
+          }]
+        };
+      }
+      if (isPlotting) {
+        return {
+          graphType: 'plotting',
+          graphConfig: { ...ecoConfig, series: [] },
+          plottingAnswer: {
+            expectedPoints: allPoints.slice(0, 5),
+            toleranceUnits: Math.ceil(domainX[1] / 20),
+            marksPerPoint: 1,
+            expectedCurve: series[0] ? { ...series[0], lineStyle: 'dashed', color: '#22c55e' } : undefined
+          }
+        };
+      }
+    }
+    
+    // Default: simple parabola y = x^2 (only for math-like contexts)
     domainX = [-4, 4];
     domainY = [-2, 10];
     for (let x = domainX[0]; x <= domainX[1]; x += 0.15) {

@@ -950,13 +950,34 @@ MULTI-SERIES GRAPHS (Economics, Science, etc.):
 For graph_interpretation questions with multiple curves (e.g., Supply & Demand, Force vs Extension with multiple materials):
 - Use multiple entries in graphConfig.series[] with DIFFERENT colors and labels
 - Color palette: "#3b82f6" (blue), "#ef4444" (red), "#22c55e" (green), "#f59e0b" (amber), "#8b5cf6" (purple)
-- Example for Supply & Demand:
-  "series": [
-    {"id": "supply", "label": "Supply", "data": [{x:0,y:50},{x:10,y:60},...], "color": "#3b82f6", "showLine": true},
-    {"id": "demand", "label": "Demand", "data": [{x:0,y:100},{x:10,y:90},...], "color": "#ef4444", "showLine": true}
-  ]
 - Each series MUST have a unique "id", descriptive "label", and a distinct "color" from the palette above
 - The graph will automatically render a legend/key showing each series color and label
+
+***** CRITICAL: MATH-VISUAL SYNC RULE — DATA MUST MATCH EQUATIONS *****
+For economics linear equations like P = a - bQ or P_S = c + dQ:
+- The data points MUST be calculated from the equation. If P = 150 - 3Q, then at Q=0 P=150, at Q=10 P=120, at Q=50 P=0.
+- NEVER use parabolic or curved data for linear equations.
+- NEVER copy curve shapes from other examples — CALCULATE coordinates from the equation.
+- Axis domains MUST encompass the full range of the equation. If P-intercept is 150, domainY must extend to at least 160. If Q-intercept is 50, domainX must extend to at least 55. NEVER use default [-4,4] or [0,10] domains for economics graphs.
+
+ECONOMICS GRAPH GOLD STANDARD — copy this structure for Supply/Demand interpretation graphs:
+Given P_D = 150 - 3Q (demand) and P_S = 30 + 2Q (supply):
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Quantity (Q)", "yLabel": "Price ($)",
+    "domainX": [0, 55], "domainY": [0, 160], "xDomain": [0, 55], "yDomain": [0, 160],
+    "series": [
+      {"id": "demand", "label": "Demand (P_D = 150 - 3Q)", "data": [{"x":0,"y":150},{"x":10,"y":120},{"x":20,"y":90},{"x":30,"y":60},{"x":40,"y":30},{"x":50,"y":0}], "color": "#ef4444", "showLine": true},
+      {"id": "supply", "label": "Supply (P_S = 30 + 2Q)", "data": [{"x":0,"y":30},{"x":10,"y":50},{"x":20,"y":70},{"x":30,"y":90},{"x":40,"y":110},{"x":50,"y":130}], "color": "#3b82f6", "showLine": true}
+    ],
+    "grid": {"show": true, "stepX": 5, "stepY": 10}
+  },
+  "interpretationFields": [
+    {"id": "eq_price", "type": "numeric", "question": "What is the equilibrium price?", "correctAnswer": 78, "tolerance": 2, "marks": 2},
+    {"id": "eq_qty", "type": "numeric", "question": "What is the equilibrium quantity?", "correctAnswer": 24, "tolerance": 1, "marks": 2}
+  ]
+}
 
 Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE):
 - For graph_plotting questions, you MUST use expectedPath (array of vertices), NOT markingFormula.
@@ -2548,6 +2569,77 @@ ${notesSection}`;
           }
           
           console.info(`Question ${q.question_number}: Extracted ${extractedPoints.length} key points from text:`, extractedPoints);
+          
+          // NEW: For economics/science, detect linear equations and generate correct data
+          if (extractedPoints.length === 0) {
+            const { parseLinearEquations } = await import('../_shared/graph-validator.ts');
+            const linearEqs = parseLinearEquations(qText);
+            if (linearEqs.length > 0) {
+              console.info(`Question ${q.question_number}: Detected ${linearEqs.length} linear equation(s) — generating coordinates from equations`);
+              hasValidData = true; // Mark as valid so fallback doesn't overwrite
+              
+              const colors = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b'];
+              const generatedSeries: any[] = [];
+              
+              for (let eqIdx = 0; eqIdx < linearEqs.length; eqIdx++) {
+                const eq = linearEqs[eqIdx];
+                const xIntercept = eq.slope !== 0 ? Math.abs(eq.intercept / eq.slope) : 50;
+                const maxX = Math.ceil(xIntercept * 1.1 / 5) * 5;
+                const points: Array<{x: number; y: number}> = [];
+                const numPts = 6;
+                for (let i = 0; i < numPts; i++) {
+                  const x = Math.round((i * maxX / (numPts - 1)) * 100) / 100;
+                  const y = Math.round((eq.intercept + eq.slope * x) * 100) / 100;
+                  if (y >= 0) points.push({ x, y });
+                }
+                generatedSeries.push({
+                  id: eq.label.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                  label: eq.label,
+                  data: points,
+                  showLine: true,
+                  color: colors[eqIdx % colors.length]
+                });
+              }
+              
+              // Build the correct graphConfig with proper axis scaling
+              const allYs = generatedSeries.flatMap((s: any) => s.data.map((p: any) => p.y));
+              const allXs = generatedSeries.flatMap((s: any) => s.data.map((p: any) => p.x));
+              const maxY = Math.ceil(Math.max(...allYs) * 1.1 / 10) * 10;
+              const maxXVal = Math.ceil(Math.max(...allXs) * 1.1 / 5) * 5;
+              
+              try {
+                const existingGraphData = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
+                if (existingGraphData && existingGraphData.graphConfig) {
+                  existingGraphData.graphConfig.series = generatedSeries;
+                  existingGraphData.graphConfig.xDomain = [0, maxXVal];
+                  existingGraphData.graphConfig.yDomain = [0, maxY];
+                  existingGraphData.graphConfig.domainX = [0, maxXVal];
+                  existingGraphData.graphConfig.domainY = [0, maxY];
+                  existingGraphData.graphConfig.xLabel = existingGraphData.graphConfig.xLabel || 'Quantity (Q)';
+                  existingGraphData.graphConfig.yLabel = existingGraphData.graphConfig.yLabel || 'Price (P)';
+                  q.correct_answer = JSON.stringify(existingGraphData);
+                }
+              } catch {
+                // If we can't parse existing, build fresh
+                const freshData = {
+                  graphType: 'interpretation',
+                  graphConfig: {
+                    chartType: 'line',
+                    xLabel: 'Quantity (Q)',
+                    yLabel: 'Price (P)',
+                    xDomain: [0, maxXVal],
+                    yDomain: [0, maxY],
+                    domainX: [0, maxXVal],
+                    domainY: [0, maxY],
+                    series: generatedSeries,
+                    grid: { show: true, stepX: Math.ceil(maxXVal / 10), stepY: Math.ceil(maxY / 10) }
+                  },
+                  interpretationFields: [{ id: 'answer', type: 'text', question: 'Enter your answer based on the graph', correctAnswer: '', marks: 2 }]
+                };
+                q.correct_answer = JSON.stringify(freshData);
+              }
+            }
+          }
           
           // CRITICAL: Detect transformation type from question text
           // e.g., "Sketch y = f(x) + 2" means vertical translation +2
