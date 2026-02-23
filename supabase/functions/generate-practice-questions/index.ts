@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.25.76";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
-import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation } from "../_shared/graph-validator.ts";
+import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, parseLinearEquations } from "../_shared/graph-validator.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -2572,7 +2572,6 @@ ${notesSection}`;
           
           // NEW: For economics/science, detect linear equations and generate correct data
           if (extractedPoints.length === 0) {
-            const { parseLinearEquations } = await import('../_shared/graph-validator.ts');
             const linearEqs = parseLinearEquations(qText);
             if (linearEqs.length > 0) {
               console.info(`Question ${q.question_number}: Detected ${linearEqs.length} linear equation(s) — generating coordinates from equations`);
