@@ -450,6 +450,7 @@ EXAMPLE QUESTION FORMATS:
       // Subject-aware graph keywords (Physics, Economics, etc.)
       'velocity', 'acceleration', 'force', 'displacement', 'momentum', 'energy',
       'supply', 'demand', 'cost', 'revenue', 'profit', 'equilibrium',
+      'subsidy', 'tax', 'tariff', 'price floor', 'price ceiling', 'quota', 'welfare',
       'concentration', 'rate', 'temperature', 'pressure', 'volume'
     ];
     
@@ -938,6 +939,7 @@ CRITICAL OUTPUT RULES:
 5) Do not output markdown code fences.
 6) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
 7) IMPORTANT: LaTeX is ONLY for display text fields (question_text, feedback, worked_solution, correct_answer for short-answer). NEVER put LaTeX in markingFormula, graphConfig numeric data, or coordinate arrays.
+8) NEVER use \\[ ... \\] or [ ... ] as LaTeX delimiters. ONLY use $...$ (inline) and $$...$$ (block). The renderer does NOT support bracket delimiters.
 ${visualQuestionInstructions}
 
 MCQ rules (avoid duplication in UI):
@@ -975,7 +977,20 @@ When generating Supply & Demand graphs, you MUST solve the simultaneous equation
 - Step 4: The interpretationFields correctAnswer values MUST match the solved equilibrium exactly
 - NEVER "eyeball" or approximate the intersection — ALWAYS solve mathematically first
 
-ECONOMICS GRAPH GOLD STANDARD — copy this structure for Supply/Demand interpretation graphs:
+***** CRITICAL: GRAPH_PLOTTING vs GRAPH_INTERPRETATION FOR ECONOMICS *****
+- graph_interpretation = student READS FROM a pre-drawn graph → series[] MUST contain the curve data (visible to student)
+- graph_plotting = student DRAWS the graph → series[] MUST be EMPTY [], answer data goes ONLY in plottingAnswer
+- If the question says "Plot", "Draw", or "Sketch" the curves → use graph_plotting with series: []
+- If the question says "Calculate from the graph", "Read from the diagram", "Use the graph to find" → use graph_interpretation with data in series[]
+- NEVER put the answer curves in series[] for graph_plotting — that reveals the answer before the student draws!
+
+***** CRITICAL: TAX/SUBSIDY QUESTIONS MUST INCLUDE GRAPHS *****
+- Tax, subsidy, price floor, price ceiling, tariff, and quota questions MUST use graph_interpretation
+- These graphs MUST show: Original Supply (S), Shifted curve (S₁ or D₁), and the other curve (D or S)
+- Include dashed reference lines connecting key price/quantity points to axes
+- The student calculates values FROM the pre-drawn graph
+
+ECONOMICS GRAPH GOLD STANDARD (INTERPRETATION) — copy this structure for Supply/Demand graphs where students READ from the graph:
 Given P_D = 150 - 3Q (demand) and P_S = 30 + 2Q (supply):
 Equilibrium: 150 - 3Q = 30 + 2Q → Q = 24, P = 78
 {
@@ -992,6 +1007,28 @@ Equilibrium: 150 - 3Q = 30 + 2Q → Q = 24, P = 78
   "interpretationFields": [
     {"id": "eq_price", "type": "numeric", "question": "What is the equilibrium price?", "correctAnswer": 78, "tolerance": 2, "marks": 2},
     {"id": "eq_qty", "type": "numeric", "question": "What is the equilibrium quantity?", "correctAnswer": 24, "tolerance": 1, "marks": 2}
+  ]
+}
+
+ECONOMICS GRAPH GOLD STANDARD (SUBSIDY/TAX) — for questions where a graph is PRE-DRAWN and the student reads values:
+Given: Original supply P_S = 50 + 3Q, demand P_D = 200 - 2Q, government subsidy of $15 per unit (shifts supply down by $15):
+New supply: P_S' = 35 + 3Q
+Original equilibrium: Q=30, P=140; New equilibrium: Q=33, P=134
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Quantity (units)", "yLabel": "Price ($)",
+    "domainX": [0, 75], "domainY": [0, 220], "xDomain": [0, 75], "yDomain": [0, 220],
+    "series": [
+      {"id": "demand", "label": "Demand (D)", "data": [{"x":0,"y":200},{"x":30,"y":140},{"x":33,"y":134},{"x":50,"y":100},{"x":70,"y":60}], "color": "#ef4444", "showLine": true},
+      {"id": "supply", "label": "Supply (S)", "data": [{"x":0,"y":50},{"x":20,"y":110},{"x":30,"y":140},{"x":40,"y":170},{"x":50,"y":200}], "color": "#3b82f6", "showLine": true},
+      {"id": "supply_new", "label": "Supply + Subsidy (S₁)", "data": [{"x":0,"y":35},{"x":20,"y":95},{"x":33,"y":134},{"x":40,"y":155},{"x":50,"y":185}], "color": "#22c55e", "showLine": true, "lineStyle": "dashed"}
+    ],
+    "grid": {"show": true, "stepX": 5, "stepY": 20}
+  },
+  "interpretationFields": [
+    {"id": "new_eq_qty", "type": "numeric", "question": "What is the new equilibrium quantity after the subsidy?", "correctAnswer": 33, "tolerance": 1, "marks": 2},
+    {"id": "subsidy_cost", "type": "numeric", "question": "Calculate the total cost of the subsidy to the government.", "correctAnswer": 495, "tolerance": 10, "marks": 3}
   ]
 }
 
