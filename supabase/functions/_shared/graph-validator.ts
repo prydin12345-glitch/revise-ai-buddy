@@ -235,8 +235,8 @@ export function parseLinearEquations(questionText: string): Array<{
     const intercept = parseFloat(match[2]);
     const sign = match[3] === '+' ? 1 : -1;
     const slopeAbs = parseFloat(match[4]);
-    const label = varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName;
-    equations.push({ label, slope: sign * slopeAbs, intercept, variable: 'Q' });
+     const label = varName.includes('S') ? 'Supply (S)' : varName.includes('D') ? 'Demand (D)' : varName;
+     equations.push({ label, slope: sign * slopeAbs, intercept, variable: 'Q' });
   }
   
   // Pattern 2: P = 3Q + 30 (slope*Q first, then intercept)
@@ -247,9 +247,9 @@ export function parseLinearEquations(questionText: string): Array<{
     const sign = match[3] === '+' ? 1 : -1;
     const intercept = sign * parseFloat(match[4]);
     // Skip if we already found this variable from pattern 1
-    if (!equations.some(e => e.label === (varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName))) {
-      const label = varName.includes('S') ? 'Supply' : varName.includes('D') ? 'Demand' : varName;
-      equations.push({ label, slope, intercept, variable: 'Q' });
+     if (!equations.some(e => e.label === (varName.includes('S') ? 'Supply (S)' : varName.includes('D') ? 'Demand (D)' : varName))) {
+       const label = varName.includes('S') ? 'Supply (S)' : varName.includes('D') ? 'Demand (D)' : varName;
+       equations.push({ label, slope, intercept, variable: 'Q' });
     }
   }
   
@@ -375,6 +375,25 @@ export function generateFallbackGraphSpec(
       const allPoints: Array<{x: number, y: number}> = [];
       const series: Array<{id: string; label: string; data: Array<{x: number; y: number}>; showLine: boolean; lineStyle: 'solid'; color: string}> = [];
       
+      // Solve for equilibrium if we have 2+ equations
+      let equilibriumPoint: {x: number, y: number} | null = null;
+      if (linearEquations.length >= 2) {
+        const eq1 = linearEquations[0];
+        const eq2 = linearEquations[1];
+        // Solve: eq1.intercept + eq1.slope*Q = eq2.intercept + eq2.slope*Q
+        const slopeDiff = eq1.slope - eq2.slope;
+        if (slopeDiff !== 0) {
+          const qEq = (eq2.intercept - eq1.intercept) / slopeDiff;
+          const pEq = eq1.intercept + eq1.slope * qEq;
+          if (qEq >= 0 && pEq >= 0) {
+            equilibriumPoint = { 
+              x: Math.round(qEq * 100) / 100, 
+              y: Math.round(pEq * 100) / 100 
+            };
+          }
+        }
+      }
+      
       linearEquations.forEach((eq, idx) => {
         const points: Array<{x: number; y: number}> = [];
         // Calculate x-intercept (where y=0) and y-intercept
@@ -391,8 +410,13 @@ export function generateFallbackGraphSpec(
           }
         }
         
+        // Inject equilibrium point if it doesn't already exist
+        if (equilibriumPoint && !points.some(p => Math.abs(p.x - equilibriumPoint!.x) < 0.5)) {
+          points.push(equilibriumPoint);
+          points.sort((a, b) => a.x - b.x);
+        }
+        
         if (points.length < 2) {
-          // Ensure at least 2 points
           points.length = 0;
           points.push({ x: 0, y: eq.intercept });
           const endX = eq.slope !== 0 ? Math.abs(eq.intercept / eq.slope) : 50;
