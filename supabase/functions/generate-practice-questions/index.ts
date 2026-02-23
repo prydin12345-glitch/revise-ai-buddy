@@ -950,8 +950,15 @@ MULTI-SERIES GRAPHS (Economics, Science, etc.):
 For graph_interpretation questions with multiple curves (e.g., Supply & Demand, Force vs Extension with multiple materials):
 - Use multiple entries in graphConfig.series[] with DIFFERENT colors and labels
 - Color palette: "#3b82f6" (blue), "#ef4444" (red), "#22c55e" (green), "#f59e0b" (amber), "#8b5cf6" (purple)
-- Each series MUST have a unique "id", descriptive "label", and a distinct "color" from the palette above
-- The graph will automatically render a legend/key showing each series color and label
+- Each series MUST have a unique "id" and its own separate "data" array — NEVER combine multiple curves into a single data array
+- CRITICAL: NEVER connect the last point of one series to the first point of another. Each series is an INDEPENDENT object in the series[] array.
+
+***** ACADEMIC LABELLING RULES FOR ECONOMICS *****
+- Use functional labels, NOT mathematical intercept labels:
+  - Use "Demand Function (D)" NOT "Demand Intercept"
+  - Use "Supply Function (S)" NOT "Supply Intercept"  
+  - For shifted curves: "New Demand (D₁)" or "New Supply (S₁)"
+- Series labels should read like an economics textbook, e.g.: "Demand (D)", "Supply (S)", "New Supply (S₁)"
 
 ***** CRITICAL: MATH-VISUAL SYNC RULE — DATA MUST MATCH EQUATIONS *****
 For economics linear equations like P = a - bQ or P_S = c + dQ:
@@ -960,16 +967,25 @@ For economics linear equations like P = a - bQ or P_S = c + dQ:
 - NEVER copy curve shapes from other examples — CALCULATE coordinates from the equation.
 - Axis domains MUST encompass the full range of the equation. If P-intercept is 150, domainY must extend to at least 160. If Q-intercept is 50, domainX must extend to at least 55. NEVER use default [-4,4] or [0,10] domains for economics graphs.
 
+***** CRITICAL: SIMULTANEOUS EQUATION SOLVER RULE *****
+When generating Supply & Demand graphs, you MUST solve the simultaneous equations BEFORE generating coordinates:
+- Step 1: Set Demand = Supply and solve for Q_eq algebraically (e.g., 150 - 3Q = 30 + 2Q → 120 = 5Q → Q = 24)
+- Step 2: Substitute Q_eq back to find P_eq (e.g., P = 150 - 3(24) = 78)
+- Step 3: INCLUDE the equilibrium point (Q_eq, P_eq) as an explicit data point in BOTH the demand AND supply series
+- Step 4: The interpretationFields correctAnswer values MUST match the solved equilibrium exactly
+- NEVER "eyeball" or approximate the intersection — ALWAYS solve mathematically first
+
 ECONOMICS GRAPH GOLD STANDARD — copy this structure for Supply/Demand interpretation graphs:
 Given P_D = 150 - 3Q (demand) and P_S = 30 + 2Q (supply):
+Equilibrium: 150 - 3Q = 30 + 2Q → Q = 24, P = 78
 {
   "graphType": "interpretation",
   "graphConfig": {
     "chartType": "line", "xLabel": "Quantity (Q)", "yLabel": "Price ($)",
     "domainX": [0, 55], "domainY": [0, 160], "xDomain": [0, 55], "yDomain": [0, 160],
     "series": [
-      {"id": "demand", "label": "Demand (P_D = 150 - 3Q)", "data": [{"x":0,"y":150},{"x":10,"y":120},{"x":20,"y":90},{"x":30,"y":60},{"x":40,"y":30},{"x":50,"y":0}], "color": "#ef4444", "showLine": true},
-      {"id": "supply", "label": "Supply (P_S = 30 + 2Q)", "data": [{"x":0,"y":30},{"x":10,"y":50},{"x":20,"y":70},{"x":30,"y":90},{"x":40,"y":110},{"x":50,"y":130}], "color": "#3b82f6", "showLine": true}
+      {"id": "demand", "label": "Demand (D)", "data": [{"x":0,"y":150},{"x":10,"y":120},{"x":24,"y":78},{"x":30,"y":60},{"x":40,"y":30},{"x":50,"y":0}], "color": "#ef4444", "showLine": true},
+      {"id": "supply", "label": "Supply (S)", "data": [{"x":0,"y":30},{"x":10,"y":50},{"x":24,"y":78},{"x":30,"y":90},{"x":40,"y":110},{"x":50,"y":130}], "color": "#3b82f6", "showLine": true}
     ],
     "grid": {"show": true, "stepX": 5, "stepY": 10}
   },

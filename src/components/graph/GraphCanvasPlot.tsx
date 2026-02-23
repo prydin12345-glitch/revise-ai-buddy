@@ -538,8 +538,8 @@ export function GraphCanvasPlot({
           );
           if (coloredSeries.length < 2) return null;
           
-          const legendX = width - 16;
-          const legendY = 12;
+           const legendX = width - 24;
+           const legendY = 20;
           const itemHeight = 20;
           const legendH = coloredSeries.length * itemHeight + 12;
           // Measure approximate max label width
