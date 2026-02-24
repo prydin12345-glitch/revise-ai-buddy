@@ -50,8 +50,8 @@ export interface GraphInterpretationConfig extends GraphConfig {
 // Annotation for labeling points, intercepts, text, or regions on the graph
 export interface GraphAnnotation {
   id: string;
-  type: 'point' | 'intercept' | 'text' | 'region';
-  /** For point/intercept: the coordinates to label */
+  type: 'point' | 'intercept' | 'text' | 'region' | 'projection';
+  /** For point/intercept/projection: the coordinates to label */
   coords?: { x: number; y: number };
   /** For intercept: which axis */
   axis?: 'x' | 'y';
@@ -66,6 +66,8 @@ export interface GraphAnnotation {
     toX?: number;
     fillColor?: string;
   };
+  /** For projection: which axes to project to ('x', 'y', or 'both') */
+  projectTo?: 'x' | 'y' | 'both';
 }
 
 // Subject profile for axis/viewport defaults
