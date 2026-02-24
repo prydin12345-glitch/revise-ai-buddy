@@ -1413,12 +1413,12 @@ ${notesSection}`;
 
       // Reliability fallback chain:
       // - Attempt 1: Gemini Flash (best balance of speed + quality for complex prompts)
-      // - Attempt 2: Gemini Flash (retry - transient failures are common)
+      // - Attempt 2: Gemini Pro (stronger reasoning, handles complex tool schemas better)
       // - Attempt 3: GPT-5-mini (different provider as final fallback)
       const modelChain = [
         'google/gemini-2.5-flash',
-        'google/gemini-2.5-flash',
-        'google/gemini-2.5-flash'
+        'google/gemini-2.5-pro',
+        'openai/gpt-5-mini'
       ];
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
