@@ -525,11 +525,14 @@ Since this is NOT a Mathematics subject, graph questions MUST include:
    - Biology: axisLabels like {"x": "Time (min)", "y": "Rate of reaction"}, quadrantMode: "q1"
    - Chemistry: axisLabels like {"x": "Volume (cm^3)", "y": "Temperature (C)"}, quadrantMode: "q1"
 2. An "annotations" array to label key features on the graph:
-   - Use type "point" with showCoordinates: true for key values (e.g., terminal velocity, equilibrium)
-   - Use type "intercept" for axis crossings with meaningful labels
-   - Use type "region" with fillBetween for areas under curves (e.g., work done, consumer surplus)
+    - Use type "point" with showCoordinates: true for key values (e.g., terminal velocity, equilibrium)
+    - Use type "intercept" for axis crossings with meaningful labels
+    - Use type "projection" with coords and projectTo: "both" for equilibrium/key points — renders thin dashed lines from the point to both axes (textbook projection lines)
+    - Use type "region" with fillBetween for areas under curves (e.g., work done, consumer surplus)
 3. Axis labels MUST include units in parentheses
 4. Most science/economics graphs only use positive values, so use quadrantMode: "q1"
+5. SERIES LIMIT: Maximum 4 data series per graph. If more curves are needed, generate multiple separate graph questions instead of crowding one canvas.
+6. RENDERING RULES: All economic curves MUST be solid lines (lineStyle: "solid" or omit lineStyle). Only use "dashed" for shifted/new curves (e.g., S₁, D₁). NEVER add visible dots to series — lines must render as smooth, continuous paths.
 
 DISCRETE PATH RENDERING (CRITICAL FOR NON-MATH GRAPH PLOTTING):
 For non-mathematics graph_plotting questions (Physics distance-time, Economics supply/demand, etc.):
@@ -987,8 +990,9 @@ When generating Supply & Demand graphs, you MUST solve the simultaneous equation
 ***** CRITICAL: TAX/SUBSIDY QUESTIONS MUST INCLUDE GRAPHS *****
 - Tax, subsidy, price floor, price ceiling, tariff, and quota questions MUST use graph_interpretation
 - These graphs MUST show: Original Supply (S), Shifted curve (S₁ or D₁), and the other curve (D or S)
-- Include dashed reference lines connecting key price/quantity points to axes
+- Include projection annotations (type: "projection") at equilibrium points and key intersections to draw dashed reference lines to both axes
 - The student calculates values FROM the pre-drawn graph
+- ALWAYS include "annotations" array with projection lines for equilibrium points using: {"type": "projection", "coords": {"x": Q_eq, "y": P_eq}, "label": "E", "projectTo": "both"}
 
 ECONOMICS GRAPH GOLD STANDARD (INTERPRETATION) — copy this structure for Supply/Demand graphs where students READ from the graph:
 Given P_D = 150 - 3Q (demand) and P_S = 30 + 2Q (supply):
@@ -1002,7 +1006,11 @@ Equilibrium: 150 - 3Q = 30 + 2Q → Q = 24, P = 78
       {"id": "demand", "label": "Demand (D)", "data": [{"x":0,"y":150},{"x":10,"y":120},{"x":24,"y":78},{"x":30,"y":60},{"x":40,"y":30},{"x":50,"y":0}], "color": "#ef4444", "showLine": true},
       {"id": "supply", "label": "Supply (S)", "data": [{"x":0,"y":30},{"x":10,"y":50},{"x":24,"y":78},{"x":30,"y":90},{"x":40,"y":110},{"x":50,"y":130}], "color": "#3b82f6", "showLine": true}
     ],
-    "grid": {"show": true, "stepX": 5, "stepY": 10}
+    "grid": {"show": true, "stepX": 5, "stepY": 10},
+    "subjectProfile": {"subject": "Economics", "axisLabels": {"x": "Quantity (Q)", "y": "Price ($)"}, "quadrantMode": "q1"},
+    "annotations": [
+      {"id": "eq_proj", "type": "projection", "coords": {"x": 24, "y": 78}, "label": "E", "projectTo": "both", "showCoordinates": true}
+    ]
   },
   "interpretationFields": [
     {"id": "eq_price", "type": "numeric", "question": "What is the equilibrium price?", "correctAnswer": 78, "tolerance": 2, "marks": 2},
@@ -1024,7 +1032,12 @@ Original equilibrium: Q=30, P=140; New equilibrium: Q=33, P=134
       {"id": "supply", "label": "Supply (S)", "data": [{"x":0,"y":50},{"x":20,"y":110},{"x":30,"y":140},{"x":40,"y":170},{"x":50,"y":200}], "color": "#3b82f6", "showLine": true},
       {"id": "supply_new", "label": "Supply + Subsidy (S₁)", "data": [{"x":0,"y":35},{"x":20,"y":95},{"x":33,"y":134},{"x":40,"y":155},{"x":50,"y":185}], "color": "#22c55e", "showLine": true, "lineStyle": "dashed"}
     ],
-    "grid": {"show": true, "stepX": 5, "stepY": 20}
+    "grid": {"show": true, "stepX": 5, "stepY": 20},
+    "subjectProfile": {"subject": "Economics", "axisLabels": {"x": "Quantity (units)", "y": "Price ($)"}, "quadrantMode": "q1"},
+    "annotations": [
+      {"id": "old_eq", "type": "projection", "coords": {"x": 30, "y": 140}, "label": "E", "projectTo": "both"},
+      {"id": "new_eq", "type": "projection", "coords": {"x": 33, "y": 134}, "label": "E₁", "projectTo": "both"}
+    ]
   },
   "interpretationFields": [
     {"id": "new_eq_qty", "type": "numeric", "question": "What is the new equilibrium quantity after the subsidy?", "correctAnswer": 33, "tolerance": 1, "marks": 2},

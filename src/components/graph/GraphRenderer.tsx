@@ -165,7 +165,7 @@ export function GraphRenderer({
                 stroke={s.color || statusColors.neutral}
                 strokeWidth={2}
                 strokeDasharray={s.lineStyle === 'dashed' ? '5 5' : s.lineStyle === 'dotted' ? '2 2' : undefined}
-                dot={{ fill: s.color || statusColors.neutral, r: 4 }}
+                dot={false}
                 connectNulls
               />
             ))}

@@ -37,6 +37,14 @@ export function AnnotationLayer({
                 referenceSeries={referenceSeries}
               />
             );
+          case 'projection':
+            return (
+              <ProjectionAnnotation
+                key={ann.id}
+                annotation={ann}
+                graphToScreen={graphToScreen}
+              />
+            );
           case 'region':
             return (
               <RegionAnnotation
@@ -158,6 +166,78 @@ function InterceptAnnotation({
   }
 
   return null;
+}
+
+/** Renders dashed projection lines from a point to the X and Y axes */
+function ProjectionAnnotation({
+  annotation,
+  graphToScreen,
+}: {
+  annotation: GraphAnnotation;
+  graphToScreen: (x: number, y: number) => { x: number; y: number };
+}) {
+  if (!annotation.coords) return null;
+  const screen = graphToScreen(annotation.coords.x, annotation.coords.y);
+  const originScreen = graphToScreen(0, 0);
+  
+  if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
+  
+  const projectTo = annotation.projectTo || 'both';
+  const axisColor = 'hsl(var(--muted-foreground))';
+  
+  // Project to X axis: vertical dashed line from point down to (x, 0)
+  const xAxisScreen = graphToScreen(annotation.coords.x, 0);
+  // Project to Y axis: horizontal dashed line from point left to (0, y)
+  const yAxisScreen = graphToScreen(0, annotation.coords.y);
+  
+  return (
+    <g>
+      {(projectTo === 'x' || projectTo === 'both') && (
+        <>
+          <line
+            x1={screen.x} y1={screen.y}
+            x2={xAxisScreen.x} y2={xAxisScreen.y}
+            stroke={axisColor} strokeWidth={1} strokeDasharray="4 3" opacity={0.7}
+          />
+          {/* Small label on axis */}
+          <text
+            x={xAxisScreen.x} y={xAxisScreen.y + 14}
+            textAnchor="middle" fontSize={10} fill={axisColor}
+            fontFamily="system-ui, sans-serif"
+          >
+            {annotation.coords.x}
+          </text>
+        </>
+      )}
+      {(projectTo === 'y' || projectTo === 'both') && (
+        <>
+          <line
+            x1={screen.x} y1={screen.y}
+            x2={yAxisScreen.x} y2={yAxisScreen.y}
+            stroke={axisColor} strokeWidth={1} strokeDasharray="4 3" opacity={0.7}
+          />
+          <text
+            x={yAxisScreen.x - 6} y={yAxisScreen.y + 4}
+            textAnchor="end" fontSize={10} fill={axisColor}
+            fontFamily="system-ui, sans-serif"
+          >
+            {annotation.coords.y}
+          </text>
+        </>
+      )}
+      {/* Small dot at the intersection point */}
+      <circle cx={screen.x} cy={screen.y} r={3} fill={axisColor} />
+      {annotation.label && (
+        <text
+          x={screen.x + 8} y={screen.y - 8}
+          fontSize={10} fill="hsl(var(--foreground))"
+          fontFamily="system-ui, sans-serif" fontWeight={500}
+        >
+          {annotation.label}
+        </text>
+      )}
+    </g>
+  );
 }
 
 /** Renders a filled region between a curve and the x-axis */
