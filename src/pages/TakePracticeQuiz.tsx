@@ -76,7 +76,7 @@ import { generateCurveFromFormula, parseTransformFromQuestionText, applyFormulaT
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
-
+import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -149,6 +149,19 @@ interface UserAnswer {
   // Protractor state for persistence
   protractorState?: { x: number; y: number; rotationDeg: number; visible: boolean };
 }
+
+const GRAPH_QUESTION_TYPES = new Set(['graph_interpretation', 'graph_plotting', 'bearings', 'graph_transformation']);
+
+const looksLikeGraphJson = (value?: string | null) => {
+  if (!value) return false;
+  const trimmed = value.trim();
+  return trimmed.startsWith('{') && trimmed.includes('"graphType"');
+};
+
+const shouldParseGraphData = (questionType?: string, correctAnswer?: string | null) => {
+  if (questionType && GRAPH_QUESTION_TYPES.has(questionType)) return true;
+  return looksLikeGraphJson(correctAnswer);
+};
 
 const TakePracticeQuiz = () => {
   const { setId } = useParams();
@@ -583,12 +596,16 @@ const TakePracticeQuiz = () => {
       }
 
       // 5. Load session progress
-      const { data: progress } = await supabase
+      const { data: progress, error: progressError } = await supabase
         .from('practice_set_progress')
         .select('*')
         .eq('user_id', user.id)
         .eq('set_id', setId)
-        .single();
+        .maybeSingle();
+
+      if (progressError) {
+        console.warn('[Progress] Failed to fetch progress row:', progressError.message);
+      }
 
       if (progress) {
         // Restore timer
@@ -596,9 +613,10 @@ const TakePracticeQuiz = () => {
           setTimeElapsed(progress.time_spent_seconds);
         }
         
-        // Restore current question index
+        // Restore current question index (clamped to valid bounds)
         if (progress.current_question_index !== null && progress.current_question_index !== undefined) {
-          setCurrentIndex(progress.current_question_index);
+          const boundedIndex = Math.max(0, Math.min(progress.current_question_index, Math.max(sortedQuestions.length - 1, 0)));
+          setCurrentIndex(boundedIndex);
         }
         
         // Restore flagged questions
@@ -710,7 +728,9 @@ const TakePracticeQuiz = () => {
       Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0));
     
     // Check for graph interpretation answers
-    const graphData = parseGraphQuestionData(currentQuestion.correct_answer || null);
+    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
+      ? parseGraphQuestionData(currentQuestion.correct_answer || null)
+      : null;
     const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
     const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
     
@@ -1194,7 +1214,8 @@ const TakePracticeQuiz = () => {
     // Check both plain text and latex for having an answer
     const hasAnswer = Boolean(answer?.answer?.trim() || answer?.answerLatex?.trim());
     const isFlagged = flaggedQuestions.has(question.id);
-    const isCurrent = questions[currentIndex].id === question.id;
+    const currentQuestionId = questions[currentIndex]?.id;
+    const isCurrent = currentQuestionId === question.id;
 
     let className = 'relative aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ';
     let style: React.CSSProperties = {};
@@ -1354,7 +1375,8 @@ const TakePracticeQuiz = () => {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!questions.length) return <div className="p-8 text-center">No questions available</div>;
 
-  const currentQuestion = questions[currentIndex];
+  const safeIndex = Math.min(Math.max(currentIndex, 0), questions.length - 1);
+  const currentQuestion = questions[safeIndex];
   const currentAnswer = userAnswers[currentQuestion.id] || { answer: "", answerLatex: "", submitted: false };
   
   /**
@@ -1567,15 +1589,17 @@ const TakePracticeQuiz = () => {
                     </Badge>
                   </div>
 
-                  {/* Question text */}
-                  <div className="text-base lg:text-lg leading-relaxed">
-                    <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
-                  </div>
-
+                  <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
+                    {/* Question text */}
+                    <div className="text-base lg:text-lg leading-relaxed">
+                      <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
+                    </div>
                   {/* Reference diagram for "shown in the diagram" questions - SKIP for graph_plotting as it has its own curve rendering */}
                   {(() => {
                     // Parse graph data to check if this is a graph_plotting question
-                    const graphData = parseGraphQuestionData(currentQuestion.correct_answer || null);
+                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
+                      ? parseGraphQuestionData(currentQuestion.correct_answer || null)
+                      : null;
                     const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || 
                       (graphData?.graphConfig && graphData?.plottingAnswer);
                     
@@ -1685,7 +1709,9 @@ const TakePracticeQuiz = () => {
                     // Check if this is a graph or bearings question
                     // CRITICAL: question_type is the authoritative source - only use graphData parsing as fallback
                     // This prevents short_answer questions with old cached graphData from rendering as graph questions
-                    const graphData = parseGraphQuestionData(currentQuestion.correct_answer);
+                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
+                      ? parseGraphQuestionData(currentQuestion.correct_answer)
+                      : null;
                     
                     // Only treat as graph question if question_type explicitly says so
                     // OR if question_type is unset/generic but graphData has a graphType
@@ -2237,6 +2263,7 @@ const TakePracticeQuiz = () => {
                       </div>
                     );
                   })()}
+                  </QuizQuestionErrorBoundary>
 
                   {/* Feedback section after submission */}
                   {currentAnswer.submitted && (
