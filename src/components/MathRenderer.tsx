@@ -192,12 +192,12 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(cleanedContent);
   
   // Check if content contains math delimiters
-  const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$(?!\d)[^$]+\$/g.test(cleanedContent);
+  const hasInlineOrBlockMath = /\$\$[^$]+\$\$|\$[^$]+\$/g.test(cleanedContent);
   
   // Inline mode - render without block-level wrappers for use in labels/spans
   if (inline) {
     if (hasMath || hasInlineOrBlockMath) {
-      const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$(?!\d)[^$]+\$)/g);
+      const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
       return (
         <span className={className}>
           {parts.map((part, i) => {
@@ -207,6 +207,10 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
             }
             if (part.startsWith('$') && part.endsWith('$')) {
               const mathContent = part.slice(1, -1);
+              // Skip pure currency amounts (e.g. "$30", "$5,000") — no LaTeX commands
+              if (/^\d[\d,.]*$/.test(mathContent)) {
+                return <span key={i}>{part}</span>;
+              }
               return <InlineMath key={i} math={mathContent} />;
             }
             return <span key={i}>{part}</span>;
@@ -245,7 +249,7 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
           }
           
           // For non-table parts, check for math expressions
-          const mathParts = part.split(/(\$\$[^$]+\$\$|\$(?!\d)[^$]+\$)/g);
+          const mathParts = part.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
           return mathParts.map((mathPart, j) => {
             if (mathPart.startsWith('$$') && mathPart.endsWith('$$')) {
               const mathContent = mathPart.slice(2, -2);
@@ -257,6 +261,9 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
             }
             if (mathPart.startsWith('$') && mathPart.endsWith('$')) {
               const mathContent = mathPart.slice(1, -1);
+              if (/^\d[\d,.]*$/.test(mathContent)) {
+                return <span key={`${i}-${j}`}>{mathPart}</span>;
+              }
               return <InlineMath key={`${i}-${j}`} math={mathContent} />;
             }
             // Regular text
@@ -272,7 +279,7 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   // If content has math delimiters, parse and render them
   if (hasMath || hasInlineOrBlockMath) {
     // Split content by both block ($$...$$) and inline ($...$) math delimiters
-    const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$(?!\d)[^$]+\$)/g);
+    const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
     
     return (
       <div className={`prose prose-sm max-w-none ${className}`}>
@@ -289,6 +296,9 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
           // Inline math: $...$
           if (part.startsWith('$') && part.endsWith('$')) {
             const mathContent = part.slice(1, -1);
+            if (/^\d[\d,.]*$/.test(mathContent)) {
+              return <span key={i}>{part}</span>;
+            }
             return <InlineMath key={i} math={mathContent} />;
           }
           // Regular text - preserve whitespace and structure
