@@ -1,92 +1,78 @@
 
 
-# Fix Math-Visual Mismatch in Economics/Science Graphs
+# Fix Economics Graph Generation: Math Accuracy, Terminology, and Currency Formatting
 
-## Root Cause (Confirmed from Database)
+## Issues Identified
 
-The database shows that ALL three economics graph questions (2a, 2b, 4) contain **identical** `y = x^2` parabola data with domain [-4, 4] and labels "x"/"y" -- despite the question text describing linear Supply/Demand equations like `P_D = 150 - 3Q`.
+### Issue 1: Mathematical Outputs (Question 1c methodology)
+The AI currently computes subsidy costs and surplus changes, but the user wants a **strict algebraic-first methodology** — solve simultaneous equations first, then use the graph purely as a visual aid. The prompt needs a stronger "algebraic derivation" mandate that applies to all non-math subjects (Economics, Science, etc.), ensuring the AI always shows step-by-step algebra in worked solutions and derives values from equations rather than reading from graphs.
 
-The failure chain:
-1. The AI outputs `correct_answer` as an invalid JSON string (logs: `"correct_answer is not valid JSON"`)
-2. The non-math enforcement logic (line 1618) can't parse it, skips
-3. The validation step sets `hasValidData = false`
-4. The coordinate extractor finds no `(x, y)` patterns in economics text (which uses `P = 150 - 3Q` format, not coordinate pairs)
-5. `generateFallbackGraphSpec()` in `graph-validator.ts` runs and detects no function type keywords, falling to the **default case: `y = x^2` parabola** (line 326)
-6. This generic parabola completely replaces the economics graph data
+### Issue 2: "Curve" vs "Line" Terminology (Question 2a)
+The AI generates text like "Plot the supply **curve**" for linear functions like `P = 10 + 0.5Q`. This is mathematically misleading. The prompt must enforce: if the function is linear (degree 1), use "line" or "function" — never "curve."
 
-So the user's diagnosis is correct: the AI's "correct_answer" JSON fails validation, and the fallback system always produces a parabola regardless of subject.
+### Issue 3: Currency `$` Conflicting with LaTeX `$` (Question 2b)
+The question text `"$30 per unit"` contains a literal dollar sign `$30`. The MathRenderer's regex `$[^$]+$` greedily matches from `$30` all the way to the next `$` (the start of `$Q_D$`), creating garbled output. This is a **frontend parsing bug** — the regex cannot distinguish currency `$30` from LaTeX delimiters.
 
-## The Fix (3 Changes)
+**Two-pronged fix needed:**
+- **Backend (prompt):** Instruct the AI to never use a bare `$` for currency. Instead use `\$` or spell out the currency (e.g., "USD 30", "30 dollars").
+- **Frontend (MathRenderer):** Improve the regex to skip `$` followed immediately by a digit (which is almost always currency, not LaTeX).
 
-### Change 1: Add Economics/Science-Aware Fallback to `graph-validator.ts`
+## Plan
 
-**File: `supabase/functions/_shared/graph-validator.ts`**
+### Change 1: Smarter LaTeX Regex in MathRenderer (Frontend)
 
-Before the default `y = x^2` fallback (line 326), add detection for linear economics equations:
+**File: `src/components/MathRenderer.tsx`**
 
-- Detect patterns like `P = 150 - 3Q`, `P_D = 30 + 2Q`, `Y = mX + c` in the question text
-- Extract slope and intercept from the equation
-- Generate linear data points with correct domain (e.g., Q from 0 to 60 for `P = 150 - 3Q`)
-- Support multiple equations in one question (Supply AND Demand) with different colors
-- Use economics-appropriate axis labels ("Quantity (Q)" / "Price (P)") instead of "x"/"y"
-
-This ensures that even when the AI's JSON fails, the fallback produces a correct linear graph.
-
-### Change 2: Add Linear Equation Extraction to the Coordinate Extractor
-
-**File: `supabase/functions/generate-practice-questions/index.ts` (lines 2520-2550)**
-
-The current coordinate extractor only looks for `(x, y)` patterns. Add parsing for:
-- `P = 150 - 3Q` format: extract intercept=150, slope=-3, calculate points
-- `P_S = 30 + 2Q` format: same extraction
-- `C = aQ + b` and similar economics notation
-- When detected, generate the correct `expectedPath` directly from the equation
-
-### Change 3: Add a Linear Economics Gold Standard Example to the Prompt
-
-**File: `supabase/functions/generate-practice-questions/index.ts` (around line 1014)**
-
-After the existing Physics gold standard, add a Supply/Demand gold standard that shows:
-- Economics axis labels with units ("Quantity (units)" / "Price ($)")
-- Correct domain scaling (e.g., domainX: [0, 60], domainY: [0, 160])
-- Multi-series with colors for Supply and Demand
-- `graph_interpretation` type (not plotting) since students read from pre-drawn curves
-- Linear data points computed from the equations
-
-Also add a strict instruction:
-> "CRITICAL: For economics linear equations like P = a - bQ, the data points MUST be calculated from the equation. If P = 150 - 3Q, then at Q=0 P=150, at Q=10 P=120, at Q=50 P=0. NEVER use parabolic or curved data for linear equations."
-
-### Change 4: Dynamic Axis Scaling Rule
-
-In the prompt instructions (around line 961), add:
-> "Axis domains MUST encompass the full range of the equation. If P-intercept is 150, domainY must extend to at least 160. If Q-intercept is 50, domainX must extend to at least 55. NEVER use default [-4,4] or [0,10] domains for economics graphs."
-
-## Technical Details
-
-### Linear equation parser (for Change 1 and 2)
-
-```text
-Regex patterns to add:
-  /(?:P|P_[DS]|Y|C)\s*=\s*(-?\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\s*Q/i
-  /(?:P|P_[DS]|Y|C)\s*=\s*(\d+(?:\.\d+)?)\s*Q\s*([+-])\s*(\d+(?:\.\d+)?)/i
-
-For P = 150 - 3Q:
-  intercept = 150, slope = -3
-  Q range: 0 to ceil(150/3) = 50
-  Points: [{x:0, y:150}, {x:10, y:120}, {x:20, y:90}, {x:30, y:60}, {x:40, y:30}, {x:50, y:0}]
+Update the math delimiter regex (used on lines 195, 200, 259, 274) to exclude currency patterns. Replace:
 ```
+/(\$\$[^$]+\$\$|\$[^$]+\$)/g
+```
+With a regex that skips `$` immediately followed by a digit (currency like `$30`, `$5,000`):
+```
+/(\$\$[^$]+\$\$|\$(?!\d)[^$]+\$)/g
+```
+
+This single-character addition `(?!\d)` (negative lookahead for digit) prevents `$30` from being treated as a LaTeX opening delimiter, while still correctly matching `$Q_D$`, `$P_S$`, etc.
+
+### Change 2: Algebraic-First Methodology Rule (Backend Prompt)
+
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+Add to the non-math subject prompt section (around line 968):
+
+- **"ALGEBRAIC DERIVATION FIRST" rule:** For all non-math subjects, the AI must solve equations algebraically in the worked_solution before referencing the graph. The worked solution must show: (1) set equations equal, (2) solve step-by-step, (3) state the answer, (4) note that the graph confirms visually. This applies to Economics, Physics, Chemistry — any subject with quantitative functions.
+- **Welfare analysis formulas:** Explicitly list standard formulas: `Total Subsidy Cost = subsidy_per_unit × Q_new`, `ΔCS = 0.5 × (P_old - P_new) × (Q_old + Q_new)` so the AI uses the correct formulae rather than approximating.
+
+### Change 3: Linear Terminology Enforcement (Backend Prompt)
+
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+Add a terminology rule to the non-math prompt section:
+
+- If a function is linear (degree 1, e.g., `P = 10 + 0.5Q`), the question text MUST use "line" or "function" — never "curve."
+- "Curve" is only acceptable for genuinely non-linear relationships (quadratic, exponential, etc.).
+- Examples: "Plot the supply **line**", "Plot the supply **function**", "The demand **line** is shown."
+
+### Change 4: Currency Symbol Escaping Rule (Backend Prompt)
+
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+Add a formatting rule:
+
+- NEVER use a bare `$` symbol for currency in question_text, feedback, or worked_solution. The `$` character is reserved for LaTeX delimiters.
+- For currency, use: `\\$30` (escaped dollar), or write "30 dollars", "USD 30", "£30" (non-conflicting symbols).
+- This prevents the LaTeX renderer from misinterpreting currency amounts as math expressions.
 
 ### Files Modified
 
 | File | Changes |
 |---|---|
-| `supabase/functions/_shared/graph-validator.ts` | Add linear equation detection before default parabola fallback; economics-aware axis labels |
-| `supabase/functions/generate-practice-questions/index.ts` | Add economics gold standard example; add linear equation extraction to coordinate parser; add axis scaling instruction |
+| `src/components/MathRenderer.tsx` | Update math regex with `(?!\d)` negative lookahead to skip currency `$` patterns (lines 195, 200, 259, 274) |
+| `supabase/functions/generate-practice-questions/index.ts` | Add algebraic-first rule, welfare formulas, linear terminology enforcement, and currency escaping rule to the non-math prompt section |
 
 ### What This Does NOT Touch
-
-- Frontend rendering components -- zero changes
-- Graph marking engine -- zero changes
-- Database schema -- no changes
-- Math subject graph generation -- unaffected (the new logic only activates for non-math subjects with linear equation patterns)
+- Graph rendering components — no changes
+- Database schema — no changes  
+- Math subject generation — unaffected (rules only activate for non-math subjects)
+- Existing quiz data — unmodified (fixes apply to future generations)
 
