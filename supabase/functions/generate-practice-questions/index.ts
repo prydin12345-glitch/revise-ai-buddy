@@ -965,6 +965,29 @@ For graph_interpretation questions with multiple curves (e.g., Supply & Demand, 
   - For shifted curves: "New Demand (D₁)" or "New Supply (S₁)"
 - Series labels should read like an economics textbook, e.g.: "Demand (D)", "Supply (S)", "New Supply (S₁)"
 
+***** ALGEBRAIC DERIVATION FIRST — MANDATORY FOR ALL NON-MATH SUBJECTS *****
+For ALL subjects except Mathematics, when a question involves equations or functions:
+1. The worked_solution MUST solve equations algebraically FIRST: set equations equal, solve step-by-step, state numeric answer.
+2. The graph is a VISUAL AID only — never derive values "from the graph" in the worked solution.
+3. Example methodology: "Setting $P_D = P_S$: $150 - 3Q = 30 + 2Q$ → $120 = 5Q$ → $Q = 24$. Substituting: $P = 150 - 3(24) = 78$. The graph confirms the intersection at $(24, 78)$."
+4. For welfare analysis, use EXACT formulas:
+   - Total Subsidy Cost = subsidy_per_unit × Q_new
+   - ΔCS = 0.5 × (P_old - P_new) × (Q_old + Q_new)
+   - ΔPS = 0.5 × (P_new_producer - P_old) × (Q_old + Q_new)
+   - DWL = 0.5 × subsidy_per_unit × (Q_new - Q_old)
+5. NEVER approximate or "read off" values — always compute from the algebraic solution.
+
+***** LINEAR TERMINOLOGY ENFORCEMENT *****
+- If a function is linear (degree 1, e.g., P = 10 + 0.5Q), the question text MUST say "line" or "function" — NEVER "curve."
+- "Curve" is ONLY acceptable for genuinely non-linear relationships (quadratic, exponential, logarithmic).
+- Correct: "Plot the supply line", "The demand function is shown", "Draw the supply line on the graph"
+- WRONG: "Plot the supply curve" (when the function is linear)
+
+***** CURRENCY SYMBOL FORMATTING *****
+- NEVER use a bare $ symbol for currency in question_text, feedback, or worked_solution. The $ character is RESERVED for LaTeX delimiters.
+- For currency, write the amount in words or use non-conflicting symbols: "30 dollars", "USD 30", "£30", "€30".
+- If you must use a dollar sign, escape it: "\\$30" — but prefer spelling it out.
+
 ***** CRITICAL: MATH-VISUAL SYNC RULE — DATA MUST MATCH EQUATIONS *****
 For economics linear equations like P = a - bQ or P_S = c + dQ:
 - The data points MUST be calculated from the equation. If P = 150 - 3Q, then at Q=0 P=150, at Q=10 P=120, at Q=50 P=0.
