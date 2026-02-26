@@ -7,8 +7,9 @@
  * ✅ Can select "Mathematics" even when currently showing "Biology"
  * ✅ High z-index (100) ensures menu is above other elements
  */
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +32,8 @@ interface SubjectSelectorProps {
   onValueChange: (value: string) => void;
   onColorChange: (color: string) => void;
   showLabel?: boolean;
+  /** When true, color changes are persisted globally via useUserSubjects */
+  persistColor?: boolean;
 }
 
 const PREDEFINED_SUBJECTS = [
@@ -69,9 +72,21 @@ const PRESET_COLORS = [
   "#06B6D4", // Cyan
 ];
 
-export const SubjectSelector = ({ value, color, onValueChange, onColorChange, showLabel = true }: SubjectSelectorProps) => {
+export const SubjectSelector = ({ value, color, onValueChange, onColorChange, showLabel = true, persistColor = true }: SubjectSelectorProps) => {
   const [isCustom, setIsCustom] = useState(false);
   const [customSubject, setCustomSubject] = useState("");
+  const { saveOrUpdateSubject, subjects, getSubjectColor } = useUserSubjects();
+
+  const handleColorChange = useCallback(async (newColor: string) => {
+    onColorChange(newColor);
+    if (persistColor && value) {
+      try {
+        await saveOrUpdateSubject(value, newColor);
+      } catch (err) {
+        console.error("Error persisting color:", err);
+      }
+    }
+  }, [onColorChange, persistColor, value, saveOrUpdateSubject]);
 
   const handleSubjectChange = (newValue: string) => {
     if (newValue === "custom") {
@@ -79,6 +94,11 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
     } else {
       setIsCustom(false);
       onValueChange(newValue);
+      // Auto-load existing color for this subject
+      const existingColor = getSubjectColor(newValue);
+      if (existingColor && existingColor !== "#3B82F6") {
+        onColorChange(existingColor);
+      }
     }
   };
 
@@ -157,7 +177,7 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
                       color === presetColor ? "border-foreground ring-2 ring-foreground/20" : "border-border"
                     }`}
                     style={{ backgroundColor: presetColor }}
-                    onClick={() => onColorChange(presetColor)}
+                    onClick={() => handleColorChange(presetColor)}
                   />
                 ))}
               </div>
@@ -167,13 +187,13 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
                   <Input
                     type="color"
                     value={color}
-                    onChange={(e) => onColorChange(e.target.value)}
+                    onChange={(e) => handleColorChange(e.target.value)}
                     className="w-16 h-10 p-1 cursor-pointer"
                   />
                   <Input
                     type="text"
                     value={color}
-                    onChange={(e) => onColorChange(e.target.value)}
+                    onChange={(e) => handleColorChange(e.target.value)}
                     placeholder="#3B82F6"
                     className="flex-1"
                   />
