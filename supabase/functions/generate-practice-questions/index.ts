@@ -1068,6 +1068,108 @@ Original equilibrium: Q=30, P=140; New equilibrium: Q=33, P=134
   ]
 }
 
+ECONOMICS GRAPH GOLD STANDARD (DUAL-SHIFT TAX) — for indirect tax questions with S and S₁:
+Given: Demand P_D = 120 - 2Q, Supply P_S = 20 + Q, tax of $10 per unit (shifts supply UP by $10):
+New supply: P_S₁ = 30 + Q
+Original equilibrium: 120 - 2Q = 20 + Q → Q=33.33, P=53.33; New equilibrium: 120 - 2Q = 30 + Q → Q=30, P=60
+Consumer tax burden = new price - old price = 60 - 53.33 = $6.67
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Quantity (Q)", "yLabel": "Price ($)",
+    "domainX": [0, 65], "domainY": [0, 130], "xDomain": [0, 65], "yDomain": [0, 130],
+    "series": [
+      {"id": "demand", "label": "Demand (D)", "data": [{"x":0,"y":120},{"x":15,"y":90},{"x":30,"y":60},{"x":33.33,"y":53.33},{"x":45,"y":30},{"x":60,"y":0}], "color": "#ef4444", "showLine": true},
+      {"id": "supply", "label": "Supply (S)", "data": [{"x":0,"y":20},{"x":15,"y":35},{"x":33.33,"y":53.33},{"x":45,"y":65},{"x":60,"y":80}], "color": "#3b82f6", "showLine": true},
+      {"id": "supply_tax", "label": "Supply + Tax (S₁)", "data": [{"x":0,"y":30},{"x":15,"y":45},{"x":30,"y":60},{"x":45,"y":75},{"x":60,"y":90}], "color": "#f59e0b", "showLine": true}
+    ],
+    "grid": {"show": true, "stepX": 5, "stepY": 10},
+    "subjectProfile": {"subject": "Economics", "axisLabels": {"x": "Quantity (Q)", "y": "Price ($)"}, "quadrantMode": "q1"},
+    "annotations": [
+      {"id": "old_eq", "type": "projection", "coords": {"x": 33.33, "y": 53.33}, "label": "E", "projectTo": "both", "showCoordinates": true},
+      {"id": "new_eq", "type": "projection", "coords": {"x": 30, "y": 60}, "label": "E₁", "projectTo": "both", "showCoordinates": true}
+    ]
+  },
+  "interpretationFields": [
+    {"id": "new_price", "type": "numeric", "question": "What is the new equilibrium price after the tax?", "correctAnswer": 60, "tolerance": 2, "marks": 2},
+    {"id": "consumer_burden", "type": "numeric", "question": "Calculate the tax burden on the consumer (per unit).", "correctAnswer": 6.67, "tolerance": 0.5, "marks": 3}
+  ]
+}
+
+PHYSICS/SCIENCE GRAPH GOLD STANDARD (EXPONENTIAL DECAY) — for radioactive decay, half-life, or any smooth asymptotic curve:
+Given: Initial activity A₀ = 800 counts/min, half-life = 40s. Formula: A = 800 × (0.5)^(t/40)
+At t=120s: A = 800 × (0.5)^3 = 100
+IMPORTANT: Use graph_interpretation (pre-drawn smooth curve), NOT graph_plotting. Generate 20+ data points for a smooth curve.
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Time (s)", "yLabel": "Activity (counts/min)",
+    "domainX": [0, 200], "domainY": [0, 850], "xDomain": [0, 200], "yDomain": [0, 850],
+    "series": [
+      {"id": "decay", "label": "Radioactive Decay", "data": [
+        {"x":0,"y":800},{"x":8,"y":685},{"x":16,"y":587},{"x":24,"y":503},{"x":32,"y":431},
+        {"x":40,"y":400},{"x":48,"y":343},{"x":56,"y":294},{"x":64,"y":252},{"x":72,"y":216},
+        {"x":80,"y":200},{"x":88,"y":171},{"x":96,"y":147},{"x":104,"y":126},{"x":112,"y":108},
+        {"x":120,"y":100},{"x":128,"y":86},{"x":136,"y":73},{"x":144,"y":63},{"x":152,"y":54},
+        {"x":160,"y":50},{"x":168,"y":43},{"x":176,"y":37},{"x":184,"y":31},{"x":192,"y":27},{"x":200,"y":25}
+      ], "color": "#8b5cf6", "showLine": true}
+    ],
+    "grid": {"show": true, "stepX": 20, "stepY": 100},
+    "subjectProfile": {"subject": "Physics", "axisLabels": {"x": "Time (s)", "y": "Activity (counts/min)"}, "quadrantMode": "q1"}
+  },
+  "interpretationFields": [
+    {"id": "activity_120", "type": "numeric", "question": "Use the graph to find the activity after 120 seconds.", "correctAnswer": 100, "tolerance": 10, "marks": 2},
+    {"id": "half_life", "type": "numeric", "question": "Determine the half-life from the graph.", "correctAnswer": 40, "tolerance": 3, "marks": 2}
+  ]
+}
+
+BUSINESS GRAPH GOLD STANDARD (BREAK-EVEN ANALYSIS) — for Fixed Cost / Total Cost / Total Revenue overlays:
+Given: Fixed costs = $2000, Variable cost per unit = $8, Selling price = $20 per unit.
+Total Cost (TC) = 2000 + 8Q, Total Revenue (TR) = 20Q
+Break-even: 20Q = 2000 + 8Q → 12Q = 2000 → Q ≈ 167 units
+{
+  "graphType": "interpretation",
+  "graphConfig": {
+    "chartType": "line", "xLabel": "Output (units)", "yLabel": "Cost / Revenue ($)",
+    "domainX": [0, 350], "domainY": [0, 7000], "xDomain": [0, 350], "yDomain": [0, 7000],
+    "series": [
+      {"id": "fixed_cost", "label": "Fixed Cost (FC)", "data": [{"x":0,"y":2000},{"x":100,"y":2000},{"x":167,"y":2000},{"x":250,"y":2000},{"x":350,"y":2000}], "color": "#ef4444", "showLine": true, "lineStyle": "solid"},
+      {"id": "total_cost", "label": "Total Cost (TC)", "data": [{"x":0,"y":2000},{"x":50,"y":2400},{"x":100,"y":2800},{"x":167,"y":3336},{"x":250,"y":4000},{"x":350,"y":4800}], "color": "#3b82f6", "showLine": true, "lineStyle": "solid"},
+      {"id": "total_revenue", "label": "Total Revenue (TR)", "data": [{"x":0,"y":0},{"x":50,"y":1000},{"x":100,"y":2000},{"x":167,"y":3340},{"x":250,"y":5000},{"x":350,"y":7000}], "color": "#22c55e", "showLine": true, "lineStyle": "solid"}
+    ],
+    "grid": {"show": true, "stepX": 50, "stepY": 1000},
+    "subjectProfile": {"subject": "Business", "axisLabels": {"x": "Output (units)", "y": "Cost / Revenue ($)"}, "quadrantMode": "q1"},
+    "annotations": [
+      {"id": "breakeven", "type": "projection", "coords": {"x": 167, "y": 3340}, "label": "Break-even Point", "projectTo": "both", "showCoordinates": true}
+    ]
+  },
+  "interpretationFields": [
+    {"id": "breakeven_qty", "type": "numeric", "question": "Identify the break-even quantity from the graph.", "correctAnswer": 167, "tolerance": 5, "marks": 2},
+    {"id": "margin_safety", "type": "numeric", "question": "If the current output is 500 units, calculate the margin of safety.", "correctAnswer": 333, "tolerance": 10, "marks": 3}
+  ]
+}
+
+***** SMOOTH CURVE vs DISCRETE PATH — ROUTING RULE *****
+When generating graph questions for non-math subjects, choose the correct mode:
+
+MODE 1 — DISCRETE PATH (graph_plotting): Use for PIECEWISE LINEAR scenarios only:
+  - Distance-time, speed-time, velocity-time journeys
+  - Supply/demand lines where the student DRAWS the lines
+  - Any scenario described as a sequence of distinct events connected by straight segments
+
+MODE 2 — SMOOTH PRE-DRAWN CURVE (graph_interpretation): Use for CURVED relationships:
+  - Exponential decay (radioactive decay, capacitor discharge, cooling curves)
+  - Enzyme kinetics, rate of reaction curves
+  - Any exponential, logarithmic, or asymptotic relationship
+  - Break-even analysis, cost/revenue overlays
+  - Generate 15-30 data points using the mathematical formula for a smooth appearance
+  - The student READS values from the pre-drawn curve, not draws it
+
+EXCEPTION — If the question says "plot" or "sketch" an exponential/curved relationship:
+  - STILL use graph_interpretation with the pre-drawn curve
+  - Add interpretationFields asking the student to read specific values
+  - This avoids jagged straight-line rendering for naturally curved relationships
+
 Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE):
 - For graph_plotting questions, you MUST use expectedPath (array of vertices), NOT markingFormula.
 - Do NOT compute smooth mathematical curves. The answer is a SEQUENCE OF KEY EVENTS connected by straight lines.
@@ -1120,6 +1222,16 @@ Graph questions for ${setData.subject_id} (NON-MATH SUBJECT - DISCRETE PATH MODE
 9. Flat segments: "stays at 300m for 100s" = TWO points with same y-value
 10. NEVER use polynomial functions (x^2, x^3, sin(x), etc.) — only straight-line segments
 11. subjectProfile is REQUIRED with correct axis labels and units
+
+EXCEPTION — SMOOTH CURVE SCENARIOS (exponential, logarithmic, rate curves):
+If the question involves a smooth mathematical curve (e.g., radioactive decay, enzyme kinetics,
+charging/discharging curves, cooling curves, population growth):
+- Do NOT use graph_plotting with discrete path mode
+- Instead use graph_interpretation with pre-drawn curve data (15-30 computed data points)
+- The student READS from the pre-drawn curve, not draws it
+- Use the PHYSICS/SCIENCE GRAPH GOLD STANDARD template above
+- This avoids jagged straight-line rendering for naturally curved relationships
+- Reserve graph_plotting ONLY for piecewise linear journeys (distance-time, speed-time, supply/demand lines)
 
 GOLD STANDARD — copy this structure for ALL speed-time and distance-time graphs:
 {

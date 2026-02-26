@@ -345,6 +345,53 @@ export function generateFallbackGraphSpec(
       const y = Math.pow(x - 1, 2);
       curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
     }
+  } else if (/decay|half[-\s]?life|exponential|radioactive|disintegrat|capacitor\s+discharg|cooling\s+curve/i.test(text)) {
+    // Exponential decay fallback: A = A₀ × 0.5^(t/t_half)
+    console.info('[Graph Fallback] Detected exponential/decay keywords — generating smooth decay curve');
+    const A0 = 800; // Default initial value
+    const halfLife = 40; // Default half-life
+    const maxT = 200;
+    domainX = [0, maxT];
+    domainY = [0, Math.ceil(A0 * 1.1 / 100) * 100];
+    
+    for (let t = 0; t <= maxT; t += maxT / 25) {
+      const y = A0 * Math.pow(0.5, t / halfLife);
+      curveData.push({ 
+        x: Math.round(t * 100) / 100, 
+        y: Math.round(y * 100) / 100 
+      });
+    }
+    
+    // Always return as interpretation (pre-drawn) for smooth curves
+    const decayConfig: GraphSpec = {
+      chartType: 'line',
+      xLabel: 'Time (s)',
+      yLabel: 'Activity (counts/min)',
+      xDomain: domainX,
+      yDomain: domainY,
+      grid: { show: true, stepX: Math.ceil(maxT / 10), stepY: Math.ceil(A0 / 8) },
+      series: [{
+        id: 'decay',
+        label: 'Exponential Decay',
+        data: curveData,
+        showLine: true,
+        lineStyle: 'solid',
+        color: '#8b5cf6'
+      }]
+    };
+    
+    return {
+      graphType: 'interpretation',
+      graphConfig: decayConfig,
+      interpretationFields: [{
+        id: 'reading',
+        type: 'numeric',
+        question: 'Use the graph to determine the value at the indicated time.',
+        correctAnswer: A0 / 8, // 3 half-lives
+        tolerance: A0 / 40,
+        marks: 2,
+      }]
+    };
   } else if (keyPoints.length >= 3) {
     // Use Lagrange interpolation through key points
     const step = (domainX[1] - domainX[0]) / 50;
