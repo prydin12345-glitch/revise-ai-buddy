@@ -126,6 +126,15 @@ export const useUserSubjects = () => {
         .ilike("subject", subjectName);
 
       if (tasksError) console.error("Error updating tasks:", tasksError);
+
+      // Cascade update to weekly_subject_stats
+      const { error: statsError } = await supabase
+        .from("weekly_subject_stats")
+        .update({ subject_color: color })
+        .eq("user_id", user.id)
+        .ilike("subject", subjectName);
+
+      if (statsError) console.error("Error updating weekly stats:", statsError);
       
       setSubjects(subjects.map(s => 
         s.id === existingSubject.id 
