@@ -17,6 +17,7 @@ import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScre
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
 import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
@@ -105,6 +106,7 @@ const getRandomColor = () => {
 export default function CreateExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getProfilesForSubject } = useSubjectProfiles();
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -521,6 +523,33 @@ export default function CreateExam() {
                 onColorChange={setSubjectColor}
                 showLabel={false}
               />
+
+              {/* Exam Profile Selector */}
+              {subjectId && getProfilesForSubject(subjectId).length > 0 && (
+                <div className="space-y-2">
+                  <Label>Use Exam Profile (Optional)</Label>
+                  <Select
+                    value=""
+                    onValueChange={(profileId) => {
+                      const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
+                      if (profile) {
+                        setTotalQuestions(Math.min(profile.question_count, 50));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a profile to auto-fill..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getProfilesForSubject(subjectId).map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.profile_name} ({profile.topics.length} topics, {profile.question_count}Q)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {/* Row 2: Notes (Full Width) */}

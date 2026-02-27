@@ -28,12 +28,14 @@ import { PracticeSetCompleteModal } from "@/components/practice/PracticeSetCompl
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const { getSubjectColor } = useUserSubjects();
+  const { getProfilesForSubject } = useSubjectProfiles();
 
   const pollIntervalRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
@@ -470,6 +472,34 @@ const CreatePracticeQuestions = () => {
                   showLabel={false}
                 />
               </div>
+
+              {/* Exam Profile Selector */}
+              {subjectId && getProfilesForSubject(subjectId).length > 0 && (
+                <div className="space-y-2">
+                  <Label>Use Exam Profile (Optional)</Label>
+                  <Select
+                    value=""
+                    onValueChange={(profileId) => {
+                      const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
+                      if (profile) {
+                        setSelectedSubtopics(profile.topics);
+                        setQuestionCount(Math.min(profile.question_count, 30));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a profile to auto-fill..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getProfilesForSubject(subjectId).map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.profile_name} ({profile.topics.length} topics, {profile.question_count}Q)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
