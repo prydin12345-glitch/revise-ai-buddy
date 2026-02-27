@@ -376,13 +376,27 @@ export function SubtopicSelector({
         query = query.or(`exam_board.eq.${examBoard},exam_board.is.null`);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      // Fetch both subject_subtopics and user's master topics in parallel
+      const { data: { user } } = await supabase.auth.getUser();
+      const [subtopicsRes, masterTopicsRes] = await Promise.all([
+        query,
+        user
+          ? supabase
+              .from("subject_master_topics")
+              .select("topic")
+              .eq("user_id", user.id)
+              .ilike("subject_name", subject)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      const dbSubtopics = data?.map((item: any) => item.subtopic) || [];
-      // Merge DB results with local dictionary, deduplicated
+      if (subtopicsRes.error) throw subtopicsRes.error;
+
+      const dbSubtopics = subtopicsRes.data?.map((item: any) => item.subtopic) || [];
+      const userMasterTopics = (masterTopicsRes as any).data?.map((item: any) => item.topic) || [];
+      // Merge DB results, user master topics, and local dictionary — deduplicated
+      // User master topics come first for priority
       const localSubtopics = getLocalSubtopics(subject);
-      const merged = [...new Set([...dbSubtopics, ...localSubtopics])];
+      const merged = [...new Set([...userMasterTopics, ...dbSubtopics, ...localSubtopics])];
       setAvailableSubtopics(merged);
     } catch (error) {
       console.error("Error loading subtopics:", error);
