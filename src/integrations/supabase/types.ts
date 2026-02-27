@@ -1877,6 +1877,63 @@ export type Database = {
         }
         Relationships: []
       }
+      subject_exam_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          profile_name: string
+          question_count: number
+          subject_name: string
+          topics: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_name: string
+          question_count?: number
+          subject_name: string
+          topics?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_name?: string
+          question_count?: number
+          subject_name?: string
+          topics?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subject_master_topics: {
+        Row: {
+          created_at: string
+          id: string
+          subject_name: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subject_name: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subject_name?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subject_subtopics: {
         Row: {
           created_at: string | null
