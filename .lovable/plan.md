@@ -1,83 +1,101 @@
 
 
-# Add Master Test Templates and Fix Smooth Curve Support for Non-Math Subjects
+# "My Subjects" with Exam Profiles, Master Topics, and AI Integration
 
-## Problem
+## Overview
 
-The current prompt has a hard rule for non-math `graph_plotting`: "NEVER use polynomial functions — only straight-line segments." This works for distance-time journeys but breaks for:
-- **Exponential decay** (Physics half-life) — should be a smooth curve, not jagged segments
-- **Break-even analysis** (Business) — linear lines are fine, but the system needs a dedicated template
+Add a "My Subjects" tab to the Stats page where users can manage per-subject topic lists and create "Exam Profiles" (e.g., "Maths Paper 1", "Maths Paper 2") with curated topic subsets and question count limits. These profiles feed directly into exam and practice quiz generation.
 
-Additionally, the three "Master Prompts" described by the user expose gaps:
-1. **Dual-Shift** (S, S₁, D with tax shift) — no dedicated gold standard for shifted supply with exact tax amount
-2. **Asymptotic Decay** — exponential curves are forbidden by the discrete-path rule
-3. **Linear Intercept** (Break-even) — no gold standard for Fixed Cost / Total Cost / Total Revenue overlay
+## Database Changes
 
-## Plan
+### New Table: `subject_exam_profiles`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | NOT NULL |
+| subject_name | text | NOT NULL (e.g., "Mathematics") |
+| profile_name | text | NOT NULL (e.g., "Paper 1") |
+| topics | text[] | NOT NULL, the curated topic list |
+| question_count | integer | NOT NULL, default 20, max 50 |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | default now() |
 
-### Change 1: Introduce "Smooth Curve Mode" for Non-Math Interpretation Graphs
+RLS: Standard user_id = auth.uid() for all CRUD operations.
 
-**File: `supabase/functions/generate-practice-questions/index.ts`** (~line 1071)
+### New Table: `subject_master_topics`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | NOT NULL |
+| subject_name | text | NOT NULL |
+| topic | text | NOT NULL |
+| created_at | timestamptz | default now() |
 
-Before the "DISCRETE PATH MODE" section, add a new block distinguishing two modes:
+Unique constraint on (user_id, subject_name, topic). RLS: user_id = auth.uid() for all CRUD.
 
-- **graph_interpretation** (pre-drawn, student reads): ALWAYS use dense data points (15-30) for smooth curves. Exponential, logarithmic, and curved data is allowed and encouraged. The current economics gold standards already do this correctly.
-- **graph_plotting** (student draws): Keep discrete path mode for piecewise journeys (distance-time, speed-time). But add a NEW exception: if the question involves a smooth mathematical relationship (exponential decay, quadratic, rate curves), the AI should provide `expectedCurve` with dense data points AND set `curveJoinMode: "smooth"` so the review rendering uses Catmull-Rom interpolation.
+## Frontend Changes
 
-### Change 2: Add Three Gold Standard Templates
+### 1. Stats Page — Add "My Subjects" Tab
+**File: `src/pages/Stats.tsx`**
 
-**File: `supabase/functions/generate-practice-questions/index.ts`** (inside the non-math prompt section, ~line 1043)
+Add a third tab "My Subjects" (with a BookOpen icon) alongside "Stats" and "Weak Topics". This tab renders a new `MySubjectsPanel` component.
 
-Add three new gold standards after the existing economics ones:
+### 2. New Component: `src/components/stats/MySubjectsPanel.tsx`
+- Lists user's subjects (from `useUserSubjects`) as expandable accordion cards
+- Each subject card shows:
+  - **Master Topics section**: Input field + "Add" button to add topics. Shows existing topics as removable chips/badges. Sources from `subject_master_topics` table. Also pre-populates suggestions from the existing `SUBTOPIC_DICTIONARY` in SubtopicSelector.
+  - **Exam Profiles section**: List of profiles (e.g., "Paper 1", "Paper 2") with a "+ Create Profile" button
+  - Each profile shows: name, selected topics (as chips from the master list), question count slider (5-50)
 
-**A) Dual-Shift Tax Template** (Economics graph_interpretation):
-- D, S, and S₁ (shifted up by tax per unit)
-- Two equilibrium projection annotations (E, E₁)  
-- interpretationFields asking for consumer tax burden calculation
+### 3. New Component: `src/components/stats/ExamProfileModal.tsx`
+- Modal for creating/editing an exam profile
+- Fields: Profile Name (text input), Topics (multi-select from master topics as chips), Question Count (slider, 5-50)
+- Save writes to `subject_exam_profiles` table
 
-**B) Exponential Decay Template** (Physics/Science graph_interpretation):
-- Smooth decay curve: `A = A₀ × (0.5)^(t/t_half)` with 20+ computed data points
-- Grid scaled for half-life reading (e.g., X-axis to 200s, Y-axis to 800)
-- interpretationFields asking student to read activity at a given time
+### 4. New Hook: `src/hooks/useSubjectProfiles.ts`
+- CRUD operations for `subject_master_topics` and `subject_exam_profiles`
+- `addTopic(subject, topic)`, `removeTopic(subject, topic)`, `getTopics(subject)`
+- `createProfile(...)`, `updateProfile(...)`, `deleteProfile(...)`, `getProfiles(subject)`
 
-**C) Break-Even Template** (Business graph_interpretation):
-- Three series: Fixed Cost (horizontal), Total Cost (sloped), Total Revenue (steeper slope)
-- Projection annotation at break-even intersection
-- interpretationFields asking for break-even quantity and margin of safety
+### 5. CreatePracticeQuestions Integration
+**File: `src/pages/CreatePracticeQuestions.tsx`**
 
-### Change 3: Relax Discrete Path Rule for Curved Physics/Science Graphs
+- After subject selection, if profiles exist for that subject, show a "Use Exam Profile" dropdown
+- Selecting a profile auto-fills: subtopics (from profile topics), question count (from profile)
+- User can still override or use manual selection
 
-**File: `supabase/functions/generate-practice-questions/index.ts`** (~line 1111)
+### 6. CreateExam Integration
+**File: `src/pages/CreateExam.tsx`**
 
-Modify the "ABSOLUTE RULES FOR NON-MATH GRAPH PLOTTING" section to add an exception:
+- Same pattern: after subject selection, optional profile dropdown
+- Profile selection pre-fills relevant fields
 
+### 7. AI Prompt Integration
+**File: `supabase/functions/generate-practice-questions/index.ts`**
+
+When an exam profile is used, the system message includes:
 ```
-EXCEPTION — SMOOTH CURVE PLOTTING (exponential, logarithmic, rate curves):
-If the question requires plotting a smooth mathematical curve (e.g., radioactive decay, 
-enzyme kinetics, charging/discharging curves):
-- Use graph_interpretation with pre-drawn curve data (15-30 points) instead of graph_plotting
-- The student READS from the pre-drawn curve, not draws it
-- This avoids jagged straight-line rendering for naturally curved relationships
-- Reserve graph_plotting ONLY for piecewise linear journeys (distance-time, speed-time, 
-  supply/demand lines)
+"Generate questions using ONLY topics from this curated list: [topics]. 
+Select an appropriate subset of [questionCount] questions. 
+Do not use topics outside this list."
 ```
 
-### Change 4: Add Exponential Curve Generator to Graph Validator Fallback
+The profile info will be passed via the `practice_question_sets` record (a new `profile_id` column or the topics are already stored in `subtopics`). Since `subtopics` already feeds into the prompt, the main change is ensuring the profile's topic list populates `subtopics` on creation — no backend prompt changes needed beyond what already exists.
 
-**File: `supabase/functions/_shared/graph-validator.ts`**
+## Files to Create/Modify
 
-In `generateFallbackGraphSpec`, add detection for exponential/decay keywords in question text. If detected, generate a smooth exponential decay curve `A₀ × 0.5^(t/t_half)` with 25+ points instead of defaulting to a parabola.
-
-### Files Modified
-
-| File | Changes |
+| File | Action |
 |---|---|
-| `supabase/functions/generate-practice-questions/index.ts` | Add 3 gold standard templates, add smooth-curve exception to discrete path rules, clarify interpretation vs plotting for curved relationships |
-| `supabase/functions/_shared/graph-validator.ts` | Add exponential decay fallback curve generator |
+| Migration SQL | Create `subject_master_topics` and `subject_exam_profiles` tables with RLS |
+| `src/hooks/useSubjectProfiles.ts` | New — CRUD hook |
+| `src/components/stats/MySubjectsPanel.tsx` | New — main panel component |
+| `src/components/stats/ExamProfileModal.tsx` | New — create/edit profile modal |
+| `src/pages/Stats.tsx` | Add "My Subjects" tab |
+| `src/pages/CreatePracticeQuestions.tsx` | Add profile selector dropdown |
+| `src/pages/CreateExam.tsx` | Add profile selector dropdown |
 
-### What This Fixes
-- **Dual-Shift test**: AI has an exact template for tax-shifted supply curves with projection annotations
-- **Asymptotic Decay test**: Exponential curves are now routed to `graph_interpretation` (pre-drawn smooth curve) instead of broken `graph_plotting` with jagged lines
-- **Linear Intercept test**: AI has an exact template for break-even analysis with three overlaid lines
-- No changes to rendering components — all fixes are prompt-side and fallback-side
+## Technical Notes
+- The existing `subtopics` field on `practice_question_sets` already feeds into the AI prompt, so selecting a profile just pre-fills that field — no edge function changes needed
+- Question count limit: 5 minimum, 50 maximum enforced both in UI slider and DB check
+- Master topics use the same `SUBTOPIC_DICTIONARY` for autocomplete suggestions but allow fully custom entries
 
