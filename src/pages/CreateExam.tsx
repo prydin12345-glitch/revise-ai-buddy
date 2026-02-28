@@ -19,6 +19,7 @@ import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
 import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
@@ -106,7 +107,12 @@ const getRandomColor = () => {
 export default function CreateExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
-  const { getProfilesForSubject } = useSubjectProfiles();
+  const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  
+  // Smart profile prompt state
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -200,17 +206,37 @@ export default function CreateExam() {
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
+    setSelectedProfile(null);
+    setProfileMaxQuestions(null);
     
     // Get existing color or assign random
     const existingColor = getSubjectColor(newSubject);
     if (existingColor === '#3B82F6') {
-      // Subject doesn't exist yet, assign random color
       const randomColor = getRandomColor();
       setSubjectColor(randomColor);
     } else {
-      // Use existing color
       setSubjectColor(existingColor);
     }
+
+    // Smart prompt: check if user has topics/profiles for this subject
+    const topics = getTopicsForSubject(newSubject);
+    if (topics.length > 1) {
+      setShowProfilePrompt(true);
+    }
+  };
+
+  const handleSelectProfile = (profileId: string) => {
+    const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
+    if (profile) {
+      setSelectedProfile(profileId);
+      setProfileMaxQuestions(profile.question_count);
+      setTotalQuestions(Math.min(totalQuestions, profile.question_count));
+      setNotes(prev => {
+        const profileNote = `[Exam Profile: ${profile.profile_name}] Topics: ${profile.topics.join(', ')}`;
+        return prev ? `${prev}\n${profileNote}` : profileNote;
+      });
+    }
+    setShowProfilePrompt(false);
   };
 
   const handleGenerate = async () => {
@@ -524,32 +550,32 @@ export default function CreateExam() {
                 showLabel={false}
               />
 
-              {/* Exam Profile Selector */}
-              {subjectId && getProfilesForSubject(subjectId).length > 0 && (
-                <div className="space-y-2">
-                  <Label>Use Exam Profile (Optional)</Label>
-                  <Select
-                    value=""
-                    onValueChange={(profileId) => {
-                      const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
-                      if (profile) {
-                        setTotalQuestions(Math.min(profile.question_count, 50));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a profile to auto-fill..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getProfilesForSubject(subjectId).map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.profile_name} ({profile.topics.length} topics, {profile.question_count}Q)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {/* Selected Profile Badge */}
+              {selectedProfile && (() => {
+                const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                return profile ? (
+                  <div className="col-span-full flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <Badge variant="outline" className="gap-1" style={{ borderColor: subjectColor, color: subjectColor }}>
+                      {profile.profile_name}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {profile.topics.length} topics · max {profile.question_count} questions
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      AI will select from your curated topics
+                    </span>
+                    <button
+                      className="text-xs text-destructive hover:underline ml-2"
+                      onClick={() => {
+                        setSelectedProfile(null);
+                        setProfileMaxQuestions(null);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Row 2: Notes (Full Width) */}
@@ -1107,6 +1133,48 @@ export default function CreateExam() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Smart Profile Prompt Modal */}
+      <Dialog open={showProfilePrompt} onOpenChange={setShowProfilePrompt}>
+        <DialogContent className="sm:max-w-md backdrop-blur-xl bg-card/95 border-border/50">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Use Your Custom Curriculum?</DialogTitle>
+            <DialogDescription>
+              You have saved topics for <span className="font-semibold" style={{ color: subjectColor }}>{subjectId}</span>. Would you like to use an exam profile?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {getProfilesForSubject(subjectId).length > 0 ? (
+              getProfilesForSubject(subjectId).map((profile) => (
+                <button
+                  key={profile.id}
+                  onClick={() => handleSelectProfile(profile.id)}
+                  className="w-full text-left p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{profile.profile_name}</p>
+                    <p className="text-xs text-muted-foreground">{profile.topics.length} Topics · Max {profile.question_count} Questions</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]" style={{ borderColor: subjectColor, color: subjectColor }}>
+                    Select
+                  </Badge>
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No profiles created yet. You can create one in My Subjects.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfilePrompt(false)} className="w-full">
+              Skip — Use Default
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
