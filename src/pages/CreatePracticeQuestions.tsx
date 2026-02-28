@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
@@ -35,7 +37,12 @@ import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitiz
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const { getSubjectColor } = useUserSubjects();
-  const { getProfilesForSubject } = useSubjectProfiles();
+  const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  
+  // Smart profile prompt
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
 
   const pollIntervalRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
@@ -103,6 +110,25 @@ const CreatePracticeQuestions = () => {
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
     setSubjectColor(getSubjectColor(value));
+    setSelectedProfileId(null);
+    setProfileMaxQuestions(null);
+    
+    // Check if user has topics for smart prompt
+    const topics = getTopicsForSubject(value);
+    if (topics.length > 1) {
+      setShowProfilePrompt(true);
+    }
+  };
+
+  const handleSelectProfile = (profileId: string) => {
+    const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
+    if (profile) {
+      setSelectedProfileId(profileId);
+      setSelectedSubtopics(profile.topics);
+      setProfileMaxQuestions(profile.question_count);
+      setQuestionCount(Math.min(questionCount, profile.question_count));
+    }
+    setShowProfilePrompt(false);
   };
 
   // Deep Topic Scan: reads text from uploaded PDF and detects board + topics
@@ -473,33 +499,33 @@ const CreatePracticeQuestions = () => {
                 />
               </div>
 
-              {/* Exam Profile Selector */}
-              {subjectId && getProfilesForSubject(subjectId).length > 0 && (
-                <div className="space-y-2">
-                  <Label>Use Exam Profile (Optional)</Label>
-                  <Select
-                    value=""
-                    onValueChange={(profileId) => {
-                      const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
-                      if (profile) {
-                        setSelectedSubtopics(profile.topics);
-                        setQuestionCount(Math.min(profile.question_count, 30));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a profile to auto-fill..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getProfilesForSubject(subjectId).map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.profile_name} ({profile.topics.length} topics, {profile.question_count}Q)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {/* Selected Profile Badge */}
+              {selectedProfileId && (() => {
+                const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfileId);
+                return profile ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <Badge variant="outline" className="gap-1" style={{ borderColor: subjectColor, color: subjectColor }}>
+                      {profile.profile_name}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {profile.topics.length} topics · max {profile.question_count}Q
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      AI will select from your curated topics
+                    </span>
+                    <button
+                      className="text-xs text-destructive hover:underline ml-2"
+                      onClick={() => {
+                        setSelectedProfileId(null);
+                        setProfileMaxQuestions(null);
+                        setSelectedSubtopics([]);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null;
+              })()}
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
@@ -733,7 +759,7 @@ const CreatePracticeQuestions = () => {
                             <Info className="h-3 w-3 text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="text-xs">Up to 30 questions recommended</p>
+                            <p className="text-xs">{profileMaxQuestions ? `Limited to ${profileMaxQuestions} by profile` : 'Up to 30 questions recommended'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -745,21 +771,27 @@ const CreatePracticeQuestions = () => {
                   
                   <Slider
                     min={1}
-                    max={30}
+                    max={profileMaxQuestions || 30}
                     step={1}
                     value={[questionCount]}
                     onValueChange={(values) => setQuestionCount(values[0])}
                     className="w-full"
                     style={{
-                      '--slider-track': '#D3D3D3',
+                      '--slider-track': 'hsl(var(--muted))',
                       '--slider-range': subjectColor,
                     } as React.CSSProperties}
                   />
                   
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>1</span>
-                    <span>30</span>
+                    <span>{profileMaxQuestions || 30}</span>
                   </div>
+
+                  {selectedProfileId && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The AI will randomly select questions from your {selectedSubtopics.length} chosen topics to fit your question limit.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -890,6 +922,48 @@ const CreatePracticeQuestions = () => {
         onPreview={handlePreview}
         onSaveToPracticeSets={handleSaveToPracticeSets}
       />
+
+      {/* Smart Profile Prompt Modal */}
+      <Dialog open={showProfilePrompt} onOpenChange={setShowProfilePrompt}>
+        <DialogContent className="sm:max-w-md backdrop-blur-xl bg-card/95 border-border/50">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Use Your Custom Curriculum?</DialogTitle>
+            <DialogDescription>
+              You have saved topics for <span className="font-semibold" style={{ color: subjectColor }}>{subjectId}</span>. Select a profile to auto-fill your quiz.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {getProfilesForSubject(subjectId).length > 0 ? (
+              getProfilesForSubject(subjectId).map((profile) => (
+                <button
+                  key={profile.id}
+                  onClick={() => handleSelectProfile(profile.id)}
+                  className="w-full text-left p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{profile.profile_name}</p>
+                    <p className="text-xs text-muted-foreground">{profile.topics.length} Topics · Max {profile.question_count} Questions</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]" style={{ borderColor: subjectColor, color: subjectColor }}>
+                    Select
+                  </Badge>
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No profiles created yet. You can create one in My Subjects.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfilePrompt(false)} className="w-full">
+              Skip — Select Topics Manually
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

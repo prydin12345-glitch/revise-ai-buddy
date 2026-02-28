@@ -36,6 +36,15 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "#6b7280",
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  sciences: "Sciences",
+  maths: "Mathematics",
+  mathematics: "Mathematics",
+  languages: "Languages",
+  humanities: "Humanities",
+  other: "Other",
+};
+
 export const AddSubjectModal = ({
   open,
   onOpenChange,
@@ -72,9 +81,20 @@ export const AddSubjectModal = ({
     const notAlready = !existingSubjectNames.some(
       (e) => e.toLowerCase() === s.name.toLowerCase()
     );
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !query || s.name.toLowerCase().includes(query) || s.category.toLowerCase().includes(query);
     return notAlready && matchesSearch;
   });
+
+  // Group filtered subjects by category
+  const grouped = filtered.reduce<Record<string, SubjectOption[]>>((acc, s) => {
+    const cat = s.category || "other";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(s);
+    return acc;
+  }, {});
+
+  const categoryOrder = ["maths", "sciences", "languages", "humanities", "other"];
 
   const handleAdd = async () => {
     setLoading(true);
@@ -133,28 +153,43 @@ export const AddSubjectModal = ({
               />
             </div>
 
-            <div className="max-h-60 overflow-y-auto rounded-lg border border-border/50 space-y-0.5 p-1">
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-border/50 p-1">
               {filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No subjects found
                 </p>
               ) : (
-                filtered.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSubject(s)}
-                    className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors ${
-                      selectedSubject?.id === s.id
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "hover:bg-muted text-foreground"
-                    }`}
-                  >
-                    <span>{s.name}</span>
-                    {selectedSubject?.id === s.id && (
-                      <Check className="h-4 w-4 shrink-0" />
-                    )}
-                  </button>
-                ))
+                categoryOrder
+                  .filter((cat) => grouped[cat]?.length)
+                  .map((cat) => (
+                    <div key={cat}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
+                        {CATEGORY_LABELS[cat] || cat}
+                      </p>
+                      {grouped[cat].map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedSubject(s)}
+                          className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors ${
+                            selectedSubject?.id === s.id
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "hover:bg-muted text-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: CATEGORY_COLORS[s.category] || CATEGORY_COLORS.other }}
+                            />
+                            <span>{s.name}</span>
+                          </div>
+                          {selectedSubject?.id === s.id && (
+                            <Check className="h-4 w-4 shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))
               )}
             </div>
 

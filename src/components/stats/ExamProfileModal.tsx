@@ -134,6 +134,10 @@ export const ExamProfileModal = ({
               step={1}
               value={[questionCount]}
               onValueChange={(v) => setQuestionCount(v[0])}
+              style={{
+                '--slider-track': 'hsl(var(--muted))',
+                '--slider-range': subjectColor,
+              } as React.CSSProperties}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>5</span>
