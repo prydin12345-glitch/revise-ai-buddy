@@ -1,11 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { X, Check, AlertCircle } from "lucide-react";
+import { X, Check, AlertCircle, Plus, ChevronsUpDown } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 
 interface ExamProfileModalProps {
   open: boolean;
@@ -34,6 +47,7 @@ export const ExamProfileModal = ({
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(15);
   const [topicSearch, setTopicSearch] = useState("");
+  const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -44,19 +58,31 @@ export const ExamProfileModal = ({
     }
   }, [open, initialData]);
 
+  // Merge user's master topics with the dictionary for this subject
+  const allTopics = useMemo(() => {
+    const dictTopics = getLocalSubtopics(subjectName);
+    return [...new Set([...availableTopics, ...dictTopics])];
+  }, [subjectName, availableTopics]);
+
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) =>
       prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
     );
   };
 
-  const filteredTopics = availableTopics.filter(
-    (t) => t.toLowerCase().includes(topicSearch.toLowerCase())
-  );
+  const filteredTopics = useMemo(() => {
+    const unselected = allTopics.filter((t) => !selectedTopics.includes(t));
+    if (!topicSearch.trim()) return unselected.slice(0, 40);
+    return unselected.filter((t) => fuzzyMatch(topicSearch, t));
+  }, [allTopics, selectedTopics, topicSearch]);
+
+  const isCustom =
+    topicSearch.trim() &&
+    !allTopics.some((t) => t.toLowerCase() === topicSearch.trim().toLowerCase()) &&
+    !selectedTopics.some((t) => t.toLowerCase() === topicSearch.trim().toLowerCase());
 
   const handleSave = () => {
-    if (!profileName.trim()) return;
-    if (selectedTopics.length === 0) return;
+    if (!profileName.trim() || selectedTopics.length === 0) return;
     onSave(profileName.trim(), selectedTopics, questionCount);
     onOpenChange(false);
   };
@@ -66,16 +92,13 @@ export const ExamProfileModal = ({
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-card/95 border-border/50">
         <DialogHeader>
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-2 h-8 rounded-full"
-              style={{ backgroundColor: subjectColor }}
-            />
+            <div className="w-2 h-8 rounded-full" style={{ backgroundColor: subjectColor }} />
             <div>
               <DialogTitle className="text-lg">
                 {initialData ? "Edit" : "Create"} Exam Profile
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {subjectName} — select topics from your master list
+                {subjectName} — select topics for this profile
               </DialogDescription>
             </div>
           </div>
@@ -101,10 +124,7 @@ export const ExamProfileModal = ({
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Question Limit
               </Label>
-              <span
-                className="text-xl font-bold tabular-nums"
-                style={{ color: subjectColor }}
-              >
+              <span className="text-xl font-bold tabular-nums" style={{ color: subjectColor }}>
                 {questionCount}
               </span>
             </div>
@@ -114,9 +134,6 @@ export const ExamProfileModal = ({
               step={1}
               value={[questionCount]}
               onValueChange={(v) => setQuestionCount(v[0])}
-              style={{
-                '--slider-range': subjectColor,
-              } as React.CSSProperties}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>5</span>
@@ -151,47 +168,51 @@ export const ExamProfileModal = ({
               </div>
             )}
 
-            {/* Search */}
-            <Input
-              placeholder="Search topics..."
-              value={topicSearch}
-              onChange={(e) => setTopicSearch(e.target.value)}
-              className="h-9 text-sm"
-            />
-
-            {/* Topic list */}
-            <div className="max-h-52 overflow-y-auto rounded-lg border border-border/50 bg-muted/30 p-1.5 space-y-0.5">
-              {availableTopics.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
-                  <AlertCircle className="h-5 w-5 opacity-40" />
-                  <p className="text-xs text-center">
-                    Add master topics to this subject first, then you can select them here.
-                  </p>
-                </div>
-              ) : filteredTopics.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No matching topics
-                </p>
-              ) : (
-                filteredTopics.map((topic) => {
-                  const isSelected = selectedTopics.includes(topic);
-                  return (
-                    <button
-                      key={topic}
-                      onClick={() => toggleTopic(topic)}
-                      className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-all ${
-                        isSelected
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "hover:bg-muted text-foreground"
-                      }`}
-                    >
-                      <span>{topic}</span>
-                      {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            {/* Topic Search Popover */}
+            <Popover open={topicPopoverOpen} onOpenChange={setTopicPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-9 text-sm font-normal"
+                >
+                  <span className="text-muted-foreground">Search & add topics...</span>
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Type to search..."
+                    value={topicSearch}
+                    onValueChange={setTopicSearch}
+                  />
+                  {filteredTopics.length === 0 && !isCustom && (
+                    <CommandEmpty>No topics found.</CommandEmpty>
+                  )}
+                  <CommandGroup className="max-h-52 overflow-y-auto">
+                    {isCustom && (
+                      <CommandItem
+                        onSelect={() => {
+                          toggleTopic(topicSearch.trim());
+                          setTopicSearch("");
+                        }}
+                        className="gap-2"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-primary" />
+                        Add "{topicSearch.trim()}"
+                      </CommandItem>
+                    )}
+                    {filteredTopics.map((topic) => (
+                      <CommandItem key={topic} value={topic} onSelect={() => toggleTopic(topic)}>
+                        <Check className="mr-2 h-3.5 w-3.5 opacity-0" />
+                        {topic}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, FileText, Pencil, Trash2, BookOpen, Layers } from "lucide-react";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { ExamProfileModal } from "./ExamProfileModal";
+import { AddSubjectModal } from "./AddSubjectModal";
+import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 
 export const MySubjectsPanel = () => {
-  const { subjects, isLoading: subjectsLoading } = useUserSubjects();
+  const { subjects, isLoading: subjectsLoading, refetch: refetchSubjects } = useUserSubjects();
   const {
     getTopicsForSubject,
     getProfilesForSubject,
@@ -22,8 +23,8 @@ export const MySubjectsPanel = () => {
     loading: profilesLoading,
   } = useSubjectProfiles();
 
-  const [newTopicInputs, setNewTopicInputs] = useState<Record<string, string>>({});
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [addSubjectModalOpen, setAddSubjectModalOpen] = useState(false);
   const [activeSubject, setActiveSubject] = useState("");
   const [editingProfile, setEditingProfile] = useState<{
     id: string;
@@ -42,25 +43,34 @@ export const MySubjectsPanel = () => {
 
   if (subjects.length === 0) {
     return (
-      <Card className="border-dashed border-2 border-border/50">
-        <div className="text-center text-muted-foreground py-16 px-6">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-primary" />
+      <>
+        <Card className="border-dashed border-2 border-border/50">
+          <div className="text-center text-muted-foreground py-16 px-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-lg font-semibold text-foreground mb-2">No Subjects Yet</p>
+            <p className="text-sm max-w-sm mx-auto mb-4">
+              Add subjects to start managing your curriculum.
+            </p>
+            <Button onClick={() => setAddSubjectModalOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add Subject
+            </Button>
           </div>
-          <p className="text-lg font-semibold text-foreground mb-2">No Subjects Yet</p>
-          <p className="text-sm max-w-sm mx-auto">
-            Add subjects during onboarding or when creating exams to see them here.
-          </p>
-        </div>
-      </Card>
+        </Card>
+        <AddSubjectModal
+          open={addSubjectModalOpen}
+          onOpenChange={setAddSubjectModalOpen}
+          existingSubjectNames={[]}
+          onSubjectAdded={refetchSubjects}
+        />
+      </>
     );
   }
 
-  const handleAddTopic = async (subject: string) => {
-    const topic = newTopicInputs[subject]?.trim();
-    if (!topic) return;
+  const handleAddTopic = async (subject: string, topic: string) => {
     await addTopic(subject, topic);
-    setNewTopicInputs((prev) => ({ ...prev, [subject]: "" }));
   };
 
   const handleOpenCreateProfile = (subject: string) => {
@@ -78,17 +88,9 @@ export const MySubjectsPanel = () => {
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = async (
-    profileName: string,
-    topics: string[],
-    questionCount: number
-  ) => {
+  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number) => {
     if (editingProfile) {
-      await updateProfile(editingProfile.id, {
-        profile_name: profileName,
-        topics,
-        question_count: questionCount,
-      });
+      await updateProfile(editingProfile.id, { profile_name: profileName, topics, question_count: questionCount });
     } else {
       await createProfile(activeSubject, profileName, topics, questionCount);
     }
@@ -96,73 +98,47 @@ export const MySubjectsPanel = () => {
 
   return (
     <>
+      {/* Add Subject Button */}
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => setAddSubjectModalOpen(true)} variant="outline" className="gap-1.5">
+          <Plus className="h-4 w-4" />
+          Add Subject
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {subjects.map((subject) => {
           const subjectTopics = getTopicsForSubject(subject.subject_name);
           const subjectProfiles = getProfilesForSubject(subject.subject_name);
 
           return (
-            <Card
-              key={subject.id}
-              className="overflow-hidden relative group transition-shadow hover:shadow-lg"
-            >
-              {/* Color accent top border */}
-              <div
-                className="h-1.5 w-full"
-                style={{ backgroundColor: subject.subject_color }}
-              />
-
+            <Card key={subject.id} className="overflow-hidden relative group transition-shadow hover:shadow-lg">
+              <div className="h-1.5 w-full" style={{ backgroundColor: subject.subject_color }} />
               <div className="p-5 space-y-4">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-                      style={{
-                        backgroundColor: subject.subject_color + "20",
-                        color: subject.subject_color,
-                      }}
+                      style={{ backgroundColor: subject.subject_color + "20", color: subject.subject_color }}
                     >
                       {subject.subject_name.charAt(0).toUpperCase()}
                     </div>
                     <h3 className="font-semibold text-foreground">{subject.subject_name}</h3>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-xs font-normal">
-                      {subjectTopics.length} topics
-                    </Badge>
-                  </div>
+                  <Badge variant="outline" className="text-xs font-normal">
+                    {subjectTopics.length} topics
+                  </Badge>
                 </div>
 
-                {/* Quick Add Topic */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Quick add topic..."
-                    value={newTopicInputs[subject.subject_name] || ""}
-                    onChange={(e) =>
-                      setNewTopicInputs((prev) => ({
-                        ...prev,
-                        [subject.subject_name]: e.target.value,
-                      }))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddTopic(subject.subject_name);
-                      }
-                    }}
-                    className="flex-1 h-9 text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 w-9 p-0 shrink-0"
-                    onClick={() => handleAddTopic(subject.subject_name)}
-                    disabled={!newTopicInputs[subject.subject_name]?.trim()}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Topic Search Input */}
+                <TopicSearchInput
+                  subjectName={subject.subject_name}
+                  existingTopics={subjectTopics.map((t) => t.topic)}
+                  onAddTopic={(topic) => handleAddTopic(subject.subject_name, topic)}
+                  placeholder="Search & add topic..."
+                  className="w-full"
+                />
 
                 {/* Topic Chips */}
                 <div className="min-h-[40px]">
@@ -192,9 +168,7 @@ export const MySubjectsPanel = () => {
                   ) : (
                     <div className="flex items-center gap-2 text-muted-foreground py-2">
                       <Layers className="h-4 w-4 opacity-40" />
-                      <p className="text-xs">
-                        No topics added yet. Add your first sub-topic to start building your custom exam profile!
-                      </p>
+                      <p className="text-xs">No topics added yet.</p>
                     </div>
                   )}
                 </div>
@@ -229,13 +203,8 @@ export const MySubjectsPanel = () => {
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-medium truncate">
-                              {profile.profile_name}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0 h-4 shrink-0"
-                            >
+                            <span className="text-sm font-medium truncate">{profile.profile_name}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
                               {profile.question_count}Q · {profile.topics.length}T
                             </Badge>
                           </div>
@@ -244,9 +213,7 @@ export const MySubjectsPanel = () => {
                               size="icon"
                               variant="ghost"
                               className="h-6 w-6"
-                              onClick={() =>
-                                handleOpenEditProfile(subject.subject_name, profile)
-                              }
+                              onClick={() => handleOpenEditProfile(subject.subject_name, profile)}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
@@ -275,13 +242,18 @@ export const MySubjectsPanel = () => {
         onOpenChange={setProfileModalOpen}
         subjectName={activeSubject}
         subjectColor={
-          subjects.find(
-            (s) => s.subject_name.toLowerCase() === activeSubject.toLowerCase()
-          )?.subject_color || "#3B82F6"
+          subjects.find((s) => s.subject_name.toLowerCase() === activeSubject.toLowerCase())?.subject_color || "#3B82F6"
         }
         availableTopics={getTopicsForSubject(activeSubject).map((t) => t.topic)}
         onSave={handleSaveProfile}
         initialData={editingProfile || undefined}
+      />
+
+      <AddSubjectModal
+        open={addSubjectModalOpen}
+        onOpenChange={setAddSubjectModalOpen}
+        existingSubjectNames={subjects.map((s) => s.subject_name)}
+        onSubjectAdded={refetchSubjects}
       />
     </>
   );
