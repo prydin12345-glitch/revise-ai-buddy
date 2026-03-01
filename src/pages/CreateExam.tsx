@@ -25,6 +25,7 @@ import { ResourceModeSelector, type ResourceMode } from "@/components/practice/R
 import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
 import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
+import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 
 
 const examBoards = [
@@ -1135,46 +1136,27 @@ export default function CreateExam() {
       )}
 
       {/* Smart Profile Prompt Modal */}
-      <Dialog open={showProfilePrompt} onOpenChange={setShowProfilePrompt}>
-        <DialogContent className="sm:max-w-md backdrop-blur-xl bg-card/95 border-border/50">
-          <DialogHeader>
-            <DialogTitle className="text-lg">Use Your Custom Curriculum?</DialogTitle>
-            <DialogDescription>
-              You have saved topics for <span className="font-semibold" style={{ color: subjectColor }}>{subjectId}</span>. Would you like to use an exam profile?
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 py-2">
-            {getProfilesForSubject(subjectId).length > 0 ? (
-              getProfilesForSubject(subjectId).map((profile) => (
-                <button
-                  key={profile.id}
-                  onClick={() => handleSelectProfile(profile.id)}
-                  className="w-full text-left p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{profile.profile_name}</p>
-                    <p className="text-xs text-muted-foreground">{profile.topics.length} Topics · Max {profile.question_count} Questions</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]" style={{ borderColor: subjectColor, color: subjectColor }}>
-                    Select
-                  </Badge>
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No profiles created yet. You can create one in My Subjects.
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProfilePrompt(false)} className="w-full">
-              Skip — Use Default
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CurriculumPromptModal
+        open={showProfilePrompt}
+        onOpenChange={setShowProfilePrompt}
+        subjectName={subjectId}
+        subjectColor={subjectColor}
+        masterTopics={getTopicsForSubject(subjectId)}
+        profiles={getProfilesForSubject(subjectId)}
+        onPracticeAll={(topics) => {
+          setNotes(prev => {
+            const topicNote = `[All Saved Topics] Topics: ${topics.join(', ')}`;
+            return prev ? `${prev}\n${topicNote}` : topicNote;
+          });
+          setShowProfilePrompt(false);
+        }}
+        onSelectProfile={(profile) => {
+          handleSelectProfile(profile.id);
+        }}
+        onStandardMode={() => {
+          setShowProfilePrompt(false);
+        }}
+      />
     </DashboardLayout>
   );
 }
