@@ -9,12 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Info, ChevronDown, Settings2 } from "lucide-react";
+import { Upload, FileText, ChevronDown, Settings2 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { EXAM_BOARD_OPTIONS, BOARD_SELECTOR_TOOLTIP, UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
+import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -24,25 +23,12 @@ const subjects = [
   { id: "other", name: "Other" },
 ];
 
-const examBoards = EXAM_BOARD_OPTIONS;
-
-const qualificationLevels = [
-  { id: "gcse", name: "GCSE" },
-  { id: "igcse", name: "IGCSE" },
-  { id: "a_level", name: "A-Level" },
-  { id: "as_level", name: "AS Level" },
-  { id: "ib_hl", name: "IB Higher Level" },
-  { id: "ib_sl", name: "IB Standard Level" },
-  { id: "other", name: "Other" }
-];
-
 export default function UploadExam() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [subjectId, setSubjectId] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
-  const [examBoard, setExamBoard] = useState<string>("");
-  const [qualificationLevel, setQualificationLevel] = useState<string>("");
+  const [educationalTier, setEducationalTier] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
@@ -76,8 +62,7 @@ export default function UploadExam() {
       formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      if (examBoard) formData.append('examBoard', examBoard);
-      if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
+      if (educationalTier) formData.append('educationalTier', educationalTier);
 
       const { data, error } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -193,21 +178,20 @@ export default function UploadExam() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="qualification" className="text-base font-medium">Qualification Level (Optional)</Label>
-                  <Select value={qualificationLevel} onValueChange={setQualificationLevel}>
+                  <Label htmlFor="educational-tier" className="text-base font-medium">Educational Level (Optional)</Label>
+                  <Select value={educationalTier} onValueChange={setEducationalTier}>
                     <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select qualification level" />
+                      <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {qualificationLevels.map((level) => (
-                        <SelectItem key={level.id} value={level.id}>
-                          {level.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="secondary_14_16">Level 1 — High School / Secondary (Ages 14–16)</SelectItem>
+                      <SelectItem value="college_16_18">Level 2 — College / Sixth Form (Ages 16–18)</SelectItem>
+                      <SelectItem value="university_18plus">Level 3 — University / Undergraduate (Ages 18+)</SelectItem>
+                      <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Optional — AI detects board style automatically from your document
+                    Optional — helps calibrate question difficulty
                   </p>
                 </div>
               </CollapsibleContent>
