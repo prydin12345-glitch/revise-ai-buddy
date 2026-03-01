@@ -33,6 +33,7 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
+import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
@@ -792,6 +793,12 @@ const CreatePracticeQuestions = () => {
                       The AI will randomly select questions from your {selectedSubtopics.length} chosen topics to fit your question limit.
                     </p>
                   )}
+
+                  <TopicLimitWarning
+                    topicCount={selectedSubtopics.length}
+                    questionCount={questionCount}
+                    subjectColor={subjectColor}
+                  />
                 </div>
               </div>
 
@@ -924,46 +931,24 @@ const CreatePracticeQuestions = () => {
       />
 
       {/* Smart Profile Prompt Modal */}
-      <Dialog open={showProfilePrompt} onOpenChange={setShowProfilePrompt}>
-        <DialogContent className="sm:max-w-md backdrop-blur-xl bg-card/95 border-border/50">
-          <DialogHeader>
-            <DialogTitle className="text-lg">Use Your Custom Curriculum?</DialogTitle>
-            <DialogDescription>
-              You have saved topics for <span className="font-semibold" style={{ color: subjectColor }}>{subjectId}</span>. Select a profile to auto-fill your quiz.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 py-2">
-            {getProfilesForSubject(subjectId).length > 0 ? (
-              getProfilesForSubject(subjectId).map((profile) => (
-                <button
-                  key={profile.id}
-                  onClick={() => handleSelectProfile(profile.id)}
-                  className="w-full text-left p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{profile.profile_name}</p>
-                    <p className="text-xs text-muted-foreground">{profile.topics.length} Topics · Max {profile.question_count} Questions</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]" style={{ borderColor: subjectColor, color: subjectColor }}>
-                    Select
-                  </Badge>
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No profiles created yet. You can create one in My Subjects.
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProfilePrompt(false)} className="w-full">
-              Skip — Select Topics Manually
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CurriculumPromptModal
+        open={showProfilePrompt}
+        onOpenChange={setShowProfilePrompt}
+        subjectName={subjectId}
+        subjectColor={subjectColor}
+        masterTopics={getTopicsForSubject(subjectId)}
+        profiles={getProfilesForSubject(subjectId)}
+        onPracticeAll={(topics) => {
+          setSelectedSubtopics(topics);
+          setShowProfilePrompt(false);
+        }}
+        onSelectProfile={(profile) => {
+          handleSelectProfile(profile.id);
+        }}
+        onStandardMode={() => {
+          setShowProfilePrompt(false);
+        }}
+      />
     </DashboardLayout>
   );
 };
