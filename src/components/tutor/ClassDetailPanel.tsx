@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2 } from "lucide-react";
+import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ import { EditDeadlineModal } from "./EditDeadlineModal";
 import { ExamResultsModal } from "./ExamResultsModal";
 import { DestructiveConfirmationModal } from "./DestructiveConfirmationModal";
 import { getDeadlineStatus } from "@/lib/deadline-utils";
+import { ClassSubtopicsTab } from "./ClassSubtopicsTab";
 
 interface GroupMember {
   id: string;
@@ -603,6 +604,13 @@ export const ClassDetailPanel = ({
                     Tasks
                   </TabsTrigger>
                   <TabsTrigger 
+                    value="subtopics" 
+                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Sub-topics
+                  </TabsTrigger>
+                  <TabsTrigger 
                     value="announcements" 
                     className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
                   >
@@ -877,6 +885,11 @@ export const ClassDetailPanel = ({
                     })}
                   </div>
                 )}
+              </TabsContent>
+
+              {/* SUB-TOPICS TAB */}
+              <TabsContent value="subtopics" className="m-0 p-5 data-[state=inactive]:hidden">
+                <ClassSubtopicsTab groupId={groupId} subjectsTaught={subjectsTaught} />
               </TabsContent>
 
               {/* ANNOUNCEMENTS TAB */}
