@@ -11,6 +11,7 @@ export interface StudentGroup {
   member_count: number;
   assignment_count: number;
   created_at: string;
+  settings: Record<string, any> | null;
 }
 
 export const useManageGroups = () => {
@@ -71,6 +72,7 @@ export const useManageGroups = () => {
             member_count: memberCount || 0,
             assignment_count: assignmentCount || 0,
             created_at: group.created_at,
+            settings: (group.settings as Record<string, any>) || null,
           };
         })
       );
