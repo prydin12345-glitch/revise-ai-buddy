@@ -22,72 +22,13 @@ import { ResourcePackUploader, type ResourcePack } from "@/components/practice/R
 import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 
-const examBoards = [
-  { id: "aqa", name: "UK Board A (command-verb style)" },
-  { id: "edexcel", name: "UK Board B (Pearson style)" },
-  { id: "ocr", name: "UK Board C (structured response)" },
-  { id: "cie", name: "International Board (Cambridge style)" },
-  { id: "ib", name: "IB Programme" },
-  { id: "wjec", name: "Welsh Board (WJEC style)" },
-  { id: "other", name: "Other" }
-];
+// Legacy arrays removed - exam board is now auto-detected
 
-const qualificationLevels = [
-  { id: "gcse", name: "GCSE" },
-  { id: "igcse", name: "IGCSE" },
-  { id: "a_level", name: "A-Level" },
-  { id: "as_level", name: "AS Level" },
-  { id: "ib_hl", name: "IB Higher Level" },
-  { id: "ib_sl", name: "IB Standard Level" },
-  { id: "other", name: "Other" }
-];
-
-const educationalTiers = [
-  { 
-    id: "gcse_igcse", 
-    name: "GCSE / IGCSE", 
-    desc: "UK Year 10–11, international equivalents"
-  },
-  { 
-    id: "a_level", 
-    name: "A-Level / AS-Level", 
-    desc: "UK Year 12–13, Cambridge, Edexcel, OCR"
-  },
-  { 
-    id: "o_level", 
-    name: "O-Level", 
-    desc: "Used in Singapore, Pakistan, etc."
-  },
-  { 
-    id: "college_sixth_form", 
-    name: "College / Sixth Form", 
-    desc: "Pre-university, non-A-level systems"
-  },
-  { 
-    id: "ib_diploma", 
-    name: "IB Diploma", 
-    desc: "International Baccalaureate"
-  },
-  { 
-    id: "university_undergraduate", 
-    name: "University / Undergraduate", 
-    desc: "First-year modules, degree-level"
-  },
-  { 
-    id: "postgraduate_masters", 
-    name: "Postgraduate / Masters", 
-    desc: "Advanced academic level"
-  },
-  { 
-    id: "vocational_technical", 
-    name: "Vocational / Technical", 
-    desc: "BTEC, NVQ, apprenticeships"
-  },
-  { 
-    id: "other", 
-    name: "Other", 
-    desc: "Custom input field for your level"
-  }
+const EDUCATIONAL_TIERS = [
+  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
+  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
+  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
+  { id: "other", name: "Other (Custom)" },
 ];
 
 const PRESET_COLORS = [
@@ -109,9 +50,8 @@ export default function CreateTutorExam() {
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
-  const [examBoard, setExamBoard] = useState("");
-  const [customExamBoard, setCustomExamBoard] = useState("");
-  const [qualificationLevel, setQualificationLevel] = useState("");
+  const [examBoard] = useState("");
+  const [qualificationLevel] = useState("");
   
   // File uploads
   const [file, setFile] = useState<File | null>(null);
@@ -229,15 +169,6 @@ export default function CreateTutorExam() {
       return;
     }
     
-    if (!examBoard) {
-      toast({
-        title: "Exam Board Required",
-        description: "Please select an exam board",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     if (!file) {
       toast({
         title: "Exam Document Required",
@@ -301,15 +232,12 @@ export default function CreateTutorExam() {
 
     try {
       // Upload exam with all settings
-      const finalExamBoard = examBoard === 'other' ? customExamBoard : examBoard;
-      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
-      formData.append('examBoard', finalExamBoard);
+      if (examBoard) formData.append('examBoard', examBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
-      if (specFile) formData.append('specFile', specFile);
       if (notes) formData.append('notes', notes);
       if (resourcePack) formData.append('resourcePackId', resourcePack.id);
 
@@ -463,7 +391,7 @@ export default function CreateTutorExam() {
             <h1 className="text-3xl font-bold">Create Exam</h1>
             <Button
               onClick={handleGenerate}
-              disabled={generating || !file || !subjectId || !examBoard || !educationalTier}
+              disabled={generating || !file || !subjectId || !educationalTier}
               size="lg"
               className="px-8 button-glow"
             >
@@ -553,7 +481,7 @@ export default function CreateTutorExam() {
                   <ResourcePackUploader
                     subjectId={subjectId}
                     educationalTier={educationalTier === 'other' ? customTier : educationalTier}
-                    examBoard={examBoard === 'other' ? customExamBoard : examBoard}
+                    examBoard={examBoard}
                     onPackReady={setResourcePack}
                     onPackCleared={() => setResourcePack(null)}
                     currentPack={resourcePack}
@@ -567,7 +495,7 @@ export default function CreateTutorExam() {
                   <AIResourceGenerator
                     subjectId={subjectId}
                     educationalTier={educationalTier === 'other' ? customTier : educationalTier}
-                    examBoard={examBoard === 'other' ? customExamBoard : examBoard}
+                    examBoard={examBoard}
                     subtopics={[]}
                     onPackReady={setResourcePack}
                     subjectColor={subjectColor}
@@ -594,8 +522,8 @@ export default function CreateTutorExam() {
               )}
             </Card>
 
-            {/* Row 3: File Uploads & Exam Board */}
-            <div className="grid lg:grid-cols-3 gap-4">
+            {/* Row 3: File Upload */}
+            <div className="grid lg:grid-cols-2 gap-4">
               <div className="relative">
                 <input
                   id="exam-file"
@@ -614,49 +542,7 @@ export default function CreateTutorExam() {
                   {file ? file.name.substring(0, 18) + '...' : 'Upload Exam Document'}
                 </Button>
               </div>
-
-              <div className="relative">
-                <input
-                  id="spec-file"
-                  type="file"
-                  accept=".pdf,.docx"
-                  onChange={handleSpecFileChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                  onClick={() => document.getElementById('spec-file')?.click()}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  {specFile ? specFile.name.substring(0, 18) + '...' : 'Exam Specification'}
-                </Button>
-              </div>
-
-              <Select value={examBoard} onValueChange={setExamBoard}>
-                <SelectTrigger className="h-12 bg-card border-border">
-                  <SelectValue placeholder="Exam Board" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  {examBoards.map((board) => (
-                    <SelectItem key={board.id} value={board.id}>
-                      {board.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-
-            {/* Custom Exam Board Input */}
-            {examBoard === 'other' && (
-              <Input
-                placeholder="Enter custom exam board..."
-                value={customExamBoard}
-                onChange={(e) => setCustomExamBoard(e.target.value)}
-                className="h-12 bg-card border-border"
-              />
-            )}
 
             {/* Format & Educational Tier Settings */}
             <Card className="p-6 bg-card/50 border-border">
@@ -709,13 +595,10 @@ export default function CreateTutorExam() {
                   <SelectTrigger className="h-12 bg-background border-border">
                     <SelectValue placeholder="Select educational level..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border-border max-h-[400px]">
-                    {educationalTiers.map((tier) => (
-                      <SelectItem key={tier.id} value={tier.id} className="py-3">
-                        <div>
-                          <div className="font-medium">{tier.name}</div>
-                          <div className="text-xs text-muted-foreground">{tier.desc}</div>
-                        </div>
+                  <SelectContent className="bg-popover border-border">
+                    {EDUCATIONAL_TIERS.map((tier) => (
+                      <SelectItem key={tier.id} value={tier.id}>
+                        {tier.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

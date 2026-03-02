@@ -737,14 +737,6 @@ const CreatePracticeQuestions = () => {
                       {educationalTier === "other" ? customEducationalTier : educationalTier || "Not selected"}
                     </p>
                   </div>
-                  {examBoard && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Exam Board</p>
-                      <p className="font-medium text-sm">
-                        {examBoard === "other" ? customExamBoard : examBoard}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
               
