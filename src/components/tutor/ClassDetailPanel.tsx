@@ -76,6 +76,7 @@ interface ClassDetailPanelProps {
   groupName: string;
   inviteCode: string | null;
   subjectsTaught?: string[];
+  educationalLevel?: string;
   onGroupUpdated: () => void;
   onDeleteGroup: () => void;
 }
@@ -87,6 +88,7 @@ export const ClassDetailPanel = ({
   groupName,
   inviteCode,
   subjectsTaught = [],
+  educationalLevel,
   onGroupUpdated,
   onDeleteGroup,
 }: ClassDetailPanelProps) => {
@@ -548,6 +550,12 @@ export const ClassDetailPanel = ({
   // Calculate stats for header
   const activeAssignmentsCount = assignments.filter(a => a.is_active).length;
   const subjectDisplay = subjectsTaught.length > 0 ? subjectsTaught[0] : "General";
+  const levelLabels: Record<string, string> = {
+    secondary: "Level 1",
+    sixth_form: "Level 2",
+    university: "Level 3",
+  };
+  const levelDisplay = educationalLevel ? levelLabels[educationalLevel] || educationalLevel : null;
 
   return (
     <>
@@ -568,6 +576,9 @@ export const ClassDetailPanel = ({
               <DialogTitle className="text-xl font-semibold tracking-tight">{groupName}</DialogTitle>
               <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-normal">{subjectDisplay}</Badge>
+                {levelDisplay && (
+                  <Badge variant="outline" className="font-normal text-xs">{levelDisplay}</Badge>
+                )}
                 <span className="text-muted-foreground/60">•</span>
                 <span>{members.length} student{members.length !== 1 ? "s" : ""}</span>
                 <span className="text-muted-foreground/60">•</span>

@@ -218,6 +218,7 @@ export default function ManageStudents() {
             groupName={selectedGroup?.name || ""}
             inviteCode={selectedGroup?.invite_code || null}
             subjectsTaught={selectedGroup?.subjects_covered || []}
+            educationalLevel={selectedGroup?.settings?.educational_level}
             onGroupUpdated={refetch}
             onDeleteGroup={handleDeleteGroup}
           />
