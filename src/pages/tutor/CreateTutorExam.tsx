@@ -16,11 +16,13 @@ import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScre
 import { TutorExamCompleteModal } from "@/components/tutor/TutorExamCompleteModal";
 import { ExamGenerationFailedModal } from "@/components/tutor/ExamGenerationFailedModal";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ResourceModeSelector, type ResourceMode } from "@/components/practice/ResourceModeSelector";
 import { ResourcePackUploader, type ResourcePack } from "@/components/practice/ResourcePackUploader";
 import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
+import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 
 // Legacy arrays removed - exam board is now auto-detected
 
@@ -43,6 +45,12 @@ const getRandomColor = () => {
 export default function CreateTutorExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  
+  // Smart profile prompt state
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -135,17 +143,37 @@ export default function CreateTutorExam() {
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
+    setSelectedProfile(null);
+    setProfileMaxQuestions(null);
     
     // Get existing color or assign random
     const existingColor = getSubjectColor(newSubject);
     if (existingColor === '#3B82F6') {
-      // Subject doesn't exist yet, assign random color
       const randomColor = getRandomColor();
       setSubjectColor(randomColor);
     } else {
-      // Use existing color
       setSubjectColor(existingColor);
     }
+
+    // Smart prompt: check if user has topics/profiles for this subject
+    const topics = getTopicsForSubject(newSubject);
+    if (topics.length > 1) {
+      setShowProfilePrompt(true);
+    }
+  };
+
+  const handleSelectProfile = (profileId: string) => {
+    const profile = getProfilesForSubject(subjectId).find(p => p.id === profileId);
+    if (profile) {
+      setSelectedProfile(profileId);
+      setProfileMaxQuestions(profile.question_count);
+      setTotalQuestions(Math.min(totalQuestions, profile.question_count));
+      setNotes(prev => {
+        const profileNote = `[Exam Profile: ${profile.profile_name}] Topics: ${profile.topics.join(', ')}`;
+        return prev ? `${prev}\n${profileNote}` : profileNote;
+      });
+    }
+    setShowProfilePrompt(false);
   };
 
   const handleGenerate = async () => {
@@ -738,6 +766,29 @@ export default function CreateTutorExam() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Smart Profile Prompt Modal */}
+        <CurriculumPromptModal
+          open={showProfilePrompt}
+          onOpenChange={setShowProfilePrompt}
+          subjectName={subjectId}
+          subjectColor={subjectColor}
+          masterTopics={getTopicsForSubject(subjectId)}
+          profiles={getProfilesForSubject(subjectId)}
+          onPracticeAll={(topics) => {
+            setNotes(prev => {
+              const topicNote = `[All Saved Topics] Topics: ${topics.join(', ')}`;
+              return prev ? `${prev}\n${topicNote}` : topicNote;
+            });
+            setShowProfilePrompt(false);
+          }}
+          onSelectProfile={(profile) => {
+            handleSelectProfile(profile.id);
+          }}
+          onStandardMode={() => {
+            setShowProfilePrompt(false);
+          }}
+        />
       </div>
     </div>
   );

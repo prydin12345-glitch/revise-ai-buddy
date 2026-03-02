@@ -585,37 +585,41 @@ export const ClassDetailPanel = ({
 
           {/* Fixed Tabs Bar - 56px */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
-            <div className="px-6 flex items-end border-b border-border/30 bg-card/50 h-full">
-              <TabsList className="bg-transparent p-0 h-auto gap-1">
-                <TabsTrigger 
-                  value="students" 
-                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
-                >
-                  <Users className="w-4 h-4" />
-                  Students
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="assignments" 
-                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  Tasks
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="announcements" 
-                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
-                >
-                  <Megaphone className="w-4 h-4" />
-                  News
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="settings" 
-                  className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary"
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </TabsTrigger>
-              </TabsList>
+            <div className="relative border-b border-border/30 bg-card/50 h-full">
+              <div className="px-6 flex items-end h-full overflow-x-auto scrollbar-none">
+                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-nowrap whitespace-nowrap">
+                  <TabsTrigger 
+                    value="students" 
+                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                  >
+                    <Users className="w-4 h-4" />
+                    Students
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="assignments" 
+                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Tasks
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="announcements" 
+                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                  >
+                    <Megaphone className="w-4 h-4" />
+                    News
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="settings" 
+                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              {/* Fade indicator for mobile scroll */}
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-card/90 to-transparent pointer-events-none md:hidden" />
             </div>
 
             {/* Scrollable Content Body - 1fr */}
@@ -682,7 +686,7 @@ export const ClassDetailPanel = ({
                     {filteredMembers.map((member) => (
                       <div
                         key={member.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30 group"
+                        className="flex items-center justify-between p-3 min-h-[48px] rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30 group"
                       >
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10 border border-border/50">
@@ -825,7 +829,7 @@ export const ClassDetailPanel = ({
                       return (
                         <div
                           key={assignment.id}
-                          className="p-4 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30"
+                          className="p-4 min-h-[48px] rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
