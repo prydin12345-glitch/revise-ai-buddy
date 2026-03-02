@@ -627,8 +627,8 @@ export const ClassDetailPanel = ({
               {/* STUDENTS TAB */}
               <TabsContent value="students" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Controls Row */}
-                <div className="flex gap-2 flex-wrap">
-                  <div className="relative flex-1 min-w-[200px]">
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-none">
+                  <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search students..."
