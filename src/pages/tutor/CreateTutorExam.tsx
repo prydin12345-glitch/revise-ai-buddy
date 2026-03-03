@@ -417,24 +417,35 @@ export default function CreateTutorExam() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
             <h1 className="text-3xl font-bold">Create Exam</h1>
-            <Button
-              onClick={handleGenerate}
-              disabled={generating || !file || !subjectId || !educationalTier}
-              size="lg"
-              className="px-8 button-glow"
-            >
-              {generating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Generate
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigate("/tutor/exams/create-manual")}
+                className="gap-2"
+              >
+                <FileText className="h-5 w-5" />
+                Build Manually
+              </Button>
+              <Button
+                onClick={handleGenerate}
+                disabled={generating || !file || !subjectId || !educationalTier}
+                size="lg"
+                className="px-8 button-glow"
+              >
+                {generating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-6">
