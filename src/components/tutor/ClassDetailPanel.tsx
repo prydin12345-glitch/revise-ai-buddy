@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2, BookOpen } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2, BookOpen, ChevronDown, GraduationCap, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -132,6 +133,31 @@ export const ClassDetailPanel = ({
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+
+  // Subject & Level editing state
+  const [editSubject, setEditSubject] = useState(subjectsTaught[0] || "");
+  const [editLevel, setEditLevel] = useState(educationalLevel || "sixth_form");
+  const [subjectChangeWarningOpen, setSubjectChangeWarningOpen] = useState(false);
+  const [pendingSubject, setPendingSubject] = useState<{ id: string | null; name: string; slug: string | null } | null>(null);
+  const [subjectSearchOpen, setSubjectSearchOpen] = useState(false);
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState("");
+  const [subjectOptions, setSubjectOptions] = useState<Array<{ id: string; name: string; category: string; slug: string }>>([]);
+  const subjectSearchRef = useRef<HTMLInputElement>(null);
+
+  const EDUCATIONAL_LEVELS = [
+    { value: "secondary", label: "High School / Secondary", shortLabel: "Level 1 — High School", tier: "Level 1" },
+    { value: "sixth_form", label: "College / Sixth Form", shortLabel: "Level 2 — College", tier: "Level 2" },
+    { value: "university", label: "University / Undergraduate", shortLabel: "Level 3 — University", tier: "Level 3" },
+  ];
+
+  const CATEGORY_ORDER = ["maths", "sciences", "humanities", "languages", "other"];
+  const CATEGORY_LABELS: Record<string, string> = {
+    maths: "Mathematics",
+    sciences: "Sciences & Engineering",
+    humanities: "Humanities & Social Sciences",
+    languages: "Languages",
+    other: "Creative & Applied",
+  };
 
   // Fetch members
   const fetchMembers = async () => {
@@ -260,11 +286,49 @@ export const ClassDetailPanel = ({
     }
   };
 
+  // Load subject options for Settings editor
+  useEffect(() => {
+    const loadSubjects = async () => {
+      const { data, error } = await supabase
+        .from("subjects")
+        .select("id, name, category, slug")
+        .eq("is_active", true)
+        .order("name");
+      if (!error && data) setSubjectOptions(data);
+    };
+    loadSubjects();
+  }, []);
+
+  useEffect(() => {
+    if (subjectSearchOpen && subjectSearchRef.current) {
+      setTimeout(() => subjectSearchRef.current?.focus(), 100);
+    }
+  }, [subjectSearchOpen]);
+
+  const filteredSubjectOptions = useMemo(() => {
+    const query = subjectSearchQuery.toLowerCase().trim();
+    const filtered = query
+      ? subjectOptions.filter(s => s.name.toLowerCase().includes(query))
+      : subjectOptions;
+
+    const grouped: Record<string, typeof subjectOptions> = {};
+    for (const s of filtered) {
+      if (!grouped[s.category]) grouped[s.category] = [];
+      grouped[s.category].push(s);
+    }
+
+    return CATEGORY_ORDER
+      .filter(cat => grouped[cat]?.length)
+      .map(cat => ({ category: cat, label: CATEGORY_LABELS[cat] || cat, subjects: grouped[cat] }));
+  }, [subjectOptions, subjectSearchQuery]);
+
   useEffect(() => {
     if (open) {
       fetchMembers();
       fetchAnnouncements();
       setEditName(groupName);
+      setEditSubject(subjectsTaught[0] || "");
+      setEditLevel(educationalLevel || "sixth_form");
       setSearchQuery("");
       setAssignmentSearch("");
       setAnnouncementSearch("");
@@ -280,8 +344,11 @@ export const ClassDetailPanel = ({
 
   // Track settings dirty state
   useEffect(() => {
-    setSettingsDirty(editName !== groupName);
-  }, [editName, groupName]);
+    const nameChanged = editName !== groupName;
+    const subjectChanged = editSubject !== (subjectsTaught[0] || "");
+    const levelChanged = editLevel !== (educationalLevel || "sixth_form");
+    setSettingsDirty(nameChanged || subjectChanged || levelChanged);
+  }, [editName, groupName, editSubject, subjectsTaught, editLevel, educationalLevel]);
 
   // Filter and sort members
   const filteredMembers = members
@@ -427,9 +494,18 @@ export const ClassDetailPanel = ({
 
     setSavingSettings(true);
     try {
+      const levelInfo = EDUCATIONAL_LEVELS.find(l => l.value === editLevel);
+
       const { error } = await supabase
         .from("student_groups")
-        .update({ name: editName.trim() })
+        .update({
+          name: editName.trim(),
+          subjects_covered: editSubject ? [editSubject] : [],
+          settings: {
+            educational_level: editLevel,
+            educational_tier: levelInfo?.tier || "Level 2",
+          },
+        })
         .eq("id", groupId);
 
       if (error) throw error;
@@ -439,6 +515,51 @@ export const ClassDetailPanel = ({
       toast({ title: "Error", description: "Failed to save", variant: "destructive" });
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleSubjectSelection = (subject: { id: string; name: string; slug: string }) => {
+    if (editSubject && editSubject.toLowerCase() !== subject.name.toLowerCase()) {
+      // Subject is changing — show warning
+      setPendingSubject(subject);
+      setSubjectChangeWarningOpen(true);
+    } else {
+      setEditSubject(subject.name);
+    }
+    setSubjectSearchOpen(false);
+    setSubjectSearchQuery("");
+  };
+
+  const confirmSubjectChange = async () => {
+    if (!pendingSubject) return;
+    setEditSubject(pendingSubject.name);
+    setSubjectChangeWarningOpen(false);
+    setPendingSubject(null);
+
+    // Clear existing master topics and profiles for old subject
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const oldSubject = subjectsTaught[0];
+      if (oldSubject) {
+        await Promise.all([
+          supabase
+            .from("subject_master_topics")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("subject_name", oldSubject),
+          supabase
+            .from("subject_exam_profiles")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("subject_name", oldSubject),
+        ]);
+      }
+
+      toast({ title: "Subject changed", description: "Previous topics and profiles have been cleared" });
+    } catch (err) {
+      console.error("Error clearing old subject data:", err);
     }
   };
 
@@ -551,9 +672,9 @@ export const ClassDetailPanel = ({
   const activeAssignmentsCount = assignments.filter(a => a.is_active).length;
   const subjectDisplay = subjectsTaught.length > 0 ? subjectsTaught[0] : "General";
   const levelLabels: Record<string, string> = {
-    secondary: "Level 1",
-    sixth_form: "Level 2",
-    university: "Level 3",
+    secondary: "Level 1 — High School",
+    sixth_form: "Level 2 — College",
+    university: "Level 3 — University",
   };
   const levelDisplay = educationalLevel ? levelLabels[educationalLevel] || educationalLevel : null;
 
@@ -563,9 +684,9 @@ export const ClassDetailPanel = ({
         <DialogContent 
           className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[88px_56px_1fr]"
           style={{ 
-            width: 'min(980px, 92vw)', 
+            width: 'min(980px, 100vw)', 
             height: 'min(720px, 86vh)',
-            maxWidth: 'none',
+            maxWidth: '100vw',
             maxHeight: 'none'
           }}
           hideCloseButton
@@ -598,7 +719,7 @@ export const ClassDetailPanel = ({
           {/* Fixed Tabs Bar - 56px */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
             <div className="relative border-b border-border/30 bg-card/50 h-full">
-              <div className="px-6 flex items-end h-full overflow-x-auto scrollbar-none">
+              <div className="px-6 flex items-end h-full overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <TabsList className="bg-transparent p-0 h-auto gap-1 flex-nowrap whitespace-nowrap">
                   <TabsTrigger 
                     value="students" 
@@ -1013,19 +1134,21 @@ export const ClassDetailPanel = ({
 
               {/* SETTINGS TAB */}
               <TabsContent value="settings" className="m-0 p-5 space-y-6 data-[state=inactive]:hidden">
-                {/* Class Name Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Class Name</Label>
-                    <Button 
-                      onClick={handleSaveSettings} 
-                      disabled={savingSettings || !settingsDirty} 
-                      size="sm"
-                      className={!settingsDirty ? "opacity-50" : ""}
-                    >
-                      {savingSettings ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
+                {/* Save button at top */}
+                <div className="flex items-center justify-end">
+                  <Button 
+                    onClick={handleSaveSettings} 
+                    disabled={savingSettings || !settingsDirty} 
+                    size="sm"
+                    className={!settingsDirty ? "opacity-50" : ""}
+                  >
+                    {savingSettings ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+
+                {/* Class Name */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Class Name</Label>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
@@ -1033,6 +1156,84 @@ export const ClassDetailPanel = ({
                     className="bg-muted/30 border-border/50"
                   />
                 </div>
+
+                {/* Subject */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Subject</Label>
+                  <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      >
+                        {editSubject || "Select subject..."}
+                        <ChevronDown className="w-4 h-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[320px] overflow-hidden" align="start">
+                      <div className="p-2 border-b border-border/50">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            ref={subjectSearchRef}
+                            placeholder="Type to search..."
+                            value={subjectSearchQuery}
+                            onChange={(e) => setSubjectSearchQuery(e.target.value)}
+                            className="pl-8 h-9 bg-muted/30 border-border/50"
+                          />
+                        </div>
+                      </div>
+                      <div className="overflow-y-auto max-h-[240px] p-1">
+                        {filteredSubjectOptions.length === 0 ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">No subjects found</div>
+                        ) : (
+                          filteredSubjectOptions.map((group) => (
+                            <div key={group.category}>
+                              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
+                              {group.subjects.map((subject) => (
+                                <button
+                                  key={subject.id}
+                                  type="button"
+                                  onClick={() => handleSubjectSelection(subject)}
+                                  className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                                >
+                                  {subject.name}
+                                </button>
+                              ))}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Educational Level */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Educational Level</Label>
+                  <Select value={editLevel} onValueChange={setEditLevel}>
+                    <SelectTrigger className="bg-muted/30 border-border/50">
+                      <GraduationCap className="w-4 h-4 mr-2 opacity-50" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EDUCATIONAL_LEVELS.map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-muted-foreground">{level.tier}</span>
+                            {level.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Changing the level adjusts difficulty metadata for future AI assignments.
+                  </p>
+                </div>
+
+                <Separator className="bg-border/30" />
 
                 <Separator className="bg-border/30" />
 
@@ -1194,6 +1395,27 @@ export const ClassDetailPanel = ({
           groupName={groupName}
         />
       )}
+
+      {/* Subject Change Warning Modal */}
+      <AlertDialog open={subjectChangeWarningOpen} onOpenChange={setSubjectChangeWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Change Subject?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing the subject from <strong>{subjectsTaught[0]}</strong> to <strong>{pendingSubject?.name}</strong> will permanently delete all existing Sub-topics and Exam Profiles for this class. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingSubject(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSubjectChange} className="bg-destructive hover:bg-destructive/90">
+              Change Subject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
