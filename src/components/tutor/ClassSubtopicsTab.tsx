@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, X, FileText, ChevronRight, Trash2, Edit2, Check } from "lucide-react";
+import { Plus, X, FileText, Trash2, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { TopicSearchInput } from "@/components/stats/TopicSearchInput";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 
 interface MasterTopic {
   id: string;
@@ -50,7 +51,6 @@ export const ClassSubtopicsTab = ({ groupId, subjectsTaught }: ClassSubtopicsTab
   const [masterTopics, setMasterTopics] = useState<MasterTopic[]>([]);
   const [examProfiles, setExamProfiles] = useState<ExamProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTopic, setNewTopic] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>(subjectsTaught[0] || "");
 
   // Profile creation state
@@ -95,6 +95,13 @@ export const ClassSubtopicsTab = ({ groupId, subjectsTaught }: ClassSubtopicsTab
     fetchData();
   }, [fetchData]);
 
+  // Update selected subject when subjectsTaught changes
+  useEffect(() => {
+    if (subjectsTaught.length > 0 && !subjectsTaught.includes(selectedSubject)) {
+      setSelectedSubject(subjectsTaught[0]);
+    }
+  }, [subjectsTaught]);
+
   const subjectTopics = masterTopics.filter(
     (t) => t.subject_name.toLowerCase() === selectedSubject.toLowerCase()
   );
@@ -103,8 +110,10 @@ export const ClassSubtopicsTab = ({ groupId, subjectsTaught }: ClassSubtopicsTab
     (p) => p.subject_name.toLowerCase() === selectedSubject.toLowerCase()
   );
 
-  const handleAddTopic = async () => {
-    const trimmed = newTopic.trim();
+  const existingTopicNames = subjectTopics.map(t => t.topic);
+
+  const handleAddTopic = async (topicName: string) => {
+    const trimmed = topicName.trim();
     if (!trimmed || !selectedSubject) return;
 
     if (subjectTopics.some(t => t.topic.toLowerCase() === trimmed.toLowerCase())) {
@@ -131,7 +140,6 @@ export const ClassSubtopicsTab = ({ groupId, subjectsTaught }: ClassSubtopicsTab
       }
 
       setMasterTopics(prev => [...prev, data as MasterTopic]);
-      setNewTopic("");
     } catch (err) {
       console.error("Error adding topic:", err);
       toast({ title: "Failed to add topic", variant: "destructive" });
@@ -276,24 +284,19 @@ export const ClassSubtopicsTab = ({ groupId, subjectsTaught }: ClassSubtopicsTab
               </Badge>
             </div>
 
-            {/* Add topic input */}
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. Algebra, Polynomials..."
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddTopic()}
-                className="bg-muted/30 border-border/50 text-sm"
-              />
-              <Button size="sm" onClick={handleAddTopic} disabled={!newTopic.trim()}>
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
+            {/* Searchable topic input linked to the class subject */}
+            <TopicSearchInput
+              subjectName={selectedSubject}
+              existingTopics={existingTopicNames}
+              onAddTopic={handleAddTopic}
+              placeholder={`Search & add ${selectedSubject} topics...`}
+              className="w-full"
+            />
 
             {/* Topic chips */}
             {subjectTopics.length === 0 ? (
               <p className="text-xs text-muted-foreground py-4 text-center">
-                No topics added yet. Start typing above to add your curriculum topics.
+                No topics added yet. Use the search above to find and add curriculum topics for {selectedSubject}.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
