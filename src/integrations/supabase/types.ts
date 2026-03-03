@@ -2062,6 +2062,54 @@ export type Database = {
           },
         ]
       }
+      tutor_manual_exams: {
+        Row: {
+          created_at: string
+          educational_tier: string | null
+          estimated_minutes: number | null
+          id: string
+          marking_preference: string
+          question_ids: string[]
+          status: string
+          subject_color: string | null
+          subject_name: string
+          title: string
+          total_marks: number | null
+          tutor_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          educational_tier?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          marking_preference?: string
+          question_ids?: string[]
+          status?: string
+          subject_color?: string | null
+          subject_name: string
+          title: string
+          total_marks?: number | null
+          tutor_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          educational_tier?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          marking_preference?: string
+          question_ids?: string[]
+          status?: string
+          subject_color?: string | null
+          subject_name?: string
+          title?: string
+          total_marks?: number | null
+          tutor_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tutor_profiles: {
         Row: {
           availability: Json | null
@@ -2101,6 +2149,57 @@ export type Database = {
           teaching_mode?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      tutor_question_bank: {
+        Row: {
+          created_at: string
+          estimated_minutes: number | null
+          expected_answer: string | null
+          id: string
+          marking_preference: string
+          max_marks: number
+          metadata: Json | null
+          options: Json | null
+          question_text: string
+          question_type: string
+          subject_name: string
+          topic_tag: string | null
+          tutor_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_minutes?: number | null
+          expected_answer?: string | null
+          id?: string
+          marking_preference?: string
+          max_marks?: number
+          metadata?: Json | null
+          options?: Json | null
+          question_text: string
+          question_type?: string
+          subject_name: string
+          topic_tag?: string | null
+          tutor_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estimated_minutes?: number | null
+          expected_answer?: string | null
+          id?: string
+          marking_preference?: string
+          max_marks?: number
+          metadata?: Json | null
+          options?: Json | null
+          question_text?: string
+          question_type?: string
+          subject_name?: string
+          topic_tag?: string | null
+          tutor_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

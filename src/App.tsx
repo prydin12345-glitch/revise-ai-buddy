@@ -37,6 +37,7 @@ import ManageStudents from "./pages/tutor/ManageStudents";
 import ManageFeedback from "./pages/tutor/ManageFeedback";
 import ExamHub from "./pages/tutor/ExamHub";
 import StudentExamReview from "./pages/tutor/StudentExamReview";
+import ManualExamCreator from "./pages/tutor/ManualExamCreator";
 import { TutorLayout } from "./components/tutor/TutorLayout";
 import MyClasses from "./pages/MyClasses";
 
@@ -94,6 +95,7 @@ const App = () => {
             {/* Tutor Routes - Wrapped in TutorLayout for persistent sidebar */}
             <Route path="/tutor/exams" element={<TutorLayout><ManageExams /></TutorLayout>} />
             <Route path="/tutor/exams/create" element={<TutorLayout><CreateTutorExam /></TutorLayout>} />
+            <Route path="/tutor/exams/create-manual" element={<TutorLayout><ManualExamCreator /></TutorLayout>} />
             <Route path="/tutor/exams/:examId" element={<TutorLayout><ExamHub /></TutorLayout>} />
             <Route path="/tutor/exams/:examId/edit" element={<TutorLayout><EditExam /></TutorLayout>} />
             <Route path="/tutor/exams/:examId/student/:studentId" element={<TutorLayout><StudentExamReview /></TutorLayout>} />
