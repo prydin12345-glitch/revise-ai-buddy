@@ -1,101 +1,118 @@
 
 
-# "My Subjects" with Exam Profiles, Master Topics, and AI Integration
+# Plan: Manual Exam Creator for Tutors
 
 ## Overview
-
-Add a "My Subjects" tab to the Stats page where users can manage per-subject topic lists and create "Exam Profiles" (e.g., "Maths Paper 1", "Maths Paper 2") with curated topic subsets and question count limits. These profiles feed directly into exam and practice quiz generation.
+Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
 ## Database Changes
 
-### New Table: `subject_exam_profiles`
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | NOT NULL |
-| subject_name | text | NOT NULL (e.g., "Mathematics") |
-| profile_name | text | NOT NULL (e.g., "Paper 1") |
-| topics | text[] | NOT NULL, the curated topic list |
-| question_count | integer | NOT NULL, default 20, max 50 |
-| created_at | timestamptz | default now() |
-| updated_at | timestamptz | default now() |
+**New table: `tutor_question_bank`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL) — references auth.users
+- `question_text` (text, NOT NULL)
+- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
+- `expected_answer` (text) — mark scheme / model answer
+- `max_marks` (integer, NOT NULL)
+- `topic_tag` (text) — linked to class sub-topics
+- `subject_name` (text, NOT NULL)
+- `options` (jsonb) — for MCQ
+- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
+- `estimated_minutes` (integer) — AI-suggested time
+- `metadata` (jsonb, default '{}')
+- `created_at`, `updated_at` (timestamptz)
 
-RLS: Standard user_id = auth.uid() for all CRUD operations.
+RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
 
-### New Table: `subject_master_topics`
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | NOT NULL |
-| subject_name | text | NOT NULL |
-| topic | text | NOT NULL |
-| created_at | timestamptz | default now() |
+**New table: `tutor_manual_exams`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL)
+- `title` (text, NOT NULL)
+- `subject_name` (text, NOT NULL)
+- `subject_color` (text, default '#3B82F6')
+- `marking_preference` (text, default 'ai_assisted')
+- `educational_tier` (text)
+- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
+- `total_marks` (integer, default 0)
+- `estimated_minutes` (integer)
+- `status` (text, default 'draft') — draft, published
+- `created_at`, `updated_at` (timestamptz)
 
-Unique constraint on (user_id, subject_name, topic). RLS: user_id = auth.uid() for all CRUD.
+RLS: tutor can CRUD own rows.
 
-## Frontend Changes
+## New Route
+- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
 
-### 1. Stats Page — Add "My Subjects" Tab
-**File: `src/pages/Stats.tsx`**
+## New Components
 
-Add a third tab "My Subjects" (with a BookOpen icon) alongside "Stats" and "Weak Topics". This tab renders a new `MySubjectsPanel` component.
+### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
+Split-view layout:
+- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
+- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
+- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
 
-### 2. New Component: `src/components/stats/MySubjectsPanel.tsx`
-- Lists user's subjects (from `useUserSubjects`) as expandable accordion cards
-- Each subject card shows:
-  - **Master Topics section**: Input field + "Add" button to add topics. Shows existing topics as removable chips/badges. Sources from `subject_master_topics` table. Also pre-populates suggestions from the existing `SUBTOPIC_DICTIONARY` in SubtopicSelector.
-  - **Exam Profiles section**: List of profiles (e.g., "Paper 1", "Paper 2") with a "+ Create Profile" button
-  - Each profile shows: name, selected topics (as chips from the master list), question count slider (5-50)
+Key behaviors:
+- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
+- Inline editing: click question number to rename, click mark bubble to change
+- Focus mode: when editing a question, dim others with opacity
+- Auto-save indicator in header
+- Empty state illustration when no questions exist
 
-### 3. New Component: `src/components/stats/ExamProfileModal.tsx`
-- Modal for creating/editing an exam profile
-- Fields: Profile Name (text input), Topics (multi-select from master topics as chips), Question Count (slider, 5-50)
-- Save writes to `subject_exam_profiles` table
+### 2. `src/components/tutor/ManualQuestionEditor.tsx`
+- Rich text fields for question and mark scheme
+- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
+- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
+- Max marks input (1-10)
+- "Polish with AI" button
 
-### 4. New Hook: `src/hooks/useSubjectProfiles.ts`
-- CRUD operations for `subject_master_topics` and `subject_exam_profiles`
-- `addTopic(subject, topic)`, `removeTopic(subject, topic)`, `getTopics(subject)`
-- `createProfile(...)`, `updateProfile(...)`, `deleteProfile(...)`, `getProfiles(subject)`
+### 3. `src/components/tutor/ManualQuestionPreview.tsx`
+- Renders the question exactly as students see it using `MathRenderer`
+- Shows mark allocation badge, topic tag
 
-### 5. CreatePracticeQuestions Integration
-**File: `src/pages/CreatePracticeQuestions.tsx`**
+### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
+- Each option has description text
 
-- After subject selection, if profiles exist for that subject, show a "Use Exam Profile" dropdown
-- Selecting a profile auto-fills: subtopics (from profile topics), question count (from profile)
-- User can still override or use manual selection
+### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
+- Sticky sidebar showing:
+  - Total marks counter
+  - Topic distribution (mini pie chart via recharts)
+  - Estimated completion time (marks × 1.5 min ratio)
+  - Question count
 
-### 6. CreateExam Integration
-**File: `src/pages/CreateExam.tsx`**
+## Edge Function: `polish-question`
+- Takes raw question text + subject + educational tier
+- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
+- Returns polished text preserving mathematical requirements
 
-- Same pattern: after subject selection, optional profile dropdown
-- Profile selection pre-fills relevant fields
+## Integration Points
 
-### 7. AI Prompt Integration
-**File: `supabase/functions/generate-practice-questions/index.ts`**
+1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
 
-When an exam profile is used, the system message includes:
-```
-"Generate questions using ONLY topics from this curated list: [topics]. 
-Select an appropriate subset of [questionCount] questions. 
-Do not use topics outside this list."
-```
+2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
 
-The profile info will be passed via the `practice_question_sets` record (a new `profile_id` column or the topics are already stored in `subtopics`). Since `subtopics` already feeds into the prompt, the main change is ensuring the profile's topic list populates `subtopics` on creation — no backend prompt changes needed beyond what already exists.
+3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
 
-## Files to Create/Modify
+4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
 
-| File | Action |
-|---|---|
-| Migration SQL | Create `subject_master_topics` and `subject_exam_profiles` tables with RLS |
-| `src/hooks/useSubjectProfiles.ts` | New — CRUD hook |
-| `src/components/stats/MySubjectsPanel.tsx` | New — main panel component |
-| `src/components/stats/ExamProfileModal.tsx` | New — create/edit profile modal |
-| `src/pages/Stats.tsx` | Add "My Subjects" tab |
-| `src/pages/CreatePracticeQuestions.tsx` | Add profile selector dropdown |
-| `src/pages/CreateExam.tsx` | Add profile selector dropdown |
+5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
 
-## Technical Notes
-- The existing `subtopics` field on `practice_question_sets` already feeds into the AI prompt, so selecting a profile just pre-fills that field — no edge function changes needed
-- Question count limit: 5 minimum, 50 maximum enforced both in UI slider and DB check
-- Master topics use the same `SUBTOPIC_DICTIONARY` for autocomplete suggestions but allow fully custom entries
+## UI Details
+- Subject-themed accent colors on save buttons, active borders, progress bars
+- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
+- Dark-themed empty state with illustration text: "Your masterpiece starts here"
+- Auto-save with subtle "All changes saved ✓" indicator that pulses
+
+## Files to Create
+1. `src/pages/tutor/ManualExamCreator.tsx`
+2. `src/components/tutor/ManualQuestionEditor.tsx`
+3. `src/components/tutor/ManualQuestionPreview.tsx`
+4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+5. `src/components/tutor/ExamCompositionSidebar.tsx`
+6. `supabase/functions/polish-question/index.ts`
+
+## Files to Edit
+1. `src/App.tsx` — add route `/tutor/exams/create-manual`
+2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
+3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
 
