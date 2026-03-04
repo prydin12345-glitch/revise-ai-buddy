@@ -160,13 +160,13 @@ const ExamPreview = () => {
                 )}
 
                 {/* Question Input (Disabled) */}
-                {q.question_type === 'mcq' && q.options ? (
+                {q.question_type === 'mcq' && q.options && Array.isArray(q.options) ? (
                   <RadioGroup disabled className="space-y-2">
                     {q.options.map((opt, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <RadioGroupItem value={i.toString()} disabled />
                         <Label className="cursor-not-allowed opacity-60">
-                          {opt.key}) {opt.text}
+                          {typeof opt === 'object' ? `${opt.key}) ${opt.text}` : String(opt)}
                         </Label>
                       </div>
                     ))}
