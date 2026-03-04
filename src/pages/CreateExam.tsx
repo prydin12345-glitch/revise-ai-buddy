@@ -331,9 +331,11 @@ export default function CreateExam() {
     try {
       // Upload exam with all settings
       const formData = new FormData();
+      const resolvedEducationalTier = educationalTier === 'other' ? customTier.trim() : educationalTier;
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
+      if (resolvedEducationalTier) formData.append('educationalTier', resolvedEducationalTier);
       if (examBoard) formData.append('examBoard', examBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (notes) formData.append('notes', notes);
@@ -437,8 +439,20 @@ export default function CreateExam() {
 
       // Poll every 2 seconds
       pollInterval = window.setInterval(async () => {
-        const completed = await pollForCompletion();
-        if (completed && pollInterval) clearInterval(pollInterval);
+        try {
+          const completed = await pollForCompletion();
+          if (completed && pollInterval) clearInterval(pollInterval);
+        } catch (pollError: any) {
+          console.error('Polling error:', pollError);
+          if (messageInterval) clearInterval(messageInterval);
+          if (pollInterval) clearInterval(pollInterval);
+          setGenerating(false);
+          toast({
+            title: "Generation Failed",
+            description: pollError?.message || "Generation stopped unexpectedly. Please try again.",
+            variant: "destructive",
+          });
+        }
       }, 2000);
 
       // Initial check

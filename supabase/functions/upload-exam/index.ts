@@ -39,6 +39,22 @@ serve(async (req) => {
     const educationalTier = formData.get('educationalTier') as string | null;
     const specFile = formData.get('specFile') as File | null;
     const resourcePackId = formData.get('resourcePackId') as string | null;
+    const curriculumTopicsRaw = formData.get('curriculumTopics') as string | null;
+
+    let curriculumTopics: string[] = [];
+    if (curriculumTopicsRaw) {
+      try {
+        const parsed = JSON.parse(curriculumTopicsRaw);
+        if (Array.isArray(parsed)) {
+          curriculumTopics = parsed
+            .filter((topic): topic is string => typeof topic === 'string')
+            .map((topic) => topic.trim())
+            .filter(Boolean);
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse curriculumTopics:', parseError);
+      }
+    }
 
     if (!subjectId || !examTitle) {
       return new Response(JSON.stringify({ error: 'Subject and exam name are required' }), {
@@ -123,6 +139,22 @@ serve(async (req) => {
     }
 
     console.log('Exam created:', examData.id);
+
+    if (curriculumTopics.length > 0) {
+      const uniqueTopics = [...new Set(curriculumTopics)];
+      const { error: specInsertError } = await supabase
+        .from('exam_specifications')
+        .insert(
+          uniqueTopics.map((topic) => ({
+            exam_id: examData.id,
+            topic_name: topic,
+          }))
+        );
+
+      if (specInsertError) {
+        console.error('Failed to save exam profile topics:', specInsertError);
+      }
+    }
 
     return new Response(JSON.stringify({ draftId: examData.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
