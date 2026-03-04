@@ -26,7 +26,7 @@ import { ResourcePackUploader, type ResourcePack } from "@/components/practice/R
 import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
-
+import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 
 const EDUCATIONAL_TIERS = [
   { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
@@ -101,6 +101,8 @@ export default function CreateExam() {
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
+  const [profileTopics, setProfileTopics] = useState<string[]>([]);
+  const [activeProfileTopics, setActiveProfileTopics] = useState<string[]>([]);
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -196,6 +198,8 @@ export default function CreateExam() {
     setSubjectId(newSubject);
     setSelectedProfile(null);
     setProfileMaxQuestions(null);
+    setProfileTopics([]);
+    setActiveProfileTopics([]);
     
     // Get existing color or assign random
     const existingColor = getSubjectColor(newSubject);
@@ -219,12 +223,24 @@ export default function CreateExam() {
       setSelectedProfile(profileId);
       setProfileMaxQuestions(profile.question_count);
       setTotalQuestions(Math.min(totalQuestions, profile.question_count));
-      setNotes(prev => {
-        const profileNote = `[Exam Profile: ${profile.profile_name}] Topics: ${profile.topics.join(', ')}`;
-        return prev ? `${prev}\n${profileNote}` : profileNote;
-      });
+      setProfileTopics(profile.topics);
+      setActiveProfileTopics(profile.topics);
     }
     setShowProfilePrompt(false);
+  };
+
+  const handlePracticeAll = (topics: string[]) => {
+    setSelectedProfile('all_topics');
+    setProfileTopics(topics);
+    setActiveProfileTopics(topics);
+    setShowProfilePrompt(false);
+  };
+
+  const clearProfile = () => {
+    setSelectedProfile(null);
+    setProfileMaxQuestions(null);
+    setProfileTopics([]);
+    setActiveProfileTopics([]);
   };
 
   const handleGenerate = async () => {
@@ -313,7 +329,13 @@ export default function CreateExam() {
       if (examBoard) formData.append('examBoard', examBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (notes) formData.append('notes', notes);
-      if (resourcePack) formData.append('resourcePackId', resourcePack.id);
+      if (activeProfileTopics.length > 0) {
+        formData.append('curriculumTopics', JSON.stringify(activeProfileTopics));
+      }
+      if (selectedProfile) {
+        const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+        formData.append('profileName', profile?.profile_name || 'All Saved Topics');
+      }
 
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -526,31 +548,22 @@ export default function CreateExam() {
                 showLabel={false}
               />
 
-              {/* Selected Profile Badge */}
-              {selectedProfile && (() => {
-                const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
-                return profile ? (
-                  <div className="col-span-full flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
-                    <Badge variant="outline" className="gap-1" style={{ borderColor: subjectColor, color: subjectColor }}>
-                      {profile.profile_name}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {profile.topics.length} topics · max {profile.question_count} questions
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      AI will select from your curated topics
-                    </span>
-                    <button
-                      className="text-xs text-destructive hover:underline ml-2"
-                      onClick={() => {
-                        setSelectedProfile(null);
-                        setProfileMaxQuestions(null);
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : null;
+              {/* Selected Profile / Curriculum Badge */}
+              {selectedProfile && profileTopics.length > 0 && (() => {
+                const profile = selectedProfile === 'all_topics'
+                  ? null
+                  : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                return (
+                  <CurriculumTopicBadge
+                    profileName={profile?.profile_name || 'All Saved Topics'}
+                    topics={profileTopics}
+                    questionCount={totalQuestions}
+                    questionLimit={profileMaxQuestions}
+                    subjectColor={subjectColor}
+                    onRemoveProfile={clearProfile}
+                    onActiveTopicsChange={setActiveProfileTopics}
+                  />
+                );
               })()}
             </div>
 
@@ -560,7 +573,7 @@ export default function CreateExam() {
               <NotesInput
                 value={notes}
                 onChange={setNotes}
-                placeholder="Add constraints like topics, style, difficulty..."
+                placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
               />
             </div>
 
@@ -1074,11 +1087,7 @@ export default function CreateExam() {
         masterTopics={getTopicsForSubject(subjectId)}
         profiles={getProfilesForSubject(subjectId)}
         onPracticeAll={(topics) => {
-          setNotes(prev => {
-            const topicNote = `[All Saved Topics] Topics: ${topics.join(', ')}`;
-            return prev ? `${prev}\n${topicNote}` : topicNote;
-          });
-          setShowProfilePrompt(false);
+          handlePracticeAll(topics);
         }}
         onSelectProfile={(profile) => {
           handleSelectProfile(profile.id);
