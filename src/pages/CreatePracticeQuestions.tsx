@@ -34,6 +34,7 @@ import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
+import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const CreatePracticeQuestions = () => {
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
+  const [profileTopics, setProfileTopics] = useState<string[]>([]);
 
   const pollIntervalRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
@@ -113,6 +115,7 @@ const CreatePracticeQuestions = () => {
     setSubjectColor(getSubjectColor(value));
     setSelectedProfileId(null);
     setProfileMaxQuestions(null);
+    setProfileTopics([]);
     
     // Check if user has topics for smart prompt
     const topics = getTopicsForSubject(value);
@@ -126,6 +129,7 @@ const CreatePracticeQuestions = () => {
     if (profile) {
       setSelectedProfileId(profileId);
       setSelectedSubtopics(profile.topics);
+      setProfileTopics(profile.topics);
       setProfileMaxQuestions(profile.question_count);
       setQuestionCount(Math.min(questionCount, profile.question_count));
     }
@@ -500,32 +504,29 @@ const CreatePracticeQuestions = () => {
                 />
               </div>
 
-              {/* Selected Profile Badge */}
-              {selectedProfileId && (() => {
-                const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfileId);
-                return profile ? (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
-                    <Badge variant="outline" className="gap-1" style={{ borderColor: subjectColor, color: subjectColor }}>
-                      {profile.profile_name}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {profile.topics.length} topics · max {profile.question_count}Q
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      AI will select from your curated topics
-                    </span>
-                    <button
-                      className="text-xs text-destructive hover:underline ml-2"
-                      onClick={() => {
-                        setSelectedProfileId(null);
-                        setProfileMaxQuestions(null);
-                        setSelectedSubtopics([]);
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : null;
+              {/* Selected Profile / Curriculum Badge */}
+              {selectedProfileId && profileTopics.length > 0 && (() => {
+                const profile = selectedProfileId === 'all_topics'
+                  ? null
+                  : getProfilesForSubject(subjectId).find(p => p.id === selectedProfileId);
+                return (
+                  <CurriculumTopicBadge
+                    profileName={profile?.profile_name || 'All Saved Topics'}
+                    topics={profileTopics}
+                    questionCount={questionCount}
+                    questionLimit={profileMaxQuestions}
+                    subjectColor={subjectColor}
+                    onRemoveProfile={() => {
+                      setSelectedProfileId(null);
+                      setProfileMaxQuestions(null);
+                      setProfileTopics([]);
+                      setSelectedSubtopics([]);
+                    }}
+                    onActiveTopicsChange={(activeTopics) => {
+                      setSelectedSubtopics(activeTopics);
+                    }}
+                  />
+                );
               })()}
 
               <div className="space-y-2">
@@ -534,7 +535,7 @@ const CreatePracticeQuestions = () => {
                   value={notes}
                   onChange={setNotes}
                   onValidationChange={setNotesValidation}
-                  placeholder="Add constraints like topics, style, difficulty, question types..."
+                  placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
                 />
               </div>
             </Card>
@@ -931,6 +932,8 @@ const CreatePracticeQuestions = () => {
         masterTopics={getTopicsForSubject(subjectId)}
         profiles={getProfilesForSubject(subjectId)}
         onPracticeAll={(topics) => {
+          setSelectedProfileId('all_topics');
+          setProfileTopics(topics);
           setSelectedSubtopics(topics);
           setShowProfilePrompt(false);
         }}
