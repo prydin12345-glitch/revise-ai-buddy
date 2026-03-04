@@ -90,8 +90,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     hasResourcePack = packResult.hasResourcePack;
   }
 
-  // Download and extract PDF text
-  const pdfText = await extractPdfText(exam.file_url, supabase);
+  // Download and extract PDF text (optional reference file)
+  const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
+  if (!exam.file_url) {
+    console.log('No reference file found; generating from selected profile/topics and settings');
+  }
   const useFallbackMode = pdfText.length < 100;
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
@@ -238,7 +241,8 @@ async function extractResources(text: string, apiKey: string, exam: any) {
   return [{ source_label: 'Source A', resource_type: 'text_extract', content_text: text.substring(0, 8000) }];
 }
 
-async function extractPdfText(fileUrl: string, supabase: any): Promise<string> {
+async function extractPdfText(fileUrl: string | null, supabase: any): Promise<string> {
+  if (!fileUrl) return '';
   const { data, error } = await supabase.storage.from('exam-files').download(fileUrl);
   if (error || !data) return '';
 
