@@ -1880,30 +1880,36 @@ export type Database = {
       subject_exam_profiles: {
         Row: {
           created_at: string
+          educational_tier: string | null
           id: string
           profile_name: string
           question_count: number
           subject_name: string
+          time_limit_minutes: number | null
           topics: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          educational_tier?: string | null
           id?: string
           profile_name: string
           question_count?: number
           subject_name: string
+          time_limit_minutes?: number | null
           topics?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          educational_tier?: string | null
           id?: string
           profile_name?: string
           question_count?: number
           subject_name?: string
+          time_limit_minutes?: number | null
           topics?: string[]
           updated_at?: string
           user_id?: string

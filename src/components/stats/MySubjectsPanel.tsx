@@ -30,6 +30,8 @@ export const MySubjectsPanel = () => {
     profile_name: string;
     topics: string[];
     question_count: number;
+    educational_tier?: string | null;
+    time_limit_minutes?: number | null;
   } | null>(null);
 
   if (subjectsLoading || profilesLoading) {
@@ -80,18 +82,18 @@ export const MySubjectsPanel = () => {
 
   const handleOpenEditProfile = (
     subject: string,
-    profile: { id: string; profile_name: string; topics: string[]; question_count: number }
+    profile: { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }
   ) => {
     setActiveSubject(subject);
     setEditingProfile(profile);
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number) => {
+  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null) => {
     if (editingProfile) {
-      await updateProfile(editingProfile.id, { profile_name: profileName, topics, question_count: questionCount });
+      await updateProfile(editingProfile.id, { profile_name: profileName, topics, question_count: questionCount, educational_tier: educationalTier || null, time_limit_minutes: timeLimitMinutes ?? null });
     } else {
-      await createProfile(activeSubject, profileName, topics, questionCount);
+      await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes);
     }
   };
 
