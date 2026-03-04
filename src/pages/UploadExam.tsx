@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, ChevronDown, Settings2 } from "lucide-react";
+import { Upload, FileText, ChevronDown, Settings2, X } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -33,7 +33,7 @@ export default function UploadExam() {
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [errors, setErrors] = useState({ subject: "", file: "", fileName: "" });
+  const [errors, setErrors] = useState({ subject: "", fileName: "" });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -42,16 +42,14 @@ export default function UploadExam() {
   };
 
   const handleUpload = async () => {
-    // Validate fields
-    const newErrors = { subject: "", file: "", fileName: "" };
+    const newErrors = { subject: "", fileName: "" };
     
     if (!subjectId) newErrors.subject = "Please select a subject";
-    if (!file) newErrors.file = "Please choose a file";
     if (!fileName.trim()) newErrors.fileName = "Please name this exam";
     
     setErrors(newErrors);
     
-    if (newErrors.subject || newErrors.file || newErrors.fileName) {
+    if (newErrors.subject || newErrors.fileName) {
       return;
     }
 
@@ -59,7 +57,7 @@ export default function UploadExam() {
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
       if (educationalTier) formData.append('educationalTier', educationalTier);
@@ -122,29 +120,35 @@ export default function UploadExam() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="file" className="text-base font-medium">Exam Document *</Label>
+              <Label htmlFor="file" className="text-base font-medium">Import Reference Assessment</Label>
+              <p className="text-xs text-muted-foreground">Optional — upload a past paper or reference document to guide AI generation</p>
               <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".pdf,.docx,.doc"
-                  onChange={(e) => {
-                    handleFileChange(e);
-                    setErrors({ ...errors, file: "" });
-                  }}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-                />
-                {file && (
-                  <div className="mt-4 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md">
+                {!file ? (
+                  <Input
+                    id="file"
+                    type="file"
+                    accept=".pdf,.docx,.doc"
+                    onChange={handleFileChange}
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+                  />
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md">
                     <FileText className="h-5 w-5 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{file.name}</p>
                       <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 )}
               </div>
-              {errors.file && <p className="text-destructive text-sm mt-1">{errors.file}</p>}
             </div>
 
             <div className="space-y-2">
