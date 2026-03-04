@@ -22,15 +22,10 @@ import {
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 
 const EDUCATIONAL_TIERS = [
-  { id: "gcse_igcse", name: "GCSE / IGCSE" },
-  { id: "a_level", name: "A-Level / AS-Level" },
-  { id: "o_level", name: "O-Level" },
-  { id: "college_sixth_form", name: "College / Sixth Form" },
-  { id: "ib_diploma", name: "IB Diploma" },
-  { id: "university_undergraduate", name: "University / Undergraduate" },
-  { id: "postgraduate_masters", name: "Postgraduate / Masters" },
-  { id: "vocational_technical", name: "Vocational / Technical" },
-  { id: "other", name: "Other" },
+  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
+  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
+  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
+  { id: "other", name: "Other (Custom)" },
 ];
 
 interface ExamProfileModalProps {
