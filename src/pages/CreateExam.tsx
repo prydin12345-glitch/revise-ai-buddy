@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriangle, X } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
@@ -280,14 +280,6 @@ export default function CreateExam() {
       return;
     }
     
-    if (!file) {
-      toast({
-        title: "Exam Document Required",
-        description: "Please upload an exam document",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (!educationalTier) {
       toast({
@@ -519,7 +511,7 @@ export default function CreateExam() {
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
             <Button
               onClick={handleGenerate}
-              disabled={generating || !file || !subjectId || !educationalTier}
+              disabled={generating || !subjectId || !educationalTier}
               size="lg"
               className="px-8 button-glow"
             >
@@ -658,7 +650,7 @@ export default function CreateExam() {
               </Card>
             )}
 
-            {/* Row 3: File Upload */}
+            {/* Row 3: Import Reference Assessment */}
             <div className="grid lg:grid-cols-2 gap-4">
               <div className="relative">
                 <input
@@ -668,15 +660,31 @@ export default function CreateExam() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                  onClick={() => document.getElementById('exam-file')?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {file ? file.name.substring(0, 18) + '...' : 'Upload Exam Document'}
-                </Button>
+                {!file ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
+                    onClick={() => document.getElementById('exam-file')?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import Reference Assessment
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md h-12">
+                    <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                      onClick={() => setFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Optional — upload a past paper to guide AI generation</p>
               </div>
             </div>
 
