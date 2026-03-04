@@ -30,16 +30,17 @@ serve(async (req) => {
     }
 
     const formData = await req.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get('file') as File | null;
     const subjectId = formData.get('subjectId') as string;
     const examTitle = formData.get('fileName') as string;
-    const examBoard = formData.get('examBoard') as string;
+    const examBoard = (formData.get('examBoard') as string) || 'custom';
     const qualificationLevel = formData.get('qualificationLevel') as string | null;
+    const educationalTier = formData.get('educationalTier') as string | null;
     const specFile = formData.get('specFile') as File | null;
     const resourcePackId = formData.get('resourcePackId') as string | null;
 
-    if (!file || !subjectId || !examTitle || !examBoard) {
-      return new Response(JSON.stringify({ error: 'File, subject, exam board, and file name required' }), {
+    if (!subjectId || !examTitle) {
+      return new Response(JSON.stringify({ error: 'Subject and exam name are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -47,27 +48,32 @@ serve(async (req) => {
 
     console.log('Uploading file:', file.name, 'for subject:', subjectId, 'with name:', examTitle);
 
-    // Upload file to storage
-    const fileExt = file.name.split('.').pop();
-    const storagePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
-    const fileBuffer = await file.arrayBuffer();
+    // Upload file to storage (optional)
+    let filePath: string | null = null;
+    if (file && file.size > 0) {
+      const fileExt = file.name.split('.').pop();
+      const storagePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+      const fileBuffer = await file.arrayBuffer();
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('exam-files')
-      .upload(storagePath, fileBuffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('exam-files')
+        .upload(storagePath, fileBuffer, {
+          contentType: file.type,
+          upsert: false,
+        });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return new Response(JSON.stringify({ error: 'File upload failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return new Response(JSON.stringify({ error: 'File upload failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      filePath = uploadData.path;
+      console.log('File uploaded:', filePath);
     }
 
-    console.log('File uploaded:', uploadData.path);
+    console.log('Processing exam:', examTitle, 'for subject:', subjectId);
 
     // Upload specification file if provided
     let specFileUrl = null;
@@ -97,11 +103,11 @@ serve(async (req) => {
         subject_id: subjectId,
         title: examTitle,
         exam_board: examBoard,
-        qualification_level: qualificationLevel,
+        qualification_level: qualificationLevel || educationalTier,
         specification_file_url: specFileUrl,
         type: 'uploaded',
         status: 'draft',
-        file_url: uploadData.path,
+        file_url: filePath,
         resource_pack_id: resourcePackId || null,
       })
       .select()
