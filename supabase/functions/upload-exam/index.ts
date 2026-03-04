@@ -30,7 +30,8 @@ serve(async (req) => {
     }
 
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    const rawFile = formData.get('file');
+    const file = (rawFile instanceof File && rawFile.size > 0) ? rawFile : null;
     const subjectId = formData.get('subjectId') as string;
     const examTitle = formData.get('fileName') as string;
     const examBoard = (formData.get('examBoard') as string) || 'custom';
@@ -46,7 +47,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Uploading file:', file.name, 'for subject:', subjectId, 'with name:', examTitle);
+    console.log('Processing exam:', examTitle, 'for subject:', subjectId, 'file:', file?.name || 'none');
 
     // Upload file to storage (optional)
     let filePath: string | null = null;

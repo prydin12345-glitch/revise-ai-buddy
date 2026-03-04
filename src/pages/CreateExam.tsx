@@ -331,7 +331,7 @@ export default function CreateExam() {
     try {
       // Upload exam with all settings
       const formData = new FormData();
-      formData.append('file', file);
+      if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
       if (examBoard) formData.append('examBoard', examBoard);
