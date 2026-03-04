@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { X, Check, AlertCircle, Plus, ChevronsUpDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { X, Check, Plus, ChevronsUpDown, Clock } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -20,17 +21,31 @@ import {
 } from "@/components/ui/popover";
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 
+const EDUCATIONAL_TIERS = [
+  { id: "gcse_igcse", name: "GCSE / IGCSE" },
+  { id: "a_level", name: "A-Level / AS-Level" },
+  { id: "o_level", name: "O-Level" },
+  { id: "college_sixth_form", name: "College / Sixth Form" },
+  { id: "ib_diploma", name: "IB Diploma" },
+  { id: "university_undergraduate", name: "University / Undergraduate" },
+  { id: "postgraduate_masters", name: "Postgraduate / Masters" },
+  { id: "vocational_technical", name: "Vocational / Technical" },
+  { id: "other", name: "Other" },
+];
+
 interface ExamProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subjectName: string;
   subjectColor: string;
   availableTopics: string[];
-  onSave: (profileName: string, topics: string[], questionCount: number) => void;
+  onSave: (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null) => void;
   initialData?: {
     profile_name: string;
     topics: string[];
     question_count: number;
+    educational_tier?: string | null;
+    time_limit_minutes?: number | null;
   };
 }
 
@@ -48,12 +63,16 @@ export const ExamProfileModal = ({
   const [questionCount, setQuestionCount] = useState(15);
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
+  const [educationalTier, setEducationalTier] = useState("");
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
 
   useEffect(() => {
     if (open) {
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
+      setEducationalTier(initialData?.educational_tier || "");
+      setTimeLimitMinutes(initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : "");
       setTopicSearch("");
     }
   }, [open, initialData]);
@@ -83,7 +102,8 @@ export const ExamProfileModal = ({
 
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0) return;
-    onSave(profileName.trim(), selectedTopics, questionCount);
+    const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
+    onSave(profileName.trim(), selectedTopics, questionCount, educationalTier || undefined, timeVal);
     onOpenChange(false);
   };
 
@@ -118,6 +138,25 @@ export const ExamProfileModal = ({
             />
           </div>
 
+          {/* Educational Level */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Educational Level
+            </Label>
+            <Select value={educationalTier} onValueChange={setEducationalTier}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Select level (optional)..." />
+              </SelectTrigger>
+              <SelectContent>
+                {EDUCATIONAL_TIERS.map((tier) => (
+                  <SelectItem key={tier.id} value={tier.id}>
+                    {tier.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Question Limit */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -143,6 +182,24 @@ export const ExamProfileModal = ({
               <span>5</span>
               <span>20</span>
             </div>
+          </div>
+
+          {/* Time Limit */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Time Limit (minutes)
+              </Label>
+            </div>
+            <Input
+              type="number"
+              min={0}
+              placeholder="e.g. 60 (leave blank for no limit)"
+              value={timeLimitMinutes}
+              onChange={(e) => setTimeLimitMinutes(e.target.value)}
+              className="h-10"
+            />
           </div>
 
           {/* Topic Selection */}

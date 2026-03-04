@@ -14,6 +14,8 @@ interface ExamProfile {
   profile_name: string;
   topics: string[];
   question_count: number;
+  educational_tier: string | null;
+  time_limit_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -117,7 +119,9 @@ export const useSubjectProfiles = () => {
     subject: string,
     profileName: string,
     topics: string[],
-    questionCount: number
+    questionCount: number,
+    educationalTier?: string,
+    timeLimitMinutes?: number | null
   ) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -131,7 +135,9 @@ export const useSubjectProfiles = () => {
           profile_name: profileName,
           topics,
           question_count: questionCount,
-        })
+          educational_tier: educationalTier || null,
+          time_limit_minutes: timeLimitMinutes ?? null,
+        } as any)
         .select()
         .single();
 
@@ -146,12 +152,12 @@ export const useSubjectProfiles = () => {
 
   const updateProfile = async (
     profileId: string,
-    updates: Partial<Pick<ExamProfile, "profile_name" | "topics" | "question_count">>
+    updates: Partial<Pick<ExamProfile, "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes">>
   ) => {
     try {
       const { data, error } = await supabase
         .from("subject_exam_profiles")
-        .update(updates)
+        .update(updates as any)
         .eq("id", profileId)
         .select()
         .single();

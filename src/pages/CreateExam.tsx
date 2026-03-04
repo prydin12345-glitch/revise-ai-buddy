@@ -103,6 +103,9 @@ export default function CreateExam() {
   const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
   const [profileTopics, setProfileTopics] = useState<string[]>([]);
   const [activeProfileTopics, setActiveProfileTopics] = useState<string[]>([]);
+  const [profileEducationalTier, setProfileEducationalTier] = useState<string | null>(null);
+  const [profileTimeLimit, setProfileTimeLimit] = useState<number | null>(null);
+  const [sessionTimeLimitOverride, setSessionTimeLimitOverride] = useState<number | null>(null);
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -225,6 +228,16 @@ export default function CreateExam() {
       setTotalQuestions(Math.min(totalQuestions, profile.question_count));
       setProfileTopics(profile.topics);
       setActiveProfileTopics(profile.topics);
+      // Apply profile's educational tier and time limit
+      if (profile.educational_tier) {
+        setEducationalTier(profile.educational_tier);
+        setProfileEducationalTier(profile.educational_tier);
+      }
+      if (profile.time_limit_minutes) {
+        setTimerEnabled(true);
+        setDuration(profile.time_limit_minutes);
+        setProfileTimeLimit(profile.time_limit_minutes);
+      }
     }
     setShowProfilePrompt(false);
   };
@@ -241,6 +254,9 @@ export default function CreateExam() {
     setProfileMaxQuestions(null);
     setProfileTopics([]);
     setActiveProfileTopics([]);
+    setProfileEducationalTier(null);
+    setProfileTimeLimit(null);
+    setSessionTimeLimitOverride(null);
   };
 
   const handleGenerate = async () => {
@@ -562,6 +578,16 @@ export default function CreateExam() {
                     subjectColor={subjectColor}
                     onRemoveProfile={clearProfile}
                     onActiveTopicsChange={setActiveProfileTopics}
+                    profileEducationalTier={profileEducationalTier}
+                    profileTimeLimit={profileTimeLimit}
+                    onSessionQuestionCountChange={(count) => setTotalQuestions(count)}
+                    onSessionTimeLimitChange={(mins) => {
+                      setSessionTimeLimitOverride(mins);
+                      if (mins != null) {
+                        setTimerEnabled(true);
+                        setDuration(mins);
+                      }
+                    }}
                   />
                 );
               })()}
@@ -657,12 +683,17 @@ export default function CreateExam() {
             {/* Row 5: Combined Settings Container & Configuration Summary */}
             <div className="grid lg:grid-cols-[1fr_380px] gap-6">
               {/* Left: Format, Difficulty, Timer */}
-              <Card className="p-6 bg-card/50 border-border">
+              <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
                 {/* Format Selection */}
-                <div className="mb-6">
+                <div className={`mb-6 ${selectedProfile ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="flex items-center gap-2 mb-4">
                     <FileText className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Format Selection</h2>
+                    {selectedProfile && (
+                      <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
+                        Locked by Profile
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
                     <div className="flex-1">
@@ -807,10 +838,15 @@ export default function CreateExam() {
                 </div>
 
                 {/* Educational Level */}
-                <div className="mb-6">
+                <div className={`mb-6 ${selectedProfile && profileEducationalTier ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="flex items-center gap-2 mb-4">
                     <SlidersHorizontal className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Educational Level</h2>
+                    {selectedProfile && profileEducationalTier && (
+                      <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
+                        Set by Profile
+                      </Badge>
+                    )}
                   </div>
                   <Select value={educationalTier} onValueChange={setEducationalTier}>
                     <SelectTrigger className="h-12 bg-background border-border">
@@ -912,7 +948,7 @@ export default function CreateExam() {
               </Card>
 
               {/* Right: Configuration Summary */}
-              <Card className="p-6 bg-card/50 border-border h-fit">
+              <Card className="p-6 bg-card/50 h-fit transition-colors" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
                 <h3 className="text-lg font-semibold mb-6">Configuration Summary</h3>
                 
                 <div className="space-y-4">

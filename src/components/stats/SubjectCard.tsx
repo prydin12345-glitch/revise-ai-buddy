@@ -10,11 +10,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string };
   getTopicsForSubject: (s: string) => { id: string; topic: string }[];
-  getProfilesForSubject: (s: string) => { id: string; profile_name: string; topics: string[]; question_count: number }[];
+  getProfilesForSubject: (s: string) => { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }[];
   handleAddTopic: (subject: string, topic: string) => Promise<void>;
   removeTopic: (id: string) => Promise<void>;
   handleOpenCreateProfile: (subject: string) => void;
-  handleOpenEditProfile: (subject: string, profile: { id: string; profile_name: string; topics: string[]; question_count: number }) => void;
+  handleOpenEditProfile: (subject: string, profile: { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }) => void;
   deleteProfile: (id: string) => Promise<void>;
 }
 
