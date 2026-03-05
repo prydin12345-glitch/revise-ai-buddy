@@ -32,6 +32,8 @@ import {
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
   serializeBearingsResponse,
+  BoxPlotChart,
+  isBoxPlotQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
