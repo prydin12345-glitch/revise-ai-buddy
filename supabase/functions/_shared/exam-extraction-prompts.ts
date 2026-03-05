@@ -211,8 +211,26 @@ CRITICAL: Questions MUST scale in difficulty from 4 marks (simple retrieval) to 
     return `For ${examBoard.toUpperCase()} ${level} Physics: Heavy use of calculations. Topics: Mechanics, Waves, Electricity, Fields, Particles. Use SI units. Multi-step "show that" questions. Include experimental scenarios.`;
   }
   
-  if (subjectLower.includes('math')) {
-    return `For ${examBoard.toUpperCase()} ${level} Mathematics: NO MCQs. Main questions with sub-parts (a), (b), (c). Topics: Calculus, Algebra, Trigonometry. Marks 2-14 per question. Heavy LaTeX notation. Include "show that" and "hence" questions.`;
+  if (subjectLower.includes('math') || subjectLower.includes('statistics') || subjectLower.includes('stats')) {
+    return `For ${examBoard.toUpperCase()} ${level} Mathematics/Statistics:
+NO MCQs. Main questions with sub-parts (a), (b), (c). Topics: Calculus, Algebra, Trigonometry, Statistics, Probability.
+Marks 4-14 per question. Heavy LaTeX notation. Include "show that" and "hence" questions.
+
+THREE-TIER STRUCTURE (MANDATORY):
+- Part (a): Straightforward calculation using a formula. e.g., "Calculate $P(X = 4)$."
+- Part (b): State an assumption or explain why a model is appropriate. e.g., "State one assumption for this model."
+- Part (c): 'Show that' or reverse question requiring algebraic rearrangement/logarithms. e.g., "Given that $P(X=0) = 0.05$, show that $\\lambda \\approx 3.0$."
+
+FORMAL NOTATION (MANDATORY):
+- Use $P(X = k)$, $P(X \\leq n)$, $P(X > n)$ — NEVER "Find the likelihood" or "What are the chances".
+- State distributions: $X \\sim \\text{Po}(\\lambda)$, $Y \\sim B(n, p)$, $W \\sim N(\\mu, \\sigma^2)$.
+- Use "probability" not "likelihood". Do NOT name the distribution model in the question — let students identify it.
+- Use command verbs: Calculate, Determine, State, Show that, Hence, Deduce, Verify, Justify.
+- Include "Give your answer to 3 significant figures" where appropriate.
+
+MARK SCHEME:
+- correct_answer must include M1 (Method), A1 (Accuracy), B1 (Independent) breakdown.
+- At least one sub-part per question must require a text-based contextual explanation.`;
   }
   
   return `Generate balanced mix for ${examBoard.toUpperCase()} ${level}. Various question types. Appropriate command words. Mix of short answer (1-4 marks) and extended response (6+ marks).`;
