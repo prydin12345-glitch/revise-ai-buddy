@@ -491,8 +491,31 @@ const CreatePracticeQuestions = () => {
                   id="set-name"
                   placeholder="e.g. Sequences Drill Set"
                   value={setName}
-                  onChange={(e) => setSetName(e.target.value)}
+                  onChange={(e) => {
+                    setSetName(e.target.value);
+                    nameValidator.checkName(e.target.value);
+                  }}
+                  className={nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {nameValidator.isDuplicate && (
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-destructive">A practice set with this name already exists. Please choose a unique name.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {nameValidator.suggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setSetName(s);
+                            nameValidator.checkName(s);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
