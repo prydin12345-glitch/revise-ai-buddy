@@ -1426,40 +1426,57 @@ const ExamInProgress = () => {
 
           {/* Questions Container */}
           <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-7xl py-8 px-8 space-y-6">
-              {currentGroup.questions.map((question) => (
-                <Card 
-                  key={question.id} 
-                  ref={(el) => questionRefs.current[question.id] = el}
-                  className="p-8 shadow-sm"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <Badge 
-                        variant="secondary" 
-                        className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
-                        style={{ 
-                          backgroundColor: subjectColor,
-                          borderColor: subjectColor,
-                          color: '#FFFFFF'
-                        }}
-                      >
-                        Q{question.question_number}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Badge 
-                        className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
-                        style={{
-                          backgroundColor: subjectColor,
-                          borderColor: subjectColor,
-                          color: '#FFFFFF'
-                        }}
-                      >
-                        {question.marks} marks
-                      </Badge>
-                    </div>
-                  </div>
+            <div className="container max-w-7xl py-8 px-8 space-y-8">
+              {currentGroup.questions.map((question, qIdx) => {
+                // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
+                const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
+                const parentNum = subPartMatch?.[1] || question.question_number;
+                const subPart = subPartMatch?.[2] || '';
+                const isSubPart = !!subPart;
+                
+                // Check if this is the first sub-part of a new parent (show parent header)
+                const prevQuestion = qIdx > 0 ? currentGroup.questions[qIdx - 1] : null;
+                const prevParent = prevQuestion?.question_number.match(/^(\d+)/)?.[1];
+                const showParentHeader = isSubPart && parentNum !== prevParent;
+                
+                return (
+                  <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
+                    {/* Parent question header for first sub-part */}
+                    {showParentHeader && (
+                      <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                    )}
+                    
+                    <Card 
+                      ref={(el) => questionRefs.current[question.id] = el}
+                      className={`p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
+                      style={isSubPart ? { borderLeftColor: subjectColor + '40' } : undefined}
+                    >
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          {isSubPart ? (
+                            <span className="text-lg font-semibold text-foreground">
+                              ({subPart})
+                            </span>
+                          ) : (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
+                              style={{ 
+                                backgroundColor: subjectColor,
+                                borderColor: subjectColor,
+                                color: '#FFFFFF'
+                              }}
+                            >
+                              Q{question.question_number}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
+                          </span>
+                        </div>
+                      </div>
 
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
                   {isTickXTable(question.question_text) ? (
