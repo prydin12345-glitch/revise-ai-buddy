@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2, Globe } from "lucide-react";
+import { Loader2, Globe, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const languages = [
   { value: 'en', label: 'English' },
@@ -23,14 +24,19 @@ const timezones = [
   { value: 'Asia/Tokyo', label: 'Tokyo' },
 ];
 
-const curriculumRegions = [
-  { value: 'GB', label: '🇬🇧 United Kingdom', description: 'AQA / Edexcel / OCR standards' },
-  { value: 'US', label: '🇺🇸 United States', description: 'AP / Common Core standards' },
-  { value: 'IGCSE', label: '🌍 International (IGCSE)', description: 'Cambridge International standards' },
-  { value: 'AU', label: '🇦🇺 Australia', description: 'ATAR / HSC standards' },
-  { value: 'SG', label: '🇸🇬 Singapore', description: 'GCE A-Level / O-Level standards' },
-  { value: 'IN', label: '🇮🇳 India', description: 'CBSE / ISC standards' },
-  { value: 'CA', label: '🇨🇦 Canada', description: 'Provincial curriculum standards' },
+export const curriculumRegions = [
+  { value: 'GB', flag: '🇬🇧', label: 'United Kingdom', standard: 'A-Level / GCSE' },
+  { value: 'US', flag: '🇺🇸', label: 'United States', standard: 'AP / SAT' },
+  { value: 'AU', flag: '🇦🇺', label: 'Australia', standard: 'ATAR' },
+  { value: 'CA', flag: '🇨🇦', label: 'Canada', standard: 'Provincial / OCAS' },
+  { value: 'AE', flag: '🇦🇪', label: 'United Arab Emirates', standard: 'UAE Ministry / International' },
+  { value: 'IN', flag: '🇮🇳', label: 'India', standard: 'CBSE / ICSE' },
+  { value: 'SG', flag: '🇸🇬', label: 'Singapore', standard: 'GCE O/A Level' },
+  { value: 'HK', flag: '🇭🇰', label: 'Hong Kong', standard: 'DSE' },
+  { value: 'IE', flag: '🇮🇪', label: 'Ireland', standard: 'Leaving Certificate' },
+  { value: 'NZ', flag: '🇳🇿', label: 'New Zealand', standard: 'NCEA' },
+  { value: 'ZA', flag: '🇿🇦', label: 'South Africa', standard: 'NSC' },
+  { value: 'IB', flag: '🌍', label: 'Global / International', standard: 'IB Diploma' },
 ];
 
 export const PersonalizationSection = () => {
@@ -46,7 +52,7 @@ export const PersonalizationSection = () => {
 
   return (
     <div className="space-y-6">
-      {/* Curriculum Region — top of personalization */}
+      {/* Curriculum Region — visual flag grid */}
       <Card className="border-primary/20">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -58,32 +64,37 @@ export const PersonalizationSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <Label htmlFor="curriculum-region">Your Region</Label>
-            <Select
-              value={preferences?.curriculum_region || ''}
-              onValueChange={(value) => updatePreference({ curriculum_region: value })}
-            >
-              <SelectTrigger id="curriculum-region" className="h-11">
-                <SelectValue placeholder="Select your curriculum region…" />
-              </SelectTrigger>
-              <SelectContent>
-                {curriculumRegions.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
-                    <div className="flex flex-col">
-                      <span>{r.label}</span>
-                      <span className="text-xs text-muted-foreground">{r.description}</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {curriculumRegions.map((r) => {
+              const isSelected = preferences?.curriculum_region === r.value;
+              return (
+                <button
+                  key={r.value}
+                  onClick={() => updatePreference({ curriculum_region: r.value })}
+                  className={cn(
+                    "relative flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-center cursor-pointer hover:border-primary/50 hover:bg-accent/50",
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border bg-card"
+                  )}
+                >
+                  {isSelected && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <Check className="w-4 h-4 text-primary" />
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!preferences?.curriculum_region && (
-              <p className="text-xs text-amber-500">
-                Setting a region significantly improves AI question quality and difficulty calibration.
-              </p>
-            )}
+                  )}
+                  <span className="text-2xl leading-none">{r.flag}</span>
+                  <span className="text-xs font-medium leading-tight">{r.label}</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">{r.standard}</span>
+                </button>
+              );
+            })}
           </div>
+          {!preferences?.curriculum_region && (
+            <p className="text-xs text-amber-500 mt-3">
+              Setting a region significantly improves AI question quality and difficulty calibration.
+            </p>
+          )}
         </CardContent>
       </Card>
 

@@ -27,6 +27,7 @@ import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
+import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 
 const EDUCATIONAL_TIERS = [
   { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
@@ -110,6 +111,7 @@ export default function CreateExam() {
   // Basic info
   const [examName, setExamName] = useState("");
   const [examNameError, setExamNameError] = useState(false);
+  const nameValidator = useExamNameValidator('exams');
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
@@ -525,7 +527,7 @@ export default function CreateExam() {
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
             <Button
               onClick={handleGenerate}
-              disabled={generating || !subjectId || !educationalTier}
+              disabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
               size="lg"
               className="px-8 button-glow"
             >
@@ -552,14 +554,34 @@ export default function CreateExam() {
                   value={examName}
                   onChange={(e) => {
                     setExamName(e.target.value);
+                    nameValidator.checkName(e.target.value);
                     if (e.target.value.trim()) {
                       setExamNameError(false);
                     }
                   }}
-                  className={`h-12 text-base bg-card ${examNameError ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                  className={`h-12 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
                 />
                 {examNameError && (
                   <p className="text-sm text-destructive mt-1">Exam name is required</p>
+                )}
+                {nameValidator.isDuplicate && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {nameValidator.suggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setExamName(s);
+                            nameValidator.checkName(s);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
               <SubjectSelector

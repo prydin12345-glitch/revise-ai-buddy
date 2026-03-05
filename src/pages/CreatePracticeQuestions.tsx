@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
+import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ const CreatePracticeQuestions = () => {
 
   // Form state
   const [setName, setSetName] = useState("");
+  const nameValidator = useExamNameValidator('practice_question_sets');
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
@@ -225,24 +227,10 @@ const CreatePracticeQuestions = () => {
       return;
     }
 
-    // Check for duplicate name
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: existing } = await supabase
-          .from("practice_question_sets")
-          .select("id")
-          .eq("user_id", user.id)
-          .ilike("set_name", setName.trim())
-          .limit(1);
-        
-        if (existing && existing.length > 0) {
-          toast.error("Name already exists. Please choose a different name.");
-          return;
-        }
-      }
-    } catch (err) {
-      console.error("Error checking duplicate name:", err);
+    // Check for duplicate name (real-time already shows warning, but double-check)
+    if (nameValidator.isDuplicate) {
+      toast.error("Name already exists. Please choose a different name.");
+      return;
     }
 
     // Validate notes before generation
@@ -467,7 +455,7 @@ const CreatePracticeQuestions = () => {
           </div>
           <Button 
             onClick={handleGenerate} 
-            disabled={generating} 
+            disabled={generating || nameValidator.isDuplicate} 
             size="lg"
             style={{ backgroundColor: subjectColor }}
             className="hover:opacity-90"
@@ -489,8 +477,31 @@ const CreatePracticeQuestions = () => {
                   id="set-name"
                   placeholder="e.g. Sequences Drill Set"
                   value={setName}
-                  onChange={(e) => setSetName(e.target.value)}
+                  onChange={(e) => {
+                    setSetName(e.target.value);
+                    nameValidator.checkName(e.target.value);
+                  }}
+                  className={nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {nameValidator.isDuplicate && (
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-destructive">A practice set with this name already exists. Please choose a unique name.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {nameValidator.suggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setSetName(s);
+                            nameValidator.checkName(s);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
