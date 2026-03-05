@@ -132,6 +132,8 @@ export default function UploadExam() {
               <Select value={subjectId} onValueChange={(value) => {
                 setSubjectId(value);
                 setErrors({ ...errors, subject: "" });
+                setSelectedProfileId(null);
+                setFollowReference(false);
               }}>
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select a subject" />
@@ -146,6 +148,47 @@ export default function UploadExam() {
               </Select>
               {errors.subject && <p className="text-destructive text-sm mt-1">{errors.subject}</p>}
             </div>
+
+            {/* Exam Profile Selector */}
+            {subjectId && subjectProfiles.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Exam Profile</Label>
+                <Select value={selectedProfileId || ''} onValueChange={(value) => {
+                  setSelectedProfileId(value || null);
+                  setFollowReference(false);
+                }}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select a profile (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjectProfiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.profile_name} — {profile.question_count}Q
+                        {profile.time_limit_minutes ? `, ${profile.time_limit_minutes}min` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProfile && (
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary">
+                      <Lock className="h-3 w-3" />
+                      {selectedProfile.question_count} Questions
+                    </Badge>
+                    {selectedProfile.educational_tier && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfile.educational_tier}
+                      </Badge>
+                    )}
+                    {selectedProfile.time_limit_minutes && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfile.time_limit_minutes} min
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="file" className="text-base font-medium">Import Reference Assessment</Label>
