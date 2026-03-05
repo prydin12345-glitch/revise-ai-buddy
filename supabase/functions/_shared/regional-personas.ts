@@ -512,33 +512,43 @@ export function getExamHardeningRules(): string {
 🔒 EXAM HARDENING RULES (MANDATORY — ZERO TOLERANCE FOR VIOLATIONS)
 ═══════════════════════════════════════════════════════════════════════════════
 
-RULE 1: SCENARIO INTEGRITY (Single-Scenario Rule)
-──────────────────────────────────────────────────
-All sub-parts of a numbered question (e.g., 2a, 2b, 2c) MUST use the SAME
-subject matter, dataset, and scenario throughout.
-- If part (a) introduces "A factory produces microchips with a defect rate of 3%",
-  then parts (b) and (c) MUST continue with microchips and that factory.
-- DO NOT switch topics, characters, or datasets between sub-parts.
-- The scenario is introduced ONCE in part (a). Later parts say "Using your answer
-  to part (a)..." or "For the same factory..." — they NEVER introduce a new context.
-- VIOLATION EXAMPLE: (a) is about microchips, (b) is about call centres → WRONG.
-- CORRECT EXAMPLE: (a) calculate defect probability for microchips, (b) state an
-  assumption about the microchip defects, (c) given a sample of microchips, show that...
+RULE 1: STRICT SCENARIO LOCKING (Zero Drift Tolerance)
+──────────────────────────────────────────────────────
+All sub-parts of a numbered question (e.g., 2a, 2b, 2c) MUST refer back to
+the EXACT SAME entities, dataset, and scenario established in part (a).
+- The scenario is introduced ONCE in the question stem or part (a).
+- Later parts say "Using your answer to part (a)..." or "For the same factory..."
+  — they NEVER introduce a new context, entity, or dataset.
+- DO NOT switch topics, objects, or characters between sub-parts.
+- VIOLATION EXAMPLES (ALL FORBIDDEN):
+  • (a) about oak trees → (b) about soda bottles
+  • (a) about microchips → (b) about plant cuttings
+  • (a) about collectible cards → (b) about balls
+- These are "memory leaks" — the AI forgot the context. Each sub-part must
+  be a CONTINUATION of the same mathematical model applied to the SAME scenario.
+- CORRECT EXAMPLE: Q1 stem introduces "A factory produces microchips..."
+  (a) calculate defect probability for these microchips
+  (b) state an assumption about the microchip defect model
+  (c) given a sample of these microchips, show that...
 
 RULE 2: PROFESSIONAL VOCABULARY OVERRIDE (Formal Tone Filter)
 ─────────────────────────────────────────────────────────────
 Apply clinical, exam-board vocabulary. Remove ALL conversational language.
 
-BANNED WORDS/PHRASES → REQUIRED REPLACEMENTS:
-  "likelihood" → "probability"
-  "average" → "mean" (or "mean ($\\mu$)" with notation)
-  "variability" → "standard deviation" or "variance"
-  "spread" (informal) → "standard deviation ($\\sigma$)" or "interquartile range"
-  "chance" → "probability"
-  "odds" → "probability"
+STRICTLY BANNED WORDS (never use under any circumstances):
+  "likelihood" → use "probability"
+  "average" → use "mean" (or "$\\mu$")
+  "variability" → use "standard deviation" or "variance"
+  "spread" (informal) → use "standard deviation ($\\sigma$)" or "interquartile range"
+  "chance" → use "probability"
+  "odds" → use "probability"
+  "imagine" → use direct statement ("A company..." not "Imagine a company...")
+  "specifically" → remove or use "in particular"
+  "delineate" → use "describe" or "outline"
+  "unsound" → use "invalid" or "not appropriate"
 
 BANNED FLUFF ADJECTIVES (remove entirely, do not replace):
-  "bustling", "vibrant", "rare", "imagine", "exciting", "fascinating",
+  "bustling", "vibrant", "rare", "exciting", "fascinating",
   "incredible", "amazing", "interesting", "wonderful", "beautiful",
   "lovely", "brilliant", "fantastic", "remarkable", "stunning"
 
@@ -547,9 +557,11 @@ TONE STANDARD:
   - GOOD: "A bookstore receives complaints at a mean rate of 4.5 per day"
   - BAD: "Imagine a vibrant online poll where the likelihood of success is 0.3"
   - GOOD: "In a survey, the probability of a respondent selecting Option A is 0.3"
+  - BAD: "Imagine a pharmaceutical company..."
+  - GOOD: "A pharmaceutical company is testing a new drug. In a trial..."
 
-Scenarios must be dry, factual, and clinical — like a real exam paper.
-Use named characters (e.g., "Sarah", "Tom") but describe their activity plainly.
+Scenarios must be dry, factual, and clinical — like a real UK exam paper.
+Never narrate. Never set a scene. Just state the factual context.
 
 RULE 3: MANDATORY FORMAL NOTATION (LaTeX Pass)
 ───────────────────────────────────────────────
@@ -577,6 +589,38 @@ DEPTH CALIBRATION (A-Level / Ages 16-18):
   - BAD part (a): "What fraction of respondents chose Option A?" (trivial division)
   - GOOD part (a): "State the distribution of $X$, the number of defective items
     in a sample of 20. Calculate $P(X = 3)$."
+
+RULE 4: TOPIC-SPECIFIC TERMINOLOGY ENFORCEMENT (UK A-Level)
+───────────────────────────────────────────────────────────
+When generating questions for specific statistical topics, use the EXACT
+technical terms expected by UK examiners:
+
+CORRELATION & REGRESSION:
+  - Use "interpolation" when estimating within the data range
+  - Use "extrapolation" when estimating outside the data range
+  - Validity of predictions MUST reference whether interpolation or extrapolation applies
+  - "Comment on the reliability of this estimate" must check data range boundaries
+
+HYPOTHESIS TESTING:
+  - Always ask for "critical value" or "critical region" or "p-value" — NOT a vague "conclusion"
+  - Use $H_0$ and $H_1$ notation explicitly in the question
+  - State significance level as e.g. "Test at the 5% significance level"
+  - Require students to "State your hypotheses clearly" or provide them
+
+BINOMIAL DISTRIBUTION:
+  - When asking for conditions/assumptions, expect EXACTLY these terms:
+    "fixed number of trials ($n$)", "independent trials",
+    "constant probability of success ($p$)", "two outcomes (success/failure)"
+  - Use "two conditions" or "two assumptions" — not "two properties"
+
+POISSON DISTRIBUTION:
+  - When asking for conditions, expect:
+    "events occur independently", "events occur at a constant mean rate ($\\lambda$)",
+    "events occur singly (not simultaneously)"
+
+NORMAL DISTRIBUTION:
+  - Always define with $X \\sim N(\\mu, \\sigma^2)$ — note $\\sigma^2$ not $\\sigma$
+  - Include standardisation: $Z = \\frac{X - \\mu}{\\sigma}$
 
 ═══════════════════════════════════════════════════════════════════════════════
 `;
