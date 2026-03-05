@@ -97,8 +97,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
+  // Determine desired question count from exam_format
+  const formatData = exam.exam_format?.[0];
+  const desiredQuestionCount = formatData?.use_original_structure === false
+    ? (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0)
+    : null; // null = let AI decide based on PDF
+
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode);
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount);
   const systemPrompt = hasResourcePack
     ? 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
     : 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
