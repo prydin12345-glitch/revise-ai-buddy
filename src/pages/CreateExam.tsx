@@ -527,7 +527,7 @@ export default function CreateExam() {
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
             <Button
               onClick={handleGenerate}
-              disabled={generating || !subjectId || !educationalTier}
+              disabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
               size="lg"
               className="px-8 button-glow"
             >
