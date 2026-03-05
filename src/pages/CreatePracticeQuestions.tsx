@@ -227,24 +227,10 @@ const CreatePracticeQuestions = () => {
       return;
     }
 
-    // Check for duplicate name
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: existing } = await supabase
-          .from("practice_question_sets")
-          .select("id")
-          .eq("user_id", user.id)
-          .ilike("set_name", setName.trim())
-          .limit(1);
-        
-        if (existing && existing.length > 0) {
-          toast.error("Name already exists. Please choose a different name.");
-          return;
-        }
-      }
-    } catch (err) {
-      console.error("Error checking duplicate name:", err);
+    // Check for duplicate name (real-time already shows warning, but double-check)
+    if (nameValidator.isDuplicate) {
+      toast.error("Name already exists. Please choose a different name.");
+      return;
     }
 
     // Validate notes before generation
