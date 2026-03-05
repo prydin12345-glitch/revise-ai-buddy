@@ -148,6 +148,15 @@ const removeMarksLine = (content: string): string => {
     .join('\n');
 };
 
+// Strip mark scheme annotations like [M1, A1], [B1], [M1 A1 B1] from student-facing text
+// These should only be visible in the marking/feedback phase, not during the exam
+const stripMarkSchemeAnnotations = (content: string): string => {
+  if (!content) return '';
+  // Match patterns like [M1], [A1], [B1], [M1, A1], [M1 A1 B1], [M1, A1, B1] etc.
+  // Also handles [2M1] or [M2] style
+  return content.replace(/\s*\[(?:[MAB]\d+[,\s]*)+\]\s*/gi, ' ').trim();
+};
+
 // Convert various blank formats to standardized [ BLANK ] format
 const normalizeBlankFormat = (content: string): string => {
   let normalized = content;
@@ -179,8 +188,11 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   // First remove any standalone "Marks: n" lines
   const contentWithoutMarks = removeMarksLine(content);
   
+  // Strip mark scheme annotations [M1, A1, B1] from student-facing display
+  const contentWithoutMarkScheme = stripMarkSchemeAnnotations(contentWithoutMarks);
+  
   // Then normalize blank formats (convert underscores to [ BLANK ])
-  const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarks);
+  const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarkScheme);
   
   // Then convert any markdown tables to HTML tables
   const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);

@@ -285,20 +285,35 @@ const ExamReview = () => {
 
         {/* Main Panel */}
         <div className="flex-1 overflow-y-auto">
-          <div className="container max-w-4xl py-8 px-6 space-y-6">
-            {questions.map((question) => {
+          <div className="container max-w-4xl py-8 px-6 space-y-8">
+            {questions.map((question, qIdx) => {
               const answer = answers[question.id];
+              const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
+              const parentNum = subPartMatch?.[1] || question.question_number;
+              const subPart = subPartMatch?.[2] || '';
+              const isSubPart = !!subPart;
+              const prevQ = qIdx > 0 ? questions[qIdx - 1] : null;
+              const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
+              const showParentHeader = isSubPart && parentNum !== prevParent;
               
               return (
+                <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
+                  {showParentHeader && (
+                    <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                  )}
                 <Card 
-                  key={question.id} 
                   ref={(el) => questionRefs.current[question.id] = el}
-                  className="p-6"
+                  className={`p-6 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <Badge variant="outline" className="shrink-0">Q{question.question_number}</Badge>
-                    <Badge variant="secondary" className="capitalize shrink-0">{question.question_type}</Badge>
-                    <Badge className="shrink-0">{question.marks} marks</Badge>
+                    {isSubPart ? (
+                      <span className="text-lg font-semibold shrink-0">({subPart})</span>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 font-bold">Q{question.question_number}</Badge>
+                    )}
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">
+                      ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
+                    </span>
                     <div className="ml-auto flex items-center gap-2">
                       <Button
                         size="sm"
@@ -512,6 +527,7 @@ const ExamReview = () => {
                     )}
                   </div>
                 </Card>
+                </div>
               );
             })}
           </div>

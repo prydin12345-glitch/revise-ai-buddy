@@ -130,63 +130,81 @@ const ExamPreview = () => {
         </div>
 
         {/* Questions (Read-only) */}
-        <div className="space-y-6">
-          {questions.map((q) => (
-            <Card key={q.id} className="opacity-75">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold">Question {q.question_number}</h3>
-                  <Badge variant="secondary">{q.marks} {q.marks === 1 ? 'mark' : 'marks'}</Badge>
-                </div>
+        <div className="space-y-8">
+          {questions.map((q, qIdx) => {
+            const subPartMatch = q.question_number.match(/^(\d+)([a-z].*)?$/i);
+            const parentNum = subPartMatch?.[1] || q.question_number;
+            const subPart = subPartMatch?.[2] || '';
+            const isSubPart = !!subPart;
+            const prevQ = qIdx > 0 ? questions[qIdx - 1] : null;
+            const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
+            const showParentHeader = isSubPart && parentNum !== prevParent;
 
-                <MathRenderer 
-                  content={q.question_text}
-                  latex={q.question_latex}
-                  hasMath={q.has_math}
-                  className="mb-4"
-                />
-
-                {/* Box Plot Chart */}
-                {isBoxPlotQuestion(q.options) && (
-                  <BoxPlotChart chartData={q.options} className="mb-4" />
+            return (
+              <div key={q.id} className={isSubPart ? 'ml-2' : ''}>
+                {showParentHeader && (
+                  <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
                 )}
+                <Card className={`opacity-75 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      {isSubPart ? (
+                        <h3 className="text-lg font-semibold">({subPart})</h3>
+                      ) : (
+                        <h3 className="text-lg font-bold">Question {q.question_number}</h3>
+                      )}
+                      <span className="text-sm font-medium text-muted-foreground">
+                        ({q.marks} {q.marks === 1 ? 'mark' : 'marks'})
+                      </span>
+                    </div>
 
-                {/* Display figures if any */}
-                {q.figure_urls && q.figure_urls.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    {q.figure_urls.map((url, idx) => (
-                      <img 
-                        key={idx} 
-                        src={url} 
-                        alt={`Figure ${idx + 1}`} 
-                        className="rounded-lg border max-h-64 object-contain"
-                      />
-                    ))}
-                  </div>
-                )}
+                    <MathRenderer 
+                      content={q.question_text}
+                      latex={q.question_latex}
+                      hasMath={q.has_math}
+                      className="mb-4"
+                    />
 
-                {/* Question Input (Disabled) */}
-                {q.question_type === 'mcq' && q.options && Array.isArray(q.options) ? (
-                  <RadioGroup disabled className="space-y-2">
-                    {q.options.map((opt, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <RadioGroupItem value={i.toString()} disabled />
-                        <Label className="cursor-not-allowed opacity-60">
-                          {typeof opt === 'object' ? `${opt.key}) ${opt.text}` : String(opt)}
-                        </Label>
+                    {isBoxPlotQuestion(q.options) && (
+                      <BoxPlotChart chartData={q.options} className="mb-4" />
+                    )}
+
+                    {q.figure_urls && q.figure_urls.length > 0 && (
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        {q.figure_urls.map((url, idx) => (
+                          <img 
+                            key={idx} 
+                            src={url} 
+                            alt={`Figure ${idx + 1}`} 
+                            className="rounded-lg border max-h-64 object-contain"
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </RadioGroup>
-                ) : (
-                  <Textarea 
-                    disabled 
-                    placeholder="Answer input (disabled in preview)" 
-                    className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed min-h-[120px]"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                    )}
+
+                    {q.question_type === 'mcq' && q.options && Array.isArray(q.options) ? (
+                      <RadioGroup disabled className="space-y-2">
+                        {q.options.map((opt, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <RadioGroupItem value={i.toString()} disabled />
+                            <Label className="cursor-not-allowed opacity-60">
+                              {typeof opt === 'object' ? `${opt.key}) ${opt.text}` : String(opt)}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    ) : (
+                      <Textarea 
+                        disabled 
+                        placeholder="Answer input (disabled in preview)" 
+                        className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed min-h-[120px]"
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })}
         </div>
       </div>
 
