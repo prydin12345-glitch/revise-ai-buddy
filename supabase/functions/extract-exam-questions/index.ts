@@ -419,7 +419,7 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Physics (Professional Standard)
     };
   }
 
-  if (isLevel2 && isEcon) {
+  if ((effectiveLevel2 || isLevel2) && isEcon) {
     return {
       name: 'UK_A_LEVEL_ECONOMICS',
       minSubParts: 3,
