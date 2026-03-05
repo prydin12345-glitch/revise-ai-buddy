@@ -332,6 +332,8 @@ function resolveStealthArchetype(qualificationLevel: string, subjectId: string, 
   const isEnglish = subject.includes('english');
   const isChemistry = subject.includes('chem');
   const isBiology = subject.includes('bio');
+  const isHistory = subject.includes('history') || subject.includes('hist');
+  const isGeography = subject.includes('geography') || subject.includes('geog');
 
   // Region-based flags
   const isUKRegion = region === 'GB' || region === 'UK';
