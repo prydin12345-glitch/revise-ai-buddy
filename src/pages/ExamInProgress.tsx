@@ -2023,7 +2023,9 @@ const ExamInProgress = () => {
                     </>
                   )}
                 </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
