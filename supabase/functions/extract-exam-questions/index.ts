@@ -528,14 +528,26 @@ MANDATORY RULES:
 1. SCENARIO-FIRST: Every parent question MUST open with a named character and a real-world dataset.
    Examples: "Barbara is investigating the relationship between GDP and population density.",
    "A machine puts liquid into bottles. The volume, $V$ ml, follows $V \\sim N(503, 2.6^2)$."
-2. MULTI-PART ESCALATION: Each parent question MUST have 3-5 sub-parts escalating in cognitive demand:
-   (a) Recall/Simple Calculation (1-2 marks) — e.g., "State the distribution of $\\bar{X}$."
-   (b) Application (3-4 marks) — e.g., "Using a normal approximation, find $P(X > 45)$."
-   (c) Analysis/Hypothesis Testing (4-5 marks) — e.g., "Test, at the 5% significance level, whether..."
+2. MULTI-PART ESCALATION (THREE-TIER STRUCTURE): Each parent question MUST have 3-5 sub-parts following this cognitive progression:
+   (a) Calculation — A straightforward application of a formula. e.g., "Calculate $P(X = 4)$.", "Find $P(X > 10)$."
+   (b) Constraint/Assumption — Ask for a condition, assumption, or model justification. e.g., "State two assumptions required for this model.", "Explain why a Poisson distribution is appropriate here.", "State the distribution of $\\bar{X}$."
+   (c) 'Show That' / Reverse Question — Higher-difficulty task forcing logarithms, algebraic rearrangement, or inverse reasoning. e.g., "Given that $P(X = 0) = 0.05$, show that $\\lambda \\approx 3.0$.", "Test, at the 5% significance level, whether..."
    (d) Evaluation/Interpretation (2-3 marks) — e.g., "Comment on the validity of this model."
-3. COMMAND VERBS: Use 'show that', 'hence or otherwise', 'deduce', 'justify', 'state with a reason'.
-4. LaTeX: ALL mathematical notation MUST use LaTeX. Use $\\mu$, $\\sigma$, $\\bar{x}$, $H_0$, $H_1$, $\\sim$, $N(\\mu, \\sigma^2)$, $B(n,p)$, $Po(\\lambda)$.
-5. STATISTICS BLUEPRINTS (use these structures when relevant topics appear):
+3. MANDATORY FORMAL NOTATION:
+   - Use formal probability notation in EVERY question: $P(X = 4)$, $P(X < 2)$, $P(X \\leq 1)$, NOT "Find the likelihood of fewer than 2".
+   - State distributions explicitly: $X \\sim \\text{Po}(3.5)$, $Y \\sim B(20, 0.3)$, $W \\sim N(50, 4^2)$.
+   - Use the word "probability", NEVER "likelihood" or "chance".
+   - Do NOT name distributions in the question text (e.g., do NOT say "Poisson process") — let the student identify the model from context.
+4. CLINICAL LINGUISTIC STYLING:
+   - Use exam board command verbs ONLY: 'Calculate', 'Determine', 'Evaluate', 'Verify', 'State', 'Show that', 'Hence', 'Deduce', 'Justify', 'Give your answer to 3 significant figures'.
+   - NEVER use conversational language: no "Find the likelihood", no "What are the chances", no "How likely is it".
+   - At least ONE sub-part per question must require a text-based explanation in context (e.g., "Interpret this value in context.").
+5. MARK SCHEME ALIGNMENT:
+   - Every sub-part's correct_answer MUST include M1/A1/B1 marking breakdown.
+   - M1 = Method mark (correct approach/formula setup), A1 = Accuracy mark (correct numerical answer), B1 = Independent mark (standalone fact/definition).
+   - Format: Include marking breakdown in correct_answer like: "M1 for identifying $\\lambda = 3.5$, M1 for $P(X \\leq 1) = P(X=0) + P(X=1)$, A1 for 0.1359"
+   - Total marks per sub-part must equal the sum of M/A/B marks.
+6. STATISTICS BLUEPRINTS (use these structures when relevant topics appear):
    - Hypothesis Testing: State $H_0$/$H_1$, calculate test statistic, compare with critical value, conclude in context.
    - Normal Distribution: Given $X \\sim N(\\mu, \\sigma^2)$, find probabilities, use coding ($Y = \\frac{X - a}{b}$), inverse normal.
    - Binomial/Poisson: Model real situations, approximate with Normal when $n$ is large.
@@ -555,8 +567,9 @@ When a question involves box plots, histograms, or cumulative frequency diagrams
 }
 The frontend will render this as a crisp SVG chart. Do NOT describe the chart in text — provide the data.
 
-6. MARK WEIGHTING: Total marks per parent question should be 8-15. Individual sub-parts: 1-5 marks each.
-7. NEVER generate standalone single-mark questions. Every question must have depth.
+7. MARK WEIGHTING: Total marks per parent question should be 8-15. Individual sub-parts: 1-5 marks each.
+8. NEVER generate standalone single-mark questions. Every question must have depth.
+9. MINIMUM 4 marks per question — no simple 1-2 mark procedural tasks without reasoning.
 `
     };
   }

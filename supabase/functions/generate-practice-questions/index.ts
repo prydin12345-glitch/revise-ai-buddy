@@ -694,6 +694,28 @@ BANNED FOR THIS LEVEL:
 - Basic arithmetic without conceptual reasoning
 - Any question that could appear on a GCSE paper
 
+MANDATORY THREE-TIER QUESTION STRUCTURE:
+Every parent question MUST follow this cognitive progression:
+  Part (a) Calculation — Straightforward formula application. e.g., "Calculate $P(X = 4)$.", "Find $\\frac{dy}{dx}$."
+  Part (b) Constraint/Assumption — Condition, assumption, or model justification. e.g., "State one assumption you have made about the occurrence of defects.", "Explain why a Poisson distribution is appropriate here."
+  Part (c) 'Show That' / Reverse — Higher-difficulty: logarithms, algebraic rearrangement, inverse reasoning. e.g., "Given that $P(X = 0) = 0.05$, show that $\\lambda \\approx 3.0$.", "Hence deduce that $n > 45$."
+
+MANDATORY FORMAL NOTATION:
+- Use formal probability/mathematical notation in EVERY question: $P(X = 4)$, $P(X < 2)$, $P(X \\leq 1)$.
+- State distributions explicitly: $X \\sim \\text{Po}(3.5)$, $Y \\sim B(20, 0.3)$, $W \\sim N(50, 4^2)$.
+- Use "probability" NEVER "likelihood" or "chance". Do NOT name distributions in question text — let the student identify from context.
+
+CLINICAL LINGUISTIC STYLING:
+- Use exam board command verbs ONLY: 'Calculate', 'Determine', 'Evaluate', 'Verify', 'State', 'Show that', 'Hence', 'Deduce', 'Justify'.
+- Include "Give your answer to 3 significant figures" or "Give your answer to 2 decimal places" where appropriate.
+- NEVER use conversational language. At least ONE sub-part per question must require a text-based explanation in context.
+
+MARK SCHEME (M1/A1/B1) ALIGNMENT:
+- Every sub-part's worked_solution MUST include M1/A1/B1 marking breakdown.
+- M1 = Method mark (correct approach/formula), A1 = Accuracy mark (correct numerical answer), B1 = Independent mark (standalone fact/definition).
+- Format in worked_solution: "M1 for identifying $\\lambda = 3.5$\\nM1 for $P(X \\leq 1) = P(X=0) + P(X=1)$\\nA1 for 0.1359"
+- Total marks per sub-part must equal the sum of M/A/B marks.
+
 REQUIRED STYLE:
 - Every question should require REASONING, not just procedure
 - Use abstract function notation: f(x), g(x), fg(x), f^(-1)(x)
