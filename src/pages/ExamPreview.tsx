@@ -11,6 +11,7 @@ import { Loader2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MathRenderer } from "@/components/MathRenderer";
+import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 
 interface Question {
   id: string;
