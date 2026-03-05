@@ -129,17 +129,22 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   
   const drafts = questions.map((q: any, i: number) => {
     const qType = q.question_type || 'short_answer';
-    // For graph questions, correct_answer is a JSON object — stringify for storage and copy to options
     let correctAnswer = q.correct_answer;
     let options = q.options || null;
     
+    // For graph questions, correct_answer is a JSON object — stringify for storage and copy to options
     if ((qType === 'graph_plotting' || qType === 'graph_interpretation') && typeof correctAnswer === 'object' && correctAnswer !== null) {
-      // Copy graph data to options field for frontend rendering
       options = correctAnswer;
       correctAnswer = JSON.stringify(correctAnswer);
       console.log(`Q${q.question_number}: Graph question detected, synced to options`);
     } else if (qType === 'mcq') {
       correctAnswer = correctAnswer || 'A';
+    }
+
+    // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+    if (q.chart_data && typeof q.chart_data === 'object') {
+      options = q.chart_data;
+      console.log(`Q${q.question_number}: Chart data detected (${q.chart_data.type}), stored in options`);
     }
 
     return {
