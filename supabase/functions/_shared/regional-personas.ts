@@ -502,3 +502,82 @@ export function getRegionAwareSubjectInstructions(subject: string, examBoard: st
   // ── No specific match — return empty to fall through to existing logic ──
   return '';
 }
+
+// ── Exam Hardening Rules ──────────────────────────────────────────────────────
+// Three critical quality rules applied to EVERY generation prompt
+
+export function getExamHardeningRules(): string {
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+🔒 EXAM HARDENING RULES (MANDATORY — ZERO TOLERANCE FOR VIOLATIONS)
+═══════════════════════════════════════════════════════════════════════════════
+
+RULE 1: SCENARIO INTEGRITY (Single-Scenario Rule)
+──────────────────────────────────────────────────
+All sub-parts of a numbered question (e.g., 2a, 2b, 2c) MUST use the SAME
+subject matter, dataset, and scenario throughout.
+- If part (a) introduces "A factory produces microchips with a defect rate of 3%",
+  then parts (b) and (c) MUST continue with microchips and that factory.
+- DO NOT switch topics, characters, or datasets between sub-parts.
+- The scenario is introduced ONCE in part (a). Later parts say "Using your answer
+  to part (a)..." or "For the same factory..." — they NEVER introduce a new context.
+- VIOLATION EXAMPLE: (a) is about microchips, (b) is about call centres → WRONG.
+- CORRECT EXAMPLE: (a) calculate defect probability for microchips, (b) state an
+  assumption about the microchip defects, (c) given a sample of microchips, show that...
+
+RULE 2: PROFESSIONAL VOCABULARY OVERRIDE (Formal Tone Filter)
+─────────────────────────────────────────────────────────────
+Apply clinical, exam-board vocabulary. Remove ALL conversational language.
+
+BANNED WORDS/PHRASES → REQUIRED REPLACEMENTS:
+  "likelihood" → "probability"
+  "average" → "mean" (or "mean ($\\mu$)" with notation)
+  "variability" → "standard deviation" or "variance"
+  "spread" (informal) → "standard deviation ($\\sigma$)" or "interquartile range"
+  "chance" → "probability"
+  "odds" → "probability"
+
+BANNED FLUFF ADJECTIVES (remove entirely, do not replace):
+  "bustling", "vibrant", "rare", "imagine", "exciting", "fascinating",
+  "incredible", "amazing", "interesting", "wonderful", "beautiful",
+  "lovely", "brilliant", "fantastic", "remarkable", "stunning"
+
+TONE STANDARD:
+  - BAD: "A bustling online bookstore receives an average of 4.5 complaints per day"
+  - GOOD: "A bookstore receives complaints at a mean rate of 4.5 per day"
+  - BAD: "Imagine a vibrant online poll where the likelihood of success is 0.3"
+  - GOOD: "In a survey, the probability of a respondent selecting Option A is 0.3"
+
+Scenarios must be dry, factual, and clinical — like a real exam paper.
+Use named characters (e.g., "Sarah", "Tom") but describe their activity plainly.
+
+RULE 3: MANDATORY FORMAL NOTATION (LaTeX Pass)
+───────────────────────────────────────────────
+Every question MUST include at least one piece of formal mathematical notation.
+The AI must NEVER write parameters in plain English when notation exists.
+
+REQUIRED NOTATION PATTERNS:
+  - Distribution definitions: $X \\sim \\text{Po}(\\lambda)$, $Y \\sim B(n, p)$,
+    $W \\sim N(\\mu, \\sigma^2)$
+  - Parameters: Use $\\mu$ not "mean", $\\sigma$ not "standard deviation",
+    $\\lambda$ not "lambda" or "rate parameter" (in isolation)
+  - Probabilities: $P(X = 4)$ not "P(X=4)", $P(X \\leq 3)$ not "P(X<=3)"
+  - Hypothesis tests: $H_0$ and $H_1$ not "null hypothesis" (in notation)
+  - BAD: "The average is 4.5 and the variability is 7"
+  - GOOD: "The random variable $X$ has mean $\\mu = 4.5$ and standard deviation $\\sigma = 7$"
+  - BAD: "with a rate of 3 per hour"
+  - GOOD: "where $X \\sim \\text{Po}(3)$ represents the number of arrivals per hour"
+
+DEPTH CALIBRATION (A-Level / Ages 16-18):
+  - Part (a) MUST NOT be trivially easy (no primary-school fractions like 120/200).
+  - Part (a) should involve identifying a distribution, calculating a probability,
+    or applying a formula — NOT simple arithmetic.
+  - For statistics: even the "easy" opener should require identifying a distribution
+    model or defining a parameter formally.
+  - BAD part (a): "What fraction of respondents chose Option A?" (trivial division)
+  - GOOD part (a): "State the distribution of $X$, the number of defective items
+    in a sample of 20. Calculate $P(X = 3)$."
+
+═══════════════════════════════════════════════════════════════════════════════
+`;
+}

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
-import { getRegionalPersona, getRegionAwareSubjectInstructions } from "../_shared/regional-personas.ts";
+import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -966,8 +966,11 @@ Use diverse names and scenarios. Examples:
 - "Tom is investigating whether there is a correlation between hours studied and test scores."
 ` : '';
 
+  const hardeningRules = getExamHardeningRules();
+
   return `${regionalPersona}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
+${hardeningRules}
 ${resourceCtx}
 Generate NEW questions for ${level} ${exam.subject_id}.
 ${specList}${mode}
