@@ -80,6 +80,20 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const specTopics = exam.exam_specifications || [];
   const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
 
+  // Fetch user's curriculum_region for stealth framework
+  let curriculumRegion: string | null = null;
+  try {
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('curriculum_region')
+      .eq('user_id', userId)
+      .maybeSingle();
+    curriculumRegion = prefs?.curriculum_region || null;
+  } catch (e) {
+    console.log('Could not fetch curriculum_region:', e);
+  }
+  console.log('Curriculum region:', curriculumRegion);
+
   // Load resource pack if exists
   let resourcePackContext = '';
   let hasResourcePack = false;
@@ -97,15 +111,37 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
-  // Determine desired question count from exam_format
+  // Determine desired PARENT question count
   const formatData = exam.exam_format?.[0];
-  const desiredQuestionCount = formatData?.use_original_structure === false
-    ? (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0)
-    : null; // null = let AI decide based on PDF
+  let desiredQuestionCount: number | null = null;
+  
+  if (formatData) {
+    if (formatData.use_original_structure === false) {
+      // Custom format: sum of breakdown counts
+      const breakdownSum = (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0);
+      if (breakdownSum > 0) {
+        desiredQuestionCount = breakdownSum;
+      }
+    }
+  }
+  
+  // Fallback: check exam title metadata or notes for a profile question count
+  // Also check if the exam has a notes field with profile metadata (e.g., "[Profile: 8Q]")
+  if (!desiredQuestionCount && exam.title) {
+    const qMatch = exam.title.match(/\b(\d+)\s*q/i);
+    if (qMatch) desiredQuestionCount = parseInt(qMatch[1], 10);
+  }
+  
+  // Check specification topics count to infer — if we have N topics, generate at least N questions
+  if (!desiredQuestionCount && specTopics.length > 0) {
+    desiredQuestionCount = Math.max(specTopics.length, 8);
+  }
+
+  console.log('Desired parent question count:', desiredQuestionCount);
 
   // Resolve stealth archetype for difficulty calibration
-  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '');
-  console.log('Stealth archetype resolved:', archetype.name);
+  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
+  console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
   const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype);
