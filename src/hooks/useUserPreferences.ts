@@ -20,6 +20,7 @@ export interface UserPreferences {
   font_size: 'small' | 'medium' | 'large';
   high_contrast_mode: boolean;
   confirm_resolve_feedback: boolean;
+  curriculum_region: string | null;
 }
 
 const defaultPreferences: UserPreferences = {
