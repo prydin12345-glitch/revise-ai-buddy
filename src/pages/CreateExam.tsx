@@ -554,14 +554,34 @@ export default function CreateExam() {
                   value={examName}
                   onChange={(e) => {
                     setExamName(e.target.value);
+                    nameValidator.checkName(e.target.value);
                     if (e.target.value.trim()) {
                       setExamNameError(false);
                     }
                   }}
-                  className={`h-12 text-base bg-card ${examNameError ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                  className={`h-12 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
                 />
                 {examNameError && (
                   <p className="text-sm text-destructive mt-1">Exam name is required</p>
+                )}
+                {nameValidator.isDuplicate && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {nameValidator.suggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setExamName(s);
+                            nameValidator.checkName(s);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
               <SubjectSelector
