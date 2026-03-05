@@ -4,6 +4,7 @@ import { z } from "https://esm.sh/zod@3.25.76";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, parseLinearEquations } from "../_shared/graph-validator.ts";
+import { getRegionalPersona, getRegionAwareSubjectInstructions } from "../_shared/regional-personas.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -427,6 +428,26 @@ EXAMPLE QUESTION FORMATS:
 
     // Format notes for safe inclusion in prompt
     const notesSection = formatNotesForPrompt(notesValidation.sanitized);
+
+    // Fetch user's curriculum_region for regional persona
+    let curriculumRegion = '';
+    try {
+      const { data: prefs } = await supabaseClient
+        .from('user_preferences')
+        .select('curriculum_region')
+        .eq('user_id', userId)
+        .maybeSingle();
+      curriculumRegion = prefs?.curriculum_region || '';
+    } catch (e) {
+      console.log('Could not fetch curriculum_region:', e);
+    }
+    console.log('Practice questions curriculum region:', curriculumRegion);
+
+    // Build regional persona and region-aware subject instructions
+    const regionalPersona = getRegionalPersona(curriculumRegion);
+    const regionSubjectInstructions = getRegionAwareSubjectInstructions(
+      setData.subject_id || '', setData.exam_board || '', setData.educational_tier || '', curriculumRegion
+    );
 
     // Build AI prompt (ASCII-only, JSON-safe)
     const difficultyInstructions =
@@ -933,7 +954,9 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
       ? (boardTranslation[setData.exam_board.toLowerCase()] || `Exam board style: ${setData.exam_board}`)
       : '';
 
-    const prompt = `Generate ${setData.question_count} practice questions.
+    const prompt = `${regionalPersona}
+${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
+Generate ${setData.question_count} practice questions.
 
 Context:
 - Subject: ${setData.subject_id}

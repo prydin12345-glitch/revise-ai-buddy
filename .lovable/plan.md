@@ -1,169 +1,118 @@
 
 
-# Global Curriculum Logic: Full Region × Subject Archetype Matrix
+# Plan: Manual Exam Creator for Tutors
 
 ## Overview
+Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
-Expand the Stealth Archetype system from its current state (12 regions for Maths only, plus 3 UK-specific subjects) to a **complete matrix** covering all 12 regions × 7 subject families. This also adds a "Dynamic Regional Persona" layer that applies universal regional rules (terminology, units, spelling) before subject-specific logic.
+## Database Changes
 
-## Current State
+**New table: `tutor_question_bank`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL) — references auth.users
+- `question_text` (text, NOT NULL)
+- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
+- `expected_answer` (text) — mark scheme / model answer
+- `max_marks` (integer, NOT NULL)
+- `topic_tag` (text) — linked to class sub-topics
+- `subject_name` (text, NOT NULL)
+- `options` (jsonb) — for MCQ
+- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
+- `estimated_minutes` (integer) — AI-suggested time
+- `metadata` (jsonb, default '{}')
+- `created_at`, `updated_at` (timestamptz)
 
-- `resolveStealthArchetype()` in `extract-exam-questions/index.ts` handles:
-  - 12 regions for **Maths only** (US, AU, IN, SG, HK, IE, NZ, ZA, IB, UAE/CA, UK L1, UK L2)
-  - UK-only for Physics, Economics, English (3 archetypes)
-  - Generic fallback for everything else
-- `getSubjectSpecificInstructions()` in `_shared/exam-extraction-prompts.ts` has basic subject templates but no regional awareness
+RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
 
-## Plan
+**New table: `tutor_manual_exams`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL)
+- `title` (text, NOT NULL)
+- `subject_name` (text, NOT NULL)
+- `subject_color` (text, default '#3B82F6')
+- `marking_preference` (text, default 'ai_assisted')
+- `educational_tier` (text)
+- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
+- `total_marks` (integer, default 0)
+- `estimated_minutes` (integer)
+- `status` (text, default 'draft') — draft, published
+- `created_at`, `updated_at` (timestamptz)
 
-### 1. Add Regional Persona Layer (new function in `_shared/exam-extraction-prompts.ts`)
+RLS: tutor can CRUD own rows.
 
-Create `getRegionalPersona(region: string)` that returns universal regional rules injected into **every** prompt regardless of subject:
+## New Route
+- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
 
-**United Kingdom (GB)**
-- Terminology: "Maths", "colour", "analyse", "Football", "Sweets", "behaviour"
-- Units: Metric (cm, kg, °C). Use "probability" never "likelihood"
-- Command style: "Describe and explain", "Evaluate", "Show that"
-- Prohibited: Americanisms ("Soccer", "Candy", "Math", "color")
+## New Components
 
-**United States (US)**
-- Terminology: "Math", "color", "analyze", "Soccer", "Candy"
-- Units: Imperial where culturally appropriate (inches, feet, °F for everyday; SI for science)
-- Command style: "Justify your answer", "Interpret in context", "Is there sufficient evidence"
-- Use "standardized score" not "standard score"
+### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
+Split-view layout:
+- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
+- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
+- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
 
-**Australia (AU)**
-- Terminology: British spelling ("analyse", "colour") with local context
-- Units: Metric. Use "kilometres", "litres"
-- Command style: "Show that", "Hence find", "Explain why"
-- Contexts: Australian geography, flora/fauna, local industry
+Key behaviors:
+- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
+- Inline editing: click question number to rename, click mark bubble to change
+- Focus mode: when editing a question, dim others with opacity
+- Auto-save indicator in header
+- Empty state illustration when no questions exist
 
-**Canada (CA)**
-- Terminology: British spelling with North American contexts
-- Units: Metric (official), but reference imperial in everyday contexts
-- Command style: Blend of UK/US styles
+### 2. `src/components/tutor/ManualQuestionEditor.tsx`
+- Rich text fields for question and mark scheme
+- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
+- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
+- Max marks input (1-10)
+- "Polish with AI" button
 
-**UAE (AE)**
-- Terminology: British English (UK curriculum influence)
-- Units: Metric. Include local contexts (oil, construction, tourism)
-- Command style: Formal UK-aligned
+### 3. `src/components/tutor/ManualQuestionPreview.tsx`
+- Renders the question exactly as students see it using `MathRenderer`
+- Shows mark allocation badge, topic tag
 
-**India (IN)**
-- Terminology: British English ("Maths", "colour")
-- Units: SI strictly. Include CBSE "prove that" emphasis
-- Command style: "Prove that", "Find the value of", "Show that"
+### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
+- Each option has description text
 
-**Singapore (SG)**
-- Terminology: British English
-- Units: SI. High mathematical complexity
-- Command style: "Hence or otherwise", "Deduce", "State"
+### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
+- Sticky sidebar showing:
+  - Total marks counter
+  - Topic distribution (mini pie chart via recharts)
+  - Estimated completion time (marks × 1.5 min ratio)
+  - Question count
 
-**Hong Kong (HK)**
-- Terminology: British English
-- Units: SI. Contexts blend local and international
-- Command style: "Find", "Show that", "Explain"
+## Edge Function: `polish-question`
+- Takes raw question text + subject + educational tier
+- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
+- Returns polished text preserving mathematical requirements
 
-**Ireland (IE)**
-- Terminology: British English with Irish educational terms
-- Units: Metric
-- Command style: "Investigate", "Verify", "Justify"
+## Integration Points
 
-**New Zealand (NZ)**
-- Terminology: British spelling
-- Units: Metric. NCEA Achievement/Merit/Excellence tiering
-- Command style: "Demonstrate understanding", "Analyse", "Evaluate"
+1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
 
-**South Africa (ZA)**
-- Terminology: British English
-- Units: SI. South African contexts (mining, agriculture, demographics)
-- Command style: "Determine", "Prove", "Calculate"
+2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
 
-**Global/IB (IB)**
-- Terminology: International English (accept both UK/US spellings)
-- Units: SI exclusively
-- Command style: IB Command Terms ("outline", "discuss", "evaluate", "to what extent")
-- Must reference IB rubric criteria (Criterion A-D where applicable)
+3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
 
-### 2. Expand `resolveStealthArchetype()` — Region × Subject Matrix
+4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
 
-Add archetypes for each non-Maths subject across all regions. The function will be restructured as:
+5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
 
-```text
-Region detection → Subject detection → Return specific archetype
-                                     ↓ (no match)
-                                     → Fall through to UK defaults
-                                     → Fall through to generic
-```
+## UI Details
+- Subject-themed accent colors on save buttons, active borders, progress bars
+- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
+- Dark-themed empty state with illustration text: "Your masterpiece starts here"
+- Auto-save with subtle "All changes saved ✓" indicator that pulses
 
-**Subject archetypes to add per region** (showing key differentiators only):
+## Files to Create
+1. `src/pages/tutor/ManualExamCreator.tsx`
+2. `src/components/tutor/ManualQuestionEditor.tsx`
+3. `src/components/tutor/ManualQuestionPreview.tsx`
+4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+5. `src/components/tutor/ExamCompositionSidebar.tsx`
+6. `supabase/functions/polish-question/index.ts`
 
-#### Biology
-| Region | Key Differences |
-|--------|----------------|
-| GB | AQA/OCR style: "Describe and explain", practical-based Qs, 6-mark extended response |
-| US | AP Bio: free-response, "design an experiment", data analysis from tables |
-| AU | ATAR: "Analyse experimental data", multi-step practical scenarios |
-| IN | CBSE: "Draw and label", "Differentiate between", diagram-heavy |
-| SG | Cambridge: "Suggest an explanation", high-complexity application |
-| IB | IB Bio: data-based questions, "Outline", "Evaluate", syllabus command terms |
-| Others | Inherit closest regional parent style |
-
-#### Chemistry
-| Region | Key Differences |
-|--------|----------------|
-| GB | AQA/OCR: calculation-heavy, balanced equations, "Give the IUPAC name" |
-| US | AP Chem: free-response, "Design a procedure", equilibrium & thermodynamics emphasis |
-| IN | CBSE: "Write the balanced equation", "Name the product", derivation-based |
-| SG | Cambridge: multi-step calculations, organic chemistry synthesis |
-| IB | IB Chem: data analysis, "Deduce the structure", command term adherence |
-
-#### Physics
-| Region | Key Differences |
-|--------|----------------|
-| GB | (Already exists) — extend to Level 1 (GCSE Physics) |
-| US | AP Physics: "Derive an expression", "Justify with physics principles", FRQ format |
-| AU | ATAR: real-world scenario-based, "Analyse the motion", graph interpretation |
-| IN | CBSE: "Derive", numerical problems with step-by-step, ray diagrams |
-| SG | Cambridge: "Calculate the magnitude", multi-part with "hence" chains |
-| IB | IB Physics: "Outline", paper 2/3 format, data-based questions |
-
-#### Economics
-| Region | Key Differences |
-|--------|----------------|
-| GB | (Already exists) — add GCSE level |
-| US | AP Econ: "Using a correctly labeled graph, show...", FRQ with graph requirements |
-| IB | IB Econ: "Using real-world examples, evaluate...", paper 1 essay vs paper 2 data |
-
-#### English Language/Literature
-| Region | Key Differences |
-|--------|----------------|
-| GB | (Already exists for AQA English) — generalise to Edexcel/OCR variants |
-| US | AP Lang: rhetorical analysis, argument essay, synthesis essay |
-| AU | ATAR English: text analysis, comparative essay |
-| IB | IB English: Paper 1 guided literary analysis, Paper 2 comparative essay |
-
-#### History / Geography / Other Humanities
-- Generic archetype per region using command-verb patterns specific to that board
-
-### 3. Update `getSubjectSpecificInstructions()` in `_shared/exam-extraction-prompts.ts`
-
-Make this function region-aware by accepting `curriculumRegion` as a parameter. Each subject block will branch by region to produce the correct terminology and format.
-
-### 4. Wire Regional Persona into Prompt Pipeline
-
-In `buildPrompt()`, inject the regional persona block **before** the archetype block so every generated question inherits the correct dialect, units, and terminology regardless of subject.
-
-### 5. Update `generate-practice-questions/index.ts`
-
-Apply the same regional persona and expanded archetype logic to the practice question generation pipeline, ensuring consistency between exams and quizzes.
-
-## Files to Modify
-
-1. **`supabase/functions/_shared/exam-extraction-prompts.ts`** — Add `getRegionalPersona()` function, make `getSubjectSpecificInstructions()` region-aware
-2. **`supabase/functions/extract-exam-questions/index.ts`** — Expand `resolveStealthArchetype()` with ~40 new region×subject archetypes, inject regional persona into `buildPrompt()`
-3. **`supabase/functions/generate-practice-questions/index.ts`** — Mirror the regional persona injection and archetype expansion
-
-## Scope
-
-This is a prompt-engineering change only — no database migrations, no UI changes, no new edge functions. The existing `curriculum_region` preference already feeds into the pipeline correctly.
+## Files to Edit
+1. `src/App.tsx` — add route `/tutor/exams/create-manual`
+2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
+3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
 
