@@ -66,35 +66,41 @@ export const PersonalizationSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {curriculumRegions.map((r) => {
-              const isSelected = preferences?.curriculum_region === r.value;
-              return (
-                <button
-                  key={r.value}
-                  onClick={() => updatePreference({ curriculum_region: r.value })}
-                  className={cn(
-                    "relative flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-center cursor-pointer hover:border-primary/50 hover:bg-accent/50",
-                    isSelected
-                      ? "border-primary bg-primary/10 shadow-sm"
-                      : "border-border bg-card"
-                  )}
-                >
-                  {isSelected && (
-                    <div className="absolute top-1.5 right-1.5">
-                      <Check className="w-4 h-4 text-primary" />
-                    </div>
-                  )}
-                  <span className="text-2xl leading-none">{r.flag}</span>
-                  <span className="text-xs font-medium leading-tight">{r.label}</span>
-                  <span className="text-[10px] text-muted-foreground leading-tight">{r.standard}</span>
-                </button>
-              );
-            })}
-          </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex flex-wrap gap-2.5 justify-center">
+              {curriculumRegions.map((r) => {
+                const isSelected = preferences?.curriculum_region === r.value;
+                return (
+                  <Tooltip key={r.value}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => updatePreference({ curriculum_region: r.value })}
+                        className={cn(
+                          "relative w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ring-2 ring-offset-2 ring-offset-background cursor-pointer hover:scale-110",
+                          isSelected
+                            ? "ring-primary shadow-lg scale-110"
+                            : "ring-transparent hover:ring-muted-foreground/30"
+                        )}
+                      >
+                        {r.flag}
+                        {isSelected && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      <p className="font-medium">{r.label}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
           {!preferences?.curriculum_region && (
-            <p className="text-xs text-amber-500 mt-3">
-              Setting a region significantly improves AI question quality and difficulty calibration.
+            <p className="text-xs text-amber-500 mt-3 text-center">
+              Select your region to improve AI question quality.
             </p>
           )}
         </CardContent>
