@@ -37,6 +37,23 @@ export default function UploadExam() {
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [errors, setErrors] = useState({ subject: "", fileName: "" });
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [followReference, setFollowReference] = useState(false);
+
+  const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
+
+  const subjectProfiles = useMemo(
+    () => (subjectId ? getProfilesForSubject(subjectId) : []),
+    [subjectId, getProfilesForSubject]
+  );
+
+  const selectedProfile = useMemo(
+    () => subjectProfiles.find(p => p.id === selectedProfileId) || null,
+    [subjectProfiles, selectedProfileId]
+  );
+
+  const isLockedByProfile = !!selectedProfile && !followReference;
+  const showReferenceToggle = !!selectedProfile && !!file;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
