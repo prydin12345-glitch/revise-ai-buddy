@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
+import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 
 interface Question {
   id: string;
