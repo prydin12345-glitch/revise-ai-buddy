@@ -12,3 +12,4 @@ export * from './ExpandedGraphModal';
 export * from './GraphCanvas';
 export * from './GraphCanvasPlot';
 export * from './BoxPlotChart';
+export * from './HistogramChart';

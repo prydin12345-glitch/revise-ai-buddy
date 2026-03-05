@@ -169,6 +169,9 @@ const ExamPreview = () => {
                     {isBoxPlotQuestion(q.options) && (
                       <BoxPlotChart chartData={q.options} className="mb-4" />
                     )}
+                    {isHistogramQuestion(q.options) && (
+                      <HistogramChart chartData={q.options} className="mb-4" />
+                    )}
 
                     {q.figure_urls && q.figure_urls.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 mb-4">

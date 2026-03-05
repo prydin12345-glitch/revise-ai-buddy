@@ -344,10 +344,13 @@ const ExamReview = () => {
                     className="mb-4"
                   />
 
-                  {/* Box Plot Chart */}
-                  {isBoxPlotQuestion((question as any).options) && (
-                    <BoxPlotChart chartData={(question as any).options} className="mb-4" />
-                  )}
+                   {/* Box Plot Chart */}
+                   {isBoxPlotQuestion((question as any).options) && (
+                     <BoxPlotChart chartData={(question as any).options} className="mb-4" />
+                   )}
+                   {isHistogramQuestion((question as any).options) && (
+                     <HistogramChart chartData={(question as any).options} className="mb-4" />
+                   )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">

@@ -270,6 +270,25 @@ export function GraphRenderer({
             />
           ))}
           
+          {/* Regression line overlay */}
+          {regressionLine && (() => {
+            const [xMin, xMax] = calculatedDomain.x;
+            const regData = [
+              { x: xMin, y: regressionLine.slope * xMin + regressionLine.intercept },
+              { x: xMax, y: regressionLine.slope * xMax + regressionLine.intercept },
+            ];
+            return (
+              <Scatter
+                name="Regression"
+                data={regData}
+                fill="none"
+                line={{ stroke: regressionLine.color || '#ef4444', strokeWidth: 2, strokeDasharray: '6 3' }}
+                shape={() => null}
+                legendType="line"
+              />
+            );
+          })()}
+          
           {/* Student points as a separate scatter */}
           {studentPoints.length > 0 && (
             <Scatter

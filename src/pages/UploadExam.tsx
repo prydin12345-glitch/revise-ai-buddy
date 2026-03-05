@@ -222,6 +222,31 @@ export default function UploadExam() {
               </div>
             </div>
 
+            {/* Follow Reference Structure Toggle */}
+            {showReferenceToggle && (
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  {followReference ? (
+                    <Unlock className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-primary" />
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium cursor-pointer">Follow Reference Structure</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {followReference
+                        ? 'Question count follows the uploaded PDF'
+                        : `Question count locked to profile (${selectedProfile.question_count}Q)`}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={followReference}
+                  onCheckedChange={setFollowReference}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="fileName" className="text-base font-medium">Name this exam *</Label>
               <Input
