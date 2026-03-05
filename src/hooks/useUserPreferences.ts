@@ -38,6 +38,7 @@ const defaultPreferences: UserPreferences = {
   font_size: 'medium',
   high_contrast_mode: false,
   confirm_resolve_feedback: true,
+  curriculum_region: null,
 };
 
 export const useUserPreferences = () => {
