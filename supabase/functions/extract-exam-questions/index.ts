@@ -277,11 +277,158 @@ async function extractPdfText(fileUrl: string | null, supabase: any): Promise<st
   }
 }
 
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null): string {
+// ── Stealth Archetype System ──────────────────────────────────────────────────
+interface StealthArchetype {
+  name: string;
+  promptBlock: string;
+  minSubParts: number;
+  requireScenario: boolean;
+}
+
+function resolveStealthArchetype(qualificationLevel: string, subjectId: string): StealthArchetype {
+  const level = (qualificationLevel || '').toLowerCase();
+  const subject = (subjectId || '').toLowerCase();
+  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics');
+  const isPhysics = subject.includes('physics');
+  const isEcon = subject.includes('econ');
+  const isEnglish = subject.includes('english');
+  const isChemistry = subject.includes('chem');
+  const isBiology = subject.includes('bio');
+  const isLevel2 = level.includes('college') || level.includes('16_18') || level.includes('a_level') || level.includes('a-level') || level.includes('level 2');
+  const isLevel1 = level.includes('secondary') || level.includes('14_16') || level.includes('gcse') || level.includes('level 1');
+
+  if (isLevel2 && isMath) {
+    return {
+      name: 'UK_A_LEVEL_MATHS',
+      minSubParts: 3,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Advanced Level 2 Mathematics (Professional Exam Standard)
+You are writing questions that match the tone and rigour of a UK A-Level Mathematics paper.
+
+MANDATORY RULES:
+1. SCENARIO-FIRST: Every parent question MUST open with a named character and a real-world dataset.
+   Examples: "Barbara is investigating the relationship between GDP and population density.",
+   "A machine puts liquid into bottles. The volume, $V$ ml, follows $V \\sim N(503, 2.6^2)$."
+2. MULTI-PART ESCALATION: Each parent question MUST have 3-5 sub-parts escalating in cognitive demand:
+   (a) Recall/Simple Calculation (1-2 marks) — e.g., "State the distribution of $\\bar{X}$."
+   (b) Application (3-4 marks) — e.g., "Using a normal approximation, find $P(X > 45)$."
+   (c) Analysis/Hypothesis Testing (4-5 marks) — e.g., "Test, at the 5% significance level, whether..."
+   (d) Evaluation/Interpretation (2-3 marks) — e.g., "Comment on the validity of this model."
+3. COMMAND VERBS: Use 'show that', 'hence or otherwise', 'deduce', 'justify', 'state with a reason'.
+4. LaTeX: ALL mathematical notation MUST use LaTeX. Use $\\mu$, $\\sigma$, $\\bar{x}$, $H_0$, $H_1$, $\\sim$, $N(\\mu, \\sigma^2)$, $B(n,p)$, $Po(\\lambda)$.
+5. STATISTICS BLUEPRINTS (use these structures when relevant topics appear):
+   - Hypothesis Testing: State $H_0$/$H_1$, calculate test statistic, compare with critical value, conclude in context.
+   - Normal Distribution: Given $X \\sim N(\\mu, \\sigma^2)$, find probabilities, use coding ($Y = \\frac{X - a}{b}$), inverse normal.
+   - Binomial/Poisson: Model real situations, approximate with Normal when $n$ is large.
+   - Regression/Correlation: Interpret $r$, use regression line for prediction, comment on extrapolation.
+   - Box Plots with Outliers: Provide summary statistics and ask students to identify outliers using $Q_1 - 1.5 \\times IQR$ rule.
+
+CHART DATA FOR STATISTICAL DIAGRAMS:
+When a question involves box plots, histograms, or cumulative frequency diagrams, include a "chart_data" field:
+{
+  "chart_data": {
+    "type": "boxplot",
+    "data": { "min": 7.6, "q1": 19.5, "med": 23.5, "q3": 26.5, "max": 32.5 },
+    "outliers": [7.6],
+    "xLabel": "Temperature (°C)",
+    "domainX": [5, 35]
+  }
+}
+The frontend will render this as a crisp SVG chart. Do NOT describe the chart in text — provide the data.
+
+6. MARK WEIGHTING: Total marks per parent question should be 8-15. Individual sub-parts: 1-5 marks each.
+7. NEVER generate standalone single-mark questions. Every question must have depth.
+`
+    };
+  }
+
+  if (isLevel1 && isMath) {
+    return {
+      name: 'UK_GCSE_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Level 1 Mathematics (Secondary Standard)
+MANDATORY RULES:
+1. Questions should use real-world contexts (shopping, travel, measurement, data handling).
+2. Each parent question should have 2-3 sub-parts escalating from recall to application.
+3. Use command verbs: 'calculate', 'work out', 'give your answer to...', 'explain why'.
+4. LaTeX for all math: $\\frac{a}{b}$, $x^2$, $\\sqrt{x}$.
+5. Mark range per parent: 4-8 marks total.
+6. Include chart_data for any questions involving statistical diagrams (box plots, bar charts, pie charts).
+`
+    };
+  }
+
+  if (isLevel2 && isPhysics) {
+    return {
+      name: 'UK_A_LEVEL_PHYSICS',
+      minSubParts: 3,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Advanced Level 2 Physics (Professional Standard)
+1. Every question must include a physical scenario with specific numerical data.
+2. Sub-parts escalate: (a) define/state, (b) calculate using equations, (c) explain/evaluate.
+3. Use LaTeX for all equations: $F = ma$, $v = u + at$, $E_k = \\frac{1}{2}mv^2$.
+4. Include graph questions for motion, force-extension, V-I characteristics.
+5. Mark range per parent: 8-15 marks.
+`
+    };
+  }
+
+  if (isLevel2 && isEcon) {
+    return {
+      name: 'UK_A_LEVEL_ECONOMICS',
+      minSubParts: 3,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
+1. Every question must reference real economic data, markets, or policy scenarios.
+2. Sub-parts: (a) define key terms, (b) analyse using diagrams/data, (c) evaluate arguments, (d) discuss.
+3. Include chart_data for supply-demand diagrams, cost curves, market equilibrium.
+4. Use command verbs: 'analyse', 'evaluate', 'to what extent', 'discuss'.
+5. Mark range per parent: 8-20 marks.
+`
+    };
+  }
+
+  // Generic fallback for any Level 2 subject
+  if (isLevel2) {
+    return {
+      name: 'GENERIC_LEVEL_2',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Advanced Level 2 (Professional Standard)
+1. Every question must use a real-world scenario or dataset as context.
+2. Sub-parts must escalate: (a) recall/identify, (b) apply/analyse, (c) evaluate/justify.
+3. Use formal academic language and command verbs: 'evaluate', 'analyse', 'justify', 'to what extent'.
+4. Mark range per parent: 6-15 marks.
+5. Use LaTeX for any mathematical notation.
+`
+    };
+  }
+
+  return {
+    name: 'GENERIC_ACADEMIC',
+    minSubParts: 1,
+    requireScenario: false,
+    promptBlock: `
+DIFFICULTY ARCHETYPE: General Academic Standard
+1. Questions should test understanding, not just recall.
+2. Include a mix of short-answer and extended-response questions.
+3. Use LaTeX for mathematical notation where applicable.
+`
+  };
+}
+
+// ── Prompt Builder ───────────────────────────────────────────────────────────
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
   
   const mode = fallback 
-    ? `Generate typical ${board.toUpperCase()} ${level} ${exam.subject_id} questions (no PDF text available).`
+    ? `Generate typical ${level} ${exam.subject_id} questions (no PDF text available).`
     : `CRITICAL: Generate COMPLETELY NEW and ORIGINAL questions inspired by this exam paper. 
 DO NOT copy questions from the PDF - create fresh questions that test similar skills but with:
 - Different wording and phrasing
@@ -349,13 +496,6 @@ For graph_interpretation questions, correct_answer MUST be:
   ]
 }
 
-GRAPH-PRIORITY SUBTOPICS (auto-generate graph when these appear):
-- Physics: distance-time, velocity-time, force-extension, current-voltage, pressure-volume, projectile motion
-- Economics: supply & demand, market equilibrium, cost curves, revenue curves, price elasticity
-- Chemistry: pH curves, rate of reaction, concentration-time, gas laws
-- Mathematics: coordinate geometry, transformations, functions, calculus sketching
-- Biology: population growth, enzyme activity, rate of reaction
-
 RULES:
 - At least 20% of questions should be graph questions when visual topics are detected
 - If a question says "sketch", "plot", "draw" or "the graph shows" it MUST be graph_plotting
@@ -369,12 +509,13 @@ RULES:
     ? `\nSTRICT QUESTION COUNT: Generate EXACTLY ${desiredQuestionCount} PARENT questions (numbered 1, 2, 3, ..., ${desiredQuestionCount}).`
     : '';
 
+  const minParts = archetype?.minSubParts || 2;
   const hierarchicalInstructions = `
 
 HIERARCHICAL QUESTION STRUCTURE (CRITICAL):
 1. A "Parent Question" is a top-level numbered question: Q1, Q2, Q3, etc.
 2. Sub-parts (a), (b), (c) are children of a parent question and do NOT count toward the question limit.
-3. When a question naturally has multiple parts, you MUST split them into separate sub-part entries.
+3. Each parent question MUST have at least ${minParts} sub-parts that escalate in difficulty.
 ${questionCountInstruction}
 
 SUB-PART FORMATTING RULES:
@@ -385,30 +526,40 @@ SUB-PART FORMATTING RULES:
 - Set parent_question_number to the parent's number (e.g., "1" for sub-part "1a").
 - Set root_question_number to the top-level number (e.g., "1").
 
-EXAMPLE: A question with 2 parts should produce 2 entries:
+EXAMPLE: A question with 3 parts should produce 3 entries:
 [
-  {"question_number": "1a", "question_text": "Find the value of x...", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1b", "question_text": "Hence, determine...", "marks": 4, "parent_question_number": "1", "root_question_number": "1"}
-]
-
-A standalone question with no sub-parts:
-[
-  {"question_number": "2", "question_text": "Calculate the area...", "marks": 5, "parent_question_number": null, "root_question_number": "2"}
+  {"question_number": "1a", "question_text": "State the distribution of...", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1b", "question_text": "Find the probability that...", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1c", "question_text": "Test at the 5% significance level whether...", "marks": 5, "parent_question_number": "1", "root_question_number": "1"}
 ]
 `;
 
-  return `${resourceCtx}
-Generate NEW questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
-${specList}${mode}
+  // Inject stealth archetype prompt
+  const archetypeBlock = archetype?.promptBlock || '';
 
+  // Scenario requirement
+  const scenarioRequirement = archetype?.requireScenario ? `
+SCENARIO REQUIREMENT (MANDATORY):
+Every parent question MUST begin with a named character and a real-world context/dataset.
+DO NOT generate abstract standalone questions like "Find the value of x" without context.
+Use diverse names and scenarios. Examples:
+- "Sarah records the daily rainfall, in mm, for her town over a 30-day period."
+- "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
+- "Tom is investigating whether there is a correlation between hours studied and test scores."
+` : '';
+
+  return `${resourceCtx}
+Generate NEW questions for ${level} ${exam.subject_id}.
+${specList}${mode}
+${archetypeBlock}
+${scenarioRequirement}
 Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
 Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
-}
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
