@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, ChevronDown, Settings2, X } from "lucide-react";
+import { Upload, FileText, ChevronDown, Settings2, X, Lock, Unlock } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
