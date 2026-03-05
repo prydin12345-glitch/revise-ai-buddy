@@ -331,13 +331,189 @@ function resolveStealthArchetype(qualificationLevel: string, subjectId: string, 
   const isEnglish = subject.includes('english');
   const isChemistry = subject.includes('chem');
   const isBiology = subject.includes('bio');
-  // UK region flag: if curriculum_region is GB, treat as UK board standard
+
+  // Region-based flags
   const isUKRegion = region === 'GB' || region === 'UK';
+  const isUSRegion = region === 'US';
+  const isAURegion = region === 'AU';
+  const isCARegion = region === 'CA';
+  const isAERegion = region === 'AE';
+  const isINRegion = region === 'IN';
+  const isSGRegion = region === 'SG';
+  const isHKRegion = region === 'HK';
+  const isIERegion = region === 'IE';
+  const isNZRegion = region === 'NZ';
+  const isZARegion = region === 'ZA';
+  const isIBRegion = region === 'IB';
+
   const isLevel2 = level.includes('college') || level.includes('16_18') || level.includes('a_level') || level.includes('a-level') || level.includes('level 2');
   const isLevel1 = level.includes('secondary') || level.includes('14_16') || level.includes('gcse') || level.includes('level 1');
-  // If region is UK, force UK board standards even with generic level labels
+  // Region-aware effective levels
   const effectiveLevel2 = isLevel2 || (isUKRegion && (level.includes('college') || level.includes('sixth') || level.includes('advanced')));
   const effectiveLevel1 = isLevel1 || (isUKRegion && (level.includes('secondary') || level.includes('high')));
+
+  // ── US Region ──
+  if (isUSRegion && isMath) {
+    return {
+      name: 'US_AP_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: AP Mathematics (US College Board Standard)
+1. Questions must follow AP Calculus/Statistics free-response format.
+2. Multi-part: (a) set-up/compute, (b) interpret/justify, (c) extend/evaluate.
+3. Use formal AP command language: "justify your answer", "interpret in context", "is there sufficient evidence".
+4. LaTeX for all math. Mark ranges: 3-9 points per question.
+5. Include real-world data sets and scenarios (surveys, experiments, observational studies).
+`
+    };
+  }
+
+  // ── Australia ──
+  if (isAURegion && isMath) {
+    return {
+      name: 'AU_ATAR_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: ATAR Mathematics (Australian Standard)
+1. Questions follow WACE/HSC/VCE extended-response style.
+2. Multi-part with escalating difficulty: (a) routine calculation, (b) application, (c) analysis.
+3. Command verbs: "show that", "hence find", "determine", "explain why".
+4. LaTeX for all notation. Real-world contexts required.
+`
+    };
+  }
+
+  // ── India ──
+  if (isINRegion && isMath) {
+    return {
+      name: 'IN_CBSE_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: CBSE/ISC Mathematics (Indian Board Standard)
+1. Questions follow CBSE Board Examination pattern with Section A (1 mark), B (2 marks), C (3 marks), D (5 marks).
+2. Include "prove that", "show that", "find the value of" command verbs.
+3. Emphasis on step-by-step working and formal mathematical proof.
+4. LaTeX for all notation. Combine theory and application.
+`
+    };
+  }
+
+  // ── Singapore ──
+  if (isSGRegion && isMath) {
+    return {
+      name: 'SG_GCE_MATHS',
+      minSubParts: 3,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: GCE A-Level Mathematics (Singapore Standard)
+1. Follow Cambridge A-Level format used in Singapore. Multi-part structured questions.
+2. Escalation: (i) straightforward, (ii) application, (iii) contextual interpretation.
+3. Command verbs: "show that", "hence or otherwise", "deduce", "state".
+4. LaTeX for all math. Mark schemes: 8-12 marks per question.
+`
+    };
+  }
+
+  // ── Hong Kong ──
+  if (isHKRegion && isMath) {
+    return {
+      name: 'HK_DSE_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: DSE Mathematics (Hong Kong Standard)
+1. Follow HKDSE format: conventional questions and multiple-choice.
+2. Multi-part: (a) routine, (b) problem-solving, (c) non-routine application.
+3. Real-world contexts. Use "find", "show that", "explain".
+4. LaTeX for all notation.
+`
+    };
+  }
+
+  // ── Ireland ──
+  if (isIERegion && isMath) {
+    return {
+      name: 'IE_LC_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Leaving Certificate Mathematics (Irish Standard)
+1. Follow Leaving Cert Higher/Ordinary Level format.
+2. Multi-part with contexts: statistics, probability, calculus, algebra.
+3. Command verbs: "investigate", "verify", "show", "solve".
+4. LaTeX for all notation. Emphasis on mathematical reasoning.
+`
+    };
+  }
+
+  // ── New Zealand ──
+  if (isNZRegion && isMath) {
+    return {
+      name: 'NZ_NCEA_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: NCEA Mathematics (New Zealand Standard)
+1. Follow NCEA Achievement Standard format: Achieved, Merit, Excellence tiers.
+2. Questions escalate from procedural (Achieved) to relational (Merit) to extended abstract (Excellence).
+3. Real-world modelling contexts required.
+4. LaTeX for all math notation.
+`
+    };
+  }
+
+  // ── South Africa ──
+  if (isZARegion && isMath) {
+    return {
+      name: 'ZA_NSC_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: NSC Mathematics (South African Standard)
+1. Follow NSC Paper 1 (Algebra/Calculus) and Paper 2 (Geometry/Trig/Stats) format.
+2. Multi-part structured questions with mark allocations.
+3. Command verbs: "determine", "prove", "show that", "calculate".
+4. LaTeX for all notation. Include data handling/statistics contexts.
+`
+    };
+  }
+
+  // ── IB Diploma ──
+  if (isIBRegion && isMath) {
+    return {
+      name: 'IB_DIPLOMA_MATHS',
+      minSubParts: 3,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: IB Diploma Mathematics (International Baccalaureate Standard)
+1. Follow IB Mathematics AA/AI Paper 1 & 2 format.
+2. Multi-part: (a) show/prove, (b) hence find, (c) interpret/evaluate.
+3. Emphasis on mathematical communication and notation.
+4. Use "hence or otherwise", "show that", "find", "verify".
+5. LaTeX for all notation. Mark ranges: 6-15 marks per question.
+6. Include GDC (graphing calculator) and non-GDC sections as appropriate.
+`
+    };
+  }
+
+  // ── UAE / Canada / generic international (non-math subjects fall through) ──
+  if ((isAERegion || isCARegion) && isMath) {
+    return {
+      name: 'INTL_STANDARD_MATHS',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: International Standard Mathematics
+1. Multi-part questions with real-world contexts.
+2. Escalate from routine calculation to application to evaluation.
+3. Use formal command verbs: "calculate", "show that", "explain", "justify".
+4. LaTeX for all notation. Mark ranges: 6-12 marks per question.
+`
+    };
+  }
 
   if ((effectiveLevel2 || isLevel2) && isMath) {
     return {
