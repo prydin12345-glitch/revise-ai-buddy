@@ -1,85 +1,118 @@
 
 
-# Plan: Stealth Difficulty Engine + Scenario-Based Generation + Box Plot Component
+# Plan: Manual Exam Creator for Tutors
 
-## Problem
-The AI generates shallow, standalone theoretical questions instead of A-Level exam board quality (as shown in the reference images). Questions lack real-world scenarios, multi-part hierarchical depth, and statistical chart support (box plots, tree diagrams).
+## Overview
+Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
-## Approach
+## Database Changes
 
-### 1. Stealth Exam Board Mapping (Edge Function)
-Modify `supabase/functions/extract-exam-questions/index.ts` to add a "stealth archetype" system:
+**New table: `tutor_question_bank`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL) — references auth.users
+- `question_text` (text, NOT NULL)
+- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
+- `expected_answer` (text) — mark scheme / model answer
+- `max_marks` (integer, NOT NULL)
+- `topic_tag` (text) — linked to class sub-topics
+- `subject_name` (text, NOT NULL)
+- `options` (jsonb) — for MCQ
+- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
+- `estimated_minutes` (integer) — AI-suggested time
+- `metadata` (jsonb, default '{}')
+- `created_at`, `updated_at` (timestamptz)
 
-- Add a `resolveStealthArchetype()` function that maps `educationalTier` + `subject` to an internal difficulty archetype (e.g., `college_16_18` + `mathematics` = `"UK_A_LEVEL_MATHS"`)
-- Inject archetype-specific prompt instructions without naming any exam board in the output
-- For `UK_A_LEVEL_MATHS` archetype specifically: enforce Statistics paper conventions (hypothesis testing, normal distributions, binomial models, box plots, coding, regression)
+RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
 
-### 2. Scenario-Based Complexity in AI Prompt
-Rewrite the `buildPrompt()` function to include mandatory scenario instructions:
+**New table: `tutor_manual_exams`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL)
+- `title` (text, NOT NULL)
+- `subject_name` (text, NOT NULL)
+- `subject_color` (text, default '#3B82F6')
+- `marking_preference` (text, default 'ai_assisted')
+- `educational_tier` (text)
+- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
+- `total_marks` (integer, default 0)
+- `estimated_minutes` (integer)
+- `status` (text, default 'draft') — draft, published
+- `created_at`, `updated_at` (timestamptz)
 
-- Every parent question MUST begin with a named character and real-world dataset/context (e.g., "Barbara is investigating...", "A machine puts liquid...")
-- All mathematical notation must use LaTeX (`$\mu$`, `$\sigma$`, `$\bar{x}$`)
-- Sub-parts must escalate: (a) recall → (b) application → (c) evaluation/hypothesis testing
-- Enforce "show that" questions and multi-step distribution problems for Statistics
-- Add a "Statistics Question Blueprints" section with templates matching the reference images: probability trees, box plots with outliers, hypothesis testing, normal distribution problems, coded data/regression
+RLS: tutor can CRUD own rows.
 
-### 3. Box Plot Rendering Component
-Create `src/components/graph/BoxPlotChart.tsx`:
+## New Route
+- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
 
-- Accept data: `{ min, q1, median, q3, max, outliers[], xLabel, unit }`
-- Render a clean SVG-based box-and-whisker plot with a numbered axis scale
-- Support outlier markers (crosses/dots) outside whisker boundaries
-- Grid background matching existing graph visual hierarchy standards
-- Integrate into `ExamInProgress.tsx` and `ExamReview.tsx` via question_type detection
+## New Components
 
-### 4. AI Output Schema for Charts
-Extend the graph generation instructions in `buildPrompt()` to include a `boxplot` chart type:
+### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
+Split-view layout:
+- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
+- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
+- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
 
-```json
-{
-  "question_type": "short_answer",
-  "chart_data": {
-    "type": "boxplot",
-    "data": { "min": 7.6, "q1": 19.5, "med": 23.5, "q3": 26.5, "max": 32.5 },
-    "outliers": [7.6, 8.1],
-    "xLabel": "Temperature (°C)",
-    "domainX": [7, 33]
-  }
-}
-```
+Key behaviors:
+- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
+- Inline editing: click question number to rename, click mark bubble to change
+- Focus mode: when editing a question, dim others with opacity
+- Auto-save indicator in header
+- Empty state illustration when no questions exist
 
-The frontend detects `chart_data.type === "boxplot"` and renders the `BoxPlotChart` component above the answer area.
+### 2. `src/components/tutor/ManualQuestionEditor.tsx`
+- Rich text fields for question and mark scheme
+- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
+- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
+- Max marks input (1-10)
+- "Polish with AI" button
 
-### 5. Question Depth Validation
-Add a post-generation validation step in `processExamExtraction()`:
+### 3. `src/components/tutor/ManualQuestionPreview.tsx`
+- Renders the question exactly as students see it using `MathRenderer`
+- Shows mark allocation badge, topic tag
 
-- Check that each parent question has at least 2 sub-parts for Level 2+ exams
-- Verify scenario text exists (question must contain a named subject or dataset context)
-- Log warnings for questions that don't meet depth requirements
+### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
+- Each option has description text
 
-## Files to Create/Edit
+### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
+- Sticky sidebar showing:
+  - Total marks counter
+  - Topic distribution (mini pie chart via recharts)
+  - Estimated completion time (marks × 1.5 min ratio)
+  - Question count
 
-| File | Action |
-|------|--------|
-| `supabase/functions/extract-exam-questions/index.ts` | Major edit: add stealth archetype, rewrite prompt with scenario+depth rules, add boxplot schema, add validation |
-| `src/components/graph/BoxPlotChart.tsx` | Create: SVG box plot renderer |
-| `src/components/graph/index.ts` | Edit: export BoxPlotChart |
-| `src/pages/ExamInProgress.tsx` | Edit: render BoxPlotChart when chart_data present |
-| `src/pages/ExamPreview.tsx` | Edit: render BoxPlotChart in preview |
-| `src/pages/ExamReview.tsx` | Edit: render BoxPlotChart in review |
+## Edge Function: `polish-question`
+- Takes raw question text + subject + educational tier
+- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
+- Returns polished text preserving mathematical requirements
 
-## Stealth Archetype Mapping (Internal Only)
+## Integration Points
 
-```text
-educationalTier        + subject      → archetype
-─────────────────────────────────────────────────
-college_16_18 / a_level + math*       → UK_A_LEVEL_MATHS
-college_16_18 / a_level + english*    → UK_A_LEVEL_ENGLISH
-college_16_18 / a_level + physics*    → UK_A_LEVEL_PHYSICS
-gcse_igcse             + math*       → UK_GCSE_MATHS
-secondary_14_16        + math*       → UK_GCSE_MATHS
-*                      + *           → GENERIC_ACADEMIC
-```
+1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
 
-Each archetype injects a hidden prompt block with tone, mark-weighting, and question style expectations matching that level.
+2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
+
+3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
+
+4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
+
+5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
+
+## UI Details
+- Subject-themed accent colors on save buttons, active borders, progress bars
+- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
+- Dark-themed empty state with illustration text: "Your masterpiece starts here"
+- Auto-save with subtle "All changes saved ✓" indicator that pulses
+
+## Files to Create
+1. `src/pages/tutor/ManualExamCreator.tsx`
+2. `src/components/tutor/ManualQuestionEditor.tsx`
+3. `src/components/tutor/ManualQuestionPreview.tsx`
+4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+5. `src/components/tutor/ExamCompositionSidebar.tsx`
+6. `supabase/functions/polish-question/index.ts`
+
+## Files to Edit
+1. `src/App.tsx` — add route `/tutor/exams/create-manual`
+2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
+3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
 

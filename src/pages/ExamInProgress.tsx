@@ -32,6 +32,8 @@ import {
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
   serializeBearingsResponse,
+  BoxPlotChart,
+  isBoxPlotQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -1543,6 +1545,11 @@ const ExamInProgress = () => {
                       hasMath={(question as any).has_math}
                       className="mb-6 text-lg"
                     />
+                  )}
+
+                  {/* Box Plot Chart rendering */}
+                  {isBoxPlotQuestion((question as any).options) && (
+                    <BoxPlotChart chartData={(question as any).options} className="mb-6" />
                   )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (

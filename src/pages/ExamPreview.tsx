@@ -11,6 +11,7 @@ import { Loader2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MathRenderer } from "@/components/MathRenderer";
+import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 
 interface Question {
   id: string;
@@ -144,6 +145,11 @@ const ExamPreview = () => {
                   hasMath={q.has_math}
                   className="mb-4"
                 />
+
+                {/* Box Plot Chart */}
+                {isBoxPlotQuestion(q.options) && (
+                  <BoxPlotChart chartData={q.options} className="mb-4" />
+                )}
 
                 {/* Display figures if any */}
                 {q.figure_urls && q.figure_urls.length > 0 && (

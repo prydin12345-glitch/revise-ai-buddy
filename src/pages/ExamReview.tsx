@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
+import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid, 
@@ -326,6 +327,11 @@ const ExamReview = () => {
                     hasMath={(question as any).has_math}
                     className="mb-4"
                   />
+
+                  {/* Box Plot Chart */}
+                  {isBoxPlotQuestion((question as any).options) && (
+                    <BoxPlotChart chartData={(question as any).options} className="mb-4" />
+                  )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
