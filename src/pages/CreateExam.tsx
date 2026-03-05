@@ -111,6 +111,7 @@ export default function CreateExam() {
   // Basic info
   const [examName, setExamName] = useState("");
   const [examNameError, setExamNameError] = useState(false);
+  const nameValidator = useExamNameValidator('exams');
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
