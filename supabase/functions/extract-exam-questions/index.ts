@@ -385,7 +385,7 @@ The frontend will render this as a crisp SVG chart. Do NOT describe the chart in
     };
   }
 
-  if (isLevel1 && isMath) {
+  if ((effectiveLevel1 || isLevel1) && isMath) {
     return {
       name: 'UK_GCSE_MATHS',
       minSubParts: 2,
