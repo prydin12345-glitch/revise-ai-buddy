@@ -527,6 +527,7 @@ const ExamReview = () => {
                     )}
                   </div>
                 </Card>
+                </div>
               );
             })}
           </div>
