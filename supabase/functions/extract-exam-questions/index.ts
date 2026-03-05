@@ -321,17 +321,23 @@ interface StealthArchetype {
   requireScenario: boolean;
 }
 
-function resolveStealthArchetype(qualificationLevel: string, subjectId: string): StealthArchetype {
+function resolveStealthArchetype(qualificationLevel: string, subjectId: string, curriculumRegion?: string | null): StealthArchetype {
   const level = (qualificationLevel || '').toLowerCase();
   const subject = (subjectId || '').toLowerCase();
-  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics');
+  const region = (curriculumRegion || '').toUpperCase();
+  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics') || subject.includes('stats');
   const isPhysics = subject.includes('physics');
   const isEcon = subject.includes('econ');
   const isEnglish = subject.includes('english');
   const isChemistry = subject.includes('chem');
   const isBiology = subject.includes('bio');
+  // UK region flag: if curriculum_region is GB, treat as UK board standard
+  const isUKRegion = region === 'GB' || region === 'UK';
   const isLevel2 = level.includes('college') || level.includes('16_18') || level.includes('a_level') || level.includes('a-level') || level.includes('level 2');
   const isLevel1 = level.includes('secondary') || level.includes('14_16') || level.includes('gcse') || level.includes('level 1');
+  // If region is UK, force UK board standards even with generic level labels
+  const effectiveLevel2 = isLevel2 || (isUKRegion && (level.includes('college') || level.includes('sixth') || level.includes('advanced')));
+  const effectiveLevel1 = isLevel1 || (isUKRegion && (level.includes('secondary') || level.includes('high')));
 
   if (isLevel2 && isMath) {
     return {
