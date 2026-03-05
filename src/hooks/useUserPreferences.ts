@@ -20,6 +20,7 @@ export interface UserPreferences {
   font_size: 'small' | 'medium' | 'large';
   high_contrast_mode: boolean;
   confirm_resolve_feedback: boolean;
+  curriculum_region: string | null;
 }
 
 const defaultPreferences: UserPreferences = {
@@ -37,6 +38,7 @@ const defaultPreferences: UserPreferences = {
   font_size: 'medium',
   high_contrast_mode: false,
   confirm_resolve_feedback: true,
+  curriculum_region: null,
 };
 
 export const useUserPreferences = () => {

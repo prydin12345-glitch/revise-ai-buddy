@@ -53,20 +53,26 @@ serve(async (req) => {
       });
     }
 
-    // Upsert format
+    // Calculate total questions: either from breakdown or from totalQuestions field
+    const totalFromBreakdown = (format.mcq?.count || 0) + (format.shortAnswer?.count || 0) + (format.longForm?.count || 0);
+    const effectiveTotal = format.totalQuestions || totalFromBreakdown || null;
+
+    // Upsert format — store totalQuestions in short_answer_count if no breakdown provided
+    const formatPayload: any = {
+      exam_id: draftId,
+      use_original_structure: format.useOriginal || false,
+      difficulty_calibration: format.difficulty || 'exam_board_standard',
+      mcq_count: format.mcq?.count || null,
+      mcq_marks_each: format.mcq?.marksEach || null,
+      short_answer_count: format.shortAnswer?.count || (effectiveTotal && !totalFromBreakdown ? effectiveTotal : null),
+      short_answer_marks_each: format.shortAnswer?.marksEach || null,
+      long_form_count: format.longForm?.count || null,
+      long_form_marks_each: format.longForm?.marksEach || null,
+    };
+
     const { error: formatError } = await supabase
       .from('exam_format')
-      .upsert({
-        exam_id: draftId,
-        use_original_structure: format.useOriginal || false,
-        difficulty_calibration: format.difficulty || 'exam_board_standard',
-        mcq_count: format.mcq?.count || null,
-        mcq_marks_each: format.mcq?.marksEach || null,
-        short_answer_count: format.shortAnswer?.count || null,
-        short_answer_marks_each: format.shortAnswer?.marksEach || null,
-        long_form_count: format.longForm?.count || null,
-        long_form_marks_each: format.longForm?.marksEach || null,
-      }, {
+      .upsert(formatPayload, {
         onConflict: 'exam_id',
       });
 

@@ -2255,6 +2255,7 @@ export type Database = {
           beta_features_enabled: boolean | null
           confirm_resolve_feedback: boolean | null
           created_at: string | null
+          curriculum_region: string | null
           display_name: string | null
           email_notifications: boolean | null
           enable_ai_suggestions: boolean | null
@@ -2276,6 +2277,7 @@ export type Database = {
           beta_features_enabled?: boolean | null
           confirm_resolve_feedback?: boolean | null
           created_at?: string | null
+          curriculum_region?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
           enable_ai_suggestions?: boolean | null
@@ -2297,6 +2299,7 @@ export type Database = {
           beta_features_enabled?: boolean | null
           confirm_resolve_feedback?: boolean | null
           created_at?: string | null
+          curriculum_region?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
           enable_ai_suggestions?: boolean | null

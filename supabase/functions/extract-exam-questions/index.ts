@@ -80,6 +80,20 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const specTopics = exam.exam_specifications || [];
   const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
 
+  // Fetch user's curriculum_region for stealth framework
+  let curriculumRegion: string | null = null;
+  try {
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('curriculum_region')
+      .eq('user_id', userId)
+      .maybeSingle();
+    curriculumRegion = prefs?.curriculum_region || null;
+  } catch (e) {
+    console.log('Could not fetch curriculum_region:', e);
+  }
+  console.log('Curriculum region:', curriculumRegion);
+
   // Load resource pack if exists
   let resourcePackContext = '';
   let hasResourcePack = false;
@@ -97,15 +111,37 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
-  // Determine desired question count from exam_format
+  // Determine desired PARENT question count
   const formatData = exam.exam_format?.[0];
-  const desiredQuestionCount = formatData?.use_original_structure === false
-    ? (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0)
-    : null; // null = let AI decide based on PDF
+  let desiredQuestionCount: number | null = null;
+  
+  if (formatData) {
+    if (formatData.use_original_structure === false) {
+      // Custom format: sum of breakdown counts
+      const breakdownSum = (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0);
+      if (breakdownSum > 0) {
+        desiredQuestionCount = breakdownSum;
+      }
+    }
+  }
+  
+  // Fallback: check exam title metadata or notes for a profile question count
+  // Also check if the exam has a notes field with profile metadata (e.g., "[Profile: 8Q]")
+  if (!desiredQuestionCount && exam.title) {
+    const qMatch = exam.title.match(/\b(\d+)\s*q/i);
+    if (qMatch) desiredQuestionCount = parseInt(qMatch[1], 10);
+  }
+  
+  // Check specification topics count to infer — if we have N topics, generate at least N questions
+  if (!desiredQuestionCount && specTopics.length > 0) {
+    desiredQuestionCount = Math.max(specTopics.length, 8);
+  }
+
+  console.log('Desired parent question count:', desiredQuestionCount);
 
   // Resolve stealth archetype for difficulty calibration
-  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '');
-  console.log('Stealth archetype resolved:', archetype.name);
+  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
+  console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
   const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype);
@@ -285,19 +321,25 @@ interface StealthArchetype {
   requireScenario: boolean;
 }
 
-function resolveStealthArchetype(qualificationLevel: string, subjectId: string): StealthArchetype {
+function resolveStealthArchetype(qualificationLevel: string, subjectId: string, curriculumRegion?: string | null): StealthArchetype {
   const level = (qualificationLevel || '').toLowerCase();
   const subject = (subjectId || '').toLowerCase();
-  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics');
+  const region = (curriculumRegion || '').toUpperCase();
+  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics') || subject.includes('stats');
   const isPhysics = subject.includes('physics');
   const isEcon = subject.includes('econ');
   const isEnglish = subject.includes('english');
   const isChemistry = subject.includes('chem');
   const isBiology = subject.includes('bio');
+  // UK region flag: if curriculum_region is GB, treat as UK board standard
+  const isUKRegion = region === 'GB' || region === 'UK';
   const isLevel2 = level.includes('college') || level.includes('16_18') || level.includes('a_level') || level.includes('a-level') || level.includes('level 2');
   const isLevel1 = level.includes('secondary') || level.includes('14_16') || level.includes('gcse') || level.includes('level 1');
+  // If region is UK, force UK board standards even with generic level labels
+  const effectiveLevel2 = isLevel2 || (isUKRegion && (level.includes('college') || level.includes('sixth') || level.includes('advanced')));
+  const effectiveLevel1 = isLevel1 || (isUKRegion && (level.includes('secondary') || level.includes('high')));
 
-  if (isLevel2 && isMath) {
+  if ((effectiveLevel2 || isLevel2) && isMath) {
     return {
       name: 'UK_A_LEVEL_MATHS',
       minSubParts: 3,
@@ -343,7 +385,7 @@ The frontend will render this as a crisp SVG chart. Do NOT describe the chart in
     };
   }
 
-  if (isLevel1 && isMath) {
+  if ((effectiveLevel1 || isLevel1) && isMath) {
     return {
       name: 'UK_GCSE_MATHS',
       minSubParts: 2,
@@ -361,7 +403,7 @@ MANDATORY RULES:
     };
   }
 
-  if (isLevel2 && isPhysics) {
+  if ((effectiveLevel2 || isLevel2) && isPhysics) {
     return {
       name: 'UK_A_LEVEL_PHYSICS',
       minSubParts: 3,
@@ -377,7 +419,7 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Physics (Professional Standard)
     };
   }
 
-  if (isLevel2 && isEcon) {
+  if ((effectiveLevel2 || isLevel2) && isEcon) {
     return {
       name: 'UK_A_LEVEL_ECONOMICS',
       minSubParts: 3,
@@ -394,7 +436,7 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
   }
 
   // Generic fallback for any Level 2 subject
-  if (isLevel2) {
+  if (effectiveLevel2 || isLevel2) {
     return {
       name: 'GENERIC_LEVEL_2',
       minSubParts: 2,
@@ -506,7 +548,14 @@ RULES:
 
   // HIERARCHICAL QUESTION STRUCTURE INSTRUCTIONS
   const questionCountInstruction = desiredQuestionCount
-    ? `\nSTRICT QUESTION COUNT: Generate EXACTLY ${desiredQuestionCount} PARENT questions (numbered 1, 2, 3, ..., ${desiredQuestionCount}).`
+    ? `
+STRICT QUESTION COUNT RULE (CRITICAL — DO NOT VIOLATE):
+You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 2, 3, ..., ${desiredQuestionCount}.
+- A "Parent Question" = one top-level numbered question (Q1, Q2, etc.)
+- Sub-parts (a, b, c, d) are CHILDREN of a parent and DO NOT count toward the ${desiredQuestionCount} limit.
+- If the limit is ${desiredQuestionCount}, you produce exactly ${desiredQuestionCount} distinct root_question_number values.
+- VIOLATION: Producing fewer or more than ${desiredQuestionCount} parent questions is WRONG.
+- COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
     : '';
 
   const minParts = archetype?.minSubParts || 2;
@@ -522,15 +571,23 @@ SUB-PART FORMATTING RULES:
 - NEVER combine sub-parts (a) and (b) into a single question_text block.
 - Each sub-part MUST be its own separate entry in the questions array.
 - Each sub-part MUST have its own marks value.
-- Use question_number format: "1" for parent, "1a" or "1(a)" for sub-parts, "1b" for second sub-part, etc.
+- Use question_number format: "1a" for first sub-part, "1b" for second, etc. Do NOT create a bare "1" entry — only sub-parts appear in the array.
 - Set parent_question_number to the parent's number (e.g., "1" for sub-part "1a").
 - Set root_question_number to the top-level number (e.g., "1").
 
-EXAMPLE: A question with 3 parts should produce 3 entries:
+QUESTION TEXT QUALITY RULES (CRITICAL):
+- Every sub-part question_text MUST contain an explicit, answerable instruction or question.
+- NEVER write a question_text that only describes a scenario without asking the student to DO something.
+- BAD EXAMPLE: "A quality control engineer needs to determine the likelihood that a battery has a lifespan ranging from 450 to 550 hours."
+- GOOD EXAMPLE: "Find the probability that a randomly selected battery has a lifespan between 450 and 550 hours."
+- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, etc.
+- The scenario/context goes in the FIRST sub-part's question_text. Subsequent sub-parts can reference "Using your answer to part (a)..." etc.
+
+EXAMPLE OUTPUT for a question with 3 parts:
 [
-  {"question_number": "1a", "question_text": "State the distribution of...", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1b", "question_text": "Find the probability that...", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1c", "question_text": "Test at the 5% significance level whether...", "marks": 5, "parent_question_number": "1", "root_question_number": "1"}
+  {"question_number": "1a", "question_text": "Sarah records the heights, in cm, of 30 plants. The mean height is 45 cm and the standard deviation is 8.2 cm.\\n\\nState the null and alternative hypotheses to test whether the mean height has increased.", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1b", "question_text": "Using a 5% significance level, find the critical value for this test.", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1c", "question_text": "State your conclusion in context, giving a reason for your answer.", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
 ]
 `;
 
@@ -542,6 +599,7 @@ EXAMPLE: A question with 3 parts should produce 3 entries:
 SCENARIO REQUIREMENT (MANDATORY):
 Every parent question MUST begin with a named character and a real-world context/dataset.
 DO NOT generate abstract standalone questions like "Find the value of x" without context.
+The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
 Use diverse names and scenarios. Examples:
 - "Sarah records the daily rainfall, in mm, for her town over a 30-day period."
 - "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
@@ -559,7 +617,7 @@ ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
