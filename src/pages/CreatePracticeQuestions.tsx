@@ -469,7 +469,7 @@ const CreatePracticeQuestions = () => {
           </div>
           <Button 
             onClick={handleGenerate} 
-            disabled={generating} 
+            disabled={generating || nameValidator.isDuplicate} 
             size="lg"
             style={{ backgroundColor: subjectColor }}
             className="hover:opacity-90"
