@@ -595,6 +595,170 @@ MANDATORY RULES:
     };
   }
 
+  // ── Regional Biology Archetypes ──
+  if (isUSRegion && isBiology) {
+    return { name: 'US_AP_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: AP Biology (US College Board)
+1. Free-response format: "Design an experiment", "Justify your answer using evidence".
+2. Data analysis from tables, diagrams, phylogenetic trees.
+3. Command verbs: Describe, Explain, Justify, Calculate, Predict, Analyze.
+4. Multi-part: (a) identify/describe, (b) explain mechanism, (c) predict outcome, (d) justify.
+` };
+  }
+  if (isINRegion && isBiology) {
+    return { name: 'IN_CBSE_BIO', minSubParts: 2, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: CBSE Biology (Indian Board)
+1. "Draw and label", "Differentiate between" — diagram-heavy.
+2. Structured: 1-mark (define), 2-mark (differentiate), 3-mark (explain with diagram), 5-mark (detailed).
+3. Command verbs: Define, Describe, Explain, Differentiate, Draw, Label, Give reasons.
+` };
+  }
+  if (isSGRegion && isBiology) {
+    return { name: 'SG_CAMBRIDGE_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: Cambridge Biology (Singapore)
+1. "Suggest an explanation", high-complexity application.
+2. Command verbs: State, Describe, Explain, Suggest, Predict, Deduce, Calculate.
+3. Multi-step experimental analysis with data interpretation.
+` };
+  }
+  if (isIBRegion && isBiology) {
+    return { name: 'IB_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: IB Biology (International Baccalaureate)
+1. Data-based questions, extended response. IB command terms: Outline, Describe, Explain, Discuss, Evaluate, Suggest, Deduce.
+2. Include experimental design, data analysis, ethical evaluation.
+3. Reference IB assessment objectives: AO1 (knowledge), AO2 (application), AO3 (synthesis).
+` };
+  }
+
+  // ── Regional Chemistry Archetypes ──
+  if (isUSRegion && isChemistry) {
+    return { name: 'US_AP_CHEM', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: AP Chemistry (US College Board)
+1. Free-response: "Design a procedure", "Calculate the molar mass".
+2. Equilibrium, thermodynamics, kinetics emphasis.
+3. Command verbs: Calculate, Justify, Explain, Design, Predict, Represent.
+4. AP FRQ scoring (multi-point rubric).
+` };
+  }
+  if (isINRegion && isChemistry) {
+    return { name: 'IN_CBSE_CHEM', minSubParts: 2, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: CBSE Chemistry (Indian Board)
+1. "Write the balanced equation", "Name the product", derivation-based.
+2. Organic reaction mechanisms, inorganic qualitative analysis.
+3. Command verbs: Define, Write, Balance, Name, Explain, Derive, Calculate.
+` };
+  }
+  if (isSGRegion && isChemistry) {
+    return { name: 'SG_CAMBRIDGE_CHEM', minSubParts: 3, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: Cambridge Chemistry (Singapore)
+1. Multi-step calculations, organic synthesis pathways.
+2. Command verbs: State, Describe, Explain, Suggest, Predict, Deduce, Calculate.
+3. High-complexity novel reaction scenarios.
+` };
+  }
+  if (isIBRegion && isChemistry) {
+    return { name: 'IB_CHEM', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: IB Chemistry (International Baccalaureate)
+1. Data analysis, "Deduce the structure", IB command terms.
+2. Include data-based questions, stoichiometric calculations, spectroscopic analysis.
+3. IB command terms: Define, State, Describe, Explain, Deduce, Predict, Discuss, Evaluate.
+` };
+  }
+
+  // ── Regional Physics Archetypes ──
+  if (isUSRegion && isPhysics) {
+    return { name: 'US_AP_PHYSICS', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: AP Physics (US College Board)
+1. "Derive an expression", "Justify with physics principles" — FRQ format.
+2. Multi-part problem solving with both conceptual and quantitative questions.
+3. Command verbs: Derive, Calculate, Justify, Explain, Sketch, Rank, Determine.
+4. AP FRQ scoring rubric format.
+` };
+  }
+  if (isINRegion && isPhysics) {
+    return { name: 'IN_CBSE_PHYSICS', minSubParts: 2, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: CBSE Physics (Indian Board)
+1. "Derive" expressions, numerical problems with step-by-step working.
+2. Ray diagrams, circuit diagrams, force diagrams mandatory.
+3. Command verbs: Define, State, Derive, Prove, Calculate, Draw, Explain.
+4. Structured: 1-mark (define), 2-mark (state law), 3-mark (numerical), 5-mark (derive + numerical).
+` };
+  }
+  if (isSGRegion && isPhysics) {
+    return { name: 'SG_CAMBRIDGE_PHYSICS', minSubParts: 3, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: Cambridge Physics (Singapore)
+1. "Calculate the magnitude", multi-part with "hence" chains.
+2. Command verbs: State, Calculate, Determine, Explain, Show that, Deduce, Sketch.
+3. High mathematical rigour with formal SI notation.
+` };
+  }
+  if (isIBRegion && isPhysics) {
+    return { name: 'IB_PHYSICS', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: IB Physics (International Baccalaureate)
+1. Paper 2/3 format with data-based questions and extended response.
+2. IB command terms: Define, State, Outline, Describe, Explain, Deduce, Determine, Calculate, Discuss, Evaluate.
+3. Experimental design, data analysis, uncertainty calculations.
+` };
+  }
+
+  // ── Regional Economics Archetypes ──
+  if (isUSRegion && isEcon) {
+    return { name: 'US_AP_ECON', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: AP Economics (US College Board)
+1. "Using a correctly labeled graph, show..." — FRQ with mandatory diagrams.
+2. Free-response with graph requirements for major questions.
+3. Command verbs: Define, Identify, Calculate, Explain, Show (on graph), Determine.
+4. Include both Micro and Macro AP-style questions.
+` };
+  }
+  if (isIBRegion && isEcon) {
+    return { name: 'IB_ECON', minSubParts: 2, requireScenario: true, promptBlock: `
+DIFFICULTY ARCHETYPE: IB Economics (International Baccalaureate)
+1. Paper 1: Essay — "Using real-world examples, evaluate...".
+2. Paper 2: Data response with calculations and diagram analysis.
+3. IB command terms: Define, Describe, Explain, Analyse, Discuss, Evaluate, Compare, Contrast.
+` };
+  }
+
+  // ── Regional English Archetypes ──
+  if (isUSRegion && isEnglish) {
+    return { name: 'US_AP_ENGLISH', minSubParts: 1, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: AP English Language & Composition (US College Board)
+1. Rhetorical analysis essay, argument essay, synthesis essay.
+2. Passage-based analysis with rhetorical strategies (ethos, pathos, logos).
+3. Command verbs: Analyze, Evaluate, Argue, Synthesize, Explain.
+4. AP scoring rubric (1-6 scale for essays).
+` };
+  }
+  if (isIBRegion && isEnglish) {
+    return { name: 'IB_ENGLISH', minSubParts: 1, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: IB English (International Baccalaureate)
+1. Paper 1: Guided literary analysis of unseen text.
+2. Paper 2: Comparative essay on studied works.
+3. IB command terms: Analyse, Compare, Evaluate, Discuss, Examine, Comment.
+4. Reference IB assessment criteria (Criterion A-D).
+` };
+  }
+
+  // ── Regional History/Geography Archetypes ──
+  if (isUSRegion && isHistory) {
+    return { name: 'US_AP_HISTORY', minSubParts: 2, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: AP History (US College Board)
+1. Document-Based Question (DBQ), Long Essay (LEQ), Short Answer (SAQ).
+2. Command verbs: Describe, Explain, Evaluate, Compare, Analyze, Identify.
+3. Require specific historical evidence and thesis-driven argument.
+` };
+  }
+  if (isIBRegion && isHistory) {
+    return { name: 'IB_HISTORY', minSubParts: 2, requireScenario: false, promptBlock: `
+DIFFICULTY ARCHETYPE: IB History (International Baccalaureate)
+1. Paper 1: Source-based with OPVL analysis.
+2. Paper 2/3: Essay with comparative and evaluative tasks.
+3. IB command terms: Describe, Explain, Analyse, Compare, Contrast, Evaluate, Discuss, "To what extent".
+` };
+  }
+
+  // ── Existing UK-specific archetypes ──
   if ((effectiveLevel2 || isLevel2) && isPhysics) {
     return {
       name: 'UK_A_LEVEL_PHYSICS',
