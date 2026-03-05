@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitizer";
 import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
+import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
