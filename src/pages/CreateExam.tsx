@@ -1028,12 +1028,28 @@ export default function CreateExam() {
                     </p>
                   </div>
 
-                  <div>
+                  <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Time limit</p>
                     <p className="font-medium">
                       {timerEnabled ? `${duration} minutes` : 'No time limit'}
                     </p>
                   </div>
+
+                  {/* Generation Estimate */}
+                  {!useOriginal && (
+                    <div className="p-3 rounded-lg border-2" style={{ borderColor: subjectColor + '40', backgroundColor: subjectColor + '08' }}>
+                      <p className="text-xs font-semibold mb-1" style={{ color: subjectColor }}>Generation Estimate</p>
+                      <p className="text-sm font-medium">
+                        {totalQuestions} Parent Questions
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Estimated {(oneMarkCount * 1) + (twoMarkCount * 2) + (fourMarkCount * 4) + (extendedCount * 8)} marks total
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Sub-parts (a, b, c) are generated automatically and don't count toward the question limit
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Card>
             </div>
