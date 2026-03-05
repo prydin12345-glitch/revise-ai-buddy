@@ -80,7 +80,15 @@ export default function UploadExam() {
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      if (educationalTier) formData.append('educationalTier', educationalTier);
+      const tier = selectedProfile?.educational_tier || educationalTier;
+      if (tier) formData.append('educationalTier', tier);
+      if (selectedProfile) {
+        formData.append('structureMode', followReference ? 'reference' : 'profile');
+        formData.append('profileQuestionCount', String(selectedProfile.question_count));
+        if (selectedProfile.topics.length > 0) {
+          formData.append('curriculumTopics', JSON.stringify(selectedProfile.topics));
+        }
+      }
 
       const { data, error } = await supabase.functions.invoke('upload-exam', {
         body: formData,
