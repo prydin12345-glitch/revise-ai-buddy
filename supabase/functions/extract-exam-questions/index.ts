@@ -403,7 +403,7 @@ MANDATORY RULES:
     };
   }
 
-  if (isLevel2 && isPhysics) {
+  if ((effectiveLevel2 || isLevel2) && isPhysics) {
     return {
       name: 'UK_A_LEVEL_PHYSICS',
       minSubParts: 3,
