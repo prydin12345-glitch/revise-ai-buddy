@@ -1545,6 +1545,11 @@ const ExamInProgress = () => {
                     />
                   )}
 
+                  {/* Box Plot Chart rendering */}
+                  {isBoxPlotQuestion((question as any).options) && (
+                    <BoxPlotChart chartData={(question as any).options} className="mb-6" />
+                  )}
+
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       {question.figure_urls.map((url, idx) => (
