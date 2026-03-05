@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
+import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 
 interface Question {
   id: string;
@@ -167,6 +168,9 @@ const ExamPreview = () => {
 
                     {isBoxPlotQuestion(q.options) && (
                       <BoxPlotChart chartData={q.options} className="mb-4" />
+                    )}
+                    {isHistogramQuestion(q.options) && (
+                      <HistogramChart chartData={q.options} className="mb-4" />
                     )}
 
                     {q.figure_urls && q.figure_urls.length > 0 && (

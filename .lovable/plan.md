@@ -1,79 +1,118 @@
 
 
-# UI Logic & Data Rendering Upgrade
+# Plan: Manual Exam Creator for Tutors
 
 ## Overview
+Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
-Three workstreams: (1) Profile-locking with reference override toggle on the `/upload` page (already partially exists on `/create`), (2) new statistical chart renderers (scatter with regression, histogram with unequal class widths), and (3) marks-adaptive answer box sizing in ExamInProgress.
+## Database Changes
 
----
+**New table: `tutor_question_bank`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL) — references auth.users
+- `question_text` (text, NOT NULL)
+- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
+- `expected_answer` (text) — mark scheme / model answer
+- `max_marks` (integer, NOT NULL)
+- `topic_tag` (text) — linked to class sub-topics
+- `subject_name` (text, NOT NULL)
+- `options` (jsonb) — for MCQ
+- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
+- `estimated_minutes` (integer) — AI-suggested time
+- `metadata` (jsonb, default '{}')
+- `created_at`, `updated_at` (timestamptz)
 
-## 1. Profile Locking with Reference Override on `/upload` Page
+RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
 
-**Current state**: The `/upload` page (`UploadExam.tsx`) has no Exam Profile integration. The `/create` page (`CreateExam.tsx`) already has profile-locking logic (lines 730-740) with "Locked by Profile" badges.
+**New table: `tutor_manual_exams`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL)
+- `title` (text, NOT NULL)
+- `subject_name` (text, NOT NULL)
+- `subject_color` (text, default '#3B82F6')
+- `marking_preference` (text, default 'ai_assisted')
+- `educational_tier` (text)
+- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
+- `total_marks` (integer, default 0)
+- `estimated_minutes` (integer)
+- `status` (text, default 'draft') — draft, published
+- `created_at`, `updated_at` (timestamptz)
 
-**Changes**:
-- **`src/pages/UploadExam.tsx`**: Import `useSubjectProfiles` and add profile selector. When a profile is selected, lock question count, educational tier, and timer to the profile values (mirror the pattern from `CreateExam.tsx` lines 225-244).
-- Add a **"Follow Reference Structure"** toggle (Lock icon) that appears only when both a profile AND a reference PDF are uploaded. Default: locked to profile. When unlocked, the AI uses the PDF's question count instead.
-- Pass a `structureMode: 'profile' | 'reference'` flag via formData to the `upload-exam` edge function.
+RLS: tutor can CRUD own rows.
 
-**`supabase/functions/extract-exam-questions/index.ts`** (lines 116-141): Update `desiredQuestionCount` resolution to check for the `structureMode` flag. If `structureMode === 'profile'`, always use the profile's question count regardless of the PDF. If `structureMode === 'reference'`, let the PDF dictate question count.
+## New Route
+- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
 
----
+## New Components
 
-## 2. New Statistical Chart Renderers
+### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
+Split-view layout:
+- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
+- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
+- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
 
-**Current state**: `BoxPlotChart.tsx` exists and renders SVG box plots. `GraphRenderer.tsx` supports `line` and `scatter` chart types via Recharts. No histogram or regression line support.
+Key behaviors:
+- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
+- Inline editing: click question number to rename, click mark bubble to change
+- Focus mode: when editing a question, dim others with opacity
+- Auto-save indicator in header
+- Empty state illustration when no questions exist
 
-**Changes**:
+### 2. `src/components/tutor/ManualQuestionEditor.tsx`
+- Rich text fields for question and mark scheme
+- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
+- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
+- Max marks input (1-10)
+- "Polish with AI" button
 
-### 2a. Scatter Graph with Regression Line
-- **`src/components/graph/GraphRenderer.tsx`**: Add optional `regressionLine` rendering. When `series` data includes a `regressionLine: { slope, intercept }` field, overlay a dashed `ReferenceLine` or a computed `Line` series connecting the regression endpoints.
-- No new component needed — extend the existing scatter rendering path (lines 221-291).
+### 3. `src/components/tutor/ManualQuestionPreview.tsx`
+- Renders the question exactly as students see it using `MathRenderer`
+- Shows mark allocation badge, topic tag
 
-### 2b. Histogram with Unequal Class Widths
-- **Create `src/components/graph/HistogramChart.tsx`**: New SVG component similar to `BoxPlotChart.tsx`. Accepts `chart_data` with type `'histogram'` containing `{ bins: [{ lower, upper, frequency }], xLabel, yLabel }`. Renders frequency density bars (`frequency / classWidth`) with axis labels.
-- **`src/components/graph/index.ts`**: Export `HistogramChart`.
-- **`src/pages/ExamInProgress.tsx`**: Add detection for `chart_data.type === 'histogram'` alongside existing `isBoxPlotQuestion` check, and render the new component.
-- **`src/pages/ExamPreview.tsx`** and **`src/pages/ExamReview.tsx`**: Same histogram rendering.
+### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
+- Each option has description text
 
-### 2c. AI Prompt Updates
-- **`supabase/functions/extract-exam-questions/index.ts`**: Extend the `chart_data` JSON schema documentation in the prompt (around line 900) to include `histogram` and `scatter_regression` types with their expected data shapes.
-- Add `Σx`, `Σx²`, `Σxy`, `S_{xx}` to the LaTeX notation examples in the prompt.
+### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
+- Sticky sidebar showing:
+  - Total marks counter
+  - Topic distribution (mini pie chart via recharts)
+  - Estimated completion time (marks × 1.5 min ratio)
+  - Question count
 
----
+## Edge Function: `polish-question`
+- Takes raw question text + subject + educational tier
+- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
+- Returns polished text preserving mathematical requirements
 
-## 3. Marks-Adaptive Answer Box Sizing
+## Integration Points
 
-**Current state**: All math answers use `min-h-[300px]`, all non-math use `min-h-[200px]` — fixed regardless of question difficulty.
+1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
 
-**Changes in `src/pages/ExamInProgress.tsx`**:
-- Create a helper function `getAnswerBoxHeight(marks: number, isMath: boolean): string` that maps marks to min-height:
-  - 1-2 marks → `min-h-[120px]` (hypothesis statement, short answer)
-  - 3-4 marks → `min-h-[200px]` (standard calculation)
-  - 5-7 marks → `min-h-[300px]` (multi-step derivation)
-  - 8+ marks → `min-h-[400px]` (extended "Show that" proof)
-- Replace the hardcoded `min-h-[300px]` (line 1840) and `min-h-[200px]` (line 1953) with calls to this function using `question.marks`.
+2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
 
----
+3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
 
-## 4. Reference Mark Distribution Cloning (Prompt Enhancement)
+4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
 
-**`supabase/functions/extract-exam-questions/index.ts`** in `buildPrompt()`:
-- When a reference PDF is present (`!fallback`), add an instruction block:
-  ```
-  MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.
-  ```
+5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
 
----
+## UI Details
+- Subject-themed accent colors on save buttons, active borders, progress bars
+- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
+- Dark-themed empty state with illustration text: "Your masterpiece starts here"
+- Auto-save with subtle "All changes saved ✓" indicator that pulses
 
-## Files to Modify
+## Files to Create
+1. `src/pages/tutor/ManualExamCreator.tsx`
+2. `src/components/tutor/ManualQuestionEditor.tsx`
+3. `src/components/tutor/ManualQuestionPreview.tsx`
+4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+5. `src/components/tutor/ExamCompositionSidebar.tsx`
+6. `supabase/functions/polish-question/index.ts`
 
-1. **`src/pages/UploadExam.tsx`** — Profile selector + lock toggle
-2. **`src/pages/ExamInProgress.tsx`** — Marks-adaptive answer box heights
-3. **`src/components/graph/HistogramChart.tsx`** — New histogram renderer (create)
-4. **`src/components/graph/GraphRenderer.tsx`** — Regression line overlay
-5. **`src/components/graph/index.ts`** — Export histogram
-6. **`src/pages/ExamPreview.tsx`** + **`src/pages/ExamReview.tsx`** — Histogram rendering
-7. **`supabase/functions/extract-exam-questions/index.ts`** — Chart data schemas, mark cloning, structure mode flag
+## Files to Edit
+1. `src/App.tsx` — add route `/tutor/exams/create-manual`
+2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
+3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
 

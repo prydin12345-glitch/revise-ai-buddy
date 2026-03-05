@@ -17,6 +17,12 @@ import {
 import { cn } from '@/lib/utils';
 import type { GraphConfig, GraphSeries, GraphPoint } from './types';
 
+interface RegressionLine {
+  slope: number;
+  intercept: number;
+  color?: string;
+}
+
 interface GraphRendererProps {
   config: GraphConfig;
   series: GraphSeries[];
@@ -25,6 +31,7 @@ interface GraphRendererProps {
   showCorrectAnswers?: boolean;
   // Marking results for plotting review
   pointStatuses?: Array<{ point: GraphPoint; status: 'correct' | 'incorrect' | 'missed' }>;
+  regressionLine?: RegressionLine;
   onChartClick?: (x: number, y: number) => void;
   interactive?: boolean;
   height?: number;
@@ -46,6 +53,7 @@ export function GraphRenderer({
   expectedPoints = [],
   showCorrectAnswers = false,
   pointStatuses = [],
+  regressionLine,
   onChartClick,
   interactive = false,
   height = 300,
@@ -261,6 +269,25 @@ export function GraphRenderer({
               fill={s.color || statusColors.neutral}
             />
           ))}
+          
+          {/* Regression line overlay */}
+          {regressionLine && (() => {
+            const [xMin, xMax] = calculatedDomain.x;
+            const regData = [
+              { x: xMin, y: regressionLine.slope * xMin + regressionLine.intercept },
+              { x: xMax, y: regressionLine.slope * xMax + regressionLine.intercept },
+            ];
+            return (
+              <Scatter
+                name="Regression"
+                data={regData}
+                fill="none"
+                line={{ stroke: regressionLine.color || '#ef4444', strokeWidth: 2, strokeDasharray: '6 3' }}
+                shape={() => null}
+                legendType="line"
+              />
+            );
+          })()}
           
           {/* Student points as a separate scatter */}
           {studentPoints.length > 0 && (

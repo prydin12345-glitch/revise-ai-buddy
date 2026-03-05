@@ -126,8 +126,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
   }
   
+  // Check for structureMode flag from upload page (profile vs reference)
+  const structureMode = (exam as any).structure_mode || null;
+  const profileQuestionCount = (exam as any).profile_question_count || null;
+  
+  if (structureMode === 'profile' && profileQuestionCount) {
+    desiredQuestionCount = parseInt(profileQuestionCount, 10);
+    console.log('Structure mode: profile — using profile question count:', desiredQuestionCount);
+  } else if (structureMode === 'reference') {
+    console.log('Structure mode: reference — letting PDF dictate question count');
+    // desiredQuestionCount stays null, PDF structure is used
+  }
+
   // Fallback: check exam title metadata or notes for a profile question count
-  // Also check if the exam has a notes field with profile metadata (e.g., "[Profile: 8Q]")
   if (!desiredQuestionCount && exam.title) {
     const qMatch = exam.title.match(/\b(\d+)\s*q/i);
     if (qMatch) desiredQuestionCount = parseInt(qMatch[1], 10);
@@ -977,10 +988,18 @@ ${specList}${mode}
 ${archetypeBlock}
 ${scenarioRequirement}
 Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
-Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta
+Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}
+
+${!useFallbackMode ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
+
+CHART DATA SCHEMAS:
+When a question includes tabular or visual data, populate the "chart_data" field:
+- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
+- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
+- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
 
 Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }

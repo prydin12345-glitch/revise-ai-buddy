@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, ChevronDown, Settings2, X } from "lucide-react";
+import { Upload, FileText, ChevronDown, Settings2, X, Lock, Unlock } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -34,6 +37,23 @@ export default function UploadExam() {
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [errors, setErrors] = useState({ subject: "", fileName: "" });
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [followReference, setFollowReference] = useState(false);
+
+  const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
+
+  const subjectProfiles = useMemo(
+    () => (subjectId ? getProfilesForSubject(subjectId) : []),
+    [subjectId, getProfilesForSubject]
+  );
+
+  const selectedProfile = useMemo(
+    () => subjectProfiles.find(p => p.id === selectedProfileId) || null,
+    [subjectProfiles, selectedProfileId]
+  );
+
+  const isLockedByProfile = !!selectedProfile && !followReference;
+  const showReferenceToggle = !!selectedProfile && !!file;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -60,7 +80,15 @@ export default function UploadExam() {
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      if (educationalTier) formData.append('educationalTier', educationalTier);
+      const tier = selectedProfile?.educational_tier || educationalTier;
+      if (tier) formData.append('educationalTier', tier);
+      if (selectedProfile) {
+        formData.append('structureMode', followReference ? 'reference' : 'profile');
+        formData.append('profileQuestionCount', String(selectedProfile.question_count));
+        if (selectedProfile.topics.length > 0) {
+          formData.append('curriculumTopics', JSON.stringify(selectedProfile.topics));
+        }
+      }
 
       const { data, error } = await supabase.functions.invoke('upload-exam', {
         body: formData,
@@ -104,6 +132,8 @@ export default function UploadExam() {
               <Select value={subjectId} onValueChange={(value) => {
                 setSubjectId(value);
                 setErrors({ ...errors, subject: "" });
+                setSelectedProfileId(null);
+                setFollowReference(false);
               }}>
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select a subject" />
@@ -118,6 +148,47 @@ export default function UploadExam() {
               </Select>
               {errors.subject && <p className="text-destructive text-sm mt-1">{errors.subject}</p>}
             </div>
+
+            {/* Exam Profile Selector */}
+            {subjectId && subjectProfiles.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Exam Profile</Label>
+                <Select value={selectedProfileId || ''} onValueChange={(value) => {
+                  setSelectedProfileId(value || null);
+                  setFollowReference(false);
+                }}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select a profile (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjectProfiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.profile_name} — {profile.question_count}Q
+                        {profile.time_limit_minutes ? `, ${profile.time_limit_minutes}min` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProfile && (
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary">
+                      <Lock className="h-3 w-3" />
+                      {selectedProfile.question_count} Questions
+                    </Badge>
+                    {selectedProfile.educational_tier && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfile.educational_tier}
+                      </Badge>
+                    )}
+                    {selectedProfile.time_limit_minutes && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfile.time_limit_minutes} min
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="file" className="text-base font-medium">Import Reference Assessment</Label>
@@ -150,6 +221,31 @@ export default function UploadExam() {
                 )}
               </div>
             </div>
+
+            {/* Follow Reference Structure Toggle */}
+            {showReferenceToggle && (
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  {followReference ? (
+                    <Unlock className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-primary" />
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium cursor-pointer">Follow Reference Structure</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {followReference
+                        ? 'Question count follows the uploaded PDF'
+                        : `Question count locked to profile (${selectedProfile.question_count}Q)`}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={followReference}
+                  onCheckedChange={setFollowReference}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="fileName" className="text-base font-medium">Name this exam *</Label>

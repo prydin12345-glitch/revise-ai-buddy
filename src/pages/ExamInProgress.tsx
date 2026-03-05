@@ -52,6 +52,14 @@ const addOpacity = (hex: string, opacity: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
+// Marks-adaptive answer box sizing
+function getAnswerBoxHeight(marks: number, isMath: boolean): string {
+  if (marks <= 2) return isMath ? 'min-h-[150px]' : 'min-h-[120px]';
+  if (marks <= 4) return isMath ? 'min-h-[220px]' : 'min-h-[200px]';
+  if (marks <= 7) return 'min-h-[300px]';
+  return 'min-h-[400px]';
+}
+
 // Strip inline MCQ options (A), B), C), D)) from question text for student view
 // This prevents duplication when the UI also renders interactive option buttons
 const stripInlineMCQOptions = (text: string, questionType: string): string => {
@@ -1837,7 +1845,7 @@ const ExamInProgress = () => {
                           }
                           await handleSaveAnswer(question.id);
                         }}
-                        className="min-h-[300px] resize-y text-base font-mono transition-all text-foreground"
+                        className={`${getAnswerBoxHeight(question.marks, true)} resize-y text-base font-mono transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
@@ -1950,7 +1958,7 @@ const ExamInProgress = () => {
                             await handleSaveAnswer(question.id);
                           }
                         }}
-                        className="min-h-[200px] resize-y text-base transition-all text-foreground"
+                        className={`${getAnswerBoxHeight(question.marks, false)} resize-y text-base transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}

@@ -40,6 +40,8 @@ serve(async (req) => {
     const specFile = formData.get('specFile') as File | null;
     const resourcePackId = formData.get('resourcePackId') as string | null;
     const curriculumTopicsRaw = formData.get('curriculumTopics') as string | null;
+    const structureMode = formData.get('structureMode') as string | null;
+    const profileQuestionCount = formData.get('profileQuestionCount') as string | null;
 
     let curriculumTopics: string[] = [];
     if (curriculumTopicsRaw) {
@@ -139,6 +141,20 @@ serve(async (req) => {
     }
 
     console.log('Exam created:', examData.id);
+
+    // Store structure mode and profile question count in exam_format
+    if (structureMode && profileQuestionCount) {
+      const questionCount = parseInt(profileQuestionCount, 10);
+      const useOriginal = structureMode === 'reference';
+      
+      await supabase.from('exam_format').insert({
+        exam_id: examData.id,
+        use_original_structure: useOriginal,
+        // Store total from profile in breakdown (the extraction function reads this)
+        short_answer_count: useOriginal ? null : questionCount,
+      });
+      console.log('Stored structure mode:', structureMode, 'question count:', questionCount);
+    }
 
     if (curriculumTopics.length > 0) {
       const uniqueTopics = [...new Set(curriculumTopics)];
