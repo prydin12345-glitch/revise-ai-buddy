@@ -966,8 +966,11 @@ Use diverse names and scenarios. Examples:
 - "Tom is investigating whether there is a correlation between hours studied and test scores."
 ` : '';
 
+  const hardeningRules = getExamHardeningRules();
+
   return `${regionalPersona}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
+${hardeningRules}
 ${resourceCtx}
 Generate NEW questions for ${level} ${exam.subject_id}.
 ${specList}${mode}

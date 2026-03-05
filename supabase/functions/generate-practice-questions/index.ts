@@ -954,8 +954,11 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
       ? (boardTranslation[setData.exam_board.toLowerCase()] || `Exam board style: ${setData.exam_board}`)
       : '';
 
+    const hardeningRules = getExamHardeningRules();
+
     const prompt = `${regionalPersona}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
+${hardeningRules}
 Generate ${setData.question_count} practice questions.
 
 Context:
