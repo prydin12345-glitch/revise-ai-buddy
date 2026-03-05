@@ -53,6 +53,7 @@ export function GraphRenderer({
   expectedPoints = [],
   showCorrectAnswers = false,
   pointStatuses = [],
+  regressionLine,
   onChartClick,
   interactive = false,
   height = 300,
