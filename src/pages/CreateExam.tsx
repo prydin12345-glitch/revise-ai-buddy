@@ -27,6 +27,7 @@ import { ResourcePackPreview } from "@/components/practice/ResourcePackPreview";
 import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
+import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 
 const EDUCATIONAL_TIERS = [
   { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
