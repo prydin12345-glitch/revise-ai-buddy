@@ -146,6 +146,11 @@ const ExamPreview = () => {
                   className="mb-4"
                 />
 
+                {/* Box Plot Chart */}
+                {isBoxPlotQuestion(q.options) && (
+                  <BoxPlotChart chartData={q.options} className="mb-4" />
+                )}
+
                 {/* Display figures if any */}
                 {q.figure_urls && q.figure_urls.length > 0 && (
                   <div className="grid grid-cols-2 gap-4 mb-4">
