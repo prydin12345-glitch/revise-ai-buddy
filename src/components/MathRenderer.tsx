@@ -188,8 +188,11 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   // First remove any standalone "Marks: n" lines
   const contentWithoutMarks = removeMarksLine(content);
   
+  // Strip mark scheme annotations [M1, A1, B1] from student-facing display
+  const contentWithoutMarkScheme = stripMarkSchemeAnnotations(contentWithoutMarks);
+  
   // Then normalize blank formats (convert underscores to [ BLANK ])
-  const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarks);
+  const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarkScheme);
   
   // Then convert any markdown tables to HTML tables
   const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);
