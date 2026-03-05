@@ -97,8 +97,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
+  // Determine desired question count from exam_format
+  const formatData = exam.exam_format?.[0];
+  const desiredQuestionCount = formatData?.use_original_structure === false
+    ? (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0)
+    : null; // null = let AI decide based on PDF
+
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode);
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount);
   const systemPrompt = hasResourcePack
     ? 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
     : 'You are an expert exam generator. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
@@ -262,7 +268,7 @@ async function extractPdfText(fileUrl: string | null, supabase: any): Promise<st
   }
 }
 
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
   
   const mode = fallback 
@@ -348,18 +354,51 @@ RULES:
 - LaTeX is ONLY for text fields. NEVER put LaTeX in graphConfig numeric data or coordinate arrays
 `;
   }
-  
+
+  // HIERARCHICAL QUESTION STRUCTURE INSTRUCTIONS
+  const questionCountInstruction = desiredQuestionCount
+    ? `\nSTRICT QUESTION COUNT: Generate EXACTLY ${desiredQuestionCount} PARENT questions (numbered 1, 2, 3, ..., ${desiredQuestionCount}).`
+    : '';
+
+  const hierarchicalInstructions = `
+
+HIERARCHICAL QUESTION STRUCTURE (CRITICAL):
+1. A "Parent Question" is a top-level numbered question: Q1, Q2, Q3, etc.
+2. Sub-parts (a), (b), (c) are children of a parent question and do NOT count toward the question limit.
+3. When a question naturally has multiple parts, you MUST split them into separate sub-part entries.
+${questionCountInstruction}
+
+SUB-PART FORMATTING RULES:
+- NEVER combine sub-parts (a) and (b) into a single question_text block.
+- Each sub-part MUST be its own separate entry in the questions array.
+- Each sub-part MUST have its own marks value.
+- Use question_number format: "1" for parent, "1a" or "1(a)" for sub-parts, "1b" for second sub-part, etc.
+- Set parent_question_number to the parent's number (e.g., "1" for sub-part "1a").
+- Set root_question_number to the top-level number (e.g., "1").
+
+EXAMPLE: A question with 2 parts should produce 2 entries:
+[
+  {"question_number": "1a", "question_text": "Find the value of x...", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1b", "question_text": "Hence, determine...", "marks": 4, "parent_question_number": "1", "root_question_number": "1"}
+]
+
+A standalone question with no sub-parts:
+[
+  {"question_number": "2", "question_text": "Calculate the area...", "marks": 5, "parent_question_number": null, "root_question_number": "2"}
+]
+`;
+
   return `${resourceCtx}
 Generate NEW questions for ${board.toUpperCase()} ${level} ${exam.subject_id}.
 ${specList}${mode}
 
 Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
 Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta
-${graphInstructions}
+${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {

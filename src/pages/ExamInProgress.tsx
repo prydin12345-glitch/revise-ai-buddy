@@ -1184,64 +1184,125 @@ const ExamInProgress = () => {
           <div className="p-6 flex flex-col gap-6 h-full">
             <div>
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
-              <div className="grid grid-cols-4 gap-2">
-                {questions.map((q) => {
-                  const answerData = userAnswers[q.id];
-                  const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim());
-                  const answer = existingAnswers?.find((a: any) => a.question_id === q.id);
+              {/* Tree-style navigation: group by root question number */}
+              <div className="space-y-1">
+                {(() => {
+                  // Build tree: { rootNum: Question[] }
+                  const tree: Record<string, Question[]> = {};
+                  questions.forEach(q => {
+                    const root = q.question_number.match(/^(\d+)/)?.[1] || q.question_number;
+                    if (!tree[root]) tree[root] = [];
+                    tree[root].push(q);
+                  });
                   
-                  // Determine color based on submission status
-                  let colorClass = '';
-                  let inlineStyle: React.CSSProperties | undefined = undefined;
-                  
-                  if (submission && answer) {
-                    // Post-submission colors (Red/Amber/Green)
-                    if (answer.is_correct === true) {
-                      colorClass = 'bg-green-500 text-white'; // Correct
-                    } else if (answer.score > 0 && answer.score < q.marks) {
-                      colorClass = 'bg-orange-500 text-white'; // Partial
-                    } else {
-                      colorClass = 'bg-red-500 text-white'; // Incorrect
-                    }
-                  } else if (hasAnswer) {
-                    // Pre-submission with answer → use subject color
-                    colorClass = 'text-white';
-                    inlineStyle = { 
-                      backgroundColor: subjectColor,
-                    };
-                  } else {
-                    // No answer → gray
-                    colorClass = 'bg-muted text-muted-foreground hover:bg-muted/80';
-                  }
-                  
-                  const isFlagged = flaggedQuestions.has(q.id);
-                  
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={async () => {
-                        await flushCurrentPageSaves();
-                        const groupIndex = questionGroups.findIndex(g => 
-                          g.questions.some(question => question.id === q.id)
-                        );
-                        if (groupIndex !== -1) {
-                          setCurrentPage(groupIndex);
-                          setTimeout(() => scrollToQuestion(q.id), 100);
-                        }
-                      }}
-                      style={inlineStyle}
-                      className={`relative aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all hover:scale-105 ${colorClass} ${isFlagged ? 'ring-2 ring-yellow-500 ring-offset-2' : ''}`}
-                      title={`Question ${q.question_number}${isFlagged ? ' (Flagged)' : ''}`}
-                    >
-                      {q.question_number}
-                      {isFlagged && (
-                        <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
-                          <Flag className="w-2 h-2 text-white" fill="white" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                  return Object.entries(tree).map(([rootNum, subQuestions]) => {
+                    const isMultiPart = subQuestions.length > 1 || subQuestions[0].question_number !== rootNum;
+                    const totalMarks = subQuestions.reduce((sum, q) => sum + q.marks, 0);
+                    const allAnswered = subQuestions.every(q => {
+                      const a = userAnswers[q.id];
+                      return Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                    });
+                    const someAnswered = subQuestions.some(q => {
+                      const a = userAnswers[q.id];
+                      return Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                    });
+                    
+                    return (
+                      <div key={rootNum} className="mb-1">
+                        {isMultiPart ? (
+                          <Collapsible defaultOpen>
+                            <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded-md hover:bg-muted/50 text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold" style={{
+                                  backgroundColor: allAnswered ? subjectColor : someAnswered ? subjectColor + '60' : undefined,
+                                  color: allAnswered || someAnswered ? '#fff' : undefined
+                                }}>
+                                  {rootNum}
+                                </span>
+                                <span className="text-muted-foreground text-xs">{totalMarks}m</span>
+                              </div>
+                              <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pl-4 space-y-0.5 mt-0.5">
+                              {subQuestions.map(q => {
+                                const answerData = userAnswers[q.id];
+                                const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                                const isFlagged = flaggedQuestions.has(q.id);
+                                const subLabel = q.question_number.replace(/^\d+/, '');
+                                
+                                return (
+                                  <button
+                                    key={q.id}
+                                    onClick={async () => {
+                                      await flushCurrentPageSaves();
+                                      const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
+                                      if (groupIndex !== -1) {
+                                        setCurrentPage(groupIndex);
+                                        setTimeout(() => scrollToQuestion(q.id), 100);
+                                      }
+                                    }}
+                                    className={`relative flex items-center gap-2 w-full px-2 py-1 rounded text-xs transition-all hover:bg-muted/50 ${isFlagged ? 'ring-1 ring-yellow-500' : ''}`}
+                                  >
+                                    <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-semibold" style={{
+                                      backgroundColor: hasAnswer ? subjectColor : undefined,
+                                      color: hasAnswer ? '#fff' : undefined
+                                    }} >
+                                      {subLabel || rootNum}
+                                    </span>
+                                    <span className="text-muted-foreground truncate">{q.marks}m</span>
+                                    {isFlagged && <Flag className="w-2.5 h-2.5 text-yellow-500 ml-auto" fill="currentColor" />}
+                                  </button>
+                                );
+                              })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ) : (
+                          (() => {
+                            const q = subQuestions[0];
+                            const answerData = userAnswers[q.id];
+                            const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                            const isFlagged = flaggedQuestions.has(q.id);
+                            
+                            return (
+                              <button
+                                onClick={async () => {
+                                  await flushCurrentPageSaves();
+                                  const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
+                                  if (groupIndex !== -1) {
+                                    setCurrentPage(groupIndex);
+                                    setTimeout(() => scrollToQuestion(q.id), 100);
+                                  }
+                                }}
+                                className={`relative flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-all ${isFlagged ? 'ring-1 ring-yellow-500' : ''}`}
+                              >
+                                <span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold" style={{
+                                  backgroundColor: hasAnswer ? subjectColor : undefined,
+                                  color: hasAnswer ? '#fff' : undefined
+                                }}>
+                                  {rootNum}
+                                </span>
+                                <span className="text-muted-foreground text-xs">{q.marks}m</span>
+                                {isFlagged && <Flag className="w-2.5 h-2.5 text-yellow-500 ml-auto" fill="currentColor" />}
+                              </button>
+                            );
+                          })()
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+              
+              {/* Total Marks Summary */}
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{questions.length} questions</span>
+                  <span>{questions.reduce((sum, q) => sum + q.marks, 0)} marks</span>
+                </div>
+                <div className="flex justify-between text-xs mt-1">
+                  <span className="text-muted-foreground">{answeredCount} answered</span>
+                  <span className="text-muted-foreground">{unansweredCount} remaining</span>
+                </div>
               </div>
             </div>
 
