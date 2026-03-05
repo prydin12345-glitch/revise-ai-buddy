@@ -55,6 +55,7 @@ const CreatePracticeQuestions = () => {
 
   // Form state
   const [setName, setSetName] = useState("");
+  const nameValidator = useExamNameValidator('practice_question_sets');
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
