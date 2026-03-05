@@ -966,7 +966,9 @@ Use diverse names and scenarios. Examples:
 - "Tom is investigating whether there is a correlation between hours studied and test scores."
 ` : '';
 
-  return `${resourceCtx}
+  return `${regionalPersona}
+${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
+${resourceCtx}
 Generate NEW questions for ${level} ${exam.subject_id}.
 ${specList}${mode}
 ${archetypeBlock}
