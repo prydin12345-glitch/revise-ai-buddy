@@ -306,9 +306,14 @@ const ExamReview = () => {
                   className={`p-6 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <Badge variant="outline" className="shrink-0">Q{question.question_number}</Badge>
-                    <Badge variant="secondary" className="capitalize shrink-0">{question.question_type}</Badge>
-                    <Badge className="shrink-0">{question.marks} marks</Badge>
+                    {isSubPart ? (
+                      <span className="text-lg font-semibold shrink-0">({subPart})</span>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 font-bold">Q{question.question_number}</Badge>
+                    )}
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">
+                      ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
+                    </span>
                     <div className="ml-auto flex items-center gap-2">
                       <Button
                         size="sm"
