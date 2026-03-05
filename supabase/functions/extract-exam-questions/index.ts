@@ -339,7 +339,7 @@ function resolveStealthArchetype(qualificationLevel: string, subjectId: string, 
   const effectiveLevel2 = isLevel2 || (isUKRegion && (level.includes('college') || level.includes('sixth') || level.includes('advanced')));
   const effectiveLevel1 = isLevel1 || (isUKRegion && (level.includes('secondary') || level.includes('high')));
 
-  if (isLevel2 && isMath) {
+  if ((effectiveLevel2 || isLevel2) && isMath) {
     return {
       name: 'UK_A_LEVEL_MATHS',
       minSubParts: 3,
