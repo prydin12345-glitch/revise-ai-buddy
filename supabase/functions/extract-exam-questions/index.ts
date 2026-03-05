@@ -126,8 +126,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
   }
   
+  // Check for structureMode flag from upload page (profile vs reference)
+  const structureMode = (exam as any).structure_mode || null;
+  const profileQuestionCount = (exam as any).profile_question_count || null;
+  
+  if (structureMode === 'profile' && profileQuestionCount) {
+    desiredQuestionCount = parseInt(profileQuestionCount, 10);
+    console.log('Structure mode: profile — using profile question count:', desiredQuestionCount);
+  } else if (structureMode === 'reference') {
+    console.log('Structure mode: reference — letting PDF dictate question count');
+    // desiredQuestionCount stays null, PDF structure is used
+  }
+
   // Fallback: check exam title metadata or notes for a profile question count
-  // Also check if the exam has a notes field with profile metadata (e.g., "[Profile: 8Q]")
   if (!desiredQuestionCount && exam.title) {
     const qMatch = exam.title.match(/\b(\d+)\s*q/i);
     if (qMatch) desiredQuestionCount = parseInt(qMatch[1], 10);
