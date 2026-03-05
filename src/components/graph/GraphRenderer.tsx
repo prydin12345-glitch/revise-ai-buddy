@@ -17,6 +17,12 @@ import {
 import { cn } from '@/lib/utils';
 import type { GraphConfig, GraphSeries, GraphPoint } from './types';
 
+interface RegressionLine {
+  slope: number;
+  intercept: number;
+  color?: string;
+}
+
 interface GraphRendererProps {
   config: GraphConfig;
   series: GraphSeries[];
