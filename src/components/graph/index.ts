@@ -1,4 +1,4 @@
-// Graph Question Components - Phase 1 + Phase 2 + A-Level Transformations + Camera System
+// Graph Question Components - Phase 1 + Phase 2 + A-Level Transformations + Camera System + Statistical Charts
 
 export * from './types';
 export * from './GraphRenderer';
@@ -11,3 +11,4 @@ export * from './ReferenceDiagram';
 export * from './ExpandedGraphModal';
 export * from './GraphCanvas';
 export * from './GraphCanvasPlot';
+export * from './BoxPlotChart';
