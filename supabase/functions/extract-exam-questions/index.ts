@@ -822,8 +822,12 @@ DIFFICULTY ARCHETYPE: General Academic Standard
 }
 
 // ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
+
+  // Inject regional persona and region-aware subject instructions
+  const regionalPersona = getRegionalPersona(curriculumRegion || '');
+  const regionSubjectInstructions = getRegionAwareSubjectInstructions(exam.subject_id || '', board, level, curriculumRegion || '');
   
   const mode = fallback 
     ? `Generate typical ${level} ${exam.subject_id} questions (no PDF text available).`
