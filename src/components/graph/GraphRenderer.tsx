@@ -31,6 +31,7 @@ interface GraphRendererProps {
   showCorrectAnswers?: boolean;
   // Marking results for plotting review
   pointStatuses?: Array<{ point: GraphPoint; status: 'correct' | 'incorrect' | 'missed' }>;
+  regressionLine?: RegressionLine;
   onChartClick?: (x: number, y: number) => void;
   interactive?: boolean;
   height?: number;
