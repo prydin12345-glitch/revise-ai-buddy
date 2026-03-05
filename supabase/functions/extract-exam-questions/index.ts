@@ -436,7 +436,7 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
   }
 
   // Generic fallback for any Level 2 subject
-  if (isLevel2) {
+  if (effectiveLevel2 || isLevel2) {
     return {
       name: 'GENERIC_LEVEL_2',
       minSubParts: 2,
