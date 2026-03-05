@@ -1950,7 +1950,7 @@ const ExamInProgress = () => {
                             await handleSaveAnswer(question.id);
                           }
                         }}
-                        className="min-h-[200px] resize-y text-base transition-all text-foreground"
+                        className={`${getAnswerBoxHeight(question.marks, false)} resize-y text-base transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
