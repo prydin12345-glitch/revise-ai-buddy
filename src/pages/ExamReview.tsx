@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
+import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid, 
