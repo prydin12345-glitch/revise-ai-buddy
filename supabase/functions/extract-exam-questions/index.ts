@@ -118,27 +118,25 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   
   if (formatData) {
     if (formatData.use_original_structure === false) {
-      // Custom format: sum of breakdown counts
-      const breakdownSum = (formatData.mcq_count || 0) + (formatData.short_answer_count || 0) + (formatData.long_form_count || 0);
+      // Custom format or profile-locked: check breakdown first
+      const mcq = formatData.mcq_count || 0;
+      const sa = formatData.short_answer_count || 0;
+      const lf = formatData.long_form_count || 0;
+      const breakdownSum = mcq + sa + lf;
+      
       if (breakdownSum > 0) {
-        desiredQuestionCount = breakdownSum;
+        // If only short_answer_count is set (profile total stored here), treat as total
+        if (mcq === 0 && lf === 0 && sa > 0) {
+          desiredQuestionCount = sa;
+          console.log('Profile question count from exam_format:', desiredQuestionCount);
+        } else {
+          desiredQuestionCount = breakdownSum;
+        }
       }
     }
   }
-  
-  // Check for structureMode flag from upload page (profile vs reference)
-  const structureMode = (exam as any).structure_mode || null;
-  const profileQuestionCount = (exam as any).profile_question_count || null;
-  
-  if (structureMode === 'profile' && profileQuestionCount) {
-    desiredQuestionCount = parseInt(profileQuestionCount, 10);
-    console.log('Structure mode: profile — using profile question count:', desiredQuestionCount);
-  } else if (structureMode === 'reference') {
-    console.log('Structure mode: reference — letting PDF dictate question count');
-    // desiredQuestionCount stays null, PDF structure is used
-  }
 
-  // Fallback: check exam title metadata or notes for a profile question count
+  // Fallback: check exam title metadata for a question count hint
   if (!desiredQuestionCount && exam.title) {
     const qMatch = exam.title.match(/\b(\d+)\s*q/i);
     if (qMatch) desiredQuestionCount = parseInt(qMatch[1], 10);
