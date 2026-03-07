@@ -79,7 +79,7 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
             strokeWidth={2}
             markerEnd={`url(#${MARKER_IDS.red})`}
           />
-          <ForceLabel x={blockCx + 16} y={blockCy + arrowLen / 2} text={`${mass}g`} show={showLabels} color={COLORS.weight} />
+          <ForceLabel x={blockCx + 18} y={blockCy + arrowLen + 15} text={`${mass}g`} show={showLabels} color={COLORS.weight} />
         </g>
       )}
 
@@ -97,7 +97,7 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
           />
           <ForceLabel
             x={blockCx - nx * (arrowLen + 14)}
-            y={blockCy + ny * (arrowLen + 14)}
+            y={blockCy + ny * (arrowLen + 14) - 10}
             text="R"
             show={showLabels}
             color={COLORS.normal}
@@ -118,8 +118,8 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
             markerEnd={`url(#${MARKER_IDS.orange})`}
           />
           <ForceLabel
-            x={blockCx + ux * arrowLen * 0.7 + 14}
-            y={blockCy + uy * arrowLen * 0.7}
+            x={blockCx + ux * arrowLen * 0.7 + 8}
+            y={blockCy + uy * arrowLen * 0.7 - 8}
             text="F"
             show={showLabels}
             color={COLORS.friction}
@@ -162,15 +162,16 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
         </g>
       )}
 
-      {/* Surface label */}
+      {/* Surface label — below the ground line */}
       {showLabels && (
         <text
-          x={baseX + slopeLen * 0.7 * Math.cos(rad) + 10}
-          y={baseY - slopeLen * 0.7 * Math.sin(rad) + 20}
+          x={baseX + slopeLen * 0.5 * Math.cos(rad)}
+          y={baseY + 20}
+          textAnchor="middle"
           fontFamily="serif"
+          fontStyle="italic"
           fontSize={11}
           fill={COLORS.angle}
-          transform={`rotate(${-angle}, ${baseX + slopeLen * 0.7 * Math.cos(rad) + 10}, ${baseY - slopeLen * 0.7 * Math.sin(rad) + 20})`}
         >
           {surface}
         </text>
