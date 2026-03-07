@@ -11,34 +11,42 @@ export function getRegionalPersona(region: string): string {
 REGIONAL PERSONA: United Kingdom
 ─────────────────────────────────
 TERMINOLOGY: Use "Maths", "colour", "analyse", "behaviour", "centre", "programme", "favour", "recognise".
-UNITS: Metric exclusively (cm, m, km, kg, g, °C, litres). Use "probability" NEVER "likelihood".
-COMMAND STYLE: "Describe and explain", "Evaluate", "Show that", "Hence or otherwise", "State".
-CONTEXTS: Use UK-appropriate scenarios (pounds sterling £, football, NHS, UK geography, British cultural references).
-PROHIBITED: Americanisms — "Soccer", "Candy", "Math" (singular), "color", "analyze", "behavior", "center", "program" (non-computing), "favor".
+UNITS: Metric exclusively (cm, m, km, kg, g, °C, litres). Use "probability" NEVER "likelihood" or "chance".
+COMMAND STYLE: "Describe and explain", "Evaluate", "Show that", "Hence or otherwise", "State", "Calculate", "Determine", "Justify".
+CONTEXTS: Use UK-appropriate scenarios (pounds sterling £, football, NHS, UK geography, British cultural references, "sweets" not "candy").
+PROHIBITED: Americanisms — "Soccer", "Candy", "Math" (singular), "color", "analyze", "behavior", "center", "program" (non-computing), "favor", "Likelihood", "Chance", "Alpha level".
 SPELLING: British English throughout. "-ise" not "-ize", "-our" not "-or", "-re" not "-er".
+PRECISION: All final numerical answers default to 3 significant figures unless the question specifies decimal places.
+STATISTICS VOCABULARY: Use "Probability", "Standard Deviation", "Significance level" (never "Alpha level"). Use "Probability Distribution" (never "Probability Model").
+TONE: Clinical, dry, professional. Ban "Imagine", "Specifically", "Bustling", "Vibrant". Use "Calculate", "State", "Determine", "Verify".
 `;
 
     case 'US':
       return `
-REGIONAL PERSONA: United States
-────────────────────────────────
+REGIONAL PERSONA: United States — AP & SAT Style
+──────────────────────────────────────────────────
 TERMINOLOGY: Use "Math", "color", "analyze", "behavior", "center", "program".
-UNITS: Imperial where culturally appropriate (inches, feet, miles, °F for everyday contexts). SI for scientific contexts.
-COMMAND STYLE: "Justify your answer", "Interpret in context", "Is there sufficient evidence", "Explain your reasoning".
-CONTEXTS: Use US-appropriate scenarios (dollars $, baseball/basketball/football, US geography, American cultural references).
-NOTATION: Use "standardized score" not "standard score". Use "z-score" freely.
+UNITS: Imperial where culturally appropriate (inches, feet, pounds, miles, °F for everyday contexts). SI for scientific contexts only.
+COMMAND STYLE: "Justify your answer", "Interpret in context", "Is there sufficient evidence", "Explain your reasoning", "Fail to reject the null" (mandatory phrasing for hypothesis testing).
+CONTEXTS: Practical, data-driven, and "wordy" scenarios. US-appropriate (dollars $, baseball/basketball/football, US geography, American cultural references).
+NOTATION: Use "Standardized Score" (not "Z-score" as primary). Use "Alpha level" (not "Significance level").
 SPELLING: American English throughout. "-ize" not "-ise", "-or" not "-our", "-er" not "-re".
+STATISTICS VOCABULARY: Use "Likelihood" or "Chance" freely. Use "Probability Model" (not "Probability Distribution"). Use "Fail to reject the null" (never "Accept the null").
+PROHIBITED: "Maths" (must be "Math"), "Full stop" (must be "Period"), "Probability Distribution" (use "Probability Model"), "Significance level" (use "Alpha level"), "Sweets" (use "Candy").
+TONE: Practical and data-driven. Scenarios should be wordy with real-world US context.
 `;
 
     case 'AU':
       return `
-REGIONAL PERSONA: Australia
-────────────────────────────
-TERMINOLOGY: British spelling ("analyse", "colour") with Australian contexts.
-UNITS: Metric exclusively (kilometres, litres, degrees Celsius).
-COMMAND STYLE: "Show that", "Hence find", "Explain why", "Determine", "Justify".
-CONTEXTS: Australian geography, flora/fauna, local industry (mining, agriculture, tourism), Australian dollar (AUD).
+REGIONAL PERSONA: Australia — VCE / ATAR Style
+────────────────────────────────────────────────
+TERMINOLOGY: British spelling ("analyse", "colour") with Australian contexts. Use "Variable of interest", "Interpret the slope".
+UNITS: Metric exclusively (kilometres, litres, degrees Celsius). Strictly metric — no imperial.
+COMMAND STYLE: "Show that", "Hence find", "Explain why", "Determine", "Justify", "Interpret the slope", "Identify the outlier".
+CONTEXTS: Australian geography, flora/fauna, local industry (mining, agriculture, tourism), Australian dollar (AUD). Use "Lollies" (not "Sweets"), "Paddock" (not "Field" for agricultural contexts).
 SPELLING: British English with Australian conventions.
+EMPHASIS: Investigative and "Real World" application focus. Strong emphasis on linear regression and outlier identification using the 1.5 × IQR rule.
+PROHIBITED: "Sweets" (use "Lollies"), "Field" (use "Paddock" for agricultural questions), "Candy".
 `;
 
     case 'CA':
@@ -78,26 +86,30 @@ SPELLING: British English throughout.
 
     case 'SG':
       return `
-REGIONAL PERSONA: Singapore
-─────────────────────────────
-TERMINOLOGY: British English.
+REGIONAL PERSONA: Singapore — GCE A-Level Style
+──────────────────────────────────────────────────
+TERMINOLOGY: British English. Extreme mathematical rigor with minimal "fluff".
 UNITS: SI exclusively. High mathematical complexity expected.
-COMMAND STYLE: "Hence or otherwise", "Deduce", "State", "Show that", "Without using a calculator".
+COMMAND STYLE: "Hence, or otherwise" (mandatory classic phrase), "Deduce", "Evaluate", "State", "Show that", "Without using a calculator".
 CONTEXTS: Singapore geography, Singapore dollar (SGD), trade, technology sectors.
-EMPHASIS: Cambridge examination style, rigorous multi-step reasoning.
+EMPHASIS: Cambridge examination style, rigorous multi-step reasoning. Complex derivation-heavy. Always include a "Part (d)" requiring proof or "Show that" via algebraic manipulation.
 SPELLING: British English throughout.
+PRECISION: "Correct to 2 decimal places" (stricter rounding than UK).
+PROHIBITED: Overly simple phrasing like "Tell me why" — must be "Justify your reasoning using a statistical counter-argument". No conversational tone.
 `;
 
     case 'HK':
       return `
-REGIONAL PERSONA: Hong Kong
-─────────────────────────────
-TERMINOLOGY: British English.
+REGIONAL PERSONA: Hong Kong — DSE Style
+─────────────────────────────────────────
+TERMINOLOGY: British English. High mathematical rigor similar to Singapore.
 UNITS: SI. Contexts blend local and international.
-COMMAND STYLE: "Find", "Show that", "Explain", "Determine", "Hence".
+COMMAND STYLE: "Find", "Show that", "Explain", "Determine", "Hence, or otherwise", "Deduce", "Evaluate".
 CONTEXTS: Hong Kong geography, HKD currency, local economic and cultural references.
-EMPHASIS: DSE examination format, blend of conventional and MCQ.
+EMPHASIS: DSE examination format. Always include a derivation-based "Show that" sub-part. Complex multi-step algebraic manipulation.
 SPELLING: British English throughout.
+PRECISION: "Correct to 2 decimal places" (strict rounding).
+PROHIBITED: Overly simple phrasing. Must maintain formal academic register throughout.
 `;
 
     case 'IE':
@@ -114,14 +126,15 @@ SPELLING: British English with Irish conventions.
 
     case 'NZ':
       return `
-REGIONAL PERSONA: New Zealand
-───────────────────────────────
-TERMINOLOGY: British spelling.
+REGIONAL PERSONA: New Zealand — NCEA Style
+────────────────────────────────────────────
+TERMINOLOGY: British spelling. Use "Variable of interest", "Interpret the slope", "Outlier identification".
 UNITS: Metric exclusively. Use NZD for currency.
-COMMAND STYLE: "Demonstrate understanding", "Analyse", "Evaluate", "Form a model".
-CONTEXTS: New Zealand geography, flora/fauna, Māori cultural references where appropriate.
-EMPHASIS: NCEA Achievement/Merit/Excellence tiering — questions must escalate across these levels.
+COMMAND STYLE: "Demonstrate understanding", "Analyse", "Evaluate", "Form a model", "Interpret the slope".
+CONTEXTS: New Zealand geography, flora/fauna, Māori cultural references where appropriate. Use "Lollies" (not "Sweets"), "Paddock" (not "Field").
+EMPHASIS: NCEA Achievement/Merit/Excellence tiering — questions must escalate across these levels. Investigative, "Real World" application. Strong emphasis on linear regression and outlier identification using 1.5 × IQR rule.
 SPELLING: British English throughout.
+PROHIBITED: "Sweets" (use "Lollies"), "Field" (use "Paddock" for agricultural contexts), "Candy".
 `;
 
     case 'ZA':
@@ -138,14 +151,15 @@ SPELLING: British English throughout.
 
     case 'IB':
       return `
-REGIONAL PERSONA: International Baccalaureate (Global)
-────────────────────────────────────────────────────────
-TERMINOLOGY: International English (accept both UK/US spellings in student responses).
+REGIONAL PERSONA: International Baccalaureate (Global) — IB Diploma Style
+───────────────────────────────────────────────────────────────────────────
+TERMINOLOGY: International English. Command-term heavy and conceptually broad.
 UNITS: SI exclusively.
-COMMAND STYLE: IB Command Terms — "Outline", "Discuss", "Evaluate", "To what extent", "Analyse", "Compare and contrast", "Suggest".
-CONTEXTS: Global/international scenarios. Avoid culturally specific references. Use diverse, multicultural examples.
-EMPHASIS: IB rubric criteria (Criterion A-D where applicable). Theory of Knowledge connections where relevant.
+COMMAND STYLE: IB Command Terms ONLY — "Sketch", "Annotate", "Examine", "Contrast", "Outline", "Discuss", "Evaluate", "To what extent", "Analyse", "Compare and contrast", "Suggest". Include "GDC" (Graphic Display Calculator) instructions, e.g., "Use your GDC to find...".
+CONTEXTS: Global/international scenarios. STRICTLY avoid culturally specific references. Must feel "Country Neutral". Use diverse, multicultural examples.
+EMPHASIS: IB rubric criteria (Criterion A-D). Theory of Knowledge connections. Use "Critical Value" and "p-value" side-by-side in hypothesis testing.
 SPELLING: International English (consistent within each question).
+PROHIBITED: Any phrasing specific to a single country. No UK-isms ("Maths", "Sweets") and no US-isms ("Math", "Candy"). Must be globally neutral.
 `;
 
     default:
