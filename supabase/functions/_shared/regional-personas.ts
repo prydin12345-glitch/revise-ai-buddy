@@ -38,13 +38,15 @@ TONE: Practical and data-driven. Scenarios should be wordy with real-world US co
 
     case 'AU':
       return `
-REGIONAL PERSONA: Australia
-────────────────────────────
-TERMINOLOGY: British spelling ("analyse", "colour") with Australian contexts.
-UNITS: Metric exclusively (kilometres, litres, degrees Celsius).
-COMMAND STYLE: "Show that", "Hence find", "Explain why", "Determine", "Justify".
-CONTEXTS: Australian geography, flora/fauna, local industry (mining, agriculture, tourism), Australian dollar (AUD).
+REGIONAL PERSONA: Australia — VCE / ATAR Style
+────────────────────────────────────────────────
+TERMINOLOGY: British spelling ("analyse", "colour") with Australian contexts. Use "Variable of interest", "Interpret the slope".
+UNITS: Metric exclusively (kilometres, litres, degrees Celsius). Strictly metric — no imperial.
+COMMAND STYLE: "Show that", "Hence find", "Explain why", "Determine", "Justify", "Interpret the slope", "Identify the outlier".
+CONTEXTS: Australian geography, flora/fauna, local industry (mining, agriculture, tourism), Australian dollar (AUD). Use "Lollies" (not "Sweets"), "Paddock" (not "Field" for agricultural contexts).
 SPELLING: British English with Australian conventions.
+EMPHASIS: Investigative and "Real World" application focus. Strong emphasis on linear regression and outlier identification using the 1.5 × IQR rule.
+PROHIBITED: "Sweets" (use "Lollies"), "Field" (use "Paddock" for agricultural questions), "Candy".
 `;
 
     case 'CA':
