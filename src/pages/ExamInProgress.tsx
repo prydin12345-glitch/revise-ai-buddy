@@ -42,6 +42,7 @@ import {
   type DrawingPath,
   type AngleMeasurement,
 } from "@/components/graph";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
