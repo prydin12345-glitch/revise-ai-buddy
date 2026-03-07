@@ -1578,7 +1578,7 @@ const ExamInProgress = () => {
                     const diagConfig = detectDiagramConfig(question.question_text);
                     if (!diagConfig) return null;
                     return <MechanicsFigurePanel config={diagConfig} />;
-                  })()
+                  })()}
 
                   {/* Box Plot Chart rendering */}
                   {isBoxPlotQuestion((question as any).options) && (
