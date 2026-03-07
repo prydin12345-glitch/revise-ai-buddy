@@ -1573,6 +1573,13 @@ const ExamInProgress = () => {
                     />
                   )}
 
+                  {/* Mechanics diagram panel */}
+                  {(() => {
+                    const diagConfig = detectDiagramConfig(question.question_text);
+                    if (!diagConfig) return null;
+                    return <MechanicsFigurePanel config={diagConfig} />;
+                  })()
+
                   {/* Box Plot Chart rendering */}
                   {isBoxPlotQuestion((question as any).options) && (
                     <BoxPlotChart chartData={(question as any).options} className="mb-6" />
