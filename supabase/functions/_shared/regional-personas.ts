@@ -86,14 +86,16 @@ SPELLING: British English throughout.
 
     case 'SG':
       return `
-REGIONAL PERSONA: Singapore
-─────────────────────────────
-TERMINOLOGY: British English.
+REGIONAL PERSONA: Singapore — GCE A-Level Style
+──────────────────────────────────────────────────
+TERMINOLOGY: British English. Extreme mathematical rigor with minimal "fluff".
 UNITS: SI exclusively. High mathematical complexity expected.
-COMMAND STYLE: "Hence or otherwise", "Deduce", "State", "Show that", "Without using a calculator".
+COMMAND STYLE: "Hence, or otherwise" (mandatory classic phrase), "Deduce", "Evaluate", "State", "Show that", "Without using a calculator".
 CONTEXTS: Singapore geography, Singapore dollar (SGD), trade, technology sectors.
-EMPHASIS: Cambridge examination style, rigorous multi-step reasoning.
+EMPHASIS: Cambridge examination style, rigorous multi-step reasoning. Complex derivation-heavy. Always include a "Part (d)" requiring proof or "Show that" via algebraic manipulation.
 SPELLING: British English throughout.
+PRECISION: "Correct to 2 decimal places" (stricter rounding than UK).
+PROHIBITED: Overly simple phrasing like "Tell me why" — must be "Justify your reasoning using a statistical counter-argument". No conversational tone.
 `;
 
     case 'HK':
