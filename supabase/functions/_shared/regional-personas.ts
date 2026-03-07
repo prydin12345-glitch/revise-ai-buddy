@@ -100,14 +100,16 @@ PROHIBITED: Overly simple phrasing like "Tell me why" — must be "Justify your 
 
     case 'HK':
       return `
-REGIONAL PERSONA: Hong Kong
-─────────────────────────────
-TERMINOLOGY: British English.
+REGIONAL PERSONA: Hong Kong — DSE Style
+─────────────────────────────────────────
+TERMINOLOGY: British English. High mathematical rigor similar to Singapore.
 UNITS: SI. Contexts blend local and international.
-COMMAND STYLE: "Find", "Show that", "Explain", "Determine", "Hence".
+COMMAND STYLE: "Find", "Show that", "Explain", "Determine", "Hence, or otherwise", "Deduce", "Evaluate".
 CONTEXTS: Hong Kong geography, HKD currency, local economic and cultural references.
-EMPHASIS: DSE examination format, blend of conventional and MCQ.
+EMPHASIS: DSE examination format. Always include a derivation-based "Show that" sub-part. Complex multi-step algebraic manipulation.
 SPELLING: British English throughout.
+PRECISION: "Correct to 2 decimal places" (strict rounding).
+PROHIBITED: Overly simple phrasing. Must maintain formal academic register throughout.
 `;
 
     case 'IE':
