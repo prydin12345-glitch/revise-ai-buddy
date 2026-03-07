@@ -97,7 +97,7 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
           />
           <ForceLabel
             x={blockCx - nx * (arrowLen + 14)}
-            y={blockCy + ny * (arrowLen + 14)}
+            y={blockCy + ny * (arrowLen + 14) - 10}
             text="R"
             show={showLabels}
             color={COLORS.normal}
