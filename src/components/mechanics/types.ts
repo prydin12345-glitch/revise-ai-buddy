@@ -64,6 +64,12 @@ export interface BeamLoad {
 export interface BeamReaction {
   position: number;
   label: string;
+  isUnknown?: boolean;
+}
+
+export interface BeamPointLabel {
+  position: number;
+  label: string;
 }
 
 export interface BeamConfig {
@@ -73,6 +79,9 @@ export interface BeamConfig {
   loads: BeamLoad[];
   reactions: BeamReaction[];
   showLabels: boolean;
+  endLabels?: { left?: string; right?: string };
+  pointLabels?: BeamPointLabel[];
+  distributedMass?: { position: number; label: string };
 }
 
 export interface ProjectileConfig {
