@@ -39,6 +39,7 @@ import ExamHub from "./pages/tutor/ExamHub";
 import StudentExamReview from "./pages/tutor/StudentExamReview";
 import ManualExamCreator from "./pages/tutor/ManualExamCreator";
 import { TutorLayout } from "./components/tutor/TutorLayout";
+import MechanicsDemo from "./pages/MechanicsDemo";
 import MyClasses from "./pages/MyClasses";
 
 const queryClient = new QueryClient();
