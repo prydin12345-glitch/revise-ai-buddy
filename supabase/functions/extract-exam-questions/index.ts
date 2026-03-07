@@ -1027,36 +1027,51 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
 }
 
 async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '') {
-  for (const q of questions.slice(0, 20)) { // Limit to prevent timeout
-    // Build a stronger prompt that emphasizes creating DIFFERENT questions
-    const basePrompt = hasResourcePack
-      ? `You have access to source material. Create a COMPLETELY NEW and DIFFERENT question that tests similar skills to this original question, but with ENTIRELY DIFFERENT wording, focus, and approach.
+  // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
+  const grouped: Record<string, any[]> = {};
+  for (const q of questions) {
+    const root = q.root_question_number || q.parent_question_number || q.question_number;
+    if (!grouped[root]) grouped[root] = [];
+    grouped[root].push(q);
+  }
 
-ORIGINAL QUESTION (DO NOT COPY THIS - create something NEW):
-"${q.question_text}"
+  const hardeningRules = getExamHardeningRules();
+  const rootKeys = Object.keys(grouped).slice(0, 10); // Limit to prevent timeout
 
-REQUIREMENTS:
-- Test the same SKILL TYPE (e.g., analysis, inference, evaluation) but on DIFFERENT aspects
-- Use DIFFERENT line references or focus on DIFFERENT parts of the source
-- Create FRESH wording - no phrases from the original
-- Same mark allocation: ${q.marks} marks
-- Topic: ${q.topic_tag || 'general'}
+  for (const rootNum of rootKeys) {
+    const siblings = grouped[rootNum];
+    // Sort by question_number so sub-parts are in order
+    siblings.sort((a: any, b: any) => String(a.question_number).localeCompare(String(b.question_number)));
 
-${resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}` : ''}
+    const siblingsSummary = siblings.map((s: any) => 
+      `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
+    ).join('\n');
 
-Return ONLY the new question text, nothing else.`
-      : `Create a COMPLETELY NEW question that tests the same concept/skill as the original below, but with ENTIRELY DIFFERENT:
-- Wording and phrasing
-- Context or scenario
-- Specific details or examples
+    const basePrompt = `${hardeningRules}
 
-ORIGINAL QUESTION (DO NOT COPY - use only as inspiration):
-"${q.question_text}"
+You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
 
-Topic: ${q.topic_tag || 'general'}, Marks: ${q.marks}
+ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
+${siblingsSummary}
 
-Return ONLY the new question text.`;
-    
+Topic: ${siblings[0]?.topic_tag || 'general'}
+
+CRITICAL RULES:
+1. SCENARIO LOCKING: Introduce ONE scenario in the first sub-part. ALL subsequent sub-parts MUST stay within that EXACT same scenario. NEVER switch topics between parts.
+2. CLINICAL TONE: No fluff adjectives ("renowned", "bustling", "freshly"). State facts plainly.
+3. FORMAL NOTATION: Define distributions explicitly using LaTeX: $X \\sim B(n,p)$, $Y \\sim N(\\mu, \\sigma^2)$, $Z \\sim \\text{Po}(\\lambda)$. Use "probability" NEVER "likelihood".
+4. COMMAND VERBS: Every sub-part must start with Calculate, State, Determine, Show that, Test, Explain, Justify, Hence, or Deduce.
+5. LOGICAL PROGRESSION: (a) base calculation, (b) assumption/constraint, (c) scale/approximate/test.
+6. For large-sample sub-parts (n ≥ 30): instruct "Use a suitable approximation" and require continuity correction.
+7. For sub-parts worth 4+ marks: include guidance like "State your hypotheses clearly. Show your working."
+8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+
+${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
+
+Return a JSON array of objects, one per sub-part, in this exact format:
+[{"question_number": "${siblings[0]?.question_number}", "question_text": "new text here"}, ...]
+Return ONLY the JSON array.`;
+
     try {
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -1064,23 +1079,40 @@ Return ONLY the new question text.`;
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [{ role: 'user', content: basePrompt }],
-          temperature: 0.7, // Higher temperature for more creativity/variation
+          temperature: 0.5,
+          response_format: { type: 'json_object' },
         }),
       });
-      
+
       if (resp.ok) {
         const data = await resp.json();
-        const newText = data.choices?.[0]?.message?.content?.trim();
-        if (newText && newText.length > 10 && newText !== q.question_text) {
-          await supabase.from('exam_question_drafts').update({
-            original_question_text: q.question_text,
-            question_text: newText,
-            generation_status: 'ai_generated',
-          }).eq('id', q.id);
-          console.log(`Regenerated Q${q.question_number} with new wording`);
+        let content = data.choices?.[0]?.message?.content?.trim() || '';
+        content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        
+        let parsed: any[];
+        try {
+          const raw = JSON.parse(content);
+          parsed = Array.isArray(raw) ? raw : (raw.questions || raw.parts || Object.values(raw)[0]);
+          if (!Array.isArray(parsed)) throw new Error('Not array');
+        } catch {
+          console.error(`Failed to parse regen response for Q${rootNum}`);
+          continue;
+        }
+
+        // Match regenerated texts back to original sub-parts
+        for (let i = 0; i < siblings.length && i < parsed.length; i++) {
+          const newText = parsed[i]?.question_text?.trim();
+          if (newText && newText.length > 10) {
+            await supabase.from('exam_question_drafts').update({
+              original_question_text: siblings[i].question_text,
+              question_text: newText,
+              generation_status: 'ai_generated',
+            }).eq('id', siblings[i].id);
+            console.log(`Regenerated Q${siblings[i].question_number} (grouped with Q${rootNum})`);
+          }
         }
       }
-    } catch (e) { console.error('Regen failed for', q.question_number, e); }
+    } catch (e) { console.error('Regen failed for Q' + rootNum, e); }
   }
 }
 

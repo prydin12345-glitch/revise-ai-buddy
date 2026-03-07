@@ -648,6 +648,30 @@ When a question requires a calculated probability or numerical result,
 include the instruction: "Give your answer to 3 significant figures."
 This matches Edexcel/AQA A-Level convention.
 
+RULE 5B: NORMAL APPROXIMATION & CONTINUITY CORRECTION
+──────────────────────────────────────────────────────
+When a question uses a Binomial distribution with a large sample size
+(n ≥ 30 or np > 5 and nq > 5), the question MUST:
+- Explicitly instruct the student to "Use a suitable approximation" 
+  or "Using a Normal approximation to the Binomial..."
+- Remind the student to apply a continuity correction.
+  e.g., $P(X < 10)$ becomes $P(Y < 9.5)$ where $Y \\sim N(np, npq)$.
+- For 4+ mark sub-parts involving approximation, the student should:
+  1. State the parameters of the original Binomial.
+  2. State the mean and variance of the Normal approximation.
+  3. Apply the continuity correction.
+  4. Calculate the final probability.
+
+RULE 5C: MARK ALLOCATION TRANSPARENCY
+─────────────────────────────────────
+For sub-parts worth 4 or more marks, the question text MUST guide
+the student on how to earn marks by including phrases like:
+- "State your hypotheses clearly."
+- "You should show your working."
+- "State the critical value or p-value used."
+- "Give your conclusion in context."
+This prevents ambiguity about what earns marks in high-value sub-parts.
+
 RULE 6: TOPIC-SPECIFIC TERMINOLOGY ENFORCEMENT (UK A-Level)
 ───────────────────────────────────────────────────────────
 When generating questions for specific statistical topics, use the EXACT
