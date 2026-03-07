@@ -126,14 +126,15 @@ SPELLING: British English with Irish conventions.
 
     case 'NZ':
       return `
-REGIONAL PERSONA: New Zealand
-───────────────────────────────
-TERMINOLOGY: British spelling.
+REGIONAL PERSONA: New Zealand — NCEA Style
+────────────────────────────────────────────
+TERMINOLOGY: British spelling. Use "Variable of interest", "Interpret the slope", "Outlier identification".
 UNITS: Metric exclusively. Use NZD for currency.
-COMMAND STYLE: "Demonstrate understanding", "Analyse", "Evaluate", "Form a model".
-CONTEXTS: New Zealand geography, flora/fauna, Māori cultural references where appropriate.
-EMPHASIS: NCEA Achievement/Merit/Excellence tiering — questions must escalate across these levels.
+COMMAND STYLE: "Demonstrate understanding", "Analyse", "Evaluate", "Form a model", "Interpret the slope".
+CONTEXTS: New Zealand geography, flora/fauna, Māori cultural references where appropriate. Use "Lollies" (not "Sweets"), "Paddock" (not "Field").
+EMPHASIS: NCEA Achievement/Merit/Excellence tiering — questions must escalate across these levels. Investigative, "Real World" application. Strong emphasis on linear regression and outlier identification using 1.5 × IQR rule.
 SPELLING: British English throughout.
+PROHIBITED: "Sweets" (use "Lollies"), "Field" (use "Paddock" for agricultural contexts), "Candy".
 `;
 
     case 'ZA':
