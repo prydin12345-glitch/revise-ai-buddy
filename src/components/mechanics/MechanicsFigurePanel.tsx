@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, Image } from 'lucide-react';
-import { MechanicsDraw } from './MechanicsDraw';
+import MechanicsDraw from './MechanicsDraw';
 import type { MechanicsConfig } from './types';
 import { useIsMobile } from '@/hooks/use-mobile';
 
