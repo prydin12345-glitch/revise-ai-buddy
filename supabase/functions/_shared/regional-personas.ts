@@ -23,14 +23,17 @@ TONE: Clinical, dry, professional. Ban "Imagine", "Specifically", "Bustling", "V
 
     case 'US':
       return `
-REGIONAL PERSONA: United States
-────────────────────────────────
+REGIONAL PERSONA: United States — AP & SAT Style
+──────────────────────────────────────────────────
 TERMINOLOGY: Use "Math", "color", "analyze", "behavior", "center", "program".
-UNITS: Imperial where culturally appropriate (inches, feet, miles, °F for everyday contexts). SI for scientific contexts.
-COMMAND STYLE: "Justify your answer", "Interpret in context", "Is there sufficient evidence", "Explain your reasoning".
-CONTEXTS: Use US-appropriate scenarios (dollars $, baseball/basketball/football, US geography, American cultural references).
-NOTATION: Use "standardized score" not "standard score". Use "z-score" freely.
+UNITS: Imperial where culturally appropriate (inches, feet, pounds, miles, °F for everyday contexts). SI for scientific contexts only.
+COMMAND STYLE: "Justify your answer", "Interpret in context", "Is there sufficient evidence", "Explain your reasoning", "Fail to reject the null" (mandatory phrasing for hypothesis testing).
+CONTEXTS: Practical, data-driven, and "wordy" scenarios. US-appropriate (dollars $, baseball/basketball/football, US geography, American cultural references).
+NOTATION: Use "Standardized Score" (not "Z-score" as primary). Use "Alpha level" (not "Significance level").
 SPELLING: American English throughout. "-ize" not "-ise", "-or" not "-our", "-er" not "-re".
+STATISTICS VOCABULARY: Use "Likelihood" or "Chance" freely. Use "Probability Model" (not "Probability Distribution"). Use "Fail to reject the null" (never "Accept the null").
+PROHIBITED: "Maths" (must be "Math"), "Full stop" (must be "Period"), "Probability Distribution" (use "Probability Model"), "Significance level" (use "Alpha level"), "Sweets" (use "Candy").
+TONE: Practical and data-driven. Scenarios should be wordy with real-world US context.
 `;
 
     case 'AU':
