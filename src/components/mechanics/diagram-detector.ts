@@ -90,23 +90,79 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies PulleyConfig;
   }
 
-  // ── Beam / moments (but NOT rod leaning) ──
+  // ── Beam / rod / plank / moments (but NOT rod leaning against wall) ──
   if (
-    (text.includes('beam') || text.includes('plank')) &&
-    (text.includes('pivot') || text.includes('support') || text.includes('moment'))
+    ((text.includes('beam') || text.includes('plank') || text.includes('uniform rod')) &&
+    (text.includes('pivot') || text.includes('support') || text.includes('moment') || text.includes('wire') || text.includes('tension'))) ||
+    (text.includes('rod') && text.includes('horizontal') && !text.includes('wall') && !text.includes('lean'))
   ) {
-    const lengthMatch = text.match(/(\d+)\s*m\b/);
-    const length = lengthMatch ? parseInt(lengthMatch[1], 10) : 6;
+    const lengthMatch = text.match(/length\s+(\d+\.?\d*)\s*m/i) || text.match(/(\d+\.?\d*)\s*m\s+(?:long|in length)/i) || text.match(/(\d+)\s*m\b/);
+    const length = lengthMatch ? parseFloat(lengthMatch[1]) : 6;
+    const unknowns = detectUnknowns(text);
+
+    // Extract rod/beam mass
+    const rodMassMatch = text.match(/(?:rod|beam|plank)\s+\w+\s+(?:has\s+)?(?:length\s+\S+\s+(?:m\s+)?and\s+)?mass\s+(\d+\.?\d*)\s*kg/i)
+      || text.match(/mass\s+(\d+\.?\d*)\s*kg/i);
+    const rodMass = rodMassMatch ? parseFloat(rodMassMatch[1]) : null;
+
+    // Extract point masses with positions (e.g., "particle of mass 4 kg ... at ... AC = 0.8 m")
+    const pointLoads: { position: number; magnitude: number; label: string }[] = [];
+    const pointLabels: { position: number; label: string }[] = [];
+
+    // Find particle/mass attachments with named points
+    const particleMatches = text.matchAll(/(?:particle|mass|load)\s+(?:of\s+)?(?:mass\s+)?(\d+\.?\d*)\s*kg\s+.*?(?:at|from)\s+(?:a\s+)?point\s+([A-Z])/gi);
+    for (const pm of particleMatches) {
+      const mass = parseFloat(pm[1]);
+      const pointName = pm[2];
+      // Look for distance like AC = 0.8 m or "0.8 m from A"
+      const distPattern = new RegExp(`[A-Z]${pointName}\\s*=\\s*(\\d+\\.?\\d*)\\s*m|${pointName}.*?(\\d+\\.?\\d*)\\s*m\\s*from`, 'i');
+      const distMatch = text.match(distPattern);
+      const pos = distMatch ? parseFloat(distMatch[1] || distMatch[2]) : length / 2;
+      pointLoads.push({ position: pos, magnitude: mass, label: `${mass}g` });
+      pointLabels.push({ position: pos, label: pointName });
+    }
+
+    // If no particle matches found, try simpler patterns
+    if (pointLoads.length === 0) {
+      const simpleMassMatches = text.matchAll(/(\d+\.?\d*)\s*kg\s+.*?(\d+\.?\d*)\s*m\s+from/gi);
+      for (const sm of simpleMassMatches) {
+        const mass = parseFloat(sm[1]);
+        const pos = parseFloat(sm[2]);
+        if (rodMass && mass === rodMass) continue; // skip rod's own mass
+        pointLoads.push({ position: pos, magnitude: mass, label: `${mass}g` });
+      }
+    }
+
+    // Detect support types and positions
+    const hasWires = text.includes('wire');
+    const hasPivot = text.includes('pivot');
+    const reactions: { position: number; label: string; isUnknown?: boolean }[] = [];
+
+    // Check for "attached at A and B" pattern (two end supports)
+    if (/(?:attached|fixed)\s+at\s+[A-Z]\s+and\s+[A-Z]/i.test(text) || (hasWires && /at\s+[A-Z]\s+and\s+[A-Z]/i.test(text))) {
+      const isTA_unknown = unknowns.includes('tension') || /tension\s+(?:in\s+)?(?:the\s+)?wire\s+at\s+A/i.test(text) || /find.*tension/i.test(text);
+      const isTB_unknown = unknowns.includes('tension') || /tension\s+(?:in\s+)?(?:the\s+)?wire\s+at\s+B/i.test(text) || /find.*tension/i.test(text);
+      reactions.push({ position: 0, label: 'Tₐ', isUnknown: isTA_unknown });
+      reactions.push({ position: length, label: 'T_B', isUnknown: isTB_unknown });
+    } else if (hasPivot) {
+      const pivotDistMatch = text.match(/pivot\s+(?:at\s+)?(?:a\s+)?(?:point\s+)?(\d+\.?\d*)\s*m/i);
+      const pivotPos = pivotDistMatch ? parseFloat(pivotDistMatch[1]) : length / 3;
+      reactions.push({ position: pivotPos, label: 'R' });
+    } else {
+      // Default: support at one third
+      reactions.push({ position: length / 3, label: 'R' });
+    }
+
     return {
       type: 'beam',
       length,
-      pivot: { type: 'support', position: length / 3 },
-      loads: [
-        { position: 0, magnitude: 10, label: 'W' },
-        { position: length, magnitude: 10, label: 'W' },
-      ],
-      reactions: [{ position: length / 3, label: 'R' }],
+      pivot: { type: hasPivot ? 'support' : (hasWires ? 'hinge' : 'support'), position: reactions[0]?.position ?? 0 },
+      loads: pointLoads,
+      reactions,
       showLabels: true,
+      endLabels: { left: 'A', right: 'B' },
+      pointLabels,
+      distributedMass: rodMass ? { position: length / 2, label: `${rodMass}g` } : undefined,
     } satisfies BeamConfig;
   }
 

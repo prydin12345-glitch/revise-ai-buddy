@@ -1,5 +1,5 @@
 import React from 'react';
-import { BeamConfig, COLORS, MARKER_IDS } from '../types';
+import { BeamConfig, COLORS, MARKER_IDS, FONT } from '../types';
 import { ForceLabel } from '../svg-helpers';
 
 interface Props {
@@ -7,73 +7,134 @@ interface Props {
 }
 
 const BeamRenderer: React.FC<Props> = ({ config }) => {
-  const { length, pivot, loads, reactions, showLabels } = config;
+  const { length, loads, reactions, showLabels, endLabels, pointLabels, distributedMass } = config;
 
-  const beamY = 160;
-  const marginX = 50;
-  const beamWidth = 300;
+  const beamY = 150;
+  const marginX = 40;
+  const beamWidth = 320;
   const scale = beamWidth / length;
   const beamLeft = marginX;
   const beamRight = marginX + beamWidth;
-  const arrowLen = 55;
+  const arrowLen = 50;
 
   const posToX = (pos: number) => beamLeft + pos * scale;
 
-  const renderPivot = () => {
-    const px = posToX(pivot.position);
-    if (pivot.type === 'support') {
-      // Triangle
-      const triH = 20;
-      const triW = 14;
-      return (
-        <g>
-          <polygon
-            points={`${px},${beamY} ${px - triW},${beamY + triH} ${px + triW},${beamY + triH}`}
-            fill="white"
-            stroke={COLORS.structural}
-            strokeWidth={2}
-          />
-          {/* Ground ticks under pivot */}
-          <line x1={px - triW - 5} y1={beamY + triH} x2={px + triW + 5} y2={beamY + triH} stroke={COLORS.structural} strokeWidth={2} />
-        </g>
-      );
-    }
-    if (pivot.type === 'hinge') {
-      return <circle cx={px} cy={beamY} r={6} fill="white" stroke={COLORS.structural} strokeWidth={2} />;
-    }
-    // Wall — left side bracket
+  // Collect all key positions for dimension lines
+  const allPositions: { pos: number; label: string }[] = [];
+  if (endLabels?.left) allPositions.push({ pos: 0, label: endLabels.left });
+  if (endLabels?.right) allPositions.push({ pos: length, label: endLabels.right });
+  if (pointLabels) {
+    pointLabels.forEach(p => allPositions.push({ pos: p.position, label: p.label }));
+  }
+  allPositions.sort((a, b) => a.pos - b.pos);
+
+  // Wire hatching at reaction points
+  const renderWireHatching = (x: number) => (
+    <g>
+      {[0, 1, 2].map(i => (
+        <line
+          key={i}
+          x1={x - 6 + i * 6}
+          y1={beamY - arrowLen - 8}
+          x2={x - 10 + i * 6}
+          y2={beamY - arrowLen - 18}
+          stroke={COLORS.structural}
+          strokeWidth={1}
+        />
+      ))}
+      <line x1={x - 8} y1={beamY - arrowLen - 8} x2={x + 8} y2={beamY - arrowLen - 8} stroke={COLORS.structural} strokeWidth={1.5} />
+    </g>
+  );
+
+  // Dimension lines
+  const renderDimensionLines = () => {
+    if (allPositions.length < 2) return null;
+    const dimY = beamY + arrowLen + 40;
+    const tickH = 5;
+
     return (
       <g>
-        <rect x={beamLeft - 10} y={beamY - 30} width={10} height={60} fill="white" stroke={COLORS.structural} strokeWidth={2} />
-        {/* Hatching */}
-        {[0, 1, 2, 3, 4].map(i => (
-          <line
-            key={i}
-            x1={beamLeft - 10}
-            y1={beamY - 30 + i * 15}
-            x2={beamLeft - 2}
-            y2={beamY - 22 + i * 15}
-            stroke={COLORS.structural}
-            strokeWidth={1}
-          />
-        ))}
+        {allPositions.map((p, i) => {
+          if (i === allPositions.length - 1) return null;
+          const x1 = posToX(p.pos);
+          const x2 = posToX(allPositions[i + 1].pos);
+          const dist = (allPositions[i + 1].pos - p.pos).toFixed(1).replace(/\.0$/, '');
+          const midX = (x1 + x2) / 2;
+          return (
+            <g key={`dim-${i}`}>
+              {/* Horizontal line */}
+              <line x1={x1} y1={dimY} x2={x2} y2={dimY} stroke={COLORS.angle} strokeWidth={1} />
+              {/* End ticks */}
+              <line x1={x1} y1={dimY - tickH} x2={x1} y2={dimY + tickH} stroke={COLORS.angle} strokeWidth={1} />
+              <line x1={x2} y1={dimY - tickH} x2={x2} y2={dimY + tickH} stroke={COLORS.angle} strokeWidth={1} />
+              {/* Distance label */}
+              <text x={midX} y={dimY + 16} textAnchor="middle" fontFamily={FONT.family} fontSize={11} fill={COLORS.angle}>
+                {dist} m
+              </text>
+            </g>
+          );
+        })}
       </g>
     );
   };
 
   return (
     <g>
-      {/* Beam */}
-      <line x1={beamLeft} y1={beamY} x2={beamRight} y2={beamY} stroke={COLORS.structural} strokeWidth={4} strokeLinecap="round" />
+      {/* Beam — thick horizontal line */}
+      <line x1={beamLeft} y1={beamY} x2={beamRight} y2={beamY} stroke={COLORS.structural} strokeWidth={5} strokeLinecap="round" />
 
       {/* End ticks */}
-      <line x1={beamLeft} y1={beamY - 6} x2={beamLeft} y2={beamY + 6} stroke={COLORS.structural} strokeWidth={2} />
-      <line x1={beamRight} y1={beamY - 6} x2={beamRight} y2={beamY + 6} stroke={COLORS.structural} strokeWidth={2} />
+      <line x1={beamLeft} y1={beamY - 8} x2={beamLeft} y2={beamY + 8} stroke={COLORS.structural} strokeWidth={2} />
+      <line x1={beamRight} y1={beamY - 8} x2={beamRight} y2={beamY + 8} stroke={COLORS.structural} strokeWidth={2} />
 
-      {/* Pivot */}
-      {renderPivot()}
+      {/* End labels (A, B) */}
+      {endLabels?.left && (
+        <text x={beamLeft} y={beamY + 22} textAnchor="middle" fontFamily={FONT.family} fontWeight="bold" fontSize={14} fill={COLORS.label}>
+          {endLabels.left}
+        </text>
+      )}
+      {endLabels?.right && (
+        <text x={beamRight} y={beamY + 22} textAnchor="middle" fontFamily={FONT.family} fontWeight="bold" fontSize={14} fill={COLORS.label}>
+          {endLabels.right}
+        </text>
+      )}
 
-      {/* Loads (downward arrows) */}
+      {/* Point labels (C, D, etc.) with ticks */}
+      {pointLabels?.map((p, i) => {
+        const px = posToX(p.position);
+        return (
+          <g key={`pt-${i}`}>
+            <line x1={px} y1={beamY - 6} x2={px} y2={beamY + 6} stroke={COLORS.structural} strokeWidth={1.5} />
+            <text x={px} y={beamY + 22} textAnchor="middle" fontFamily={FONT.family} fontWeight="bold" fontSize={14} fill={COLORS.label}>
+              {p.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Distributed mass (rod's own weight — downward red arrow at centre) */}
+      {distributedMass && (
+        <g>
+          <line
+            x1={posToX(distributedMass.position)}
+            y1={beamY}
+            x2={posToX(distributedMass.position)}
+            y2={beamY + arrowLen}
+            stroke={COLORS.weight}
+            strokeWidth={2}
+            markerEnd={`url(#${MARKER_IDS.red})`}
+          />
+          <ForceLabel
+            x={posToX(distributedMass.position) + 18}
+            y={beamY + arrowLen / 2}
+            text={distributedMass.label}
+            show={showLabels}
+            color={COLORS.weight}
+          />
+        </g>
+      )}
+
+      {/* Point loads (downward red arrows) */}
       {loads.map((load, i) => {
         const lx = posToX(load.position);
         return (
@@ -87,12 +148,12 @@ const BeamRenderer: React.FC<Props> = ({ config }) => {
               strokeWidth={2}
               markerEnd={`url(#${MARKER_IDS.red})`}
             />
-            <ForceLabel x={lx + 14} y={beamY + arrowLen / 2} text={load.label} show={showLabels} color={COLORS.weight} />
+            <ForceLabel x={lx + 18} y={beamY + arrowLen / 2} text={load.label} show={showLabels} color={COLORS.weight} />
           </g>
         );
       })}
 
-      {/* Reactions (upward arrows) */}
+      {/* Reactions (upward blue arrows) + wire hatching */}
       {reactions.map((r, i) => {
         const rx = posToX(r.position);
         return (
@@ -106,29 +167,35 @@ const BeamRenderer: React.FC<Props> = ({ config }) => {
               strokeWidth={2}
               markerEnd={`url(#${MARKER_IDS.blue})`}
             />
-            <ForceLabel x={rx - 14} y={beamY - arrowLen / 2} text={r.label} show={showLabels} color={COLORS.normal} />
+            {renderWireHatching(rx)}
+            <ForceLabel
+              x={rx - 18}
+              y={beamY - arrowLen / 2}
+              text={r.label}
+              show={showLabels && !r.isUnknown}
+              color={COLORS.normal}
+            />
+            {/* Always show symbol label for unknowns */}
+            {r.isUnknown && (
+              <text
+                x={rx - 18}
+                y={beamY - arrowLen / 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontFamily={FONT.family}
+                fontStyle={FONT.style}
+                fontSize={FONT.size}
+                fill={COLORS.normal}
+              >
+                {r.label}
+              </text>
+            )}
           </g>
         );
       })}
 
-      {/* Distance labels along beam */}
-      {showLabels && (
-        <g>
-          {/* Total length */}
-          <text x={(beamLeft + beamRight) / 2} y={beamY + arrowLen + 30} textAnchor="middle" fontFamily="serif" fontStyle="italic" fontSize={13} fill={COLORS.label}>
-            {length} m
-          </text>
-          {/* Position markers */}
-          {[...loads.map(l => l.position), pivot.position, ...reactions.map(r => r.position)]
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .sort((a, b) => a - b)
-            .map((pos, i) => (
-              <text key={i} x={posToX(pos)} y={beamY + 18} textAnchor="middle" fontFamily="serif" fontSize={10} fill={COLORS.angle}>
-                {pos}
-              </text>
-            ))}
-        </g>
-      )}
+      {/* Dimension lines */}
+      {showLabels && renderDimensionLines()}
     </g>
   );
 };
