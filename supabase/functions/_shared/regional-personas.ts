@@ -512,24 +512,37 @@ export function getExamHardeningRules(): string {
 🔒 EXAM HARDENING RULES (MANDATORY — ZERO TOLERANCE FOR VIOLATIONS)
 ═══════════════════════════════════════════════════════════════════════════════
 
-RULE 1: STRICT SCENARIO LOCKING (Zero Drift Tolerance)
-──────────────────────────────────────────────────────
-All sub-parts of a numbered question (e.g., 2a, 2b, 2c) MUST refer back to
-the EXACT SAME entities, dataset, and scenario established in part (a).
+RULE 1: STRICT SCENARIO LOCKING — THE "THREAD RULE" (Zero Drift Tolerance)
+──────────────────────────────────────────────────────────────────────────────
+Every numbered question (Q1, Q2, Q3) is a single, cohesive CASE STUDY.
+Once a context is established in the stem or part (a), the AI's "memory"
+of that context is LOCKED for ALL subsequent sub-parts.
+
 - The scenario is introduced ONCE in the question stem or part (a).
+- ALL subsequent sub-parts (b, c, d) MUST remain within that EXACT same
+  scenario using the SAME entities, dataset, and real-world context.
 - Later parts say "Using your answer to part (a)..." or "For the same factory..."
   — they NEVER introduce a new context, entity, or dataset.
 - DO NOT switch topics, objects, or characters between sub-parts.
-- VIOLATION EXAMPLES (ALL FORBIDDEN):
+
+VIOLATION EXAMPLES (ALL FORBIDDEN — these are "memory leaks"):
   • (a) about oak trees → (b) about soda bottles
   • (a) about microchips → (b) about plant cuttings
   • (a) about collectible cards → (b) about balls
-- These are "memory leaks" — the AI forgot the context. Each sub-part must
-  be a CONTINUATION of the same mathematical model applied to the SAME scenario.
-- CORRECT EXAMPLE: Q1 stem introduces "A factory produces microchips..."
-  (a) calculate defect probability for these microchips
-  (b) state an assumption about the microchip defect model
-  (c) given a sample of these microchips, show that...
+  • (a) about tree heights → (b) about battery lifespans
+
+CORRECT EXAMPLE:
+  Q1 stem: "A factory produces microchips. The probability of a defect is 0.03."
+  (a) State the distribution of $X$, the number of defective chips in a sample of 50.
+  (b) Calculate $P(X \\leq 2)$ for these microchips.
+  (c) A quality inspector examines a batch of 200 of these microchips. Using a suitable
+      approximation, find the probability that more than 8 are defective.
+
+CORRECT EXAMPLE (Statistics):
+  Q3 stem: "The heights, $h$ cm, of a sample of 80 oak trees are recorded."
+  (a) Draw a box plot for these data on the grid below.
+  (b) Determine whether any of the heights are outliers for these trees.
+  (c) A sample of 10 of these oak trees is selected at random...
 
 RULE 2: PROFESSIONAL VOCABULARY OVERRIDE (Formal Tone Filter)
 ─────────────────────────────────────────────────────────────
@@ -563,10 +576,17 @@ TONE STANDARD:
 Scenarios must be dry, factual, and clinical — like a real UK exam paper.
 Never narrate. Never set a scene. Just state the factual context.
 
-RULE 3: MANDATORY FORMAL NOTATION (LaTeX Pass)
-───────────────────────────────────────────────
+RULE 3: MANDATORY FORMAL NOTATION & SINGLE-RENDER RULE (LaTeX Pass)
+───────────────────────────────────────────────────────────────────
 Every question MUST include at least one piece of formal mathematical notation.
 The AI must NEVER write parameters in plain English when notation exists.
+
+SINGLE-RENDER RULE (CRITICAL):
+  - Output mathematical notation EXACTLY ONCE per definition using $...$ LaTeX.
+  - Do NOT provide a "plain text" paraphrase immediately after the LaTeX.
+  - BAD: "$X \\sim N(10, 2^2)$ X follows a normal distribution with mean 10..."
+  - GOOD: "The random variable $X \\sim N(10, 2^2)$ represents the length of a bolt."
+  - The LaTeX IS the definition. Do not echo it in words.
 
 REQUIRED NOTATION PATTERNS:
   - Distribution definitions: $X \\sim \\text{Po}(\\lambda)$, $Y \\sim B(n, p)$,
@@ -580,6 +600,22 @@ REQUIRED NOTATION PATTERNS:
   - BAD: "with a rate of 3 per hour"
   - GOOD: "where $X \\sim \\text{Po}(3)$ represents the number of arrivals per hour"
 
+RULE 4: LOGICAL PROGRESSION & SCALING (Difficulty Ramp)
+──────────────────────────────────────────────────────
+Sub-parts MUST follow a logical, escalating progression within the locked scenario:
+
+PATTERN:
+  Part (a) — Establish the base distribution or calculation (e.g., $X \\sim \\text{Po}(2.3)$ per week).
+  Part (b) — Apply a direct calculation or state an assumption about the SAME model.
+  Part (c/d) — SCALE the problem: change the time interval (weekly → fortnightly),
+    change the sample size ($n$), apply a Normal approximation, or use a continuity correction.
+    This forces the student to ADAPT the model, not just repeat the same formula.
+
+EXAMPLES:
+  - (a) defines $X \\sim \\text{Po}(1.8)$ per hour → (c) asks about a 3-hour period
+  - (a) defines $X \\sim B(20, 0.15)$ → (c) asks about $n = 100$ with Normal approximation
+  - (a) establishes correlation → (c) asks the student to comment on extrapolation
+
 DEPTH CALIBRATION (A-Level / Ages 16-18):
   - Part (a) MUST NOT be trivially easy (no primary-school fractions like 120/200).
   - Part (a) should involve identifying a distribution, calculating a probability,
@@ -590,7 +626,15 @@ DEPTH CALIBRATION (A-Level / Ages 16-18):
   - GOOD part (a): "State the distribution of $X$, the number of defective items
     in a sample of 20. Calculate $P(X = 3)$."
 
-RULE 4: TOPIC-SPECIFIC TERMINOLOGY ENFORCEMENT (UK A-Level)
+RULE 5: DEFAULT PRECISION REQUIREMENT
+─────────────────────────────────────
+Unless the question explicitly specifies a number of decimal places,
+ALL final numerical answers should be given to 3 significant figures.
+When a question requires a calculated probability or numerical result,
+include the instruction: "Give your answer to 3 significant figures."
+This matches Edexcel/AQA A-Level convention.
+
+RULE 6: TOPIC-SPECIFIC TERMINOLOGY ENFORCEMENT (UK A-Level)
 ───────────────────────────────────────────────────────────
 When generating questions for specific statistical topics, use the EXACT
 technical terms expected by UK examiners:
