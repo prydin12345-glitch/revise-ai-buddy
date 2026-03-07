@@ -270,6 +270,38 @@ export function getRegionAwareSubjectInstructions(subject: string, examBoard: st
 
   // ── Physics ──
   if (subjectLower.includes('physics')) {
+    const mechanicsRules = `
+
+MECHANICS QUESTION RULES (CRITICAL — apply to ALL mechanics/forces/motion questions):
+─────────────────────────────────────────────────────────────────────────────────────
+1. FORCE DIRECTION CONSISTENCY:
+   - A force CANNOT be both "horizontal" AND "parallel to an inclined plane" — these are DIFFERENT directions.
+   - If a force acts ALONG the slope → say "parallel to the line of greatest slope" or "along the plane".
+   - If a force is truly HORIZONTAL → say "horizontal" and the student must resolve it into components.
+   - NEVER write "a horizontal force acting parallel to the plane" — this is a contradiction.
+
+2. VALUE OF g:
+   - ALWAYS state the value of g to be used: "Take $g = 9.8\\text{ ms}^{-2}$" or "Use $g = 9.81\\text{ ms}^{-2}$".
+   - Place this instruction at the START of the question or in a header note.
+
+3. COMMAND VERB PRECISION FOR KINEMATICS:
+   - Use "Find an expression for the velocity of P at time $t$ seconds" instead of vague "Determine the velocity".
+   - Use "Calculate the speed of the particle when..." for specific numerical answers.
+   - Use "Find the distance travelled by the particle in the first $t$ seconds" for distance questions.
+   - Use "Show that the time taken is..." for 'show that' style.
+
+4. DISTANCE vs DISPLACEMENT:
+   - When asking for "total distance", add: "You should check for any change in direction."
+   - When asking for displacement, explicitly say "displacement from the starting point".
+   - If the motion involves a change in direction (e.g., thrown upward then falls back), mark schemes MUST account for splitting the integral/calculation at the turning point.
+
+5. SURFACE DESCRIPTIONS:
+   - "rough horizontal surface" → friction acts, surface is flat (angle = 0°).
+   - "smooth inclined plane at angle θ" → no friction, surface at angle θ.
+   - "rough plane inclined at angle θ to the horizontal" → friction acts, surface at angle θ.
+   - Always specify whether the surface is rough or smooth.
+`;
+
     switch (r) {
       case 'GB': case 'UK':
         return `For ${examBoard.toUpperCase()} ${level} Physics (UK):
@@ -278,40 +310,47 @@ export function getRegionAwareSubjectInstructions(subject: string, examBoard: st
 - Required Practical questions with experimental methodology and error analysis.
 - Multi-step "show that" questions, graph-based analysis (V-I, force-extension).
 - Command words: State, Calculate, Determine, Explain, Evaluate, Show that, Derive.
-- Include experimental scenarios with percentage uncertainty calculations.`;
+- Include experimental scenarios with percentage uncertainty calculations.
+${mechanicsRules}`;
       case 'US':
         return `For AP Physics (US College Board):
 - "Derive an expression for...", "Justify with physics principles".
 - Free-response format with multi-part problem solving.
 - Command verbs: Derive, Calculate, Justify, Explain, Sketch, Rank, Determine.
 - Use FRQ scoring rubric format. Include both conceptual and quantitative questions.
-- Reference AP Physics 1/2/C notation and conventions.`;
+- Reference AP Physics 1/2/C notation and conventions.
+${mechanicsRules}`;
       case 'AU':
         return `For ATAR Physics (Australia):
 - Real-world scenario-based, "Analyse the motion", graph interpretation.
 - Command words: Describe, Explain, Analyse, Evaluate, Calculate, Determine.
-- Include motion analysis, energy conservation, and experimental design.`;
+- Include motion analysis, energy conservation, and experimental design.
+${mechanicsRules}`;
       case 'IN':
         return `For CBSE Physics (India):
 - "Derive" expressions, numerical problems with step-by-step working.
 - Ray diagrams, circuit diagrams, force diagrams mandatory where applicable.
 - Command words: Define, State, Derive, Prove, Calculate, Draw, Explain.
-- Structured: 1-mark (define), 2-mark (state law + formula), 3-mark (numerical), 5-mark (derive + numerical).`;
+- Structured: 1-mark (define), 2-mark (state law + formula), 3-mark (numerical), 5-mark (derive + numerical).
+${mechanicsRules}`;
       case 'SG':
         return `For Cambridge Physics (Singapore):
 - "Calculate the magnitude", multi-part with "hence" chains.
 - Command words: State, Calculate, Determine, Explain, Show that, Deduce, Sketch.
-- High mathematical rigour with formal SI notation throughout.`;
+- High mathematical rigour with formal SI notation throughout.
+${mechanicsRules}`;
       case 'IB':
         return `For IB Physics (International Baccalaureate):
 - Paper 2/3 format with data-based questions and extended response.
 - IB command terms: Define, State, Outline, Describe, Explain, Deduce, Determine, Calculate, Discuss, Evaluate.
 - Include experimental design, data analysis, and uncertainty calculations.
-- Reference IB Physics assessment objectives: AO1, AO2, AO3.`;
+- Reference IB Physics assessment objectives: AO1, AO2, AO3.
+${mechanicsRules}`;
       default:
         return `For ${examBoard.toUpperCase()} ${level} Physics:
 - Heavy use of calculations. Topics: Mechanics, Waves, Electricity, Fields, Particles.
-- Use SI units. Multi-step "show that" questions. Include experimental scenarios.`;
+- Use SI units. Multi-step "show that" questions. Include experimental scenarios.
+${mechanicsRules}`;
     }
   }
 
