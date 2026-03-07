@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 
 interface Question {
   id: string;
