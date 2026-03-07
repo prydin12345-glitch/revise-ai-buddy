@@ -162,15 +162,16 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
         </g>
       )}
 
-      {/* Surface label */}
+      {/* Surface label — below the ground line */}
       {showLabels && (
         <text
-          x={baseX + slopeLen * 0.7 * Math.cos(rad) + 10}
-          y={baseY - slopeLen * 0.7 * Math.sin(rad) + 20}
+          x={baseX + slopeLen * 0.5 * Math.cos(rad)}
+          y={baseY + 20}
+          textAnchor="middle"
           fontFamily="serif"
+          fontStyle="italic"
           fontSize={11}
           fill={COLORS.angle}
-          transform={`rotate(${-angle}, ${baseX + slopeLen * 0.7 * Math.cos(rad) + 10}, ${baseY - slopeLen * 0.7 * Math.sin(rad) + 20})`}
         >
           {surface}
         </text>

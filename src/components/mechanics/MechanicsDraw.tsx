@@ -33,12 +33,14 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
 
   return (
     <svg
-      viewBox="0 0 400 300"
+      viewBox="0 0 480 380"
       width="100%"
-      style={{ maxWidth: width, background: COLORS.background, border: '1px solid #e5e7eb', borderRadius: 6 }}
+      style={{ maxWidth: width, display: 'block', margin: '0 auto', background: COLORS.background, border: '1px solid #e5e7eb', borderRadius: 6 }}
     >
-      <ArrowMarkerDefs />
-      {renderDiagram()}
+      <g transform="translate(40, 40)">
+        <ArrowMarkerDefs />
+        {renderDiagram()}
+      </g>
     </svg>
   );
 };
