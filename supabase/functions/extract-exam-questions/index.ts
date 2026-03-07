@@ -166,10 +166,28 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     throw new Error('No questions found');
   }
 
-  // Sort and insert questions
-  const questions = parsedData.questions.sort((a: any, b: any) => 
+  // Sort questions
+  let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
+  if (desiredQuestionCount && desiredQuestionCount > 0) {
+    const uniqueRoots = [...new Set(questions.map((q: any) => {
+      const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
+      return String(root);
+    }))];
+    
+    if (uniqueRoots.length > desiredQuestionCount) {
+      console.log(`AI generated ${uniqueRoots.length} parent questions but limit is ${desiredQuestionCount}. Trimming.`);
+      const allowedRoots = new Set(uniqueRoots.slice(0, desiredQuestionCount));
+      questions = questions.filter((q: any) => {
+        const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
+        return allowedRoots.has(String(root));
+      });
+      console.log(`Trimmed to ${questions.length} total questions (${desiredQuestionCount} parents).`);
+    }
+  }
 
   await supabase.from('exam_question_drafts').delete().eq('exam_id', draftId);
   
