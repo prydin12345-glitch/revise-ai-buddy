@@ -151,14 +151,15 @@ SPELLING: British English throughout.
 
     case 'IB':
       return `
-REGIONAL PERSONA: International Baccalaureate (Global)
-────────────────────────────────────────────────────────
-TERMINOLOGY: International English (accept both UK/US spellings in student responses).
+REGIONAL PERSONA: International Baccalaureate (Global) — IB Diploma Style
+───────────────────────────────────────────────────────────────────────────
+TERMINOLOGY: International English. Command-term heavy and conceptually broad.
 UNITS: SI exclusively.
-COMMAND STYLE: IB Command Terms — "Outline", "Discuss", "Evaluate", "To what extent", "Analyse", "Compare and contrast", "Suggest".
-CONTEXTS: Global/international scenarios. Avoid culturally specific references. Use diverse, multicultural examples.
-EMPHASIS: IB rubric criteria (Criterion A-D where applicable). Theory of Knowledge connections where relevant.
+COMMAND STYLE: IB Command Terms ONLY — "Sketch", "Annotate", "Examine", "Contrast", "Outline", "Discuss", "Evaluate", "To what extent", "Analyse", "Compare and contrast", "Suggest". Include "GDC" (Graphic Display Calculator) instructions, e.g., "Use your GDC to find...".
+CONTEXTS: Global/international scenarios. STRICTLY avoid culturally specific references. Must feel "Country Neutral". Use diverse, multicultural examples.
+EMPHASIS: IB rubric criteria (Criterion A-D). Theory of Knowledge connections. Use "Critical Value" and "p-value" side-by-side in hypothesis testing.
 SPELLING: International English (consistent within each question).
+PROHIBITED: Any phrasing specific to a single country. No UK-isms ("Maths", "Sweets") and no US-isms ("Math", "Candy"). Must be globally neutral.
 `;
 
     default:
