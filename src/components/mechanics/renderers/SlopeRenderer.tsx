@@ -118,8 +118,8 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
             markerEnd={`url(#${MARKER_IDS.orange})`}
           />
           <ForceLabel
-            x={blockCx + ux * arrowLen * 0.7 + 14}
-            y={blockCy + uy * arrowLen * 0.7}
+            x={blockCx + ux * arrowLen * 0.7 + 8}
+            y={blockCy + uy * arrowLen * 0.7 - 8}
             text="F"
             show={showLabels}
             color={COLORS.friction}
