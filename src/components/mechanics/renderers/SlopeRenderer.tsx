@@ -79,7 +79,7 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
             strokeWidth={2}
             markerEnd={`url(#${MARKER_IDS.red})`}
           />
-          <ForceLabel x={blockCx + 16} y={blockCy + arrowLen / 2} text={`${mass}g`} show={showLabels} color={COLORS.weight} />
+          <ForceLabel x={blockCx + 18} y={blockCy + arrowLen + 15} text={`${mass}g`} show={showLabels} color={COLORS.weight} />
         </g>
       )}
 
