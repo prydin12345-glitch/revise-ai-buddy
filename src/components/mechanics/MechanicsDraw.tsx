@@ -6,6 +6,9 @@ import PulleyRenderer from './renderers/PulleyRenderer';
 import BeamRenderer from './renderers/BeamRenderer';
 import ProjectileRenderer from './renderers/ProjectileRenderer';
 import RodRenderer from './renderers/RodRenderer';
+import FreeBodyRenderer from './renderers/FreeBodyRenderer';
+import ConicalPendulumRenderer from './renderers/ConicalPendulumRenderer';
+import VerticalMotionRenderer from './renderers/VerticalMotionRenderer';
 
 export interface MechanicsDrawProps {
   config: MechanicsConfig;
@@ -26,6 +29,12 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
         return <ProjectileRenderer config={config} />;
       case 'rod':
         return <RodRenderer config={config} />;
+      case 'free_body':
+        return <FreeBodyRenderer config={config} />;
+      case 'conical_pendulum':
+        return <ConicalPendulumRenderer config={config} />;
+      case 'vertical_motion':
+        return <VerticalMotionRenderer config={config} />;
       default:
         return null;
     }

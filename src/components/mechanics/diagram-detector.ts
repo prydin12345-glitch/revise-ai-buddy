@@ -1,4 +1,4 @@
-import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig } from './types';
+import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig, FreeBodyConfig, ConicalPendulumConfig, VerticalMotionConfig } from './types';
 
 /**
  * Attempts to infer a MechanicsConfig from question text.
@@ -7,7 +7,54 @@ import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, Projectile
 export function detectDiagramConfig(questionText: string): MechanicsConfig | null {
   const text = questionText.toLowerCase();
 
-  // Rod / Ladder leaning against wall
+  // ── Conical pendulum / horizontal circle ──
+  if (
+    text.includes('horizontal circle') ||
+    text.includes('conical pendulum') ||
+    (text.includes('string') && text.includes('fixed point') && text.includes('circle'))
+  ) {
+    const angleMatch = text.match(/(\d+)\s*°/);
+    const angle = angleMatch ? parseInt(angleMatch[1], 10) : 30;
+    const massLabel = extractMassLabel(text);
+    const unknowns = detectUnknowns(text);
+    return {
+      type: 'conical_pendulum',
+      stringLength: extractNumber(text, /length\s*(?:of\s*)?(\d+\.?\d*)\s*m/) ?? 0.8,
+      angle: unknowns.includes('angle') ? 30 : angle,
+      mass: massLabel,
+      omega: 'ω',
+      showTension: true,
+      showWeight: true,
+      showRadius: true,
+      unknowns,
+      showLabels: true,
+    } satisfies ConicalPendulumConfig;
+  }
+
+  // ── Vertical motion ──
+  if (
+    text.includes('projected vertically') ||
+    text.includes('thrown vertically') ||
+    text.includes('thrown upward') ||
+    text.includes('falls from rest') ||
+    text.includes('dropped from') ||
+    (text.includes('vertically') && (text.includes('speed') || text.includes('velocity')))
+  ) {
+    const speedMatch = text.match(/(\d+\.?\d*)\s*m\s*s/);
+    const speed = speedMatch ? parseFloat(speedMatch[1]) : 0;
+    const direction = (text.includes('fall') || text.includes('drop') || text.includes('downward')) ? 'down' : 'up';
+    const unknowns = detectUnknowns(text);
+    return {
+      type: 'vertical_motion',
+      initialSpeed: speed,
+      direction,
+      mass: extractMassLabel(text),
+      unknowns,
+      showLabels: true,
+    } satisfies VerticalMotionConfig;
+  }
+
+  // ── Rod / Ladder leaning against wall ──
   if (
     (text.includes('rod') || text.includes('ladder')) &&
     (text.includes('wall') || text.includes('lean'))
@@ -28,8 +75,8 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies RodConfig;
   }
 
-  // Pulley / connected particles
-  if (text.includes('pulley') || text.includes('connected') && text.includes('string')) {
+  // ── Pulley / connected particles ──
+  if (text.includes('pulley') || (text.includes('connected') && text.includes('string'))) {
     const masses = extractTwoMasses(text);
     const isRough = text.includes('rough');
     return {
@@ -43,8 +90,11 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies PulleyConfig;
   }
 
-  // Beam / moments
-  if (text.includes('beam') || text.includes('plank') || text.includes('uniform rod') && text.includes('pivot')) {
+  // ── Beam / moments (but NOT rod leaning) ──
+  if (
+    (text.includes('beam') || text.includes('plank')) &&
+    (text.includes('pivot') || text.includes('support') || text.includes('moment'))
+  ) {
     const lengthMatch = text.match(/(\d+)\s*m\b/);
     const length = lengthMatch ? parseInt(lengthMatch[1], 10) : 6;
     return {
@@ -60,10 +110,13 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies BeamConfig;
   }
 
-  // Projectile
-  if (text.includes('projectile') || text.includes('launched') || text.includes('thrown') && text.includes('angle')) {
-    const speedMatch = text.match(/(\d+)\s*m\s*s/);
-    const speed = speedMatch ? parseInt(speedMatch[1], 10) : 28;
+  // ── Projectile (at an angle, not vertical) ──
+  if (
+    text.includes('projectile') ||
+    (text.includes('projected') && text.match(/(\d+)\s*°/) && !text.includes('vertically'))
+  ) {
+    const speedMatch = text.match(/(\d+\.?\d*)\s*m\s*s/);
+    const speed = speedMatch ? parseFloat(speedMatch[1]) : 28;
     const angleMatch = text.match(/(\d+)\s*°/);
     const angle = angleMatch ? parseInt(angleMatch[1], 10) : 45;
     const heightMatch = text.match(/height\s*(?:of\s*)?(\d+)/);
@@ -80,55 +133,83 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies ProjectileConfig;
   }
 
-  // Inclined plane / slope
+  // ── Inclined plane / slope (angle > 0) ──
   if (
-    text.includes('inclined') ||
-    text.includes('slope') ||
-    text.includes('plane') ||
-    (text.includes('rough') && text.includes('surface') && text.match(/\d+\s*°/)) ||
-    (text.includes('particle') && text.match(/\d+\s*°/) && (text.includes('friction') || text.includes('normal')))
+    (text.includes('inclined') || text.includes('slope')) &&
+    text.match(/(\d+)\s*°/)
   ) {
     const angleMatch = text.match(/(\d+)\s*°/);
     const angle = angleMatch ? parseInt(angleMatch[1], 10) : 30;
-    const isRough = text.includes('rough');
-    return {
-      type: 'slope',
-      angle,
-      mass: extractMassLabel(text),
-      surface: isRough ? 'rough' : 'smooth',
-      showNormal: true,
-      showWeight: true,
-      showFriction: isRough,
-      showComponents: false,
-      showLabels: true,
-    } satisfies SlopeConfig;
+    if (angle > 0) {
+      const isRough = text.includes('rough');
+      return {
+        type: 'slope',
+        angle,
+        mass: extractMassLabel(text),
+        surface: isRough ? 'rough' : 'smooth',
+        showNormal: true,
+        showWeight: true,
+        showFriction: isRough,
+        showComponents: false,
+        showLabels: true,
+      } satisfies SlopeConfig;
+    }
   }
 
-  // Horizontal rough/smooth surface with forces (no angle)
+  // ── Horizontal surface / free body diagram (angle = 0) ──
   if (
     (text.includes('rough') || text.includes('smooth')) &&
-    (text.includes('surface') || text.includes('horizontal')) &&
-    (text.includes('particle') || text.includes('block') || text.includes('mass'))
+    (text.includes('surface') || text.includes('horizontal') || text.includes('plane')) &&
+    (text.includes('particle') || text.includes('block') || text.includes('mass') || text.includes('box'))
   ) {
-    const isRough = text.includes('rough');
-    return {
-      type: 'slope',
-      angle: 0,
-      mass: extractMassLabel(text),
-      surface: isRough ? 'rough' : 'smooth',
-      showNormal: true,
-      showWeight: true,
-      showFriction: isRough,
-      showComponents: false,
-      showLabels: true,
-    } satisfies SlopeConfig;
+    // Only match if there's no angle > 0 (those are slopes)
+    const angleMatch = text.match(/(\d+)\s*°/);
+    const angle = angleMatch ? parseInt(angleMatch[1], 10) : 0;
+    if (angle === 0) {
+      const isRough = text.includes('rough');
+      const unknowns = detectUnknowns(text);
+      const forceMatch = text.match(/force\s*(?:of\s*)?(\d+\.?\d*)\s*n/i);
+      return {
+        type: 'free_body',
+        angle: 0,
+        mass: extractMassLabel(text),
+        appliedForce: forceMatch ? forceMatch[1] : undefined,
+        appliedForceDir: 'horizontal',
+        surface: isRough ? 'rough' : 'smooth',
+        unknowns,
+        showLabels: true,
+      } satisfies FreeBodyConfig;
+    }
   }
 
   return null;
 }
 
+/** Detect what the student is asked to find, so we can hide those values */
+function detectUnknowns(text: string): string[] {
+  const unknowns: string[] = [];
+  const lower = text.toLowerCase();
+
+  if (/find\s+(the\s+)?acceleration/i.test(lower)) unknowns.push('acceleration');
+  if (/find\s+(the\s+)?tension/i.test(lower)) unknowns.push('tension');
+  if (/find\s+(the\s+)?angle/i.test(lower) || /calculate\s+(the\s+)?angle/i.test(lower)) unknowns.push('angle');
+  if (/find\s+(the\s+)?speed/i.test(lower) || /find\s+(the\s+)?velocity/i.test(lower)) unknowns.push('speed');
+  if (/find\s+(the\s+)?time/i.test(lower) || /calculate\s+(the\s+)?time/i.test(lower)) unknowns.push('time');
+  if (/find\s+(the\s+)?(greatest|max|maximum)\s*height/i.test(lower)) unknowns.push('maxHeight');
+  if (/find\s+(the\s+)?normal/i.test(lower) || /find\s+(the\s+)?reaction/i.test(lower)) unknowns.push('normal');
+  if (/find\s+(the\s+)?weight/i.test(lower)) unknowns.push('weight');
+  if (/find\s+(the\s+)?friction/i.test(lower) || /find\s+(the\s+)?frictional/i.test(lower)) unknowns.push('friction');
+
+  return unknowns;
+}
+
+function extractNumber(text: string, pattern: RegExp): number | null {
+  const m = text.match(pattern);
+  return m ? parseFloat(m[1]) : null;
+}
+
 function extractMassLabel(text: string): string {
-  const kgMatch = text.match(/(\d+)\s*kg/);
+  const kgMatch = text.match(/(\d+\.?\d*)\s*kg/);
   if (kgMatch) return kgMatch[1];
   const mMatch = text.match(/mass\s+([A-Z])/i);
   if (mMatch) return mMatch[1];
@@ -144,9 +225,9 @@ function extractLengthLabel(text: string): string {
 }
 
 function extractTwoMasses(text: string): [number, number] {
-  const matches = text.match(/(\d+)\s*kg/g);
+  const matches = text.match(/(\d+\.?\d*)\s*kg/g);
   if (matches && matches.length >= 2) {
-    const nums = matches.map(m => parseInt(m));
+    const nums = matches.map(m => parseFloat(m));
     return [nums[0], nums[1]];
   }
   return [3, 5];
