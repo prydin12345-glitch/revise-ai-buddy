@@ -42,6 +42,7 @@ import {
   type DrawingPath,
   type AngleMeasurement,
 } from "@/components/graph";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -1571,6 +1572,13 @@ const ExamInProgress = () => {
                       className="mb-6 text-lg"
                     />
                   )}
+
+                  {/* Mechanics diagram panel */}
+                  {(() => {
+                    const diagConfig = detectDiagramConfig(question.question_text);
+                    if (!diagConfig) return null;
+                    return <MechanicsFigurePanel config={diagConfig} />;
+                  })()}
 
                   {/* Box Plot Chart rendering */}
                   {isBoxPlotQuestion((question as any).options) && (

@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 
 interface Question {
   id: string;
@@ -172,6 +173,13 @@ const ExamPreview = () => {
                     {isHistogramQuestion(q.options) && (
                       <HistogramChart chartData={q.options} className="mb-4" />
                     )}
+
+                    {/* Mechanics diagram panel */}
+                    {(() => {
+                      const diagConfig = detectDiagramConfig(q.question_text);
+                      if (!diagConfig) return null;
+                      return <MechanicsFigurePanel config={diagConfig} />;
+                    })()}
 
                     {q.figure_urls && q.figure_urls.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 mb-4">
