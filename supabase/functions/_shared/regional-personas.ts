@@ -11,11 +11,14 @@ export function getRegionalPersona(region: string): string {
 REGIONAL PERSONA: United Kingdom
 ─────────────────────────────────
 TERMINOLOGY: Use "Maths", "colour", "analyse", "behaviour", "centre", "programme", "favour", "recognise".
-UNITS: Metric exclusively (cm, m, km, kg, g, °C, litres). Use "probability" NEVER "likelihood".
-COMMAND STYLE: "Describe and explain", "Evaluate", "Show that", "Hence or otherwise", "State".
-CONTEXTS: Use UK-appropriate scenarios (pounds sterling £, football, NHS, UK geography, British cultural references).
-PROHIBITED: Americanisms — "Soccer", "Candy", "Math" (singular), "color", "analyze", "behavior", "center", "program" (non-computing), "favor".
+UNITS: Metric exclusively (cm, m, km, kg, g, °C, litres). Use "probability" NEVER "likelihood" or "chance".
+COMMAND STYLE: "Describe and explain", "Evaluate", "Show that", "Hence or otherwise", "State", "Calculate", "Determine", "Justify".
+CONTEXTS: Use UK-appropriate scenarios (pounds sterling £, football, NHS, UK geography, British cultural references, "sweets" not "candy").
+PROHIBITED: Americanisms — "Soccer", "Candy", "Math" (singular), "color", "analyze", "behavior", "center", "program" (non-computing), "favor", "Likelihood", "Chance", "Alpha level".
 SPELLING: British English throughout. "-ise" not "-ize", "-our" not "-or", "-re" not "-er".
+PRECISION: All final numerical answers default to 3 significant figures unless the question specifies decimal places.
+STATISTICS VOCABULARY: Use "Probability", "Standard Deviation", "Significance level" (never "Alpha level"). Use "Probability Distribution" (never "Probability Model").
+TONE: Clinical, dry, professional. Ban "Imagine", "Specifically", "Bustling", "Vibrant". Use "Calculate", "State", "Determine", "Verify".
 `;
 
     case 'US':
