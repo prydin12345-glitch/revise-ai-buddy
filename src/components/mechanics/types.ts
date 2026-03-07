@@ -12,6 +12,39 @@ export interface SlopeConfig {
   showLabels: boolean;
 }
 
+export interface FreeBodyConfig {
+  type: 'free_body';
+  angle: number;
+  mass: string | number;
+  appliedForce?: string | number;
+  appliedForceDir?: 'horizontal' | 'up-slope';
+  surface: 'rough' | 'smooth';
+  unknowns: string[];
+  showLabels: boolean;
+}
+
+export interface ConicalPendulumConfig {
+  type: 'conical_pendulum';
+  stringLength: number;
+  angle: number;
+  mass: string | number;
+  omega: string | number;
+  showTension: boolean;
+  showWeight: boolean;
+  showRadius: boolean;
+  unknowns: string[];
+  showLabels: boolean;
+}
+
+export interface VerticalMotionConfig {
+  type: 'vertical_motion';
+  initialSpeed: number;
+  direction: 'up' | 'down';
+  mass: string | number;
+  unknowns: string[];
+  showLabels: boolean;
+}
+
 export interface PulleyConfig {
   type: 'pulley';
   surface: 'smooth' | 'rough';
@@ -69,7 +102,10 @@ export type MechanicsConfig =
   | PulleyConfig
   | BeamConfig
   | ProjectileConfig
-  | RodConfig;
+  | RodConfig
+  | FreeBodyConfig
+  | ConicalPendulumConfig
+  | VerticalMotionConfig;
 
 // ── Shared Styling Constants ──
 

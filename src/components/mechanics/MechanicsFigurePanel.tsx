@@ -29,8 +29,10 @@ const MechanicsFigurePanel: React.FC<MechanicsFigurePanelProps> = ({ config, fig
   }
 
   return (
-    <div className={`mb-4 rounded-lg border bg-card ${isMobile ? 'w-full' : 'w-full max-w-[480px]'}`}
-         style={{ minHeight: 280, maxHeight: 400, overflowY: 'auto' }}>
+    <div
+      className={`mb-4 rounded-lg border bg-card ${isMobile ? 'w-full' : 'w-full max-w-[480px]'}`}
+      style={{ overflow: 'visible' }}
+    >
       <div className="flex items-center justify-between p-3 pb-0">
         <span className="text-xs font-semibold text-muted-foreground">Figure {figureNumber}</span>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)}>
