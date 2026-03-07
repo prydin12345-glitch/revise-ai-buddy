@@ -1,0 +1,46 @@
+import React from 'react';
+import { MechanicsConfig, COLORS } from './types';
+import { ArrowMarkerDefs } from './svg-helpers';
+import SlopeRenderer from './renderers/SlopeRenderer';
+import PulleyRenderer from './renderers/PulleyRenderer';
+import BeamRenderer from './renderers/BeamRenderer';
+import ProjectileRenderer from './renderers/ProjectileRenderer';
+import RodRenderer from './renderers/RodRenderer';
+
+export interface MechanicsDrawProps {
+  config: MechanicsConfig;
+  width?: number;
+  height?: number;
+}
+
+const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, height = 300 }) => {
+  const renderDiagram = () => {
+    switch (config.type) {
+      case 'slope':
+        return <SlopeRenderer config={config} />;
+      case 'pulley':
+        return <PulleyRenderer config={config} />;
+      case 'beam':
+        return <BeamRenderer config={config} />;
+      case 'projectile':
+        return <ProjectileRenderer config={config} />;
+      case 'rod':
+        return <RodRenderer config={config} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <svg
+      viewBox="0 0 400 300"
+      width="100%"
+      style={{ maxWidth: width, background: COLORS.background, border: '1px solid #e5e7eb', borderRadius: 6 }}
+    >
+      <ArrowMarkerDefs />
+      {renderDiagram()}
+    </svg>
+  );
+};
+
+export default MechanicsDraw;
