@@ -174,6 +174,13 @@ const ExamPreview = () => {
                       <HistogramChart chartData={q.options} className="mb-4" />
                     )}
 
+                    {/* Mechanics diagram panel */}
+                    {(() => {
+                      const diagConfig = detectDiagramConfig(q.question_text);
+                      if (!diagConfig) return null;
+                      return <MechanicsFigurePanel config={diagConfig} />;
+                    })()}
+
                     {q.figure_urls && q.figure_urls.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {q.figure_urls.map((url, idx) => (
