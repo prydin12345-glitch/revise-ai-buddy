@@ -86,13 +86,18 @@ export interface BeamConfig {
 
 export interface ProjectileConfig {
   type: 'projectile';
-  speed: number;
-  angle: number;
+  speed: string | number;
+  angle: string | number;
   launchHeight: number;
   targetX: number;
   targetY: number;
   showComponents: boolean;
   showLabels: boolean;
+  landingX?: number | string;
+  timeToMax?: number | string;
+  unknowns?: string[];
+  speedLabel?: string;
+  angleLabel?: string;
 }
 
 export interface RodConfig {
@@ -197,8 +202,8 @@ export function generateBeamConfig(
 }
 
 export function generateProjectileConfig(
-  speed: number,
-  angle: number,
+  speed: number | string,
+  angle: number | string,
   launchHeight = 0
 ): ProjectileConfig {
   return {

@@ -169,23 +169,89 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
   // ── Projectile (at an angle, not vertical) ──
   if (
     text.includes('projectile') ||
-    (text.includes('projected') && text.match(/(\d+)\s*°/) && !text.includes('vertically'))
+    text.includes('projected from') ||
+    text.includes('projected at') ||
+    text.includes('launched at') ||
+    (text.includes('projected') && !text.includes('vertically') && (
+      text.match(/(\d+)\s*°/) ||
+      text.includes('angle') ||
+      text.includes('above the horizontal') ||
+      text.includes('horizontal')
+    ))
   ) {
-    const speedMatch = text.match(/(\d+\.?\d*)\s*m\s*s/);
-    const speed = speedMatch ? parseFloat(speedMatch[1]) : 28;
-    const angleMatch = text.match(/(\d+)\s*°/);
-    const angle = angleMatch ? parseInt(angleMatch[1], 10) : 45;
+    const unknowns = detectUnknowns(text);
+
+    // Extract speed — may be symbolic (U, u, V)
+    const symbolicSpeedMatch = text.match(/(?:initial\s+)?speed\s+(?:of\s+)?([A-Z])\s*m/i);
+    const numericSpeedMatch = text.match(/(\d+\.?\d*)\s*m\s*s/);
+    let speed: string | number = 28;
+    let speedLabel: string | undefined;
+    if (symbolicSpeedMatch) {
+      speed = symbolicSpeedMatch[1];
+      speedLabel = symbolicSpeedMatch[1];
+    } else if (numericSpeedMatch) {
+      speed = parseFloat(numericSpeedMatch[1]);
+      if (unknowns.includes('speed')) {
+        speedLabel = 'U';
+      }
+    }
+
+    // Extract angle — may be symbolic (α, θ)
+    const symbolicAngleMatch = text.match(/angle\s+(?:of\s+)?([αθ]|alpha|theta)/i);
+    const numericAngleMatch = text.match(/(\d+)\s*°/);
+    let angle: string | number = 45;
+    let angleLabel: string | undefined;
+    if (symbolicAngleMatch) {
+      const sym = symbolicAngleMatch[1];
+      angle = sym === 'alpha' ? 'α' : sym === 'theta' ? 'θ' : sym;
+      angleLabel = typeof angle === 'string' ? angle : undefined;
+    } else if (text.includes('above the horizontal') && !numericAngleMatch) {
+      // Angle referenced but no number → symbolic
+      angle = 'α';
+      angleLabel = 'α';
+    } else if (numericAngleMatch) {
+      angle = parseInt(numericAngleMatch[1], 10);
+      if (unknowns.includes('angle')) {
+        angleLabel = 'θ';
+      }
+    }
+
+    // Extract landing distance (horizontal range)
+    const rangeMatch = text.match(/(?:horizontal\s+)?(?:distance|range)\s+(?:from\s+\w+\s+(?:to\s+)?)?(?:where\s+.*?)?\s*(?:is\s+)?(\d+\.?\d*)\s*m/i)
+      || text.match(/(\d+\.?\d*)\s*m\s*(?:from|away)/i);
+    const landingX = rangeMatch ? parseFloat(rangeMatch[1]) : undefined;
+
+    // Extract time to max height
+    const timeMaxMatch = text.match(/(?:maximum|greatest|max)\s*height\s*(?:at|when|after)\s*(?:t\s*=?\s*)?(\d+\.?\d*)\s*s/i)
+      || text.match(/t\s*=\s*(\d+\.?\d*)\s*s/i);
+    const timeToMax = timeMaxMatch ? parseFloat(timeMaxMatch[1]) : undefined;
+
+    // Detect if max height is unknown
+    if (/(?:find|calculate|determine)\s+(?:the\s+)?(?:greatest|maximum|max)\s*height/i.test(text)) {
+      if (!unknowns.includes('maxHeight')) unknowns.push('maxHeight');
+    }
+
+    // Add speed/angle to unknowns if symbolic
+    if (typeof speed === 'string' && !unknowns.includes('U')) unknowns.push('U');
+    if (typeof angle === 'string' && !unknowns.includes('α')) unknowns.push('α');
+
     const heightMatch = text.match(/height\s*(?:of\s*)?(\d+)/);
     const launchHeight = heightMatch ? parseInt(heightMatch[1], 10) : 0;
+
     return {
       type: 'projectile',
-      speed,
-      angle,
+      speed: typeof speed === 'number' ? speed : 40,
+      angle: typeof angle === 'number' ? angle : 40,
       launchHeight,
       targetX: 40,
       targetY: 20,
       showComponents: true,
       showLabels: true,
+      landingX,
+      timeToMax,
+      unknowns,
+      speedLabel,
+      angleLabel,
     } satisfies ProjectileConfig;
   }
 
