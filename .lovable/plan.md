@@ -1,118 +1,86 @@
 
 
-# Plan: Manual Exam Creator for Tutors
+# MechanicsDraw Component System — Implementation Plan
 
 ## Overview
-Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
-## Database Changes
+Build a programmatic SVG-based mechanics diagram system that renders five diagram types (slope, pulley, beam, projectile, rod) from JSON config objects. No static images — every line, arc, arrow, and label is computed from config values.
 
-**New table: `tutor_question_bank`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL) — references auth.users
-- `question_text` (text, NOT NULL)
-- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
-- `expected_answer` (text) — mark scheme / model answer
-- `max_marks` (integer, NOT NULL)
-- `topic_tag` (text) — linked to class sub-topics
-- `subject_name` (text, NOT NULL)
-- `options` (jsonb) — for MCQ
-- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
-- `estimated_minutes` (integer) — AI-suggested time
-- `metadata` (jsonb, default '{}')
-- `created_at`, `updated_at` (timestamptz)
+## New Files to Create
 
-RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
+### 1. `src/components/mechanics/types.ts`
+Define TypeScript interfaces for all five config schemas:
+- `SlopeConfig` — inclined plane with mass, forces, friction
+- `PulleyConfig` — connected particles over pulley
+- `BeamConfig` — moments with pivot, loads, reactions
+- `ProjectileConfig` — trajectory with velocity components
+- `RodConfig` — leaning ladder/rod against wall
+- Union type `MechanicsConfig` and shared constants (colors, marker IDs)
 
-**New table: `tutor_manual_exams`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL)
-- `title` (text, NOT NULL)
-- `subject_name` (text, NOT NULL)
-- `subject_color` (text, default '#3B82F6')
-- `marking_preference` (text, default 'ai_assisted')
-- `educational_tier` (text)
-- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
-- `total_marks` (integer, default 0)
-- `estimated_minutes` (integer)
-- `status` (text, default 'draft') — draft, published
-- `created_at`, `updated_at` (timestamptz)
+### 2. `src/components/mechanics/MechanicsDraw.tsx`
+Main component with `switch(config.type)` dispatching to sub-renderers. Shared SVG setup:
+- `viewBox="0 0 400 300"`, `width="100%"` for responsive scaling
+- `<defs>` block with named arrow markers per color (black, red, blue, orange, green) — no `context-fill`
+- Hatched ground baseline helper function
+- `showLabels` toggle: when false, render `?` placeholder boxes instead of labels
 
-RLS: tutor can CRUD own rows.
+### 3. `src/components/mechanics/renderers/SlopeRenderer.tsx`
+- Compute slope endpoints via `Math.cos/sin(angle * Math.PI/180)`
+- Rotate parent group for slope alignment; counter-rotate weight arrow to keep it vertical
+- Draw: slope surface, mass block, normal (blue), weight (red), friction (orange if rough)
+- Angle arc via SVG `<path>` arc command, radius 35px, grey stroke
 
-## New Route
-- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
+### 4. `src/components/mechanics/renderers/PulleyRenderer.tsx`
+- Pulley circle at top-right, string lines to both masses
+- Surface mass on table/slope, hanging mass below pulley
+- Force arrows: tension (black), weight (red), normal (blue), friction (orange if rough)
+- Hatched ground/table surface
 
-## New Components
+### 5. `src/components/mechanics/renderers/BeamRenderer.tsx`
+- Horizontal beam scaled by `length`, loads as downward red arrows at positions
+- Pivot rendered as triangle (support), wall bracket (wall), or circle (hinge)
+- Reaction arrows (blue, upward) at pivot positions
+- Distance labels between key points along the beam
 
-### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
-Split-view layout:
-- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
-- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
-- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
+### 6. `src/components/mechanics/renderers/ProjectileRenderer.tsx`
+- Parabolic trajectory via parametric equations from speed/angle
+- Dashed trajectory path, launch point, target point
+- Velocity component vectors (green) with horizontal/vertical decomposition
+- Angle arc at launch point
 
-Key behaviors:
-- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
-- Inline editing: click question number to rename, click mark bubble to change
-- Focus mode: when editing a question, dim others with opacity
-- Auto-save indicator in header
-- Empty state illustration when no questions exist
+### 7. `src/components/mechanics/renderers/RodRenderer.tsx`
+- Rod leaning at angle between floor and wall
+- Wall reaction (blue, horizontal), floor reaction (blue, vertical), friction (orange)
+- Weight arrow (red) at center of mass
+- Smooth/rough labels for wall and floor surfaces
 
-### 2. `src/components/tutor/ManualQuestionEditor.tsx`
-- Rich text fields for question and mark scheme
-- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
-- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
-- Max marks input (1-10)
-- "Polish with AI" button
+### 8. `src/components/mechanics/index.ts`
+Export all types, `MechanicsDraw` component, and helper functions like `generateSlopeConfig()`.
 
-### 3. `src/components/tutor/ManualQuestionPreview.tsx`
-- Renders the question exactly as students see it using `MathRenderer`
-- Shows mark allocation badge, topic tag
+### 9. `src/pages/MechanicsDemo.tsx`
+Demo page rendering 4 example configs side-by-side in a 2×2 grid (slope, pulley, beam, projectile) for visual verification.
 
-### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
-- Each option has description text
+## Files to Modify
 
-### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
-- Sticky sidebar showing:
-  - Total marks counter
-  - Topic distribution (mini pie chart via recharts)
-  - Estimated completion time (marks × 1.5 min ratio)
-  - Question count
+### `src/App.tsx`
+- Add route: `/mechanics-demo` → `MechanicsDemo` page
 
-## Edge Function: `polish-question`
-- Takes raw question text + subject + educational tier
-- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
-- Returns polished text preserving mathematical requirements
+## Styling Constants (Exam Paper Aesthetic)
+- Background: `#ffffff`
+- Structural lines: black, `strokeWidth={2}`
+- Weight arrows: `#cc0000` (red)
+- Normal reactions: `#0055cc` (blue)
+- Tension/strings: black
+- Friction: `#cc6600` (orange)
+- Velocity: `#007700` (green)
+- Labels: `fontFamily="serif"`, `fontStyle="italic"` (LaTeX-like)
+- Ground: hatched diagonal ticks every 15px
 
-## Integration Points
+## Key Technical Details
 
-1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
-
-2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
-
-3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
-
-4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
-
-5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
-
-## UI Details
-- Subject-themed accent colors on save buttons, active borders, progress bars
-- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
-- Dark-themed empty state with illustration text: "Your masterpiece starts here"
-- Auto-save with subtle "All changes saved ✓" indicator that pulses
-
-## Files to Create
-1. `src/pages/tutor/ManualExamCreator.tsx`
-2. `src/components/tutor/ManualQuestionEditor.tsx`
-3. `src/components/tutor/ManualQuestionPreview.tsx`
-4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-5. `src/components/tutor/ExamCompositionSidebar.tsx`
-6. `supabase/functions/polish-question/index.ts`
-
-## Files to Edit
-1. `src/App.tsx` — add route `/tutor/exams/create-manual`
-2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
-3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
+- **Geometry from config**: All positions computed mathematically — e.g., slope end = `(length * cos(θ), length * sin(θ))`
+- **Arrow markers**: One `<marker>` per color in `<defs>`, referenced via `markerEnd="url(#arrow-red)"`
+- **Weight always vertical**: Use nested `<g transform>` — rotate group for slope, counter-rotate weight vector
+- **showLabels=false**: Renders small bordered rectangles with "?" for student identification exercises
+- **No external libraries**: Pure React + SVG
 
