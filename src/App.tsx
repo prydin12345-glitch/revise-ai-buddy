@@ -46,6 +46,7 @@ const ManualExamCreator = lazy(() => import("./pages/tutor/ManualExamCreator"));
 const MechanicsDemo = lazy(() => import("./pages/MechanicsDemo"));
 const CircuitDemo = lazy(() => import("./pages/CircuitDemo"));
 const MyClasses = lazy(() => import("./pages/MyClasses"));
+const ScienceDiagramDemo = lazy(() => import("./pages/ScienceDiagramDemo"));
 
 // TutorLayout is relatively small, load eagerly for smooth sidebar
 import { TutorLayout } from "./components/tutor/TutorLayout";
@@ -83,6 +84,7 @@ const App = () => {
               <Route path="/graph-test" element={<GraphTest />} />
               <Route path="/mechanics-demo" element={<MechanicsDemo />} />
               <Route path="/circuit-demo" element={<CircuitDemo />} />
+              <Route path="/science-diagrams" element={<ScienceDiagramDemo />} />
               <Route path="/my-exams" element={<MyExams />} />
               <Route path="/my-classes" element={<MyClasses />} />
               <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
