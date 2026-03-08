@@ -46,6 +46,7 @@ const ManualExamCreator = lazy(() => import("./pages/tutor/ManualExamCreator"));
 const MechanicsDemo = lazy(() => import("./pages/MechanicsDemo"));
 const CircuitDemo = lazy(() => import("./pages/CircuitDemo"));
 const MyClasses = lazy(() => import("./pages/MyClasses"));
+const ScienceDiagramDemo = lazy(() => import("./pages/ScienceDiagramDemo"));
 
 // TutorLayout is relatively small, load eagerly for smooth sidebar
 import { TutorLayout } from "./components/tutor/TutorLayout";
