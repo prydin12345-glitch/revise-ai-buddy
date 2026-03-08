@@ -77,6 +77,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
