@@ -1,0 +1,1 @@
+ALTER TABLE public.user_subjects ADD COLUMN IF NOT EXISTS subject_category text DEFAULT 'other';

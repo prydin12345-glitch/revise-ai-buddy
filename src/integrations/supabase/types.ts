@@ -2466,6 +2466,7 @@ export type Database = {
           id: string
           is_custom: boolean | null
           proficiency_estimate: number | null
+          subject_category: string | null
           subject_color: string
           subject_id: string | null
           subject_name: string
@@ -2479,6 +2480,7 @@ export type Database = {
           id?: string
           is_custom?: boolean | null
           proficiency_estimate?: number | null
+          subject_category?: string | null
           subject_color?: string
           subject_id?: string | null
           subject_name: string
@@ -2492,6 +2494,7 @@ export type Database = {
           id?: string
           is_custom?: boolean | null
           proficiency_estimate?: number | null
+          subject_category?: string | null
           subject_color?: string
           subject_id?: string | null
           subject_name?: string
