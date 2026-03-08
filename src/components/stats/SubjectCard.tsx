@@ -49,7 +49,10 @@ export const SubjectCard = ({
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: subject.subject_color + "20", color: subject.subject_color }}
+              style={{
+                backgroundColor: subject.subject_color,
+                color: getTextColor(subject.subject_color),
+              }}
             >
               {subject.subject_name.charAt(0).toUpperCase()}
             </div>
