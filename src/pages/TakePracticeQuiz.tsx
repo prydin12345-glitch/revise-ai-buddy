@@ -2041,27 +2041,51 @@ const TakePracticeQuiz = () => {
                         // Step 3: Runtime fallback — extract formula from question text
                         if (expectedCurveSeries.length === 0) {
                           const qText = currentQuestion.question_text || '';
-                          // Match patterns like "f(x) = x² - 4x + 7", "g(x) = 2x^2 + 3x - 1", "y = ..."
-                          const formulaMatch = qText.match(/(?:[a-zA-Z]\(x\)|y)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
-                          if (formulaMatch) {
-                            let extracted = formulaMatch[1].trim();
-                            // Clean up: remove trailing punctuation/periods
-                            extracted = extracted.replace(/[.\s]+$/, '');
-                            // Convert unicode superscripts: ² → ^2, ³ → ^3
-                            extracted = extracted.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
-                            // Convert "4x" → "4*x" style for the evaluator
-                            extracted = extracted.replace(/(\d)(x)/gi, '$1*$2');
-                            
+                          
+                          // Helper to clean a raw formula string for the evaluator
+                          const cleanFormula = (raw: string): string => {
+                            let f = raw.trim().replace(/[.\s]+$/, '');
+                            f = f.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+                            f = f.replace(/(\d)(x)/gi, '$1*$2');
+                            return f;
+                          };
+                          
+                          // 1. Extract base function definition: f(x) = ...
+                          const baseFnMatch = qText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+                          // 2. Detect transformation request: "sketch y = f(x+1)" or "y = g(2x)"
+                          const transformMatch = qText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
+                          
+                          let finalFormula: string | null = null;
+                          
+                          if (baseFnMatch && transformMatch && transformMatch[1] === baseFnMatch[1]) {
+                            // Transformation case: substitute the transform argument into the base formula
+                            const baseExpr = baseFnMatch[2].trim().replace(/[.\s]+$/, '');
+                            const transformArg = transformMatch[2].trim(); // e.g. "x+1", "2x", "x-3"
+                            // Replace every "x" in baseExpr with "(transformArg)"
+                            finalFormula = cleanFormula(baseExpr.replace(/x/gi, `(${transformArg})`));
+                            console.log('[Review] RUNTIME FALLBACK: Detected transform, base:', baseExpr, 'arg:', transformArg, '→', finalFormula);
+                          } else if (baseFnMatch) {
+                            // Direct function: f(x) = expr, question asks to sketch y = f(x)
+                            finalFormula = cleanFormula(baseFnMatch[2]);
+                          } else {
+                            // Try bare "y = ..." pattern
+                            const yMatch = qText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+                            if (yMatch) {
+                              finalFormula = cleanFormula(yMatch[1]);
+                            }
+                          }
+                          
+                          if (finalFormula) {
                             const domainXLocal: [number, number] = config.domainX || [-10, 10];
-                            const fallbackCurve = generateCurveFromFormula(extracted, domainXLocal);
+                            const fallbackCurve = generateCurveFromFormula(finalFormula, domainXLocal);
                             if (fallbackCurve.length > 0) {
                               expectedCurveSeries = fallbackCurve;
-                              console.log('[Review] RUNTIME FALLBACK: Extracted formula from question text:', extracted);
+                              console.log('[Review] RUNTIME FALLBACK: Generated curve from:', finalFormula);
                             } else {
-                              console.warn('[Review] No markingFormula, expectedCurve, or extractable formula — no answer line will be shown');
+                              console.warn('[Review] Formula extracted but curve generation failed:', finalFormula);
                             }
                           } else {
-                            console.warn('[Review] No markingFormula or expectedCurve — no answer line will be shown');
+                            console.warn('[Review] No markingFormula or extractable formula — no answer line');
                           }
                         }
                       }
