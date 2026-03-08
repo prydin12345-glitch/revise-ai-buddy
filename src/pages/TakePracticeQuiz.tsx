@@ -2412,24 +2412,7 @@ const TakePracticeQuiz = () => {
         </main>
       </div>
 
-      <AlertDialog open={showQuitDialog} onOpenChange={(open) => {
-        setShowQuitDialog(open);
-        if (!open) {
-          // Clean up stale pointer-events left by Radix dialog overlay after animation
-          requestAnimationFrame(() => {
-            document.body.style.removeProperty('pointer-events');
-            document.documentElement.style.removeProperty('pointer-events');
-          });
-          setTimeout(() => {
-            document.body.style.removeProperty('pointer-events');
-            document.documentElement.style.removeProperty('pointer-events');
-          }, 100);
-          setTimeout(() => {
-            document.body.style.removeProperty('pointer-events');
-            document.documentElement.style.removeProperty('pointer-events');
-          }, 300);
-        }
-      }}>
+      <AlertDialog open={showQuitDialog} onOpenChange={setShowQuitDialog}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Save & Quit?</AlertDialogTitle><AlertDialogDescription>Your progress will be saved and you can continue later.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
