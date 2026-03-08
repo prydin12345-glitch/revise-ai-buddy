@@ -907,7 +907,7 @@ For graph_plotting questions, correct_answer MUST be a JSON object (not a string
     "subjectProfile": {"subject": "${exam.subject_id}", "quadrantMode": "q1"}` : ''}
   },
   "plottingAnswer": {${isMathSubject ? `
-    "markingFormula": "algebraic expression e.g. x^2 - 3*x + 2",
+    "markingFormula": "REQUIRED — the evaluatable algebraic expression using * for multiplication, ^ for powers, standard function names (sin, cos, ln, abs, sqrt, exp). Examples: 'x^2 - 4*x + 7', '(x+2)*(x-1)*(x-3)', '1/(x+4)', 'sin(2*x)', 'abs(x-2)'. For transformations, pre-compute the substitution: if f(x)=(x+2)*(x-1)*(x-3) and question asks for f(x+1), write '(x+3)*x*(x-2)'. NEVER leave null or as bare reference like 'f(x)'.",
     "expectedCurve": [{"x":0,"y":2}, {"x":1,"y":0}, ...at least 10 points],
     "tolerancePercent": 8` : `
     "expectedPath": [{"x":0,"y":0}, {"x":100,"y":300}, ...ordered vertices],
