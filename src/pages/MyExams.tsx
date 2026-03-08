@@ -9,6 +9,7 @@ import { Upload, Loader2, CheckCircle, CheckCheck, Star, Archive, Filter, Plus, 
 import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
 import { useStudentPDF } from "@/hooks/useStudentPDF";
 import { ExamCard } from "@/components/exam/ExamCard";
+import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
