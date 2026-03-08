@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { generateExamPDF, downloadPDF, openPDFInNewTab } from "@/lib/exam-pdf-generator";
+// PDF libraries are dynamically imported when user triggers generation
 import { toast } from "sonner";
 
 interface ExamQuestion {
