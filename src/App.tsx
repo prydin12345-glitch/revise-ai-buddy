@@ -40,6 +40,7 @@ import StudentExamReview from "./pages/tutor/StudentExamReview";
 import ManualExamCreator from "./pages/tutor/ManualExamCreator";
 import { TutorLayout } from "./components/tutor/TutorLayout";
 import MechanicsDemo from "./pages/MechanicsDemo";
+import CircuitDemo from "./pages/CircuitDemo";
 import MyClasses from "./pages/MyClasses";
 
 const queryClient = new QueryClient();
