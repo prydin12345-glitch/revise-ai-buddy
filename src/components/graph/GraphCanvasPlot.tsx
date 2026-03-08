@@ -876,19 +876,19 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Missed expected points (correct answer indicators with coordinate labels) */}
+        {/* Missed expected points (RED - answer points the student missed) */}
         {showCorrectAnswers && missedPoints.map((point, idx) => {
           const screen = graphToScreen(point.x, point.y);
           if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
           const coordLabel = `(${point.x}, ${point.y})`;
           return (
             <g key={`missed-${idx}`}>
-              {/* Green filled dot */}
+              {/* RED filled dot — missed expected point */}
               <circle
                 cx={screen.x}
                 cy={screen.y}
                 r={7}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 stroke="white"
                 strokeWidth={2}
                 opacity={0.9}
@@ -900,9 +900,9 @@ export function GraphCanvasPlot({
                 width={coordLabel.length * 7 + 8}
                 height={18}
                 rx={3}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 fillOpacity={0.15}
-                stroke="hsl(142, 76%, 36%)"
+                stroke="#ef4444"
                 strokeWidth={0.5}
               />
               <text
@@ -910,7 +910,7 @@ export function GraphCanvasPlot({
                 y={screen.y - 8}
                 fontSize={11}
                 fontWeight={600}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 fontFamily="system-ui, sans-serif"
               >
                 {coordLabel}
