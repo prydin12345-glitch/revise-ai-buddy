@@ -65,7 +65,7 @@ export const PersonalizationSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="flex flex-wrap gap-3 justify-center">
             {curriculumRegions.map((r) => {
               const isSelected = preferences?.curriculum_region === r.value;
               return (
@@ -73,22 +73,15 @@ export const PersonalizationSection = () => {
                   key={r.value}
                   onClick={() => updatePreference({ curriculum_region: r.value })}
                   className={cn(
-                    "relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer hover:bg-accent/50",
+                    "flex items-center gap-2.5 px-4 py-2.5 rounded-full border transition-all cursor-pointer",
+                    "hover:shadow-md hover:border-muted-foreground/50 hover:-translate-y-0.5",
                     isSelected
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-muted-foreground/40"
+                      ? "border-primary bg-primary/10 shadow-md"
+                      : "border-border bg-card"
                   )}
                 >
-                  <span className="text-2xl shrink-0">{r.flag}</span>
-                  <div className="text-left min-w-0">
-                    <p className="text-sm font-medium truncate">{r.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{r.standard}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="w-3 h-3 text-primary-foreground" />
-                    </div>
-                  )}
+                  <span className="text-xl leading-none">{r.flag}</span>
+                  <span className="text-sm font-bold tracking-wide">{r.abbr}</span>
                 </button>
               );
             })}
