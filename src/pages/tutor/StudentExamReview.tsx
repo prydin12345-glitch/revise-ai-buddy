@@ -267,8 +267,22 @@ const StudentExamReview = () => {
                   {/* Question Text */}
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">Question</p>
-                    <p className="text-sm">{question.questionText}</p>
+                    <div className="text-sm"><MathRenderer content={question.questionText} /></div>
                   </div>
+
+                  {/* Mechanics figure panel */}
+                  {(() => {
+                    const diagConfig = detectDiagramConfig(question.questionText);
+                    if (!diagConfig) return null;
+                    return <MechanicsFigurePanel config={diagConfig} />;
+                  })()}
+
+                  {/* Circuit figure panel */}
+                  {(() => {
+                    const circuitConfig = detectCircuitConfig(question.questionText);
+                    if (!circuitConfig) return null;
+                    return <CircuitFigurePanel config={circuitConfig} />;
+                  })()}
 
                   {/* Student's Answer */}
                   <div>
