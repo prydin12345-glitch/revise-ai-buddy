@@ -77,6 +77,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1622,6 +1625,19 @@ const TakePracticeQuiz = () => {
                     return null;
                   })()}
 
+                  {/* Mechanics figure panel */}
+                  {(() => {
+                    const diagConfig = detectDiagramConfig(currentQuestion.question_text);
+                    if (!diagConfig) return null;
+                    return <MechanicsFigurePanel config={diagConfig} />;
+                  })()}
+
+                  {/* Circuit figure panel */}
+                  {(() => {
+                    const circuitConfig = detectCircuitConfig(currentQuestion.question_text);
+                    if (!circuitConfig) return null;
+                    return <CircuitFigurePanel config={circuitConfig} />;
+                  })()}
                   {/* Answer input section - conditionally render based on question type */}
                   {(() => {
                     // Check if this is a table_grid question (explicit type or detected from content)
