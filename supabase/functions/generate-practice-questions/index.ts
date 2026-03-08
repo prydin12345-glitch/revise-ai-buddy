@@ -1619,8 +1619,8 @@ ${notesSection}`;
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Generous timeouts - complex graph prompts with tool calling need time
-      const timeoutMs = attempt === 0 ? 120_000 : attempt === 1 ? 150_000 : 180_000;
+      // Tighter timeouts so all 3 attempts fit within edge function runtime (~400s)
+      const timeoutMs = attempt === 0 ? 90_000 : attempt === 1 ? 100_000 : 110_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
