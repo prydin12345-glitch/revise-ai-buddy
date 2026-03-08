@@ -425,8 +425,6 @@ function extractTwoMasses(text: string): [number, number] {
   }
   return [3, 5];
 }
-
-  if (/find\s+(the\s+)?acceleration/i.test(lower)) unknowns.push('acceleration');
   if (/find\s+(the\s+)?tension/i.test(lower)) unknowns.push('tension');
   if (/find\s+(the\s+)?angle/i.test(lower) || /calculate\s+(the\s+)?angle/i.test(lower)) unknowns.push('angle');
   if (/find\s+(the\s+)?speed/i.test(lower) || /find\s+(the\s+)?velocity/i.test(lower)) unknowns.push('speed');
