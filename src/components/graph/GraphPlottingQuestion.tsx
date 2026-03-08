@@ -371,15 +371,27 @@ export function GraphPlottingQuestion({
   }, []);
 
   /**
-   * Snap a coordinate to 1 decimal place precision.
-   * This allows non-integer coordinates like 4.2, 4.5, 4.7 etc.
+   * Snap a coordinate to the nearest grid intersection.
+   * Uses stepX/stepY from config (default 0.5) for clean grid values.
+   * Falls back to 1dp rounding if snapToGrid is not enabled.
    */
   const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
+    const snapEnabled = config.snapToGrid !== false; // default true
+    const stepX = config.stepX || 0.5;
+    const stepY = config.stepY || 0.5;
+    
+    if (snapEnabled) {
+      return {
+        x: Math.round(x / stepX) * stepX,
+        y: Math.round(y / stepY) * stepY,
+      };
+    }
+    
     return { 
       x: round1dp(x), 
       y: round1dp(y) 
     };
-  }, [round1dp]);
+  }, [round1dp, config.snapToGrid, config.stepX, config.stepY]);
 
   /**
    * Check if a point is currently selected for joining.
