@@ -10,6 +10,9 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid, 
@@ -351,6 +354,20 @@ const ExamReview = () => {
                    {isHistogramQuestion((question as any).options) && (
                      <HistogramChart chartData={(question as any).options} className="mb-4" />
                    )}
+
+                   {/* Mechanics diagram panel */}
+                   {(() => {
+                     const diagConfig = detectDiagramConfig(question.question_text);
+                     if (!diagConfig) return null;
+                     return <MechanicsFigurePanel config={diagConfig} />;
+                   })()}
+
+                   {/* Circuit diagram panel */}
+                   {(() => {
+                     const circuitConfig = detectCircuitConfig(question.question_text);
+                     if (!circuitConfig) return null;
+                     return <CircuitFigurePanel config={circuitConfig} />;
+                   })()}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
