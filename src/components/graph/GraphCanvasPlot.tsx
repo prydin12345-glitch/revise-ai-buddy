@@ -13,6 +13,7 @@ import {
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { AngleMeasurement } from './GraphPlottingQuestion';
 import { cn } from '@/lib/utils';
+import { generateCurveFromFormula } from '@/lib/formula-evaluator';
 
 /**
  * Catmull-Rom spline interpolation for smooth curves through points.
@@ -633,15 +634,56 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Curved mode spline through all points - HIDE in review mode when correct to avoid offset */}
-        {curvedLineData && !(showCorrectAnswers && markingData) && (
-          <CurveLayer
-            data={curvedLineData}
-            graphToScreen={graphToScreen}
-            stroke="#3b82f6"
-            strokeWidth={2}
-          />
-        )}
+        {/* Formula-based correct answer curve — always draw after submit if markingFormula is available */}
+        {showCorrectAnswers && markingData && (markingData as any).markingFormula && expectedCurveSeries.length === 0 && (() => {
+          const formula = (markingData as any).markingFormula;
+          const branches = generateCurveFromFormula(formula, domainX, 500);
+          return branches.map((branch, idx) => {
+            const validData = branch.data.filter(p => Number.isFinite(p.y));
+            if (validData.length < 2) return null;
+            return (
+              <CurveLayer
+                key={`formula-curve-${idx}`}
+                data={validData}
+                graphToScreen={graphToScreen}
+                stroke="#22c55e"
+                strokeWidth={2.5}
+                strokeDasharray="6 3"
+                opacity={0.85}
+              />
+            );
+          });
+        })()}
+        
+        {/* In review mode: color by score. Before submit: blue. */}
+        {curvedLineData && (() => {
+          if (showCorrectAnswers && markingData) {
+            // Determine line color by score
+            const scoreRatio = markingData.totalMarks > 0 
+              ? markingData.totalScore / markingData.totalMarks 
+              : 0;
+            const lineColor = scoreRatio >= 1 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
+            const isPerfectMatch = scoreRatio >= 0.8;
+            // Hide student line ONLY for perfect match (glow line replaces it)
+            if (isPerfectMatch) return null;
+            return (
+              <CurveLayer
+                data={curvedLineData}
+                graphToScreen={graphToScreen}
+                stroke={lineColor}
+                strokeWidth={2.5}
+              />
+            );
+          }
+          return (
+            <CurveLayer
+              data={curvedLineData}
+              graphToScreen={graphToScreen}
+              stroke="#3b82f6"
+              strokeWidth={2}
+            />
+          );
+        })()}
         
         {/* Annotation layer (subject-aware labels, intercepts, region shading) */}
         {config.annotations && config.annotations.length > 0 && (
@@ -672,7 +714,17 @@ export function GraphCanvasPlot({
               m => m.segmentId1 === seg.id || m.segmentId2 === seg.id
             );
             const isHighlighted = selectedSegmentIds.includes(seg.id) || isInAngleMeasurement;
-            const segmentColor = isHighlighted ? '#f97316' : '#3b82f6'; // Orange when selected/in measurement
+            
+            // In review mode, color segments by score
+            let segmentColor: string;
+            if (showCorrectAnswers && markingData) {
+              const scoreRatio = markingData.totalMarks > 0 
+                ? markingData.totalScore / markingData.totalMarks 
+                : 0;
+              segmentColor = scoreRatio >= 1 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
+            } else {
+              segmentColor = isHighlighted ? '#f97316' : '#3b82f6';
+            }
             
             const isClickable = eraseMode || joinMode === 'angle';
             
@@ -845,19 +897,19 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Missed expected points (correct answer indicators with coordinate labels) */}
+        {/* Missed expected points (RED - answer points the student missed) */}
         {showCorrectAnswers && missedPoints.map((point, idx) => {
           const screen = graphToScreen(point.x, point.y);
           if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
           const coordLabel = `(${point.x}, ${point.y})`;
           return (
             <g key={`missed-${idx}`}>
-              {/* Green filled dot */}
+              {/* RED filled dot — missed expected point */}
               <circle
                 cx={screen.x}
                 cy={screen.y}
                 r={7}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 stroke="white"
                 strokeWidth={2}
                 opacity={0.9}
@@ -869,9 +921,9 @@ export function GraphCanvasPlot({
                 width={coordLabel.length * 7 + 8}
                 height={18}
                 rx={3}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 fillOpacity={0.15}
-                stroke="hsl(142, 76%, 36%)"
+                stroke="#ef4444"
                 strokeWidth={0.5}
               />
               <text
@@ -879,7 +931,7 @@ export function GraphCanvasPlot({
                 y={screen.y - 8}
                 fontSize={11}
                 fontWeight={600}
-                fill="hsl(142, 76%, 36%)"
+                fill="#ef4444"
                 fontFamily="system-ui, sans-serif"
               >
                 {coordLabel}
@@ -912,8 +964,8 @@ export function GraphCanvasPlot({
             // Determine fill color
             let fillColor = subjectColor;
             if (showCorrectAnswers) {
-              if (status === 'correct') fillColor = 'hsl(var(--success, 142 76% 36%))';
-              else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
+              if (status === 'correct') fillColor = '#22c55e'; // Green = student correct
+              else if (status === 'incorrect') fillColor = '#f97316'; // Orange = student wrong
             }
             
             const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;

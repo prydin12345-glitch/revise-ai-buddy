@@ -394,7 +394,21 @@ serve(async (req) => {
           else if (markingFormula && studentPoints.length > 0 && !isSketchMode) {
             console.log('[graph-grading] Using FORMULA-BASED marking (primary method)');
             
-            const formulaTolerance = questionData.plottingAnswer?.formulaTolerance ?? 0.5;
+            // Dynamic tolerance based on axis range (8% of Y range, with fallback)
+            const graphConfig = questionData.graphConfig || {};
+            const domainY = graphConfig.domainY || [-10, 10];
+            const domainX = graphConfig.domainX || [-10, 10];
+            const yRange = Math.abs(domainY[1] - domainY[0]);
+            const xRange = Math.abs(domainX[1] - domainX[0]);
+            
+            // Use 8% of axis range as primary tolerance, minimum 0.5
+            const dynamicTolerance = Math.max(yRange * 0.08, 0.5);
+            const xTolerance = Math.max(xRange * 0.08, 0.5);
+            const radiusTolerance = Math.max(Math.max(yRange, xRange) * 0.10, 0.8);
+            const formulaTolerance = questionData.plottingAnswer?.formulaTolerance ?? dynamicTolerance;
+            
+            console.log('[graph-grading] Tolerance:', { formulaTolerance, xTolerance, radiusTolerance, yRange, xRange });
+            
             let correctPoints = 0;
             const perPointResults: any[] = [];
             
@@ -404,7 +418,24 @@ serve(async (req) => {
               
               if (expectedY !== null && Number.isFinite(expectedY)) {
                 const yDiff = Math.abs(sp.y - expectedY);
-                const isCorrect = yDiff <= formulaTolerance;
+                
+                // Primary check: Y value at student's X
+                let isCorrect = yDiff <= formulaTolerance;
+                
+                // Secondary proximity check: scan nearby X values for closest point on curve
+                if (!isCorrect) {
+                  const step = xTolerance / 10;
+                  for (let dx = -xTolerance; dx <= xTolerance; dx += step) {
+                    const nearbyY = evaluateFormulaAtX(markingFormula, sp.x + dx);
+                    if (nearbyY !== null && Number.isFinite(nearbyY)) {
+                      const dist = Math.sqrt(dx * dx + Math.pow(sp.y - nearbyY, 2));
+                      if (dist <= radiusTolerance) {
+                        isCorrect = true;
+                        break;
+                      }
+                    }
+                  }
+                }
                 
                 if (isCorrect) correctPoints++;
                 
