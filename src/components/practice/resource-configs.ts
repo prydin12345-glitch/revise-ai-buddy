@@ -14,8 +14,7 @@ export interface ResourceConfig {
   showLength: boolean;
   lengthOptions?: ResourceFieldOption[];
   showLineNumbering?: boolean;
-  showReadingLevel?: boolean;
-  readingLevelOptions?: ResourceFieldOption[];
+  extraFields?: {
   extraFields?: {
     key: string;
     label: string;
