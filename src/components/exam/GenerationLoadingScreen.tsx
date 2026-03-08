@@ -18,7 +18,7 @@ const subjectIcons: Record<string, typeof Atom> = {
   default: Sparkles,
 };
 
-export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", estimatedTime = 300 }: GenerationLoadingScreenProps) {
+export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", estimatedTime = 300, apiComplete = false }: GenerationLoadingScreenProps) {
   const [iconRotation, setIconRotation] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
