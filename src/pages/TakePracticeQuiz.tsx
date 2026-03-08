@@ -2415,13 +2415,19 @@ const TakePracticeQuiz = () => {
       <AlertDialog open={showQuitDialog} onOpenChange={(open) => {
         setShowQuitDialog(open);
         if (!open) {
-          // Clean up stale pointer-events left by Radix dialog overlay
+          // Clean up stale pointer-events left by Radix dialog overlay after animation
+          requestAnimationFrame(() => {
+            document.body.style.removeProperty('pointer-events');
+            document.documentElement.style.removeProperty('pointer-events');
+          });
           setTimeout(() => {
-            document.body.style.pointerEvents = '';
-            document.documentElement.style.pointerEvents = '';
-            const root = document.getElementById('root');
-            if (root) root.style.pointerEvents = '';
-          }, 0);
+            document.body.style.removeProperty('pointer-events');
+            document.documentElement.style.removeProperty('pointer-events');
+          }, 100);
+          setTimeout(() => {
+            document.body.style.removeProperty('pointer-events');
+            document.documentElement.style.removeProperty('pointer-events');
+          }, 300);
         }
       }}>
         <AlertDialogContent>
