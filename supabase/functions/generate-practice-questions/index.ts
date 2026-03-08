@@ -444,6 +444,11 @@ EXAMPLE QUESTION FORMATS:
     }
     console.log('Practice questions curriculum region:', curriculumRegion);
 
+    // Build combined generation context (region + level)
+    const generationCtx = buildGenerationContext(curriculumRegion, setData.educational_tier);
+    const generationContextPrompt = formatGenerationContextPrompt(generationCtx);
+    console.log('Generation context:', generationCtx.region, generationCtx.level);
+
     // Build regional persona and region-aware subject instructions
     const regionalPersona = getRegionalPersona(curriculumRegion);
     const regionSubjectInstructions = getRegionAwareSubjectInstructions(
