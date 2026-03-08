@@ -74,7 +74,6 @@ export const AIResourceGenerator = ({
           resourceCount,
           sourceType,
           extractLength: config.showLength ? extractLength : undefined,
-          readingLevel: config.showReadingLevel ? readingLevel : undefined,
           lineNumbering: config.showLineNumbering ? (lineNumberEvery ? 'every_5' : 'every_line') : undefined,
           extraFields: extraValues,
         },
