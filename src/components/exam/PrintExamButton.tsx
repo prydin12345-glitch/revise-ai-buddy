@@ -3,7 +3,6 @@ import { Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { generateExamPDF, downloadPDF } from "@/lib/exam-pdf-generator";
 import { toast } from "sonner";
 import { ExamPDFPreviewModal } from "./ExamPDFPreviewModal";
 
@@ -25,6 +24,26 @@ interface ExamQuestion {
   figure_urls?: string[] | null;
   correct_answer?: string | null;
   topic_tag?: string | null;
+  diagram_type?: string | null;
+  circuit_type?: string | null;
+  circuit_description?: string | null;
+  graph_description?: string | null;
+  requires_graph?: boolean;
+  requires_diagram?: boolean;
+  diagramConfig?: any;
+}
+
+// Build diagramConfig from question metadata
+function buildDiagramConfig(q: any): any | undefined {
+  // Explicit diagram_type field
+  if (q.diagram_type) {
+    return { type: q.diagram_type, ...(q.graph_description ? { description: q.graph_description } : {}) };
+  }
+  // Circuit diagrams
+  if (q.circuit_type) {
+    return { type: q.circuit_type, description: q.circuit_description || '' };
+  }
+  return undefined;
 }
 
 export function PrintExamButton({ 
@@ -47,7 +66,6 @@ export function PrintExamButton({
   const fetchExamData = async () => {
     setLoading(true);
     try {
-      // Fetch exam details
       const { data: exam, error: examError } = await supabase
         .from("exams")
         .select("title, exam_board, qualification_level, detected_subject")
@@ -56,7 +74,6 @@ export function PrintExamButton({
 
       if (examError) throw examError;
 
-      // Fetch exam questions
       const { data: questions, error: questionsError } = await supabase
         .from("exam_questions")
         .select("*")
@@ -65,17 +82,27 @@ export function PrintExamButton({
 
       if (questionsError) throw questionsError;
 
-      const formattedQuestions: ExamQuestion[] = questions.map(q => ({
-        id: q.id,
-        question_number: q.question_number,
-        question_text: q.question_text,
-        question_type: q.question_type,
-        marks: q.marks,
-        options: q.options as { label: string; text: string }[] | null,
-        figure_urls: q.figure_urls,
-        correct_answer: q.correct_answer,
-        topic_tag: q.topic_tag,
-      }));
+      const formattedQuestions: ExamQuestion[] = questions.map(q => {
+        const diagramConfig = buildDiagramConfig(q);
+        return {
+          id: q.id,
+          question_number: q.question_number,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          marks: q.marks,
+          options: q.options as { label: string; text: string }[] | null,
+          figure_urls: q.figure_urls,
+          correct_answer: q.correct_answer,
+          topic_tag: q.topic_tag,
+          diagram_type: q.diagram_type,
+          circuit_type: q.circuit_type,
+          circuit_description: q.circuit_description,
+          graph_description: q.graph_description,
+          requires_graph: q.question_type === 'graph_sketch' || q.question_type === 'graph_plotting',
+          requires_diagram: !!q.diagram_type || !!q.circuit_type,
+          diagramConfig,
+        };
+      });
 
       setExamData({
         title: exam.title,
@@ -91,28 +118,6 @@ export function PrintExamButton({
       toast.error("Failed to load exam data for PDF");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleQuickDownload = async () => {
-    if (!examData) {
-      await fetchExamData();
-    }
-    
-    if (examData) {
-      try {
-        const doc = await generateExamPDF(examData, {
-          includeAnswerKey: false,
-          includeWorkingSpace: true,
-          showMarks: true,
-        });
-        const filename = `${examTitle.replace(/[^a-z0-9]/gi, "_")}_exam.pdf`;
-        downloadPDF(doc, filename);
-        toast.success("PDF downloaded successfully");
-      } catch (error) {
-        console.error("Error generating PDF:", error);
-        toast.error("Failed to generate PDF");
-      }
     }
   };
 
