@@ -12,6 +12,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
+import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
