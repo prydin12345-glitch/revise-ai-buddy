@@ -845,20 +845,46 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Missed expected points (correct answer indicators) */}
+        {/* Missed expected points (correct answer indicators with coordinate labels) */}
         {showCorrectAnswers && missedPoints.map((point, idx) => {
           const screen = graphToScreen(point.x, point.y);
+          if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
+          const coordLabel = `(${point.x}, ${point.y})`;
           return (
-            <circle
-              key={`missed-${idx}`}
-              cx={screen.x}
-              cy={screen.y}
-              r={8}
-              fill="transparent"
-              stroke="hsl(var(--success, 142 76% 36%))"
-              strokeWidth={2}
-              strokeDasharray="4 2"
-            />
+            <g key={`missed-${idx}`}>
+              {/* Green filled dot */}
+              <circle
+                cx={screen.x}
+                cy={screen.y}
+                r={7}
+                fill="hsl(142, 76%, 36%)"
+                stroke="white"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+              {/* Coordinate label */}
+              <rect
+                x={screen.x + 10}
+                y={screen.y - 20}
+                width={coordLabel.length * 7 + 8}
+                height={18}
+                rx={3}
+                fill="hsl(142, 76%, 36%)"
+                fillOpacity={0.15}
+                stroke="hsl(142, 76%, 36%)"
+                strokeWidth={0.5}
+              />
+              <text
+                x={screen.x + 14}
+                y={screen.y - 8}
+                fontSize={11}
+                fontWeight={600}
+                fill="hsl(142, 76%, 36%)"
+                fontFamily="system-ui, sans-serif"
+              >
+                {coordLabel}
+              </text>
+            </g>
           );
         })}
         
