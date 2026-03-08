@@ -53,14 +53,10 @@ const UnknownBox: React.FC<{ x: number; y: number; rotation: number }> = ({ x, y
 export const BatterySymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
-      {/* Long thin positive plate */}
       <line x1={x - 6} y1={y - 12} x2={x - 6} y2={y + 12} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
-      {/* Short thick negative plate */}
       <line x1={x + 6} y1={y - 7} x2={x + 6} y2={y + 7} stroke={CIRCUIT_COLORS.component} strokeWidth={3} />
-      {/* + and - labels */}
       <text x={x - 14} y={y - 6} textAnchor="middle" fontSize={10} fontWeight="bold" fill={CIRCUIT_COLORS.label}>+</text>
       <text x={x + 14} y={y - 6} textAnchor="middle" fontSize={10} fontWeight="bold" fill={CIRCUIT_COLORS.label}>−</text>
-      {/* Connection stubs */}
       <line x1={x - 30} y1={y} x2={x - 6} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 6} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
@@ -76,7 +72,7 @@ export const BatterySymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, sh
 export const ResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
-      <rect x={x - 15} y={y - 6} width={30} height={12} fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
@@ -92,10 +88,30 @@ export const ResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, s
 export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
-      <rect x={x - 15} y={y - 6} width={30} height={12} fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
-      {/* Diagonal arrow through */}
+      <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x - 18} y1={y + 10} x2={x + 18} y2={y - 10} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
       <polygon points={`${x + 18},${y - 10} ${x + 12},${y - 6} ${x + 14},${y - 12}`} fill={CIRCUIT_COLORS.component} />
+      <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+    ) : !showLabel ? (
+      <UnknownBox x={x} y={y} rotation={rotation} />
+    ) : null}
+  </g>
+);
+
+/** Thermistor — resistor rectangle with diagonal line and θ symbol */
+export const ThermistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      {/* Diagonal line with negative slope indicator (NTC) */}
+      <line x1={x - 18} y1={y + 10} x2={x + 18} y2={y - 10} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
+      {/* Small "θ" temperature symbol */}
+      <text x={x + 22} y={y + 14} textAnchor="middle" dominantBaseline="central"
+        fontFamily={CIRCUIT_FONT.family} fontStyle={CIRCUIT_FONT.style} fontSize={10} fill={CIRCUIT_COLORS.label}>θ</text>
       <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
@@ -111,7 +127,7 @@ export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, 
 export const LampSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
-      <circle cx={x} cy={y} r={12} fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <circle cx={x} cy={y} r={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x - 8} y1={y - 8} x2={x + 8} y2={y + 8} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
       <line x1={x + 8} y1={y - 8} x2={x - 8} y2={y + 8} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
       <line x1={x - 30} y1={y} x2={x - 12} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
@@ -191,7 +207,7 @@ export const SwitchClosedSymbol: React.FC<SymbolProps> = ({ x, y, rotation, labe
 export const DiodeSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
-      <polygon points={`${x - 8},${y - 8} ${x - 8},${y + 8} ${x + 8},${y}`} fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <polygon points={`${x - 8},${y - 8} ${x - 8},${y + 8} ${x + 8},${y}`} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x + 8} y1={y - 8} x2={x + 8} y2={y + 8} stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x - 30} y1={y} x2={x - 8} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 8} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
@@ -224,6 +240,7 @@ export const CircuitComponent: React.FC<{
     case 'battery': return <BatterySymbol {...props} />;
     case 'resistor': return <ResistorSymbol {...props} />;
     case 'variable_resistor': return <VariableResistorSymbol {...props} />;
+    case 'thermistor': return <ThermistorSymbol {...props} />;
     case 'lamp': return <LampSymbol {...props} />;
     case 'voltmeter': return <VoltmeterSymbol {...props} />;
     case 'ammeter': return <AmmeterSymbol {...props} />;

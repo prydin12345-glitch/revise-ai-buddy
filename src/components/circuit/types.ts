@@ -10,6 +10,7 @@ export type CircuitComponentType =
   | 'battery'
   | 'resistor'
   | 'variable_resistor'
+  | 'thermistor'
   | 'lamp'
   | 'voltmeter'
   | 'ammeter'
@@ -42,12 +43,14 @@ export interface CircuitConfig {
 }
 
 // ── Styling Constants ──
+// IMPORTANT: All colours are hardcoded dark for rendering on white backgrounds.
+// Never use "currentColor" or inherit from theme.
 
 export const CIRCUIT_COLORS = {
-  wire: '#000000',
-  component: '#000000',
-  label: '#000000',
-  junction: '#000000',
+  wire: '#1a1a1a',
+  component: '#1a1a1a',
+  label: '#1a1a1a',
+  junction: '#1a1a1a',
   current: '#0055cc',
   unknown: '#888888',
 } as const;
