@@ -15,7 +15,6 @@ export interface ResourceConfig {
   lengthOptions?: ResourceFieldOption[];
   showLineNumbering?: boolean;
   extraFields?: {
-  extraFields?: {
     key: string;
     label: string;
     type: 'select' | 'toggle';
