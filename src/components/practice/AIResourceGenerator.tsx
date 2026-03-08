@@ -40,6 +40,7 @@ export const AIResourceGenerator = ({
 }: AIResourceGeneratorProps) => {
   const { category, isLoading: categoryLoading, updateCategory } = useSubjectCategory(subjectId);
   const [showCategoryOverride, setShowCategoryOverride] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   const config = getResourceConfig(category);
 
