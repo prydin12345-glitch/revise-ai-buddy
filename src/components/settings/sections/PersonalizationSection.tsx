@@ -26,18 +26,18 @@ const timezones = [
 ];
 
 export const curriculumRegions = [
-  { value: 'GB', flag: '🇬🇧', abbr: 'UK' },
-  { value: 'US', flag: '🇺🇸', abbr: 'USA' },
-  { value: 'AU', flag: '🇦🇺', abbr: 'AUS' },
-  { value: 'CA', flag: '🇨🇦', abbr: 'CAN' },
-  { value: 'AE', flag: '🇦🇪', abbr: 'UAE' },
-  { value: 'IN', flag: '🇮🇳', abbr: 'IND' },
-  { value: 'SG', flag: '🇸🇬', abbr: 'SG' },
-  { value: 'HK', flag: '🇭🇰', abbr: 'HK' },
-  { value: 'IE', flag: '🇮🇪', abbr: 'IRE' },
-  { value: 'NZ', flag: '🇳🇿', abbr: 'NZ' },
-  { value: 'ZA', flag: '🇿🇦', abbr: 'SA' },
-  { value: 'IB', flag: '🌍', abbr: 'INT' },
+  { value: 'GB', code: 'gb', abbr: 'UK' },
+  { value: 'US', code: 'us', abbr: 'USA' },
+  { value: 'AU', code: 'au', abbr: 'AUS' },
+  { value: 'CA', code: 'ca', abbr: 'CAN' },
+  { value: 'AE', code: 'ae', abbr: 'UAE' },
+  { value: 'IN', code: 'in', abbr: 'IND' },
+  { value: 'SG', code: 'sg', abbr: 'SG' },
+  { value: 'HK', code: 'hk', abbr: 'HK' },
+  { value: 'IE', code: 'ie', abbr: 'IRE' },
+  { value: 'NZ', code: 'nz', abbr: 'NZ' },
+  { value: 'ZA', code: 'za', abbr: 'SA' },
+  { value: 'IB', code: null, abbr: 'INT' },
 ];
 
 export const PersonalizationSection = () => {
