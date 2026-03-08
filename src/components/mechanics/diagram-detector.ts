@@ -312,8 +312,119 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
   return null;
 }
 
+// ── Dual question detection ──
+
+function isDualQuestion(text: string): boolean {
+  const hasElectrical = /motor|supply|battery|current|voltage|power\s*input/i.test(text) &&
+    /\d+\s*[va]/i.test(text);
+  const hasMechanical = /lift|raise|pump|move|height|distance|speed/i.test(text) &&
+    /\d+\s*(?:kg|m\b|m\s)/i.test(text);
+
+  if (hasElectrical && hasMechanical) return true;
+  if (/motor\s+(?:is\s+)?used\s+to\s+(?:lift|move|pump|raise)/i.test(text)) return true;
+  if (/connected\s+to\s+a\s+(?:\d+\s*v\s+)?supply/i.test(text) && /height|distance|speed/i.test(text)) return true;
+  if (/electrical\s+energy/i.test(text) && /(?:kinetic|potential)\s+energy/i.test(text)) return true;
+  if (/efficiency\s+of\s+the\s+motor/i.test(text)) return true;
+  if (/power\s+input/i.test(text) && /power\s+output/i.test(text)) return true;
+
+  return false;
+}
+
+function buildDualConfig(raw: string, text: string): DualConfig {
+  const voltMatch = raw.match(/(\d+\.?\d*)\s*V/);
+  const currentMatch = raw.match(/(\d+\.?\d*)\s*A/);
+  const voltLabel = voltMatch ? `${voltMatch[1]} V` : 'V';
+  const currentLabel = currentMatch ? `I = ${currentMatch[1]} A` : undefined;
+
+  const massMatch = raw.match(/(\d+\.?\d*)\s*kg/i);
+  const heightMatch = raw.match(/(\d+\.?\d*)\s*m\b/);
+  const timeMatch = raw.match(/(\d+\.?\d*)\s*s\b/);
+  const mass = massMatch ? massMatch[1] : 'm';
+  const height = heightMatch ? parseFloat(heightMatch[1]) : 10;
+  const time = timeMatch ? parseFloat(timeMatch[1]) : undefined;
+
+  const unknowns: string[] = [];
+  if (/(?:find|calculate|determine).*(?:energy|gpe|gravitational)/i.test(text)) unknowns.push('GPE');
+  if (/(?:find|calculate|determine).*(?:electrical\s+energy|input\s+energy)/i.test(text)) unknowns.push('electricalEnergy');
+  if (/(?:find|calculate|determine).*efficiency/i.test(text)) unknowns.push('efficiency');
+
+  return {
+    type: 'dual',
+    left: {
+      type: 'circuit' as const,
+      gridSpacing: 80,
+      nodes: [
+        { id: 'TL', col: 0, row: 0 },
+        { id: 'TR', col: 3, row: 0 },
+        { id: 'BR', col: 3, row: 2 },
+        { id: 'BL', col: 0, row: 2 },
+      ],
+      wires: [
+        { from: 'TL', to: 'TR', component: 'wire' as const, label: currentLabel },
+        { from: 'TR', to: 'BR', component: 'motor' as const, label: 'M' },
+        { from: 'BR', to: 'BL', component: 'wire' as const },
+        { from: 'BL', to: 'TL', component: 'battery' as const, label: voltLabel },
+      ],
+      junctions: [],
+      showLabels: true,
+    },
+    right: {
+      type: 'vertical_lift',
+      mass,
+      height,
+      time,
+      unknowns,
+    },
+  };
+}
+
 /** Detect what the student is asked to find, so we can hide those values */
 function detectUnknowns(text: string): string[] {
+  const unknowns: string[] = [];
+  const lower = text.toLowerCase();
+
+  if (/find\s+(the\s+)?acceleration/i.test(lower)) unknowns.push('acceleration');
+  if (/find\s+(the\s+)?tension/i.test(lower)) unknowns.push('tension');
+  if (/find\s+(the\s+)?angle/i.test(lower) || /calculate\s+(the\s+)?angle/i.test(lower)) unknowns.push('angle');
+  if (/find\s+(the\s+)?speed/i.test(lower) || /find\s+(the\s+)?velocity/i.test(lower)) unknowns.push('speed');
+  if (/find\s+(the\s+)?time/i.test(lower) || /calculate\s+(the\s+)?time/i.test(lower)) unknowns.push('time');
+  if (/find\s+(the\s+)?(greatest|max|maximum)\s*height/i.test(lower)) unknowns.push('maxHeight');
+  if (/find\s+(the\s+)?normal/i.test(lower) || /find\s+(the\s+)?reaction/i.test(lower)) unknowns.push('normal');
+  if (/find\s+(the\s+)?weight/i.test(lower)) unknowns.push('weight');
+  if (/find\s+(the\s+)?friction/i.test(lower) || /find\s+(the\s+)?frictional/i.test(lower)) unknowns.push('friction');
+
+  return unknowns;
+}
+
+function extractNumber(text: string, pattern: RegExp): number | null {
+  const m = text.match(pattern);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function extractMassLabel(text: string): string {
+  const kgMatch = text.match(/(\d+\.?\d*)\s*kg/);
+  if (kgMatch) return kgMatch[1];
+  const mMatch = text.match(/mass\s+([A-Z])/i);
+  if (mMatch) return mMatch[1];
+  return 'm';
+}
+
+function extractLengthLabel(text: string): string {
+  const mMatch = text.match(/length\s+(\d+\s*m|[a-z0-9]+)/i);
+  if (mMatch) return mMatch[1];
+  const aMatch = text.match(/(\d+a|2a|3a)/);
+  if (aMatch) return aMatch[1];
+  return '2a';
+}
+
+function extractTwoMasses(text: string): [number, number] {
+  const matches = text.match(/(\d+\.?\d*)\s*kg/g);
+  if (matches && matches.length >= 2) {
+    const nums = matches.map(m => parseFloat(m));
+    return [nums[0], nums[1]];
+  }
+  return [3, 5];
+}
   const unknowns: string[] = [];
   const lower = text.toLowerCase();
 
