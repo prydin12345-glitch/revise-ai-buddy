@@ -13,6 +13,7 @@ import {
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { AngleMeasurement } from './GraphPlottingQuestion';
 import { cn } from '@/lib/utils';
+import { generateCurveFromFormula } from '@/lib/formula-evaluator';
 
 /**
  * Catmull-Rom spline interpolation for smooth curves through points.
