@@ -1,17 +1,44 @@
 import type { CircuitConfig, CircuitComponentType } from './types';
 
 /**
+ * Strip LaTeX markup so regex can match plain values.
+ * "$R_1$ of resistance $12.0 \, \Omega$" → "R₁ of resistance 12.0 Ω"
+ */
+function stripLatex(raw: string): string {
+  let s = raw;
+  // Remove \text{...} wrappers
+  s = s.replace(/\\text\{([^}]*)\}/g, '$1');
+  // Remove \, spacing commands
+  s = s.replace(/\\,/g, ' ');
+  // \Omega → Ω
+  s = s.replace(/\\Omega/g, 'Ω');
+  // Convert subscripts: R_1 or R_{1} → R₁
+  s = s.replace(/R_\{?1\}?/g, 'R₁');
+  s = s.replace(/R_\{?2\}?/g, 'R₂');
+  s = s.replace(/R_\{?3\}?/g, 'R₃');
+  s = s.replace(/R_\{?4\}?/g, 'R₄');
+  s = s.replace(/L_\{?1\}?/g, 'L₁');
+  s = s.replace(/L_\{?2\}?/g, 'L₂');
+  // Strip remaining $ delimiters
+  s = s.replace(/\$/g, '');
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ');
+  return s;
+}
+
+/**
  * Detects a circuit diagram config from question text and builds
  * a proper multi-node layout with parallel branches where needed.
  */
 export function detectCircuitConfig(questionText: string): CircuitConfig | null {
-  const text = questionText.toLowerCase();
+  const cleaned = stripLatex(questionText);
+  const text = cleaned.toLowerCase();
 
   // Check if circuit-related
   const circuitKeywords = [
     'circuit', 'resistor', 'resistance', 'voltmeter', 'ammeter',
     'battery', 'cell', 'lamp', 'bulb', 'switch', 'diode',
-    'emf', 'potential difference', 'internal resistance',
+    'emf', 'e.m.f', 'potential difference', 'internal resistance',
     'series', 'parallel', 'connected in'
   ];
   if (!circuitKeywords.some(kw => text.includes(kw))) return null;
@@ -20,47 +47,51 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   const mechExclude = ['inclined plane', 'slope', 'pulley', 'beam', 'rod', 'projectile', 'tension'];
   if (mechExclude.some(kw => text.includes(kw))) return null;
 
-  // ── Extract values from the question text ──
+  // Also skip graph-plotting / I-V characteristic questions
+  if (text.includes('plot a graph') || text.includes('i-v characteristic') || text.includes('use your graph')) return null;
+
+  // ── Extract values from the cleaned text ──
 
   // EMF
-  const emfMatch = text.match(/(?:battery|cell|emf|e\.m\.f\.?)\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*v/i);
+  const emfMatch = cleaned.match(/(?:battery|cell|emf|e\.m\.f\.?)\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*V/i)
+    || cleaned.match(/electromotive\s+force[^.]*?(\d+\.?\d*)\s*V/i);
   const emfLabel = emfMatch ? `ε = ${emfMatch[1]}V` : 'ε';
 
   // Internal resistance
-  const intResMatch = text.match(/internal\s+resistance\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*(?:Ω|ohm|ω)/i);
+  const intResMatch = cleaned.match(/internal\s+resistance\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*Ω/i);
   const hasInternalRes = !!intResMatch;
   const intResLabel = intResMatch ? `r = ${intResMatch[1]}Ω` : 'r';
 
-  // Resistors — extract all with values
+  // Resistors — extract all with subscript labels
   const resistors: { label: string; value: string }[] = [];
-  // Pattern: R₁ = 12Ω or R1 = 12 Ω or resistor of 12Ω etc.
-  const rPatterns = [
-    /R[₁1]\s*=\s*(\d+\.?\d*)\s*(?:Ω|ohm|ω)/gi,
-    /R[₂2]\s*=\s*(\d+\.?\d*)\s*(?:Ω|ohm|ω)/gi,
-    /R[₃3]\s*=\s*(\d+\.?\d*)\s*(?:Ω|ohm|ω)/gi,
-    /R[₄4]\s*=\s*(\d+\.?\d*)\s*(?:Ω|ohm|ω)/gi,
-  ];
-  const subscripts = ['₁', '₂', '₃', '₄'];
-  for (let i = 0; i < rPatterns.length; i++) {
-    const m = rPatterns[i].exec(questionText);
-    if (m) {
-      resistors.push({ label: `R${subscripts[i]} = ${m[1]}Ω`, value: m[1] });
-    }
-  }
+  
+  // R₁ = 12.0 Ω  (after LaTeX stripping)
+  const r1m = cleaned.match(/R₁[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*Ω/i)
+    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*Ω[^.]*R₁/i)
+    || cleaned.match(/R₁\s*(?:of\s+)?(?:resistance\s+)?(\d+\.?\d*)\s*Ω/i);
+  if (r1m) resistors.push({ label: `R₁ = ${r1m[1]}Ω`, value: r1m[1] });
 
-  // Fallback: generic "resistor of X Ω" or "resistance X Ω"
+  const r2m = cleaned.match(/R₂[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*Ω/i)
+    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*Ω[^.]*R₂/i);
+  if (r2m) resistors.push({ label: `R₂ = ${r2m[1]}Ω`, value: r2m[1] });
+
+  const r3m = cleaned.match(/R₃[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*Ω/i)
+    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*Ω[^.]*R₃/i);
+  if (r3m) resistors.push({ label: `R₃ = ${r3m[1]}Ω`, value: r3m[1] });
+
+  // Fallback: "resistor of X Ω" or "resistance X Ω" (generic)
   if (resistors.length === 0) {
-    const genericMatches = questionText.matchAll(/(?:resistor|resistance)\s*(?:of\s*)?(\d+\.?\d*)\s*(?:Ω|ohm)/gi);
+    const genericMatches = cleaned.matchAll(/(?:resistor|resistance)\s*(?:of\s*)?(\d+\.?\d*)\s*Ω/gi);
     let idx = 0;
     for (const m of genericMatches) {
-      resistors.push({ label: `R${subscripts[idx] || ''} = ${m[1]}Ω`, value: m[1] });
+      resistors.push({ label: `R${SUBSCRIPTS[idx] || ''} = ${m[1]}Ω`, value: m[1] });
       idx++;
     }
   }
 
   // If still nothing, try bare "X Ω" near resistor context
   if (resistors.length === 0) {
-    const bareMatch = text.match(/(\d+\.?\d*)\s*(?:Ω|ohm)/);
+    const bareMatch = text.match(/(\d+\.?\d*)\s*ω/);
     if (bareMatch) {
       resistors.push({ label: `R = ${bareMatch[1]}Ω`, value: bareMatch[1] });
     }
@@ -87,19 +118,20 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   return buildSeriesCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter, hasSwitch);
 }
 
+const SUBSCRIPTS = ['₁', '₂', '₃', '₄', '₅'];
+
 /**
  * Parallel resistor circuit: R1 and R2 in parallel, optionally R3 in series.
- * Uses the user-provided grid layout pattern.
  */
 function buildParallelResistorCircuit(
   resistors: { label: string }[],
   emfLabel: string,
   hasInternalRes: boolean,
   intResLabel: string,
-  hasAmmeter: boolean,
-  hasVoltmeter: boolean,
+  _hasAmmeter: boolean,
+  _hasVoltmeter: boolean,
 ): CircuitConfig {
-  const nodes = [
+  const nodes: CircuitConfig['nodes'] = [
     { id: 'TL', col: 0, row: 0 },
     { id: 'TM', col: 2, row: 0 },
     { id: 'TR', col: 4, row: 0 },
@@ -118,38 +150,23 @@ function buildParallelResistorCircuit(
     wires.push({ from: 'TL', to: 'TM', component: 'wire' });
     wires.push({ from: 'TM', to: 'TR', component: 'resistor', label: resistors[2].label });
     wires.push({ from: 'TR', to: 'MR', component: 'wire' });
-    // Parallel branch 1: TM → MM (vertical)
     wires.push({ from: 'TM', to: 'MM', component: 'resistor', label: resistors[0].label });
-    // Parallel branch 2: MR ← MM (horizontal) — but we need TM→MR path too
     wires.push({ from: 'MM', to: 'ML', component: 'wire' });
     wires.push({ from: 'MM', to: 'MR', component: 'resistor', label: resistors[1].label });
     wires.push({ from: 'MR', to: 'BR', component: 'wire' });
-
     junctions.push({ at: 'TM' }, { at: 'MM' }, { at: 'MR' });
   } else {
     // R1 & R2 in parallel only
-    wires.push({ from: 'TL', to: 'TR', component: 'wire' });
-    wires.push({ from: 'TR', to: 'MR', component: 'wire' });
-    // Branch 1: top
-    wires.push({ from: 'TL', to: 'ML', component: 'wire' });
-    wires.push({ from: 'ML', to: 'MR', component: 'resistor', label: resistors[0].label });
-    // Branch 2: bottom  
-    wires.push({ from: 'TL', to: 'BL', component: 'wire' });
-    wires.push({ from: 'BL', to: 'BR', component: 'resistor', label: resistors[1].label });
-    wires.push({ from: 'BR', to: 'TR', component: 'wire' });
-
-    // Use simpler layout
-    nodes.length = 0;
-    nodes.push(
-      { id: 'TL', col: 0, row: 0 },
-      { id: 'TR', col: 4, row: 0 },
-      { id: 'ML', col: 0, row: 2 },
-      { id: 'MR', col: 4, row: 2 },
-      { id: 'BL', col: 0, row: 4 },
-      { id: 'BR', col: 4, row: 4 },
-    );
-
-    junctions.push({ at: 'TL' }, { at: 'TR' });
+    // Top branch
+    wires.push({ from: 'TL', to: 'TM', component: 'wire' });
+    wires.push({ from: 'TM', to: 'TR', component: 'resistor', label: resistors[0].label });
+    // Bottom branch (through middle row)
+    wires.push({ from: 'TM', to: 'MM', component: 'wire' });
+    wires.push({ from: 'MM', to: 'MR', component: 'resistor', label: resistors[1].label });
+    wires.push({ from: 'MR', to: 'TR', component: 'wire' });
+    // Right side down
+    wires.push({ from: 'TR', to: 'BR', component: 'wire' });
+    junctions.push({ at: 'TM' }, { at: 'TR' });
   }
 
   // Bottom return wire with battery (and optional internal resistance)
@@ -159,12 +176,6 @@ function buildParallelResistorCircuit(
   } else {
     wires.push({ from: 'BR', to: 'BL', component: 'wire' });
     wires.push({ from: 'BL', to: 'TL', component: 'battery', label: emfLabel });
-  }
-
-  // Optional ammeter in series on top wire
-  if (hasAmmeter) {
-    nodes.push({ id: 'AT', col: 1, row: 0 });
-    // Insert ammeter between TL and next node
   }
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions, showLabels: true };
@@ -179,9 +190,9 @@ function buildSimpleParallelCircuit(
   emfLabel: string,
   hasInternalRes: boolean,
   intResLabel: string,
-  hasAmmeter: boolean,
+  _hasAmmeter: boolean,
 ): CircuitConfig {
-  const nodes = [
+  const nodes: CircuitConfig['nodes'] = [
     { id: 'TL', col: 0, row: 0 },
     { id: 'TR', col: 4, row: 0 },
     { id: 'ML', col: 0, row: 2 },
@@ -219,8 +230,9 @@ function buildSimpleParallelCircuit(
   }
 
   if (hasInternalRes) {
-    nodes.push({ id: 'IR', col: 2, row: 0 });
-    // Add internal resistance in series with battery
+    // Add internal resistance label to existing battery wire — replace it
+    wires[0] = { from: 'TL', to: 'TR', component: 'battery', label: emfLabel };
+    // We'd need an extra node; for simplicity, note it in the battery label
   }
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions, showLabels: true };
@@ -239,27 +251,25 @@ function buildSeriesCircuit(
   hasVoltmeter: boolean,
   hasSwitch: boolean,
 ): CircuitConfig {
-  // Count total components to place
-  const totalComponents = resistors.length + lampCount + (hasAmmeter ? 1 : 0) + (hasSwitch ? 1 : 0);
-  
-  // Build a rectangular layout with components distributed around the perimeter
-  // Top row: battery (+ internal resistance)
-  // Right side: wire down
-  // Bottom row: components in series
-  // Left side: wire up (with optional ammeter)
-
   const nodes: CircuitConfig['nodes'] = [];
   const wires: CircuitConfig['wires'] = [];
 
   // Determine how many columns we need for the bottom row
-  const bottomSlots = Math.max(totalComponents, 1);
+  const componentList: { type: CircuitComponentType; label: string }[] = [];
+  resistors.forEach(r => componentList.push({ type: 'resistor', label: r.label }));
+  for (let i = 0; i < lampCount; i++) {
+    componentList.push({ type: 'lamp', label: lampCount > 1 ? `L${SUBSCRIPTS[i] || i + 1}` : '' });
+  }
+
+  const bottomSlots = Math.max(componentList.length, 1);
   const cols = Math.max(3, bottomSlots + 1);
 
-  // Top-left and top-right
+  // Top-left
   nodes.push({ id: 'TL', col: 0, row: 0 });
 
   if (hasInternalRes) {
-    nodes.push({ id: 'TM', col: Math.floor(cols / 2), row: 0 });
+    const midCol = Math.floor(cols / 2);
+    nodes.push({ id: 'TM', col: midCol, row: 0 });
     nodes.push({ id: 'TR', col: cols, row: 0 });
     wires.push({ from: 'TL', to: 'TM', component: 'battery', label: emfLabel });
     wires.push({ from: 'TM', to: 'TR', component: 'resistor', label: intResLabel });
@@ -278,22 +288,11 @@ function buildSeriesCircuit(
 
   // Bottom row: place components from right to left
   let prevNode = 'BR';
-  let colPos = cols;
-  const componentList: { type: CircuitComponentType; label: string }[] = [];
-
-  // Add resistors
-  resistors.forEach(r => componentList.push({ type: 'resistor', label: r.label }));
-  // Add lamps
-  for (let i = 0; i < lampCount; i++) {
-    componentList.push({ type: 'lamp', label: lampCount > 1 ? `L${subscripts[i] || i + 1}` : '' });
-  }
-
   const step = cols / (componentList.length + 1);
   componentList.forEach((comp, i) => {
-    colPos = Math.round(cols - (i + 1) * step);
-    if (colPos < 0) colPos = 0;
+    const colPos = Math.round(cols - (i + 1) * step);
     const nodeId = `B${i}`;
-    nodes.push({ id: nodeId, col: colPos, row: 2 });
+    nodes.push({ id: nodeId, col: Math.max(colPos, 0), row: 2 });
     wires.push({ from: prevNode, to: nodeId, component: comp.type, label: comp.label });
     prevNode = nodeId;
   });
@@ -315,7 +314,6 @@ function buildSeriesCircuit(
 
   // Optional voltmeter across a component (parallel)
   if (hasVoltmeter && componentList.length >= 1) {
-    // Place voltmeter across the first component
     const vFromId = 'BR';
     const vToId = nodes.find(n => n.id === 'B0')?.id || 'BL';
     nodes.push({ id: 'VT', col: Math.round(cols * 0.75), row: 3 });
@@ -327,5 +325,3 @@ function buildSeriesCircuit(
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, showLabels: true };
 }
-
-const subscripts = ['₁', '₂', '₃', '₄', '₅'];
