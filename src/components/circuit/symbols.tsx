@@ -220,6 +220,21 @@ export const DiodeSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, show
   </g>
 );
 
+/** Motor — circle with M inside (like voltmeter/ammeter) */
+export const MotorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <circle cx={x} cy={y} r={14} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="central" fontFamily={CIRCUIT_FONT.family} fontStyle={CIRCUIT_FONT.style} fontSize={14} fill={CIRCUIT_COLORS.label}>M</text>
+      <line x1={x - 30} y1={y} x2={x - 14} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 14} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+    ) : null}
+  </g>
+);
+
 /** Junction dot */
 export const JunctionDot: React.FC<{ x: number; y: number }> = ({ x, y }) => (
   <circle cx={x} cy={y} r={4} fill={CIRCUIT_COLORS.junction} />
@@ -244,6 +259,7 @@ export const CircuitComponent: React.FC<{
     case 'lamp': return <LampSymbol {...props} />;
     case 'voltmeter': return <VoltmeterSymbol {...props} />;
     case 'ammeter': return <AmmeterSymbol {...props} />;
+    case 'motor': return <MotorSymbol {...props} />;
     case 'switch_open': return <SwitchOpenSymbol {...props} />;
     case 'switch_closed': return <SwitchClosedSymbol {...props} />;
     case 'diode': return <DiodeSymbol {...props} />;

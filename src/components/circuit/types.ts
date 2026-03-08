@@ -17,6 +17,7 @@ export type CircuitComponentType =
   | 'switch_open'
   | 'switch_closed'
   | 'diode'
+  | 'motor'
   | 'wire'
   | 'junction';
 
