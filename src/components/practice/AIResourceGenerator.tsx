@@ -34,7 +34,7 @@ export const AIResourceGenerator = ({
   const [sourceType, setSourceType] = useState(config.sourceTypes[0]?.value || "text_extract");
   const [theme, setTheme] = useState("");
   const [extractLength, setExtractLength] = useState("medium");
-  const [readingLevel, setReadingLevel] = useState(config.readingLevelOptions?.[0]?.value || "gcse_higher");
+  
   const [lineNumberEvery, setLineNumberEvery] = useState(true); // true = every 5, false = every line
   const [generating, setGenerating] = useState(false);
 
