@@ -68,19 +68,57 @@ const englishLiteratureConfig: ResourceConfig = {
   showLineNumbering: true,
 };
 
+const mathematicsConfig: ResourceConfig = {
+  label: 'Mathematics Resource',
+  sourceTypeLabel: 'Resource Type',
+  sourceTypes: [
+    { value: 'data_set', label: 'Data set for statistics questions' },
+    { value: 'geometric_figure', label: 'Geometric figure description' },
+    { value: 'financial_scenario', label: 'Financial scenario' },
+    { value: 'real_world_model', label: 'Real-world modelling context' },
+  ],
+  themeLabel: 'Mathematical Context',
+  themePlaceholder: 'e.g. "a company\'s sales data over 12 months"',
+  themeHelperText: 'Provide a real-world context for the data or scenario',
+  showLength: false,
+  extraFields: [
+    {
+      key: 'dataFormat',
+      label: 'Data Format',
+      type: 'select',
+      options: [
+        { value: 'small', label: 'Small data set (10–15 values)' },
+        { value: 'medium', label: 'Medium data set (20–30 values)' },
+      ],
+      defaultValue: 'small',
+    },
+    {
+      key: 'resourceCount',
+      label: 'Number of Resources',
+      type: 'select',
+      options: [
+        { value: '1', label: '1 resource' },
+        { value: '2', label: '2 resources' },
+      ],
+      defaultValue: '1',
+    },
+  ],
+};
+
 const geographyConfig: ResourceConfig = {
   label: 'Geography Resource Pack',
   sourceTypeLabel: 'Source Type',
   sourceTypes: [
-    { value: 'news_article', label: 'News article' },
-    { value: 'academic_extract', label: 'Academic extract' },
+    { value: 'case_study_urban', label: 'Case study — urban' },
+    { value: 'case_study_coastal', label: 'Case study — coastal' },
+    { value: 'case_study_development', label: 'Case study — development' },
     { value: 'statistical_report', label: 'Statistical report' },
-    { value: 'case_study', label: 'Case study' },
-    { value: 'data_table', label: 'Data table' },
+    { value: 'news_article', label: 'News article' },
+    { value: 'field_data_table', label: 'Field data table' },
   ],
   themeLabel: 'Case Study Focus',
-  themePlaceholder: 'e.g. "coastal erosion at Holderness" or "urbanisation in Lagos"',
-  themeHelperText: 'The place, process, or phenomenon the resources should focus on',
+  themePlaceholder: 'e.g. "coastal erosion in a UK location" or "urbanisation in a developing country"',
+  themeHelperText: 'The AI will generate an original case study with realistic data',
   showLength: false,
   extraFields: [
     {
@@ -115,12 +153,12 @@ const historyConfig: ResourceConfig = {
     { value: 'primary_source', label: 'Primary source extract' },
     { value: 'historian_interpretation', label: "Historian's interpretation" },
     { value: 'government_document', label: 'Government document' },
-    { value: 'letter_diary', label: 'Letter or diary entry' },
-    { value: 'speech', label: 'Speech or address' },
+    { value: 'newspaper_period', label: 'Newspaper from the period' },
+    { value: 'personal_account', label: 'Personal account / diary' },
   ],
-  themeLabel: 'Historical Focus',
-  themePlaceholder: 'e.g. "causes of WWI" or "the impact of the Reformation"',
-  themeHelperText: 'The event, period, or debate the sources should relate to',
+  themeLabel: 'Historical Period and Event',
+  themePlaceholder: 'e.g. "Germany 1933–1939" or "suffragette movement 1900–1918"',
+  themeHelperText: 'The AI will generate an original source with provenance information',
   showLength: false,
   extraFields: [
     {
@@ -178,8 +216,46 @@ const businessConfig: ResourceConfig = {
   ],
 };
 
-const scienceConfig: ResourceConfig = {
-  label: 'Science Resource Pack',
+const biologyConfig: ResourceConfig = {
+  label: 'Biology Resource Pack',
+  sourceTypeLabel: 'Resource Type',
+  sourceTypes: [
+    { value: 'scientific_article', label: 'Scientific article extract' },
+    { value: 'experiment_data', label: 'Experiment results and data' },
+    { value: 'field_study', label: 'Field study findings' },
+    { value: 'medical_case', label: 'Medical case study' },
+  ],
+  themeLabel: 'Topic Focus',
+  themePlaceholder: 'e.g. "enzyme activity at different temperatures"',
+  themeHelperText: 'The AI will generate realistic scientific data and context',
+  showLength: false,
+  extraFields: [
+    {
+      key: 'dataFormat',
+      label: 'Data Format',
+      type: 'select',
+      options: [
+        { value: 'results_table', label: 'Data table only' },
+        { value: 'article_data', label: 'Short article + data (~300 words)' },
+      ],
+      defaultValue: 'results_table',
+    },
+    {
+      key: 'resourceCount',
+      label: 'Number of Resources',
+      type: 'select',
+      options: [
+        { value: '1', label: '1 resource' },
+        { value: '2', label: '2 resources' },
+        { value: '3', label: '3 resources' },
+      ],
+      defaultValue: '2',
+    },
+  ],
+};
+
+const chemistryConfig: ResourceConfig = {
+  label: 'Chemistry Resource Pack',
   sourceTypeLabel: 'Resource Type',
   sourceTypes: [
     { value: 'experiment_data', label: 'Experiment results' },
@@ -189,7 +265,7 @@ const scienceConfig: ResourceConfig = {
     { value: 'peer_review', label: 'Peer review extract' },
   ],
   themeLabel: 'Experiment / Topic Focus',
-  themePlaceholder: 'e.g. "enzyme activity at different temperatures" or "rate of photosynthesis"',
+  themePlaceholder: 'e.g. "rates of reaction with hydrochloric acid" or "electrolysis of copper sulfate"',
   themeHelperText: 'The experiment, investigation, or topic area the resources should cover',
   showLength: false,
   extraFields: [
@@ -218,6 +294,47 @@ const scienceConfig: ResourceConfig = {
   ],
 };
 
+const physicsConfig: ResourceConfig = {
+  ...chemistryConfig,
+  label: 'Physics Resource Pack',
+  sourceTypes: [
+    { value: 'experiment_data', label: 'Experiment results' },
+    { value: 'results_table', label: 'Results table' },
+    { value: 'graph_data', label: 'Graph / chart data' },
+    { value: 'method_writeup', label: 'Written method' },
+    { value: 'real_world_context', label: 'Real-world application' },
+  ],
+  themePlaceholder: 'e.g. "measuring the speed of sound" or "projectile motion"',
+};
+
+const psychologyConfig: ResourceConfig = {
+  label: 'Psychology Resource Pack',
+  sourceTypeLabel: 'Source Type',
+  sourceTypes: [
+    { value: 'study_summary', label: 'Study summary' },
+    { value: 'case_study', label: 'Case study' },
+    { value: 'research_data', label: 'Research data' },
+    { value: 'article_extract', label: 'Journal article extract' },
+  ],
+  themeLabel: 'Topic Focus',
+  themePlaceholder: 'e.g. "Milgram\'s obedience study" or "memory models"',
+  themeHelperText: 'The psychological topic or study the resources should focus on',
+  showLength: false,
+  extraFields: [
+    {
+      key: 'resourceCount',
+      label: 'Number of Resources',
+      type: 'select',
+      options: [
+        { value: '1', label: '1 resource' },
+        { value: '2', label: '2 resources' },
+        { value: '3', label: '3 resources' },
+      ],
+      defaultValue: '2',
+    },
+  ],
+};
+
 const defaultConfig: ResourceConfig = {
   label: 'AI Resources',
   sourceTypeLabel: 'Resource Type',
@@ -226,6 +343,7 @@ const defaultConfig: ResourceConfig = {
     { value: 'data_table', label: 'Data table' },
     { value: 'article', label: 'Article' },
     { value: 'case_study', label: 'Case study' },
+    { value: 'news_article', label: 'News article' },
   ],
   themeLabel: 'Topic',
   themePlaceholder: 'Enter a topic for the resource pack...',
@@ -248,15 +366,48 @@ const defaultConfig: ResourceConfig = {
   ],
 };
 
-export const getResourceConfig = (subject: string): ResourceConfig => {
-  const s = subject.toLowerCase();
+const configByCategory: Record<string, ResourceConfig> = {
+  english_language: englishLanguageConfig,
+  english_literature: englishLiteratureConfig,
+  mathematics: mathematicsConfig,
+  biology: biologyConfig,
+  chemistry: chemistryConfig,
+  physics: physicsConfig,
+  geography: geographyConfig,
+  history: historyConfig,
+  business: businessConfig,
+  computer_science: defaultConfig,
+  psychology: psychologyConfig,
+  sociology: defaultConfig,
+  art_design: defaultConfig,
+  music: defaultConfig,
+  physical_education: defaultConfig,
+  other: defaultConfig,
+};
 
+/**
+ * Get resource config by subject category (from AI classification).
+ * Falls back to string matching for backwards compatibility.
+ */
+export const getResourceConfig = (subjectOrCategory: string): ResourceConfig => {
+  // First try direct category lookup
+  if (configByCategory[subjectOrCategory]) {
+    return configByCategory[subjectOrCategory];
+  }
+
+  // Fallback: legacy string matching for backwards compatibility
+  const s = subjectOrCategory.toLowerCase();
   if (s.includes('english language') || s === 'english_language') return englishLanguageConfig;
   if (s.includes('english literature') || s === 'english_literature') return englishLiteratureConfig;
   if (s.includes('english')) return englishLanguageConfig;
   if (s.includes('geography')) return geographyConfig;
   if (s.includes('history')) return historyConfig;
   if (s.includes('business') || s.includes('economics')) return businessConfig;
-  if (s.includes('biology') || s.includes('chemistry') || s.includes('physics') || s.includes('science')) return scienceConfig;
+  if (s.includes('biology')) return biologyConfig;
+  if (s.includes('chemistry')) return chemistryConfig;
+  if (s.includes('physics')) return physicsConfig;
+  if (s.includes('psychology')) return psychologyConfig;
+  if (s.includes('math')) return mathematicsConfig;
+  if (s.includes('science')) return chemistryConfig;
   return defaultConfig;
 };

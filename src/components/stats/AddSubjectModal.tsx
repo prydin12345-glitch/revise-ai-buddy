@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Search, Plus, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { classifySubjectName } from "@/hooks/useSubjectCategory";
 
 interface SubjectOption {
   id: string;
@@ -102,25 +103,55 @@ export const AddSubjectModal = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      let subjectName: string;
+
       if (showCustom && customName.trim()) {
-        await supabase.from("user_subjects").insert({
-          user_id: user.id,
-          subject_name: customName.trim(),
-          subject_color: CATEGORY_COLORS.other,
-          is_custom: true,
-          custom_name: customName.trim(),
-        });
-        toast.success(`Added "${customName.trim()}"`);
+        subjectName = customName.trim();
+        
+        // Insert subject and classify in parallel
+        const [_, category] = await Promise.all([
+          supabase.from("user_subjects").insert({
+            user_id: user.id,
+            subject_name: subjectName,
+            subject_color: CATEGORY_COLORS.other,
+            is_custom: true,
+            custom_name: subjectName,
+          }),
+          classifySubjectName(subjectName),
+        ]);
+        
+        // Update with classified category
+        await supabase
+          .from("user_subjects")
+          .update({ subject_category: category })
+          .eq("user_id", user.id)
+          .ilike("subject_name", subjectName);
+
+        toast.success(`Added "${subjectName}"`);
       } else if (selectedSubject) {
+        subjectName = selectedSubject.name;
         const color = CATEGORY_COLORS[selectedSubject.category] || CATEGORY_COLORS.other;
-        await supabase.from("user_subjects").insert({
-          user_id: user.id,
-          subject_id: selectedSubject.id,
-          subject_name: selectedSubject.name,
-          subject_color: color,
-          is_custom: false,
-        });
-        toast.success(`Added "${selectedSubject.name}"`);
+        
+        // Insert subject and classify in parallel
+        const [_, category] = await Promise.all([
+          supabase.from("user_subjects").insert({
+            user_id: user.id,
+            subject_id: selectedSubject.id,
+            subject_name: subjectName,
+            subject_color: color,
+            is_custom: false,
+          }),
+          classifySubjectName(subjectName),
+        ]);
+        
+        // Update with classified category
+        await supabase
+          .from("user_subjects")
+          .update({ subject_category: category })
+          .eq("user_id", user.id)
+          .ilike("subject_name", subjectName);
+
+        toast.success(`Added "${subjectName}"`);
       }
       onSubjectAdded();
       onOpenChange(false);
