@@ -943,8 +943,8 @@ export function GraphCanvasPlot({
             // Determine fill color
             let fillColor = subjectColor;
             if (showCorrectAnswers) {
-              if (status === 'correct') fillColor = 'hsl(var(--success, 142 76% 36%))';
-              else if (status === 'incorrect') fillColor = 'hsl(var(--destructive))';
+              if (status === 'correct') fillColor = '#22c55e'; // Green = student correct
+              else if (status === 'incorrect') fillColor = '#f97316'; // Orange = student wrong
             }
             
             const visualRadius = isSelected || isDragging || isInDragMode ? 10 : 8;
