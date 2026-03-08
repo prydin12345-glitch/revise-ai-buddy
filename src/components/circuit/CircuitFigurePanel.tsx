@@ -31,7 +31,7 @@ const CircuitFigurePanel: React.FC<CircuitFigurePanelProps> = ({ config, figureN
   return (
     <div
       className={`mb-4 rounded-lg border bg-card ${isMobile ? 'w-full' : 'w-full max-w-[540px]'}`}
-      style={{ overflow: 'visible' }}
+      style={{ overflow: 'visible', height: 'auto', minHeight: 'unset' }}
     >
       <div className="flex items-center justify-between p-3 pb-0">
         <span className="text-xs font-semibold text-muted-foreground">Circuit {figureNumber}</span>
@@ -39,7 +39,7 @@ const CircuitFigurePanel: React.FC<CircuitFigurePanelProps> = ({ config, figureN
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <div className="flex items-center justify-center w-full p-4">
+      <div className="flex items-center justify-center w-full p-4" style={{ height: 'auto' }}>
         <CircuitDraw config={config} width={500} />
       </div>
     </div>
