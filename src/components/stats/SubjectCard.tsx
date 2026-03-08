@@ -2,10 +2,11 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getTextColor, getBadgeColor } from "@/lib/color-contrast";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string };
