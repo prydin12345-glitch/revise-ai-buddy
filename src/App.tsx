@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,13 +5,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 
-// Eagerly loaded (small/critical pages)
+// Only eagerly load the landing page + auth (first paint)
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
-// Lazy loaded (large pages - only loaded when navigated to)
+// Everything else is lazy loaded
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const MyExams = lazy(() => import("./pages/MyExams"));
 const CreateExam = lazy(() => import("./pages/CreateExam"));
@@ -32,9 +31,13 @@ const PracticeSetPreview = lazy(() => import("./pages/PracticeSetPreview"));
 const TakePracticeQuiz = lazy(() => import("./pages/TakePracticeQuiz"));
 const Settings = lazy(() => import("./pages/Settings"));
 const AdminVerifications = lazy(() => import("./pages/AdminVerifications"));
+const MyClasses = lazy(() => import("./pages/MyClasses"));
+const UploadExam = lazy(() => import("./pages/UploadExam"));
+const PreviewExam = lazy(() => import("./pages/PreviewExam"));
+
+// Tutor pages
 const ManageExams = lazy(() => import("./pages/tutor/ManageExams"));
 const ManagePracticeSets = lazy(() => import("./pages/tutor/ManagePracticeSets"));
-const GraphTest = lazy(() => import("./pages/GraphTest"));
 const StudentProgress = lazy(() => import("./pages/tutor/StudentProgress"));
 const CreateTutorExam = lazy(() => import("./pages/tutor/CreateTutorExam"));
 const EditExam = lazy(() => import("./pages/tutor/EditExam"));
@@ -43,21 +46,22 @@ const ManageFeedback = lazy(() => import("./pages/tutor/ManageFeedback"));
 const ExamHub = lazy(() => import("./pages/tutor/ExamHub"));
 const StudentExamReview = lazy(() => import("./pages/tutor/StudentExamReview"));
 const ManualExamCreator = lazy(() => import("./pages/tutor/ManualExamCreator"));
+const ExamDashboard = lazy(() => import("./pages/tutor/ExamDashboard"));
+
+// Demo/dev pages — never in main bundle
+const GraphTest = lazy(() => import("./pages/GraphTest"));
 const MechanicsDemo = lazy(() => import("./pages/MechanicsDemo"));
 const CircuitDemo = lazy(() => import("./pages/CircuitDemo"));
-const MyClasses = lazy(() => import("./pages/MyClasses"));
 const ScienceDiagramDemo = lazy(() => import("./pages/ScienceDiagramDemo"));
 
-// TutorLayout is relatively small, load eagerly for smooth sidebar
+// TutorLayout is small, load eagerly for smooth sidebar
 import { TutorLayout } from "./components/tutor/TutorLayout";
 
 const queryClient = new QueryClient();
 
-/** Lightweight skeleton fallback for lazy-loaded routes */
 const PageLoader = () => <PageSkeleton />;
 
 const App = () => {
-  // Enable dark mode by default
   if (typeof document !== 'undefined') {
     document.documentElement.classList.add('dark');
   }
@@ -65,7 +69,6 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>

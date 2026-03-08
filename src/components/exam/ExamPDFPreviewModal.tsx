@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { generateExamPDF, downloadPDF, openPDFInNewTab } from "@/lib/exam-pdf-generator";
+// PDF libraries are dynamically imported when user triggers generation
 import { toast } from "sonner";
 
 interface ExamQuestion {
@@ -76,6 +76,7 @@ export function ExamPDFPreviewModal({
   const handleDownload = async () => {
     setGenerating(true);
     try {
+      const { generateExamPDF, downloadPDF } = await import("@/lib/exam-pdf-generator");
       const doc = await generateExamPDF(examData, {
         includeAnswerKey,
         includeWorkingSpace,
@@ -98,6 +99,7 @@ export function ExamPDFPreviewModal({
   const handlePreview = async () => {
     setGenerating(true);
     try {
+      const { generateExamPDF, openPDFInNewTab } = await import("@/lib/exam-pdf-generator");
       const doc = await generateExamPDF(examData, {
         includeAnswerKey,
         includeWorkingSpace,

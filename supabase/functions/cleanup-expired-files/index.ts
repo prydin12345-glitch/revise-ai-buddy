@@ -114,7 +114,36 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Cleanup complete. Total files deleted: ${totalDeleted}`);
+    // 4. Clean up orphaned resource packs (AI-generated, older than 2h, not linked to any exam or practice set)
+    const orphanCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: orphanPacks } = await supabase
+      .from('resource_packs')
+      .select('id')
+      .eq('pack_type', 'ai_generated')
+      .lt('created_at', orphanCutoff)
+      .limit(50);
+
+    let orphansDeleted = 0;
+    if (orphanPacks?.length) {
+      for (const pack of orphanPacks) {
+        // Check if any exam or practice set references this pack
+        const [examRef, setRef] = await Promise.all([
+          supabase.from('exams').select('id', { count: 'exact', head: true }).eq('resource_pack_id', pack.id),
+          supabase.from('practice_question_sets').select('id', { count: 'exact', head: true }).eq('resource_pack_id', pack.id),
+        ]);
+
+        const isOrphan = (examRef.count || 0) === 0 && (setRef.count || 0) === 0;
+        if (isOrphan) {
+          // Delete resource items first, then the pack
+          await supabase.from('resource_items').delete().eq('pack_id', pack.id);
+          await supabase.from('resource_packs').delete().eq('id', pack.id);
+          orphansDeleted++;
+          console.log(`Deleted orphaned resource pack ${pack.id}`);
+        }
+      }
+    }
+
+    console.log(`Cleanup complete. Files deleted: ${totalDeleted}, orphan packs: ${orphansDeleted}`);
 
     return new Response(
       JSON.stringify({ success: true, filesDeleted: totalDeleted }),
