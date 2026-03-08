@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sparkles, Loader2, BookOpen, Pen, Ruler, Hash } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, Loader2, BookOpen, Pen, Ruler, Hash, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getResourceConfig } from "./resource-configs";
+import { useSubjectCategory, CATEGORY_LABELS, type SubjectCategory } from "@/hooks/useSubjectCategory";
 import type { ResourcePack } from "./ResourcePackUploader";
 
 interface AIResourceGeneratorProps {
@@ -21,6 +23,13 @@ interface AIResourceGeneratorProps {
   subjectColor?: string;
 }
 
+const ALL_CATEGORIES: SubjectCategory[] = [
+  'english_language', 'english_literature', 'mathematics',
+  'biology', 'chemistry', 'physics', 'geography', 'history',
+  'business', 'computer_science', 'psychology', 'sociology',
+  'art_design', 'music', 'physical_education', 'other'
+];
+
 export const AIResourceGenerator = ({
   subjectId,
   educationalTier,
@@ -29,16 +38,17 @@ export const AIResourceGenerator = ({
   onPackReady,
   subjectColor = "#3b82f6",
 }: AIResourceGeneratorProps) => {
-  const config = getResourceConfig(subjectId);
+  const { category, isLoading: categoryLoading, updateCategory } = useSubjectCategory(subjectId);
+  const [showCategoryOverride, setShowCategoryOverride] = useState(false);
+
+  const config = getResourceConfig(category);
 
   const [sourceType, setSourceType] = useState(config.sourceTypes[0]?.value || "text_extract");
   const [theme, setTheme] = useState("");
   const [extractLength, setExtractLength] = useState("medium");
-  
-  const [lineNumberEvery, setLineNumberEvery] = useState(true); // true = every 5, false = every line
+  const [lineNumberEvery, setLineNumberEvery] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Extra fields state
   const [extraValues, setExtraValues] = useState<Record<string, string>>(() => {
     const defaults: Record<string, string> = {};
     config.extraFields?.forEach((f) => {
@@ -46,6 +56,23 @@ export const AIResourceGenerator = ({
     });
     return defaults;
   });
+
+  // Reset form fields when category changes
+  useEffect(() => {
+    const newConfig = getResourceConfig(category);
+    setSourceType(newConfig.sourceTypes[0]?.value || "text_extract");
+    setExtractLength("medium");
+    const defaults: Record<string, string> = {};
+    newConfig.extraFields?.forEach((f) => {
+      defaults[f.key] = f.defaultValue || "";
+    });
+    setExtraValues(defaults);
+  }, [category]);
+
+  const handleCategoryOverride = (newCategory: SubjectCategory) => {
+    updateCategory(newCategory);
+    setShowCategoryOverride(false);
+  };
 
   const handleGenerate = async () => {
     if (!theme.trim()) {
@@ -67,6 +94,7 @@ export const AIResourceGenerator = ({
       const { data, error } = await supabase.functions.invoke('generate-resource-pack', {
         body: {
           subjectId,
+          subjectCategory: category,
           topic: theme,
           educationalTier,
           examBoard,
@@ -100,6 +128,15 @@ export const AIResourceGenerator = ({
     }
   };
 
+  if (categoryLoading) {
+    return (
+      <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Detecting subject type...</span>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-0 overflow-hidden">
       {/* Header */}
@@ -110,6 +147,38 @@ export const AIResourceGenerator = ({
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4" style={{ color: subjectColor }} />
           <span className="text-sm font-semibold">{config.label}</span>
+        </div>
+        
+        {/* Category indicator */}
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="text-[11px] text-muted-foreground">Detected as:</span>
+          <Badge variant="secondary" className="text-[11px] px-2 py-0 h-5 font-normal">
+            {CATEGORY_LABELS[category] || category}
+          </Badge>
+          {!showCategoryOverride ? (
+            <button
+              onClick={() => setShowCategoryOverride(true)}
+              className="text-[11px] text-muted-foreground/70 hover:text-muted-foreground underline cursor-pointer bg-transparent border-none p-0"
+            >
+              Wrong? Change it
+            </button>
+          ) : (
+            <Select
+              value={category}
+              onValueChange={(v) => handleCategoryOverride(v as SubjectCategory)}
+            >
+              <SelectTrigger className="h-6 text-[11px] w-auto min-w-[140px] px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat} className="text-xs">
+                    {CATEGORY_LABELS[cat]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -170,7 +239,6 @@ export const AIResourceGenerator = ({
             </RadioGroup>
           </div>
         )}
-
 
         {/* Line Numbering Toggle */}
         {config.showLineNumbering && (
