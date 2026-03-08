@@ -925,9 +925,10 @@ Graphs should ONLY appear when students need to visually interact with them.
 CRITICAL RULES:
 1. Match command verbs to question types as specified above
 2. For graph_plotting: ALWAYS include graphType, graphConfig.series with data, and plottingAnswer.expectedPoints
-3. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
-4. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
-5. NEVER include a graph just because the topic involves functions - only when visual interaction is required
+3. For graph_plotting (MATH subjects): plottingAnswer MUST include "markingFormula" — the algebraic expression (e.g. "x^2 - 4*x + 7", "(x+2)*(x-1)*(x-3)"). For transformation questions like "sketch y = f(x+1)" where f(x) = expr, markingFormula must be the FINAL transformed expression with substitution already applied (e.g. if f(x) = (x+2)(x-1)(x-3) and sketching f(x+1), markingFormula = "((x+1)+2)*((x+1)-1)*((x+1)-3)"). This is REQUIRED — without it the correct answer curve cannot be displayed.
+4. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
+5. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
+6. NEVER include a graph just because the topic involves functions - only when visual interaction is required
 `;
     } else if (isALevel) {
       transformationInstructions = `
