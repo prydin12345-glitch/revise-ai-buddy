@@ -8,6 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Clock, CheckCircle, XCircle, User, Flag } from "lucide-react";
 import { format } from "date-fns";
+import { MathRenderer } from "@/components/MathRenderer";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 
 interface Question {
   id: string;
