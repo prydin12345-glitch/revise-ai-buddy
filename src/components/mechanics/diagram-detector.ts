@@ -1,4 +1,4 @@
-import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig, FreeBodyConfig, ConicalPendulumConfig, VerticalMotionConfig } from './types';
+import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig, FreeBodyConfig, ConicalPendulumConfig, VerticalMotionConfig, DualConfig, VerticalLiftConfig } from './types';
 
 /**
  * Attempts to infer a MechanicsConfig from question text.
@@ -6,6 +6,11 @@ import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, Projectile
  */
 export function detectDiagramConfig(questionText: string): MechanicsConfig | null {
   const text = questionText.toLowerCase();
+
+  // ── Dual: electrical + mechanical combined ──
+  if (isDualQuestion(text)) {
+    return buildDualConfig(questionText, text);
+  }
 
   // ── Conical pendulum / horizontal circle ──
   if (
