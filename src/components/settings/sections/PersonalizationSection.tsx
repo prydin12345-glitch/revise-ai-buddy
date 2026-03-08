@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2, Globe, Check } from "lucide-react";
+import { Loader2, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
