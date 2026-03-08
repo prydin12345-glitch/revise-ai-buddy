@@ -80,7 +80,11 @@ export const PersonalizationSection = () => {
                       : "border-border bg-card"
                   )}
                 >
-                  <span className="text-xl leading-none">{r.flag}</span>
+                  {r.code ? (
+                    <img src={`https://flagcdn.com/w40/${r.code}.png`} alt={r.abbr} className="w-6 h-auto rounded-sm object-contain" />
+                  ) : (
+                    <span className="text-xl leading-none">🌍</span>
+                  )}
                   <span className="text-sm font-bold tracking-wide">{r.abbr}</span>
                 </button>
               );
