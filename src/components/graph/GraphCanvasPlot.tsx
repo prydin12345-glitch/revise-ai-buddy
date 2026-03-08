@@ -693,7 +693,17 @@ export function GraphCanvasPlot({
               m => m.segmentId1 === seg.id || m.segmentId2 === seg.id
             );
             const isHighlighted = selectedSegmentIds.includes(seg.id) || isInAngleMeasurement;
-            const segmentColor = isHighlighted ? '#f97316' : '#3b82f6'; // Orange when selected/in measurement
+            
+            // In review mode, color segments by score
+            let segmentColor: string;
+            if (showCorrectAnswers && markingData) {
+              const scoreRatio = markingData.totalMarks > 0 
+                ? markingData.totalScore / markingData.totalMarks 
+                : 0;
+              segmentColor = scoreRatio >= 1 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
+            } else {
+              segmentColor = isHighlighted ? '#f97316' : '#3b82f6';
+            }
             
             const isClickable = eraseMode || joinMode === 'angle';
             
