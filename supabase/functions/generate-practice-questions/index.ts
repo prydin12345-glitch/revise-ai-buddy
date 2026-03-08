@@ -3577,6 +3577,74 @@ ${notesSection}`;
         } catch { /* non-critical */ }
       }
       
+      // ========== FORMULA EXTRACTION SAFETY NET ==========
+      // For math subjects: if plottingAnswer exists but has no markingFormula,
+      // extract it from the question text (e.g., "f(x) = x² - 4x + 7")
+      if (isMathSubject && q.question_type === 'graph_plotting') {
+        try {
+          const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
+          if (gd?.plottingAnswer && !gd.plottingAnswer.markingFormula) {
+            const qText = q.question_text || '';
+            
+            // 1. Try extractMarkingFormula from math-engine (handles LaTeX etc.)
+            let extracted = extractMarkingFormula(qText);
+            
+            // 2. Regex fallback: match "f(x) = expr" patterns
+            if (!extracted) {
+              const baseFnMatch = qText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+              const transformMatch = qText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
+              
+              if (baseFnMatch) {
+                let baseExpr = baseFnMatch[2].trim().replace(/[.\s]+$/, '');
+                // Unicode superscripts → caret notation
+                baseExpr = baseExpr.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+                // Implicit multiplication: "4x" → "4*x"
+                baseExpr = baseExpr.replace(/(\d)(x)/gi, '$1*$2');
+                
+                if (transformMatch && transformMatch[1] === baseFnMatch[1]) {
+                  // Apply transformation: substitute argument into base
+                  const transformArg = transformMatch[2].trim();
+                  extracted = baseExpr.replace(/x/gi, `(${transformArg})`);
+                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — transform detected, base="${baseExpr}", arg="${transformArg}", result="${extracted}"`);
+                } else {
+                  extracted = baseExpr;
+                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — direct formula="${extracted}"`);
+                }
+              }
+            }
+            
+            // 3. Fallback: "y = expr" pattern
+            if (!extracted) {
+              const yMatch = qText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+              if (yMatch) {
+                extracted = yMatch[1].trim().replace(/[.\s]+$/, '');
+                extracted = extracted.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+                extracted = extracted.replace(/(\d)(x)/gi, '$1*$2');
+                console.log(`Q${q.question_number}: FORMULA EXTRACTION — y= pattern="${extracted}"`);
+              }
+            }
+            
+            if (extracted) {
+              // Validate it's not a bare reference
+              const isBareRef = /^[a-zA-Z]\(x\)$/.test(extracted.trim());
+              if (!isBareRef) {
+                gd.plottingAnswer.markingFormula = extracted;
+                
+                // Also generate expectedCurve from the formula
+                const domainX: [number, number] = gd.graphConfig?.domainX || [-10, 10];
+                const curve = generateCurveFromMarkingFormula(extracted, domainX);
+                if (curve.length > 0 && curve[0].data.length >= 10) {
+                  gd.plottingAnswer.expectedCurve = curve.length > 1 ? curve : curve[0];
+                }
+                
+                q.correct_answer = gd;
+                console.log(`Q${q.question_number}: FORMULA EXTRACTION SUCCESS — stored markingFormula="${extracted}"`);
+              }
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+      
       // Serialize table_data into correct_answer if it's a table_grid
       let correctAnswer = q.correct_answer;
       if (q.question_type === 'table_grid' && q.table_data) {
