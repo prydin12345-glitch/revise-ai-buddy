@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Loader2, BookOpen, Pen, Ruler, GraduationCap, Hash } from "lucide-react";
+import { Sparkles, Loader2, BookOpen, Pen, Ruler, Hash } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,7 @@ export const AIResourceGenerator = ({
   const [sourceType, setSourceType] = useState(config.sourceTypes[0]?.value || "text_extract");
   const [theme, setTheme] = useState("");
   const [extractLength, setExtractLength] = useState("medium");
-  const [readingLevel, setReadingLevel] = useState(config.readingLevelOptions?.[0]?.value || "gcse_higher");
+  
   const [lineNumberEvery, setLineNumberEvery] = useState(true); // true = every 5, false = every line
   const [generating, setGenerating] = useState(false);
 
@@ -74,7 +74,6 @@ export const AIResourceGenerator = ({
           resourceCount,
           sourceType,
           extractLength: config.showLength ? extractLength : undefined,
-          readingLevel: config.showReadingLevel ? readingLevel : undefined,
           lineNumbering: config.showLineNumbering ? (lineNumberEvery ? 'every_5' : 'every_line') : undefined,
           extraFields: extraValues,
         },
@@ -172,27 +171,6 @@ export const AIResourceGenerator = ({
           </div>
         )}
 
-        {/* Reading Level */}
-        {config.showReadingLevel && config.readingLevelOptions && (
-          <div className="px-4 py-3 space-y-1.5">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <GraduationCap className="h-3 w-3" />
-              Reading Level
-            </Label>
-            <Select value={readingLevel} onValueChange={setReadingLevel}>
-              <SelectTrigger className="text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {config.readingLevelOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         {/* Line Numbering Toggle */}
         {config.showLineNumbering && (

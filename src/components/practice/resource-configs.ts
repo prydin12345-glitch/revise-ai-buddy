@@ -14,8 +14,6 @@ export interface ResourceConfig {
   showLength: boolean;
   lengthOptions?: ResourceFieldOption[];
   showLineNumbering?: boolean;
-  showReadingLevel?: boolean;
-  readingLevelOptions?: ResourceFieldOption[];
   extraFields?: {
     key: string;
     label: string;
@@ -47,12 +45,6 @@ const englishLanguageConfig: ResourceConfig = {
     { value: 'long', label: 'Full insert (~800 words, lines 1–80)' },
   ],
   showLineNumbering: true,
-  showReadingLevel: true,
-  readingLevelOptions: [
-    { value: 'gcse_foundation', label: 'GCSE Foundation' },
-    { value: 'gcse_higher', label: 'GCSE Higher' },
-    { value: 'a_level', label: 'A-Level' },
-  ],
 };
 
 const englishLiteratureConfig: ResourceConfig = {
@@ -74,11 +66,6 @@ const englishLiteratureConfig: ResourceConfig = {
     { value: 'long', label: 'Full extract (~600 words)' },
   ],
   showLineNumbering: true,
-  showReadingLevel: true,
-  readingLevelOptions: [
-    { value: 'gcse', label: 'GCSE' },
-    { value: 'a_level', label: 'A-Level' },
-  ],
 };
 
 const geographyConfig: ResourceConfig = {
