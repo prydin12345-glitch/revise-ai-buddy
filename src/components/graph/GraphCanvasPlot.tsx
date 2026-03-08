@@ -633,15 +633,36 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Curved mode spline through all points - HIDE in review mode when correct to avoid offset */}
-        {curvedLineData && !(showCorrectAnswers && markingData) && (
-          <CurveLayer
-            data={curvedLineData}
-            graphToScreen={graphToScreen}
-            stroke="#3b82f6"
-            strokeWidth={2}
-          />
-        )}
+        {/* Curved mode spline through all points */}
+        {/* In review mode: color by score. Before submit: blue. */}
+        {curvedLineData && (() => {
+          if (showCorrectAnswers && markingData) {
+            // Determine line color by score
+            const scoreRatio = markingData.totalMarks > 0 
+              ? markingData.totalScore / markingData.totalMarks 
+              : 0;
+            const lineColor = scoreRatio >= 1 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
+            const isPerfectMatch = scoreRatio >= 0.8;
+            // Hide student line ONLY for perfect match (glow line replaces it)
+            if (isPerfectMatch) return null;
+            return (
+              <CurveLayer
+                data={curvedLineData}
+                graphToScreen={graphToScreen}
+                stroke={lineColor}
+                strokeWidth={2.5}
+              />
+            );
+          }
+          return (
+            <CurveLayer
+              data={curvedLineData}
+              graphToScreen={graphToScreen}
+              stroke="#3b82f6"
+              strokeWidth={2}
+            />
+          );
+        })()}
         
         {/* Annotation layer (subject-aware labels, intercepts, region shading) */}
         {config.annotations && config.annotations.length > 0 && (
