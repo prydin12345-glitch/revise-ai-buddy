@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2, Globe, Check } from "lucide-react";
+import { Loader2, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
@@ -26,18 +26,18 @@ const timezones = [
 ];
 
 export const curriculumRegions = [
-  { value: 'GB', flag: '🇬🇧', label: 'United Kingdom', standard: 'A-Level / GCSE' },
-  { value: 'US', flag: '🇺🇸', label: 'United States', standard: 'AP / SAT' },
-  { value: 'AU', flag: '🇦🇺', label: 'Australia', standard: 'ATAR' },
-  { value: 'CA', flag: '🇨🇦', label: 'Canada', standard: 'Provincial / OCAS' },
-  { value: 'AE', flag: '🇦🇪', label: 'United Arab Emirates', standard: 'UAE Ministry / International' },
-  { value: 'IN', flag: '🇮🇳', label: 'India', standard: 'CBSE / ICSE' },
-  { value: 'SG', flag: '🇸🇬', label: 'Singapore', standard: 'GCE O/A Level' },
-  { value: 'HK', flag: '🇭🇰', label: 'Hong Kong', standard: 'DSE' },
-  { value: 'IE', flag: '🇮🇪', label: 'Ireland', standard: 'Leaving Certificate' },
-  { value: 'NZ', flag: '🇳🇿', label: 'New Zealand', standard: 'NCEA' },
-  { value: 'ZA', flag: '🇿🇦', label: 'South Africa', standard: 'NSC' },
-  { value: 'IB', flag: '🌍', label: 'Global / International', standard: 'IB Diploma' },
+  { value: 'GB', flag: '🇬🇧', abbr: 'UK' },
+  { value: 'US', flag: '🇺🇸', abbr: 'USA' },
+  { value: 'AU', flag: '🇦🇺', abbr: 'AUS' },
+  { value: 'CA', flag: '🇨🇦', abbr: 'CAN' },
+  { value: 'AE', flag: '🇦🇪', abbr: 'UAE' },
+  { value: 'IN', flag: '🇮🇳', abbr: 'IND' },
+  { value: 'SG', flag: '🇸🇬', abbr: 'SG' },
+  { value: 'HK', flag: '🇭🇰', abbr: 'HK' },
+  { value: 'IE', flag: '🇮🇪', abbr: 'IRE' },
+  { value: 'NZ', flag: '🇳🇿', abbr: 'NZ' },
+  { value: 'ZA', flag: '🇿🇦', abbr: 'SA' },
+  { value: 'IB', flag: '🌍', abbr: 'INT' },
 ];
 
 export const PersonalizationSection = () => {
@@ -65,7 +65,7 @@ export const PersonalizationSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="flex flex-wrap gap-3 justify-center">
             {curriculumRegions.map((r) => {
               const isSelected = preferences?.curriculum_region === r.value;
               return (
@@ -73,22 +73,15 @@ export const PersonalizationSection = () => {
                   key={r.value}
                   onClick={() => updatePreference({ curriculum_region: r.value })}
                   className={cn(
-                    "relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer hover:bg-accent/50",
+                    "flex items-center gap-2.5 px-4 py-2.5 rounded-full border transition-all cursor-pointer",
+                    "hover:shadow-md hover:border-muted-foreground/50 hover:-translate-y-0.5",
                     isSelected
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-muted-foreground/40"
+                      ? "border-primary bg-primary/10 shadow-md"
+                      : "border-border bg-card"
                   )}
                 >
-                  <span className="text-2xl shrink-0">{r.flag}</span>
-                  <div className="text-left min-w-0">
-                    <p className="text-sm font-medium truncate">{r.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{r.standard}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="w-3 h-3 text-primary-foreground" />
-                    </div>
-                  )}
+                  <span className="text-xl leading-none">{r.flag}</span>
+                  <span className="text-sm font-bold tracking-wide">{r.abbr}</span>
                 </button>
               );
             })}
