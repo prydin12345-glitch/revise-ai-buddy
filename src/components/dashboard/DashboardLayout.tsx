@@ -159,6 +159,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 sidebarCollapsed ? "justify-center px-0" : "justify-start"
               }`}
               onClick={() => navigate("/settings")}
+              onMouseEnter={() => prefetchRoute('/settings')}
               title={sidebarCollapsed ? "Settings" : undefined}
             >
               <Settings className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
