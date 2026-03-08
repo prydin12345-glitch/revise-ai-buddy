@@ -1,6 +1,6 @@
 import React from 'react';
-import CircuitDraw from './components/circuit/CircuitDraw';
-import type { CircuitConfig } from './components/circuit/types';
+import CircuitDraw from '@/components/circuit/CircuitDraw';
+import type { CircuitConfig } from '@/components/circuit/types';
 
 // Example 1: Simple series circuit (matches UK GCSE exam style)
 const seriesCircuit: CircuitConfig = {
