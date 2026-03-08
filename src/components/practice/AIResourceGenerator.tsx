@@ -120,6 +120,7 @@ export const AIResourceGenerator = ({
       };
 
       onPackReady(pack);
+      setHasGenerated(true);
       toast.success(`Generated ${pack.items.length} resource${pack.items.length !== 1 ? 's' : ''} for "${theme}"`);
     } catch (error: any) {
       console.error("Error generating resource pack:", error);
