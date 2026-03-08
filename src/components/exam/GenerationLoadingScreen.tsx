@@ -97,35 +97,8 @@ export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", est
           {message}
         </h2>
 
-        {/* Progress indicator */}
-        <div className="flex justify-center gap-2 mt-8">
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0s"
-            }}
-          />
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0.2s"
-            }}
-          />
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0.4s"
-            }}
-          />
-        </div>
-
-        {/* Dynamic Time Estimate */}
-        <p className="text-sm text-muted-foreground mt-8 animate-fade-in">
-          {getTimeMessage()}
-        </p>
+        {/* Generation Stepper */}
+        <GenerationStepper apiComplete={apiComplete} subjectColor={subjectColor} />
       </div>
     </div>
   );

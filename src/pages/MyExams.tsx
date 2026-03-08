@@ -554,6 +554,9 @@ const MyExams = () => {
   return (
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6">
+        {/* Unified Tab Bar */}
+        <MyWorkTabBar />
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>

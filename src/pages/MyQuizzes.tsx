@@ -282,6 +282,9 @@ const MyQuizzes = () => {
   return (
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6 p-6">
+        {/* Unified Tab Bar */}
+        <MyWorkTabBar />
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
