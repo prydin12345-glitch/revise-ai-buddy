@@ -8,11 +8,17 @@ export interface AnnotationLayerProps {
   subjectColor?: string;
   /** Visible domain for region shading bounds */
   visibleDomain?: { domainX: [number, number]; domainY: [number, number] };
+  /** Whether the student has submitted / is in review mode */
+  showAnswers?: boolean;
 }
 
 /**
  * AnnotationLayer - Pure SVG overlay for point labels, intercept labels, and region shading.
  * Renders on top of curves but below student points.
+ * 
+ * Respects visibleBefore/visibleAfter on each annotation:
+ * - During active answering (showAnswers=false): only show annotations with visibleBefore !== false
+ * - After submission (showAnswers=true): only show annotations with visibleAfter !== false
  */
 export function AnnotationLayer({
   annotations,
@@ -20,10 +26,22 @@ export function AnnotationLayer({
   referenceSeries = [],
   subjectColor = 'hsl(var(--primary))',
   visibleDomain,
+  showAnswers = false,
 }: AnnotationLayerProps) {
+  // Filter annotations based on visibility rules
+  const visibleAnnotations = annotations.filter(ann => {
+    if (showAnswers) {
+      // In review mode: show if visibleAfter is not explicitly false
+      return ann.visibleAfter !== false;
+    } else {
+      // During active answering: show only if visibleBefore is not explicitly false
+      return ann.visibleBefore !== false;
+    }
+  });
+
   return (
     <g className="annotation-layer">
-      {annotations.map((ann) => {
+      {visibleAnnotations.map((ann) => {
         switch (ann.type) {
           case 'point':
           case 'text':
@@ -146,7 +164,6 @@ function InterceptAnnotation({
       const prev = series.data[i - 1];
       const curr = series.data[i];
       if (annotation.axis === 'x') {
-        // Find where y crosses 0
         if ((prev.y <= 0 && curr.y >= 0) || (prev.y >= 0 && curr.y <= 0)) {
           const t = Math.abs(prev.y) / (Math.abs(prev.y) + Math.abs(curr.y));
           const interceptX = prev.x + t * (curr.x - prev.x);
@@ -154,7 +171,6 @@ function InterceptAnnotation({
           return <PointAnnotation annotation={derivedAnnotation} graphToScreen={graphToScreen} />;
         }
       } else if (annotation.axis === 'y') {
-        // Find where x crosses 0
         if ((prev.x <= 0 && curr.x >= 0) || (prev.x >= 0 && curr.x <= 0)) {
           const t = Math.abs(prev.x) / (Math.abs(prev.x) + Math.abs(curr.x));
           const interceptY = prev.y + t * (curr.y - prev.y);
@@ -185,9 +201,7 @@ function ProjectionAnnotation({
   const projectTo = annotation.projectTo || 'both';
   const axisColor = 'hsl(var(--muted-foreground))';
   
-  // Project to X axis: vertical dashed line from point down to (x, 0)
   const xAxisScreen = graphToScreen(annotation.coords.x, 0);
-  // Project to Y axis: horizontal dashed line from point left to (0, y)
   const yAxisScreen = graphToScreen(0, annotation.coords.y);
   
   return (
@@ -199,7 +213,6 @@ function ProjectionAnnotation({
             x2={xAxisScreen.x} y2={xAxisScreen.y}
             stroke={axisColor} strokeWidth={1} strokeDasharray="4 3" opacity={0.7}
           />
-          {/* Small label on axis */}
           <text
             x={xAxisScreen.x} y={xAxisScreen.y + 14}
             textAnchor="middle" fontSize={10} fill={axisColor}
@@ -225,7 +238,6 @@ function ProjectionAnnotation({
           </text>
         </>
       )}
-      {/* Small dot at the intersection point */}
       <circle cx={screen.x} cy={screen.y} r={3} fill={axisColor} />
       {annotation.label && (
         <text
@@ -263,11 +275,9 @@ function RegionAnnotation({
   const minX = fromX ?? visibleDomain?.domainX[0] ?? series.data[0].x;
   const maxX = toX ?? visibleDomain?.domainX[1] ?? series.data[series.data.length - 1].x;
 
-  // Filter data points within range
   const filtered = series.data.filter((p) => p.x >= minX && p.x <= maxX && Number.isFinite(p.y));
   if (filtered.length < 2) return null;
 
-  // Build SVG path: curve then close along x-axis
   const screenPoints = filtered.map((p) => graphToScreen(p.x, p.y));
   const xAxisY = graphToScreen(0, 0).y;
 
@@ -299,4 +309,3 @@ function RegionAnnotation({
 }
 
 export default AnnotationLayer;
-

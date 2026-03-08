@@ -68,6 +68,10 @@ export interface GraphAnnotation {
   };
   /** For projection: which axes to project to ('x', 'y', or 'both') */
   projectTo?: 'x' | 'y' | 'both';
+  /** Whether this annotation is visible before the student submits (default: true) */
+  visibleBefore?: boolean;
+  /** Whether this annotation is visible after submission/review (default: true) */
+  visibleAfter?: boolean;
 }
 
 // Subject profile for axis/viewport defaults
