@@ -26,18 +26,18 @@ const timezones = [
 ];
 
 export const curriculumRegions = [
-  { value: 'GB', flag: '🇬🇧', label: 'United Kingdom', standard: 'A-Level / GCSE' },
-  { value: 'US', flag: '🇺🇸', label: 'United States', standard: 'AP / SAT' },
-  { value: 'AU', flag: '🇦🇺', label: 'Australia', standard: 'ATAR' },
-  { value: 'CA', flag: '🇨🇦', label: 'Canada', standard: 'Provincial / OCAS' },
-  { value: 'AE', flag: '🇦🇪', label: 'United Arab Emirates', standard: 'UAE Ministry / International' },
-  { value: 'IN', flag: '🇮🇳', label: 'India', standard: 'CBSE / ICSE' },
-  { value: 'SG', flag: '🇸🇬', label: 'Singapore', standard: 'GCE O/A Level' },
-  { value: 'HK', flag: '🇭🇰', label: 'Hong Kong', standard: 'DSE' },
-  { value: 'IE', flag: '🇮🇪', label: 'Ireland', standard: 'Leaving Certificate' },
-  { value: 'NZ', flag: '🇳🇿', label: 'New Zealand', standard: 'NCEA' },
-  { value: 'ZA', flag: '🇿🇦', label: 'South Africa', standard: 'NSC' },
-  { value: 'IB', flag: '🌍', label: 'Global / International', standard: 'IB Diploma' },
+  { value: 'GB', flag: '🇬🇧', abbr: 'UK' },
+  { value: 'US', flag: '🇺🇸', abbr: 'USA' },
+  { value: 'AU', flag: '🇦🇺', abbr: 'AUS' },
+  { value: 'CA', flag: '🇨🇦', abbr: 'CAN' },
+  { value: 'AE', flag: '🇦🇪', abbr: 'UAE' },
+  { value: 'IN', flag: '🇮🇳', abbr: 'IND' },
+  { value: 'SG', flag: '🇸🇬', abbr: 'SG' },
+  { value: 'HK', flag: '🇭🇰', abbr: 'HK' },
+  { value: 'IE', flag: '🇮🇪', abbr: 'IRE' },
+  { value: 'NZ', flag: '🇳🇿', abbr: 'NZ' },
+  { value: 'ZA', flag: '🇿🇦', abbr: 'SA' },
+  { value: 'IB', flag: '🌍', abbr: 'INT' },
 ];
 
 export const PersonalizationSection = () => {
