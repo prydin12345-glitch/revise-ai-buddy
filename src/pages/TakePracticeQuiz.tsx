@@ -2038,9 +2038,31 @@ const TakePracticeQuiz = () => {
                           }
                         }
                         
-                        // Step 3: No answer line available
+                        // Step 3: Runtime fallback — extract formula from question text
                         if (expectedCurveSeries.length === 0) {
-                          console.warn('[Review] No markingFormula or expectedCurve — no answer line will be shown');
+                          const qText = currentQuestion.question_text || '';
+                          // Match patterns like "f(x) = x² - 4x + 7", "g(x) = 2x^2 + 3x - 1", "y = ..."
+                          const formulaMatch = qText.match(/(?:[a-zA-Z]\(x\)|y)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+                          if (formulaMatch) {
+                            let extracted = formulaMatch[1].trim();
+                            // Clean up: remove trailing punctuation/periods
+                            extracted = extracted.replace(/[.\s]+$/, '');
+                            // Convert unicode superscripts: ² → ^2, ³ → ^3
+                            extracted = extracted.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+                            // Convert "4x" → "4*x" style for the evaluator
+                            extracted = extracted.replace(/(\d)(x)/gi, '$1*$2');
+                            
+                            const domainXLocal: [number, number] = config.domainX || [-10, 10];
+                            const fallbackCurve = generateCurveFromFormula(extracted, domainXLocal);
+                            if (fallbackCurve.length > 0) {
+                              expectedCurveSeries = fallbackCurve;
+                              console.log('[Review] RUNTIME FALLBACK: Extracted formula from question text:', extracted);
+                            } else {
+                              console.warn('[Review] No markingFormula, expectedCurve, or extractable formula — no answer line will be shown');
+                            }
+                          } else {
+                            console.warn('[Review] No markingFormula or expectedCurve — no answer line will be shown');
+                          }
                         }
                       }
                       
