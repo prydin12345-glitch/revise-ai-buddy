@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, Play, ArrowLeft, ChevronRight, LogOut, RotateCcw } from "lucide-react";
+import { Loader2, Eye, Play, ArrowLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
 
@@ -41,6 +41,28 @@ interface Progress {
   session_data: any;
 }
 
+const formatQuestionType = (type: string) => {
+  const map: Record<string, string> = {
+    'short_answer': 'Short answer',
+    'long_answer': 'Long answer',
+    'graph_plotting': 'Graph plotting',
+    'graph_sketch': 'Graph sketch',
+    'multiple_choice': 'Multiple choice',
+    'mcq': 'Multiple choice',
+    'show_that': 'Show that',
+    'proof': 'Proof',
+  };
+  return map[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
+const getDifficultyColor = (level: string | undefined | null) => {
+  const l = (level || '').toLowerCase();
+  if (l === 'easy') return '#22c55e';
+  if (l === 'medium') return '#f97316';
+  if (l === 'hard') return '#ef4444';
+  return undefined;
+};
+
 const PracticeSetPreview = () => {
   const { setId } = useParams();
   const navigate = useNavigate();
@@ -57,7 +79,6 @@ const PracticeSetPreview = () => {
 
   const loadPreview = async () => {
     try {
-      // Fetch practice set data
       const { data: setData, error: setError } = await supabase
         .from('practice_question_sets')
         .select('*')
@@ -67,7 +88,6 @@ const PracticeSetPreview = () => {
       if (setError) throw setError;
       setPracticeSet(setData);
 
-      // Fetch questions with proper sorting
       const { data: questionsData, error: questionsError } = await supabase
         .from('practice_questions')
         .select('*')
@@ -77,7 +97,6 @@ const PracticeSetPreview = () => {
 
       if (questionsError) throw questionsError;
       
-      // Sort questions: first by numeric part, then by suffix (a, b, c)
       const sortedQuestions = (questionsData || []).sort((a, b) => {
         const numA = a.question_number_int ?? (parseInt(a.question_number) || 0);
         const numB = b.question_number_int ?? (parseInt(b.question_number) || 0);
@@ -90,7 +109,6 @@ const PracticeSetPreview = () => {
       
       setQuestions(sortedQuestions);
 
-      // Check for existing progress
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: progress } = await supabase
@@ -110,7 +128,6 @@ const PracticeSetPreview = () => {
             setSavedQuestionIndex(progress.current_question_index);
           }
           
-          // Check if quiz is completed (has completed_at timestamp)
           if (progress.completed_at) {
             setIsCompleted(true);
           }
@@ -143,125 +160,191 @@ const PracticeSetPreview = () => {
     );
   }
 
+  const diffLevel = practiceSet.difficulty_level || practiceSet.difficulty_mode;
+  const diffColor = getDifficultyColor(diffLevel);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header - 3-zone layout */}
       <header className="sticky top-0 z-50 bg-card/95 backdrop-blur border-b">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center">
+        <div className="max-w-[1000px] mx-auto px-8 h-16 flex items-center justify-between">
           {/* Left: Back button */}
-          <div className="flex-1 flex justify-start">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/quizzes')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/quizzes')}
+            className="py-2 px-3 ml-6 text-[15px]"
+          >
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            Back
+          </Button>
 
-          {/* Center: Preview Mode + Set name */}
-          <div className="flex-1 flex justify-center items-center gap-3">
-            <Badge variant="outline" className="bg-muted whitespace-nowrap">
-              <Eye className="w-3 h-3 mr-1" />
+          {/* Center: Preview Mode + divider + Set name */}
+          <div className="flex items-center">
+            <span className="text-[13px]" style={{ color: '#64748b' }}>
+              <Eye className="w-3 h-3 inline mr-1" />
               Preview Mode
-            </Badge>
-            <h1 className="text-lg font-semibold truncate max-w-[200px] lg:max-w-[400px]">
+            </span>
+            <span
+              className="inline-block mx-4"
+              style={{ width: 1, height: 20, background: '#334155' }}
+            />
+            <span className="text-[16px] font-semibold text-foreground truncate max-w-[200px] lg:max-w-[400px]">
               {practiceSet.set_name}
-            </h1>
+            </span>
           </div>
 
-          {/* Right: Start/Continue/Review button */}
-          <div className="flex-1 flex justify-end">
+          {/* Right: Circular action button */}
+          <div className="mr-6 flex-shrink-0">
             {isCompleted ? (
-              <Button onClick={handleStartOrContinue} size="lg" variant="outline">
-                <Eye className="h-4 w-4 mr-2" />
-                Review Answers
-              </Button>
+              <button
+                onClick={handleStartOrContinue}
+                title="Review Answers"
+                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer border-0"
+                style={{ background: '#3b82f6' }}
+              >
+                <Eye className="w-[18px] h-[18px] text-white" />
+              </button>
             ) : (
-              <Button onClick={handleStartOrContinue} size="lg">
+              <button
+                onClick={handleStartOrContinue}
+                title={hasProgress ? "Continue" : "Start Quiz"}
+                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer border-0"
+                style={{ background: '#3b82f6' }}
+              >
                 {hasProgress ? (
-                  <>
-                    <ChevronRight className="h-4 w-4 mr-2" />
-                    Continue
-                  </>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                    <polyline points="21 3 21 8 16 8" />
+                  </svg>
                 ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Quiz
-                  </>
+                  <Play className="w-[18px] h-[18px] text-white fill-white" />
                 )}
-              </Button>
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Metadata */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {/* Content */}
+      <div className="max-w-[1000px] mx-auto px-8 py-6">
+        {/* Info Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Subject</p>
-              <p className="font-semibold">{practiceSet.subject_id}</p>
+            <CardContent className="py-3 px-[18px]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Subject</p>
+              <p className="text-[15px] font-semibold mt-1">{practiceSet.subject_id}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Total Questions</p>
-              <p className="font-semibold">{questions.length}</p>
+            <CardContent className="py-3 px-[18px]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Total Questions</p>
+              <p className="text-[15px] font-semibold mt-1">{questions.length}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Difficulty</p>
-              <p className="font-semibold capitalize">{practiceSet.difficulty_level || practiceSet.difficulty_mode}</p>
+            <CardContent className="py-3 px-[18px]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Difficulty</p>
+              <p className="text-[15px] font-semibold mt-1 capitalize" style={diffColor ? { color: diffColor } : undefined}>
+                {diffLevel}
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Est. Time</p>
-              <p className="font-semibold">{questions.length * 2} minutes</p>
+            <CardContent className="py-3 px-[18px]">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Est. Time</p>
+              <p className="text-[15px] font-semibold mt-1">{questions.length * 2} minutes</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Topics */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium mb-2">Topics Covered</h3>
+        {/* Topics Covered */}
+        <div className="mt-5">
+          <h3
+            className="mb-2 text-[12px] uppercase font-medium"
+            style={{ color: '#64748b', letterSpacing: '0.1em' }}
+          >
+            Topics Covered
+          </h3>
           <div className="flex flex-wrap gap-2">
             {practiceSet.subtopics.map((topic, idx) => (
-              <Badge key={idx} variant="secondary">{topic}</Badge>
+              <span
+                key={idx}
+                className="text-[11px] rounded-full"
+                style={{
+                  background: '#1e3a5f',
+                  color: '#93c5fd',
+                  border: '1px solid #1d4ed8',
+                  padding: '3px 10px',
+                }}
+              >
+                {topic}
+              </span>
             ))}
           </div>
         </div>
 
         {/* Questions */}
-        <div className="space-y-6">
-          {questions.map((question) => (
-            <Card key={question.id} className="overflow-hidden">
-              <CardContent className="p-6">
+        <div className="mt-4 space-y-3">
+          {questions.map((question) => {
+            const qDiffColor = getDifficultyColor(question.difficulty_level);
+            return (
+              <div
+                key={question.id}
+                className="rounded-lg overflow-hidden"
+                style={{
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  borderLeft: '3px solid #3b82f6',
+                  padding: '16px 20px',
+                }}
+              >
                 {/* Question header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="font-mono">Q{question.question_number}</Badge>
-                    <Badge variant="secondary">{question.subtopic}</Badge>
-                    {question.difficulty_level && (
-                      <Badge variant="outline" className="capitalize">{question.difficulty_level}</Badge>
-                    )}
-                    <Badge variant="outline" className="capitalize">{question.question_type}</Badge>
-                  </div>
-                  <Badge className="ml-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold" style={{ color: '#94a3b8' }}>
+                    Q{question.question_number}
+                  </span>
+                  <span className="text-[11px]" style={{ color: '#94a3b8' }}>
+                    {formatQuestionType(question.question_type)}
+                  </span>
+                  <span
+                    className="text-[11px] rounded-full"
+                    style={{ padding: '2px 8px', background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
+                  >
+                    {question.subtopic}
+                  </span>
+                  {question.difficulty_level && (
+                    <span
+                      className="text-[11px] rounded-full capitalize"
+                      style={{
+                        padding: '2px 8px',
+                        background: qDiffColor ? `${qDiffColor}22` : undefined,
+                        color: qDiffColor || undefined,
+                        border: qDiffColor ? `1px solid ${qDiffColor}44` : undefined,
+                      }}
+                    >
+                      {question.difficulty_level}
+                    </span>
+                  )}
+                  <span
+                    className="text-[11px] font-semibold rounded-full ml-auto shrink-0"
+                    style={{ padding: '2px 8px', background: '#3b82f622', color: '#3b82f6' }}
+                  >
                     {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
-                  </Badge>
+                  </span>
                 </div>
 
-                {/* Question text - always use MathRenderer */}
-                <div className="text-base leading-relaxed mb-4 overflow-x-auto">
+                {/* Question text */}
+                <div className="mt-3 text-[14px] leading-[1.7] overflow-x-auto">
                   <MathRenderer content={question.question_text} hasMath={true} />
                 </div>
 
-                {/* MCQ Options - match quiz attempt styling */}
+                {/* MCQ Options */}
                 {question.options && Array.isArray(question.options) && question.options.length > 0 && (
                   <div className="space-y-3 mt-4">
                     {question.options.map((option: any, optIdx: number) => (
-                      <div 
-                        key={optIdx} 
+                      <div
+                        key={optIdx}
                         className="flex items-start gap-3 p-4 rounded-lg border bg-muted/40 hover:bg-muted/60 transition-colors"
                       >
                         <span className="font-semibold text-primary shrink-0 w-6">
@@ -274,9 +357,9 @@ const PracticeSetPreview = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Bottom CTA */}
