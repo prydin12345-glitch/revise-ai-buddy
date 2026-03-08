@@ -10,6 +10,10 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
+import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
+import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid, 
