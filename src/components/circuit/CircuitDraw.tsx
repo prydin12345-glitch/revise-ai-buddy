@@ -13,7 +13,19 @@ const PADDING = 40;
 const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
   const { gridSpacing = 80, nodes = [], wires = [], junctions, showLabels } = config;
 
-  if (!nodes.length) return null;
+  // ── Validation guard ──
+  if (!nodes.length || !wires || wires.length < 3) {
+    return (
+      <svg width="300" height="100" style={{ background: 'white', display: 'block', margin: '0 auto' }}>
+        <rect x="10" y="10" width="280" height="80"
+          fill="#fff8f8" stroke="#cc0000" strokeWidth={1} strokeDasharray="4 2" />
+        <text x="150" y="55" textAnchor="middle"
+          fontSize="12" fill="#cc0000" fontFamily="serif" fontStyle="italic">
+          Circuit config incomplete — check generation
+        </text>
+      </svg>
+    );
+  }
 
   // Build node lookup
   const nodeMap = new Map<string, CircuitNode>();
@@ -148,7 +160,13 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
     <svg
       viewBox={`0 0 ${svgW} ${svgH}`}
       width="100%"
-      style={{ maxWidth: width, display: 'block', margin: '0 auto' }}
+      style={{
+        maxWidth: width,
+        display: 'block',
+        margin: '0 auto',
+        background: 'white',
+        borderRadius: 4,
+      }}
     >
       {/* Render all wires + components */}
       {wires.map((w, i) => renderWire(w.from, w.to, w.component, w.label, `wire-${i}`))}
