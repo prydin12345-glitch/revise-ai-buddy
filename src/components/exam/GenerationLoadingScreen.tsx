@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Atom, BookOpen, FlaskConical, Dna } from "lucide-react";
+import { GenerationStepper } from "./GenerationStepper";
 
 interface GenerationLoadingScreenProps {
   message: string;
