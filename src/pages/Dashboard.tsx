@@ -7,6 +7,7 @@ import { TeacherDashboardContent } from "@/components/dashboard/TeacherDashboard
 import { TutorDashboardContent } from "@/components/dashboard/TutorDashboardContent";
 import { Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, BookOpen, Users, CheckCircle2 } from "lucide-react";
 
 const Dashboard = () => {
@@ -16,6 +17,7 @@ const Dashboard = () => {
   const { primaryRole, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -25,6 +27,7 @@ const Dashboard = () => {
       }
     );
 
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) {
@@ -50,18 +53,25 @@ const Dashboard = () => {
 
   const getRoleIcon = () => {
     switch (primaryRole) {
-      case "teacher": return BookOpen;
-      case "tutor": return Users;
-      default: return GraduationCap;
+      case "teacher":
+        return BookOpen;
+      case "tutor":
+        return Users;
+      default:
+        return GraduationCap;
     }
   };
 
   const getRoleLabel = () => {
     switch (primaryRole) {
-      case "teacher": return "Teacher";
-      case "tutor": return "Tutor";
-      case "admin": return "Admin";
-      default: return "Student";
+      case "teacher":
+        return "Teacher";
+      case "tutor":
+        return "Tutor";
+      case "admin":
+        return "Admin";
+      default:
+        return "Student";
     }
   };
 
@@ -78,59 +88,27 @@ const Dashboard = () => {
     }
   };
 
-  const userName = session.user.user_metadata?.full_name 
-    || session.user.email?.split('@')[0] 
-    || 'User';
-
   return (
     <DashboardLayout>
-      <div className="max-w-[1200px] mx-auto px-0 sm:px-0" style={{ paddingLeft: 0, paddingRight: 0 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Welcome Banner */}
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%)',
-              borderRadius: 10,
-              borderLeft: '4px solid #3b82f6',
-              padding: '20px 24px',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Subtle decorative glow */}
-            <div style={{
-              position: 'absolute', top: -30, right: -30,
-              width: 120, height: 120,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
-              pointerEvents: 'none',
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 10,
-                background: 'rgba(59,130,246,0.15)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <RoleIcon style={{ width: 24, height: 24, color: '#3b82f6' }} />
+      <div className="space-y-6">
+        <Card className="border-2 bg-gradient-to-br from-primary/5 to-background">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <RoleIcon className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 style={{ fontSize: 22, fontWeight: 600, color: '#f1f5f9', margin: 0, lineHeight: 1.3 }}>
-                  Welcome back, {userName}
-                </h1>
-                <p style={{ fontSize: 13, color: '#94a3b8', margin: '4px 0 0 0' }}>
-                  Let's make today count — pick up where you left off.
-                </p>
-                <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0 0', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <CheckCircle2 style={{ width: 13, height: 13, color: '#3b82f6' }} />
+                <div className="text-2xl">Welcome back!</div>
+                <div className="text-sm text-muted-foreground font-normal flex items-center gap-2 mt-1">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
                   Logged in as {getRoleLabel()}
-                </p>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardTitle>
+          </CardHeader>
+        </Card>
 
-          {renderDashboardContent()}
-        </div>
+        {renderDashboardContent()}
       </div>
     </DashboardLayout>
   );
