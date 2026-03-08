@@ -34,6 +34,7 @@ interface ExamQuestion {
   sub_questions?: { label: string; text: string; marks: number }[] | null;
   requires_graph?: boolean;
   requires_diagram?: boolean;
+  diagramConfig?: any;
 }
 
 interface ExamData {
@@ -63,12 +64,14 @@ export function ExamPDFPreviewModal({
   const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
   const [includeWorkingSpace, setIncludeWorkingSpace] = useState(true);
   const [showMarks, setShowMarks] = useState(true);
+  const [includeDiagrams, setIncludeDiagrams] = useState(true);
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>('auto');
   const [generating, setGenerating] = useState(false);
 
   const totalMarks = examData.questions.reduce((sum, q) => sum + q.marks, 0);
   const mcqCount = examData.questions.filter(q => q.question_type === "MCQ").length;
   const writtenCount = examData.questions.length - mcqCount;
+  const diagramCount = examData.questions.filter(q => q.diagramConfig).length;
 
   const handleDownload = async () => {
     setGenerating(true);
@@ -77,6 +80,7 @@ export function ExamPDFPreviewModal({
         includeAnswerKey,
         includeWorkingSpace,
         showMarks,
+        includeDiagrams,
         answerStyle: answerStyle === 'auto' ? undefined : answerStyle,
       });
       const filename = `${examTitle.replace(/[^a-z0-9]/gi, "_")}_exam.pdf`;
@@ -98,6 +102,7 @@ export function ExamPDFPreviewModal({
         includeAnswerKey,
         includeWorkingSpace,
         showMarks,
+        includeDiagrams,
         answerStyle: answerStyle === 'auto' ? undefined : answerStyle,
       });
       openPDFInNewTab(doc);
@@ -130,6 +135,7 @@ export function ExamPDFPreviewModal({
             <span>{totalMarks} total marks</span>
             {mcqCount > 0 && <span>{mcqCount} MCQ</span>}
             {writtenCount > 0 && <span>{writtenCount} written</span>}
+            {diagramCount > 0 && <span>{diagramCount} with diagrams</span>}
           </div>
           {(examData.subject || examData.exam_board) && (
             <div className="text-xs text-muted-foreground">
@@ -151,11 +157,7 @@ export function ExamPDFPreviewModal({
                 Display mark allocation for each question
               </p>
             </div>
-            <Switch
-              id="show-marks"
-              checked={showMarks}
-              onCheckedChange={setShowMarks}
-            />
+            <Switch id="show-marks" checked={showMarks} onCheckedChange={setShowMarks} />
           </div>
 
           <div className="flex items-center justify-between">
@@ -165,11 +167,7 @@ export function ExamPDFPreviewModal({
                 Add space for written answers
               </p>
             </div>
-            <Switch
-              id="working-space"
-              checked={includeWorkingSpace}
-              onCheckedChange={setIncludeWorkingSpace}
-            />
+            <Switch id="working-space" checked={includeWorkingSpace} onCheckedChange={setIncludeWorkingSpace} />
           </div>
 
           {includeWorkingSpace && (
@@ -187,9 +185,18 @@ export function ExamPDFPreviewModal({
                   <SelectItem value="minimal">Minimal (white space)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Auto: Math gets boxes, English gets lines, Science gets grids
-              </p>
+            </div>
+          )}
+
+          {diagramCount > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="include-diagrams">Include diagrams</Label>
+                <p className="text-xs text-muted-foreground">
+                  Render {diagramCount} diagram{diagramCount !== 1 ? 's' : ''} in the PDF
+                </p>
+              </div>
+              <Switch id="include-diagrams" checked={includeDiagrams} onCheckedChange={setIncludeDiagrams} />
             </div>
           )}
 
@@ -200,11 +207,7 @@ export function ExamPDFPreviewModal({
                 Add answers on a separate page at the end
               </p>
             </div>
-            <Switch
-              id="answer-key"
-              checked={includeAnswerKey}
-              onCheckedChange={setIncludeAnswerKey}
-            />
+            <Switch id="answer-key" checked={includeAnswerKey} onCheckedChange={setIncludeAnswerKey} />
           </div>
         </div>
 
@@ -212,20 +215,11 @@ export function ExamPDFPreviewModal({
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handlePreview}
-            disabled={generating}
-          >
+          <Button variant="outline" className="flex-1" onClick={handlePreview} disabled={generating}>
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
-          <Button
-            className="flex-1"
-            onClick={handleDownload}
-            disabled={generating}
-          >
+          <Button className="flex-1" onClick={handleDownload} disabled={generating}>
             <Download className="h-4 w-4 mr-2" />
             Download PDF
           </Button>

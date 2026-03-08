@@ -8,36 +8,12 @@ interface StudentPDFOptions {
   contentId: string;
 }
 
-interface PDFQuestion {
-  id: string;
-  question_number: string;
-  question_text: string;
-  question_type: string;
-  marks: number;
-  options?: any;
-  correct_answer?: string | null;
-  topic_tag?: string | null;
-  table_data?: string | null;
-}
-
-interface PDFData {
-  type: "student_exam" | "student_practice";
-  title: string;
-  subject: string;
-  difficulty?: string;
-  subtopics?: string[];
-  totalQuestions: number;
-  dateGenerated: string;
-  questions: PDFQuestion[];
-}
-
 export const useStudentPDF = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateStudentPDF = async (options: StudentPDFOptions) => {
     setIsGenerating(true);
     try {
-      // Call edge function to get PDF data with ownership verification
       const { data, error } = await supabase.functions.invoke(
         "generate-student-pdf",
         {
@@ -53,14 +29,13 @@ export const useStudentPDF = () => {
         throw new Error(data?.error || "Failed to generate PDF");
       }
 
-      const pdfData: PDFData = data.pdfData;
+      const pdfData = data.pdfData;
 
-      // Transform questions for PDF generator
       const examData = {
         title: pdfData.title,
         subject: pdfData.subject,
-        total_marks: pdfData.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
-        questions: pdfData.questions.map((q) => ({
+        total_marks: pdfData.questions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0),
+        questions: pdfData.questions.map((q: any) => ({
           id: q.id,
           question_number: q.question_number,
           question_text: q.question_text,
@@ -72,21 +47,19 @@ export const useStudentPDF = () => {
         })),
       };
 
-      // Add header based on content type
       const isExam = pdfData.type === "student_exam";
-      const headerLabel = isExam
-        ? "Student-Created Practice Exam"
-        : "Student-Created Practice Questions";
 
-      // Generate PDF using existing generator
       const doc = await generateExamPDF(examData, {
         includeAnswerKey: false,
         includeWorkingSpace: true,
         showMarks: true,
-        answerStyle: "lined",
+        includeDiagrams: false,
       });
 
       // Add student-created label to first page
+      const headerLabel = isExam
+        ? "Student-Created Practice Exam"
+        : "Student-Created Practice Questions";
       doc.setPage(1);
       doc.setFontSize(9);
       doc.setTextColor(120, 120, 120);
@@ -95,13 +68,11 @@ export const useStudentPDF = () => {
         align: "right",
       });
 
-      // Generate filename
       const sanitizedTitle = pdfData.title
         .replace(/[^a-zA-Z0-9]/g, "_")
         .substring(0, 50);
       const filename = `${sanitizedTitle}_questions.pdf`;
 
-      // Download PDF
       downloadPDF(doc, filename);
 
       toast({
