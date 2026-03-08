@@ -2039,39 +2039,59 @@ const TakePracticeQuiz = () => {
                         }
                         
                         // Step 3: Runtime fallback — extract formula from question text
+                        // Handles: plain text, LaTeX ($...$), Unicode superscripts, transformations
                         if (expectedCurveSeries.length === 0) {
                           const qText = currentQuestion.question_text || '';
                           
-                          // Helper to clean a raw formula string for the evaluator
-                          const cleanFormula = (raw: string): string => {
-                            let f = raw.trim().replace(/[.\s]+$/, '');
+                          // Strip LaTeX and normalize to evaluatable math
+                          const stripAndClean = (raw: string): string => {
+                            let f = raw.trim();
+                            // Remove LaTeX wrappers
+                            f = f.replace(/\$\$/g, '').replace(/\$/g, '');
+                            // LaTeX commands → plain
+                            f = f.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
+                            f = f.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
+                            f = f.replace(/\\ln\b/g, 'ln').replace(/\\log\b/g, 'log');
+                            f = f.replace(/\\sin\b/g, 'sin').replace(/\\cos\b/g, 'cos').replace(/\\tan\b/g, 'tan');
+                            f = f.replace(/\\pi\b/g, 'pi');
+                            f = f.replace(/\\left\s*/g, '').replace(/\\right\s*/g, '');
+                            f = f.replace(/\\cdot/g, '*').replace(/\\times/g, '*');
+                            f = f.replace(/\\,/g, '');
+                            f = f.replace(/\{([^}]+)\}/g, '($1)');
+                            // Unicode superscripts
                             f = f.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+                            // Implicit multiplication
                             f = f.replace(/(\d)(x)/gi, '$1*$2');
+                            f = f.replace(/\)\(/g, ')*(');
+                            f = f.replace(/(\d)\(/g, '$1*(');
+                            f = f.replace(/\)(x)/gi, ')*$1');
+                            f = f.replace(/[.\s]+$/, '');
                             return f;
                           };
                           
+                          const plainText = stripAndClean(qText);
+                          
                           // 1. Extract base function definition: f(x) = ...
-                          const baseFnMatch = qText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+                          const baseFnMatch = plainText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
                           // 2. Detect transformation request: "sketch y = f(x+1)" or "y = g(2x)"
-                          const transformMatch = qText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
+                          const transformMatch = plainText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
                           
                           let finalFormula: string | null = null;
                           
                           if (baseFnMatch && transformMatch && transformMatch[1] === baseFnMatch[1]) {
-                            // Transformation case: substitute the transform argument into the base formula
-                            const baseExpr = baseFnMatch[2].trim().replace(/[.\s]+$/, '');
-                            const transformArg = transformMatch[2].trim(); // e.g. "x+1", "2x", "x-3"
-                            // Replace every "x" in baseExpr with "(transformArg)"
-                            finalFormula = cleanFormula(baseExpr.replace(/x/gi, `(${transformArg})`));
-                            console.log('[Review] RUNTIME FALLBACK: Detected transform, base:', baseExpr, 'arg:', transformArg, '→', finalFormula);
+                            // Transformation case
+                            const baseExpr = stripAndClean(baseFnMatch[2]);
+                            const transformArg = transformMatch[2].trim();
+                            finalFormula = baseExpr.replace(/x/gi, `(${transformArg})`);
+                            console.log('[Review] RUNTIME FALLBACK: transform detected, base:', baseExpr, 'arg:', transformArg, '→', finalFormula);
                           } else if (baseFnMatch) {
-                            // Direct function: f(x) = expr, question asks to sketch y = f(x)
-                            finalFormula = cleanFormula(baseFnMatch[2]);
+                            // Direct function
+                            finalFormula = stripAndClean(baseFnMatch[2]);
                           } else {
                             // Try bare "y = ..." pattern
-                            const yMatch = qText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+                            const yMatch = plainText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
                             if (yMatch) {
-                              finalFormula = cleanFormula(yMatch[1]);
+                              finalFormula = stripAndClean(yMatch[1]);
                             }
                           }
                           
