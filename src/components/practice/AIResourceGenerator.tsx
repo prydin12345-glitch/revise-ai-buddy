@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Loader2, BookOpen, Pen, Ruler, Hash, ChevronDown } from "lucide-react";
+import { Sparkles, Loader2, BookOpen, Pen, Ruler, Hash } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
