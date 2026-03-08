@@ -651,6 +651,7 @@ export function GraphCanvasPlot({
             referenceSeries={referenceSeries}
             subjectColor={subjectColor}
             visibleDomain={visibleDomain}
+            showAnswers={showCorrectAnswers}
           />
         )}
         
