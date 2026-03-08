@@ -425,8 +425,6 @@ function extractTwoMasses(text: string): [number, number] {
   }
   return [3, 5];
 }
-  const unknowns: string[] = [];
-  const lower = text.toLowerCase();
 
   if (/find\s+(the\s+)?acceleration/i.test(lower)) unknowns.push('acceleration');
   if (/find\s+(the\s+)?tension/i.test(lower)) unknowns.push('tension');
