@@ -1,7 +1,8 @@
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
 import React from "react";
+
+// jsPDF and html2canvas are dynamically imported only when needed
+type jsPDFType = import("jspdf").default;
 
 // ============= Type Definitions =============
 interface ExamQuestion {
