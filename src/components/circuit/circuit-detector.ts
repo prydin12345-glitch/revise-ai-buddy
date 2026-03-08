@@ -42,6 +42,10 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
 
   if (text.includes('plot a graph') || text.includes('i-v characteristic') || text.includes('use your graph')) return null;
 
+  // Skip dual questions (motor + mechanical action) — handled by mechanics detector
+  const isDual = /motor/i.test(text) && /lift|raise|pump|height|distance/i.test(text) && /\d+\s*kg/i.test(text);
+  if (isDual) return null;
+
   // ── Extract values ──
 
   const emfMatch = cleaned.match(/(?:battery|cell|emf|e\.m\.f\.?)\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*V/i)
