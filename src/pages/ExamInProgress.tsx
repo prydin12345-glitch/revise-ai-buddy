@@ -43,6 +43,8 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
