@@ -35,6 +35,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
+  // Prefetch common routes during browser idle time after mount
+  useEffect(() => {
+    prefetchCommonRoutes();
+  }, []);
+
   const studentNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "My Exams", path: "/my-exams" },
