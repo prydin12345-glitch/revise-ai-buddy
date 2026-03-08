@@ -13,7 +13,6 @@ import { HistogramChart, isHistogramQuestion } from "@/components/graph/Histogra
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
-import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid, 
