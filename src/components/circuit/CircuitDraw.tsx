@@ -11,34 +11,38 @@ export interface CircuitDrawProps {
 const PADDING = 40;
 
 const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
-  const { gridSpacing, nodes, wires, junctions, showLabels } = config;
+  const { gridSpacing = 80, nodes = [], wires = [], junctions, showLabels } = config;
+
+  if (!nodes.length) return null;
 
   // Build node lookup
   const nodeMap = new Map<string, CircuitNode>();
   nodes.forEach(n => nodeMap.set(n.id, n));
 
-  // Compute SVG dimensions
+  // Compute SVG dimensions dynamically from actual node positions
   const maxCol = Math.max(...nodes.map(n => n.col));
   const maxRow = Math.max(...nodes.map(n => n.row));
-  const svgW = (maxCol + 1) * gridSpacing + 2 * PADDING;
-  const svgH = (maxRow + 1) * gridSpacing + 2 * PADDING;
+  const svgW = maxCol * gridSpacing + 2 * PADDING;
+  const svgH = maxRow * gridSpacing + 2 * PADDING;
 
   const toX = (col: number) => col * gridSpacing + PADDING;
   const toY = (row: number) => row * gridSpacing + PADDING;
 
-  // Detect junction nodes (3+ connections)
+  // Build set of junction node IDs from the junctions array
+  const junctionSet = new Set<string>();
+  if (junctions) {
+    junctions.forEach(j => junctionSet.add(j.at));
+  }
+
+  // Also auto-detect junctions: any node with 3+ wire connections
   const connectionCount = new Map<string, number>();
   wires.forEach(w => {
     connectionCount.set(w.from, (connectionCount.get(w.from) || 0) + 1);
     connectionCount.set(w.to, (connectionCount.get(w.to) || 0) + 1);
   });
-  if (junctions) {
-    junctions.forEach(j => {
-      j.branch.forEach(() => {
-        connectionCount.set(j.at, (connectionCount.get(j.at) || 0) + 1);
-      });
-    });
-  }
+  connectionCount.forEach((count, nodeId) => {
+    if (count >= 3) junctionSet.add(nodeId);
+  });
 
   const renderWire = (
     fromId: string,
@@ -63,7 +67,6 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
     const rotation = isVertical ? 90 : 0;
 
     if (component === 'wire') {
-      // For non-axis-aligned wires, route through an L-bend
       if (!isHorizontal && !isVertical) {
         return (
           <g key={key}>
@@ -86,8 +89,8 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
       );
     }
 
-    // Component wire: draw wire from start to component zone, then component, then wire out
-    const componentHalf = 30; // half the space consumed by the component symbol
+    // Component wire: draw wire segments with component symbol in the middle
+    const componentHalf = 30;
 
     if (isHorizontal) {
       const dir = x2 > x1 ? 1 : -1;
@@ -145,20 +148,14 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
     <svg
       viewBox={`0 0 ${svgW} ${svgH}`}
       width="100%"
-      style={{ maxWidth: width, display: 'block', margin: '0 auto', background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 6 }}
+      style={{ maxWidth: width, display: 'block', margin: '0 auto' }}
     >
       {/* Render all wires + components */}
       {wires.map((w, i) => renderWire(w.from, w.to, w.component, w.label, `wire-${i}`))}
 
-      {/* Render junction branches */}
-      {junctions?.map((j, ji) =>
-        j.branch.map((b, bi) => renderWire(j.at, b.to, b.component, b.label, `junc-${ji}-${bi}`))
-      )}
-
-      {/* Render junction dots */}
+      {/* Render junction dots for all marked junctions */}
       {nodes.map(n => {
-        const count = connectionCount.get(n.id) || 0;
-        if (count >= 3) {
+        if (junctionSet.has(n.id)) {
           return <JunctionDot key={`dot-${n.id}`} x={toX(n.col)} y={toY(n.row)} />;
         }
         return null;

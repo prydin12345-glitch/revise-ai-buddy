@@ -26,13 +26,9 @@ export interface CircuitWire {
   label?: string;
 }
 
+/** Simple junction marker — just marks a node as a junction dot */
 export interface CircuitJunction {
   at: string;
-  branch: {
-    to: string;
-    component: CircuitComponentType;
-    label?: string;
-  }[];
 }
 
 export interface CircuitConfig {
