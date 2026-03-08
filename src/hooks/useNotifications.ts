@@ -95,9 +95,12 @@ export const useNotifications = () => {
 
     initialize();
 
-    // Set up polling fallback
-    pollingRef.current = setInterval(() => {
-      fetchUnreadCount();
+    // Set up polling fallback — only poll when authenticated
+    pollingRef.current = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        fetchUnreadCount();
+      }
     }, POLLING_INTERVAL);
 
     return () => {
