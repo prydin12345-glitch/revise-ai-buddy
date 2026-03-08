@@ -856,6 +856,8 @@ function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any
   // Inject regional persona and region-aware subject instructions
   const regionalPersona = getRegionalPersona(curriculumRegion || '');
   const regionSubjectInstructions = getRegionAwareSubjectInstructions(exam.subject_id || '', board, level, curriculumRegion || '');
+  const genCtx = buildGenerationContext(curriculumRegion, level);
+  const generationContextPrompt = formatGenerationContextPrompt(genCtx);
   
   const mode = fallback 
     ? `Generate typical ${level} ${exam.subject_id} questions (no PDF text available).`
