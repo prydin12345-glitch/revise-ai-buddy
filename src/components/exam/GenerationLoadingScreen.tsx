@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Atom, BookOpen, FlaskConical, Dna } from "lucide-react";
+import { GenerationStepper } from "./GenerationStepper";
 
 interface GenerationLoadingScreenProps {
   message: string;
   subjectColor?: string;
   estimatedTime?: number; // in seconds, default 300
+  /** When true, stepper jumps to the final "Saving" step */
+  apiComplete?: boolean;
 }
 
 const subjectIcons: Record<string, typeof Atom> = {
@@ -15,7 +18,7 @@ const subjectIcons: Record<string, typeof Atom> = {
   default: Sparkles,
 };
 
-export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", estimatedTime = 300 }: GenerationLoadingScreenProps) {
+export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", estimatedTime = 300, apiComplete = false }: GenerationLoadingScreenProps) {
   const [iconRotation, setIconRotation] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -94,35 +97,8 @@ export function GenerationLoadingScreen({ message, subjectColor = "#3B82F6", est
           {message}
         </h2>
 
-        {/* Progress indicator */}
-        <div className="flex justify-center gap-2 mt-8">
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0s"
-            }}
-          />
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0.2s"
-            }}
-          />
-          <div 
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ 
-              backgroundColor: subjectColor,
-              animationDelay: "0.4s"
-            }}
-          />
-        </div>
-
-        {/* Dynamic Time Estimate */}
-        <p className="text-sm text-muted-foreground mt-8 animate-fade-in">
-          {getTimeMessage()}
-        </p>
+        {/* Generation Stepper */}
+        <GenerationStepper apiComplete={apiComplete} subjectColor={subjectColor} />
       </div>
     </div>
   );

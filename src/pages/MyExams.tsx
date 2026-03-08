@@ -9,6 +9,7 @@ import { Upload, Loader2, CheckCircle, CheckCheck, Star, Archive, Filter, Plus, 
 import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
 import { useStudentPDF } from "@/hooks/useStudentPDF";
 import { ExamCard } from "@/components/exam/ExamCard";
+import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -553,6 +554,9 @@ const MyExams = () => {
   return (
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6">
+        {/* Unified Tab Bar */}
+        <MyWorkTabBar />
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>

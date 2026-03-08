@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
+import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -855,6 +856,8 @@ function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any
   // Inject regional persona and region-aware subject instructions
   const regionalPersona = getRegionalPersona(curriculumRegion || '');
   const regionSubjectInstructions = getRegionAwareSubjectInstructions(exam.subject_id || '', board, level, curriculumRegion || '');
+  const genCtx = buildGenerationContext(curriculumRegion, level);
+  const generationContextPrompt = formatGenerationContextPrompt(genCtx);
   
   const mode = fallback 
     ? `Generate typical ${level} ${exam.subject_id} questions (no PDF text available).`
@@ -996,6 +999,7 @@ Use diverse names and scenarios. Examples:
   const hardeningRules = getExamHardeningRules();
 
   return `${regionalPersona}
+${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 ${resourceCtx}

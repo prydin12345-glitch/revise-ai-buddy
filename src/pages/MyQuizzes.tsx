@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -281,6 +282,9 @@ const MyQuizzes = () => {
   return (
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6 p-6">
+        {/* Unified Tab Bar */}
+        <MyWorkTabBar />
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>

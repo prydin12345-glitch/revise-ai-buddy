@@ -2,10 +2,11 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getTextColor, getBadgeColor } from "@/lib/color-contrast";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string };
@@ -48,7 +49,10 @@ export const SubjectCard = ({
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: subject.subject_color + "20", color: subject.subject_color }}
+              style={{
+                backgroundColor: subject.subject_color,
+                color: getTextColor(subject.subject_color),
+              }}
             >
               {subject.subject_name.charAt(0).toUpperCase()}
             </div>
@@ -168,39 +172,68 @@ export const SubjectCard = ({
               No profiles yet — create one to auto-fill exams.
             </p>
           ) : (
-            <div className="space-y-1.5">
-              {subjectProfiles.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 group/profile transition-colors hover:bg-muted"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium truncate">{profile.profile_name}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
-                      {profile.question_count}Q · {profile.topics.length}T
-                    </Badge>
+            <div className="space-y-2">
+              {subjectProfiles.map((profile) => {
+                const tierLabel = profile.educational_tier === "secondary_14_16"
+                  ? "High School"
+                  : profile.educational_tier === "college_16_18"
+                  ? "College"
+                  : profile.educational_tier === "university_18plus"
+                  ? "University"
+                  : null;
+
+                return (
+                  <div
+                    key={profile.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 group/profile transition-colors hover:bg-muted"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-lg bg-background flex items-center justify-center shrink-0">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">
+                          {profile.profile_name}
+                        </div>
+                        {tierLabel && (
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {tierLabel}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 font-normal">
+                        {profile.question_count}Q
+                      </Badge>
+                      {profile.time_limit_minutes && (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 font-normal gap-0.5">
+                          <Clock className="h-2.5 w-2.5" />
+                          {profile.time_limit_minutes}m
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-0.5 opacity-0 group-hover/profile:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => handleOpenEditProfile(subject.subject_name, profile)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => deleteProfile(profile.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover/profile:opacity-100 transition-opacity">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => handleOpenEditProfile(subject.subject_name, profile)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6 text-destructive hover:text-destructive"
-                      onClick={() => deleteProfile(profile.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

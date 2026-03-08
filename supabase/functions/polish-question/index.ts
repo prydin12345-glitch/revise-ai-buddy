@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors-headers.ts";
+import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -6,7 +7,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { questionText, subjectName, educationalTier } = await req.json();
+    const { questionText, subjectName, educationalTier, curriculumRegion } = await req.json();
 
     if (!questionText || !subjectName) {
       return new Response(JSON.stringify({ error: "Missing questionText or subjectName" }), {
@@ -15,27 +16,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const tierLabel = educationalTier === "secondary_14_16"
-      ? "GCSE / High School"
-      : educationalTier === "college_16_18"
-      ? "A-Level / College"
-      : educationalTier === "university_18plus"
-      ? "University / Undergraduate"
-      : "General";
+    // Build combined generation context
+    const genCtx = buildGenerationContext(curriculumRegion, educationalTier);
+    const contextBlock = formatGenerationContextPrompt(genCtx);
 
     const systemPrompt = `You are an expert exam question editor for UK and international exam boards (AQA, Edexcel, OCR, IB).
 Your job is to take a tutor's raw question and rephrase it into formal, exam-board style language.
 
+${contextBlock}
+
 Rules:
 - Preserve all mathematical/scientific requirements exactly.
-- Use proper command verbs (Calculate, Evaluate, Explain, State, Show that, Hence, etc.).
+- Use proper command verbs matching the generation context above.
 - Maintain any LaTeX notation wrapped in $ delimiters.
 - Do NOT change the difficulty or add new parts.
 - Keep the same mark allocation intent.
 - Output ONLY the polished question text, nothing else.`;
 
     const userPrompt = `Subject: ${subjectName}
-Level: ${tierLabel}
+Level: ${genCtx.level} (${genCtx.region})
 
 Raw question:
 ${questionText}

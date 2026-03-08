@@ -5,6 +5,7 @@ import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_shared/notes-validator.ts";
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, parseLinearEquations } from "../_shared/graph-validator.ts";
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
+import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -442,6 +443,11 @@ EXAMPLE QUESTION FORMATS:
       console.log('Could not fetch curriculum_region:', e);
     }
     console.log('Practice questions curriculum region:', curriculumRegion);
+
+    // Build combined generation context (region + level)
+    const generationCtx = buildGenerationContext(curriculumRegion, setData.educational_tier);
+    const generationContextPrompt = formatGenerationContextPrompt(generationCtx);
+    console.log('Generation context:', generationCtx.region, generationCtx.level);
 
     // Build regional persona and region-aware subject instructions
     const regionalPersona = getRegionalPersona(curriculumRegion);
@@ -998,6 +1004,7 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
     const hardeningRules = getExamHardeningRules();
 
     const prompt = `${regionalPersona}
+${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 Generate ${setData.question_count} practice questions.
