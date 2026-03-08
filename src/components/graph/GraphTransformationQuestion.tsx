@@ -273,10 +273,56 @@ export const GraphTransformationQuestion = ({
       },
     };
 
+    // Build reference series: show original f(x) as a faint dashed grey reference curve
+    // so the student can see what they're transforming
+    const sketchReferenceSeries: GraphSeries[] = [];
+    
+    // Add original function as a dashed grey reference curve
+    if (config.originalFunction.referenceCurve) {
+      sketchReferenceSeries.push({
+        ...config.originalFunction.referenceCurve,
+        id: 'reference-original',
+        label: 'y = f(x)',
+        color: '#999999',
+        lineStyle: 'dashed',
+      });
+    } else if (config.originalFunction.keyPoints?.length >= 3) {
+      // Generate reference from key points
+      const sortedPoints = [...config.originalFunction.keyPoints]
+        .sort((a, b) => a.coordinates.x - b.coordinates.x);
+      const curveData: GraphPoint[] = [];
+      const xMin = sortedPoints[0].coordinates.x - 1;
+      const xMax = sortedPoints[sortedPoints.length - 1].coordinates.x + 1;
+      for (let x = xMin; x <= xMax; x += 0.25) {
+        let y = 0;
+        for (let i = 0; i < sortedPoints.length; i++) {
+          let term = sortedPoints[i].coordinates.y;
+          for (let j = 0; j < sortedPoints.length; j++) {
+            if (i !== j) {
+              term *= (x - sortedPoints[j].coordinates.x) / 
+                      (sortedPoints[i].coordinates.x - sortedPoints[j].coordinates.x);
+            }
+          }
+          y += term;
+        }
+        if (isFinite(y) && Math.abs(y) < 100) {
+          curveData.push({ x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+        }
+      }
+      sketchReferenceSeries.push({
+        id: 'reference-original',
+        label: 'y = f(x)',
+        data: curveData,
+        color: '#999999',
+        showLine: true,
+        lineStyle: 'dashed',
+      });
+    }
+
     return (
       <div className="mt-3">
         <p className="text-sm text-muted-foreground mb-2">
-          Sketch your answer on the grid below. Plot key points and connect them.
+          Sketch your answer on the grid below. The original curve y = f(x) is shown as a dashed grey line for reference.
         </p>
         <div className="border rounded-lg p-2 bg-background">
           <GraphPlottingQuestion
@@ -298,6 +344,7 @@ export const GraphTransformationQuestion = ({
             readOnly={readOnly}
             showCorrectAnswers={showCorrectAnswers}
             subjectColor={subjectColor}
+            referenceSeries={sketchReferenceSeries}
           />
         </div>
         
