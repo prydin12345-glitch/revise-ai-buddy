@@ -1,4 +1,4 @@
-import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig, FreeBodyConfig, ConicalPendulumConfig, VerticalMotionConfig } from './types';
+import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, ProjectileConfig, RodConfig, FreeBodyConfig, ConicalPendulumConfig, VerticalMotionConfig, DualConfig, VerticalLiftConfig } from './types';
 
 /**
  * Attempts to infer a MechanicsConfig from question text.
@@ -6,6 +6,11 @@ import type { MechanicsConfig, SlopeConfig, PulleyConfig, BeamConfig, Projectile
  */
 export function detectDiagramConfig(questionText: string): MechanicsConfig | null {
   const text = questionText.toLowerCase();
+
+  // ── Dual: electrical + mechanical combined ──
+  if (isDualQuestion(text)) {
+    return buildDualConfig(questionText, text);
+  }
 
   // ── Conical pendulum / horizontal circle ──
   if (
@@ -305,6 +310,72 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
   }
 
   return null;
+}
+
+// ── Dual question detection ──
+
+function isDualQuestion(text: string): boolean {
+  const hasElectrical = /motor|supply|battery|current|voltage|power\s*input/i.test(text) &&
+    /\d+\s*[va]/i.test(text);
+  const hasMechanical = /lift|raise|pump|move|height|distance|speed/i.test(text) &&
+    /\d+\s*(?:kg|m\b|m\s)/i.test(text);
+
+  if (hasElectrical && hasMechanical) return true;
+  if (/motor\s+(?:is\s+)?used\s+to\s+(?:lift|move|pump|raise)/i.test(text)) return true;
+  if (/connected\s+to\s+a\s+(?:\d+\s*v\s+)?supply/i.test(text) && /height|distance|speed/i.test(text)) return true;
+  if (/electrical\s+energy/i.test(text) && /(?:kinetic|potential)\s+energy/i.test(text)) return true;
+  if (/efficiency\s+of\s+the\s+motor/i.test(text)) return true;
+  if (/power\s+input/i.test(text) && /power\s+output/i.test(text)) return true;
+
+  return false;
+}
+
+function buildDualConfig(raw: string, text: string): DualConfig {
+  const voltMatch = raw.match(/(\d+\.?\d*)\s*V/);
+  const currentMatch = raw.match(/(\d+\.?\d*)\s*A/);
+  const voltLabel = voltMatch ? `${voltMatch[1]} V` : 'V';
+  const currentLabel = currentMatch ? `I = ${currentMatch[1]} A` : undefined;
+
+  const massMatch = raw.match(/(\d+\.?\d*)\s*kg/i);
+  const heightMatch = raw.match(/(\d+\.?\d*)\s*m\b/);
+  const timeMatch = raw.match(/(\d+\.?\d*)\s*s\b/);
+  const mass = massMatch ? massMatch[1] : 'm';
+  const height = heightMatch ? parseFloat(heightMatch[1]) : 10;
+  const time = timeMatch ? parseFloat(timeMatch[1]) : undefined;
+
+  const unknowns: string[] = [];
+  if (/(?:find|calculate|determine).*(?:energy|gpe|gravitational)/i.test(text)) unknowns.push('GPE');
+  if (/(?:find|calculate|determine).*(?:electrical\s+energy|input\s+energy)/i.test(text)) unknowns.push('electricalEnergy');
+  if (/(?:find|calculate|determine).*efficiency/i.test(text)) unknowns.push('efficiency');
+
+  return {
+    type: 'dual',
+    left: {
+      type: 'circuit' as const,
+      gridSpacing: 80,
+      nodes: [
+        { id: 'TL', col: 0, row: 0 },
+        { id: 'TR', col: 3, row: 0 },
+        { id: 'BR', col: 3, row: 2 },
+        { id: 'BL', col: 0, row: 2 },
+      ],
+      wires: [
+        { from: 'TL', to: 'TR', component: 'wire' as const, label: currentLabel },
+        { from: 'TR', to: 'BR', component: 'motor' as const, label: 'M' },
+        { from: 'BR', to: 'BL', component: 'wire' as const },
+        { from: 'BL', to: 'TL', component: 'battery' as const, label: voltLabel },
+      ],
+      junctions: [],
+      showLabels: true,
+    },
+    right: {
+      type: 'vertical_lift',
+      mass,
+      height,
+      time,
+      unknowns,
+    },
+  };
 }
 
 /** Detect what the student is asked to find, so we can hide those values */

@@ -111,6 +111,20 @@ export interface RodConfig {
   showLabels: boolean;
 }
 
+export interface VerticalLiftConfig {
+  type: 'vertical_lift';
+  mass: string | number;
+  height: number | string;
+  time?: number | string;
+  unknowns?: string[];
+}
+
+export interface DualConfig {
+  type: 'dual';
+  left: any; // CircuitConfig — imported at component level to avoid circular deps
+  right: VerticalLiftConfig;
+}
+
 export type MechanicsConfig =
   | SlopeConfig
   | PulleyConfig
@@ -119,7 +133,9 @@ export type MechanicsConfig =
   | RodConfig
   | FreeBodyConfig
   | ConicalPendulumConfig
-  | VerticalMotionConfig;
+  | VerticalMotionConfig
+  | VerticalLiftConfig
+  | DualConfig;
 
 // ── Shared Styling Constants ──
 
