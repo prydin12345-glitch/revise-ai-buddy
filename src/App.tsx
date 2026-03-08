@@ -40,6 +40,7 @@ import StudentExamReview from "./pages/tutor/StudentExamReview";
 import ManualExamCreator from "./pages/tutor/ManualExamCreator";
 import { TutorLayout } from "./components/tutor/TutorLayout";
 import MechanicsDemo from "./pages/MechanicsDemo";
+import CircuitDemo from "./pages/CircuitDemo";
 import MyClasses from "./pages/MyClasses";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => {
             <Route path="/admin/verifications" element={<AdminVerifications />} />
             <Route path="/graph-test" element={<GraphTest />} />
             <Route path="/mechanics-demo" element={<MechanicsDemo />} />
+            <Route path="/circuit-demo" element={<CircuitDemo />} />
             <Route path="/my-exams" element={<MyExams />} />
             <Route path="/my-classes" element={<MyClasses />} />
             <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />

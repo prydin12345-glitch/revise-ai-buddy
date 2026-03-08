@@ -43,6 +43,8 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -1578,6 +1580,13 @@ const ExamInProgress = () => {
                     const diagConfig = detectDiagramConfig(question.question_text);
                     if (!diagConfig) return null;
                     return <MechanicsFigurePanel config={diagConfig} />;
+                  })()}
+
+                  {/* Circuit diagram panel */}
+                  {(() => {
+                    const circuitConfig = detectCircuitConfig(question.question_text);
+                    if (!circuitConfig) return null;
+                    return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
 
                   {/* Box Plot Chart rendering */}

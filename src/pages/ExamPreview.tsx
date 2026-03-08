@@ -14,6 +14,8 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { CircuitFigurePanel } from "@/components/circuit";
+import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
 
 interface Question {
   id: string;
@@ -179,6 +181,13 @@ const ExamPreview = () => {
                       const diagConfig = detectDiagramConfig(q.question_text);
                       if (!diagConfig) return null;
                       return <MechanicsFigurePanel config={diagConfig} />;
+                    })()}
+
+                    {/* Circuit diagram panel */}
+                    {(() => {
+                      const circuitConfig = detectCircuitConfig(q.question_text);
+                      if (!circuitConfig) return null;
+                      return <CircuitFigurePanel config={circuitConfig} />;
                     })()}
 
                     {q.figure_urls && q.figure_urls.length > 0 && (
