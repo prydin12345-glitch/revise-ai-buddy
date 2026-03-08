@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import { PageSkeleton } from "@/components/PageSkeleton";
 
 // Eagerly loaded (small/critical pages)
 import Index from "./pages/Index";
@@ -53,12 +53,8 @@ import { TutorLayout } from "./components/tutor/TutorLayout";
 
 const queryClient = new QueryClient();
 
-/** Full-page loading spinner for lazy-loaded routes */
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-  </div>
-);
+/** Lightweight skeleton fallback for lazy-loaded routes */
+const PageLoader = () => <PageSkeleton />;
 
 const App = () => {
   // Enable dark mode by default

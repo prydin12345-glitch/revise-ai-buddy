@@ -12,6 +12,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
+import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  // Prefetch common routes during browser idle time after mount
+  useEffect(() => {
+    prefetchCommonRoutes();
+  }, []);
 
   const studentNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -108,6 +114,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     navigate(item.path);
                     setSidebarOpen(false);
                   }}
+                  onMouseEnter={() => prefetchRoute(item.path)}
                   title={sidebarCollapsed ? item.label : undefined}
                 >
                   <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
@@ -132,6 +139,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     navigate(item.path);
                     setSidebarOpen(false);
                   }}
+                  onMouseEnter={() => prefetchRoute(item.path)}
                   title={sidebarCollapsed ? item.label : undefined}
                 >
                   <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
@@ -151,6 +159,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 sidebarCollapsed ? "justify-center px-0" : "justify-start"
               }`}
               onClick={() => navigate("/settings")}
+              onMouseEnter={() => prefetchRoute('/settings')}
               title={sidebarCollapsed ? "Settings" : undefined}
             >
               <Settings className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
