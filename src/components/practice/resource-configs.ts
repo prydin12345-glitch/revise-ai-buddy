@@ -47,12 +47,6 @@ const englishLanguageConfig: ResourceConfig = {
     { value: 'long', label: 'Full insert (~800 words, lines 1–80)' },
   ],
   showLineNumbering: true,
-  showReadingLevel: true,
-  readingLevelOptions: [
-    { value: 'gcse_foundation', label: 'GCSE Foundation' },
-    { value: 'gcse_higher', label: 'GCSE Higher' },
-    { value: 'a_level', label: 'A-Level' },
-  ],
 };
 
 const englishLiteratureConfig: ResourceConfig = {
