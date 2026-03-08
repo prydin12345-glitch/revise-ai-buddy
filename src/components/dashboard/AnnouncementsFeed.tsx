@@ -24,7 +24,6 @@ export const AnnouncementsFeed = () => {
   useEffect(() => {
     loadAnnouncements();
 
-    // Real-time subscription for new announcements
     const channel = supabase
       .channel('announcements-feed')
       .on('postgres_changes', 
@@ -47,7 +46,6 @@ export const AnnouncementsFeed = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get groups the student is a member of
       const { data: memberships } = await supabase
         .from("group_members")
         .select("group_id")
@@ -61,7 +59,6 @@ export const AnnouncementsFeed = () => {
 
       const groupIds = memberships.map(m => m.group_id);
 
-      // Fetch recent announcements from those groups
       const { data, error } = await supabase
         .from("group_announcements")
         .select(`
@@ -90,13 +87,12 @@ export const AnnouncementsFeed = () => {
 
   if (loading) {
     return (
-      <Card className="shadow-lg rounded-2xl">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={{
+        background: '#1e293b', border: '1px solid #334155', borderRadius: 10,
+        padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120,
+      }}>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </div>
     );
   }
 
@@ -105,54 +101,75 @@ export const AnnouncementsFeed = () => {
   }
 
   return (
-    <Card className="shadow-lg rounded-2xl">
-      <CardHeader className="border-b border-border">
-        <CardTitle className="flex items-center gap-2 text-xl font-bold">
-          <Megaphone className="w-5 h-5 text-primary" />
-          Recent Announcements
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="space-y-3">
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Bell className="w-4 h-4 text-primary" />
-                    <p className="font-semibold">{announcement.title}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {announcement.student_groups?.name}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(announcement.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {announcement.message}
+    <div style={{
+      background: '#1e293b',
+      border: '1px solid #334155',
+      borderRadius: 10,
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid #334155',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}>
+        <Bell style={{ width: 16, height: 16, color: '#f97316' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>Recent Announcements</h2>
+      </div>
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {announcements.map((announcement) => (
+          <div
+            key={announcement.id}
+            style={{
+              borderLeft: '4px solid #f97316',
+              padding: '16px 20px',
+              borderRadius: '0 8px 8px 0',
+              background: 'rgba(249,115,22,0.04)',
+              transition: 'background 0.15s',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <p style={{ fontWeight: 600, fontSize: 14, color: '#f1f5f9', margin: 0 }}>
+                {announcement.title}
               </p>
-              {announcement.attachment_url && (
-                <a
-                  href={announcement.attachment_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline mt-2 inline-flex items-center gap-1"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  View Attachment
-                </a>
-              )}
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{
+                background: '#1e3a5f',
+                color: '#93c5fd',
+                fontSize: 11,
+                padding: '2px 8px',
+                borderRadius: 99,
+                fontWeight: 500,
+              }}>
+                {announcement.student_groups?.name}
+              </span>
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                {new Date(announcement.created_at).toLocaleString()}
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
+              {announcement.message}
+            </p>
+            {announcement.attachment_url && (
+              <a
+                href={announcement.attachment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 12, color: '#3b82f6', marginTop: 8,
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink style={{ width: 12, height: 12 }} />
+                View Attachment
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
