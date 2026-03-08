@@ -213,7 +213,7 @@ export function generateProjectileConfig(
     launchHeight,
     targetX: 40,
     targetY: 20,
-    showComponents: true,
+    showComponents: false,
     showLabels: true,
   };
 }
