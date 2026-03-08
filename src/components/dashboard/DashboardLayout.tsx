@@ -114,6 +114,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     navigate(item.path);
                     setSidebarOpen(false);
                   }}
+                  onMouseEnter={() => prefetchRoute(item.path)}
                   title={sidebarCollapsed ? item.label : undefined}
                 >
                   <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
