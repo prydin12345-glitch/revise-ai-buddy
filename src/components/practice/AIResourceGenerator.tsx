@@ -152,12 +152,16 @@ export const AIResourceGenerator = ({
         </div>
         
         {/* Category indicator */}
-        <div className="flex items-center gap-1.5 mt-1.5">
+        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
           <span className="text-[11px] text-muted-foreground">Detected as:</span>
           <Badge variant="secondary" className="text-[11px] px-2 py-0 h-5 font-normal">
             {CATEGORY_LABELS[category] || category}
           </Badge>
-          {!showCategoryOverride ? (
+          {hasGenerated ? (
+            <span className="text-[11px] text-muted-foreground/50 italic">
+              Create a new resource pack to change type
+            </span>
+          ) : !showCategoryOverride ? (
             <button
               onClick={() => setShowCategoryOverride(true)}
               className="text-[11px] text-muted-foreground/70 hover:text-muted-foreground underline cursor-pointer bg-transparent border-none p-0"
