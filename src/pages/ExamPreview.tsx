@@ -183,6 +183,13 @@ const ExamPreview = () => {
                       return <MechanicsFigurePanel config={diagConfig} />;
                     })()}
 
+                    {/* Circuit diagram panel */}
+                    {(() => {
+                      const circuitConfig = detectCircuitConfig(q.question_text);
+                      if (!circuitConfig) return null;
+                      return <CircuitFigurePanel config={circuitConfig} />;
+                    })()}
+
                     {q.figure_urls && q.figure_urls.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {q.figure_urls.map((url, idx) => (

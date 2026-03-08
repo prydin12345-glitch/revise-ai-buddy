@@ -1582,6 +1582,13 @@ const ExamInProgress = () => {
                     return <MechanicsFigurePanel config={diagConfig} />;
                   })()}
 
+                  {/* Circuit diagram panel */}
+                  {(() => {
+                    const circuitConfig = detectCircuitConfig(question.question_text);
+                    if (!circuitConfig) return null;
+                    return <CircuitFigurePanel config={circuitConfig} />;
+                  })()}
+
                   {/* Box Plot Chart rendering */}
                   {isBoxPlotQuestion((question as any).options) && (
                     <BoxPlotChart chartData={(question as any).options} className="mb-6" />
