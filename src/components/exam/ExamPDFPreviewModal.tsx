@@ -76,6 +76,7 @@ export function ExamPDFPreviewModal({
   const handleDownload = async () => {
     setGenerating(true);
     try {
+      const { generateExamPDF, downloadPDF } = await import("@/lib/exam-pdf-generator");
       const doc = await generateExamPDF(examData, {
         includeAnswerKey,
         includeWorkingSpace,
