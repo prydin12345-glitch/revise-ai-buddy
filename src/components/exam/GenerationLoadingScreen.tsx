@@ -6,6 +6,8 @@ interface GenerationLoadingScreenProps {
   message: string;
   subjectColor?: string;
   estimatedTime?: number; // in seconds, default 300
+  /** When true, stepper jumps to the final "Saving" step */
+  apiComplete?: boolean;
 }
 
 const subjectIcons: Record<string, typeof Atom> = {
