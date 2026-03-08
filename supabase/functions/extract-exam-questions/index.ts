@@ -999,6 +999,7 @@ Use diverse names and scenarios. Examples:
   const hardeningRules = getExamHardeningRules();
 
   return `${regionalPersona}
+${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 ${resourceCtx}
