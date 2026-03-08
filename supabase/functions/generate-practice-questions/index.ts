@@ -925,7 +925,47 @@ Graphs should ONLY appear when students need to visually interact with them.
 CRITICAL RULES:
 1. Match command verbs to question types as specified above
 2. For graph_plotting: ALWAYS include graphType, graphConfig.series with data, and plottingAnswer.expectedPoints
-3. For graph_plotting (MATH subjects): plottingAnswer MUST include "markingFormula" — the algebraic expression (e.g. "x^2 - 4*x + 7", "(x+2)*(x-1)*(x-3)"). For transformation questions like "sketch y = f(x+1)" where f(x) = expr, markingFormula must be the FINAL transformed expression with substitution already applied (e.g. if f(x) = (x+2)(x-1)(x-3) and sketching f(x+1), markingFormula = "((x+1)+2)*((x+1)-1)*((x+1)-3)"). This is REQUIRED — without it the correct answer curve cannot be displayed.
+3. For graph_plotting (MATH subjects): plottingAnswer MUST include "markingFormula" — the algebraic expression in evaluatable syntax.
+   This is MANDATORY for ALL curve types. Without it the correct answer curve CANNOT be displayed after submission.
+   
+   REQUIRED markingFormula SYNTAX:
+   - Use * for ALL multiplication: (x+2)*(x-1) not (x+2)(x-1)
+   - Use ^ for powers: x^2, x^3
+   - Use standard function names: sin(x), cos(x), tan(x), sqrt(x), abs(x), ln(x), exp(x)
+   - For reciprocals use division: 1/(x+4)
+   - ALWAYS pre-compute transformations — markingFormula is the FINAL evaluatable expression
+   
+   EXAMPLES BY CURVE TYPE:
+   Quadratic g(x) = x² - 4x + 7:
+     markingFormula: "x^2 - 4*x + 7"
+   
+   Cubic f(x) = (x+2)(x-1)(x-3):
+     markingFormula: "(x+2)*(x-1)*(x-3)"
+   
+   Transformed cubic — "sketch y = f(x+1)" where f(x) = (x+2)(x-1)(x-3):
+     FIRST compute: f(x+1) = ((x+1)+2)*((x+1)-1)*((x+1)-3) = (x+3)*x*(x-2)
+     markingFormula: "(x+3)*x*(x-2)"
+   
+   Reciprocal p(x) = 1/(x+4):
+     markingFormula: "1/(x+4)"
+   
+   Transformed reciprocal — "sketch y = p(x-2)" where p(x) = 1/(x+4):
+     markingFormula: "1/((x-2)+4)" → simplify to "1/(x+2)"
+   
+   Exponential y = 2^x:
+     markingFormula: "2^x"
+   
+   Logarithmic y = ln(x+3):
+     markingFormula: "ln(x+3)"
+   
+   Absolute value y = |x - 2|:
+     markingFormula: "abs(x-2)"
+   
+   Trigonometric y = sin(2x):
+     markingFormula: "sin(2*x)"
+   
+   NEVER leave markingFormula as null, empty, or a bare function reference like "f(x)".
+
 4. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
 5. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
 6. NEVER include a graph just because the topic involves functions - only when visual interaction is required
@@ -3580,53 +3620,81 @@ ${notesSection}`;
       
       // ========== FORMULA EXTRACTION SAFETY NET ==========
       // For math subjects: if plottingAnswer exists but has no markingFormula,
-      // extract it from the question text (e.g., "f(x) = x² - 4x + 7")
+      // extract it from the question text (handles LaTeX, Unicode, and plain text)
       if (isMathSubject && q.question_type === 'graph_plotting') {
         try {
           const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
           if (gd?.plottingAnswer && !gd.plottingAnswer.markingFormula) {
             const qText = q.question_text || '';
             
-            // 1. Try extractMarkingFormula from math-engine (handles LaTeX etc.)
-            let extracted = extractMarkingFormula(qText);
+            // Helper: strip LaTeX wrappers and convert LaTeX math to evaluatable form
+            const stripLatex = (s: string): string => {
+              let r = s;
+              // Remove $...$ and $$...$$ wrappers
+              r = r.replace(/\$\$/g, '').replace(/\$/g, '');
+              // LaTeX commands → plain math
+              r = r.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
+              r = r.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
+              r = r.replace(/\\ln\b/g, 'ln');
+              r = r.replace(/\\log\b/g, 'log');
+              r = r.replace(/\\sin\b/g, 'sin');
+              r = r.replace(/\\cos\b/g, 'cos');
+              r = r.replace(/\\tan\b/g, 'tan');
+              r = r.replace(/\\pi\b/g, 'pi');
+              r = r.replace(/\\left\s*/g, '').replace(/\\right\s*/g, '');
+              r = r.replace(/\\cdot/g, '*');
+              r = r.replace(/\\times/g, '*');
+              r = r.replace(/\\,/g, '');
+              // Superscripts: x^{2} → x^2, {stuff} → stuff
+              r = r.replace(/\{([^}]+)\}/g, '($1)');
+              // Unicode superscripts
+              r = r.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
+              // Implicit multiplication
+              r = r.replace(/(\d)(x)/gi, '$1*$2');
+              r = r.replace(/\)\(/g, ')*(');
+              r = r.replace(/(\d)\(/g, '$1*(');
+              r = r.replace(/\)(x)/gi, ')*$1');
+              return r.trim().replace(/[.\s]+$/, '');
+            };
             
-            // 2. Regex fallback: match "f(x) = expr" patterns
+            // 1. Try extractMarkingFormula from math-engine
+            let extracted = extractMarkingFormula(stripLatex(qText));
+            
+            // 2. Regex: match "f(x) = expr" patterns (works with LaTeX and plain text)
             if (!extracted) {
-              const baseFnMatch = qText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
-              const transformMatch = qText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
+              // Strip LaTeX from question text for better regex matching
+              const plainText = stripLatex(qText);
+              
+              const baseFnMatch = plainText.match(/([a-zA-Z])\(x\)\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+              const transformMatch = plainText.match(/(?:sketch|draw|plot)\s+.*?y\s*=\s*([a-zA-Z])\(([^)]+)\)/i);
               
               if (baseFnMatch) {
-                let baseExpr = baseFnMatch[2].trim().replace(/[.\s]+$/, '');
-                // Unicode superscripts → caret notation
-                baseExpr = baseExpr.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
-                // Implicit multiplication: "4x" → "4*x"
-                baseExpr = baseExpr.replace(/(\d)(x)/gi, '$1*$2');
+                let baseExpr = stripLatex(baseFnMatch[2]);
                 
                 if (transformMatch && transformMatch[1] === baseFnMatch[1]) {
-                  // Apply transformation: substitute argument into base
                   const transformArg = transformMatch[2].trim();
                   extracted = baseExpr.replace(/x/gi, `(${transformArg})`);
-                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — transform detected, base="${baseExpr}", arg="${transformArg}", result="${extracted}"`);
+                  // Normalize the result
+                  extracted = normalizeFormulaExpression(extracted);
+                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — transform: base="${baseExpr}", arg="${transformArg}", result="${extracted}"`);
                 } else {
-                  extracted = baseExpr;
-                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — direct formula="${extracted}"`);
+                  extracted = normalizeFormulaExpression(baseExpr);
+                  console.log(`Q${q.question_number}: FORMULA EXTRACTION — direct="${extracted}"`);
                 }
               }
             }
             
             // 3. Fallback: "y = expr" pattern
             if (!extracted) {
-              const yMatch = qText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
+              const plainText = stripLatex(qText);
+              const yMatch = plainText.match(/y\s*=\s*([^,.;]+(?:[\+\-][^,.;]+)*)/);
               if (yMatch) {
-                extracted = yMatch[1].trim().replace(/[.\s]+$/, '');
-                extracted = extracted.replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4');
-                extracted = extracted.replace(/(\d)(x)/gi, '$1*$2');
+                extracted = normalizeFormulaExpression(stripLatex(yMatch[1]));
                 console.log(`Q${q.question_number}: FORMULA EXTRACTION — y= pattern="${extracted}"`);
               }
             }
             
             if (extracted) {
-              // Validate it's not a bare reference
               const isBareRef = /^[a-zA-Z]\(x\)$/.test(extracted.trim());
               if (!isBareRef) {
                 gd.plottingAnswer.markingFormula = extracted;
