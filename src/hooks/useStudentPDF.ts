@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { generateExamPDF, downloadPDF } from "@/lib/exam-pdf-generator";
+import { toast } from "sonner";
 
 interface StudentPDFOptions {
   contentType: "exam" | "practice";
@@ -49,6 +48,9 @@ export const useStudentPDF = () => {
 
       const isExam = pdfData.type === "student_exam";
 
+      // Dynamic import — jspdf + html2canvas only loaded when user triggers PDF
+      const { generateExamPDF, downloadPDF } = await import("@/lib/exam-pdf-generator");
+
       const doc = await generateExamPDF(examData, {
         includeAnswerKey: false,
         includeWorkingSpace: true,
@@ -56,7 +58,6 @@ export const useStudentPDF = () => {
         includeDiagrams: false,
       });
 
-      // Add student-created label to first page
       const headerLabel = isExam
         ? "Student-Created Practice Exam"
         : "Student-Created Practice Questions";
@@ -75,18 +76,15 @@ export const useStudentPDF = () => {
 
       downloadPDF(doc, filename);
 
-      toast({
-        title: "PDF Downloaded",
+      toast.success("PDF Downloaded", {
         description: `Your ${isExam ? "exam" : "practice set"} PDF has been downloaded.`,
       });
 
       return true;
     } catch (error: any) {
       console.error("PDF generation error:", error);
-      toast({
-        title: "Download Failed",
+      toast.error("Download Failed", {
         description: error.message || "Failed to generate PDF. Please try again.",
-        variant: "destructive",
       });
       return false;
     } finally {

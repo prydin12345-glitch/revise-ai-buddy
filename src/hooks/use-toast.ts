@@ -5,7 +5,7 @@ interface ToastOptions {
   title?: string;
   description?: string;
   variant?: "default" | "destructive";
-  action?: any;
+  [key: string]: any; // Allow extra props like duration
 }
 
 function toast(opts: ToastOptions | string) {
