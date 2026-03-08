@@ -13,24 +13,37 @@ const AlertDialogPortal = AlertDialogPrimitive.Portal;
 const AlertDialogOverlay = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
->(({ className, onAnimationEnd, ...props }, ref) => (
-  <AlertDialogPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className,
-    )}
-    onAnimationEnd={(e) => {
-      // Radix sets pointer-events:none on body when dialog opens but sometimes
-      // fails to remove it after close animation completes — clean it up here
-      if (e.animationName === 'exit') {
-        document.body.style.removeProperty('pointer-events');
-      }
-      onAnimationEnd?.(e);
-    }}
-    {...props}
-    ref={ref}
-  />
-));
+>(({ className, ...props }, ref) => {
+  const overlayRef = React.useRef<HTMLDivElement | null>(null);
+
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      overlayRef.current = node;
+      if (typeof ref === 'function') ref(node);
+      else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [ref],
+  );
+
+  return (
+    <AlertDialogPrimitive.Overlay
+      className={cn(
+        "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        className,
+      )}
+      onAnimationEnd={() => {
+        // When the close animation finishes, Radix sometimes leaves
+        // pointer-events:none on <body>. Clean it up unconditionally.
+        const state = overlayRef.current?.getAttribute('data-state');
+        if (state === 'closed') {
+          document.body.style.removeProperty('pointer-events');
+        }
+      }}
+      {...props}
+      ref={setRefs}
+    />
+  );
+});
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
 const AlertDialogContent = React.forwardRef<
