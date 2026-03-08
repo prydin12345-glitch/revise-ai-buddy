@@ -171,27 +171,6 @@ export const AIResourceGenerator = ({
           </div>
         )}
 
-        {/* Reading Level */}
-        {config.showReadingLevel && config.readingLevelOptions && (
-          <div className="px-4 py-3 space-y-1.5">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <GraduationCap className="h-3 w-3" />
-              Reading Level
-            </Label>
-            <Select value={readingLevel} onValueChange={setReadingLevel}>
-              <SelectTrigger className="text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {config.readingLevelOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         {/* Line Numbering Toggle */}
         {config.showLineNumbering && (

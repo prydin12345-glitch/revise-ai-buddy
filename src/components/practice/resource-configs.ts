@@ -68,11 +68,6 @@ const englishLiteratureConfig: ResourceConfig = {
     { value: 'long', label: 'Full extract (~600 words)' },
   ],
   showLineNumbering: true,
-  showReadingLevel: true,
-  readingLevelOptions: [
-    { value: 'gcse', label: 'GCSE' },
-    { value: 'a_level', label: 'A-Level' },
-  ],
 };
 
 const geographyConfig: ResourceConfig = {
