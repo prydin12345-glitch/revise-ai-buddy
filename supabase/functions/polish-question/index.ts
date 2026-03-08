@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors-headers.ts";
+import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

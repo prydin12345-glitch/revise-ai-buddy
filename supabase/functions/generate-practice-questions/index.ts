@@ -1004,6 +1004,7 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
     const hardeningRules = getExamHardeningRules();
 
     const prompt = `${regionalPersona}
+${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 Generate ${setData.question_count} practice questions.

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
+import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
