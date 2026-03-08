@@ -634,7 +634,27 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Curved mode spline through all points */}
+        {/* Formula-based correct answer curve — always draw after submit if markingFormula is available */}
+        {showCorrectAnswers && markingData && (markingData as any).markingFormula && expectedCurveSeries.length === 0 && (() => {
+          const formula = (markingData as any).markingFormula;
+          const branches = generateCurveFromFormula(formula, domainX, 500);
+          return branches.map((branch, idx) => {
+            const validData = branch.data.filter(p => Number.isFinite(p.y));
+            if (validData.length < 2) return null;
+            return (
+              <CurveLayer
+                key={`formula-curve-${idx}`}
+                data={validData}
+                graphToScreen={graphToScreen}
+                stroke="#22c55e"
+                strokeWidth={2.5}
+                strokeDasharray="6 3"
+                opacity={0.85}
+              />
+            );
+          });
+        })()}
+        
         {/* In review mode: color by score. Before submit: blue. */}
         {curvedLineData && (() => {
           if (showCorrectAnswers && markingData) {
