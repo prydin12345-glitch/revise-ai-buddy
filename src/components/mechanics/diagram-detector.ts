@@ -331,14 +331,18 @@ function isDualQuestion(text: string): boolean {
 }
 
 function buildDualConfig(raw: string, text: string): DualConfig {
+  // Use the original (non-lowercased) text for value extraction
   const voltMatch = raw.match(/(\d+\.?\d*)\s*V/);
   const currentMatch = raw.match(/(\d+\.?\d*)\s*A/);
   const voltLabel = voltMatch ? `${voltMatch[1]} V` : 'V';
   const currentLabel = currentMatch ? `I = ${currentMatch[1]} A` : undefined;
 
   const massMatch = raw.match(/(\d+\.?\d*)\s*kg/i);
-  const heightMatch = raw.match(/(\d+\.?\d*)\s*m\b/);
-  const timeMatch = raw.match(/(\d+\.?\d*)\s*s\b/);
+  // Height: match "through X m" or "X m high" or just "X m" but avoid matching voltage/current
+  const heightMatch = raw.match(/(?:through|height|high|vertical(?:ly)?)\s*(?:a\s+)?(?:distance\s+(?:of\s+)?)?(\d+\.?\d*)\s*m/i)
+    || raw.match(/(\d+\.?\d*)\s*m\s+(?:high|height|vertical)/i);
+  const timeMatch = raw.match(/(?:in|takes?|over)\s+(\d+\.?\d*)\s*s/i)
+    || raw.match(/(\d+\.?\d*)\s*(?:seconds|s)\b/i);
   const mass = massMatch ? massMatch[1] : 'm';
   const height = heightMatch ? parseFloat(heightMatch[1]) : 10;
   const time = timeMatch ? parseFloat(timeMatch[1]) : undefined;

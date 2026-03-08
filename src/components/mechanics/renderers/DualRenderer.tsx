@@ -12,14 +12,14 @@ export interface DualConfig {
 
 const DualRenderer: React.FC<{ config: DualConfig }> = ({ config }) => {
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'center' }}>
       {/* Circuit side */}
-      <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+      <div style={{ flex: '1 1 220px', minWidth: 220, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#666', marginBottom: 4 }}>Circuit</div>
         <CircuitDraw config={config.left} width={260} />
       </div>
       {/* Mechanics side */}
-      <div style={{ flex: '1 1 220px', minWidth: 220 }}>
+      <div style={{ flex: '1 1 220px', minWidth: 220, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#666', marginBottom: 4 }}>Mechanics</div>
         <svg
           viewBox="0 0 480 320"
