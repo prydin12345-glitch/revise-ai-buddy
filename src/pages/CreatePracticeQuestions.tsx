@@ -113,6 +113,18 @@ const CreatePracticeQuestions = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pre-fill from weak topics navigation
+  const prefillSubtopic = searchParams.get("subtopic");
+  const prefillSource = searchParams.get("source");
+
+  useEffect(() => {
+    if (prefillSubtopic && prefillSource === "weak_topics") {
+      setSelectedSubtopics((prev) =>
+        prev.includes(prefillSubtopic) ? prev : [...prev, prefillSubtopic]
+      );
+    }
+  }, [prefillSubtopic, prefillSource]);
+
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
     setSubjectColor(getSubjectColor(value));
