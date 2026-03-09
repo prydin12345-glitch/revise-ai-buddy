@@ -156,18 +156,42 @@ export const ExamProfileModal = ({
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Educational Level
             </Label>
-            <Select value={educationalTier} onValueChange={setEducationalTier}>
+            <Select value={educationalTier} onValueChange={(v) => { setEducationalTier(v); if (v !== "other") setCustomTier(""); }}>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Select level (optional)..." />
               </SelectTrigger>
               <SelectContent>
-                {EDUCATIONAL_TIERS.map((tier) => (
-                  <SelectItem key={tier.id} value={tier.id}>
-                    {tier.name}
-                  </SelectItem>
-                ))}
+                {["UK", "Professional", "International", "Other"].map(group => {
+                  const items = EDUCATIONAL_TIERS.filter(t => t.group === group);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1">
+                        {group}
+                      </p>
+                      {items.map(tier => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {educationalTier === "other" && (
+              <div className="mt-2 space-y-1">
+                <Input
+                  value={customTier}
+                  onChange={e => setCustomTier(e.target.value)}
+                  placeholder="e.g. HNC/HND, NVQ Level 3, AWS Certification..."
+                  className="h-9 border-primary/50"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  The AI will interpret your qualification level when generating questions
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Question Limit */}
