@@ -12,6 +12,11 @@ import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { Card, CardContent } from "@/components/ui/card";
 import { MySubjectsPanel } from "@/components/stats/MySubjectsPanel";
+import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
+import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
 const Stats = () => {
   const drilldown = useStatsDrilldown();
