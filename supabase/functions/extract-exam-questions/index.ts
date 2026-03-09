@@ -1034,6 +1034,12 @@ When a question includes tabular or visual data, populate the "chart_data" field
 - Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
 - Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
 
+${canonicalTopicList && canonicalTopicList.length > 0 ? `
+TOPIC TAG CONTROLLED VOCABULARY (CRITICAL):
+You MUST set topic_tag to EXACTLY one value from this list — do not invent new values, do not change capitalisation, do not add plurals:
+${canonicalTopicList.join(', ')}
+` : `Set topic_tag to a clear descriptive topic name using Title Case (e.g. "Quadratic Equations" not "quadratic_equations" or "quadratics").`}
+
 Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
