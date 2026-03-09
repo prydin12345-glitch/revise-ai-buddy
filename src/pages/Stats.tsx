@@ -19,6 +19,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 
 const Stats = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { topics, loading: weakTopicsLoading } = useUnifiedTopicPerformance(userId);
   const drilldown = useStatsDrilldown();
   const {
     loading,
