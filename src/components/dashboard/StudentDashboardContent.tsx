@@ -15,9 +15,6 @@ import { ExamRowItem, ExamWithSubmission } from "./ExamRowItem";
 import { AllExamsModal } from "./AllExamsModal";
 import { WeakTopicNudge } from "./WeakTopicNudge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExamRowItem, ExamWithSubmission } from "./ExamRowItem";
-import { AllExamsModal } from "./AllExamsModal";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardContentProps {
   userEmail: string;
