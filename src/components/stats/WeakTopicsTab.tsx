@@ -197,7 +197,7 @@ const WrongAnswersPanel = ({
         className="w-full h-8 text-xs border-primary/40 text-primary hover:bg-primary/10"
         onClick={onPractice}
       >
-        <Target className="h-3 w-3 mr-1.5" />
+        <Crosshair className="h-3 w-3 mr-1.5" />
         Practice {topic.topic} now to improve
       </Button>
     </div>

@@ -462,7 +462,7 @@ const CreatePracticeQuestions = () => {
         {prefillSource === "weak_topics" && prefillSubtopic && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              <Target className="inline h-4 w-4 mr-1.5 text-primary" />
+              <Crosshair className="inline h-4 w-4 mr-1.5 text-primary" />
               Creating targeted practice for weak topic:{" "}
               <strong className="text-foreground">{prefillSubtopic}</strong>
             </span>
