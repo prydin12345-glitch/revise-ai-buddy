@@ -79,7 +79,11 @@ export const ExamProfileModal = ({
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
-      setEducationalTier(initialData?.educational_tier || "");
+      const tier = initialData?.educational_tier || "";
+      // Check if it's a known tier ID, otherwise treat as custom
+      const isKnown = EDUCATIONAL_TIERS.some(t => t.id === tier);
+      setEducationalTier(isKnown || !tier ? tier : "other");
+      setCustomTier(isKnown || !tier ? "" : tier);
       setTimeLimitMinutes(initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : "");
       setTopicSearch("");
     }
