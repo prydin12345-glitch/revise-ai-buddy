@@ -68,7 +68,7 @@ const Stats = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        <Tabs defaultValue="stats" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <div className="flex items-center gap-4 mb-8">
             <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5">
               <TabsTrigger 
