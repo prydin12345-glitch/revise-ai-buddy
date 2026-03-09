@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Sparkles, Upload, Info, Settings2, ChevronDown, Target } from "lucide-react";
+import { Sparkles, Upload, Info, Settings2, ChevronDown, Crosshair } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
