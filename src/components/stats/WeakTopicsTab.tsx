@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, BookOpen, FileText, Zap, CheckCircle2, ChevronDown, ChevronUp, X, Target } from "lucide-react";
+import { AlertCircle, BookOpen, FileText, Zap, CheckCircle2, ChevronDown, ChevronUp, X, Crosshair } from "lucide-react";
 import { UnifiedTopicScore, UnifiedMastery } from "@/hooks/useUnifiedTopicPerformance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,7 +197,7 @@ const WrongAnswersPanel = ({
         className="w-full h-8 text-xs border-primary/40 text-primary hover:bg-primary/10"
         onClick={onPractice}
       >
-        <Target className="h-3 w-3 mr-1.5" />
+        <Crosshair className="h-3 w-3 mr-1.5" />
         Practice {topic.topic} now to improve
       </Button>
     </div>
