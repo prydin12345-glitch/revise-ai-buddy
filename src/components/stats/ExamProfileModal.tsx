@@ -115,7 +115,8 @@ export const ExamProfileModal = ({
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    onSave(profileName.trim(), selectedTopics, questionCount, educationalTier || undefined, timeVal);
+    const finalTier = educationalTier === "other" ? customTier : educationalTier;
+    onSave(profileName.trim(), selectedTopics, questionCount, finalTier || undefined, timeVal);
     onOpenChange(false);
   };
 
