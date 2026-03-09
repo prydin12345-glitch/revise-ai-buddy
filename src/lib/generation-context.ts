@@ -123,15 +123,61 @@ export const buildGenerationContext = (
       };
   }
 
+  // ── Vocational / Professional ──
+  if (level.includes('hnc') || level.includes('hnd')) return {
+    region: curriculumRegion || "UK", level: 'HNC/HND',
+    examBoard: 'SQA / BTEC',
+    questionStyle: 'Vocational and applied questions. Mix of theory and practical application. "Explain how...", "Describe the process of...", "Evaluate the use of...". Unit-based assessment style.',
+    markSchemeFormat: 'Criteria-based pass/merit/distinction grading. Evidence of understanding required.',
+    unitConventions: 'Industry-standard units and terminology for the subject area.',
+    vocabularyLevel: 'Professional and technical language appropriate to the vocational area.',
+  };
+
+  if (level.includes('nvq') || level.includes('btec')) return {
+    region: curriculumRegion || "UK", level: 'NVQ/BTEC',
+    examBoard: 'BTEC / City & Guilds',
+    questionStyle: 'Competency and evidence-based questions. Practical scenarios. Portfolio-style evidence prompts.',
+    markSchemeFormat: 'Pass/Merit/Distinction criteria. Competency demonstration required.',
+    unitConventions: 'Workplace and industry-standard terminology.',
+    vocabularyLevel: 'Practical and applied language. Real workplace scenarios.',
+  };
+
+  if (level.includes('apprenticeship')) return {
+    region: curriculumRegion || "UK", level: 'Apprenticeship',
+    examBoard: 'End Point Assessment Organisation',
+    questionStyle: 'Scenario-based questions with workplace contexts. "In this situation...", "How would you...". Mix of knowledge and practical application.',
+    markSchemeFormat: 'Pass/Distinction criteria. Portfolio evidence approach.',
+    unitConventions: 'Industry-standard terminology. Workplace metrics.',
+    vocabularyLevel: 'Professional but accessible. Real-world scenarios.',
+  };
+
+  if (level.includes('certification') || level.includes('aws') || level.includes('cisco') || level.includes('comptia') || level.includes('cpd')) return {
+    region: curriculumRegion || "International", level: 'Professional Certification',
+    examBoard: 'Vendor/Industry Body',
+    questionStyle: 'Scenario-based multiple choice. "Which of the following best describes...", "In this scenario, what would you do...". High proportion of application questions.',
+    markSchemeFormat: 'Single correct answer. No partial credit.',
+    unitConventions: 'Industry-standard terminology. Vendor-specific terminology where applicable.',
+    vocabularyLevel: 'Professional technical language. Domain-specific jargon expected.',
+  };
+
+  if (level.includes('ks3') || level.includes('key stage 3')) return {
+    region: curriculumRegion || "UK", level: 'KS3',
+    examBoard: 'National Curriculum',
+    questionStyle: 'Clear structured questions. Simple command words: State, Describe, Explain. Short answers. Guided scaffolding.',
+    markSchemeFormat: 'Points-based. 1-3 marks per question typical.',
+    unitConventions: 'SI units. Simple notation.',
+    vocabularyLevel: 'Age-appropriate. Key terms defined. Accessible language.',
+  };
+
   // ── Fallback ──
   return {
     region: curriculumRegion || "International",
     level: educationalTier || "General",
     examBoard: "General",
-    questionStyle: 'Clear structured questions with mark allocations. Mix of short and extended answers.',
-    markSchemeFormat: 'Points-based marking with partial credit.',
-    unitConventions: 'SI units throughout.',
-    vocabularyLevel: 'Clear academic language appropriate to the level.',
+    questionStyle: `Generate questions appropriate for a student studying at ${educationalTier || 'general'} level. Use academic language and question styles typical for this qualification.`,
+    markSchemeFormat: 'Points-based marking appropriate to the level.',
+    unitConventions: 'Standard units appropriate to the subject.',
+    vocabularyLevel: `Language and complexity appropriate for ${educationalTier || 'general'} level study.`,
   };
 };
 

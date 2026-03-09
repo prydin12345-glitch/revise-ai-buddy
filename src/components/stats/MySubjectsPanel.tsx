@@ -64,6 +64,7 @@ export const MySubjectsPanel = () => {
           open={addSubjectModalOpen}
           onOpenChange={setAddSubjectModalOpen}
           existingSubjectNames={[]}
+          existingColours={[]}
           onSubjectAdded={refetchSubjects}
         />
       </>
@@ -119,6 +120,7 @@ export const MySubjectsPanel = () => {
             handleOpenCreateProfile={handleOpenCreateProfile}
             handleOpenEditProfile={handleOpenEditProfile}
             deleteProfile={deleteProfile}
+            allSubjects={subjects}
           />
         ))}
       </div>
@@ -139,6 +141,7 @@ export const MySubjectsPanel = () => {
         open={addSubjectModalOpen}
         onOpenChange={setAddSubjectModalOpen}
         existingSubjectNames={subjects.map((s) => s.subject_name)}
+        existingColours={subjects.map((s) => s.subject_color)}
         onSubjectAdded={refetchSubjects}
       />
     </>

@@ -81,14 +81,45 @@ export function buildGenerationContext(
         vocabularyLevel: 'Clear international English.' };
   }
 
+  // Vocational / Professional
+  if (level.includes('hnc') || level.includes('hnd')) return {
+    region: curriculumRegion || "UK", level: 'HNC/HND', examBoard: 'SQA / BTEC',
+    questionStyle: 'Vocational and applied questions. Mix of theory and practical application. "Explain how...", "Describe the process of...", "Evaluate the use of...".',
+    markSchemeFormat: 'Criteria-based pass/merit/distinction grading.', unitConventions: 'Industry-standard units.',
+    vocabularyLevel: 'Professional and technical language.' };
+
+  if (level.includes('nvq') || level.includes('btec')) return {
+    region: curriculumRegion || "UK", level: 'NVQ/BTEC', examBoard: 'BTEC / City & Guilds',
+    questionStyle: 'Competency and evidence-based questions. Practical scenarios.',
+    markSchemeFormat: 'Pass/Merit/Distinction criteria.', unitConventions: 'Workplace terminology.',
+    vocabularyLevel: 'Practical and applied language.' };
+
+  if (level.includes('apprenticeship')) return {
+    region: curriculumRegion || "UK", level: 'Apprenticeship', examBoard: 'End Point Assessment',
+    questionStyle: 'Scenario-based questions with workplace contexts.',
+    markSchemeFormat: 'Pass/Distinction criteria.', unitConventions: 'Industry-standard.',
+    vocabularyLevel: 'Professional but accessible.' };
+
+  if (level.includes('certification') || level.includes('aws') || level.includes('cisco') || level.includes('cpd')) return {
+    region: curriculumRegion || "International", level: 'Professional Certification', examBoard: 'Vendor/Industry Body',
+    questionStyle: 'Scenario-based MC. "Which best describes...", "In this scenario...".',
+    markSchemeFormat: 'Single correct answer.', unitConventions: 'Industry-standard.',
+    vocabularyLevel: 'Professional technical language.' };
+
+  if (level.includes('ks3') || level.includes('key stage 3')) return {
+    region: curriculumRegion || "UK", level: 'KS3', examBoard: 'National Curriculum',
+    questionStyle: 'Simple command words: State, Describe, Explain. Short answers.',
+    markSchemeFormat: 'Points-based. 1-3 marks.', unitConventions: 'SI units. Simple notation.',
+    vocabularyLevel: 'Age-appropriate. Accessible language.' };
+
   // Fallback
   return {
     region: curriculumRegion || "International", level: educationalTier || "General",
     examBoard: "General",
-    questionStyle: 'Clear structured questions with mark allocations.',
+    questionStyle: `Generate questions appropriate for ${educationalTier || 'general'} level study.`,
     markSchemeFormat: 'Points-based with partial credit.',
     unitConventions: 'SI units throughout.',
-    vocabularyLevel: 'Clear academic language appropriate to the level.',
+    vocabularyLevel: `Language appropriate for ${educationalTier || 'general'} level.`,
   };
 }
 

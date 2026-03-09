@@ -22,10 +22,22 @@ import {
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 
 const EDUCATIONAL_TIERS = [
-  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
-  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
-  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
-  { id: "other", name: "Other (Custom)" },
+  // UK
+  { id: "ks3", name: "KS3 (Age 11–14)", group: "UK" },
+  { id: "secondary_14_16", name: "GCSE (Age 14–16)", group: "UK" },
+  { id: "college_16_18", name: "A-Level (Age 16–18)", group: "UK" },
+  { id: "university_18plus", name: "University / Degree", group: "UK" },
+  // Professional
+  { id: "apprenticeship", name: "Apprenticeship", group: "Professional" },
+  { id: "hnc_hnd", name: "HNC / HND", group: "Professional" },
+  { id: "professional_certification", name: "Professional Certification", group: "Professional" },
+  { id: "cpd", name: "CPD / Continuing Professional Development", group: "Professional" },
+  // International
+  { id: "ib_diploma", name: "IB Diploma", group: "International" },
+  { id: "ap", name: "AP (Advanced Placement)", group: "International" },
+  { id: "cambridge_igcse", name: "Cambridge IGCSE", group: "International" },
+  // Other
+  { id: "other", name: "Other (specify below)", group: "Other" },
 ];
 
 interface ExamProfileModalProps {
@@ -59,6 +71,7 @@ export const ExamProfileModal = ({
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
+  const [customTier, setCustomTier] = useState("");
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
 
   useEffect(() => {
@@ -66,7 +79,11 @@ export const ExamProfileModal = ({
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
-      setEducationalTier(initialData?.educational_tier || "");
+      const tier = initialData?.educational_tier || "";
+      // Check if it's a known tier ID, otherwise treat as custom
+      const isKnown = EDUCATIONAL_TIERS.some(t => t.id === tier);
+      setEducationalTier(isKnown || !tier ? tier : "other");
+      setCustomTier(isKnown || !tier ? "" : tier);
       setTimeLimitMinutes(initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : "");
       setTopicSearch("");
     }
@@ -98,7 +115,8 @@ export const ExamProfileModal = ({
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    onSave(profileName.trim(), selectedTopics, questionCount, educationalTier || undefined, timeVal);
+    const finalTier = educationalTier === "other" ? customTier : educationalTier;
+    onSave(profileName.trim(), selectedTopics, questionCount, finalTier || undefined, timeVal);
     onOpenChange(false);
   };
 
@@ -138,18 +156,42 @@ export const ExamProfileModal = ({
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Educational Level
             </Label>
-            <Select value={educationalTier} onValueChange={setEducationalTier}>
+            <Select value={educationalTier} onValueChange={(v) => { setEducationalTier(v); if (v !== "other") setCustomTier(""); }}>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Select level (optional)..." />
               </SelectTrigger>
               <SelectContent>
-                {EDUCATIONAL_TIERS.map((tier) => (
-                  <SelectItem key={tier.id} value={tier.id}>
-                    {tier.name}
-                  </SelectItem>
-                ))}
+                {["UK", "Professional", "International", "Other"].map(group => {
+                  const items = EDUCATIONAL_TIERS.filter(t => t.group === group);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1">
+                        {group}
+                      </p>
+                      {items.map(tier => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {educationalTier === "other" && (
+              <div className="mt-2 space-y-1">
+                <Input
+                  value={customTier}
+                  onChange={e => setCustomTier(e.target.value)}
+                  placeholder="e.g. HNC/HND, NVQ Level 3, AWS Certification..."
+                  className="h-9 border-primary/50"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  The AI will interpret your qualification level when generating questions
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Question Limit */}

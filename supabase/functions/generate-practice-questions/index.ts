@@ -465,6 +465,13 @@ EXAMPLE QUESTION FORMATS:
       console.log('Could not fetch canonical topics:', e);
     }
 
+    // Specialised subject context — for non-standard academic subjects
+    const knownAcademic = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
+    const isSpecialised = !knownAcademic.some(s => (setData.subject_id || '').toLowerCase().includes(s));
+    const specialisedSubjectContext = isSpecialised
+      ? `\nSPECIALISED SUBJECT CONTEXT:\nThis is a specialised subject: "${setData.subject_id}". Generate questions appropriate for professional or vocational study in this area. Use domain-specific terminology and realistic practical scenarios. The student may be a practitioner, not a traditional academic student.\n`
+      : '';
+
     // Build regional persona and region-aware subject instructions
     const regionalPersona = getRegionalPersona(curriculumRegion);
     const regionSubjectInstructions = getRegionAwareSubjectInstructions(
@@ -1035,6 +1042,7 @@ ${complexityInstructions}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
 ${canonicalTopicInstruction}
+${specialisedSubjectContext}
 
 SOURCE TEXT / INSERT TRANSFORMATION RULE:
 If the example or resource material contains a case study, source text, passage, or experimental setup (e.g., a UK factory, a specific political speech, or a named experiment):
