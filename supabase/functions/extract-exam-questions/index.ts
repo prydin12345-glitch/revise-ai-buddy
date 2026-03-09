@@ -863,7 +863,7 @@ DIFFICULTY ARCHETYPE: General Academic Standard
 }
 
 // ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[]): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
 
   // Inject regional persona and region-aware subject instructions
