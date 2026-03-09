@@ -449,6 +449,22 @@ EXAMPLE QUESTION FORMATS:
     const generationContextPrompt = formatGenerationContextPrompt(generationCtx);
     console.log('Generation context:', generationCtx.region, generationCtx.level);
 
+    // Fetch canonical subtopic list for controlled topic_tag vocabulary
+    let canonicalTopicInstruction = '';
+    try {
+      const { data: canonicalTopics } = await supabaseClient
+        .from('subject_subtopics')
+        .select('subtopic')
+        .ilike('subject', `%${setData.subject_id}%`);
+      const topicList = canonicalTopics?.map((t: any) => t.subtopic) ?? [];
+      if (topicList.length > 0) {
+        canonicalTopicInstruction = `\nTOPIC TAG CONTROLLED VOCABULARY (CRITICAL):\nThe "subtopic" field for each question MUST be set to EXACTLY one value from this list — do not invent new values, do not change capitalisation:\n${topicList.join(', ')}\n`;
+        console.log('Canonical topic list loaded:', topicList.length, 'topics');
+      }
+    } catch (e) {
+      console.log('Could not fetch canonical topics:', e);
+    }
+
     // Build regional persona and region-aware subject instructions
     const regionalPersona = getRegionalPersona(curriculumRegion);
     const regionSubjectInstructions = getRegionAwareSubjectInstructions(
@@ -1018,6 +1034,7 @@ ${translatedBoard ? `- Question Style: ${translatedBoard}` : ''}
 ${complexityInstructions}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
+${canonicalTopicInstruction}
 
 SOURCE TEXT / INSERT TRANSFORMATION RULE:
 If the example or resource material contains a case study, source text, passage, or experimental setup (e.g., a UK factory, a specific political speech, or a named experiment):

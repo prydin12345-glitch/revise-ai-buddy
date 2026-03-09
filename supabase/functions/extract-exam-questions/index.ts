@@ -96,6 +96,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   console.log('Curriculum region:', curriculumRegion);
 
+  // Fetch canonical subtopic list for controlled topic_tag vocabulary
+  let canonicalTopicList: string[] = [];
+  try {
+    const { data: canonicalTopics } = await supabase
+      .from('subject_subtopics')
+      .select('subtopic')
+      .ilike('subject', `%${exam.subject_id}%`);
+    canonicalTopicList = canonicalTopics?.map((t: any) => t.subtopic) ?? [];
+    console.log('Canonical topic list loaded:', canonicalTopicList.length, 'topics');
+  } catch (e) {
+    console.log('Could not fetch canonical topics:', e);
+  }
+
   // Load resource pack if exists
   let resourcePackContext = '';
   let hasResourcePack = false;
@@ -155,7 +168,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion);
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList);
   const systemPrompt = hasResourcePack
     ? 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
     : 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
@@ -850,7 +863,7 @@ DIFFICULTY ARCHETYPE: General Academic Standard
 }
 
 // ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[]): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
 
   // Inject regional persona and region-aware subject instructions
@@ -1020,6 +1033,12 @@ When a question includes tabular or visual data, populate the "chart_data" field
 - Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
 - Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
 - Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
+
+${canonicalTopicList && canonicalTopicList.length > 0 ? `
+TOPIC TAG CONTROLLED VOCABULARY (CRITICAL):
+You MUST set topic_tag to EXACTLY one value from this list — do not invent new values, do not change capitalisation, do not add plurals:
+${canonicalTopicList.join(', ')}
+` : `Set topic_tag to a clear descriptive topic name using Title Case (e.g. "Quadratic Equations" not "quadratic_equations" or "quadratics").`}
 
 Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }

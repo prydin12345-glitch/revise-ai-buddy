@@ -2068,6 +2068,30 @@ export type Database = {
           },
         ]
       }
+      topic_aliases: {
+        Row: {
+          alias: string
+          canonical_topic: string
+          created_at: string | null
+          id: string
+          subject: string | null
+        }
+        Insert: {
+          alias: string
+          canonical_topic: string
+          created_at?: string | null
+          id?: string
+          subject?: string | null
+        }
+        Update: {
+          alias?: string
+          canonical_topic?: string
+          created_at?: string | null
+          id?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
       tutor_manual_exams: {
         Row: {
           created_at: string

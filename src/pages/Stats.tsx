@@ -12,8 +12,22 @@ import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { Card, CardContent } from "@/components/ui/card";
 import { MySubjectsPanel } from "@/components/stats/MySubjectsPanel";
+import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
+import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
 const Stats = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { topics, loading: weakTopicsLoading } = useUnifiedTopicPerformance(userId);
   const drilldown = useStatsDrilldown();
   const {
     loading,
@@ -54,7 +68,7 @@ const Stats = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        <Tabs defaultValue="stats" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <div className="flex items-center gap-4 mb-8">
             <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5">
               <TabsTrigger 
@@ -131,17 +145,7 @@ const Stats = () => {
           </TabsContent>
 
           <TabsContent value="weak-topics">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground py-12">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-2">Weak Topics Analysis Coming Soon</p>
-                  <p className="text-sm">
-                    We're analyzing your exam performance to identify areas that need more attention.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
           </TabsContent>
 
           <TabsContent value="my-subjects">

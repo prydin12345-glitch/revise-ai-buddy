@@ -145,6 +145,9 @@ export const WeakestTopicsModal = ({
               <p>
                 💡 <strong>Tip:</strong> Focus revision on topics with scores below 60% for maximum improvement.
               </p>
+              <p className="mt-1">
+                Look for the "⚠ Not practised" indicator — these students may need a follow-up.
+              </p>
             </div>
           )}
         </div>

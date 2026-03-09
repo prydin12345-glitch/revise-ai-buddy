@@ -8,10 +8,12 @@ import { toast } from "sonner";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { AnnouncementsFeed } from "./AnnouncementsFeed";
 import { StatsDrilldownDrawer, DrilldownType } from "./StatsDrilldownDrawer";
 import { ExamRowItem, ExamWithSubmission } from "./ExamRowItem";
 import { AllExamsModal } from "./AllExamsModal";
+import { WeakTopicNudge } from "./WeakTopicNudge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardContentProps {
@@ -24,11 +26,19 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const drilldown = useStatsDrilldown();
   const { getSubjectColor } = useUserSubjects();
   
+  const [userId, setUserId] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showAllExamsModal, setShowAllExamsModal] = useState(false);
+
+  // Fetch userId once for the unified hook
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { weakTopics } = useUnifiedTopicPerformance(userId);
 
   const totalStudyHours = useMemo(() => {
     return studyActivityData.reduce((total, day) => {
@@ -255,6 +265,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           </Card>
         ))}
       </div>
+
+      {/* Weak Topic Nudge */}
+      <WeakTopicNudge weakTopics={weakTopics} />
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-3">

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Loader2, TrendingUp, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
+import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 
 interface StudentProfileData {
   display_name: string | null;
@@ -10,7 +11,6 @@ interface StudentProfileData {
   student_code: string | null;
   avgScore?: number;
   totalExams?: number;
-  weakTopics?: string[];
   recentTrend?: "up" | "down" | "stable";
 }
 
@@ -22,20 +22,23 @@ interface StudentProfileTooltipProps {
 export const StudentProfileTooltip = ({ studentId, children }: StudentProfileTooltipProps) => {
   const [profile, setProfile] = useState<StudentProfileData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  // Only activate the unified hook when hovered to avoid unnecessary queries
+  const { weakTopics } = useUnifiedTopicPerformance(hovered ? studentId : null);
 
   const fetchStudentProfile = async () => {
-    if (profile) return; // Already loaded
+    if (profile) return;
+    setHovered(true);
     
     setLoading(true);
     try {
-      // Fetch profile
       const { data: profileData } = await supabase
         .from("user_profiles")
         .select("display_name, first_name, last_name, student_code")
         .eq("id", studentId)
         .single();
 
-      // Fetch exam performance
       const { data: submissions } = await supabase
         .from("exam_submissions")
         .select("total_score, total_marks, submitted_at")
@@ -55,7 +58,6 @@ export const StudentProfileTooltip = ({ studentId, children }: StudentProfileToo
         if (scores.length > 0) {
           avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
           
-          // Calculate trend from last 3 exams
           if (scores.length >= 3) {
             const recent = scores.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
             const older = scores.slice(3).reduce((a, b) => a + b, 0) / Math.max(1, scores.length - 3);
@@ -70,7 +72,6 @@ export const StudentProfileTooltip = ({ studentId, children }: StudentProfileToo
         avgScore: Math.round(avgScore),
         totalExams: submissions?.length || 0,
         recentTrend,
-        weakTopics: [] // Placeholder - would need more complex query
       });
     } catch (error) {
       console.error("Error fetching student profile:", error);
@@ -118,21 +119,27 @@ export const StudentProfileTooltip = ({ studentId, children }: StudentProfileToo
               </div>
             </div>
 
-            {profile.weakTopics && profile.weakTopics.length > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Weak Areas
-                </p>
+            {/* Real weak topics from unified hook */}
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                <AlertTriangle className="h-3 w-3" />
+                Weak Topics
+              </p>
+              {weakTopics.length === 0 ? (
+                <p className="text-xs text-muted-foreground/60">None identified yet</p>
+              ) : (
                 <div className="flex flex-wrap gap-1">
-                  {profile.weakTopics.map((topic, i) => (
-                    <span key={i} className="text-xs px-1.5 py-0.5 bg-muted rounded">
-                      {topic}
+                  {weakTopics.slice(0, 3).map((topic) => (
+                    <span key={topic.topic} className="text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive rounded">
+                      {topic.topic} ({topic.unifiedScore}%)
                     </span>
                   ))}
+                  {weakTopics.length > 3 && (
+                    <span className="text-xs text-muted-foreground">+{weakTopics.length - 3} more</span>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">Unable to load profile</p>
