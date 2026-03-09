@@ -29,11 +29,19 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const drilldown = useStatsDrilldown();
   const { getSubjectColor } = useUserSubjects();
   
+  const [userId, setUserId] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showAllExamsModal, setShowAllExamsModal] = useState(false);
+
+  // Fetch userId once for the unified hook
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { weakTopics } = useUnifiedTopicPerformance(userId);
 
   const totalStudyHours = useMemo(() => {
     return studyActivityData.reduce((total, day) => {
