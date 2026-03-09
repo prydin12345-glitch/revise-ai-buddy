@@ -1042,6 +1042,7 @@ ${complexityInstructions}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
 ${canonicalTopicInstruction}
+${specialisedSubjectContext}
 
 SOURCE TEXT / INSERT TRANSFORMATION RULE:
 If the example or resource material contains a case study, source text, passage, or experimental setup (e.g., a UK factory, a specific political speech, or a named experiment):
