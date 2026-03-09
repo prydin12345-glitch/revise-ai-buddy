@@ -458,6 +458,25 @@ const CreatePracticeQuestions = () => {
   return (
     <DashboardLayout>
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
+        {/* Weak topics prefill banner */}
+        {prefillSource === "weak_topics" && prefillSubtopic && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              <Target className="inline h-4 w-4 mr-1.5 text-primary" />
+              Creating targeted practice for weak topic:{" "}
+              <strong className="text-foreground">{prefillSubtopic}</strong>
+            </span>
+            <button
+              onClick={() => {
+                setSearchParams({});
+                setSelectedSubtopics((prev) => prev.filter((s) => s !== prefillSubtopic));
+              }}
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              Clear ×
+            </button>
+          </div>
+        )}
         {/* Sticky Header */}
         <div className="flex items-center justify-between sticky top-0 z-20 bg-background py-4 border-b -mx-6 px-6 -mt-6 mb-4">
           <div>
