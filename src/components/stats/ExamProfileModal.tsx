@@ -22,10 +22,22 @@ import {
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 
 const EDUCATIONAL_TIERS = [
-  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
-  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
-  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
-  { id: "other", name: "Other (Custom)" },
+  // UK
+  { id: "ks3", name: "KS3 (Age 11–14)", group: "UK" },
+  { id: "secondary_14_16", name: "GCSE (Age 14–16)", group: "UK" },
+  { id: "college_16_18", name: "A-Level (Age 16–18)", group: "UK" },
+  { id: "university_18plus", name: "University / Degree", group: "UK" },
+  // Professional
+  { id: "apprenticeship", name: "Apprenticeship", group: "Professional" },
+  { id: "hnc_hnd", name: "HNC / HND", group: "Professional" },
+  { id: "professional_certification", name: "Professional Certification", group: "Professional" },
+  { id: "cpd", name: "CPD / Continuing Professional Development", group: "Professional" },
+  // International
+  { id: "ib_diploma", name: "IB Diploma", group: "International" },
+  { id: "ap", name: "AP (Advanced Placement)", group: "International" },
+  { id: "cambridge_igcse", name: "Cambridge IGCSE", group: "International" },
+  // Other
+  { id: "other", name: "Other (specify below)", group: "Other" },
 ];
 
 interface ExamProfileModalProps {

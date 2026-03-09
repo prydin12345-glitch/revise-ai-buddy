@@ -120,6 +120,7 @@ export const MySubjectsPanel = () => {
             handleOpenCreateProfile={handleOpenCreateProfile}
             handleOpenEditProfile={handleOpenEditProfile}
             deleteProfile={deleteProfile}
+            allSubjects={subjects}
           />
         ))}
       </div>
