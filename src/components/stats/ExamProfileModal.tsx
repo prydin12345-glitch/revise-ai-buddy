@@ -71,6 +71,7 @@ export const ExamProfileModal = ({
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
+  const [customTier, setCustomTier] = useState("");
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
 
   useEffect(() => {
