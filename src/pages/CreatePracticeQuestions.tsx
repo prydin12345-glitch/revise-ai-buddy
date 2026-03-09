@@ -39,6 +39,7 @@ import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { getSubjectColor } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
   
