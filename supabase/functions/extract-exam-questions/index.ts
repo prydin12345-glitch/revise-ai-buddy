@@ -96,6 +96,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   console.log('Curriculum region:', curriculumRegion);
 
+  // Fetch canonical subtopic list for controlled topic_tag vocabulary
+  let canonicalTopicList: string[] = [];
+  try {
+    const { data: canonicalTopics } = await supabase
+      .from('subject_subtopics')
+      .select('subtopic')
+      .ilike('subject', `%${exam.subject_id}%`);
+    canonicalTopicList = canonicalTopics?.map((t: any) => t.subtopic) ?? [];
+    console.log('Canonical topic list loaded:', canonicalTopicList.length, 'topics');
+  } catch (e) {
+    console.log('Could not fetch canonical topics:', e);
+  }
+
   // Load resource pack if exists
   let resourcePackContext = '';
   let hasResourcePack = false;
