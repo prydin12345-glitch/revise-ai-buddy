@@ -145,17 +145,7 @@ const Stats = () => {
           </TabsContent>
 
           <TabsContent value="weak-topics">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground py-12">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-2">Weak Topics Analysis Coming Soon</p>
-                  <p className="text-sm">
-                    We're analyzing your exam performance to identify areas that need more attention.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
           </TabsContent>
 
           <TabsContent value="my-subjects">
