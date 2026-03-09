@@ -64,6 +64,7 @@ export const MySubjectsPanel = () => {
           open={addSubjectModalOpen}
           onOpenChange={setAddSubjectModalOpen}
           existingSubjectNames={[]}
+          existingColours={[]}
           onSubjectAdded={refetchSubjects}
         />
       </>
