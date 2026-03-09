@@ -269,6 +269,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         ))}
       </div>
 
+      {/* Weak Topic Nudge */}
+      <WeakTopicNudge weakTopics={weakTopics} />
+
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="shadow-lg rounded-2xl hover:shadow-xl transition-all cursor-pointer hover:border-primary/50" onClick={() => navigate("/stats")}>
