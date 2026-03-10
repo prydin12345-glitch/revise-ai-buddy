@@ -123,6 +123,37 @@ export function buildGenerationContext(
   };
 }
 
+// Map new universal level IDs to the existing context system
+const UNIVERSAL_LEVEL_MAP: Record<string, string> = {
+  level1: 'ks3',
+  level2: 'secondary_14_16',
+  level3: 'college_16_18',
+  undergrad: 'university_18plus',
+  postgrad: 'university_18plus',
+  doctoral: 'university_18plus',
+  vocational_entry: 'apprenticeship',
+  vocational_advanced: 'hnc_hnd',
+  professional_cert: 'certification',
+  cpd: 'cpd',
+};
+
+/**
+ * Pre-process an educational tier value — if it uses a universal level ID,
+ * map it to the legacy ID that buildGenerationContext already handles.
+ */
+export function resolveEducationalTier(tier: string | null | undefined): string {
+  if (!tier) return '';
+  const mapped = UNIVERSAL_LEVEL_MAP[tier.toLowerCase()];
+  return mapped || tier;
+}
+
+/**
+ * Build a combined topic-in-subject context string for AI generation prompts.
+ */
+export function buildTopicContext(subjectName: string, topicName: string): string {
+  return `${topicName} — in the context of: ${subjectName}`;
+}
+
 export function formatGenerationContextPrompt(ctx: GenerationContext): string {
   return `
 GENERATION CONTEXT — ${ctx.level} in ${ctx.region}

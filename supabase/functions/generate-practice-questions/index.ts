@@ -1026,6 +1026,26 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
 
     const hardeningRules = getExamHardeningRules();
 
+    // Build combined topic context strings for specialised subjects
+    const subjectName = setData.subject_id || '';
+    const topicContextStrings = (setData.subtopics || []).map((topic: string) => {
+      if (isSpecialised) {
+        return `${topic} — in the context of: ${subjectName}`;
+      }
+      return topic;
+    });
+
+    const topicContextInstruction = isSpecialised ? `
+CRITICAL SUBJECT-TOPIC BINDING:
+Each topic listed below MUST be interpreted SPECIFICALLY within the context of "${subjectName}".
+Do not generate generic questions about these topics in isolation.
+For example, if the subject is "Quarterly testing for large porous load sterilizers NHS/HTM 01-01"
+and the topic is "Test equipment knowledge", generate questions about calibration and use of
+data loggers, pressure transducers, thermocouples, heat blocks, reference thermometers, and
+standard test packs (Bowie-Dick) as used in NHS sterilizer quarterly testing —
+NOT generic questions about "test equipment" in any other context.
+` : '';
+
     const prompt = `${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
@@ -1033,12 +1053,13 @@ ${hardeningRules}
 Generate ${setData.question_count} practice questions.
 
 Context:
-- Subject: ${setData.subject_id}
-- Subtopics: ${setData.subtopics.join(', ')}
+- Subject: ${subjectName}
+- Topics (with subject context): ${topicContextStrings.join('; ')}
 - Educational Level: ${setData.educational_tier || 'not specified'}
 ${translatedBoard ? `- Question Style: ${translatedBoard}` : ''}
 - ${difficultyInstructions}
 ${complexityInstructions}
+${topicContextInstruction}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
 ${canonicalTopicInstruction}
