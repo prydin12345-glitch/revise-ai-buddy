@@ -272,14 +272,17 @@ export const SubjectCard = ({
             ) : (
               <div className="space-y-2">
                 {subjectProfiles.map((profile) => {
-                  const tierLabel = profile.educational_tier === "secondary_14_16"
-                    ? "High School"
-                    : profile.educational_tier === "college_16_18"
-                    ? "College"
-                    : profile.educational_tier === "university_18plus"
-                    ? "University"
-                    : profile.educational_tier && profile.educational_tier !== "other"
-                    ? profile.educational_tier
+                  const tier = profile.educational_tier;
+                  const tierLabelMap: Record<string, string> = {
+                    secondary_14_16: "Level 2", college_16_18: "Level 3",
+                    university_18plus: "Undergrad", level1: "Level 1",
+                    level2: "Level 2", level3: "Level 3",
+                    undergrad: "Undergrad", postgrad: "Postgrad", doctoral: "PhD",
+                    vocational_entry: "Vocational", vocational_advanced: "Vocational Adv",
+                    professional_cert: "Prof Cert", cpd: "CPD",
+                  };
+                  const tierLabel = tier && tier !== "other"
+                    ? (tierLabelMap[tier] || tier)
                     : null;
 
                   return (
