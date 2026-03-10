@@ -3,7 +3,7 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2 } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,8 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getTextColor, getBadgeColor } from "@/lib/color-contrast";
 import { ColourSwatchPicker } from "./ColourSwatchPicker";
 import { ColourConflictModal } from "./ColourConflictModal";
-import { getNextAvailableColour } from "@/lib/subject-colours";
+import { SuggestedTopicsModal } from "./SuggestedTopicsModal";
+import { getNextAvailableColour, isSpecialisedSubject } from "@/lib/subject-colours";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string };
