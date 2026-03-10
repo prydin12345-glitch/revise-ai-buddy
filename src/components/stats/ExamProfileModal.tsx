@@ -163,40 +163,64 @@ export const ExamProfileModal = ({
             />
           </div>
 
-          {/* Educational Level */}
+          {/* Educational Level — Universal */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Educational Level
             </Label>
-            <Select
-              value={educationalTier}
-              onValueChange={(v) => {
-                setEducationalTier(v);
-                if (v !== "other") setCustomTier("");
-              }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Select level (optional)..." />
-              </SelectTrigger>
-              <SelectContent>
-                {["UK", "Professional", "International", "Other"].map((group) => {
-                  const items = EDUCATIONAL_TIERS.filter((t) => t.group === group);
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={group}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1">
-                        {group}
-                      </p>
-                      {items.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id}>
-                          {tier.name}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+            <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-10 text-sm font-normal"
+                >
+                  <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
+                    {educationalTier
+                      ? (educationalTier === "other"
+                          ? "Other — specify below"
+                          : ALL_LEVELS.find(l => l.id === educationalTier)?.label || educationalTier)
+                      : "Select level (optional)..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
+                {EDUCATIONAL_LEVELS.map((group) => (
+                  <div key={group.group}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
+                      {group.group}
+                    </p>
+                    {group.levels.map((level) => {
+                      const alias = userRegion ? level.aliases[userRegion] : null;
+                      return (
+                        <button
+                          key={level.id}
+                          type="button"
+                          onClick={() => {
+                            setEducationalTier(level.id);
+                            if (level.id !== "other") setCustomTier("");
+                            setLevelPopoverOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                            educationalTier === level.id
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "hover:bg-muted text-foreground"
+                          }`}
+                        >
+                          <div className="text-[13px]">{level.label}</div>
+                          {alias && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {userRegion}: {alias}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </PopoverContent>
+            </Popover>
             {educationalTier === "other" && (
               <div className="mt-2 space-y-1">
                 <Input
