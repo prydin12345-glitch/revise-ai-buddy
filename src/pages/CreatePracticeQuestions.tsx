@@ -116,14 +116,33 @@ const CreatePracticeQuestions = () => {
   // Pre-fill from weak topics navigation
   const prefillSubtopic = searchParams.get("subtopic");
   const prefillSource = searchParams.get("source");
+  const prefillSubject = searchParams.get("subject");
 
   useEffect(() => {
-    if (prefillSubtopic && prefillSource === "weak_topics") {
-      setSelectedSubtopics((prev) =>
-        prev.includes(prefillSubtopic) ? prev : [...prev, prefillSubtopic]
-      );
+    if (prefillSource !== "weak_topics") return;
+
+    // Step 1: Set subject if provided
+    if (prefillSubject && !subjectId) {
+      handleSubjectChange(prefillSubject);
     }
-  }, [prefillSubtopic, prefillSource]);
+
+    // Step 2: Set subtopic after a tick so subject loads first
+    if (prefillSubtopic) {
+      const timer = setTimeout(() => {
+        setSelectedSubtopics((prev) =>
+          prev.includes(prefillSubtopic) ? prev : [...prev, prefillSubtopic]
+        );
+      }, 100);
+
+      // Auto-generate a set name
+      if (!setName) {
+        setSetName(`${prefillSubtopic} — Targeted Practice`);
+      }
+
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillSubtopic, prefillSource, prefillSubject]);
 
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
