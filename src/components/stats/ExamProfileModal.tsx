@@ -20,23 +20,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
+import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
 
 const EDUCATIONAL_TIERS = [
-  // UK
   { id: "ks3", name: "KS3 (Age 11–14)", group: "UK" },
   { id: "secondary_14_16", name: "GCSE (Age 14–16)", group: "UK" },
   { id: "college_16_18", name: "A-Level (Age 16–18)", group: "UK" },
   { id: "university_18plus", name: "University / Degree", group: "UK" },
-  // Professional
   { id: "apprenticeship", name: "Apprenticeship", group: "Professional" },
   { id: "hnc_hnd", name: "HNC / HND", group: "Professional" },
   { id: "professional_certification", name: "Professional Certification", group: "Professional" },
   { id: "cpd", name: "CPD / Continuing Professional Development", group: "Professional" },
-  // International
   { id: "ib_diploma", name: "IB Diploma", group: "International" },
   { id: "ap", name: "AP (Advanced Placement)", group: "International" },
   { id: "cambridge_igcse", name: "Cambridge IGCSE", group: "International" },
-  // Other
   { id: "other", name: "Other (specify below)", group: "Other" },
 ];
 
@@ -46,13 +43,28 @@ interface ExamProfileModalProps {
   subjectName: string;
   subjectColor: string;
   availableTopics: string[];
-  onSave: (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null) => void;
+  onSave: (
+    profileName: string,
+    topics: string[],
+    questionCount: number,
+    educationalTier?: string,
+    timeLimitMinutes?: number | null,
+    advanced?: AdvancedSettings
+  ) => void;
   initialData?: {
     profile_name: string;
     topics: string[];
     question_count: number;
     educational_tier?: string | null;
     time_limit_minutes?: number | null;
+    structure_preset?: string | null;
+    mcq_count?: number | null;
+    mcq_position?: string | null;
+    mark_distribution?: Record<number, number> | null;
+    include_extended?: boolean | null;
+    extended_marks?: number | null;
+    difficulty_progression?: string | null;
+    calculator_policy?: string | null;
   };
 }
 
@@ -73,6 +85,7 @@ export const ExamProfileModal = ({
   const [educationalTier, setEducationalTier] = useState("");
   const [customTier, setCustomTier] = useState("");
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
+  const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
 
   useEffect(() => {
     if (open) {
@@ -80,16 +93,26 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
       const tier = initialData?.educational_tier || "";
-      // Check if it's a known tier ID, otherwise treat as custom
-      const isKnown = EDUCATIONAL_TIERS.some(t => t.id === tier);
+      const isKnown = EDUCATIONAL_TIERS.some((t) => t.id === tier);
       setEducationalTier(isKnown || !tier ? tier : "other");
       setCustomTier(isKnown || !tier ? "" : tier);
-      setTimeLimitMinutes(initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : "");
+      setTimeLimitMinutes(
+        initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
+      );
       setTopicSearch("");
+      setAdvanced({
+        structurePreset: initialData?.structure_preset || "custom",
+        mcqCount: initialData?.mcq_count ?? 0,
+        mcqPosition: initialData?.mcq_position || "start",
+        markDistribution: (initialData?.mark_distribution as Record<number, number>) || {},
+        includeExtended: initialData?.include_extended ?? false,
+        extendedMarks: initialData?.extended_marks ?? 0,
+        difficultyProgression: initialData?.difficulty_progression || "ascending",
+        calculatorPolicy: initialData?.calculator_policy || "allowed",
+      });
     }
   }, [open, initialData]);
 
-  // Merge user's master topics with the dictionary for this subject
   const allTopics = useMemo(() => {
     const dictTopics = getLocalSubtopics(subjectName);
     return [...new Set([...availableTopics, ...dictTopics])];
@@ -116,7 +139,7 @@ export const ExamProfileModal = ({
     if (!profileName.trim() || selectedTopics.length === 0) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const finalTier = educationalTier === "other" ? customTier : educationalTier;
-    onSave(profileName.trim(), selectedTopics, questionCount, finalTier || undefined, timeVal);
+    onSave(profileName.trim(), selectedTopics, questionCount, finalTier || undefined, timeVal, advanced);
     onOpenChange(false);
   };
 
@@ -156,20 +179,26 @@ export const ExamProfileModal = ({
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Educational Level
             </Label>
-            <Select value={educationalTier} onValueChange={(v) => { setEducationalTier(v); if (v !== "other") setCustomTier(""); }}>
+            <Select
+              value={educationalTier}
+              onValueChange={(v) => {
+                setEducationalTier(v);
+                if (v !== "other") setCustomTier("");
+              }}
+            >
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Select level (optional)..." />
               </SelectTrigger>
               <SelectContent>
-                {["UK", "Professional", "International", "Other"].map(group => {
-                  const items = EDUCATIONAL_TIERS.filter(t => t.group === group);
+                {["UK", "Professional", "International", "Other"].map((group) => {
+                  const items = EDUCATIONAL_TIERS.filter((t) => t.group === group);
                   if (items.length === 0) return null;
                   return (
                     <div key={group}>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1">
                         {group}
                       </p>
-                      {items.map(tier => (
+                      {items.map((tier) => (
                         <SelectItem key={tier.id} value={tier.id}>
                           {tier.name}
                         </SelectItem>
@@ -183,7 +212,7 @@ export const ExamProfileModal = ({
               <div className="mt-2 space-y-1">
                 <Input
                   value={customTier}
-                  onChange={e => setCustomTier(e.target.value)}
+                  onChange={(e) => setCustomTier(e.target.value)}
                   placeholder="e.g. HNC/HND, NVQ Level 3, AWS Certification..."
                   className="h-9 border-primary/50"
                 />
@@ -194,7 +223,7 @@ export const ExamProfileModal = ({
             )}
           </div>
 
-          {/* Question Limit */}
+          {/* Question Limit — max raised to 40 */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -206,18 +235,18 @@ export const ExamProfileModal = ({
             </div>
             <Slider
               min={5}
-              max={20}
+              max={40}
               step={1}
               value={[questionCount]}
               onValueChange={(v) => setQuestionCount(v[0])}
               style={{
-                '--slider-track': 'hsl(var(--muted))',
-                '--slider-range': subjectColor,
+                "--slider-track": "hsl(var(--muted))",
+                "--slider-range": subjectColor,
               } as React.CSSProperties}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>5</span>
-              <span>20</span>
+              <span>40</span>
             </div>
           </div>
 
@@ -245,7 +274,6 @@ export const ExamProfileModal = ({
               Topics ({selectedTopics.length} selected)
             </Label>
 
-            {/* Selected chips */}
             {selectedTopics.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {selectedTopics.map((topic) => (
@@ -266,7 +294,6 @@ export const ExamProfileModal = ({
               </div>
             )}
 
-            {/* Topic Search Popover */}
             <Popover open={topicPopoverOpen} onOpenChange={setTopicPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -312,6 +339,14 @@ export const ExamProfileModal = ({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Advanced Settings */}
+          <ExamProfileAdvanced
+            settings={advanced}
+            onChange={setAdvanced}
+            questionLimit={questionCount}
+            subjectColor={subjectColor}
+          />
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
