@@ -84,12 +84,23 @@ export const useUnifiedTopicPerformance = (
       ];
 
       let practiceQuestions: any[] = [];
+      let practiceSubjectMap: Record<string, string> = {};
       if (practiceQIds.length > 0) {
         const { data } = await supabase
           .from("practice_questions")
           .select("id, subtopic, marks, set_id")
           .in("id", practiceQIds);
         practiceQuestions = data || [];
+
+        // Fetch subject_id for each practice set
+        const setIds = [...new Set(practiceQuestions.map(q => q.set_id).filter(Boolean))];
+        if (setIds.length > 0) {
+          const { data: sets } = await supabase
+            .from("practice_question_sets")
+            .select("id, subject_id")
+            .in("id", setIds);
+          sets?.forEach(s => { practiceSubjectMap[s.id] = s.subject_id; });
+        }
       }
 
       // ---- Normalise exam topic_tags ----
