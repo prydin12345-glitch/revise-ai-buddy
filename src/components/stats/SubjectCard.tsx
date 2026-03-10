@@ -348,6 +348,17 @@ export const SubjectCard = ({
         replacementColour={getNextAvailableColour(allSubjects.map(s => s.subject_color))}
         onConfirm={handleConflictConfirm}
       />
+
+      <SuggestedTopicsModal
+        open={showTopicSuggestions}
+        onOpenChange={setShowTopicSuggestions}
+        subjectName={subject.subject_name}
+        onAddTopics={async (topics) => {
+          for (const t of topics) {
+            await addTopic(subject.subject_name, t);
+          }
+        }}
+      />
     </>
   );
 };
