@@ -139,7 +139,7 @@ export const useUnifiedTopicPerformance = (
       // ---- Group practice scores by topic (subtopic is already canonical) ----
       const practiceByTopic: Record<
         string,
-        { correct: number; total: number; totalMarks: number; scoredMarks: number; lastDate: string }
+        { correct: number; total: number; totalMarks: number; scoredMarks: number; lastDate: string; subjectId: string | null }
       > = {};
 
       const practiceQMap = new Map(practiceQuestions.map((q) => [q.id, q]));
@@ -150,7 +150,7 @@ export const useUnifiedTopicPerformance = (
         const topic = q.subtopic;
 
         if (!practiceByTopic[topic]) {
-          practiceByTopic[topic] = { correct: 0, total: 0, totalMarks: 0, scoredMarks: 0, lastDate: "" };
+          practiceByTopic[topic] = { correct: 0, total: 0, totalMarks: 0, scoredMarks: 0, lastDate: "", subjectId: practiceSubjectMap[q.set_id] ?? null };
         }
         practiceByTopic[topic].total++;
         practiceByTopic[topic].totalMarks += q.marks || 1;
