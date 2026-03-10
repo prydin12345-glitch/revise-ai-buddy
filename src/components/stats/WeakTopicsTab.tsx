@@ -439,7 +439,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 transition-all"
-                      onClick={() => handlePracticeWeakTopic(topic.topic)}
+                      onClick={() => handlePracticeWeakTopic(topic)}
                     >
                       Practice now →
                     </Button>
