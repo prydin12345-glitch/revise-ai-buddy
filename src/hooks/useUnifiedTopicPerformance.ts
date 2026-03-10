@@ -116,7 +116,7 @@ export const useUnifiedTopicPerformance = (
       // ---- Group exam scores by canonical topic ----
       const examByTopic: Record<
         string,
-        { scores: number[]; lastDate: string }
+        { scores: number[]; lastDate: string; subjectId: string | null }
       > = {};
 
       const examQMap = new Map(examQuestions.map((q) => [q.id, q]));
@@ -128,7 +128,7 @@ export const useUnifiedTopicPerformance = (
         const pct = q.marks > 0 ? ((Number(answer.score) || 0) / q.marks) * 100 : 0;
 
         if (!examByTopic[canonical]) {
-          examByTopic[canonical] = { scores: [], lastDate: "" };
+          examByTopic[canonical] = { scores: [], lastDate: "", subjectId: examSubjectMap[q.exam_id] ?? null };
         }
         examByTopic[canonical].scores.push(pct);
         if (answer.submitted_at && answer.submitted_at > examByTopic[canonical].lastDate) {
