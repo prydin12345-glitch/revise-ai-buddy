@@ -52,12 +52,23 @@ export const useUnifiedTopicPerformance = (
       ];
 
       let examQuestions: any[] = [];
+      let examSubjectMap: Record<string, string> = {};
       if (examQIds.length > 0) {
         const { data } = await supabase
           .from("exam_questions")
           .select("id, topic_tag, marks, exam_id")
           .in("id", examQIds);
         examQuestions = data || [];
+
+        // Fetch subject_id for each exam
+        const examIds = [...new Set(examQuestions.map(q => q.exam_id).filter(Boolean))];
+        if (examIds.length > 0) {
+          const { data: exams } = await supabase
+            .from("exams")
+            .select("id, subject_id")
+            .in("id", examIds);
+          exams?.forEach(e => { examSubjectMap[e.id] = e.subject_id; });
+        }
       }
 
       // ---- Practice performance ----
