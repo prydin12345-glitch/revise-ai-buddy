@@ -1879,11 +1879,19 @@ export type Database = {
       }
       subject_exam_profiles: {
         Row: {
+          calculator_policy: string | null
           created_at: string
+          difficulty_progression: string | null
           educational_tier: string | null
+          extended_marks: number | null
           id: string
+          include_extended: boolean | null
+          mark_distribution: Json | null
+          mcq_count: number | null
+          mcq_position: string | null
           profile_name: string
           question_count: number
+          structure_preset: string | null
           subject_name: string
           time_limit_minutes: number | null
           topics: string[]
@@ -1891,11 +1899,19 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          calculator_policy?: string | null
           created_at?: string
+          difficulty_progression?: string | null
           educational_tier?: string | null
+          extended_marks?: number | null
           id?: string
+          include_extended?: boolean | null
+          mark_distribution?: Json | null
+          mcq_count?: number | null
+          mcq_position?: string | null
           profile_name: string
           question_count?: number
+          structure_preset?: string | null
           subject_name: string
           time_limit_minutes?: number | null
           topics?: string[]
@@ -1903,11 +1919,19 @@ export type Database = {
           user_id: string
         }
         Update: {
+          calculator_policy?: string | null
           created_at?: string
+          difficulty_progression?: string | null
           educational_tier?: string | null
+          extended_marks?: number | null
           id?: string
+          include_extended?: boolean | null
+          mark_distribution?: Json | null
+          mcq_count?: number | null
+          mcq_position?: string | null
           profile_name?: string
           question_count?: number
+          structure_preset?: string | null
           subject_name?: string
           time_limit_minutes?: number | null
           topics?: string[]
