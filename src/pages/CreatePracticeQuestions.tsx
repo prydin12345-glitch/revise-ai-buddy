@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Sparkles, Upload, Info, Settings2, ChevronDown, Crosshair } from "lucide-react";
+import { Sparkles, Upload, Info, Settings2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -116,14 +116,33 @@ const CreatePracticeQuestions = () => {
   // Pre-fill from weak topics navigation
   const prefillSubtopic = searchParams.get("subtopic");
   const prefillSource = searchParams.get("source");
+  const prefillSubject = searchParams.get("subject");
 
   useEffect(() => {
-    if (prefillSubtopic && prefillSource === "weak_topics") {
-      setSelectedSubtopics((prev) =>
-        prev.includes(prefillSubtopic) ? prev : [...prev, prefillSubtopic]
-      );
+    if (prefillSource !== "weak_topics") return;
+
+    // Step 1: Set subject if provided
+    if (prefillSubject && !subjectId) {
+      handleSubjectChange(prefillSubject);
     }
-  }, [prefillSubtopic, prefillSource]);
+
+    // Step 2: Set subtopic after a tick so subject loads first
+    if (prefillSubtopic) {
+      const timer = setTimeout(() => {
+        setSelectedSubtopics((prev) =>
+          prev.includes(prefillSubtopic) ? prev : [...prev, prefillSubtopic]
+        );
+      }, 100);
+
+      // Auto-generate a set name
+      if (!setName) {
+        setSetName(`${prefillSubtopic} — Targeted Practice`);
+      }
+
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillSubtopic, prefillSource, prefillSubject]);
 
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
@@ -460,16 +479,24 @@ const CreatePracticeQuestions = () => {
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
         {/* Weak topics prefill banner */}
         {prefillSource === "weak_topics" && prefillSubtopic && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              <Crosshair className="inline h-4 w-4 mr-1.5 text-primary" />
-              Creating targeted practice for weak topic:{" "}
+          <div className="rounded-lg border border-primary/30 border-l-4 border-l-primary bg-primary/5 p-3 flex items-center justify-between text-sm">
+            <div className="text-muted-foreground">
+              🎯{" "}
+              <span className="text-muted-foreground">Targeted practice: </span>
+              {prefillSubject && (
+                <>
+                  <strong className="text-foreground">{prefillSubject}</strong>
+                  <span className="text-muted-foreground mx-1.5">›</span>
+                </>
+              )}
               <strong className="text-foreground">{prefillSubtopic}</strong>
-            </span>
+            </div>
             <button
               onClick={() => {
                 setSearchParams({});
                 setSelectedSubtopics((prev) => prev.filter((s) => s !== prefillSubtopic));
+                setSetName("");
+                if (prefillSubject) setSubjectId("");
               }}
               className="text-muted-foreground hover:text-foreground text-xs"
             >

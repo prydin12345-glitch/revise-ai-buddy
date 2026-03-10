@@ -6,6 +6,7 @@ export type UnifiedMastery = "strong" | "developing" | "weak" | "untested";
 
 export interface UnifiedTopicScore {
   topic: string;
+  subjectId: string | null;
   unifiedScore: number;
   examScore: number | null;
   practiceScore: number | null;
@@ -51,12 +52,23 @@ export const useUnifiedTopicPerformance = (
       ];
 
       let examQuestions: any[] = [];
+      let examSubjectMap: Record<string, string> = {};
       if (examQIds.length > 0) {
         const { data } = await supabase
           .from("exam_questions")
           .select("id, topic_tag, marks, exam_id")
           .in("id", examQIds);
         examQuestions = data || [];
+
+        // Fetch subject_id for each exam
+        const examIds = [...new Set(examQuestions.map(q => q.exam_id).filter(Boolean))];
+        if (examIds.length > 0) {
+          const { data: exams } = await supabase
+            .from("exams")
+            .select("id, subject_id")
+            .in("id", examIds);
+          exams?.forEach(e => { examSubjectMap[e.id] = e.subject_id; });
+        }
       }
 
       // ---- Practice performance ----
@@ -72,12 +84,23 @@ export const useUnifiedTopicPerformance = (
       ];
 
       let practiceQuestions: any[] = [];
+      let practiceSubjectMap: Record<string, string> = {};
       if (practiceQIds.length > 0) {
         const { data } = await supabase
           .from("practice_questions")
           .select("id, subtopic, marks, set_id")
           .in("id", practiceQIds);
         practiceQuestions = data || [];
+
+        // Fetch subject_id for each practice set
+        const setIds = [...new Set(practiceQuestions.map(q => q.set_id).filter(Boolean))];
+        if (setIds.length > 0) {
+          const { data: sets } = await supabase
+            .from("practice_question_sets")
+            .select("id, subject_id")
+            .in("id", setIds);
+          sets?.forEach(s => { practiceSubjectMap[s.id] = s.subject_id; });
+        }
       }
 
       // ---- Normalise exam topic_tags ----
@@ -93,7 +116,7 @@ export const useUnifiedTopicPerformance = (
       // ---- Group exam scores by canonical topic ----
       const examByTopic: Record<
         string,
-        { scores: number[]; lastDate: string }
+        { scores: number[]; lastDate: string; subjectId: string | null }
       > = {};
 
       const examQMap = new Map(examQuestions.map((q) => [q.id, q]));
@@ -105,7 +128,7 @@ export const useUnifiedTopicPerformance = (
         const pct = q.marks > 0 ? ((Number(answer.score) || 0) / q.marks) * 100 : 0;
 
         if (!examByTopic[canonical]) {
-          examByTopic[canonical] = { scores: [], lastDate: "" };
+          examByTopic[canonical] = { scores: [], lastDate: "", subjectId: examSubjectMap[q.exam_id] ?? null };
         }
         examByTopic[canonical].scores.push(pct);
         if (answer.submitted_at && answer.submitted_at > examByTopic[canonical].lastDate) {
@@ -116,7 +139,7 @@ export const useUnifiedTopicPerformance = (
       // ---- Group practice scores by topic (subtopic is already canonical) ----
       const practiceByTopic: Record<
         string,
-        { correct: number; total: number; totalMarks: number; scoredMarks: number; lastDate: string }
+        { correct: number; total: number; totalMarks: number; scoredMarks: number; lastDate: string; subjectId: string | null }
       > = {};
 
       const practiceQMap = new Map(practiceQuestions.map((q) => [q.id, q]));
@@ -127,7 +150,7 @@ export const useUnifiedTopicPerformance = (
         const topic = q.subtopic;
 
         if (!practiceByTopic[topic]) {
-          practiceByTopic[topic] = { correct: 0, total: 0, totalMarks: 0, scoredMarks: 0, lastDate: "" };
+          practiceByTopic[topic] = { correct: 0, total: 0, totalMarks: 0, scoredMarks: 0, lastDate: "", subjectId: practiceSubjectMap[q.set_id] ?? null };
         }
         practiceByTopic[topic].total++;
         practiceByTopic[topic].totalMarks += q.marks || 1;
@@ -194,8 +217,12 @@ export const useUnifiedTopicPerformance = (
             .sort()
             .reverse()[0] ?? null;
 
+        // Determine subject from exam or practice data
+        const subjectId = exam?.subjectId ?? practice?.subjectId ?? null;
+
         unified.push({
           topic,
+          subjectId,
           unifiedScore: Math.round(unifiedScore),
           examScore: examScore !== null ? Math.round(examScore) : null,
           practiceScore: practiceScore !== null ? Math.round(practiceScore) : null,
