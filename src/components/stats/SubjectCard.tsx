@@ -235,6 +235,19 @@ export const SubjectCard = ({
             )}
           </div>
 
+          {/* Suggest topics button for specialised/custom subjects with few topics */}
+          {showSuggestButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => setShowTopicSuggestions(true)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Suggest topics for "{subject.subject_name}"
+            </Button>
+          )}
+
           {/* Exam Profiles Section */}
           <div className="border-t border-border/50 pt-3 space-y-2.5">
             <div className="flex items-center justify-between">
