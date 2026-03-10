@@ -16,6 +16,14 @@ interface ExamProfile {
   question_count: number;
   educational_tier: string | null;
   time_limit_minutes: number | null;
+  structure_preset: string | null;
+  mcq_count: number | null;
+  mcq_position: string | null;
+  mark_distribution: Record<number, number> | null;
+  include_extended: boolean | null;
+  extended_marks: number | null;
+  difficulty_progression: string | null;
+  calculator_policy: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,7 +129,17 @@ export const useSubjectProfiles = () => {
     topics: string[],
     questionCount: number,
     educationalTier?: string,
-    timeLimitMinutes?: number | null
+    timeLimitMinutes?: number | null,
+    advanced?: {
+      structurePreset?: string;
+      mcqCount?: number;
+      mcqPosition?: string;
+      markDistribution?: Record<number, number>;
+      includeExtended?: boolean;
+      extendedMarks?: number;
+      difficultyProgression?: string;
+      calculatorPolicy?: string;
+    }
   ) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -137,6 +155,14 @@ export const useSubjectProfiles = () => {
           question_count: questionCount,
           educational_tier: educationalTier || null,
           time_limit_minutes: timeLimitMinutes ?? null,
+          structure_preset: advanced?.structurePreset ?? "custom",
+          mcq_count: advanced?.mcqCount ?? 0,
+          mcq_position: advanced?.mcqPosition ?? "start",
+          mark_distribution: advanced?.markDistribution ?? {},
+          include_extended: advanced?.includeExtended ?? false,
+          extended_marks: advanced?.extendedMarks ?? 0,
+          difficulty_progression: advanced?.difficultyProgression ?? "ascending",
+          calculator_policy: advanced?.calculatorPolicy ?? "allowed",
         } as any)
         .select()
         .single();
@@ -152,7 +178,11 @@ export const useSubjectProfiles = () => {
 
   const updateProfile = async (
     profileId: string,
-    updates: Partial<Pick<ExamProfile, "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes">>
+    updates: Partial<Pick<ExamProfile,
+      "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes" |
+      "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
+      "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy"
+    >>
   ) => {
     try {
       const { data, error } = await supabase
