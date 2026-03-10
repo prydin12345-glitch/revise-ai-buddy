@@ -82,9 +82,9 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
       const tier = initialData?.educational_tier || "";
-      const isKnown = EDUCATIONAL_TIERS.some((t) => t.id === tier);
-      setEducationalTier(isKnown || !tier ? tier : "other");
-      setCustomTier(isKnown || !tier ? "" : tier);
+      const known = isKnownLevel(tier);
+      setEducationalTier(known || !tier ? tier : "other");
+      setCustomTier(known || !tier ? "" : tier);
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
