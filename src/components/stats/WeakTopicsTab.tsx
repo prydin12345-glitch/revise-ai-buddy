@@ -469,7 +469,6 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   <WrongAnswersPanel
                     topic={topic}
                     studentId={userId}
-                    onPractice={() => handlePracticeWeakTopic(topic.topic)}
                   />
                 )}
               </CardContent>
