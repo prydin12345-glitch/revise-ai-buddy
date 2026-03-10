@@ -137,3 +137,34 @@ Never mix conventions from different regions or levels.
 Always match the exact style a student would see in their real ${ctx.level} examination.
 `;
 }
+
+export interface AdvancedProfileSettings {
+  mcq_count?: number | null;
+  mcq_position?: string | null;
+  mark_distribution?: Record<string, number> | null;
+  include_extended?: boolean | null;
+  extended_marks?: number | null;
+  difficulty_progression?: string | null;
+  calculator_policy?: string | null;
+}
+
+export function buildAdvancedStructurePrompt(profile: AdvancedProfileSettings): string {
+  const hasDistribution = profile.mark_distribution && Object.keys(profile.mark_distribution).length > 0;
+  const hasMcq = (profile.mcq_count ?? 0) > 0;
+  const hasExtended = profile.include_extended && (profile.extended_marks ?? 0) > 0;
+
+  if (!hasDistribution && !hasMcq && !hasExtended) return '';
+
+  return `
+EXAM STRUCTURE REQUIREMENTS:
+${hasMcq ? `- MCQ questions: ${profile.mcq_count} (position: ${profile.mcq_position || 'start'})` : '- No MCQ questions required'}
+${hasDistribution ? `- Mark distribution: ${JSON.stringify(profile.mark_distribution)} (e.g. {"2": 3, "4": 2} means 3 questions worth 2 marks and 2 questions worth 4 marks)` : ''}
+${hasExtended ? `- Include extended response: yes (${profile.extended_marks} marks, placed at end)` : ''}
+- Difficulty order: ${profile.difficulty_progression || 'ascending'}
+- Calculator: ${profile.calculator_policy || 'allowed'}
+
+Generate questions that EXACTLY match this distribution.
+Order questions by difficulty as specified.
+${hasMcq ? `MCQ questions must appear ${profile.mcq_position || 'at the start'} in the question list.` : ''}
+`;
+}

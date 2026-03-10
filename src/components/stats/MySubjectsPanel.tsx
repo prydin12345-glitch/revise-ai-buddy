@@ -90,11 +90,22 @@ export const MySubjectsPanel = () => {
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null) => {
+  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null, advanced?: any) => {
     if (editingProfile) {
-      await updateProfile(editingProfile.id, { profile_name: profileName, topics, question_count: questionCount, educational_tier: educationalTier || null, time_limit_minutes: timeLimitMinutes ?? null });
+      await updateProfile(editingProfile.id, {
+        profile_name: profileName, topics, question_count: questionCount,
+        educational_tier: educationalTier || null, time_limit_minutes: timeLimitMinutes ?? null,
+        structure_preset: advanced?.structurePreset ?? "custom",
+        mcq_count: advanced?.mcqCount ?? 0,
+        mcq_position: advanced?.mcqPosition ?? "start",
+        mark_distribution: advanced?.markDistribution ?? {},
+        include_extended: advanced?.includeExtended ?? false,
+        extended_marks: advanced?.extendedMarks ?? 0,
+        difficulty_progression: advanced?.difficultyProgression ?? "ascending",
+        calculator_policy: advanced?.calculatorPolicy ?? "allowed",
+      });
     } else {
-      await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes);
+      await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes, advanced);
     }
   };
 
