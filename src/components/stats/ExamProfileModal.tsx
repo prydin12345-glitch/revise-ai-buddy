@@ -63,6 +63,9 @@ export const ExamProfileModal = ({
   onSave,
   initialData,
 }: ExamProfileModalProps) => {
+  const { preferences } = useUserPreferences();
+  const userRegion = detectRegionKey(preferences?.curriculum_region);
+  const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(15);
