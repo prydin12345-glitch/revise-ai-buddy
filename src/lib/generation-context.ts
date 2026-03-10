@@ -19,7 +19,15 @@ export const buildGenerationContext = (
   educationalTier: string | null | undefined
 ): GenerationContext => {
   const region = (curriculumRegion || "").toLowerCase();
-  const level = (educationalTier || "").toLowerCase();
+  // Map universal level IDs to legacy IDs
+  const universalMap: Record<string, string> = {
+    level1: 'ks3', level2: 'secondary_14_16', level3: 'college_16_18',
+    undergrad: 'university_18plus', postgrad: 'university_18plus', doctoral: 'university_18plus',
+    vocational_entry: 'apprenticeship', vocational_advanced: 'hnc_hnd',
+    professional_cert: 'certification', cpd: 'cpd',
+  };
+  const rawLevel = (educationalTier || "").toLowerCase();
+  const level = universalMap[rawLevel] || rawLevel;
 
   // ── UK ──
   if (region === "gb" || region === "uk" || region.includes("united kingdom")) {
