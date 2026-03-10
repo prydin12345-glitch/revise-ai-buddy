@@ -18,7 +18,15 @@ export function buildGenerationContext(
   educationalTier: string | null | undefined
 ): GenerationContext {
   const region = (curriculumRegion || "").toLowerCase();
-  const level = (educationalTier || "").toLowerCase();
+  // Map universal level IDs to legacy IDs the matcher already understands
+  const universalMap: Record<string, string> = {
+    level1: 'ks3', level2: 'secondary_14_16', level3: 'college_16_18',
+    undergrad: 'university_18plus', postgrad: 'university_18plus', doctoral: 'university_18plus',
+    vocational_entry: 'apprenticeship', vocational_advanced: 'hnc_hnd',
+    professional_cert: 'certification', cpd: 'cpd',
+  };
+  const rawLevel = (educationalTier || "").toLowerCase();
+  const level = universalMap[rawLevel] || rawLevel;
 
   // UK
   if (region === "gb" || region === "uk" || region.includes("united kingdom")) {
@@ -121,6 +129,37 @@ export function buildGenerationContext(
     unitConventions: 'SI units throughout.',
     vocabularyLevel: `Language appropriate for ${educationalTier || 'general'} level.`,
   };
+}
+
+// Map new universal level IDs to the existing context system
+const UNIVERSAL_LEVEL_MAP: Record<string, string> = {
+  level1: 'ks3',
+  level2: 'secondary_14_16',
+  level3: 'college_16_18',
+  undergrad: 'university_18plus',
+  postgrad: 'university_18plus',
+  doctoral: 'university_18plus',
+  vocational_entry: 'apprenticeship',
+  vocational_advanced: 'hnc_hnd',
+  professional_cert: 'certification',
+  cpd: 'cpd',
+};
+
+/**
+ * Pre-process an educational tier value — if it uses a universal level ID,
+ * map it to the legacy ID that buildGenerationContext already handles.
+ */
+export function resolveEducationalTier(tier: string | null | undefined): string {
+  if (!tier) return '';
+  const mapped = UNIVERSAL_LEVEL_MAP[tier.toLowerCase()];
+  return mapped || tier;
+}
+
+/**
+ * Build a combined topic-in-subject context string for AI generation prompts.
+ */
+export function buildTopicContext(subjectName: string, topicName: string): string {
+  return `${topicName} — in the context of: ${subjectName}`;
 }
 
 export function formatGenerationContextPrompt(ctx: GenerationContext): string {

@@ -3,7 +3,7 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2 } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,8 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getTextColor, getBadgeColor } from "@/lib/color-contrast";
 import { ColourSwatchPicker } from "./ColourSwatchPicker";
 import { ColourConflictModal } from "./ColourConflictModal";
-import { getNextAvailableColour } from "@/lib/subject-colours";
+import { SuggestedTopicsModal } from "./SuggestedTopicsModal";
+import { getNextAvailableColour, isSpecialisedSubject } from "@/lib/subject-colours";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string };
@@ -49,12 +51,16 @@ export const SubjectCard = ({
   const subjectProfiles = getProfilesForSubject(subject.subject_name);
   const { getPerformance } = useTopicPerformance(subject.subject_name);
   const { saveOrUpdateSubject, refetch } = useUserSubjects();
+  const { addTopic } = useSubjectProfiles();
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
+  const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
+
+  const showSuggestButton = isSpecialisedSubject(subject.subject_name) && subjectTopics.length < 3;
 
   const usedColours = allSubjects
     .filter(s => s.id !== subject.id)
@@ -229,6 +235,19 @@ export const SubjectCard = ({
             )}
           </div>
 
+          {/* Suggest topics button for specialised/custom subjects with few topics */}
+          {showSuggestButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => setShowTopicSuggestions(true)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Suggest topics for "{subject.subject_name}"
+            </Button>
+          )}
+
           {/* Exam Profiles Section */}
           <div className="border-t border-border/50 pt-3 space-y-2.5">
             <div className="flex items-center justify-between">
@@ -253,14 +272,17 @@ export const SubjectCard = ({
             ) : (
               <div className="space-y-2">
                 {subjectProfiles.map((profile) => {
-                  const tierLabel = profile.educational_tier === "secondary_14_16"
-                    ? "High School"
-                    : profile.educational_tier === "college_16_18"
-                    ? "College"
-                    : profile.educational_tier === "university_18plus"
-                    ? "University"
-                    : profile.educational_tier && profile.educational_tier !== "other"
-                    ? profile.educational_tier
+                  const tier = profile.educational_tier;
+                  const tierLabelMap: Record<string, string> = {
+                    secondary_14_16: "Level 2", college_16_18: "Level 3",
+                    university_18plus: "Undergrad", level1: "Level 1",
+                    level2: "Level 2", level3: "Level 3",
+                    undergrad: "Undergrad", postgrad: "Postgrad", doctoral: "PhD",
+                    vocational_entry: "Vocational", vocational_advanced: "Vocational Adv",
+                    professional_cert: "Prof Cert", cpd: "CPD",
+                  };
+                  const tierLabel = tier && tier !== "other"
+                    ? (tierLabelMap[tier] || tier)
                     : null;
 
                   return (
@@ -328,6 +350,17 @@ export const SubjectCard = ({
         conflictingSubjectName={conflict?.subjectName || ""}
         replacementColour={getNextAvailableColour(allSubjects.map(s => s.subject_color))}
         onConfirm={handleConflictConfirm}
+      />
+
+      <SuggestedTopicsModal
+        open={showTopicSuggestions}
+        onOpenChange={setShowTopicSuggestions}
+        subjectName={subject.subject_name}
+        onAddTopics={async (topics) => {
+          for (const t of topics) {
+            await addTopic(subject.subject_name, t);
+          }
+        }}
       />
     </>
   );

@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Check, Plus, ChevronsUpDown, Clock } from "lucide-react";
 import {
   Command,
@@ -21,21 +20,8 @@ import {
 } from "@/components/ui/popover";
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
-
-const EDUCATIONAL_TIERS = [
-  { id: "ks3", name: "KS3 (Age 11–14)", group: "UK" },
-  { id: "secondary_14_16", name: "GCSE (Age 14–16)", group: "UK" },
-  { id: "college_16_18", name: "A-Level (Age 16–18)", group: "UK" },
-  { id: "university_18plus", name: "University / Degree", group: "UK" },
-  { id: "apprenticeship", name: "Apprenticeship", group: "Professional" },
-  { id: "hnc_hnd", name: "HNC / HND", group: "Professional" },
-  { id: "professional_certification", name: "Professional Certification", group: "Professional" },
-  { id: "cpd", name: "CPD / Continuing Professional Development", group: "Professional" },
-  { id: "ib_diploma", name: "IB Diploma", group: "International" },
-  { id: "ap", name: "AP (Advanced Placement)", group: "International" },
-  { id: "cambridge_igcse", name: "Cambridge IGCSE", group: "International" },
-  { id: "other", name: "Other (specify below)", group: "Other" },
-];
+import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface ExamProfileModalProps {
   open: boolean;
@@ -77,6 +63,9 @@ export const ExamProfileModal = ({
   onSave,
   initialData,
 }: ExamProfileModalProps) => {
+  const { preferences } = useUserPreferences();
+  const userRegion = detectRegionKey(preferences?.curriculum_region);
+  const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(15);
@@ -93,9 +82,9 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setQuestionCount(initialData?.question_count || 15);
       const tier = initialData?.educational_tier || "";
-      const isKnown = EDUCATIONAL_TIERS.some((t) => t.id === tier);
-      setEducationalTier(isKnown || !tier ? tier : "other");
-      setCustomTier(isKnown || !tier ? "" : tier);
+      const known = isKnownLevel(tier);
+      setEducationalTier(known || !tier ? tier : "other");
+      setCustomTier(known || !tier ? "" : tier);
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
@@ -174,40 +163,64 @@ export const ExamProfileModal = ({
             />
           </div>
 
-          {/* Educational Level */}
+          {/* Educational Level — Universal */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Educational Level
             </Label>
-            <Select
-              value={educationalTier}
-              onValueChange={(v) => {
-                setEducationalTier(v);
-                if (v !== "other") setCustomTier("");
-              }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Select level (optional)..." />
-              </SelectTrigger>
-              <SelectContent>
-                {["UK", "Professional", "International", "Other"].map((group) => {
-                  const items = EDUCATIONAL_TIERS.filter((t) => t.group === group);
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={group}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1">
-                        {group}
-                      </p>
-                      {items.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id}>
-                          {tier.name}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+            <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-10 text-sm font-normal"
+                >
+                  <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
+                    {educationalTier
+                      ? (educationalTier === "other"
+                          ? "Other — specify below"
+                          : ALL_LEVELS.find(l => l.id === educationalTier)?.label || educationalTier)
+                      : "Select level (optional)..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
+                {EDUCATIONAL_LEVELS.map((group) => (
+                  <div key={group.group}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
+                      {group.group}
+                    </p>
+                    {group.levels.map((level) => {
+                      const alias = userRegion ? level.aliases[userRegion] : null;
+                      return (
+                        <button
+                          key={level.id}
+                          type="button"
+                          onClick={() => {
+                            setEducationalTier(level.id);
+                            if (level.id !== "other") setCustomTier("");
+                            setLevelPopoverOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                            educationalTier === level.id
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "hover:bg-muted text-foreground"
+                          }`}
+                        >
+                          <div className="text-[13px]">{level.label}</div>
+                          {alias && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {userRegion}: {alias}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </PopoverContent>
+            </Popover>
             {educationalTier === "other" && (
               <div className="mt-2 space-y-1">
                 <Input
