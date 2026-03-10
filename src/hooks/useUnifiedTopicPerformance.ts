@@ -217,8 +217,12 @@ export const useUnifiedTopicPerformance = (
             .sort()
             .reverse()[0] ?? null;
 
+        // Determine subject from exam or practice data
+        const subjectId = exam?.subjectId ?? practice?.subjectId ?? null;
+
         unified.push({
           topic,
+          subjectId,
           unifiedScore: Math.round(unifiedScore),
           examScore: examScore !== null ? Math.round(examScore) : null,
           practiceScore: practiceScore !== null ? Math.round(practiceScore) : null,
