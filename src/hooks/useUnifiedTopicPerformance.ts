@@ -6,6 +6,7 @@ export type UnifiedMastery = "strong" | "developing" | "weak" | "untested";
 
 export interface UnifiedTopicScore {
   topic: string;
+  subjectId: string | null;
   unifiedScore: number;
   examScore: number | null;
   practiceScore: number | null;
