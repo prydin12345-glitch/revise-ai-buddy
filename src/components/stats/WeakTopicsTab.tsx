@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, BookOpen, FileText, Zap, CheckCircle2, ChevronDown, ChevronUp, X, Crosshair } from "lucide-react";
+import { AlertCircle, BookOpen, FileText, Zap, CheckCircle2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { UnifiedTopicScore, UnifiedMastery } from "@/hooks/useUnifiedTopicPerformance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseTopicTags } from "@/lib/normalise-topic";
 import { cn } from "@/lib/utils";
+import { MathRenderer } from "@/components/MathRenderer";
 
 interface WeakTopicsTabProps {
   topics: UnifiedTopicScore[];
