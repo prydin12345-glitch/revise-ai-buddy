@@ -51,12 +51,16 @@ export const SubjectCard = ({
   const subjectProfiles = getProfilesForSubject(subject.subject_name);
   const { getPerformance } = useTopicPerformance(subject.subject_name);
   const { saveOrUpdateSubject, refetch } = useUserSubjects();
+  const { addTopic } = useSubjectProfiles();
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
+  const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
+
+  const showSuggestButton = isSpecialisedSubject(subject.subject_name) && subjectTopics.length < 3;
 
   const usedColours = allSubjects
     .filter(s => s.id !== subject.id)
