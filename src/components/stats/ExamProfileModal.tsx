@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Check, Plus, ChevronsUpDown, Clock } from "lucide-react";
 import {
   Command,
@@ -21,21 +20,8 @@ import {
 } from "@/components/ui/popover";
 import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
-
-const EDUCATIONAL_TIERS = [
-  { id: "ks3", name: "KS3 (Age 11–14)", group: "UK" },
-  { id: "secondary_14_16", name: "GCSE (Age 14–16)", group: "UK" },
-  { id: "college_16_18", name: "A-Level (Age 16–18)", group: "UK" },
-  { id: "university_18plus", name: "University / Degree", group: "UK" },
-  { id: "apprenticeship", name: "Apprenticeship", group: "Professional" },
-  { id: "hnc_hnd", name: "HNC / HND", group: "Professional" },
-  { id: "professional_certification", name: "Professional Certification", group: "Professional" },
-  { id: "cpd", name: "CPD / Continuing Professional Development", group: "Professional" },
-  { id: "ib_diploma", name: "IB Diploma", group: "International" },
-  { id: "ap", name: "AP (Advanced Placement)", group: "International" },
-  { id: "cambridge_igcse", name: "Cambridge IGCSE", group: "International" },
-  { id: "other", name: "Other (specify below)", group: "Other" },
-];
+import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface ExamProfileModalProps {
   open: boolean;
