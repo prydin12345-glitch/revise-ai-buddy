@@ -257,8 +257,15 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  const handlePracticeWeakTopic = (topicName: string) => {
-    navigate(`/create-practice-questions?subtopic=${encodeURIComponent(topicName)}&source=weak_topics`);
+  const handlePracticeWeakTopic = (topic: UnifiedTopicScore) => {
+    const params = new URLSearchParams({
+      subtopic: topic.topic,
+      source: 'weak_topics',
+    });
+    if (topic.subjectId) {
+      params.set('subject', topic.subjectId);
+    }
+    navigate(`/create-practice-questions?${params.toString()}`);
   };
 
   if (loading) {
