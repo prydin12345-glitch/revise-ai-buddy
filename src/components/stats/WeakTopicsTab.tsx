@@ -55,6 +55,30 @@ const MASTERY_CONFIG = {
 /*  Wrong Answers Panel                                                */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+const formatCorrectAnswer = (raw: string): string => {
+  return raw
+    .replace(/\b[BMAC]\d+\s*(for\s*)?/gi, '') // remove M1, B1, A1, C1
+    .replace(/\(\d+\s*marks?\)/gi, '')         // remove (3 marks)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+const splitAnswerSteps = (answer: string): string[] => {
+  const cleaned = formatCorrectAnswer(answer);
+  return cleaned
+    .split(/\.\s+(?=[A-Z$])/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+};
+
+/* ------------------------------------------------------------------ */
+/*  Wrong Answers Panel                                                */
+/* ------------------------------------------------------------------ */
+
 interface WrongAnswer {
   score: number | null;
   submitted_at: string;
@@ -68,11 +92,9 @@ interface WrongAnswer {
 const WrongAnswersPanel = ({
   topic,
   studentId,
-  onPractice,
 }: {
   topic: UnifiedTopicScore;
   studentId: string;
-  onPractice: () => void;
 }) => {
   const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +104,6 @@ const WrongAnswersPanel = ({
     const fetchWrong = async () => {
       setLoading(true);
 
-      // We need to find exam_questions with this topic_tag (could be an alias)
-      // First get all student answers
       const { data: answers } = await supabase
         .from("student_answers")
         .select("score, submitted_at, question_id")
@@ -108,7 +128,6 @@ const WrongAnswersPanel = ({
         return;
       }
 
-      // Normalise topic tags
       const rawTags = [...new Set(questions.map((q) => q.topic_tag).filter(Boolean) as string[])];
       const normMap = await normaliseTopicTags(rawTags);
 
@@ -121,7 +140,7 @@ const WrongAnswersPanel = ({
         const canonical = normMap[q.topic_tag] ?? q.topic_tag;
         if (canonical !== topic.topic) continue;
         const score = Number(ans.score) || 0;
-        if (score >= q.marks) continue; // not wrong
+        if (score >= q.marks) continue;
         wrong.push({
           score,
           submitted_at: ans.submitted_at,
@@ -165,23 +184,52 @@ const WrongAnswersPanel = ({
           key={i}
           className="rounded-md border border-border/30 bg-background/50 p-3"
         >
-          <p className="text-[13px] leading-relaxed text-foreground/80 mb-2 line-clamp-3">
-            Q{answer.questionNumber}: {answer.questionText}
-          </p>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-[11px] text-muted-foreground">
-              Scored:{" "}
-              <strong className="text-destructive">
-                {answer.score}/{answer.marks}
-              </strong>
-            </span>
-            {answer.correctAnswer && (
-              <span className="text-[11px] text-muted-foreground text-right max-w-[60%]">
-                Correct:{" "}
-                <strong className="text-emerald-400">{answer.correctAnswer}</strong>
-              </span>
-            )}
+          {/* Question text */}
+          <div className="text-[13px] leading-relaxed text-foreground/80 mb-2 line-clamp-3">
+            <span className="text-muted-foreground mr-1">Q{answer.questionNumber}:</span>
+            <MathRenderer
+              content={answer.questionText}
+              hasMath={/\$[^$]+\$/.test(answer.questionText)}
+              inline
+            />
           </div>
+
+          {/* Score row */}
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-xs text-muted-foreground">Score:</span>
+            <span className={cn(
+              "text-[13px] font-bold",
+              (answer.score ?? 0) >= answer.marks ? "text-emerald-400" : "text-destructive"
+            )}>
+              {answer.score}/{answer.marks}
+            </span>
+          </div>
+
+          {/* Correct answer — full width, stacked */}
+          {answer.correctAnswer && (
+            <div className="rounded-md border border-emerald-900/40 bg-emerald-950/30 p-2.5">
+              <div className="text-[11px] text-emerald-400 tracking-widest uppercase mb-1.5">
+                Model Answer
+              </div>
+              <div className="text-[13px] text-emerald-300 leading-relaxed space-y-1">
+                {splitAnswerSteps(answer.correctAnswer).map((step, si, arr) => (
+                  <div key={si} className="flex gap-2">
+                    {arr.length > 1 && (
+                      <span className="text-emerald-500 flex-shrink-0 mt-0.5">›</span>
+                    )}
+                    <MathRenderer
+                      content={step}
+                      hasMath={/\$[^$]+\$/.test(step)}
+                      inline
+                      className="text-emerald-300"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Date */}
           <p className="text-[10px] text-muted-foreground/50 mt-1.5">
             {new Date(answer.submitted_at).toLocaleDateString("en-GB", {
               day: "numeric",
@@ -191,16 +239,6 @@ const WrongAnswersPanel = ({
           </p>
         </div>
       ))}
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full h-8 text-xs border-primary/40 text-primary hover:bg-primary/10"
-        onClick={onPractice}
-      >
-        <Crosshair className="h-3 w-3 mr-1.5" />
-        Practice {topic.topic} now to improve
-      </Button>
     </div>
   );
 };
