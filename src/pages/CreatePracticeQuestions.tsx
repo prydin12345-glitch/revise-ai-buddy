@@ -479,16 +479,24 @@ const CreatePracticeQuestions = () => {
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
         {/* Weak topics prefill banner */}
         {prefillSource === "weak_topics" && prefillSubtopic && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              <Crosshair className="inline h-4 w-4 mr-1.5 text-primary" />
-              Creating targeted practice for weak topic:{" "}
+          <div className="rounded-lg border border-primary/30 border-l-4 border-l-primary bg-primary/5 p-3 flex items-center justify-between text-sm">
+            <div className="text-muted-foreground">
+              🎯{" "}
+              <span className="text-muted-foreground">Targeted practice: </span>
+              {prefillSubject && (
+                <>
+                  <strong className="text-foreground">{prefillSubject}</strong>
+                  <span className="text-muted-foreground mx-1.5">›</span>
+                </>
+              )}
               <strong className="text-foreground">{prefillSubtopic}</strong>
-            </span>
+            </div>
             <button
               onClick={() => {
                 setSearchParams({});
                 setSelectedSubtopics((prev) => prev.filter((s) => s !== prefillSubtopic));
+                setSetName("");
+                if (prefillSubject) setSubjectId("");
               }}
               className="text-muted-foreground hover:text-foreground text-xs"
             >
