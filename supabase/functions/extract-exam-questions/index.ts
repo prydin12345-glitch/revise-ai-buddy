@@ -832,6 +832,40 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
     };
   }
 
+  // ── Custom/Professional/Niche Subject Archetype ──
+  // Fires BEFORE generic fallback for subjects that don't match any standard academic subject
+  const isCustomProfessionalSubject = !isMath && !isPhysics && !isChemistry && !isBiology &&
+    !isEnglish && !isHistory && !isGeography && !isEcon;
+
+  if (isCustomProfessionalSubject) {
+    return {
+      name: 'CUSTOM_PROFESSIONAL',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Specialist / Professional / Vocational Subject
+You are generating assessment questions for a specialist professional
+or vocational subject: "${subjectId}".
+The domain is ENTIRELY defined by the subject name and topics provided.
+There is NO standard academic template — do not borrow from other subjects.
+
+MANDATORY GENERATION RULES FOR THIS ARCHETYPE:
+1. Questions must assess knowledge specific to "${subjectId}" ONLY
+2. Use terminology, standards, regulations, and procedures from this domain
+3. Question styles: scenario-based, procedural knowledge,
+   regulatory/compliance understanding, practical application
+4. Do NOT use probability, statistics, algebra, calculus, or any
+   pure mathematics unless the subject explicitly requires it
+5. Do NOT generate graphs, coordinate geometry, or formula-based questions
+6. Mark scheme should use descriptive marking points (B1 for knowledge),
+   NOT M1/A1 codes (those are for maths)
+7. For professional/vocational subjects, questions should reflect
+   real workplace assessment style
+8. Every question must be answerable ONLY by someone trained in "${subjectId}"
+`
+    };
+  }
+
   // Generic fallback for any Level 2 subject
   if (effectiveLevel2 || isLevel2) {
     return {
