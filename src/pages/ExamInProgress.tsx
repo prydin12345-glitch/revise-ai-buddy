@@ -1490,8 +1490,9 @@ const ExamInProgress = () => {
                         </div>
                       </div>
 
+                  <QuizQuestionErrorBoundary questionId={question.id}>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
-                  {isTickXTable(question.question_text) ? (
+                  {isTickXTable(ensureString(question.question_text)) ? (
                     <>
                       <MathRenderer 
                         content={extractTextBeforeTable(question.question_text)}
