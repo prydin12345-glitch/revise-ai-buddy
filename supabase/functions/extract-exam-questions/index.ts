@@ -1083,6 +1083,45 @@ If you cannot generate enough high-quality questions about "${exam.subject_id}"
 without drifting into other subjects, generate FEWER questions of higher quality.
 `;
 
+  // Subject lock repeat — placed AFTER archetype to reassert dominance
+  const subjectLockRepeat = `
+===== SUBJECT DOMAIN REMINDER (MANDATORY) =====
+You are STILL generating questions about: "${exam.subject_id}"
+Every question must be about this subject and NOTHING else.
+If any instruction above conflicts with this subject domain,
+IGNORE that instruction and stay within "${exam.subject_id}".
+================================================
+`;
+
+  // Explicit prohibitions for custom/niche subjects
+  const customSubjectProhibitions = isCustomNicheSubject ? `
+EXPLICITLY PROHIBITED for subject "${exam.subject_id}":
+- Do NOT generate: probability questions (P(X=...), binomial, Poisson, normal distribution)
+- Do NOT generate: algebra or equation solving (find x, solve for y)
+- Do NOT generate: graph plotting or coordinate geometry
+- Do NOT generate: calculus, differentiation, integration
+- Do NOT generate: statistics, data analysis with mathematical formulas
+- Do NOT generate: ANY question that could appear in a Mathematics exam
+- Do NOT use M1/A1 mark scheme codes — use B1 (knowledge point) marks instead
+
+If you are about to generate a question involving X as a variable
+in an equation, STOP and generate a subject-specific question instead.
+` : '';
+
+  // For custom subjects, skip chart data schemas and LaTeX-heavy instructions
+  const chartSchemas = isCustomNicheSubject ? '' : `
+CHART DATA SCHEMAS:
+When a question includes tabular or visual data, populate the "chart_data" field:
+- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
+- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
+- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
+`;
+
+  const latexInstruction = isCustomNicheSubject
+    ? 'Use LaTeX only if the subject requires mathematical or scientific notation.'
+    : `Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
+Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}`;
+
   return `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
@@ -1092,20 +1131,16 @@ ${resourceCtx}
 Generate NEW questions for ${level} ${exam.subject_id}.
 ${specList}${mode}
 ${archetypeBlock}
+${subjectLockRepeat}
+${customSubjectProhibitions}
 ${scenarioRequirement}
-Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
-Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}
+${latexInstruction}
 
 ${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
-
-CHART DATA SCHEMAS:
-When a question includes tabular or visual data, populate the "chart_data" field:
-- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
-- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
-- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
+${chartSchemas}
 
 ${canonicalTopicList && canonicalTopicList.length > 0 ? `
 TOPIC TAG CONTROLLED VOCABULARY (CRITICAL):
