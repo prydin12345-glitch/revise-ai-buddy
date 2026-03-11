@@ -4,12 +4,26 @@ import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 interface MathRendererProps {
-  content: string;
+  content: string | any;
   latex?: string | null;
   hasMath?: boolean;
   className?: string;
   inline?: boolean; // For rendering inside labels/spans without block wrappers
 }
+
+// Robust string coercion for any database content value
+export const ensureString = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    // Handle cases where content is stored as {text: "..."} or similar
+    if (value.text) return String(value.text);
+    if (value.content) return String(value.content);
+    if (value.question_text) return String(value.question_text);
+    return JSON.stringify(value); // last resort
+  }
+  return String(value);
+};
 
 // Convert markdown table lines to HTML table
 const convertTableLinesToHtml = (lines: string[]): string => {
