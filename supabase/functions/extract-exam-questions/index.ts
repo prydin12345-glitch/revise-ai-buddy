@@ -1100,16 +1100,14 @@ SUB-PART FORMATTING RULES:
 QUESTION TEXT QUALITY RULES (CRITICAL):
 - Every sub-part question_text MUST contain an explicit, answerable instruction or question.
 - NEVER write a question_text that only describes a scenario without asking the student to DO something.
-- BAD EXAMPLE: "A quality control engineer needs to determine the likelihood that a battery has a lifespan ranging from 450 to 550 hours."
-- GOOD EXAMPLE: "Find the probability that a randomly selected battery has a lifespan between 450 and 550 hours."
-- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, etc.
+- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, Describe, Identify, Outline, etc.
 - The scenario/context goes in the FIRST sub-part's question_text. Subsequent sub-parts can reference "Using your answer to part (a)..." etc.
 
-EXAMPLE OUTPUT for a question with 3 parts:
+EXAMPLE OUTPUT for a question with 3 parts (adapt the style to match YOUR subject "${exam.subject_id}"):
 [
-  {"question_number": "1a", "question_text": "Sarah records the heights, in cm, of 30 plants. The mean height is 45 cm and the standard deviation is 8.2 cm.\\n\\nState the null and alternative hypotheses to test whether the mean height has increased.", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1b", "question_text": "Using a 5% significance level, find the critical value for this test.", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1c", "question_text": "State your conclusion in context, giving a reason for your answer.", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
+  {"question_number": "1a", "question_text": "[Scenario relevant to ${exam.subject_id}]\\n\\n[Command verb question about ${exam.subject_id}]", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1b", "question_text": "[Follow-up question building on part (a)]", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1c", "question_text": "[Higher-order evaluation or justification question]", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
 ]
 `;
 
