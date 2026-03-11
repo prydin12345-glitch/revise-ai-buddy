@@ -169,9 +169,25 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
   const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList);
-  const systemPrompt = hasResourcePack
+
+  // Detect custom niche subject for system prompt and post-validation
+  const subjectLower = (exam.subject_id || '').toLowerCase();
+  const isCustomNicheForValidation = !(
+    subjectLower.includes('math') || subjectLower.includes('physics') ||
+    subjectLower.includes('chemistry') || subjectLower.includes('biology') ||
+    subjectLower.includes('english') || subjectLower.includes('history') ||
+    subjectLower.includes('geography') || subjectLower.includes('econ') ||
+    subjectLower.includes('computer') || subjectLower.includes('psychology') ||
+    subjectLower.includes('business') || subjectLower.includes('law') ||
+    subjectLower.includes('politics') || subjectLower.includes('statistic')
+  );
+
+  // System prompt — subject name FIRST for custom subjects
+  const systemPromptOpening = `YOUR SUBJECT THIS SESSION: "${exam.subject_id}"\nALL questions must be about "${exam.subject_id}" ONLY.\n\n`;
+  const baseSystemPrompt = hasResourcePack
     ? 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
     : 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
+  const systemPrompt = systemPromptOpening + baseSystemPrompt;
 
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
@@ -184,6 +200,40 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  // ── POST-GENERATION VALIDATION: Reject maths-contaminated questions for custom subjects ──
+  if (isCustomNicheForValidation) {
+    const mathsPatterns = [
+      /\bP\(X\s*[=<>≤≥]/,           // P(X = ...) probability notation
+      /binomial|poisson|normal distribution/i,
+      /\blet\s+X\b/i,               // "Let X be..."
+      /probability.*defective/i,
+      /random sample of \d+/i,
+      /calculate.*P\(/i,
+      /state the distribution/i,
+      /\bE\(X\)|Var\(X\)/,          // expected value / variance
+      /\bsolve.*equation/i,
+      /\bfind.*value.*of.*x\b/i,
+      /\bintegrat(e|ion)\b/i,
+      /\bdifferentiat(e|ion)\b/i,
+      /\bquadratic\b/i,
+      /\bsimultaneous\b/i,
+    ];
+
+    const beforeCount = questions.length;
+    questions = questions.filter((q: any) => {
+      const text = String(q.question_text || '');
+      const hasMaths = mathsPatterns.some(p => p.test(text));
+      if (hasMaths) {
+        console.error(`SUBJECT CONTAMINATION REJECTED: "${text.slice(0, 100)}..." is maths, not "${exam.subject_id}"`);
+      }
+      return !hasMaths;
+    });
+    const rejected = beforeCount - questions.length;
+    if (rejected > 0) {
+      console.warn(`Subject validation: rejected ${rejected} off-topic maths questions for "${exam.subject_id}"`);
+    }
+  }
 
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
   if (desiredQuestionCount && desiredQuestionCount > 0) {
