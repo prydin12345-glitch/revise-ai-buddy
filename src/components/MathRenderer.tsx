@@ -139,8 +139,9 @@ const cleanOptionText = (text: string): string => {
 };
 
 // Remove standalone "Marks: n" lines since marks are shown in the badge
-const removeMarksLine = (content: string): string => {
+const removeMarksLine = (content: string | any): string => {
   if (!content) return '';
+  if (typeof content !== 'string') content = String(content);
   // Remove lines that are just "Marks: n" or similar patterns
   return content
     .split('\n')
@@ -185,8 +186,10 @@ const styleBlankPlaceholders = (content: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
+  // Ensure content is always a string
+  const safeContent = typeof content === 'string' ? content : (content ? String(content) : '');
   // First remove any standalone "Marks: n" lines
-  const contentWithoutMarks = removeMarksLine(content);
+  const contentWithoutMarks = removeMarksLine(safeContent);
   
   // Strip mark scheme annotations [M1, A1, B1] from student-facing display
   const contentWithoutMarkScheme = stripMarkSchemeAnnotations(contentWithoutMarks);
