@@ -24,6 +24,10 @@ interface ExamProfile {
   extended_marks: number | null;
   difficulty_progression: string | null;
   calculator_policy: string | null;
+  written_question_count: number | null;
+  question_structure: string | null;
+  parent_question_count: number | null;
+  max_parts_per_question: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -139,6 +143,12 @@ export const useSubjectProfiles = () => {
       extendedMarks?: number;
       difficultyProgression?: string;
       calculatorPolicy?: string;
+    },
+    writtenQuestionCount?: number,
+    structureSettings?: {
+      questionStructure?: string;
+      parentQuestionCount?: number;
+      maxPartsPerQuestion?: number;
     }
   ) => {
     try {
@@ -163,6 +173,10 @@ export const useSubjectProfiles = () => {
           extended_marks: advanced?.extendedMarks ?? 0,
           difficulty_progression: advanced?.difficultyProgression ?? "ascending",
           calculator_policy: advanced?.calculatorPolicy ?? "allowed",
+          written_question_count: writtenQuestionCount ?? (questionCount - (advanced?.mcqCount ?? 0)),
+          question_structure: structureSettings?.questionStructure ?? "standalone",
+          parent_question_count: structureSettings?.parentQuestionCount ?? 4,
+          max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
         } as any)
         .select()
         .single();
@@ -181,7 +195,8 @@ export const useSubjectProfiles = () => {
     updates: Partial<Pick<ExamProfile,
       "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes" |
       "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
-      "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy"
+      "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy" |
+      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question"
     >>
   ) => {
     try {
