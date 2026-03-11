@@ -25,14 +25,7 @@ export const MySubjectsPanel = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [addSubjectModalOpen, setAddSubjectModalOpen] = useState(false);
   const [activeSubject, setActiveSubject] = useState("");
-  const [editingProfile, setEditingProfile] = useState<{
-    id: string;
-    profile_name: string;
-    topics: string[];
-    question_count: number;
-    educational_tier?: string | null;
-    time_limit_minutes?: number | null;
-  } | null>(null);
+  const [editingProfile, setEditingProfile] = useState<any | null>(null);
 
   if (subjectsLoading || profilesLoading) {
     return (
