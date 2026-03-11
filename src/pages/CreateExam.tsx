@@ -241,9 +241,10 @@ export default function CreateExam() {
     if (profile) {
       setSelectedProfile(profileId);
       setProfileMaxQuestions(profile.question_count);
-      setTotalQuestions(Math.min(totalQuestions, profile.question_count));
+      setTotalQuestions(profile.question_count);
       setProfileTopics(profile.topics);
       setActiveProfileTopics(profile.topics);
+      
       // Apply profile's educational tier and time limit
       if (profile.educational_tier) {
         setEducationalTier(profile.educational_tier);
@@ -253,6 +254,26 @@ export default function CreateExam() {
         setTimerEnabled(true);
         setDuration(profile.time_limit_minutes);
         setProfileTimeLimit(profile.time_limit_minutes);
+      }
+      
+      // Apply ALL advanced structure settings from profile
+      setProfileMcqCount(profile.mcq_count ?? null);
+      setProfileWrittenCount(profile.written_question_count ?? null);
+      setProfileQuestionStructure(profile.question_structure ?? null);
+      setProfileParentQuestionCount(profile.parent_question_count ?? null);
+      setProfileMaxPartsPerQuestion(profile.max_parts_per_question ?? null);
+      setProfileDifficultyProgression(profile.difficulty_progression ?? null);
+      setProfileCalculatorPolicy(profile.calculator_policy ?? null);
+      setProfileMarkDistribution(profile.mark_distribution ?? null);
+      setProfileIncludeExtended(profile.include_extended ?? null);
+      setProfileExtendedMarks(profile.extended_marks ?? null);
+      setProfileStructurePreset(profile.structure_preset ?? null);
+      setProfileMcqPosition(profile.mcq_position ?? null);
+      
+      // Profile overrides format structure — disable "use original"
+      if ((profile.mcq_count ?? 0) > 0 || (profile.written_question_count ?? 0) > 0) {
+        setUseOriginal(false);
+        setIncludeMCQ((profile.mcq_count ?? 0) > 0);
       }
     }
     setShowProfilePrompt(false);
