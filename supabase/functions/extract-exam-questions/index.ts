@@ -920,24 +920,40 @@ The uploaded PDF is for INSPIRATION ONLY - your questions must be unique.`;
   const topicNames = specs.map((s: any) => (s.topic_name || '').toLowerCase()).join(' ');
   const pdfLower = pdfText.substring(0, 5000).toLowerCase();
   const combinedText = `${subjectId} ${topicNames} ${pdfLower}`;
-  
-  const graphPriorityKeywords = [
+
+  // Subject classification for graph/maths gating
+  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths') ||
+    subjectId.includes('statistic') || subjectId.includes('calculus') || subjectId.includes('algebra');
+  const isPhysicsSubject = subjectId.includes('physics') || subjectId.includes('mechanics') || subjectId.includes('electronic');
+  const isChemSubject = subjectId.includes('chemistry') || subjectId.includes('chemical');
+  const isBioSubject = subjectId.includes('biology') || subjectId.includes('biolog');
+  const isEconSubject = subjectId.includes('econ');
+  const isGeogSubject = subjectId.includes('geography') || subjectId.includes('geog');
+  const isRecognisedSTEM = isMathSubject || isPhysicsSubject || isChemSubject || isBioSubject;
+  const isRecognisedGraphSubject = isRecognisedSTEM || isEconSubject || isGeogSubject;
+
+  // Only graph-specific keywords (not domain-ambiguous ones like "temperature", "pressure")
+  const graphSpecificKeywords = [
     'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function',
     'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
     'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
     'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine',
-    'velocity', 'acceleration', 'force', 'displacement', 'momentum', 'energy',
-    'supply', 'demand', 'cost', 'revenue', 'profit', 'equilibrium',
-    'concentration', 'rate', 'temperature', 'pressure', 'volume',
     'distance-time', 'velocity-time', 'force-extension', 'current-voltage',
-    'ph curve', 'market equilibrium', 'projectile motion', 'kinetic energy'
+    'supply', 'demand', 'market equilibrium', 'projectile motion',
   ];
-  
-  const needsGraphs = graphPriorityKeywords.some(kw => combinedText.includes(kw));
-  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths');
+
+  // Require BOTH a recognised STEM/graph subject AND graph keywords
+  const needsGraphs = isRecognisedGraphSubject && graphSpecificKeywords.some(kw => combinedText.includes(kw));
+
+  // Detect custom/niche professional subjects
+  const isCustomNicheSubject = !isRecognisedSTEM &&
+    !subjectId.includes('english') && !subjectId.includes('history') &&
+    !isGeogSubject && !subjectId.includes('business') && !isEconSubject &&
+    !subjectId.includes('psychology') && !subjectId.includes('computer') &&
+    !subjectId.includes('law') && !subjectId.includes('politics');
 
   let graphInstructions = '';
-  if (needsGraphs) {
+  if (needsGraphs && !isCustomNicheSubject) {
     graphInstructions = `
 
 AUTOMATIC GRAPH GENERATION (VISUAL-HEAVY TOPICS DETECTED):
