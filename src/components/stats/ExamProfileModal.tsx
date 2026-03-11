@@ -370,8 +370,8 @@ export const ExamProfileModal = ({
           <Button
             onClick={handleSave}
             disabled={!profileName.trim() || selectedTopics.length === 0}
-            style={{ backgroundColor: subjectColor }}
-            className="text-white hover:opacity-90"
+            style={{ backgroundColor: subjectColor, opacity: 1 }}
+            className="text-white hover:opacity-90 disabled:cursor-not-allowed disabled:saturate-50"
           >
             {initialData ? "Update" : "Create"} Profile
           </Button>
