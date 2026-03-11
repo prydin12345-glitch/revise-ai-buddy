@@ -126,20 +126,26 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
-  // Determine desired PARENT question count
+  // Determine desired PARENT question count and MCQ/written split
   const formatData = exam.exam_format?.[0];
   let desiredQuestionCount: number | null = null;
+  let desiredMcqCount: number | null = null;
+  let desiredWrittenCount: number | null = null;
   
   if (formatData) {
     if (formatData.use_original_structure === false) {
-      // Custom format or profile-locked: check breakdown first
       const mcq = formatData.mcq_count || 0;
       const sa = formatData.short_answer_count || 0;
       const lf = formatData.long_form_count || 0;
       const breakdownSum = mcq + sa + lf;
       
-      if (breakdownSum > 0) {
-        // If only short_answer_count is set (profile total stored here), treat as total
+      if (mcq > 0 && sa > 0) {
+        // Profile with explicit MCQ + written split
+        desiredMcqCount = mcq;
+        desiredWrittenCount = sa + lf;
+        desiredQuestionCount = mcq + sa + lf;
+        console.log(`Profile split: ${mcq} MCQ + ${sa} written + ${lf} long = ${desiredQuestionCount} total`);
+      } else if (breakdownSum > 0) {
         if (mcq === 0 && lf === 0 && sa > 0) {
           desiredQuestionCount = sa;
           console.log('Profile question count from exam_format:', desiredQuestionCount);
@@ -161,7 +167,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     desiredQuestionCount = Math.max(specTopics.length, 8);
   }
 
-  console.log('Desired parent question count:', desiredQuestionCount);
+  console.log('Desired parent question count:', desiredQuestionCount, 'MCQ:', desiredMcqCount, 'Written:', desiredWrittenCount);
 
   // Resolve stealth archetype for difficulty calibration
   const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
