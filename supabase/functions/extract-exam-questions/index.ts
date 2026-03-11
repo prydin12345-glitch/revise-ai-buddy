@@ -126,20 +126,26 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   const useFallbackMode = pdfText.length < 100;
 
-  // Determine desired PARENT question count
+  // Determine desired PARENT question count and MCQ/written split
   const formatData = exam.exam_format?.[0];
   let desiredQuestionCount: number | null = null;
+  let desiredMcqCount: number | null = null;
+  let desiredWrittenCount: number | null = null;
   
   if (formatData) {
     if (formatData.use_original_structure === false) {
-      // Custom format or profile-locked: check breakdown first
       const mcq = formatData.mcq_count || 0;
       const sa = formatData.short_answer_count || 0;
       const lf = formatData.long_form_count || 0;
       const breakdownSum = mcq + sa + lf;
       
-      if (breakdownSum > 0) {
-        // If only short_answer_count is set (profile total stored here), treat as total
+      if (mcq > 0 && sa > 0) {
+        // Profile with explicit MCQ + written split
+        desiredMcqCount = mcq;
+        desiredWrittenCount = sa + lf;
+        desiredQuestionCount = mcq + sa + lf;
+        console.log(`Profile split: ${mcq} MCQ + ${sa} written + ${lf} long = ${desiredQuestionCount} total`);
+      } else if (breakdownSum > 0) {
         if (mcq === 0 && lf === 0 && sa > 0) {
           desiredQuestionCount = sa;
           console.log('Profile question count from exam_format:', desiredQuestionCount);
@@ -161,14 +167,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     desiredQuestionCount = Math.max(specTopics.length, 8);
   }
 
-  console.log('Desired parent question count:', desiredQuestionCount);
+  console.log('Desired parent question count:', desiredQuestionCount, 'MCQ:', desiredMcqCount, 'Written:', desiredWrittenCount);
 
   // Resolve stealth archetype for difficulty calibration
   const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
   console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList);
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount);
 
   // Detect custom niche subject for system prompt and post-validation
   const subjectLower = (exam.subject_id || '').toLowerCase();
@@ -966,7 +972,7 @@ DIFFICULTY ARCHETYPE: General Academic Standard
 }
 
 // ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[]): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[], desiredMcqCount?: number | null, desiredWrittenCount?: number | null): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
 
   // Inject regional persona and region-aware subject instructions
@@ -1078,6 +1084,30 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
 - If the limit is ${desiredQuestionCount}, you produce exactly ${desiredQuestionCount} distinct root_question_number values.
 - VIOLATION: Producing fewer or more than ${desiredQuestionCount} parent questions is WRONG.
 - COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
+    : '';
+
+  // MCQ/Written split instruction — when profile specifies exact breakdown
+  const mcqWrittenSplitInstruction = (desiredMcqCount && desiredMcqCount > 0 && desiredWrittenCount && desiredWrittenCount > 0)
+    ? `
+QUESTION TYPE SPLIT (MANDATORY — FROM EXAM PROFILE):
+You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenCount} written questions.
+
+MCQ QUESTIONS (${desiredMcqCount} total):
+- question_type MUST be "mcq"
+- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ is worth 1 mark
+- MCQ questions should come FIRST (Q1 through Q${desiredMcqCount})
+- MCQ questions are standalone — no sub-parts needed
+
+WRITTEN QUESTIONS (${desiredWrittenCount} total):
+- question_type should be "short_answer" or "extended" depending on marks
+- Written questions come AFTER MCQs (Q${desiredMcqCount + 1} through Q${desiredQuestionCount})
+- Written questions CAN have sub-parts (a, b, c) if appropriate
+- Mark allocation should vary: mix of 2-mark, 4-mark, and 6+ mark questions
+
+TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
+DO NOT deviate from this split. DO NOT make all questions the same type.
+`
     : '';
 
   const minParts = archetype?.minSubParts || 2;
@@ -1212,6 +1242,7 @@ ${scenarioRequirement}
 ${latexInstruction}
 
 ${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
+${mcqWrittenSplitInstruction}
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}

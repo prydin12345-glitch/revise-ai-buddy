@@ -108,6 +108,20 @@ export default function CreateExam() {
   const [profileTimeLimit, setProfileTimeLimit] = useState<number | null>(null);
   const [sessionTimeLimitOverride, setSessionTimeLimitOverride] = useState<number | null>(null);
   
+  // Profile advanced structure state
+  const [profileMcqCount, setProfileMcqCount] = useState<number | null>(null);
+  const [profileWrittenCount, setProfileWrittenCount] = useState<number | null>(null);
+  const [profileQuestionStructure, setProfileQuestionStructure] = useState<string | null>(null);
+  const [profileParentQuestionCount, setProfileParentQuestionCount] = useState<number | null>(null);
+  const [profileMaxPartsPerQuestion, setProfileMaxPartsPerQuestion] = useState<number | null>(null);
+  const [profileDifficultyProgression, setProfileDifficultyProgression] = useState<string | null>(null);
+  const [profileCalculatorPolicy, setProfileCalculatorPolicy] = useState<string | null>(null);
+  const [profileMarkDistribution, setProfileMarkDistribution] = useState<Record<number, number> | null>(null);
+  const [profileIncludeExtended, setProfileIncludeExtended] = useState<boolean | null>(null);
+  const [profileExtendedMarks, setProfileExtendedMarks] = useState<number | null>(null);
+  const [profileStructurePreset, setProfileStructurePreset] = useState<string | null>(null);
+  const [profileMcqPosition, setProfileMcqPosition] = useState<string | null>(null);
+  
   // Basic info
   const [examName, setExamName] = useState("");
   const [examNameError, setExamNameError] = useState(false);
@@ -227,9 +241,10 @@ export default function CreateExam() {
     if (profile) {
       setSelectedProfile(profileId);
       setProfileMaxQuestions(profile.question_count);
-      setTotalQuestions(Math.min(totalQuestions, profile.question_count));
+      setTotalQuestions(profile.question_count);
       setProfileTopics(profile.topics);
       setActiveProfileTopics(profile.topics);
+      
       // Apply profile's educational tier and time limit
       if (profile.educational_tier) {
         setEducationalTier(profile.educational_tier);
@@ -239,6 +254,26 @@ export default function CreateExam() {
         setTimerEnabled(true);
         setDuration(profile.time_limit_minutes);
         setProfileTimeLimit(profile.time_limit_minutes);
+      }
+      
+      // Apply ALL advanced structure settings from profile
+      setProfileMcqCount(profile.mcq_count ?? null);
+      setProfileWrittenCount(profile.written_question_count ?? null);
+      setProfileQuestionStructure(profile.question_structure ?? null);
+      setProfileParentQuestionCount(profile.parent_question_count ?? null);
+      setProfileMaxPartsPerQuestion(profile.max_parts_per_question ?? null);
+      setProfileDifficultyProgression(profile.difficulty_progression ?? null);
+      setProfileCalculatorPolicy(profile.calculator_policy ?? null);
+      setProfileMarkDistribution(profile.mark_distribution ?? null);
+      setProfileIncludeExtended(profile.include_extended ?? null);
+      setProfileExtendedMarks(profile.extended_marks ?? null);
+      setProfileStructurePreset(profile.structure_preset ?? null);
+      setProfileMcqPosition(profile.mcq_position ?? null);
+      
+      // Profile overrides format structure — disable "use original"
+      if ((profile.mcq_count ?? 0) > 0 || (profile.written_question_count ?? 0) > 0) {
+        setUseOriginal(false);
+        setIncludeMCQ((profile.mcq_count ?? 0) > 0);
       }
     }
     setShowProfilePrompt(false);
@@ -259,6 +294,18 @@ export default function CreateExam() {
     setProfileEducationalTier(null);
     setProfileTimeLimit(null);
     setSessionTimeLimitOverride(null);
+    setProfileMcqCount(null);
+    setProfileWrittenCount(null);
+    setProfileQuestionStructure(null);
+    setProfileParentQuestionCount(null);
+    setProfileMaxPartsPerQuestion(null);
+    setProfileDifficultyProgression(null);
+    setProfileCalculatorPolicy(null);
+    setProfileMarkDistribution(null);
+    setProfileIncludeExtended(null);
+    setProfileExtendedMarks(null);
+    setProfileStructurePreset(null);
+    setProfileMcqPosition(null);
   };
 
   const handleGenerate = async () => {
@@ -357,22 +404,50 @@ export default function CreateExam() {
 
       const draftId = uploadData.draftId;
 
-      // Save format
-      const format = {
-        useOriginal,
-        educationalTier: educationalTier === 'other' ? customTier : educationalTier,
-        ...((!useOriginal) && {
-          totalQuestions,
-          oneMarkCount,
-          twoMarkCount,
-          fourMarkCount,
-          extendedCount,
-          topicWeighting,
-          includeDiagrams,
-          includeMCQ,
-          includeGraphs,
-        }),
-      };
+      // Save format — include profile structure if a profile is active
+      const hasMcqFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileMcqCount ?? 0) > 0;
+      const hasWrittenFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileWrittenCount ?? 0) > 0;
+      
+      let format: any;
+      if (hasMcqFromProfile || hasWrittenFromProfile) {
+        // Profile defines MCQ/written split — pass structured breakdown
+        format = {
+          useOriginal: false,
+          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          mcq: { count: profileMcqCount || 0, marksEach: 1 },
+          shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
+          longForm: { count: 0, marksEach: 0 },
+          // Pass advanced profile metadata
+          profileMetadata: {
+            questionStructure: profileQuestionStructure,
+            parentQuestionCount: profileParentQuestionCount,
+            maxPartsPerQuestion: profileMaxPartsPerQuestion,
+            difficultyProgression: profileDifficultyProgression,
+            calculatorPolicy: profileCalculatorPolicy,
+            markDistribution: profileMarkDistribution,
+            includeExtended: profileIncludeExtended,
+            extendedMarks: profileExtendedMarks,
+            structurePreset: profileStructurePreset,
+            mcqPosition: profileMcqPosition,
+          },
+        };
+      } else {
+        format = {
+          useOriginal,
+          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          ...((!useOriginal) && {
+            totalQuestions,
+            oneMarkCount,
+            twoMarkCount,
+            fourMarkCount,
+            extendedCount,
+            topicWeighting,
+            includeDiagrams,
+            includeMCQ,
+            includeGraphs,
+          }),
+        };
+      }
 
       const { error: formatError } = await supabase.functions.invoke('save-exam-format', {
         body: { draftId, format },
