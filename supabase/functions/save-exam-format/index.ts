@@ -57,7 +57,7 @@ serve(async (req) => {
     const totalFromBreakdown = (format.mcq?.count || 0) + (format.shortAnswer?.count || 0) + (format.longForm?.count || 0);
     const effectiveTotal = format.totalQuestions || totalFromBreakdown || null;
 
-    // Upsert format — store totalQuestions in short_answer_count if no breakdown provided
+    // Upsert format
     const formatPayload: any = {
       exam_id: draftId,
       use_original_structure: format.useOriginal || false,
@@ -69,6 +69,11 @@ serve(async (req) => {
       long_form_count: format.longForm?.count || null,
       long_form_marks_each: format.longForm?.marksEach || null,
     };
+
+    // Log profile metadata if present (for debugging)
+    if (format.profileMetadata) {
+      console.log('Profile metadata received:', JSON.stringify(format.profileMetadata));
+    }
 
     const { error: formatError } = await supabase
       .from('exam_format')
