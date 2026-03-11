@@ -1887,16 +1887,20 @@ export type Database = {
           id: string
           include_extended: boolean | null
           mark_distribution: Json | null
+          max_parts_per_question: number | null
           mcq_count: number | null
           mcq_position: string | null
+          parent_question_count: number | null
           profile_name: string
           question_count: number
+          question_structure: string | null
           structure_preset: string | null
           subject_name: string
           time_limit_minutes: number | null
           topics: string[]
           updated_at: string
           user_id: string
+          written_question_count: number | null
         }
         Insert: {
           calculator_policy?: string | null
@@ -1907,16 +1911,20 @@ export type Database = {
           id?: string
           include_extended?: boolean | null
           mark_distribution?: Json | null
+          max_parts_per_question?: number | null
           mcq_count?: number | null
           mcq_position?: string | null
+          parent_question_count?: number | null
           profile_name: string
           question_count?: number
+          question_structure?: string | null
           structure_preset?: string | null
           subject_name: string
           time_limit_minutes?: number | null
           topics?: string[]
           updated_at?: string
           user_id: string
+          written_question_count?: number | null
         }
         Update: {
           calculator_policy?: string | null
@@ -1927,16 +1935,20 @@ export type Database = {
           id?: string
           include_extended?: boolean | null
           mark_distribution?: Json | null
+          max_parts_per_question?: number | null
           mcq_count?: number | null
           mcq_position?: string | null
+          parent_question_count?: number | null
           profile_name?: string
           question_count?: number
+          question_structure?: string | null
           structure_preset?: string | null
           subject_name?: string
           time_limit_minutes?: number | null
           topics?: string[]
           updated_at?: string
           user_id?: string
+          written_question_count?: number | null
         }
         Relationships: []
       }
