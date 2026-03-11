@@ -359,6 +359,7 @@ export const ExamProfileModal = ({
             onChange={setAdvanced}
             questionLimit={questionCount}
             subjectColor={subjectColor}
+            curriculumRegion={preferences?.curriculum_region}
           />
         </div>
 
