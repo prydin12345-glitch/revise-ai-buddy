@@ -404,22 +404,50 @@ export default function CreateExam() {
 
       const draftId = uploadData.draftId;
 
-      // Save format
-      const format = {
-        useOriginal,
-        educationalTier: educationalTier === 'other' ? customTier : educationalTier,
-        ...((!useOriginal) && {
-          totalQuestions,
-          oneMarkCount,
-          twoMarkCount,
-          fourMarkCount,
-          extendedCount,
-          topicWeighting,
-          includeDiagrams,
-          includeMCQ,
-          includeGraphs,
-        }),
-      };
+      // Save format — include profile structure if a profile is active
+      const hasMcqFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileMcqCount ?? 0) > 0;
+      const hasWrittenFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileWrittenCount ?? 0) > 0;
+      
+      let format: any;
+      if (hasMcqFromProfile || hasWrittenFromProfile) {
+        // Profile defines MCQ/written split — pass structured breakdown
+        format = {
+          useOriginal: false,
+          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          mcq: { count: profileMcqCount || 0, marksEach: 1 },
+          shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
+          longForm: { count: 0, marksEach: 0 },
+          // Pass advanced profile metadata
+          profileMetadata: {
+            questionStructure: profileQuestionStructure,
+            parentQuestionCount: profileParentQuestionCount,
+            maxPartsPerQuestion: profileMaxPartsPerQuestion,
+            difficultyProgression: profileDifficultyProgression,
+            calculatorPolicy: profileCalculatorPolicy,
+            markDistribution: profileMarkDistribution,
+            includeExtended: profileIncludeExtended,
+            extendedMarks: profileExtendedMarks,
+            structurePreset: profileStructurePreset,
+            mcqPosition: profileMcqPosition,
+          },
+        };
+      } else {
+        format = {
+          useOriginal,
+          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          ...((!useOriginal) && {
+            totalQuestions,
+            oneMarkCount,
+            twoMarkCount,
+            fourMarkCount,
+            extendedCount,
+            topicWeighting,
+            includeDiagrams,
+            includeMCQ,
+            includeGraphs,
+          }),
+        };
+      }
 
       const { error: formatError } = await supabase.functions.invoke('save-exam-format', {
         body: { draftId, format },
