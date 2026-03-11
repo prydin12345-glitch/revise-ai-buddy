@@ -254,7 +254,6 @@ const PresetSummary = ({
 
   return (
     <div className="space-y-4 rounded-lg border border-border/40 bg-muted/20 p-4">
-      {/* Info banner */}
       <div className="flex items-start gap-2 rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
         <Info className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
         <p className="text-[11px] text-muted-foreground">
@@ -269,7 +268,6 @@ const PresetSummary = ({
         </p>
       </div>
 
-      {/* Structure breakdown */}
       <div className="space-y-2">
         {summary.structure.map((item, i) => (
           <div
@@ -285,7 +283,6 @@ const PresetSummary = ({
         ))}
       </div>
 
-      {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
           { label: "MCQ", value: summary.mcq },
@@ -301,7 +298,6 @@ const PresetSummary = ({
         ))}
       </div>
 
-      {/* Note */}
       <p className="text-[11px] text-muted-foreground/70 text-center italic">
         {summary.note}
       </p>
@@ -314,7 +310,7 @@ const PresetSummary = ({
 interface ExamProfileAdvancedProps {
   settings: AdvancedSettings;
   onChange: (settings: AdvancedSettings) => void;
-  questionLimit: number;
+  questionLimit: number; // Now represents written question limit only
   subjectColor: string;
   curriculumRegion?: string | null;
 }
@@ -338,7 +334,8 @@ export const ExamProfileAdvanced = ({
     [settings.markDistribution]
   );
 
-  const totalQuestions = totalFromDistribution + settings.mcqCount;
+  // Mark distribution only counts against written questions now
+  const isOverLimit = totalFromDistribution > questionLimit;
 
   const updateMarkDist = (marks: number, delta: number) => {
     const next = { ...settings.markDistribution };
@@ -433,56 +430,31 @@ export const ExamProfileAdvanced = ({
             />
           ) : (
             <>
-              {/* ── MCQ ── */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Multiple Choice Questions
-                </Label>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Number of MCQ questions</span>
-                  <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
-                    {settings.mcqCount}
-                  </span>
-                </div>
-                <Slider
-                  min={0}
-                  max={30}
-                  step={1}
-                  value={[settings.mcqCount]}
-                  onValueChange={(v) => update({ mcqCount: v[0] })}
-                  style={{
-                    "--slider-track": "hsl(var(--muted))",
-                    "--slider-range": subjectColor,
-                  } as React.CSSProperties}
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>0 (no MCQ)</span>
-                  <span>30</span>
-                </div>
-
-                {settings.mcqCount > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    <span className="text-xs text-muted-foreground">MCQ position in exam</span>
-                    <div className="flex gap-2">
-                      {MCQ_POSITIONS.map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => update({ mcqPosition: opt.id })}
-                          className={cn(
-                            "flex-1 rounded-md border py-1.5 text-[11px] transition-all",
-                            settings.mcqPosition === opt.id
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border/50 text-muted-foreground hover:bg-card"
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+              {/* ── MCQ Position (only if MCQ count > 0 set from parent) ── */}
+              {settings.mcqCount > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    MCQ Position in Exam
+                  </Label>
+                  <div className="flex gap-2">
+                    {MCQ_POSITIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => update({ mcqPosition: opt.id })}
+                        className={cn(
+                          "flex-1 rounded-md border py-1.5 text-[11px] transition-all",
+                          settings.mcqPosition === opt.id
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/50 text-muted-foreground hover:bg-card"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* ── Mark Distribution ── */}
               <div className="space-y-2">
@@ -493,10 +465,10 @@ export const ExamProfileAdvanced = ({
                   <span
                     className={cn(
                       "text-[11px]",
-                      totalQuestions > questionLimit ? "text-destructive font-medium" : "text-muted-foreground"
+                      isOverLimit ? "text-destructive font-medium" : "text-muted-foreground"
                     )}
                   >
-                    Total: {totalQuestions} / {questionLimit} questions
+                    Written: {totalFromDistribution} / {questionLimit} questions
                   </span>
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
@@ -531,10 +503,10 @@ export const ExamProfileAdvanced = ({
                   ))}
                 </div>
 
-                {totalQuestions > questionLimit && (
+                {isOverLimit && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive">
-                    ⚠ Total questions ({totalQuestions}) exceeds your question limit ({questionLimit}).
-                    Increase the limit or reduce question counts.
+                    ⚠ Written questions ({totalFromDistribution}) exceeds your written limit ({questionLimit}).
+                    Increase the written count or reduce question counts.
                   </div>
                 )}
               </div>

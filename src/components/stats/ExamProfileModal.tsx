@@ -23,6 +23,12 @@ import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./
 import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
+export interface QuestionStructureSettings {
+  questionStructure: string;
+  parentQuestionCount: number;
+  maxPartsPerQuestion: number;
+}
+
 interface ExamProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,7 +41,9 @@ interface ExamProfileModalProps {
     questionCount: number,
     educationalTier?: string,
     timeLimitMinutes?: number | null,
-    advanced?: AdvancedSettings
+    advanced?: AdvancedSettings,
+    writtenQuestionCount?: number,
+    structureSettings?: QuestionStructureSettings
   ) => void;
   initialData?: {
     profile_name: string;
@@ -51,6 +59,10 @@ interface ExamProfileModalProps {
     extended_marks?: number | null;
     difficulty_progression?: string | null;
     calculator_policy?: string | null;
+    written_question_count?: number | null;
+    question_structure?: string | null;
+    parent_question_count?: number | null;
+    max_parts_per_question?: number | null;
   };
 }
 
@@ -68,7 +80,8 @@ export const ExamProfileModal = ({
   const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [questionCount, setQuestionCount] = useState(15);
+  const [writtenCount, setWrittenCount] = useState(10);
+  const [mcqCount, setMcqCount] = useState(0);
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
@@ -76,11 +89,20 @@ export const ExamProfileModal = ({
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
   const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
 
+  // Question structure state
+  const [questionStructure, setQuestionStructure] = useState("standalone");
+  const [parentQuestionCount, setParentQuestionCount] = useState(4);
+  const [maxPartsPerQuestion, setMaxPartsPerQuestion] = useState(3);
+
+  const totalQuestionCount = writtenCount + mcqCount;
+
   useEffect(() => {
     if (open) {
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
-      setQuestionCount(initialData?.question_count || 15);
+      const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
+      setWrittenCount(initWritten);
+      setMcqCount(initialData?.mcq_count ?? 0);
       const tier = initialData?.educational_tier || "";
       const known = isKnownLevel(tier);
       setEducationalTier(known || !tier ? tier : "other");
@@ -99,8 +121,18 @@ export const ExamProfileModal = ({
         difficultyProgression: initialData?.difficulty_progression || "ascending",
         calculatorPolicy: initialData?.calculator_policy || "allowed",
       });
+      setQuestionStructure(initialData?.question_structure || "standalone");
+      setParentQuestionCount(initialData?.parent_question_count ?? 4);
+      setMaxPartsPerQuestion(initialData?.max_parts_per_question ?? 3);
     }
   }, [open, initialData]);
+
+  // Sync MCQ count between main slider and advanced settings
+  useEffect(() => {
+    if (advanced.mcqCount !== mcqCount) {
+      setAdvanced(prev => ({ ...prev, mcqCount }));
+    }
+  }, [mcqCount]);
 
   const allTopics = useMemo(() => {
     const dictTopics = getLocalSubtopics(subjectName);
@@ -128,9 +160,43 @@ export const ExamProfileModal = ({
     if (!profileName.trim() || selectedTopics.length === 0) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const finalTier = educationalTier === "other" ? customTier : educationalTier;
-    onSave(profileName.trim(), selectedTopics, questionCount, finalTier || undefined, timeVal, advanced);
+    const advancedWithMcq = { ...advanced, mcqCount };
+    onSave(
+      profileName.trim(),
+      selectedTopics,
+      totalQuestionCount,
+      finalTier || undefined,
+      timeVal,
+      advancedWithMcq,
+      writtenCount,
+      { questionStructure, parentQuestionCount, maxPartsPerQuestion }
+    );
     onOpenChange(false);
   };
+
+  const STRUCTURE_OPTIONS = [
+    {
+      id: "standalone",
+      label: "Standalone questions",
+      example: "Q1, Q2, Q3, Q4...",
+      detail: "Each question is independent. Best for short answer and GCSE style.",
+      icon: "1️⃣",
+    },
+    {
+      id: "sub_questions",
+      label: "Questions with sub-parts",
+      example: "Q1a, Q1b, Q1c — Q2a, Q2b...",
+      detail: "Questions share a common stem or context. Best for A-Level, IB, and AP style.",
+      icon: "🔢",
+    },
+    {
+      id: "mixed",
+      label: "Mixed structure",
+      example: "Some standalone, some with parts",
+      detail: "Combination of both. Mirrors many real exam papers.",
+      icon: "🔀",
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -236,30 +302,83 @@ export const ExamProfileModal = ({
             )}
           </div>
 
-          {/* Question Limit — max raised to 40 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Question Limit
-              </Label>
-              <span className="text-xl font-bold tabular-nums" style={{ color: subjectColor }}>
-                {questionCount}
-              </span>
+          {/* Separate Written + MCQ Counts */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Written questions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Written
+                  </Label>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
+                    {writtenCount}
+                  </span>
+                </div>
+                <Slider
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[writtenCount]}
+                  onValueChange={(v) => setWrittenCount(v[0])}
+                  style={{
+                    "--slider-track": "hsl(var(--muted))",
+                    "--slider-range": subjectColor,
+                  } as React.CSSProperties}
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>1</span>
+                  <span>20 max</span>
+                </div>
+                {writtenCount >= 15 && (
+                  <p className="text-[11px] text-orange-400">
+                    ⚠ {writtenCount} written questions may reduce quality
+                  </p>
+                )}
+              </div>
+
+              {/* MCQ questions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    MCQ
+                  </Label>
+                  <span className="text-sm font-bold tabular-nums text-emerald-500">
+                    {mcqCount}
+                  </span>
+                </div>
+                <Slider
+                  min={0}
+                  max={30}
+                  step={1}
+                  value={[mcqCount]}
+                  onValueChange={(v) => setMcqCount(v[0])}
+                  style={{
+                    "--slider-track": "hsl(var(--muted))",
+                    "--slider-range": "hsl(160 84% 39%)",
+                  } as React.CSSProperties}
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0 (none)</span>
+                  <span>30 max</span>
+                </div>
+                {mcqCount >= 25 && (
+                  <p className="text-[11px] text-orange-400">
+                    ⚠ {mcqCount} MCQ — consider splitting into two sessions
+                  </p>
+                )}
+              </div>
             </div>
-            <Slider
-              min={5}
-              max={40}
-              step={1}
-              value={[questionCount]}
-              onValueChange={(v) => setQuestionCount(v[0])}
-              style={{
-                "--slider-track": "hsl(var(--muted))",
-                "--slider-range": subjectColor,
-              } as React.CSSProperties}
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>5</span>
-              <span>40</span>
+
+            {/* Total summary */}
+            <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/30 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Total questions in exam</span>
+              <span className="text-sm font-bold text-foreground tabular-nums">
+                {totalQuestionCount}
+                <span className="text-[11px] text-muted-foreground font-normal ml-1.5">
+                  ({mcqCount > 0 ? `${mcqCount} MCQ + ` : ""}{writtenCount} written)
+                </span>
+              </span>
             </div>
           </div>
 
@@ -353,11 +472,136 @@ export const ExamProfileModal = ({
             </Popover>
           </div>
 
+          {/* Question Structure */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Question Structure
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              How should written questions be organised?
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {STRUCTURE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setQuestionStructure(option.id)}
+                  className={`rounded-lg border p-3 text-left transition-all ${
+                    questionStructure === option.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border/50 bg-card/60 hover:bg-card"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">{option.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                        {option.label}
+                        <span className="text-[10px] text-muted-foreground font-normal rounded bg-muted px-1.5 py-0.5">
+                          {option.example}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {option.detail}
+                      </div>
+                    </div>
+                    {questionStructure === option.id && (
+                      <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Sub-question config */}
+            {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
+              <div className="rounded-lg border border-border/40 bg-muted/30 p-3 mt-2 space-y-3">
+                <p className="text-xs text-muted-foreground">Sub-question configuration</p>
+
+                {/* Parent questions */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Parent questions</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
+                      {parentQuestionCount}
+                    </span>
+                  </div>
+                  <Slider
+                    min={2} max={8} step={1}
+                    value={[parentQuestionCount]}
+                    onValueChange={(v) => setParentQuestionCount(v[0])}
+                    style={{
+                      "--slider-track": "hsl(var(--muted))",
+                      "--slider-range": subjectColor,
+                    } as React.CSSProperties}
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>2</span><span>8 max</span>
+                  </div>
+                </div>
+
+                {/* Parts per question */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Parts per question (max)</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
+                      {maxPartsPerQuestion}
+                    </span>
+                  </div>
+                  <Slider
+                    min={2} max={5} step={1}
+                    value={[maxPartsPerQuestion]}
+                    onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
+                    style={{
+                      "--slider-track": "hsl(var(--muted))",
+                      "--slider-range": subjectColor,
+                    } as React.CSSProperties}
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>2 parts</span><span>5 parts max</span>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="rounded-md bg-card/60 border border-border/30 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground/60 mb-1">Preview:</p>
+                  {Array.from({ length: Math.min(parentQuestionCount, 3) }).map((_, i) => (
+                    <div key={i}>
+                      <span className="text-foreground/70">Question {i + 1}: </span>
+                      {Array.from({ length: maxPartsPerQuestion }).map((_, j) => (
+                        <span key={j}>({String.fromCharCode(97 + j)}) </span>
+                      ))}
+                    </div>
+                  ))}
+                  {parentQuestionCount > 3 && (
+                    <div className="text-muted-foreground/40">
+                      ...and {parentQuestionCount - 3} more questions
+                    </div>
+                  )}
+                </div>
+
+                {/* Total parts */}
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Estimated total parts:</span>
+                  <span className="text-foreground/70">
+                    ~{parentQuestionCount * maxPartsPerQuestion} question parts
+                    {parentQuestionCount * maxPartsPerQuestion > 24 && (
+                      <span className="text-orange-400 ml-1">⚠ High — may reduce quality</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Advanced Settings */}
           <ExamProfileAdvanced
             settings={advanced}
             onChange={setAdvanced}
-            questionLimit={questionCount}
+            questionLimit={writtenCount}
             subjectColor={subjectColor}
             curriculumRegion={preferences?.curriculum_region}
           />

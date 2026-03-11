@@ -25,14 +25,7 @@ export const MySubjectsPanel = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [addSubjectModalOpen, setAddSubjectModalOpen] = useState(false);
   const [activeSubject, setActiveSubject] = useState("");
-  const [editingProfile, setEditingProfile] = useState<{
-    id: string;
-    profile_name: string;
-    topics: string[];
-    question_count: number;
-    educational_tier?: string | null;
-    time_limit_minutes?: number | null;
-  } | null>(null);
+  const [editingProfile, setEditingProfile] = useState<any | null>(null);
 
   if (subjectsLoading || profilesLoading) {
     return (
@@ -81,16 +74,13 @@ export const MySubjectsPanel = () => {
     setProfileModalOpen(true);
   };
 
-  const handleOpenEditProfile = (
-    subject: string,
-    profile: { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }
-  ) => {
+  const handleOpenEditProfile = (subject: string, profile: any) => {
     setActiveSubject(subject);
     setEditingProfile(profile);
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null, advanced?: any) => {
+  const handleSaveProfile = async (profileName: string, topics: string[], questionCount: number, educationalTier?: string, timeLimitMinutes?: number | null, advanced?: any, writtenQuestionCount?: number, structureSettings?: any) => {
     if (editingProfile) {
       await updateProfile(editingProfile.id, {
         profile_name: profileName, topics, question_count: questionCount,
@@ -103,9 +93,13 @@ export const MySubjectsPanel = () => {
         extended_marks: advanced?.extendedMarks ?? 0,
         difficulty_progression: advanced?.difficultyProgression ?? "ascending",
         calculator_policy: advanced?.calculatorPolicy ?? "allowed",
+        written_question_count: writtenQuestionCount ?? (questionCount - (advanced?.mcqCount ?? 0)),
+        question_structure: structureSettings?.questionStructure ?? "standalone",
+        parent_question_count: structureSettings?.parentQuestionCount ?? 4,
+        max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
       });
     } else {
-      await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes, advanced);
+      await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes, advanced, writtenQuestionCount, structureSettings);
     }
   };
 
