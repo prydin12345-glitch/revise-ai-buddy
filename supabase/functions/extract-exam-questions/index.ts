@@ -1116,16 +1116,24 @@ EXAMPLE OUTPUT for a question with 3 parts:
   // Inject stealth archetype prompt
   const archetypeBlock = archetype?.promptBlock || '';
 
-  // Scenario requirement
-  const scenarioRequirement = archetype?.requireScenario ? `
-SCENARIO REQUIREMENT (MANDATORY):
-Every parent question MUST begin with a named character and a real-world context/dataset.
-DO NOT generate abstract standalone questions like "Find the value of x" without context.
-The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
-Use diverse names and scenarios. Examples:
+  // Scenario requirement — use subject-appropriate examples
+  const scenarioExamples = isCustomNicheSubject
+    ? `Examples relevant to "${exam.subject_id}":
+- "A technician is performing a quarterly validation test on a large porous load sterilizer."
+- "A hospital decontamination unit receives a batch of surgical instruments for processing."
+- "An engineer reviews the maintenance log for an autoclave that failed its daily Bowie-Dick test."`
+    : `Examples:
 - "Sarah records the daily rainfall, in mm, for her town over a 30-day period."
 - "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
-- "Tom is investigating whether there is a correlation between hours studied and test scores."
+- "Tom is investigating whether there is a correlation between hours studied and test scores."`;
+
+  const scenarioRequirement = archetype?.requireScenario ? `
+SCENARIO REQUIREMENT (MANDATORY):
+Every parent question MUST begin with a named character or professional context and a real-world scenario.
+DO NOT generate abstract standalone questions without context.
+The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
+Use diverse names and scenarios.
+${scenarioExamples}
 ` : '';
 
   const hardeningRules = getExamHardeningRules();
