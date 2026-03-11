@@ -186,8 +186,10 @@ const styleBlankPlaceholders = (content: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
+  // Ensure content is always a string
+  const safeContent = typeof content === 'string' ? content : (content ? String(content) : '');
   // First remove any standalone "Marks: n" lines
-  const contentWithoutMarks = removeMarksLine(content);
+  const contentWithoutMarks = removeMarksLine(safeContent);
   
   // Strip mark scheme annotations [M1, A1, B1] from student-facing display
   const contentWithoutMarkScheme = stripMarkSchemeAnnotations(contentWithoutMarks);
