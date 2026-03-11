@@ -308,8 +308,18 @@ const LandingPage = () => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            © 2025 ExamAI. All rights reserved.
+          <div className="border-t border-border pt-8 space-y-4 text-center">
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed max-w-3xl mx-auto">
+              Examly is an independent practice platform. References to exam styles
+              (e.g. "A-Level Style", "AP Style", "IB Diploma Style") are for descriptive
+              purposes only and do not imply endorsement by or affiliation with any
+              official examination board including AQA, OCR, Edexcel, College Board,
+              or the International Baccalaureate Organization. All questions are
+              AI-generated original content.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              © 2025 ExamAI. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>
