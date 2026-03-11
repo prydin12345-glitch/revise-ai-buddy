@@ -4,12 +4,26 @@ import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 interface MathRendererProps {
-  content: string;
+  content: string | any;
   latex?: string | null;
   hasMath?: boolean;
   className?: string;
   inline?: boolean; // For rendering inside labels/spans without block wrappers
 }
+
+// Robust string coercion for any database content value
+export const ensureString = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    // Handle cases where content is stored as {text: "..."} or similar
+    if (value.text) return String(value.text);
+    if (value.content) return String(value.content);
+    if (value.question_text) return String(value.question_text);
+    return JSON.stringify(value); // last resort
+  }
+  return String(value);
+};
 
 // Convert markdown table lines to HTML table
 const convertTableLinesToHtml = (lines: string[]): string => {
@@ -139,11 +153,10 @@ const cleanOptionText = (text: string): string => {
 };
 
 // Remove standalone "Marks: n" lines since marks are shown in the badge
-const removeMarksLine = (content: string | any): string => {
-  if (!content) return '';
-  if (typeof content !== 'string') content = String(content);
-  // Remove lines that are just "Marks: n" or similar patterns
-  return content
+const removeMarksLine = (content: any): string => {
+  const str = ensureString(content);
+  if (!str) return '';
+  return str
     .split('\n')
     .filter(line => !/^\s*Marks:\s*\d+\s*$/i.test(line.trim()))
     .join('\n');
@@ -186,8 +199,8 @@ const styleBlankPlaceholders = (content: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
-  // Ensure content is always a string
-  const safeContent = typeof content === 'string' ? content : (content ? String(content) : '');
+  // Ensure content is always a string using robust coercion
+  const safeContent = ensureString(content);
   // First remove any standalone "Marks: n" lines
   const contentWithoutMarks = removeMarksLine(safeContent);
   

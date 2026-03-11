@@ -39,7 +39,11 @@ serve(async (req) => {
 
     console.log(`Regenerating question ${questionId}`);
 
-    const regenerationPrompt = `Original question: "${originalText}"
+    const regenerationPrompt = `ABSOLUTE RULE — SUBJECT LOCK:
+You are generating a question EXCLUSIVELY about the topic "${topicTag}".
+Do NOT drift into any unrelated academic subject. Every aspect of the question must be about "${topicTag}".
+
+Original question: "${originalText}"
 Topic: ${topicTag}
 Type: ${questionType}
 Marks: ${marks}

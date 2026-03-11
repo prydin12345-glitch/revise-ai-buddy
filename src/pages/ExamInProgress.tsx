@@ -17,7 +17,8 @@ import { ResourceViewerModal } from "@/components/exam/ResourceViewerModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
-import { MathRenderer } from "@/components/MathRenderer";
+import { MathRenderer, ensureString } from "@/components/MathRenderer";
+import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
@@ -1489,8 +1490,9 @@ const ExamInProgress = () => {
                         </div>
                       </div>
 
+                  <QuizQuestionErrorBoundary questionId={question.id}>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
-                  {isTickXTable(question.question_text) ? (
+                  {isTickXTable(ensureString(question.question_text)) ? (
                     <>
                       <MathRenderer 
                         content={extractTextBeforeTable(question.question_text)}
@@ -2047,6 +2049,7 @@ const ExamInProgress = () => {
                       )}
                     </>
                   )}
+                  </QuizQuestionErrorBoundary>
                 </Card>
                   </div>
                 );
