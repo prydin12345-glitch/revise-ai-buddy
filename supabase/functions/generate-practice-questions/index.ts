@@ -1046,7 +1046,37 @@ standard test packs (Bowie-Dick) as used in NHS sterilizer quarterly testing —
 NOT generic questions about "test equipment" in any other context.
 ` : '';
 
-    const prompt = `${regionalPersona}
+    // SUBJECT LOCK — hard constraint to prevent subject drift
+    const subjectLockInstruction = `
+ABSOLUTE RULE — READ THIS FIRST:
+You are generating questions EXCLUSIVELY for this subject:
+"${subjectName}"
+
+This is a HARD CONSTRAINT. You must NEVER generate questions about:
+- Any other academic subject
+- Mathematics, statistics, or probability (unless the subject explicitly requires it)
+- Physics, chemistry, biology, history, geography or any other domain
+- Generic exam-style questions unrelated to "${subjectName}"
+
+EVERY question you generate must:
+1. Be directly and specifically about "${subjectName}"
+2. Use terminology, procedures, standards, and concepts from "${subjectName}" only
+3. Be answerable by someone who has studied "${subjectName}"
+4. Be completely unanswerable by someone who has NOT studied "${subjectName}"
+
+If you cannot generate enough high-quality questions about "${subjectName}"
+without drifting into other subjects, generate FEWER questions of higher quality.
+It is far better to generate 5 excellent subject-specific questions than
+10 questions where half are about unrelated topics.
+
+SUBJECT CONTEXT REMINDER:
+Subject: "${subjectName}"
+Topics to cover: ${(setData.subtopics || []).join(', ')}
+These topics must be interpreted ONLY within the context of "${subjectName}".
+`;
+
+    const prompt = `${subjectLockInstruction}
+${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}

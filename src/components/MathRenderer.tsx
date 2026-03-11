@@ -199,8 +199,8 @@ const styleBlankPlaceholders = (content: string): string => {
 };
 
 export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
-  // Ensure content is always a string
-  const safeContent = typeof content === 'string' ? content : (content ? String(content) : '');
+  // Ensure content is always a string using robust coercion
+  const safeContent = ensureString(content);
   // First remove any standalone "Marks: n" lines
   const contentWithoutMarks = removeMarksLine(safeContent);
   

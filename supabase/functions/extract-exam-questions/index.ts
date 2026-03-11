@@ -1011,7 +1011,30 @@ Use diverse names and scenarios. Examples:
 
   const hardeningRules = getExamHardeningRules();
 
-  return `${regionalPersona}
+  // SUBJECT LOCK — hard constraint to prevent subject drift
+  const subjectLockInstruction = `
+ABSOLUTE RULE — READ THIS FIRST:
+You are generating questions EXCLUSIVELY for this subject:
+"${exam.subject_id}"
+
+This is a HARD CONSTRAINT. You must NEVER generate questions about:
+- Any other academic subject
+- Mathematics, statistics, or probability (unless the subject explicitly requires it)
+- Physics, chemistry, biology, history, geography or any other domain
+- Generic exam-style questions unrelated to "${exam.subject_id}"
+
+EVERY question you generate must:
+1. Be directly and specifically about "${exam.subject_id}"
+2. Use terminology, procedures, standards, and concepts from "${exam.subject_id}" only
+3. Be answerable by someone who has studied "${exam.subject_id}"
+4. Be completely unanswerable by someone who has NOT studied "${exam.subject_id}"
+
+If you cannot generate enough high-quality questions about "${exam.subject_id}"
+without drifting into other subjects, generate FEWER questions of higher quality.
+`;
+
+  return `${subjectLockInstruction}
+${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
