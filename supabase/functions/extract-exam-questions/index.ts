@@ -301,7 +301,26 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
   // ALWAYS regenerate questions with new wording (regardless of resource pack)
-  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext);
+  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation);
+
+  // ── POST-REGENERATION VALIDATION: Re-check for maths contamination after regen ──
+  if (isCustomNicheForValidation) {
+    const mathsPatterns2 = [
+      /\bP\(X\s*[=<>≤≥]/, /binomial|poisson|normal distribution/i,
+      /\blet\s+X\b/i, /probability.*defective/i, /random sample of \d+/i,
+      /calculate.*P\(/i, /state the distribution/i, /\bE\(X\)|Var\(X\)/,
+      /\bsolve.*equation/i, /\bfind.*value.*of.*x\b/i,
+      /\bintegrat(e|ion)\b/i, /\bdifferentiat(e|ion)\b/i,
+      /\bquadratic\b/i, /\bsimultaneous\b/i,
+    ];
+    const { data: regenDrafts } = await supabase.from('exam_question_drafts').select('id, question_text').eq('exam_id', draftId);
+    for (const d of (regenDrafts || [])) {
+      if (mathsPatterns2.some(p => p.test(d.question_text || ''))) {
+        console.error(`POST-REGEN CONTAMINATION: Deleting draft "${(d.question_text || '').slice(0, 80)}..."`);
+        await supabase.from('exam_question_drafts').delete().eq('id', d.id);
+      }
+    }
+  }
 
   // Save topics
   if (parsedData.topics?.length) {
@@ -1081,32 +1100,38 @@ SUB-PART FORMATTING RULES:
 QUESTION TEXT QUALITY RULES (CRITICAL):
 - Every sub-part question_text MUST contain an explicit, answerable instruction or question.
 - NEVER write a question_text that only describes a scenario without asking the student to DO something.
-- BAD EXAMPLE: "A quality control engineer needs to determine the likelihood that a battery has a lifespan ranging from 450 to 550 hours."
-- GOOD EXAMPLE: "Find the probability that a randomly selected battery has a lifespan between 450 and 550 hours."
-- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, etc.
+- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, Describe, Identify, Outline, etc.
 - The scenario/context goes in the FIRST sub-part's question_text. Subsequent sub-parts can reference "Using your answer to part (a)..." etc.
 
-EXAMPLE OUTPUT for a question with 3 parts:
+EXAMPLE OUTPUT for a question with 3 parts (adapt the style to match YOUR subject "${exam.subject_id}"):
 [
-  {"question_number": "1a", "question_text": "Sarah records the heights, in cm, of 30 plants. The mean height is 45 cm and the standard deviation is 8.2 cm.\\n\\nState the null and alternative hypotheses to test whether the mean height has increased.", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1b", "question_text": "Using a 5% significance level, find the critical value for this test.", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1c", "question_text": "State your conclusion in context, giving a reason for your answer.", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
+  {"question_number": "1a", "question_text": "[Scenario relevant to ${exam.subject_id}]\\n\\n[Command verb question about ${exam.subject_id}]", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1b", "question_text": "[Follow-up question building on part (a)]", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
+  {"question_number": "1c", "question_text": "[Higher-order evaluation or justification question]", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
 ]
 `;
 
   // Inject stealth archetype prompt
   const archetypeBlock = archetype?.promptBlock || '';
 
-  // Scenario requirement
-  const scenarioRequirement = archetype?.requireScenario ? `
-SCENARIO REQUIREMENT (MANDATORY):
-Every parent question MUST begin with a named character and a real-world context/dataset.
-DO NOT generate abstract standalone questions like "Find the value of x" without context.
-The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
-Use diverse names and scenarios. Examples:
+  // Scenario requirement — use subject-appropriate examples
+  const scenarioExamples = isCustomNicheSubject
+    ? `Examples relevant to "${exam.subject_id}":
+- "A technician is performing a quarterly validation test on a large porous load sterilizer."
+- "A hospital decontamination unit receives a batch of surgical instruments for processing."
+- "An engineer reviews the maintenance log for an autoclave that failed its daily Bowie-Dick test."`
+    : `Examples:
 - "Sarah records the daily rainfall, in mm, for her town over a 30-day period."
 - "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
-- "Tom is investigating whether there is a correlation between hours studied and test scores."
+- "Tom is investigating whether there is a correlation between hours studied and test scores."`;
+
+  const scenarioRequirement = archetype?.requireScenario ? `
+SCENARIO REQUIREMENT (MANDATORY):
+Every parent question MUST begin with a named character or professional context and a real-world scenario.
+DO NOT generate abstract standalone questions without context.
+The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
+Use diverse names and scenarios.
+${scenarioExamples}
 ` : '';
 
   const hardeningRules = getExamHardeningRules();
@@ -1225,7 +1250,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   catch { return { questions: [], topics: [] }; }
 }
 
-async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '') {
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false) {
   // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
   const grouped: Record<string, any[]> = {};
   for (const q of questions) {
@@ -1246,15 +1271,17 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
       `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
     ).join('\n');
 
-    const basePrompt = `${hardeningRules}
-
-You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
-
-ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
-${siblingsSummary}
-
-Topic: ${siblings[0]?.topic_tag || 'general'}
-
+    // Subject-aware regeneration rules
+    const subjectRules = isCustomNiche ? `
+SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
+- Do NOT introduce mathematics, probability, statistics, or algebra
+- Do NOT use LaTeX distribution notation like $X \\sim B(n,p)$ or $N(\\mu, \\sigma^2)$
+- Do NOT generate formula-based or calculation-based questions
+- Use domain-specific terminology from "${subjectId}"
+- Questions must be answerable ONLY by someone trained in "${subjectId}"
+- Use command verbs: State, Describe, Explain, Identify, Outline, Evaluate, Justify, Compare
+- Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+` : `
 CRITICAL RULES:
 1. SCENARIO LOCKING: Introduce ONE scenario in the first sub-part. ALL subsequent sub-parts MUST stay within that EXACT same scenario. NEVER switch topics between parts.
 2. CLINICAL TONE: No fluff adjectives ("renowned", "bustling", "freshly"). State facts plainly.
@@ -1264,6 +1291,20 @@ CRITICAL RULES:
 6. For large-sample sub-parts (n ≥ 30): instruct "Use a suitable approximation" and require continuity correction.
 7. For sub-parts worth 4+ marks: include guidance like "State your hypotheses clearly. Show your working."
 8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+`;
+
+    const basePrompt = `${hardeningRules}
+
+${isCustomNiche ? `YOUR SUBJECT: "${subjectId}" — ALL rewritten questions must be about this subject ONLY.\n` : ''}
+You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
+
+ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
+${siblingsSummary}
+
+Topic: ${siblings[0]?.topic_tag || 'general'}
+${isCustomNiche ? `Subject: ${subjectId}` : ''}
+
+${subjectRules}
 
 ${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
 
