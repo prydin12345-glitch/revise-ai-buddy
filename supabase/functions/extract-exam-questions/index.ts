@@ -1086,6 +1086,30 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
 - COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
     : '';
 
+  // MCQ/Written split instruction — when profile specifies exact breakdown
+  const mcqWrittenSplitInstruction = (desiredMcqCount && desiredMcqCount > 0 && desiredWrittenCount && desiredWrittenCount > 0)
+    ? `
+QUESTION TYPE SPLIT (MANDATORY — FROM EXAM PROFILE):
+You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenCount} written questions.
+
+MCQ QUESTIONS (${desiredMcqCount} total):
+- question_type MUST be "mcq"
+- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ is worth 1 mark
+- MCQ questions should come FIRST (Q1 through Q${desiredMcqCount})
+- MCQ questions are standalone — no sub-parts needed
+
+WRITTEN QUESTIONS (${desiredWrittenCount} total):
+- question_type should be "short_answer" or "extended" depending on marks
+- Written questions come AFTER MCQs (Q${desiredMcqCount + 1} through Q${desiredQuestionCount})
+- Written questions CAN have sub-parts (a, b, c) if appropriate
+- Mark allocation should vary: mix of 2-mark, 4-mark, and 6+ mark questions
+
+TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
+DO NOT deviate from this split. DO NOT make all questions the same type.
+`
+    : '';
+
   const minParts = archetype?.minSubParts || 2;
   const hierarchicalInstructions = `
 
