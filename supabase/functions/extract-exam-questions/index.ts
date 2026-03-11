@@ -1252,7 +1252,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   catch { return { questions: [], topics: [] }; }
 }
 
-async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '') {
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false) {
   // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
   const grouped: Record<string, any[]> = {};
   for (const q of questions) {
@@ -1273,15 +1273,17 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
       `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
     ).join('\n');
 
-    const basePrompt = `${hardeningRules}
-
-You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
-
-ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
-${siblingsSummary}
-
-Topic: ${siblings[0]?.topic_tag || 'general'}
-
+    // Subject-aware regeneration rules
+    const subjectRules = isCustomNiche ? `
+SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
+- Do NOT introduce mathematics, probability, statistics, or algebra
+- Do NOT use LaTeX distribution notation like $X \\sim B(n,p)$ or $N(\\mu, \\sigma^2)$
+- Do NOT generate formula-based or calculation-based questions
+- Use domain-specific terminology from "${subjectId}"
+- Questions must be answerable ONLY by someone trained in "${subjectId}"
+- Use command verbs: State, Describe, Explain, Identify, Outline, Evaluate, Justify, Compare
+- Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+` : `
 CRITICAL RULES:
 1. SCENARIO LOCKING: Introduce ONE scenario in the first sub-part. ALL subsequent sub-parts MUST stay within that EXACT same scenario. NEVER switch topics between parts.
 2. CLINICAL TONE: No fluff adjectives ("renowned", "bustling", "freshly"). State facts plainly.
@@ -1291,6 +1293,20 @@ CRITICAL RULES:
 6. For large-sample sub-parts (n ≥ 30): instruct "Use a suitable approximation" and require continuity correction.
 7. For sub-parts worth 4+ marks: include guidance like "State your hypotheses clearly. Show your working."
 8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+`;
+
+    const basePrompt = `${hardeningRules}
+
+${isCustomNiche ? `YOUR SUBJECT: "${subjectId}" — ALL rewritten questions must be about this subject ONLY.\n` : ''}
+You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
+
+ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
+${siblingsSummary}
+
+Topic: ${siblings[0]?.topic_tag || 'general'}
+${isCustomNiche ? `Subject: ${subjectId}` : ''}
+
+${subjectRules}
 
 ${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
 
