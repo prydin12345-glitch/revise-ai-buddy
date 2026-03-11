@@ -108,6 +108,20 @@ export default function CreateExam() {
   const [profileTimeLimit, setProfileTimeLimit] = useState<number | null>(null);
   const [sessionTimeLimitOverride, setSessionTimeLimitOverride] = useState<number | null>(null);
   
+  // Profile advanced structure state
+  const [profileMcqCount, setProfileMcqCount] = useState<number | null>(null);
+  const [profileWrittenCount, setProfileWrittenCount] = useState<number | null>(null);
+  const [profileQuestionStructure, setProfileQuestionStructure] = useState<string | null>(null);
+  const [profileParentQuestionCount, setProfileParentQuestionCount] = useState<number | null>(null);
+  const [profileMaxPartsPerQuestion, setProfileMaxPartsPerQuestion] = useState<number | null>(null);
+  const [profileDifficultyProgression, setProfileDifficultyProgression] = useState<string | null>(null);
+  const [profileCalculatorPolicy, setProfileCalculatorPolicy] = useState<string | null>(null);
+  const [profileMarkDistribution, setProfileMarkDistribution] = useState<Record<number, number> | null>(null);
+  const [profileIncludeExtended, setProfileIncludeExtended] = useState<boolean | null>(null);
+  const [profileExtendedMarks, setProfileExtendedMarks] = useState<number | null>(null);
+  const [profileStructurePreset, setProfileStructurePreset] = useState<string | null>(null);
+  const [profileMcqPosition, setProfileMcqPosition] = useState<string | null>(null);
+  
   // Basic info
   const [examName, setExamName] = useState("");
   const [examNameError, setExamNameError] = useState(false);
