@@ -294,6 +294,18 @@ export default function CreateExam() {
     setProfileEducationalTier(null);
     setProfileTimeLimit(null);
     setSessionTimeLimitOverride(null);
+    setProfileMcqCount(null);
+    setProfileWrittenCount(null);
+    setProfileQuestionStructure(null);
+    setProfileParentQuestionCount(null);
+    setProfileMaxPartsPerQuestion(null);
+    setProfileDifficultyProgression(null);
+    setProfileCalculatorPolicy(null);
+    setProfileMarkDistribution(null);
+    setProfileIncludeExtended(null);
+    setProfileExtendedMarks(null);
+    setProfileStructurePreset(null);
+    setProfileMcqPosition(null);
   };
 
   const handleGenerate = async () => {
