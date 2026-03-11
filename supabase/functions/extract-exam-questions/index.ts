@@ -174,7 +174,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList);
+  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount);
 
   // Detect custom niche subject for system prompt and post-validation
   const subjectLower = (exam.subject_id || '').toLowerCase();
