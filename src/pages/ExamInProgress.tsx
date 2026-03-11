@@ -2049,6 +2049,7 @@ const ExamInProgress = () => {
                       )}
                     </>
                   )}
+                  </QuizQuestionErrorBoundary>
                 </Card>
                   </div>
                 );
