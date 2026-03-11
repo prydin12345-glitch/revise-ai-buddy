@@ -1242,6 +1242,7 @@ ${scenarioRequirement}
 ${latexInstruction}
 
 ${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
+${mcqWrittenSplitInstruction}
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
