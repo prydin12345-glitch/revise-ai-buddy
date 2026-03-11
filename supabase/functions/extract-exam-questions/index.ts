@@ -169,9 +169,25 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
   const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList);
-  const systemPrompt = hasResourcePack
+
+  // Detect custom niche subject for system prompt and post-validation
+  const subjectLower = (exam.subject_id || '').toLowerCase();
+  const isCustomNicheForValidation = !(
+    subjectLower.includes('math') || subjectLower.includes('physics') ||
+    subjectLower.includes('chemistry') || subjectLower.includes('biology') ||
+    subjectLower.includes('english') || subjectLower.includes('history') ||
+    subjectLower.includes('geography') || subjectLower.includes('econ') ||
+    subjectLower.includes('computer') || subjectLower.includes('psychology') ||
+    subjectLower.includes('business') || subjectLower.includes('law') ||
+    subjectLower.includes('politics') || subjectLower.includes('statistic')
+  );
+
+  // System prompt — subject name FIRST for custom subjects
+  const systemPromptOpening = `YOUR SUBJECT THIS SESSION: "${exam.subject_id}"\nALL questions must be about "${exam.subject_id}" ONLY.\n\n`;
+  const baseSystemPrompt = hasResourcePack
     ? 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
     : 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
+  const systemPrompt = systemPromptOpening + baseSystemPrompt;
 
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
@@ -184,6 +200,40 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  // ── POST-GENERATION VALIDATION: Reject maths-contaminated questions for custom subjects ──
+  if (isCustomNicheForValidation) {
+    const mathsPatterns = [
+      /\bP\(X\s*[=<>≤≥]/,           // P(X = ...) probability notation
+      /binomial|poisson|normal distribution/i,
+      /\blet\s+X\b/i,               // "Let X be..."
+      /probability.*defective/i,
+      /random sample of \d+/i,
+      /calculate.*P\(/i,
+      /state the distribution/i,
+      /\bE\(X\)|Var\(X\)/,          // expected value / variance
+      /\bsolve.*equation/i,
+      /\bfind.*value.*of.*x\b/i,
+      /\bintegrat(e|ion)\b/i,
+      /\bdifferentiat(e|ion)\b/i,
+      /\bquadratic\b/i,
+      /\bsimultaneous\b/i,
+    ];
+
+    const beforeCount = questions.length;
+    questions = questions.filter((q: any) => {
+      const text = String(q.question_text || '');
+      const hasMaths = mathsPatterns.some(p => p.test(text));
+      if (hasMaths) {
+        console.error(`SUBJECT CONTAMINATION REJECTED: "${text.slice(0, 100)}..." is maths, not "${exam.subject_id}"`);
+      }
+      return !hasMaths;
+    });
+    const rejected = beforeCount - questions.length;
+    if (rejected > 0) {
+      console.warn(`Subject validation: rejected ${rejected} off-topic maths questions for "${exam.subject_id}"`);
+    }
+  }
 
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
   if (desiredQuestionCount && desiredQuestionCount > 0) {
@@ -832,6 +882,40 @@ DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
     };
   }
 
+  // ── Custom/Professional/Niche Subject Archetype ──
+  // Fires BEFORE generic fallback for subjects that don't match any standard academic subject
+  const isCustomProfessionalSubject = !isMath && !isPhysics && !isChemistry && !isBiology &&
+    !isEnglish && !isHistory && !isGeography && !isEcon;
+
+  if (isCustomProfessionalSubject) {
+    return {
+      name: 'CUSTOM_PROFESSIONAL',
+      minSubParts: 2,
+      requireScenario: true,
+      promptBlock: `
+DIFFICULTY ARCHETYPE: Specialist / Professional / Vocational Subject
+You are generating assessment questions for a specialist professional
+or vocational subject: "${subjectId}".
+The domain is ENTIRELY defined by the subject name and topics provided.
+There is NO standard academic template — do not borrow from other subjects.
+
+MANDATORY GENERATION RULES FOR THIS ARCHETYPE:
+1. Questions must assess knowledge specific to "${subjectId}" ONLY
+2. Use terminology, standards, regulations, and procedures from this domain
+3. Question styles: scenario-based, procedural knowledge,
+   regulatory/compliance understanding, practical application
+4. Do NOT use probability, statistics, algebra, calculus, or any
+   pure mathematics unless the subject explicitly requires it
+5. Do NOT generate graphs, coordinate geometry, or formula-based questions
+6. Mark scheme should use descriptive marking points (B1 for knowledge),
+   NOT M1/A1 codes (those are for maths)
+7. For professional/vocational subjects, questions should reflect
+   real workplace assessment style
+8. Every question must be answerable ONLY by someone trained in "${subjectId}"
+`
+    };
+  }
+
   // Generic fallback for any Level 2 subject
   if (effectiveLevel2 || isLevel2) {
     return {
@@ -886,24 +970,40 @@ The uploaded PDF is for INSPIRATION ONLY - your questions must be unique.`;
   const topicNames = specs.map((s: any) => (s.topic_name || '').toLowerCase()).join(' ');
   const pdfLower = pdfText.substring(0, 5000).toLowerCase();
   const combinedText = `${subjectId} ${topicNames} ${pdfLower}`;
-  
-  const graphPriorityKeywords = [
+
+  // Subject classification for graph/maths gating
+  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths') ||
+    subjectId.includes('statistic') || subjectId.includes('calculus') || subjectId.includes('algebra');
+  const isPhysicsSubject = subjectId.includes('physics') || subjectId.includes('mechanics') || subjectId.includes('electronic');
+  const isChemSubject = subjectId.includes('chemistry') || subjectId.includes('chemical');
+  const isBioSubject = subjectId.includes('biology') || subjectId.includes('biolog');
+  const isEconSubject = subjectId.includes('econ');
+  const isGeogSubject = subjectId.includes('geography') || subjectId.includes('geog');
+  const isRecognisedSTEM = isMathSubject || isPhysicsSubject || isChemSubject || isBioSubject;
+  const isRecognisedGraphSubject = isRecognisedSTEM || isEconSubject || isGeogSubject;
+
+  // Only graph-specific keywords (not domain-ambiguous ones like "temperature", "pressure")
+  const graphSpecificKeywords = [
     'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function',
     'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
     'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
     'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine',
-    'velocity', 'acceleration', 'force', 'displacement', 'momentum', 'energy',
-    'supply', 'demand', 'cost', 'revenue', 'profit', 'equilibrium',
-    'concentration', 'rate', 'temperature', 'pressure', 'volume',
     'distance-time', 'velocity-time', 'force-extension', 'current-voltage',
-    'ph curve', 'market equilibrium', 'projectile motion', 'kinetic energy'
+    'supply', 'demand', 'market equilibrium', 'projectile motion',
   ];
-  
-  const needsGraphs = graphPriorityKeywords.some(kw => combinedText.includes(kw));
-  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths');
+
+  // Require BOTH a recognised STEM/graph subject AND graph keywords
+  const needsGraphs = isRecognisedGraphSubject && graphSpecificKeywords.some(kw => combinedText.includes(kw));
+
+  // Detect custom/niche professional subjects
+  const isCustomNicheSubject = !isRecognisedSTEM &&
+    !subjectId.includes('english') && !subjectId.includes('history') &&
+    !isGeogSubject && !subjectId.includes('business') && !isEconSubject &&
+    !subjectId.includes('psychology') && !subjectId.includes('computer') &&
+    !subjectId.includes('law') && !subjectId.includes('politics');
 
   let graphInstructions = '';
-  if (needsGraphs) {
+  if (needsGraphs && !isCustomNicheSubject) {
     graphInstructions = `
 
 AUTOMATIC GRAPH GENERATION (VISUAL-HEAVY TOPICS DETECTED):
@@ -1033,6 +1133,45 @@ If you cannot generate enough high-quality questions about "${exam.subject_id}"
 without drifting into other subjects, generate FEWER questions of higher quality.
 `;
 
+  // Subject lock repeat — placed AFTER archetype to reassert dominance
+  const subjectLockRepeat = `
+===== SUBJECT DOMAIN REMINDER (MANDATORY) =====
+You are STILL generating questions about: "${exam.subject_id}"
+Every question must be about this subject and NOTHING else.
+If any instruction above conflicts with this subject domain,
+IGNORE that instruction and stay within "${exam.subject_id}".
+================================================
+`;
+
+  // Explicit prohibitions for custom/niche subjects
+  const customSubjectProhibitions = isCustomNicheSubject ? `
+EXPLICITLY PROHIBITED for subject "${exam.subject_id}":
+- Do NOT generate: probability questions (P(X=...), binomial, Poisson, normal distribution)
+- Do NOT generate: algebra or equation solving (find x, solve for y)
+- Do NOT generate: graph plotting or coordinate geometry
+- Do NOT generate: calculus, differentiation, integration
+- Do NOT generate: statistics, data analysis with mathematical formulas
+- Do NOT generate: ANY question that could appear in a Mathematics exam
+- Do NOT use M1/A1 mark scheme codes — use B1 (knowledge point) marks instead
+
+If you are about to generate a question involving X as a variable
+in an equation, STOP and generate a subject-specific question instead.
+` : '';
+
+  // For custom subjects, skip chart data schemas and LaTeX-heavy instructions
+  const chartSchemas = isCustomNicheSubject ? '' : `
+CHART DATA SCHEMAS:
+When a question includes tabular or visual data, populate the "chart_data" field:
+- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
+- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
+- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
+`;
+
+  const latexInstruction = isCustomNicheSubject
+    ? 'Use LaTeX only if the subject requires mathematical or scientific notation.'
+    : `Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
+Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}`;
+
   return `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
@@ -1042,20 +1181,16 @@ ${resourceCtx}
 Generate NEW questions for ${level} ${exam.subject_id}.
 ${specList}${mode}
 ${archetypeBlock}
+${subjectLockRepeat}
+${customSubjectProhibitions}
 ${scenarioRequirement}
-Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
-Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}
+${latexInstruction}
 
 ${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
 ${hierarchicalInstructions}${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
-
-CHART DATA SCHEMAS:
-When a question includes tabular or visual data, populate the "chart_data" field:
-- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
-- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
-- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
+${chartSchemas}
 
 ${canonicalTopicList && canonicalTopicList.length > 0 ? `
 TOPIC TAG CONTROLLED VOCABULARY (CRITICAL):
