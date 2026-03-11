@@ -1,13 +1,9 @@
 /**
  * SubjectSelector - Subject and color picker component
  * 
- * REGRESSION CHECKLIST (2026-01-09):
- * ✅ Dropdown opens BELOW the select input (position="popper", side="bottom")
- * ✅ Dropdown has max-height and is scrollable
- * ✅ Can select "Mathematics" even when currently showing "Biology"
- * ✅ High z-index (100) ensures menu is above other elements
+ * Shows user's saved custom subjects alongside predefined subjects.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Input } from "@/components/ui/input";
@@ -15,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -32,50 +30,31 @@ interface SubjectSelectorProps {
   onValueChange: (value: string) => void;
   onColorChange: (color: string) => void;
   showLabel?: boolean;
-  /** When true, color changes are persisted globally via useUserSubjects */
   persistColor?: boolean;
 }
 
 const PREDEFINED_SUBJECTS = [
-  "Mathematics",
-  "Biology",
-  "Chemistry",
-  "Physics",
-  "English",
-  "History",
-  "Geography",
-  "Computer Science",
-  "Economics",
-  "Psychology",
-  "Business Studies",
-  "Sociology",
-  "Politics",
-  "Philosophy",
-  "Law",
-  "Art",
-  "Music",
-  "French",
-  "Spanish",
-  "German",
+  "Mathematics", "Biology", "Chemistry", "Physics", "English",
+  "History", "Geography", "Computer Science", "Economics", "Psychology",
+  "Business Studies", "Sociology", "Politics", "Philosophy", "Law",
+  "Art", "Music", "French", "Spanish", "German",
 ];
 
 const PRESET_COLORS = [
-  "#3B82F6", // Blue
-  "#10B981", // Green
-  "#8B5CF6", // Purple
-  "#14B8A6", // Teal
-  "#FF7F6A", // Coral
-  "#F59E0B", // Amber
-  "#EC4899", // Pink
-  "#EF4444", // Red
-  "#6366F1", // Indigo
-  "#06B6D4", // Cyan
+  "#3B82F6", "#10B981", "#8B5CF6", "#14B8A6", "#FF7F6A",
+  "#F59E0B", "#EC4899", "#EF4444", "#6366F1", "#06B6D4",
 ];
 
 export const SubjectSelector = ({ value, color, onValueChange, onColorChange, showLabel = true, persistColor = true }: SubjectSelectorProps) => {
   const [isCustom, setIsCustom] = useState(false);
   const [customSubject, setCustomSubject] = useState("");
   const { saveOrUpdateSubject, subjects, getSubjectColor } = useUserSubjects();
+
+  // Derive custom subjects from the user's saved subjects that aren't in predefined list
+  const customUserSubjects = useMemo(() => {
+    const predefinedLower = new Set(PREDEFINED_SUBJECTS.map(s => s.toLowerCase()));
+    return subjects.filter(s => !predefinedLower.has(s.subject_name.toLowerCase()));
+  }, [subjects]);
 
   const handleColorChange = useCallback(async (newColor: string) => {
     onColorChange(newColor);
@@ -94,7 +73,6 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
     } else {
       setIsCustom(false);
       onValueChange(newValue);
-      // Auto-load existing color for this subject
       const existingColor = getSubjectColor(newValue);
       if (existingColor && existingColor !== "#3B82F6") {
         onColorChange(existingColor);
@@ -128,11 +106,36 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
               collisionPadding={16}
               position="popper"
             >
-              {PREDEFINED_SUBJECTS.map((subject) => (
-                <SelectItem key={subject} value={subject}>
-                  {subject}
-                </SelectItem>
-              ))}
+              {/* User's custom subjects first */}
+              {customUserSubjects.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-xs font-semibold text-muted-foreground">My Subjects</SelectLabel>
+                  {customUserSubjects.map((subject) => (
+                    <SelectItem key={`custom-${subject.id}`} value={subject.subject_name}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: subject.subject_color }}
+                        />
+                        {subject.subject_name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+
+              {/* Standard subjects */}
+              <SelectGroup>
+                {customUserSubjects.length > 0 && (
+                  <SelectLabel className="text-xs font-semibold text-muted-foreground">Standard Subjects</SelectLabel>
+                )}
+                {PREDEFINED_SUBJECTS.map((subject) => (
+                  <SelectItem key={subject} value={subject}>
+                    {subject}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+
               <SelectItem value="custom" className="font-semibold text-primary">
                 <div className="flex items-center gap-2">
                   <Plus className="w-4 h-4" />
@@ -207,7 +210,6 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
   );
 };
 
-// Helper function to determine text color based on background
 function getContrastColor(hexColor: string): string {
   const hex = hexColor.replace("#", "");
   const r = parseInt(hex.substr(0, 2), 16);
