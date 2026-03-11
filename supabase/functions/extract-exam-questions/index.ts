@@ -301,7 +301,26 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
   // ALWAYS regenerate questions with new wording (regardless of resource pack)
-  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext);
+  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation);
+
+  // ── POST-REGENERATION VALIDATION: Re-check for maths contamination after regen ──
+  if (isCustomNicheForValidation) {
+    const mathsPatterns2 = [
+      /\bP\(X\s*[=<>≤≥]/, /binomial|poisson|normal distribution/i,
+      /\blet\s+X\b/i, /probability.*defective/i, /random sample of \d+/i,
+      /calculate.*P\(/i, /state the distribution/i, /\bE\(X\)|Var\(X\)/,
+      /\bsolve.*equation/i, /\bfind.*value.*of.*x\b/i,
+      /\bintegrat(e|ion)\b/i, /\bdifferentiat(e|ion)\b/i,
+      /\bquadratic\b/i, /\bsimultaneous\b/i,
+    ];
+    const { data: regenDrafts } = await supabase.from('exam_question_drafts').select('id, question_text').eq('exam_id', draftId);
+    for (const d of (regenDrafts || [])) {
+      if (mathsPatterns2.some(p => p.test(d.question_text || ''))) {
+        console.error(`POST-REGEN CONTAMINATION: Deleting draft "${(d.question_text || '').slice(0, 80)}..."`);
+        await supabase.from('exam_question_drafts').delete().eq('id', d.id);
+      }
+    }
+  }
 
   // Save topics
   if (parsedData.topics?.length) {
