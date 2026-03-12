@@ -1093,6 +1093,11 @@ ${complexityInstructions}
 ${topicContextInstruction}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
+${(() => {
+  const detectedText = detectLiteraryText(subjectName, setData.subtopics || []);
+  return detectedText ? buildLiteraryTextInstructions(detectedText) : '';
+})()}
+${buildExtractSafetyInstruction(setData.exam_board || 'exam-style', subjectName)}
 ${canonicalTopicInstruction}
 ${specialisedSubjectContext}
 
