@@ -175,7 +175,16 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  const extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount);
+  let extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount);
+
+  // Inject literary copyright rules if applicable
+  const specTopicNames = specTopics.map((t: any) => t.topic_name || t);
+  const detectedLitText = detectLiteraryText(exam.subject_id || '', specTopicNames);
+  if (detectedLitText) {
+    extractionPrompt += '\n' + buildLiteraryTextInstructions(detectedLitText);
+    console.log('Literary text detected:', detectedLitText, '— copyright rules injected');
+  }
+  extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
 
   // Detect custom niche subject for system prompt and post-validation
   const subjectLower = (exam.subject_id || '').toLowerCase();
