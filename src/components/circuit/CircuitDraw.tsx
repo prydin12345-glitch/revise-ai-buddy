@@ -30,7 +30,7 @@ const PADDING = 40;
 
 const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
   try {
-    const { gridSpacing = 80, nodes = [], wires = [], junctions, showLabels } = config;
+    const { gridSpacing = 80, nodes = [], wires = [], junctions, showLabels, highlightLabel } = config;
 
     // ── Validation guard ──
     if (!nodes.length || !wires || wires.length < 3) {
