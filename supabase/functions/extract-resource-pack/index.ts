@@ -92,6 +92,8 @@ serve(async (req) => {
 
     const extractionPrompt = `You are an expert at analyzing exam insert/resource booklets and extracting structured resources.
 
+${buildExtractSafetyInstruction('exam insert', subjectId)}
+
 Given the following PDF text content from an exam insert or resource booklet, identify and extract all discrete resources (sources, texts, data tables, images described, etc.).
 
 PDF CONTENT:
