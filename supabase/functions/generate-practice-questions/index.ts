@@ -6,6 +6,7 @@ import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_sha
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, parseLinearEquations } from "../_shared/graph-validator.ts";
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
+import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
