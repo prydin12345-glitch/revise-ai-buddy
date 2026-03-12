@@ -120,7 +120,7 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
           <g key={key}>
             <line x1={x1} y1={y1} x2={mx - componentHalf * dir} y2={y1} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
             <line x1={mx + componentHalf * dir} y1={y1} x2={x2} y2={y2} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
-            <CircuitComponent component={component} x={mx} y={my} rotation={rotation} label={label} showLabel={showLabels} />
+            <CircuitComponent component={component} x={mx} y={my} rotation={rotation} label={label} showLabel={showLabels} highlight={!!highlightLabel && !!label && label.includes(highlightLabel)} />
           </g>
         );
       }
@@ -131,7 +131,7 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
           <g key={key}>
             <line x1={x1} y1={y1} x2={x1} y2={my - componentHalf * dir} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
             <line x1={x1} y1={my + componentHalf * dir} x2={x2} y2={y2} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
-            <CircuitComponent component={component} x={mx} y={my} rotation={rotation} label={label} showLabel={showLabels} />
+            <CircuitComponent component={component} x={mx} y={my} rotation={rotation} label={label} showLabel={showLabels} highlight={!!highlightLabel && !!label && label.includes(highlightLabel)} />
           </g>
         );
       }
