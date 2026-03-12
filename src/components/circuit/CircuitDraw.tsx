@@ -146,7 +146,7 @@ const CircuitDraw: React.FC<CircuitDrawProps> = ({ config, width = 480 }) => {
         return (
           <g key={key}>
             <line x1={x1} y1={y1} x2={segMx - 30} y2={y1} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
-            <CircuitComponent component={component} x={segMx} y={y1} rotation={0} label={label} showLabel={showLabels} />
+            <CircuitComponent component={component} x={segMx} y={y1} rotation={0} label={label} showLabel={showLabels} highlight={!!highlightLabel && !!label && label.includes(highlightLabel)} />
             <line x1={segMx + 30} y1={y1} x2={cornerX} y2={cornerY} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
             <line x1={cornerX} y1={cornerY} x2={x2} y2={y2} stroke={CIRCUIT_COLORS.wire} strokeWidth={2} />
           </g>
