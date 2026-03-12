@@ -1110,6 +1110,25 @@ If the example or resource material contains a case study, source text, passage,
 5. NEVER reproduce verbatim passages from the source document.
 ${transformationInstructions}
 ${subjectGraphInstructions}
+${(() => {
+  // Inject circuit label consistency rules for physics/electronics subjects
+  const lowerSubject = subjectName.toLowerCase();
+  const lowerTopics = (setData.subtopics || []).map((t: string) => t.toLowerCase()).join(' ');
+  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter'];
+  const needsCircuitRules = circuitKeywords.some(kw => lowerSubject.includes(kw) || lowerTopics.includes(kw));
+  if (needsCircuitRules) {
+    return `
+CIRCUIT DIAGRAM LABEL CONSISTENCY (MANDATORY):
+When generating multi-part questions involving circuit diagrams:
+1. LABEL PERSISTENCE: Every component label (R₁, R₂, ε, r) MUST remain consistent across ALL parts of the question. Never rename R₁ to just "R" in later parts.
+2. FULL CIRCUIT RETENTION: If Q1 establishes a parallel/series arrangement, Q2 and Q3 MUST show the COMPLETE circuit — do not simplify to a single resistor unless explicitly computing a Thévenin equivalent.
+3. VALUE CONSISTENCY: If Q1 says R₁ = 12.0Ω, every subsequent question referencing that resistor must use R₁ = 12.0Ω — never change the value.
+4. CIRCUIT_DESCRIPTION: Always include a circuit_description field with the full circuit topology for EVERY question that has a diagram, even for follow-up questions. Do not rely on "refer to previous question."
+5. LABEL FORMAT: Use Unicode subscripts (R₁, R₂, R₃) not LaTeX subscripts in circuit_description labels. Use ε for EMF, r for internal resistance.
+`;
+  }
+  return '';
+})()}
 ${resourcePackContext}
 
 CRITICAL OUTPUT RULES:
