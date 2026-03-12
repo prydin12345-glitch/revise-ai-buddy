@@ -10,6 +10,7 @@
  */
 import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, X, Sparkles, Scan, Info } from "lucide-react";
+import { CopyrightNotice } from "@/components/shared/CopyrightNotice";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -636,6 +637,9 @@ export function SubtopicSelector({
           ))}
         </div>
       )}
+
+      {/* Copyright notice for literary texts */}
+      <CopyrightNotice subjectName={subject} topics={selectedSubtopics} />
     </div>
   );
 }

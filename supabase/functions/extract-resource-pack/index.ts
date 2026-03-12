@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,6 +91,8 @@ serve(async (req) => {
     }
 
     const extractionPrompt = `You are an expert at analyzing exam insert/resource booklets and extracting structured resources.
+
+${buildExtractSafetyInstruction('exam insert', subjectId)}
 
 Given the following PDF text content from an exam insert or resource booklet, identify and extract all discrete resources (sources, texts, data tables, images described, etc.).
 

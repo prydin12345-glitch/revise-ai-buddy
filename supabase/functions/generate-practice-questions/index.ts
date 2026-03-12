@@ -6,6 +6,7 @@ import { validateNotes, formatNotesForPrompt, logNotesModeration } from "../_sha
 import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, parseLinearEquations } from "../_shared/graph-validator.ts";
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
+import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -1092,6 +1093,11 @@ ${complexityInstructions}
 ${topicContextInstruction}
 
 IMPORTANT: All scenarios, case studies, and data sets MUST be entirely original. Do not reproduce or closely paraphrase real exam questions, published mark schemes, or copyrighted source texts. Create novel contexts that test the same skills.
+${(() => {
+  const detectedText = detectLiteraryText(subjectName, setData.subtopics || []);
+  return detectedText ? buildLiteraryTextInstructions(detectedText) : '';
+})()}
+${buildExtractSafetyInstruction(setData.exam_board || 'exam-style', subjectName)}
 ${canonicalTopicInstruction}
 ${specialisedSubjectContext}
 
