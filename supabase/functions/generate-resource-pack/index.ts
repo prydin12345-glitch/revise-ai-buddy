@@ -340,6 +340,14 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
+    // Inject copyright rules
+    const detectedLitText = detectLiteraryText(subjectId, subtopics || []);
+    if (detectedLitText) {
+      generationPrompt += '\n' + buildLiteraryTextInstructions(detectedLitText);
+      console.log('Literary text detected in resource pack:', detectedLitText);
+    }
+    generationPrompt += '\n' + buildExtractSafetyInstruction(sourceType || 'text_extract', subjectId);
+
     const isEnglish = isEnglishLanguage || isEnglishLit;
     const systemMessage = isEnglish
       ? 'You are an expert English exam paper writer. Generate realistic, high-quality exam inserts with proper literary quality. Return only valid JSON where requested, otherwise return the formatted extract followed by a JSON metadata block.'
