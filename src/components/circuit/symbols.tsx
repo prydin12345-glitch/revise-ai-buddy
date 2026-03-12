@@ -7,18 +7,21 @@ interface SymbolProps {
   rotation: number; // 0 for horizontal, 90 for vertical
   label?: string;
   showLabel: boolean;
+  highlight?: boolean; // optional highlight for focused component
 }
 
 const STROKE_W = 2;
+const HIGHLIGHT_COLOR = '#0066cc';
 
-/** Label positioned above horizontal components, right of vertical */
-const ComponentLabel: React.FC<{ x: number; y: number; rotation: number; text: string; show: boolean }> = ({
-  x, y, rotation, text, show,
-}) => {
+/** Label positioned with generous padding from component body */
+const ComponentLabel: React.FC<{
+  x: number; y: number; rotation: number; text: string; show: boolean; highlight?: boolean;
+}> = ({ x, y, rotation, text, show, highlight }) => {
   if (!show || !text) return null;
   const isVertical = Math.abs(rotation) === 90;
-  const lx = isVertical ? x + 20 : x;
-  const ly = isVertical ? y : y - 18;
+  // Increased offset: 28px for horizontal (was 18), 26px for vertical (was 20)
+  const lx = isVertical ? x + 26 : x;
+  const ly = isVertical ? y : y - 24;
 
   return (
     <text
@@ -29,7 +32,8 @@ const ComponentLabel: React.FC<{ x: number; y: number; rotation: number; text: s
       fontFamily={CIRCUIT_FONT.family}
       fontStyle={CIRCUIT_FONT.style}
       fontSize={CIRCUIT_FONT.size}
-      fill={CIRCUIT_COLORS.label}
+      fill={highlight ? HIGHLIGHT_COLOR : CIRCUIT_COLORS.label}
+      fontWeight={highlight ? 'bold' : 'normal'}
     >
       {text}
     </text>
@@ -39,8 +43,8 @@ const ComponentLabel: React.FC<{ x: number; y: number; rotation: number; text: s
 /** Unknown placeholder box */
 const UnknownBox: React.FC<{ x: number; y: number; rotation: number }> = ({ x, y, rotation }) => {
   const isVertical = Math.abs(rotation) === 90;
-  const bx = isVertical ? x + 20 : x;
-  const by = isVertical ? y : y - 18;
+  const bx = isVertical ? x + 26 : x;
+  const by = isVertical ? y : y - 24;
   return (
     <g>
       <rect x={bx - 10} y={by - 8} width={20} height={16} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={1} rx={2} />
@@ -49,19 +53,24 @@ const UnknownBox: React.FC<{ x: number; y: number; rotation: number }> = ({ x, y
   );
 };
 
-/** Battery — two unequal parallel lines */
-export const BatterySymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+/** Battery — two unequal parallel lines, +/- labels positioned clearly outside wires */
+export const BatterySymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      {/* Long thin line = positive plate */}
       <line x1={x - 6} y1={y - 12} x2={x - 6} y2={y + 12} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
+      {/* Short thick line = negative plate */}
       <line x1={x + 6} y1={y - 7} x2={x + 6} y2={y + 7} stroke={CIRCUIT_COLORS.component} strokeWidth={3} />
-      <text x={x - 14} y={y - 6} textAnchor="middle" fontSize={10} fontWeight="bold" fill={CIRCUIT_COLORS.label}>+</text>
-      <text x={x + 14} y={y - 6} textAnchor="middle" fontSize={10} fontWeight="bold" fill={CIRCUIT_COLORS.label}>−</text>
+      {/* +/- labels pushed further out and positioned above the plates, not on the wire */}
+      <text x={x - 10} y={y - 16} textAnchor="middle" fontSize={9} fontWeight="bold" fill={CIRCUIT_COLORS.label}>+</text>
+      <text x={x + 10} y={y - 16} textAnchor="middle" fontSize={9} fontWeight="bold" fill={CIRCUIT_COLORS.label}>−</text>
+      {/* Wire stubs connecting to the plates */}
       <line x1={x - 30} y1={y} x2={x - 6} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 6} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
+    {/* ε / EMF label positioned well above the battery, not overlapping +/- */}
     {showLabel && label ? (
-      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
     ) : !showLabel ? (
       <UnknownBox x={x} y={y} rotation={rotation} />
     ) : null}
@@ -69,15 +78,18 @@ export const BatterySymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, sh
 );
 
 /** Resistor — IEC rectangle */
-export const ResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+export const ResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      {highlight && (
+        <rect x={x - 17} y={y - 8} width={34} height={16} fill="none" stroke={HIGHLIGHT_COLOR} strokeWidth={2.5} strokeDasharray="4 2" rx={3} />
+      )}
       <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
       <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
     {showLabel && label ? (
-      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
     ) : !showLabel ? (
       <UnknownBox x={x} y={y} rotation={rotation} />
     ) : null}
@@ -85,7 +97,7 @@ export const ResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, s
 );
 
 /** Variable Resistor — rectangle with diagonal arrow */
-export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
       <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
@@ -95,7 +107,7 @@ export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, 
       <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
     {showLabel && label ? (
-      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
     ) : !showLabel ? (
       <UnknownBox x={x} y={y} rotation={rotation} />
     ) : null}
@@ -103,20 +115,18 @@ export const VariableResistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, 
 );
 
 /** Thermistor — resistor rectangle with diagonal line and θ symbol */
-export const ThermistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+export const ThermistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
       <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
-      {/* Diagonal line with negative slope indicator (NTC) */}
       <line x1={x - 18} y1={y + 10} x2={x + 18} y2={y - 10} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
-      {/* Small "θ" temperature symbol */}
       <text x={x + 22} y={y + 14} textAnchor="middle" dominantBaseline="central"
         fontFamily={CIRCUIT_FONT.family} fontStyle={CIRCUIT_FONT.style} fontSize={10} fill={CIRCUIT_COLORS.label}>θ</text>
       <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
       <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
     {showLabel && label ? (
-      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
     ) : !showLabel ? (
       <UnknownBox x={x} y={y} rotation={rotation} />
     ) : null}
@@ -124,7 +134,7 @@ export const ThermistorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label,
 );
 
 /** Lamp — circle with X inside */
-export const LampSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
+export const LampSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
       <circle cx={x} cy={y} r={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
@@ -134,7 +144,7 @@ export const LampSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showL
       <line x1={x + 12} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
     </g>
     {showLabel && label ? (
-      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} />
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
     ) : !showLabel ? (
       <UnknownBox x={x} y={y} rotation={rotation} />
     ) : null}
@@ -220,7 +230,7 @@ export const DiodeSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, show
   </g>
 );
 
-/** Motor — circle with M inside (like voltmeter/ammeter) */
+/** Motor — circle with M inside */
 export const MotorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel }) => (
   <g>
     <g transform={`rotate(${rotation}, ${x}, ${y})`}>
@@ -248,8 +258,9 @@ export const CircuitComponent: React.FC<{
   rotation: number;
   label?: string;
   showLabel: boolean;
-}> = ({ component, x, y, rotation, label, showLabel }) => {
-  const props: SymbolProps = { x, y, rotation, label, showLabel };
+  highlight?: boolean;
+}> = ({ component, x, y, rotation, label, showLabel, highlight }) => {
+  const props: SymbolProps = { x, y, rotation, label, showLabel, highlight };
 
   switch (component) {
     case 'battery': return <BatterySymbol {...props} />;

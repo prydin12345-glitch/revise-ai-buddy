@@ -155,6 +155,21 @@ COMPLEXITY LEVEL: Standard
 - Include a range of difficulty within the set`;
 }
 
+/** Build circuit diagram consistency instructions for multi-part physics questions */
+export function buildCircuitInstructions(): string {
+  return `
+CIRCUIT DIAGRAM LABEL CONSISTENCY (MANDATORY):
+When generating multi-part questions involving circuit diagrams:
+1. LABEL PERSISTENCE: Every component label (R₁, R₂, ε, r) MUST remain consistent across ALL parts of the question. Never rename R₁ to just "R" in later parts.
+2. FULL CIRCUIT RETENTION: If Q1 establishes a parallel/series arrangement, Q2 and Q3 MUST show the COMPLETE circuit — do not simplify to a single resistor unless explicitly computing a Thévenin equivalent.
+3. VALUE CONSISTENCY: If Q1 says R₁ = 12.0Ω, every subsequent question referencing that resistor must use R₁ = 12.0Ω — never change the value.
+4. HIGHLIGHTING: When a later part asks the student to calculate a property of a specific component, include "highlightLabel" in the circuit_description JSON set to the component label (e.g. "R₁") so the diagram can visually emphasise that component.
+5. CIRCUIT_DESCRIPTION FORMAT: Always include a JSON circuit_description field with the full circuit topology, even for follow-up questions. Do not rely on "refer to previous question."
+6. LABEL FORMAT: Use Unicode subscripts (R₁, R₂, R₃) not LaTeX subscripts in diagram labels. Use ε for EMF, r for internal resistance.
+`;
+}
+}
+
 /** Translate exam board to generic style description */
 export function translateExamBoard(examBoard: string | undefined): string {
   if (!examBoard) return '';

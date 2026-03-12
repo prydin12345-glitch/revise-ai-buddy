@@ -41,6 +41,8 @@ export interface CircuitConfig {
   junctions?: CircuitJunction[];
   showLabels: boolean;
   showCurrentArrows?: boolean;
+  /** Label substring to visually highlight (e.g. "R₁") */
+  highlightLabel?: string;
 }
 
 // ── Styling Constants ──
