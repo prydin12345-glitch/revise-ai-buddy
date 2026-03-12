@@ -637,6 +637,9 @@ export function SubtopicSelector({
           ))}
         </div>
       )}
+
+      {/* Copyright notice for literary texts */}
+      <CopyrightNotice subjectName={subject} topics={selectedSubtopics} />
     </div>
   );
 }
