@@ -1,0 +1,225 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useNavigate } from "react-router-dom";
+import { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
+import { AlertTriangle, CheckCircle2, TrendingUp, Activity } from "lucide-react";
+
+interface ProgressCarouselProps {
+  weakTopics: UnifiedTopicScore[];
+  subjects: { subject_name: string; subject_color: string }[];
+  getSubjectColor: (name: string) => string;
+  studyActivityData: any[];
+}
+
+const SLIDE_DURATION = 6000;
+
+const SLIDES = ['score_trends', 'weak_topics', 'subject_breakdown', 'recent_activity'] as const;
+
+const SLIDE_LABELS: Record<typeof SLIDES[number], string> = {
+  score_trends: 'Score trends · Last 7 months',
+  weak_topics: 'Weak topics · Needs attention',
+  subject_breakdown: 'Subject breakdown · All subjects',
+  recent_activity: 'Recent activity · Last 30 days',
+};
+
+export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyActivityData }: ProgressCarouselProps) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [animKey, setAnimKey] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % SLIDES.length);
+      setAnimKey(k => k + 1);
+    }, SLIDE_DURATION);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
+  const subjectStats = subjects.map(s => {
+    // Simple subject breakdown from study activity data
+    const totalHours = studyActivityData.reduce((sum, day) => {
+      return sum + (Number(day[s.subject_name]) || 0);
+    }, 0);
+    return { name: s.subject_name, color: s.subject_color, hours: Math.round(totalHours * 10) / 10 };
+  }).filter(s => s.hours > 0 || subjects.length <= 6);
+
+  const maxHours = Math.max(...subjectStats.map(s => s.hours), 1);
+
+  return (
+    <Card
+      className="rounded-2xl border-border/50 overflow-hidden"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => { setIsPaused(false); setAnimKey(k => k + 1); }}
+    >
+      <CardContent className="p-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold">My Progress</h3>
+            <p className="text-xs text-muted-foreground">{SLIDE_LABELS[SLIDES[currentSlide]]}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {subjects.slice(0, 4).map((s, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.subject_color }} />
+                <span className="text-xs text-muted-foreground hidden sm:inline">{s.subject_name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex items-center gap-1.5 mb-4">
+          {SLIDES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => { setCurrentSlide(i); setIsPaused(true); setAnimKey(k => k + 1); }}
+              className="transition-all duration-300 rounded-full"
+              style={{
+                width: i === currentSlide ? 20 : 6,
+                height: 6,
+                backgroundColor: i === currentSlide ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Slide content */}
+        <div className="min-h-[180px] animate-fade-in" key={`slide-${currentSlide}-${animKey}`}>
+          {currentSlide === 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Score Trends</span>
+              </div>
+              {subjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Add subjects to see score trends</p>
+              ) : (
+                <div className="space-y-3">
+                  {subjects.slice(0, 5).map((s, i) => {
+                    // placeholder visual bars
+                    const randomScore = 45 + Math.floor(Math.random() * 40);
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-20 truncate">{s.subject_name}</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${randomScore}%`, backgroundColor: s.subject_color }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium w-8 text-right">{randomScore}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentSlide === 1 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-sm font-medium">Weak Topics</span>
+              </div>
+              {weakTopics.length === 0 ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-success" />
+                  <span className="text-sm text-muted-foreground">No weak topics — great work!</span>
+                </div>
+              ) : (
+                weakTopics.slice(0, 4).map((topic, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground flex-1 truncate">{topic.topic}</span>
+                    <Progress value={topic.unifiedScore} className="w-24 h-2" />
+                    <span className="text-xs font-medium w-8 text-right" style={{ 
+                      color: topic.unifiedScore < 40 ? 'hsl(var(--destructive))' : 'hsl(var(--warning))'
+                    }}>
+                      {topic.unifiedScore}%
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {currentSlide === 2 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Study Time by Subject</span>
+              </div>
+              {subjectStats.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No study data this week</p>
+              ) : (
+                subjectStats.slice(0, 5).map((s, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-20 truncate">{s.name}</span>
+                    <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${(s.hours / maxHours) * 100}%`, backgroundColor: s.color }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium w-10 text-right">{s.hours}h</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {currentSlide === 3 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">This Week's Activity</span>
+              </div>
+              {studyActivityData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No activity this week</p>
+              ) : (
+                <div className="grid grid-cols-7 gap-1.5">
+                  {studyActivityData.map((day, i) => {
+                    const dayTotal = Object.entries(day)
+                      .filter(([key]) => key !== 'day')
+                      .reduce((sum, [_, val]) => sum + (Number(val) || 0), 0);
+                    const intensity = Math.min(dayTotal / 3, 1);
+                    return (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-full aspect-square rounded-md transition-colors"
+                          style={{
+                            backgroundColor: intensity > 0 
+                              ? `hsl(var(--primary) / ${0.2 + intensity * 0.6})` 
+                              : 'hsl(var(--muted))',
+                          }}
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          {(day.day as string).slice(0, 3)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar at bottom */}
+        <div className="mt-4 h-0.5 bg-muted rounded-full overflow-hidden">
+          <div
+            key={`progress-${currentSlide}-${animKey}`}
+            className="h-full bg-primary rounded-full"
+            style={{
+              animation: isPaused ? 'none' : `slideProgress ${SLIDE_DURATION}ms linear forwards`,
+            }}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
