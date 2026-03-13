@@ -7,8 +7,7 @@ import { TeacherDashboardContent } from "@/components/dashboard/TeacherDashboard
 import { TutorDashboardContent } from "@/components/dashboard/TutorDashboardContent";
 import { Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, BookOpen, Users, CheckCircle2 } from "lucide-react";
+import { GraduationCap, BookOpen, Users } from "lucide-react";
 
 const Dashboard = () => {
   const [session, setSession] = useState<Session | null>(null);
