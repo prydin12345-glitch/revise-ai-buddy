@@ -185,22 +185,35 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         {/* Top bar */}
         <header className="sticky top-0 z-30 h-14 lg:h-16 bg-sidebar-background border-b border-sidebar-border shadow-lg">
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
-            {/* Left: Logo + Search */}
+            {/* Left: Logo */}
             <div className="flex items-center gap-6 flex-1">
-              
-              <div className="hidden lg:flex items-center">
-                <span className="text-xl font-bold text-white">Examly</span>
+              <div className="flex items-center">
+                <span className="text-xl font-bold text-white">Exam</span>
+                <span className="text-xl font-bold text-primary">ly</span>
               </div>
             </div>
 
-            {/* Right: Upgrade button + Notifications + Profile */}
-            <div className="flex items-center gap-3">
+            {/* Right: Join Class + Upgrade + Notifications + Profile */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {primaryRole !== 'tutor' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:flex items-center gap-1.5 border-border/50 text-foreground hover:bg-muted/50 h-9"
+                  onClick={() => navigate("/my-classes")}
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Join Class</span>
+                </Button>
+              )}
+
               <Button
                 variant="default"
-                className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all"
+                size="sm"
+                className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all h-9"
                 onClick={() => navigate("/pricing")}
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
 
@@ -208,10 +221,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/10 transition-colors">
-                    <Avatar className="w-9 h-9 border-2 border-primary/40">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white">
-                        <User className="w-4 h-4" />
+                  <Button variant="ghost" size="sm" className="rounded-full hover:bg-white/10 transition-colors px-1 gap-2 h-9">
+                    <Avatar className="w-8 h-8 border-2 border-primary/40">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs">
+                        <User className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
                   </Button>
