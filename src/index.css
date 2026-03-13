@@ -212,6 +212,11 @@ All colors MUST be HSL.
   }
 }
 
+@keyframes slideProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
 /* Exam Table Formatting - Rich Text Tables */
 .exam-table {
   width: 100%;
