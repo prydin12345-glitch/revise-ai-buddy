@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
 import { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
-import { AlertTriangle, CheckCircle2, TrendingUp, Activity } from "lucide-react";
+import { AlertTriangle, CheckCircle2, TrendingUp, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ProgressCarouselProps {
   weakTopics: UnifiedTopicScore[];
@@ -12,7 +12,7 @@ interface ProgressCarouselProps {
   studyActivityData: any[];
 }
 
-const SLIDE_DURATION = 6000;
+const SLIDE_DURATION = 12000;
 
 const SLIDES = ['score_trends', 'weak_topics', 'subject_breakdown', 'recent_activity'] as const;
 
@@ -23,11 +23,19 @@ const SLIDE_LABELS: Record<typeof SLIDES[number], string> = {
   recent_activity: 'Recent activity · Last 30 days',
 };
 
+const SLIDE_DESTINATIONS: Record<typeof SLIDES[number], string> = {
+  score_trends: '/stats?tab=stats',
+  weak_topics: '/stats?tab=weak-topics',
+  subject_breakdown: '/stats?tab=stats',
+  recent_activity: '/stats?tab=stats',
+};
+
 export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyActivityData }: ProgressCarouselProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [animKey, setAnimKey] = useState(0);
   const navigate = useNavigate();
+  const touchStartX = useRef<number>(0);
 
   useEffect(() => {
     if (isPaused) return;
@@ -38,22 +46,73 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
     return () => clearInterval(timer);
   }, [isPaused]);
 
-  const subjectStats = subjects.map(s => {
-    // Simple subject breakdown from study activity data
-    const totalHours = studyActivityData.reduce((sum, day) => {
-      return sum + (Number(day[s.subject_name]) || 0);
-    }, 0);
-    return { name: s.subject_name, color: s.subject_color, hours: Math.round(totalHours * 10) / 10 };
-  }).filter(s => s.hours > 0 || subjects.length <= 6);
+  // Filter subjects to only those with real study data
+  const subjectStats = useMemo(() => {
+    return subjects.map(s => {
+      const totalHours = studyActivityData.reduce((sum, day) => {
+        return sum + (Number(day[s.subject_name]) || 0);
+      }, 0);
+      return { name: s.subject_name, color: s.subject_color, hours: Math.round(totalHours * 10) / 10 };
+    }).filter(s => s.hours > 0);
+  }, [subjects, studyActivityData]);
+
+  // Only show subjects with real data in score trends
+  const subjectsWithData = useMemo(() => {
+    return subjects.filter(s => {
+      const hasStudyData = studyActivityData.some(day => (Number(day[s.subject_name]) || 0) > 0);
+      return hasStudyData;
+    });
+  }, [subjects, studyActivityData]);
 
   const maxHours = Math.max(...subjectStats.map(s => s.hours), 1);
 
+  const goToPrev = () => {
+    setCurrentSlide(prev => prev === 0 ? SLIDES.length - 1 : prev - 1);
+    setIsPaused(true);
+    setAnimKey(k => k + 1);
+  };
+
+  const goToNext = () => {
+    setCurrentSlide(prev => (prev + 1) % SLIDES.length);
+    setIsPaused(true);
+    setAnimKey(k => k + 1);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(delta) > 50) {
+      if (delta > 0) goToNext();
+      else goToPrev();
+      setTimeout(() => setIsPaused(false), 3000);
+    }
+  };
+
   return (
     <Card
-      className="rounded-2xl border-border/50 overflow-hidden"
+      className="rounded-2xl border-border/50 overflow-hidden group relative"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => { setIsPaused(false); setAnimKey(k => k + 1); }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
+      {/* Arrow navigation — visible on hover */}
+      <button
+        onClick={goToPrev}
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        onClick={goToNext}
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
       <CardContent className="p-5">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -77,6 +136,7 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
             <button
               key={i}
               onClick={() => { setCurrentSlide(i); setIsPaused(true); setAnimKey(k => k + 1); }}
+              title={`View ${SLIDES[i].replace('_', ' ')} in detail`}
               className="transition-all duration-300 rounded-full"
               style={{
                 width: i === currentSlide ? 20 : 6,
@@ -87,31 +147,36 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
           ))}
         </div>
 
-        {/* Slide content */}
-        <div className="min-h-[180px] animate-fade-in" key={`slide-${currentSlide}-${animKey}`}>
+        {/* Slide content — clickable to navigate to stats */}
+        <div
+          className="min-h-[180px] animate-fade-in cursor-pointer"
+          key={`slide-${currentSlide}-${animKey}`}
+          onClick={() => navigate(SLIDE_DESTINATIONS[SLIDES[currentSlide]])}
+        >
           {currentSlide === 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium">Score Trends</span>
               </div>
-              {subjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Add subjects to see score trends</p>
+              {subjectsWithData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Add subjects and complete exams to see score trends</p>
               ) : (
                 <div className="space-y-3">
-                  {subjects.slice(0, 5).map((s, i) => {
-                    // placeholder visual bars
-                    const randomScore = 45 + Math.floor(Math.random() * 40);
+                  {subjectsWithData.slice(0, 5).map((s, i) => {
+                    // Use actual study hours as a proxy score indicator (no random values)
+                    const totalHours = studyActivityData.reduce((sum, day) => sum + (Number(day[s.subject_name]) || 0), 0);
+                    const normalised = Math.min(Math.round(totalHours * 20), 100);
                     return (
                       <div key={i} className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground w-20 truncate">{s.subject_name}</span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${randomScore}%`, backgroundColor: s.subject_color }}
+                            style={{ width: `${normalised}%`, backgroundColor: s.subject_color }}
                           />
                         </div>
-                        <span className="text-xs font-medium w-8 text-right">{randomScore}%</span>
+                        <span className="text-xs font-medium w-8 text-right">{normalised}%</span>
                       </div>
                     );
                   })}
@@ -154,7 +219,7 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
                 <span className="text-sm font-medium">Study Time by Subject</span>
               </div>
               {subjectStats.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No study data this week</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No study data yet</p>
               ) : (
                 subjectStats.slice(0, 5).map((s, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -209,8 +274,13 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
           )}
         </div>
 
+        {/* Click hint */}
+        <p className="text-[10px] text-muted-foreground/50 text-right mt-2 italic">
+          Click to view full stats →
+        </p>
+
         {/* Progress bar at bottom */}
-        <div className="mt-4 h-0.5 bg-muted rounded-full overflow-hidden">
+        <div className="mt-2 h-0.5 bg-muted rounded-full overflow-hidden">
           <div
             key={`progress-${currentSlide}-${animKey}`}
             className="h-full bg-primary rounded-full"

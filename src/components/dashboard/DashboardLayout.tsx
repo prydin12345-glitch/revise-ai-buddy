@@ -245,7 +245,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
+        <main className="p-4 pb-24 lg:p-6 lg:pb-6 overflow-y-auto">{children}</main>
       </div>
 
       {/* Mobile Bottom Navigation */}

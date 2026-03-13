@@ -51,6 +51,13 @@ interface AnnouncementInfo {
   color: string;
 }
 
+const getGreetingByTime = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
 export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const { studyActivityData } = useExamStats();
@@ -59,6 +66,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  const [userFirstName, setUserFirstName] = useState("");
   const [userInitials, setUserInitials] = useState("U");
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
@@ -78,6 +86,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       const name = meta?.full_name || meta?.name || email.split("@")[0] || "User";
       setUserName(name);
       const parts = name.split(" ");
+      setUserFirstName(parts[0] || "User");
       setUserInitials(parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
     });
   }, []);
@@ -111,16 +120,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return Math.round(total / gradedExams.length);
   }, [allExams]);
 
-  // In-progress exams for the Mock Exams column
   const inProgressExams = useMemo(() => {
     return allExams.filter(e => e.submission?.status === 'in_progress' || (!e.submission && e.status === 'published'));
-  }, [allExams]);
-
-  // Recently completed/graded exams for the Recent Exams sidebar
-  const recentCompletedExams = useMemo(() => {
-    return allExams
-      .filter(e => e.submission?.status === 'graded' || e.submission?.status === 'submitted' || e.submission?.status === 'completed')
-      .slice(0, 4);
   }, [allExams]);
 
   const stats = [
@@ -139,7 +140,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch user streak
       const { data: streakData } = await supabase
         .from('user_streaks')
         .select('current_streak, last_exam_submitted_at')
@@ -151,14 +151,12 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
       }
 
-      // Load user's own exams
       const { data: ownExams } = await supabase
         .from("exams")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      // Load assigned exams
       const { data: assignments } = await supabase
         .from("exam_assignments")
         .select(`exam_id, deadline, exams (*)`)
@@ -199,7 +197,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       setAllExams(sortedExams);
       setExams(sortedExams.slice(0, 3));
 
-      // Load practice sets with progress
       const { data: sets } = await supabase
         .from("practice_question_sets")
         .select("id, set_name, subject_id, question_count, status")
@@ -222,7 +219,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         setPracticeSets(setsWithProgress);
       }
 
-      // Load classes
       const { data: memberships } = await supabase
         .from("group_members")
         .select("group_id, student_groups(id, name, tutor_id, subject)")
@@ -235,14 +231,12 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           const group = m.student_groups as any;
           if (!group) continue;
           
-          // Get member count
           const { count } = await supabase
             .from("group_members")
             .select("*", { count: 'exact', head: true })
             .eq("group_id", group.id)
             .eq("is_active", true);
 
-          // Get tutor name
           const { data: tutorProfile } = await supabase
             .from("user_profiles")
             .select("display_name")
@@ -259,7 +253,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         }
         setClasses(classInfos);
 
-        // Load announcements
         const groupIds = memberships.map(m => (m.student_groups as any)?.id).filter(Boolean);
         if (groupIds.length > 0) {
           const { data: anns } = await supabase
@@ -313,9 +306,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   };
 
   const getExamProgress = (exam: ExamWithSubmission) => {
-    // Simplified: if in progress, show partial; if completed, 100%
     if (exam.submission?.status === 'graded' || exam.submission?.status === 'completed' || exam.submission?.status === 'submitted') return 100;
-    if (exam.submission?.status === 'in_progress') return 50; // placeholder
+    if (exam.submission?.status === 'in_progress') return 50;
     return 0;
   };
 
@@ -328,6 +320,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   if (loading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-16 rounded-2xl" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ gridTemplateColumns: '1fr 1fr 320px' }}>
           <Skeleton className="h-64 rounded-2xl" />
           <Skeleton className="h-64 rounded-2xl" />
@@ -338,22 +331,47 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
+      {/* Welcome Banner */}
+      <div className="px-1">
+        <h1 className="text-[22px] font-bold text-foreground">
+          Welcome back, {userName}!
+        </h1>
+        <p className="text-[13px] text-muted-foreground mt-1">
+          {getGreetingByTime()} — here's your study overview.
+        </p>
+      </div>
+
       {/* 3-Column Dashboard Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_320px] gap-4">
         
         {/* Column 1: Mock Exams */}
         <Card className="rounded-2xl border-border/50">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-bold">Mock Exams</CardTitle>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full border-dashed"
-              onClick={() => navigate("/upload")}
+            <CardTitle
+              className="text-lg font-bold cursor-pointer hover:text-primary transition-colors"
+              onClick={() => navigate("/my-exams")}
             >
-              <Plus className="h-4 w-4" />
-            </Button>
+              Mock Exams
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="link"
+                size="sm"
+                className="text-primary text-xs p-0 h-auto"
+                onClick={() => navigate("/my-exams")}
+              >
+                View all
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full border-dashed"
+                onClick={() => navigate("/upload")}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             {inProgressExams.length === 0 ? (
@@ -398,15 +416,30 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         {/* Column 2: Practice Quizzes */}
         <Card className="rounded-2xl border-border/50">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-bold">Practice Quizzes</CardTitle>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full border-dashed"
-              onClick={() => navigate("/create-practice-questions")}
+            <CardTitle
+              className="text-lg font-bold cursor-pointer hover:text-primary transition-colors"
+              onClick={() => navigate("/quizzes")}
             >
-              <Plus className="h-4 w-4" />
-            </Button>
+              Practice Quizzes
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="link"
+                size="sm"
+                className="text-primary text-xs p-0 h-auto"
+                onClick={() => navigate("/quizzes")}
+              >
+                View all
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full border-dashed"
+                onClick={() => navigate("/create-practice-questions")}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             {practiceSets.length === 0 ? (
@@ -469,148 +502,84 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           </CardContent>
         </Card>
 
-        {/* Column 3: Right Sidebar (spans 2 rows) */}
-        <div className="row-span-2 space-y-4">
-          {/* Recent Exams */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-bold">Recent Exams</CardTitle>
-              {allExams.length > 0 && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-primary text-xs p-0 h-auto"
-                  onClick={() => setShowAllExamsModal(true)}
-                >
-                  View all →
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-2 pt-0">
-              {recentCompletedExams.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No completed exams yet</p>
-              ) : (
-                recentCompletedExams.map(exam => {
-                  const score = exam.submission && exam.submission.total_marks > 0
-                    ? Math.round((exam.submission.total_score / exam.submission.total_marks) * 100)
-                    : null;
-                  const color = getSubjectColor(exam.subject_id);
-                  return (
-                    <div
-                      key={exam.id}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/exam/${exam.id}/review`)}
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${color}20` }}
-                      >
-                        <FileText className="w-4 h-4" style={{ color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{exam.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Submitted · {getTimeAgo(exam.submission?.last_accessed_at || exam.created_at)}
-                        </p>
-                      </div>
-                      {score !== null && (
-                        <Badge
-                          className="text-xs font-bold shrink-0"
-                          style={{
-                            backgroundColor: score >= 70 ? 'hsl(var(--success) / 0.15)' : score >= 50 ? 'hsl(var(--warning) / 0.15)' : 'hsl(var(--destructive) / 0.15)',
-                            color: score >= 70 ? 'hsl(var(--success))' : score >= 50 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))',
-                            border: 'none',
-                          }}
-                        >
-                          {score}%
-                        </Badge>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Profile Card */}
-          <Card className="rounded-2xl border-border/50">
-            <CardContent className="p-4">
-              <div className="flex flex-col items-center text-center mb-4">
-                <div className="relative mb-2">
-                  <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
-                    {userInitials}
-                  </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success border-2 border-card" />
+        {/* Column 3: Unified Right Sidebar */}
+        <div className="row-span-2">
+          <Card className="rounded-2xl border-border/50 overflow-hidden">
+            {/* Section 1: Student Profile */}
+            <div className="p-5 border-b border-border/50 text-center">
+              <div className="relative inline-block mb-3">
+                <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
+                  {userInitials}
                 </div>
-                <p className="font-bold text-base">{userName}</p>
-                <p className="text-xs text-muted-foreground">UK A-Level / GCSE</p>
+                <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-card" />
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <p className="font-semibold text-sm">{userName}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">UK A-Level / GCSE</p>
+
+              <div className="grid grid-cols-4 gap-1.5 mt-4">
                 {stats.map((stat, i) => (
                   <button
                     key={i}
-                    className="flex flex-col items-center p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col items-center p-2 rounded-lg bg-background/50 hover:bg-muted/50 transition-colors"
                     onClick={() => drilldown.openDrawer(stat.drilldown)}
                   >
-                    <span className="text-lg">{stat.emoji}</span>
-                    <span className="text-sm font-bold">{stat.value}</span>
+                    <span className="text-base">{stat.emoji}</span>
+                    <span className="text-sm font-bold mt-0.5">{stat.value}</span>
+                    <span className="text-[9px] text-muted-foreground mt-0.5">{stat.label}</span>
                   </button>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* My Classes */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">My Classes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 pt-0">
+            {/* Section 2: My Classes */}
+            <div className="p-4 border-b border-border/50">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">My Classes</p>
               {classes.length === 0 ? (
-                <div className="text-center py-3">
-                  <p className="text-xs text-muted-foreground mb-2">No classes yet</p>
+                <div className="text-center py-2">
+                  <p className="text-xs text-muted-foreground mb-2 italic">No classes yet</p>
                   <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowJoinClassModal(true)}>
                     <Users className="w-3 h-3 mr-1" /> Join a Class
                   </Button>
                 </div>
               ) : (
-                classes.map(cls => (
-                  <div
-                    key={cls.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate("/my-classes")}
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{cls.name}</p>
-                      <p className="text-xs text-muted-foreground">{cls.tutorName} · {cls.studentCount} students</p>
+                <div className="space-y-1">
+                  {classes.map(cls => (
+                    <div
+                      key={cls.id}
+                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => navigate("/my-classes")}
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{cls.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{cls.tutorName} · {cls.studentCount} students</p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Recent Announcements */}
-          {announcements.length > 0 && (
-            <Card className="rounded-2xl border-border/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recent Announcements</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 pt-0">
-                {announcements.map(ann => (
-                  <div
-                    key={ann.id}
-                    className="p-2.5 rounded-lg border-l-3 hover:bg-muted/50 transition-colors"
-                    style={{ borderLeftColor: ann.color, borderLeftWidth: 3 }}
-                  >
-                    <p className="text-sm font-medium text-primary">{ann.title}</p>
-                    <p className="text-xs text-muted-foreground">{ann.className} · {ann.timeAgo}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+            {/* Section 3: Recent Announcements */}
+            <div className="p-4">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent Announcements</p>
+              {announcements.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No announcements</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {announcements.slice(0, 3).map(ann => (
+                    <div
+                      key={ann.id}
+                      className="p-2.5 rounded-lg bg-background/50"
+                    >
+                      <p className="text-xs font-medium">{ann.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{ann.className} · {ann.timeAgo}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
 
         {/* Row 2: Progress Carousel — spans first 2 columns */}
