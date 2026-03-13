@@ -561,7 +561,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </div>
 
             {/* Section 3: Recent Announcements */}
-            <div className="p-4">
+            <div className="p-4 flex-1">
               <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent Announcements</p>
               {announcements.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">No announcements</p>
