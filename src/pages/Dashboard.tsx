@@ -90,26 +90,7 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <Card className="border-2 bg-gradient-to-br from-primary/5 to-background">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <RoleIcon className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <div className="text-2xl">Welcome back!</div>
-                <div className="text-sm text-muted-foreground font-normal flex items-center gap-2 mt-1">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  Logged in as {getRoleLabel()}
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        {renderDashboardContent()}
-      </div>
+      {renderDashboardContent()}
     </DashboardLayout>
   );
 };
