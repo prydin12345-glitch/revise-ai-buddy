@@ -503,8 +503,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         </Card>
 
         {/* Column 3: Unified Right Sidebar */}
-        <div className="row-span-2">
-          <Card className="rounded-2xl border-border/50 overflow-hidden">
+        <div className="row-span-2 flex">
+          <Card className="rounded-2xl border-border/50 overflow-hidden flex flex-col w-full">
             {/* Section 1: Student Profile */}
             <div className="p-5 border-b border-border/50 text-center">
               <div className="relative inline-block mb-3">
@@ -561,7 +561,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </div>
 
             {/* Section 3: Recent Announcements */}
-            <div className="p-4">
+            <div className="p-4 flex-1">
               <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent Announcements</p>
               {announcements.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">No announcements</p>
