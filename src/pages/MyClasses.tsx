@@ -116,7 +116,16 @@ const MyClasses = () => {
     };
   }, []);
 
-  const loadStudentClasses = async () => {
+  // Auto-select class from URL param
+  useEffect(() => {
+    const classId = searchParams.get('classId');
+    if (classId && groups.length > 0 && !selectedClass) {
+      const match = groups.find(g => g.id === classId);
+      if (match) setSelectedClass(match);
+    }
+  }, [groups, searchParams]);
+
+
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
