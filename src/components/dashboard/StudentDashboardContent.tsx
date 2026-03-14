@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { ProgressCarousel } from "./ProgressCarousel";
+import { ALL_LEVELS, detectRegionKey } from "@/lib/educational-levels";
 
 interface DashboardContentProps {
   userEmail: string;
