@@ -597,7 +597,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                     <div
                       key={cls.id}
                       className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => navigate("/my-classes")}
+                      onClick={() => navigate(`/my-classes?classId=${cls.id}`)}
                     >
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
                       <div className="min-w-0 flex-1">
