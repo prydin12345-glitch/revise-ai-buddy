@@ -228,6 +228,18 @@ export const SubjectCard = ({
                     );
                   })}
                 </AnimatePresence>
+                {subjectTopics.length > VISIBLE_TOPIC_COUNT && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-primary hover:text-primary px-2"
+                    onClick={() => setShowAllTopics(!showAllTopics)}
+                  >
+                    {showAllTopics
+                      ? 'Show less'
+                      : `+${subjectTopics.length - VISIBLE_TOPIC_COUNT} more`}
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground py-2">

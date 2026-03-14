@@ -31,6 +31,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { primaryRole } = useUserRole();
+  const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));

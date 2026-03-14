@@ -248,7 +248,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             name: group.name,
             tutorName: tutorProfile?.display_name || "Tutor",
             studentCount: count || 0,
-            color: getSubjectColor(group.subject || group.name),
+            color: getSubjectColor(
+              (Array.isArray(group.subjects_covered) && group.subjects_covered[0]?.name) || group.name
+            ),
           });
         }
         setClasses(classInfos);
