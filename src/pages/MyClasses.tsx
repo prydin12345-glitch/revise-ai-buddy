@@ -80,6 +80,7 @@ interface SubjectProgress {
 }
 
 const MyClasses = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
   const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
