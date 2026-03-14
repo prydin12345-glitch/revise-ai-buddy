@@ -180,7 +180,7 @@ export const SubjectCard = ({
             {subjectTopics.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 <AnimatePresence mode="popLayout">
-                  {subjectTopics.map((t) => {
+                  {(showAllTopics ? subjectTopics : subjectTopics.slice(0, VISIBLE_TOPIC_COUNT)).map((t) => {
                     const perf = getPerformance(t.topic);
                     const colors = MASTERY_COLORS[perf.mastery];
                     return (
