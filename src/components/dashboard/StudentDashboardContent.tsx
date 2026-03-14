@@ -221,7 +221,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       const { data: memberships } = await supabase
         .from("group_members")
-        .select("group_id, student_groups(id, name, tutor_id, subject)")
+        .select("group_id, student_groups(id, name, tutor_id, subjects_covered)")
         .eq("student_id", user.id)
         .eq("is_active", true);
 
@@ -248,7 +248,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             name: group.name,
             tutorName: tutorProfile?.display_name || "Tutor",
             studentCount: count || 0,
-            color: getSubjectColor(group.subject || group.name),
+            color: getSubjectColor(
+              (Array.isArray(group.subjects_covered) && group.subjects_covered[0]?.name) || group.name
+            ),
           });
         }
         setClasses(classInfos);

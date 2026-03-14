@@ -13,6 +13,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
+import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -30,6 +31,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { primaryRole } = useUserRole();
+  const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
@@ -196,15 +198,26 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {/* Right: Join Class + Upgrade + Notifications + Profile */}
             <div className="flex items-center gap-2 sm:gap-3">
               {primaryRole !== 'tutor' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hidden sm:flex items-center gap-1.5 border-border/50 text-foreground hover:bg-muted/50 h-9"
-                  onClick={() => navigate("/my-classes")}
-                >
-                  <Link2 className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Join Class</span>
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden sm:flex items-center gap-1.5 border-border/50 text-foreground hover:bg-muted/50 h-9"
+                    onClick={() => setJoinClassModalOpen(true)}
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Join Class</span>
+                  </Button>
+                  <JoinClassModal
+                    open={joinClassModalOpen}
+                    onOpenChange={setJoinClassModalOpen}
+                    onSuccess={() => {
+                      setJoinClassModalOpen(false);
+                      // Refresh the page to reflect new class
+                      window.location.reload();
+                    }}
+                  />
+                </>
               )}
 
               <Button

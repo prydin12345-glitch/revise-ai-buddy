@@ -55,6 +55,8 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+  const VISIBLE_TOPIC_COUNT = 3;
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
@@ -178,7 +180,7 @@ export const SubjectCard = ({
             {subjectTopics.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 <AnimatePresence mode="popLayout">
-                  {subjectTopics.map((t) => {
+                  {(showAllTopics ? subjectTopics : subjectTopics.slice(0, VISIBLE_TOPIC_COUNT)).map((t) => {
                     const perf = getPerformance(t.topic);
                     const colors = MASTERY_COLORS[perf.mastery];
                     return (
@@ -226,6 +228,18 @@ export const SubjectCard = ({
                     );
                   })}
                 </AnimatePresence>
+                {subjectTopics.length > VISIBLE_TOPIC_COUNT && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-primary hover:text-primary px-2"
+                    onClick={() => setShowAllTopics(!showAllTopics)}
+                  >
+                    {showAllTopics
+                      ? 'Show less'
+                      : `+${subjectTopics.length - VISIBLE_TOPIC_COUNT} more`}
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground py-2">

@@ -281,7 +281,7 @@ const MyQuizzes = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1600px] mx-auto space-y-6 p-6">
+      <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Unified Tab Bar */}
         <MyWorkTabBar />
 
