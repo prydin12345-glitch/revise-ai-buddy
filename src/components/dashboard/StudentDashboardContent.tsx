@@ -117,15 +117,15 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       if (prefs?.curriculum_region) {
         const regionKey = detectRegionKey(prefs.curriculum_region);
-        // Try to find a subject profile educational_tier for this user
-        const { data: subProfiles } = await supabase
-          .from('subject_profiles')
+        // Try to find an educational_tier from user's practice sets or exams
+        const { data: setTiers } = await supabase
+          .from('practice_question_sets')
           .select('educational_tier')
           .eq('user_id', uid)
           .not('educational_tier', 'is', null)
           .limit(1);
 
-        const tierId = subProfiles?.[0]?.educational_tier;
+        const tierId = (setTiers?.[0]?.educational_tier) as string | undefined;
         const level = tierId ? ALL_LEVELS.find(l => l.id === tierId) : null;
 
         if (level && regionKey && level.aliases[regionKey]) {
