@@ -13,6 +13,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
+import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
