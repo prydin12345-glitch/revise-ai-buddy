@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { ProgressCarousel } from "./ProgressCarousel";
+import { ALL_LEVELS, detectRegionKey } from "@/lib/educational-levels";
 
 interface DashboardContentProps {
   userEmail: string;
@@ -68,6 +69,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [userName, setUserName] = useState("");
   const [userFirstName, setUserFirstName] = useState("");
   const [userInitials, setUserInitials] = useState("U");
+  const [userLevelLabel, setUserLevelLabel] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSetWithProgress[]>([]);
@@ -79,15 +81,61 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [showJoinClassModal, setShowJoinClassModal] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      const email = data.user?.email || "";
-      const meta = data.user?.user_metadata;
-      const name = meta?.full_name || meta?.name || email.split("@")[0] || "User";
-      setUserName(name);
-      const parts = name.split(" ");
-      setUserFirstName(parts[0] || "User");
-      setUserInitials(parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
+    supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data.user?.id;
+      setUserId(uid ?? null);
+      if (!uid) return;
+
+      // Fetch profile for first/last name
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('first_name, last_name, display_name')
+        .eq('id', uid)
+        .maybeSingle();
+
+      const firstName = profile?.first_name || '';
+      const lastName = profile?.last_name || '';
+      const fullName = firstName && lastName
+        ? `${firstName} ${lastName}`
+        : profile?.display_name || data.user?.user_metadata?.full_name || data.user?.email?.split('@')[0] || 'User';
+
+      setUserName(fullName);
+      const parts = fullName.split(' ');
+      setUserFirstName(parts[0] || 'User');
+      setUserInitials(
+        parts.length >= 2
+          ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+          : fullName.slice(0, 2).toUpperCase()
+      );
+
+      // Fetch curriculum region + derive educational level label
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('curriculum_region')
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      if (prefs?.curriculum_region) {
+        const regionKey = detectRegionKey(prefs.curriculum_region);
+        // Try to find an educational_tier from user's practice sets or exams
+        const { data: setTiers } = await supabase
+          .from('practice_question_sets')
+          .select('educational_tier')
+          .eq('user_id', uid)
+          .not('educational_tier', 'is', null)
+          .limit(1);
+
+        const tierId = (setTiers?.[0]?.educational_tier) as string | undefined;
+        const level = tierId ? ALL_LEVELS.find(l => l.id === tierId) : null;
+
+        if (level && regionKey && level.aliases[regionKey]) {
+          setUserLevelLabel(`${prefs.curriculum_region} · ${level.aliases[regionKey]}`);
+        } else if (level) {
+          setUserLevelLabel(`${prefs.curriculum_region} · ${level.label}`);
+        } else {
+          setUserLevelLabel(prefs.curriculum_region);
+        }
+      }
     });
   }, []);
 
@@ -516,7 +564,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-card" />
               </div>
               <p className="font-semibold text-sm">{userName}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">UK A-Level / GCSE</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{userLevelLabel || 'Set your curriculum in Settings'}</p>
 
               <div className="grid grid-cols-4 gap-1.5 mt-4">
                 {stats.map((stat, i) => (
@@ -549,7 +597,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                     <div
                       key={cls.id}
                       className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => navigate("/my-classes")}
+                      onClick={() => navigate(`/my-classes?classId=${cls.id}`)}
                     >
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
                       <div className="min-w-0 flex-1">

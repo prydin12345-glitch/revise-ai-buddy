@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ interface SubjectProgress {
 }
 
 const MyClasses = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
   const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
@@ -113,6 +115,15 @@ const MyClasses = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Auto-select class from URL param
+  useEffect(() => {
+    const classId = searchParams.get('classId');
+    if (classId && groups.length > 0 && !selectedClass) {
+      const match = groups.find(g => g.id === classId);
+      if (match) setSelectedClass(match);
+    }
+  }, [groups, searchParams]);
 
   const loadStudentClasses = async () => {
     try {
