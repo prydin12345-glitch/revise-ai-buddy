@@ -69,6 +69,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [userName, setUserName] = useState("");
   const [userFirstName, setUserFirstName] = useState("");
   const [userInitials, setUserInitials] = useState("U");
+  const [userLevelLabel, setUserLevelLabel] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSetWithProgress[]>([]);
@@ -80,15 +81,61 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [showJoinClassModal, setShowJoinClassModal] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      const email = data.user?.email || "";
-      const meta = data.user?.user_metadata;
-      const name = meta?.full_name || meta?.name || email.split("@")[0] || "User";
-      setUserName(name);
-      const parts = name.split(" ");
-      setUserFirstName(parts[0] || "User");
-      setUserInitials(parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
+    supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data.user?.id;
+      setUserId(uid ?? null);
+      if (!uid) return;
+
+      // Fetch profile for first/last name
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('first_name, last_name, display_name')
+        .eq('id', uid)
+        .maybeSingle();
+
+      const firstName = profile?.first_name || '';
+      const lastName = profile?.last_name || '';
+      const fullName = firstName && lastName
+        ? `${firstName} ${lastName}`
+        : profile?.display_name || data.user?.user_metadata?.full_name || data.user?.email?.split('@')[0] || 'User';
+
+      setUserName(fullName);
+      const parts = fullName.split(' ');
+      setUserFirstName(parts[0] || 'User');
+      setUserInitials(
+        parts.length >= 2
+          ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+          : fullName.slice(0, 2).toUpperCase()
+      );
+
+      // Fetch curriculum region + derive educational level label
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('curriculum_region')
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      if (prefs?.curriculum_region) {
+        const regionKey = detectRegionKey(prefs.curriculum_region);
+        // Try to find a subject profile educational_tier for this user
+        const { data: subProfiles } = await supabase
+          .from('subject_profiles')
+          .select('educational_tier')
+          .eq('user_id', uid)
+          .not('educational_tier', 'is', null)
+          .limit(1);
+
+        const tierId = subProfiles?.[0]?.educational_tier;
+        const level = tierId ? ALL_LEVELS.find(l => l.id === tierId) : null;
+
+        if (level && regionKey && level.aliases[regionKey]) {
+          setUserLevelLabel(`${prefs.curriculum_region} · ${level.aliases[regionKey]}`);
+        } else if (level) {
+          setUserLevelLabel(`${prefs.curriculum_region} · ${level.label}`);
+        } else {
+          setUserLevelLabel(prefs.curriculum_region);
+        }
+      }
     });
   }, []);
 
