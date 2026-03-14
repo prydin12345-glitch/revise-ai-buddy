@@ -564,7 +564,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-card" />
               </div>
               <p className="font-semibold text-sm">{userName}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">UK A-Level / GCSE</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{userLevelLabel || 'Set your curriculum in Settings'}</p>
 
               <div className="grid grid-cols-4 gap-1.5 mt-4">
                 {stats.map((stat, i) => (
