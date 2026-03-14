@@ -125,7 +125,7 @@ const MyClasses = () => {
     }
   }, [groups, searchParams]);
 
-
+  const loadStudentClasses = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
