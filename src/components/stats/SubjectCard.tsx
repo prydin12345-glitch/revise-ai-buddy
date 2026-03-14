@@ -55,6 +55,8 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+  const VISIBLE_TOPIC_COUNT = 3;
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
