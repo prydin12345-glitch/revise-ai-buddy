@@ -170,20 +170,20 @@ When generating multi-part questions involving circuit diagrams:
 }
 }
 
-/** Translate exam board to generic style description */
+/** Translate exam board to board-specific style instruction */
 export function translateExamBoard(examBoard: string | undefined): string {
   if (!examBoard) return '';
   const boardTranslation: Record<string, string> = {
-    'AQA': 'UK exam style (structured, clear mark allocation)',
-    'Edexcel': 'UK exam style (progressive difficulty, multi-part)',
-    'OCR': 'UK exam style (applied contexts, problem-solving)',
-    'WJEC': 'UK/Welsh exam style (bilingual, applied)',
-    'CIE': 'International exam style (rigorous, theory-heavy)',
-    'IB': 'International Baccalaureate style (inquiry-based, holistic)',
-    'AP': 'US Advanced Placement style (college-level, free response)',
-    'SAT': 'US standardized test style (efficient, multiple choice)',
-    'CBSE': 'Indian exam style (comprehensive, detailed)',
-    'ICSE': 'Indian exam style (application-based)',
+    'AQA': 'Generate content according to the AQA specification. Use AQA command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation.',
+    'Edexcel': 'Generate content according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with progressive difficulty.',
+    'OCR': 'Generate content according to the OCR specification. Use OCR command terms (show that, determine, describe) with synoptic assessment.',
+    'WJEC': 'Generate content according to the WJEC specification. Use WJEC structured mark schemes with Welsh context where appropriate.',
+    'CIE': 'Generate content according to the Cambridge International (CAIE) specification. Use Cambridge-style structured data response and essay-type questions.',
+    'IB': 'Generate content according to the IB programme specification. Use IB internal assessment style and extended response questions.',
+    'AP': 'Generate content according to the College Board AP specification. Use AP-style free response and multiple-choice sections.',
+    'SAT': 'Generate content according to the College Board SAT specification. Use SAT-style multiple-choice and grid-in questions.',
+    'CBSE': 'Generate content according to the CBSE specification. Use CBSE-style comprehensive questions with detailed mark schemes.',
+    'ICSE': 'Generate content according to the ICSE specification. Use ICSE-style application-based questions.',
   };
   return boardTranslation[examBoard] || examBoard;
 }

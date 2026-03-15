@@ -39,7 +39,7 @@ function buildEnglishLanguagePrompt(params: {
   };
   const sourceLabel = sourceTypeLabels[params.sourceType] || params.sourceType;
 
-  return `You are generating an original English Language exam insert in the style of ${params.examBoard || 'AQA'} GCSE Paper 1.
+  return `You are generating an original English Language exam insert in the style of ${params.examBoard || 'a UK exam board'} GCSE Paper 1.
 
 Generate a Source A extract with these properties:
 - Source type: ${sourceLabel}

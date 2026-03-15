@@ -1,130 +1,80 @@
 /**
- * Board Scrubber Utility
+ * Board Reference Utility
  * 
- * Removes trademarked exam board names, session/year codes, and original
- * question references from AI-generated text. Used in both frontend (PDF
- * export) and backend (edge function post-processing).
+ * Manages exam board names, style instructions for AI prompts,
+ * and legal disclaimers. Real board names are used throughout
+ * under nominative fair use, with clear non-affiliation disclaimers.
  * 
  * IMPORTANT: This operates ONLY on text strings. It must NOT be applied to
  * graphConfig, expectedPath, plottingAnswer, table_data, content_json, or
  * any numeric/coordinate data.
  */
 
-// Exam board name patterns (case-insensitive)
-const BOARD_NAME_PATTERNS = [
-  /\bAQA\b/gi,
-  /\bEdexcel\b/gi,
-  /\bOCR\b/gi,
-  /\bWJEC\b/gi,
-  /\bPearson\b/gi,
-  /\bCambridge\s+International\b/gi,
-  /\bCIE\b/gi,
-  /\bCambridge\s+Assessment\b/gi,
-  /\bSQA\b/gi,
-  /\bCCEA\b/gi,
-];
-
-// Session/year code patterns
-const SESSION_YEAR_PATTERNS = [
-  // "June 2023", "Jan 2011", "November 2022", "May/June 2024"
-  /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s*\/?\s*(January|February|March|April|May|June|July|August|September|October|November|December)?\s+\d{4}\b/gi,
-  // "Paper 1 2022", "Paper 2 2023"
-  /\bPaper\s+\d+\s+\d{4}\b/gi,
-  // Standalone session identifiers like "(Jan 2011)" or "[June 2023]"
-  /[\[(]\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\s*[\])]/gi,
-];
-
-// Original question reference patterns
-const QUESTION_REF_PATTERNS = [
-  // "Question 21a", "Q3(b)(ii)", "Q5a from Paper 2"
-  /\bQ(?:uestion)?\s*\d+\s*[a-z]?\s*(?:\([a-z]+\)\s*)*(?:\([ivxlcdm]+\)\s*)*(?:from\s+Paper\s+\d+)?/gi,
-  // "from Paper 2", "Paper 1 Q3"
-  /\bfrom\s+Paper\s+\d+/gi,
-  // "Adapted from AQA 2023" or "Source: Edexcel Paper 1"
-  /\b(?:Adapted|Taken|Sourced?)\s+from\s+(?:AQA|Edexcel|OCR|WJEC|CIE|Pearson|Cambridge)[^.]*\./gi,
-];
-
 /**
- * Remove trademarked board references, session codes, and question references
- * from the given text. Safe to apply to question_text, feedback, and
- * correct_answer (when it is a plain string).
+ * The scrubBoardReferences function has been retired.
+ * Board names are now displayed under nominative fair use with disclaimers.
+ * This passthrough is kept for backward-compatibility with any callers.
  */
 export function scrubBoardReferences(text: string): string {
-  if (!text || typeof text !== 'string') return text;
-
-  let result = text;
-
-  // Strip board names
-  for (const pattern of BOARD_NAME_PATTERNS) {
-    result = result.replace(pattern, '');
-  }
-
-  // Strip session/year codes
-  for (const pattern of SESSION_YEAR_PATTERNS) {
-    result = result.replace(pattern, '');
-  }
-
-  // Strip question references
-  for (const pattern of QUESTION_REF_PATTERNS) {
-    result = result.replace(pattern, '');
-  }
-
-  // Clean up artefacts: double spaces, leading/trailing commas, empty parens
-  result = result
-    .replace(/\(\s*\)/g, '')       // empty parentheses
-    .replace(/\[\s*\]/g, '')       // empty brackets
-    .replace(/\s{2,}/g, ' ')       // collapse whitespace
-    .replace(/,\s*,/g, ',')        // double commas
-    .replace(/^\s*[,;·]\s*/gm, '') // leading punctuation on line
-    .trim();
-
-  return result;
+  return text;
 }
 
 /**
- * Translate an internal exam board ID into a generic style description
- * for use in AI prompts. The AI never sees the actual trademarked name.
+ * Translate an internal exam board ID into a specific style instruction
+ * for use in AI prompts. The AI now receives the actual board name
+ * so it can generate board-accurate content.
  */
 export function translateBoardForPrompt(boardId: string): string {
   const map: Record<string, string> = {
-    aqa: "UK exam board using command verbs like 'evaluate', 'explain', 'compare'; structured mark schemes with AO1/AO2/AO3 weighting",
-    edexcel: "UK exam board (Pearson style) with data-response and multi-part questions; emphasis on application and analysis",
-    ocr: "UK exam board with structured response format and synoptic assessment; clear command terms",
-    cie: "International exam board (Cambridge style) with structured data response and essay-type questions",
-    wjec: "Welsh exam board with structured mark schemes; emphasis on Welsh context where appropriate",
-    ib: "International Baccalaureate programme with internal assessment style and extended response questions",
-    college_board: "US standardized testing style (College Board) with multiple-choice and free-response sections",
+    aqa: "Generate content according to the AQA specification. Use AQA-specific command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation structure.",
+    edexcel: "Generate content according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with emphasis on application and analysis.",
+    ocr: "Generate content according to the OCR specification. Use OCR command terms (show that, determine, describe) with structured response format and synoptic assessment.",
+    cie: "Generate content according to the Cambridge International (CAIE/IGCSE) specification. Use Cambridge-style structured data response and essay-type questions.",
+    wjec: "Generate content according to the WJEC specification. Use WJEC structured mark schemes with Welsh context where appropriate.",
+    ib: "Generate content according to the International Baccalaureate (IB) programme specification. Use IB internal assessment style and extended response questions.",
+    college_board: "Generate content according to the College Board (AP/SAT) specification. Use College Board-style multiple-choice and free-response sections.",
   };
 
-  return map[boardId?.toLowerCase()] || `Exam board style: ${boardId}`;
+  return map[boardId?.toLowerCase()] || `Generate content in the style of: ${boardId}`;
 }
 
 /**
- * The rebranded exam board labels for frontend dropdowns.
+ * The exam board options for frontend dropdowns.
+ * Now showing real board names under nominative fair use.
  * Internal IDs remain unchanged for database compatibility.
  */
 export const EXAM_BOARD_OPTIONS = [
-  { id: "aqa", name: "UK Board A (command-verb style)" },
-  { id: "edexcel", name: "UK Board B (Pearson style)" },
-  { id: "ocr", name: "UK Board C (structured response)" },
-  { id: "cie", name: "International Board (Cambridge style)" },
-  { id: "ib", name: "IB Programme" },
-  { id: "wjec", name: "Welsh Board (WJEC style)" },
-  { id: "college_board", name: "US Board (College Board style)" },
+  { id: "aqa", name: "AQA" },
+  { id: "edexcel", name: "Pearson Edexcel" },
+  { id: "ocr", name: "OCR" },
+  { id: "cie", name: "Cambridge International (CAIE)" },
+  { id: "ib", name: "International Baccalaureate (IB)" },
+  { id: "wjec", name: "WJEC" },
+  { id: "college_board", name: "College Board (AP)" },
   { id: "other", name: "Other" },
 ];
+
+/**
+ * Get a human-readable board name from an ID.
+ */
+export function getBoardDisplayName(boardId: string | null | undefined): string {
+  if (!boardId) return '';
+  const found = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+  return found?.name || boardId;
+}
 
 /**
  * Tooltip text for the exam board selector.
  */
 export const BOARD_SELECTOR_TOOLTIP =
-  "Board selection determines question style, command verbs, and mark scheme format. We are not affiliated with any examination board.";
+  "Select the exam board whose question style and mark scheme format you'd like to follow. Examly is independently operated and not affiliated with any examination board.";
 
 /**
  * Content authenticity disclaimer for quiz/exam footers and PDF exports.
+ * Now includes specific board names for legal clarity.
  */
 export const CONTENT_DISCLAIMER =
-  "Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.";
+  "AI-generated practice content by Examly. Not affiliated with or endorsed by AQA, OCR, Pearson Edexcel, WJEC, Cambridge Assessment, the College Board, or the International Baccalaureate Organization.";
 
 /**
  * Declaration checkbox text for upload forms.
@@ -133,23 +83,36 @@ export const UPLOAD_DECLARATION =
   "I confirm I have lawful access to this material and am using it for private study and non-commercial educational purposes only.";
 
 /**
+ * Build a dynamic non-affiliation disclaimer based on the boards in context.
+ */
+export function buildDynamicDisclaimer(boardIds?: string[]): string {
+  const allBoards = ["AQA", "OCR", "Pearson Edexcel", "WJEC", "Cambridge Assessment International Education", "the College Board", "the International Baccalaureate Organization"];
+  
+  if (boardIds && boardIds.length > 0) {
+    const names = boardIds
+      .map(id => getBoardDisplayName(id))
+      .filter(Boolean);
+    if (names.length > 0) {
+      return `Examly is an independent study platform. We are not affiliated with, endorsed by, or connected to ${names.join(', ')}. All content is AI-generated original material for educational practice.`;
+    }
+  }
+  
+  return `Examly is an independent study platform. We are not affiliated with, endorsed by, or connected to ${allBoards.join(', ')}. All content is AI-generated original material for educational practice.`;
+}
+
+/**
  * Detect if a title contains board names + year codes that might imply
  * we are hosting official papers. Returns a warning message or null.
  */
 export function checkTitleForBoardReferences(title: string): string | null {
   if (!title) return null;
 
-  const hasBoardName = BOARD_NAME_PATTERNS.some((p) => p.test(title));
-  // Reset lastIndex after test
-  BOARD_NAME_PATTERNS.forEach((p) => (p.lastIndex = 0));
-
+  const boardPatterns = [/\bAQA\b/i, /\bEdexcel\b/i, /\bOCR\b/i, /\bWJEC\b/i, /\bCIE\b/i, /\bCambridge\b/i];
+  const hasBoardName = boardPatterns.some(p => p.test(title));
   const hasYearCode = /\b(20\d{2}|19\d{2})\b/.test(title);
 
   if (hasBoardName && hasYearCode) {
-    return "Tip: Consider using a generic title (e.g. \"Physics Mock 1\") instead of referencing specific exam boards and years.";
-  }
-  if (hasBoardName) {
-    return "Tip: Board names are used internally for style matching only. Consider a generic title.";
+    return "Tip: Titles referencing specific boards and years may imply official past papers. Consider adding 'Practice' or 'Mock' to clarify this is original content.";
   }
   return null;
 }

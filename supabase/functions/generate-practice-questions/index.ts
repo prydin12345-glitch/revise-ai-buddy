@@ -1011,18 +1011,18 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
 `;
     }
 
-    // Translate exam board to generic style description (no trademarked names in prompt)
+    // Use real board names for board-specific AI instructions
     const boardTranslation: Record<string, string> = {
-      aqa: "UK exam board using command verbs like 'evaluate', 'explain', 'compare'; structured mark schemes with AO1/AO2/AO3 weighting",
-      edexcel: "UK exam board (Pearson style) with data-response and multi-part questions; emphasis on application and analysis",
-      ocr: "UK exam board with structured response format and synoptic assessment; clear command terms",
-      cie: "International exam board (Cambridge style) with structured data response and essay-type questions",
-      wjec: "Welsh exam board with structured mark schemes; emphasis on Welsh context where appropriate",
-      ib: "International Baccalaureate programme with internal assessment style and extended response questions",
-      college_board: "US standardized testing style with multiple-choice and free-response sections",
+      aqa: "Generate questions according to the AQA specification. Use AQA command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation structure.",
+      edexcel: "Generate questions according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with emphasis on application.",
+      ocr: "Generate questions according to the OCR specification. Use OCR command terms (show that, determine, describe) with synoptic assessment.",
+      cie: "Generate questions according to the Cambridge International (CAIE) specification. Use Cambridge-style structured data response and essay-type questions.",
+      wjec: "Generate questions according to the WJEC specification. Use WJEC structured mark schemes.",
+      ib: "Generate questions according to the IB programme specification. Use IB internal assessment style and extended response questions.",
+      college_board: "Generate questions according to the College Board AP specification. Use AP-style free response and multiple-choice sections.",
     };
     const translatedBoard = setData.exam_board
-      ? (boardTranslation[setData.exam_board.toLowerCase()] || `Exam board style: ${setData.exam_board}`)
+      ? (boardTranslation[setData.exam_board.toLowerCase()] || `Generate questions in the style of: ${setData.exam_board}`)
       : '';
 
     const hardeningRules = getExamHardeningRules();
