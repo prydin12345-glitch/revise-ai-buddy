@@ -759,9 +759,9 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="secondary_14_16">Level 1 — High School / Secondary (Ages 14–16)</SelectItem>
-                      <SelectItem value="college_16_18">Level 2 — College / Sixth Form (Ages 16–18)</SelectItem>
-                      <SelectItem value="university_18plus">Level 3 — University / Undergraduate (Ages 18+)</SelectItem>
+                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                        <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
+                      ))}
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
