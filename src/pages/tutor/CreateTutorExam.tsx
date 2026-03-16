@@ -41,8 +41,9 @@ const getRandomColor = () => {
 
 export default function CreateTutorExam() {
   const navigate = useNavigate();
-  const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getSubjectColor, saveOrUpdateSubject, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt state
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
