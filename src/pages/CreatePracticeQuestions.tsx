@@ -36,6 +36,7 @@ import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitiz
 import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
