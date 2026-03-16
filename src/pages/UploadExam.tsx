@@ -50,11 +50,12 @@ export default function UploadExam() {
   const dynamicLevels = getLevelsForBoard(examBoard);
 
   // Pre-fill educational tier from preferences
-  const prefillDone = useState(false);
-  if (!prefillDone[0] && preferences?.preferred_educational_level && !educationalTier) {
-    setEducationalTier(preferences.preferred_educational_level);
-    prefillDone[1](true);
-  }
+  useEffect(() => {
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
 
   const subjectProfiles = useMemo(
     () => (subjectId ? getProfilesForSubject(subjectId) : []),
