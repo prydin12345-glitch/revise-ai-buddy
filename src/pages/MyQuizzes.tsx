@@ -60,6 +60,7 @@ const MyQuizzes = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [filterSubject, setFilterSubject] = useState('all');
+  const [filterBoard, setFilterBoard] = useState('all');
   const [sortBy, setSortBy] = useState<SortType>('date_created');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
