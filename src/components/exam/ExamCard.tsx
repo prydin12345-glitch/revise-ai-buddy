@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   Play, 
   Eye, 
@@ -16,6 +17,8 @@ import {
   BookOpen,
   ChevronRight
 } from "lucide-react";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 interface ExamProgress {
   questionsCompleted: number;
