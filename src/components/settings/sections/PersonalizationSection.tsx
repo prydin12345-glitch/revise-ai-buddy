@@ -119,12 +119,12 @@ export const PersonalizationSection = () => {
               Preferred Exam Board
             </Label>
             <Select
-              value={preferences?.preferred_exam_board ?? ''}
+              value={preferences?.preferred_exam_board ?? '__none'}
               onValueChange={(val) => {
-                updatePreference({ preferred_exam_board: val || null });
-                // Reset level if it's not valid for the new board
-                if (val && preferences?.preferred_educational_level) {
-                  const validLevels = getLevelsForBoard(val);
+                const board = val === '__none' ? null : val;
+                updatePreference({ preferred_exam_board: board });
+                if (board && preferences?.preferred_educational_level) {
+                  const validLevels = getLevelsForBoard(board);
                   if (!validLevels.some(l => l.id === preferences.preferred_educational_level)) {
                     updatePreference({ preferred_educational_level: null });
                   }
