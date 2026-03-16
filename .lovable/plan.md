@@ -1,118 +1,72 @@
 
 
-# Plan: Manual Exam Creator for Tutors
+## Plan: Integrate Exam Board into Subjects, Fix Add Subject UX, and Sync Educational Levels
 
-## Overview
-Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
+### Problem Summary
+1. **Upload page (`/upload`)** and **Create Practice Questions** still use old hardcoded educational tier dropdowns (`secondary_14_16`, `college_16_18`, `university_18plus`) instead of the new board-linked `LEVEL_DISPLAY_NAMES` system
+2. **Add Subject modal** doesn't close/confirm selection visually — user clicks a subject but the list stays open with no clear confirmation
+3. **Subjects don't store exam board** — the `user_subjects` table has no `exam_board` column, so there's no per-subject board association
+4. **Tutor Create Exam** page also uses old hardcoded tiers and doesn't auto-populate from preferences
+5. **Exam profiles** (`subject_exam_profiles`) don't store `exam_board` either
 
-## Database Changes
+### Implementation Steps
 
-**New table: `tutor_question_bank`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL) — references auth.users
-- `question_text` (text, NOT NULL)
-- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
-- `expected_answer` (text) — mark scheme / model answer
-- `max_marks` (integer, NOT NULL)
-- `topic_tag` (text) — linked to class sub-topics
-- `subject_name` (text, NOT NULL)
-- `options` (jsonb) — for MCQ
-- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
-- `estimated_minutes` (integer) — AI-suggested time
-- `metadata` (jsonb, default '{}')
-- `created_at`, `updated_at` (timestamptz)
+#### 1. Database Migration — Add `exam_board` to `user_subjects` and `subject_exam_profiles`
+- Add `exam_board TEXT` column to `user_subjects`
+- Add `exam_board TEXT` column to `subject_exam_profiles`
+- Both nullable, no foreign key needed (stores board ID string like `'aqa'`, `'edexcel'`)
 
-RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
+#### 2. Fix Upload Page (`src/pages/UploadExam.tsx`)
+- Import `useUserPreferences`, `getLevelsForBoard`, `LEVEL_DISPLAY_NAMES`, `getRegionBoards`, `EXAM_BOARD_OPTIONS`
+- Auto-populate `educationalTier` from `preferences.preferred_educational_level` and add `examBoard` state from `preferences.preferred_exam_board`
+- Replace the hardcoded `<SelectItem>` list in Advanced Options with dynamic levels from `getLevelsForBoard(examBoard)`
+- Add "Pre-filled from your profile · Change in Settings" note beneath
 
-**New table: `tutor_manual_exams`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL)
-- `title` (text, NOT NULL)
-- `subject_name` (text, NOT NULL)
-- `subject_color` (text, default '#3B82F6')
-- `marking_preference` (text, default 'ai_assisted')
-- `educational_tier` (text)
-- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
-- `total_marks` (integer, default 0)
-- `estimated_minutes` (integer)
-- `status` (text, default 'draft') — draft, published
-- `created_at`, `updated_at` (timestamptz)
+#### 3. Fix Create Practice Questions (`src/pages/CreatePracticeQuestions.tsx`)
+- Replace **all three** hardcoded educational tier `<SelectContent>` blocks (desktop, mobile, mobile summary) with dynamic levels from `getLevelsForBoard(examBoard)`
+- The `examBoard` state and preferences auto-population already exist (lines 71, 118-127), so just swap the dropdown items
 
-RLS: tutor can CRUD own rows.
+#### 4. Fix Tutor Create Exam (`src/pages/tutor/CreateTutorExam.tsx`)
+- Import `useUserPreferences`, board-level mapping utilities
+- Add `useEffect` to auto-populate `educationalTier` and `examBoard` from preferences
+- Replace hardcoded `EDUCATIONAL_TIERS` dropdown with dynamic `getLevelsForBoard`
 
-## New Route
-- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
+#### 5. Fix Add Subject Modal UX (`src/components/stats/AddSubjectModal.tsx`)
+- **Selection confirmation**: When user clicks a subject, immediately transition to a "confirmation view" showing the selected subject name prominently, the colour picker, and a new **exam board dropdown** (filtered by user's curriculum region via `getRegionBoards`)
+- Hide the search list after selection — show a "← Back to list" button to re-select
+- This fixes the confusion of the dropdown staying open
+- Add `examBoard` local state, default to user's `preferences.preferred_exam_board`
+- Save `exam_board` to `user_subjects` row on insert
 
-## New Components
+#### 6. Update Subject Card (`src/components/stats/SubjectCard.tsx`)
+- Show the exam board badge next to the subject name (e.g., "AQA" pill)
+- If no board is set, show a subtle "Set board" link
 
-### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
-Split-view layout:
-- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
-- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
-- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
+#### 7. Update `useUserSubjects` hook
+- Include `exam_board` in the fetched/returned data
+- Update `saveOrUpdateSubject` to accept optional `examBoard` parameter
+- Update the `UserSubject` interface
 
-Key behaviors:
-- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
-- Inline editing: click question number to rename, click mark bubble to change
-- Focus mode: when editing a question, dim others with opacity
-- Auto-save indicator in header
-- Empty state illustration when no questions exist
+#### 8. Update Exam Profile Modal
+- Add exam board field to `ExamProfileModal.tsx`, pre-filled from the subject's `exam_board` or user preferences
+- Save `exam_board` to `subject_exam_profiles` table
+- Pass board to generation context so AI uses correct mark scheme style
 
-### 2. `src/components/tutor/ManualQuestionEditor.tsx`
-- Rich text fields for question and mark scheme
-- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
-- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
-- Max marks input (1-10)
-- "Polish with AI" button
+#### 9. Wire exam board from subject into Create Exam / Practice Quiz
+- When a subject is selected in Create Exam or Create Practice Questions, look up its `exam_board` from `user_subjects` and auto-set the board dropdown (overriding the profile default if the subject has one)
+- This means the board follows the subject, not just the global preference
 
-### 3. `src/components/tutor/ManualQuestionPreview.tsx`
-- Renders the question exactly as students see it using `MathRenderer`
-- Shows mark allocation badge, topic tag
+#### 10. Tutor side parity
+- Apply same educational level and board auto-population to `CreateTutorExam.tsx`
 
-### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
-- Each option has description text
-
-### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
-- Sticky sidebar showing:
-  - Total marks counter
-  - Topic distribution (mini pie chart via recharts)
-  - Estimated completion time (marks × 1.5 min ratio)
-  - Question count
-
-## Edge Function: `polish-question`
-- Takes raw question text + subject + educational tier
-- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
-- Returns polished text preserving mathematical requirements
-
-## Integration Points
-
-1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
-
-2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
-
-3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
-
-4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
-
-5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
-
-## UI Details
-- Subject-themed accent colors on save buttons, active borders, progress bars
-- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
-- Dark-themed empty state with illustration text: "Your masterpiece starts here"
-- Auto-save with subtle "All changes saved ✓" indicator that pulses
-
-## Files to Create
-1. `src/pages/tutor/ManualExamCreator.tsx`
-2. `src/components/tutor/ManualQuestionEditor.tsx`
-3. `src/components/tutor/ManualQuestionPreview.tsx`
-4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-5. `src/components/tutor/ExamCompositionSidebar.tsx`
-6. `supabase/functions/polish-question/index.ts`
-
-## Files to Edit
-1. `src/App.tsx` — add route `/tutor/exams/create-manual`
-2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
-3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
+### Files to Modify
+- `supabase/migrations/` — new migration for `exam_board` columns
+- `src/hooks/useUserSubjects.ts` — add `exam_board` to interface and queries
+- `src/components/stats/AddSubjectModal.tsx` — UX overhaul + exam board field
+- `src/components/stats/SubjectCard.tsx` — show board badge
+- `src/pages/UploadExam.tsx` — dynamic level dropdown + auto-populate
+- `src/pages/CreatePracticeQuestions.tsx` — replace 3 hardcoded tier dropdowns
+- `src/pages/tutor/CreateTutorExam.tsx` — dynamic levels + auto-populate
+- `src/components/stats/ExamProfileModal.tsx` — add exam board field
+- `src/hooks/useSubjectProfiles.ts` — include exam_board in profile data
 
