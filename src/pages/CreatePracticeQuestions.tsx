@@ -43,6 +43,7 @@ const CreatePracticeQuestions = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { getSubjectColor } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
