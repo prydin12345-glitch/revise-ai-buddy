@@ -1011,19 +1011,10 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
 `;
     }
 
-    // Use real board names for board-specific AI instructions
-    const boardTranslation: Record<string, string> = {
-      aqa: "Generate questions according to the AQA specification. Use AQA command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation structure.",
-      edexcel: "Generate questions according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with emphasis on application.",
-      ocr: "Generate questions according to the OCR specification. Use OCR command terms (show that, determine, describe) with synoptic assessment.",
-      cie: "Generate questions according to the Cambridge International (CAIE) specification. Use Cambridge-style structured data response and essay-type questions.",
-      wjec: "Generate questions according to the WJEC specification. Use WJEC structured mark schemes.",
-      ib: "Generate questions according to the IB programme specification. Use IB internal assessment style and extended response questions.",
-      college_board: "Generate questions according to the College Board AP specification. Use AP-style free response and multiple-choice sections.",
-    };
-    const translatedBoard = setData.exam_board
-      ? (boardTranslation[setData.exam_board.toLowerCase()] || `Generate questions in the style of: ${setData.exam_board}`)
-      : '';
+    // Use shared board translation + mark scheme style
+    const { translateExamBoard, getBoardMarkSchemeStyle } = await import("../_shared/prompt-templates.ts");
+    const translatedBoard = translateExamBoard(setData.exam_board);
+    const markSchemeStyle = setData.exam_board ? getBoardMarkSchemeStyle(setData.exam_board.toLowerCase()) : '';
 
     const hardeningRules = getExamHardeningRules();
 
@@ -1098,6 +1089,7 @@ ${(() => {
   return detectedText ? buildLiteraryTextInstructions(detectedText) : '';
 })()}
 ${buildExtractSafetyInstruction(setData.exam_board || 'exam-style', subjectName)}
+${markSchemeStyle ? `\nMARK SCHEME LANGUAGE:\n${markSchemeStyle}\n` : ''}
 ${canonicalTopicInstruction}
 ${specialisedSubjectContext}
 

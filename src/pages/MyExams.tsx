@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 
 interface Exam {
   id: string;
@@ -29,6 +30,8 @@ interface Exam {
   status: string;
   type: string;
   display_order?: number;
+  exam_board?: string;
+  qualification_level?: string;
   exam_topics: Array<{ topic_name: string }>;
 }
 
@@ -91,6 +94,7 @@ const MyExams = () => {
     status: [] as string[],
     dateRange: { start: '', end: '' },
     dateType: 'published' as 'published' | 'accessed',
+    board: 'all' as string,
   });
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
@@ -496,6 +500,11 @@ const MyExams = () => {
       );
     }
 
+    // Board filter
+    if (filters.board && filters.board !== 'all') {
+      filtered = filtered.filter(e => e.exam_board === filters.board);
+    }
+
     if (filters.status.length > 0) {
       filtered = filtered.filter(e => {
         if (filters.status.includes('active') && e.status === 'published') return true;
@@ -632,6 +641,30 @@ const MyExams = () => {
 
             {/* Sort + Filter Controls (Third) */}
             <div className="flex items-center gap-2 order-3">
+              {/* Board Filter */}
+              {(() => {
+                const uniqueBoards = [...new Set(exams.map(e => e.exam_board).filter(Boolean))] as string[];
+                if (uniqueBoards.length === 0) return null;
+                return (
+                  <Select value={filters.board} onValueChange={(v) => setFilters({ ...filters, board: v })}>
+                    <SelectTrigger className="w-36 h-10">
+                      <SelectValue placeholder="All Boards" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Boards</SelectItem>
+                      {uniqueBoards.map(boardId => {
+                        const boardOption = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+                        return (
+                          <SelectItem key={boardId} value={boardId}>
+                            {boardOption?.name || boardId}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
+
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -998,6 +1031,7 @@ const MyExams = () => {
                   status: [],
                   dateRange: { start: '', end: '' },
                   dateType: 'published',
+                  board: 'all',
                 });
               }}
               className="flex-1"

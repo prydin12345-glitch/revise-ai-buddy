@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Filter, X, FileText } from "lucide-react";
 import { ExamRowItem, ExamWithSubmission } from "./ExamRowItem";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AllExamsModalProps {
@@ -35,6 +36,7 @@ export const AllExamsModal = ({
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedBoard, setSelectedBoard] = useState<string>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -70,6 +72,11 @@ export const AllExamsModal = ({
     // Subject filter
     if (selectedSubjects.length > 0) {
       result = result.filter(exam => selectedSubjects.includes(exam.subject_id));
+    }
+
+    // Board filter
+    if (selectedBoard !== 'all') {
+      result = result.filter(exam => (exam as any).exam_board === selectedBoard);
     }
 
     // Sort
@@ -111,10 +118,16 @@ export const AllExamsModal = ({
     setSearchQuery("");
     setStatusFilter('all');
     setSelectedSubjects([]);
+    setSelectedBoard('all');
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedSubjects.length > 0;
+  const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedSubjects.length > 0 || selectedBoard !== 'all';
+
+  // Unique boards for filter
+  const uniqueBoards = useMemo(() => {
+    return [...new Set(exams.map(e => (e as any).exam_board).filter(Boolean))].sort() as string[];
+  }, [exams]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -206,6 +219,35 @@ export const AllExamsModal = ({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Board filter */}
+                  {uniqueBoards.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Exam Board</label>
+                      <Select
+                        value={selectedBoard}
+                        onValueChange={(v) => {
+                          setSelectedBoard(v);
+                          setPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Boards</SelectItem>
+                          {uniqueBoards.map(boardId => {
+                            const boardOption = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+                            return (
+                              <SelectItem key={boardId} value={boardId}>
+                                {boardOption?.name || boardId}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>

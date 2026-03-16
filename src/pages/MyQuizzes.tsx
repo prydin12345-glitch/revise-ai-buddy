@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -59,6 +60,7 @@ const MyQuizzes = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [filterSubject, setFilterSubject] = useState('all');
+  const [filterBoard, setFilterBoard] = useState('all');
   const [sortBy, setSortBy] = useState<SortType>('date_created');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -242,6 +244,7 @@ const MyQuizzes = () => {
     if (activeTab === 'favourites' && !favourites.has(set.id)) return false;
     if (activeTab === 'completed' && !progressMap[set.id]?.completed_at) return false;
     if (filterSubject !== 'all' && set.subject_id !== filterSubject) return false;
+    if (filterBoard !== 'all' && set.exam_board !== filterBoard) return false;
     if (debouncedSearch && !set.set_name.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
     return true;
   });
@@ -359,6 +362,30 @@ const MyQuizzes = () => {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Board Filter */}
+              {(() => {
+                const uniqueBoards = [...new Set(practiceSets.map(s => s.exam_board).filter(Boolean))] as string[];
+                if (uniqueBoards.length === 0) return null;
+                return (
+                  <Select value={filterBoard} onValueChange={setFilterBoard}>
+                    <SelectTrigger className="w-36 h-10">
+                      <SelectValue placeholder="All Boards" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Boards</SelectItem>
+                      {uniqueBoards.map(boardId => {
+                        const boardOption = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+                        return (
+                          <SelectItem key={boardId} value={boardId}>
+                            {boardOption?.name || boardId}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
 
               {/* Sort Dropdown */}
               <DropdownMenu>
