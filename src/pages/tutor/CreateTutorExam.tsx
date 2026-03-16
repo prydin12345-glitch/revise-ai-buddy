@@ -56,8 +56,19 @@ export default function CreateTutorExam() {
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
-  const [examBoard] = useState("");
+  const [examBoard, setExamBoard] = useState("");
   const [qualificationLevel] = useState("");
+
+  // Auto-populate from preferences
+  useEffect(() => {
+    if (preferences?.preferred_exam_board && !examBoard) {
+      setExamBoard(preferences.preferred_exam_board);
+    }
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
   
   // File uploads
   const [file, setFile] = useState<File | null>(null);
