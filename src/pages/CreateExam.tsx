@@ -333,15 +333,6 @@ export default function CreateExam() {
       return;
     }
 
-  // Auto-populate board & level from user preferences
-  useEffect(() => {
-    if (preferences?.preferred_exam_board && !examBoard) {
-      setExamBoard(preferences.preferred_exam_board);
-    }
-    if (preferences?.preferred_educational_level && !educationalTier) {
-      setEducationalTier(preferences.preferred_educational_level);
-    }
-  }, [preferences]);
 
     if (!educationalTier) {
       toast({
