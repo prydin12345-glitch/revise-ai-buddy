@@ -279,7 +279,7 @@ export const AddSubjectModal = ({
                     <SelectItem value="__none">No preference</SelectItem>
                     {regionBoards.map((board) => (
                       <SelectItem key={board.id} value={board.id}>
-                        {board.label}
+                        {board.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
