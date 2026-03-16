@@ -41,6 +41,8 @@ const defaultPreferences: UserPreferences = {
   high_contrast_mode: false,
   confirm_resolve_feedback: true,
   curriculum_region: null,
+  preferred_exam_board: null,
+  preferred_educational_level: null,
 };
 
 export const useUserPreferences = () => {
