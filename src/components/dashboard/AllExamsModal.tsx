@@ -36,6 +36,7 @@ export const AllExamsModal = ({
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedBoard, setSelectedBoard] = useState<string>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
 
