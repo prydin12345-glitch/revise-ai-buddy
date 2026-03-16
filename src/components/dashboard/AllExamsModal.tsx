@@ -221,6 +221,35 @@ export const AllExamsModal = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Board filter */}
+                  {uniqueBoards.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Exam Board</label>
+                      <Select
+                        value={selectedBoard}
+                        onValueChange={(v) => {
+                          setSelectedBoard(v);
+                          setPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Boards</SelectItem>
+                          {uniqueBoards.map(boardId => {
+                            const boardOption = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+                            return (
+                              <SelectItem key={boardId} value={boardId}>
+                                {boardOption?.name || boardId}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
