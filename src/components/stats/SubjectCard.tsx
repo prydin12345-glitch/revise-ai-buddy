@@ -3,7 +3,7 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2 } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2, GraduationCap } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
