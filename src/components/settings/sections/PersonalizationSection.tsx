@@ -119,12 +119,12 @@ export const PersonalizationSection = () => {
               Preferred Exam Board
             </Label>
             <Select
-              value={preferences?.preferred_exam_board ?? ''}
+              value={preferences?.preferred_exam_board ?? '__none'}
               onValueChange={(val) => {
-                updatePreference({ preferred_exam_board: val || null });
-                // Reset level if it's not valid for the new board
-                if (val && preferences?.preferred_educational_level) {
-                  const validLevels = getLevelsForBoard(val);
+                const board = val === '__none' ? null : val;
+                updatePreference({ preferred_exam_board: board });
+                if (board && preferences?.preferred_educational_level) {
+                  const validLevels = getLevelsForBoard(board);
                   if (!validLevels.some(l => l.id === preferences.preferred_educational_level)) {
                     updatePreference({ preferred_educational_level: null });
                   }
@@ -135,7 +135,7 @@ export const PersonalizationSection = () => {
                 <SelectValue placeholder="Select board..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No preference</SelectItem>
+                <SelectItem value="__none">No preference</SelectItem>
                 {getRegionBoards(preferences?.curriculum_region).map(board => (
                   <SelectItem key={board.id} value={board.id}>{board.name}</SelectItem>
                 ))}
@@ -149,14 +149,14 @@ export const PersonalizationSection = () => {
               Current Level
             </Label>
             <Select
-              value={preferences?.preferred_educational_level ?? ''}
-              onValueChange={(val) => updatePreference({ preferred_educational_level: val || null })}
+              value={preferences?.preferred_educational_level ?? '__none'}
+              onValueChange={(val) => updatePreference({ preferred_educational_level: val === '__none' ? null : val })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select level..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No preference</SelectItem>
+                <SelectItem value="__none">No preference</SelectItem>
                 {getLevelsForBoard(preferences?.preferred_exam_board).map(level => (
                   <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
                 ))}
