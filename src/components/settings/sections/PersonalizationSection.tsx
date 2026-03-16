@@ -135,7 +135,7 @@ export const PersonalizationSection = () => {
                 <SelectValue placeholder="Select board..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No preference</SelectItem>
+                <SelectItem value="__none">No preference</SelectItem>
                 {getRegionBoards(preferences?.curriculum_region).map(board => (
                   <SelectItem key={board.id} value={board.id}>{board.name}</SelectItem>
                 ))}
