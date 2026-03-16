@@ -133,9 +133,9 @@ export default function CreateExam() {
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
-  // Legacy fields kept as empty for backend compatibility
-  const [examBoard] = useState("");
-  const [qualificationLevel] = useState("");
+  // Legacy fields — now populated from preferences
+  const [examBoard, setExamBoard] = useState("");
+  const [qualificationLevel, setQualificationLevel] = useState("");
   
   // File uploads
   const [file, setFile] = useState<File | null>(null);
