@@ -363,6 +363,30 @@ const MyQuizzes = () => {
                 </SelectContent>
               </Select>
 
+              {/* Board Filter */}
+              {(() => {
+                const uniqueBoards = [...new Set(practiceSets.map(s => s.exam_board).filter(Boolean))] as string[];
+                if (uniqueBoards.length === 0) return null;
+                return (
+                  <Select value={filterBoard} onValueChange={setFilterBoard}>
+                    <SelectTrigger className="w-36 h-10">
+                      <SelectValue placeholder="All Boards" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Boards</SelectItem>
+                      {uniqueBoards.map(boardId => {
+                        const boardOption = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
+                        return (
+                          <SelectItem key={boardId} value={boardId}>
+                            {boardOption?.name || boardId}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
+
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

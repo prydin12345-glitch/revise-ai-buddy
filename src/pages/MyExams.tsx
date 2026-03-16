@@ -1031,6 +1031,7 @@ const MyExams = () => {
                   status: [],
                   dateRange: { start: '', end: '' },
                   dateType: 'published',
+                  board: 'all',
                 });
               }}
               className="flex-1"
