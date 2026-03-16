@@ -1089,6 +1089,7 @@ ${(() => {
   return detectedText ? buildLiteraryTextInstructions(detectedText) : '';
 })()}
 ${buildExtractSafetyInstruction(setData.exam_board || 'exam-style', subjectName)}
+${markSchemeStyle ? `\nMARK SCHEME LANGUAGE:\n${markSchemeStyle}\n` : ''}
 ${canonicalTopicInstruction}
 ${specialisedSubjectContext}
 

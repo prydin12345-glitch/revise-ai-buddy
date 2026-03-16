@@ -118,10 +118,16 @@ export const AllExamsModal = ({
     setSearchQuery("");
     setStatusFilter('all');
     setSelectedSubjects([]);
+    setSelectedBoard('all');
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedSubjects.length > 0;
+  const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedSubjects.length > 0 || selectedBoard !== 'all';
+
+  // Unique boards for filter
+  const uniqueBoards = useMemo(() => {
+    return [...new Set(exams.map(e => (e as any).exam_board).filter(Boolean))].sort() as string[];
+  }, [exams]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
