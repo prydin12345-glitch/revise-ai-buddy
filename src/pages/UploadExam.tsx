@@ -49,12 +49,12 @@ export default function UploadExam() {
   const examBoard = preferences?.preferred_exam_board || null;
   const dynamicLevels = getLevelsForBoard(examBoard);
 
-  // Pre-fill educational tier from preferences (once)
-  useState(() => {
-    if (preferences?.preferred_educational_level && !educationalTier) {
-      setEducationalTier(preferences.preferred_educational_level);
-    }
-  });
+  // Pre-fill educational tier from preferences
+  const prefillDone = useState(false);
+  if (!prefillDone[0] && preferences?.preferred_educational_level && !educationalTier) {
+    setEducationalTier(preferences.preferred_educational_level);
+    prefillDone[1](true);
+  }
 
   const subjectProfiles = useMemo(
     () => (subjectId ? getProfilesForSubject(subjectId) : []),
