@@ -149,8 +149,8 @@ export const PersonalizationSection = () => {
               Current Level
             </Label>
             <Select
-              value={preferences?.preferred_educational_level ?? ''}
-              onValueChange={(val) => updatePreference({ preferred_educational_level: val || null })}
+              value={preferences?.preferred_educational_level ?? '__none'}
+              onValueChange={(val) => updatePreference({ preferred_educational_level: val === '__none' ? null : val })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select level..." />
