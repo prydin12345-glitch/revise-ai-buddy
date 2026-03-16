@@ -37,6 +37,8 @@ interface Exam {
   status: string;
   type: string;
   display_order?: number;
+  exam_board?: string | null;
+  qualification_level?: string | null;
   exam_topics: Array<{ topic_name: string }>;
 }
 
