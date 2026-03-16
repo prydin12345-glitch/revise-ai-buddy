@@ -28,12 +28,7 @@ import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 
 // Legacy arrays removed - exam board is now auto-detected
 
-const EDUCATIONAL_TIERS = [
-  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
-  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
-  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
-  { id: "other", name: "Other (Custom)" },
-];
+// Dynamic levels from board-level mapping
 
 const PRESET_COLORS = [
   "#3B82F6", "#10B981", "#8B5CF6", "#14B8A6", "#FF7F6A",
