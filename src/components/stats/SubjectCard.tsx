@@ -26,7 +26,7 @@ interface SubjectCardProps {
   handleOpenEditProfile: (subject: string, profile: { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }) => void;
   deleteProfile: (id: string) => Promise<void>;
   /** All subject colours for conflict detection */
-  allSubjects?: { id: string; subject_name: string; subject_color: string }[];
+  allSubjects?: { id: string; subject_name: string; subject_color: string; exam_board?: string | null }[];
 }
 
 const MASTERY_LABELS = {
