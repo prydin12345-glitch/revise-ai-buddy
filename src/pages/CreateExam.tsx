@@ -216,6 +216,17 @@ export default function CreateExam() {
     }
   }, [subjectId, getSubjectColor]);
 
+  // Auto-populate board & level from user preferences
+  useEffect(() => {
+    if (preferences?.preferred_exam_board && !examBoard) {
+      setExamBoard(preferences.preferred_exam_board);
+    }
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);

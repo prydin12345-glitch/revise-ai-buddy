@@ -174,16 +174,35 @@ When generating multi-part questions involving circuit diagrams:
 export function translateExamBoard(examBoard: string | undefined): string {
   if (!examBoard) return '';
   const boardTranslation: Record<string, string> = {
-    'AQA': 'Generate content according to the AQA specification. Use AQA command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation.',
-    'Edexcel': 'Generate content according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with progressive difficulty.',
-    'OCR': 'Generate content according to the OCR specification. Use OCR command terms (show that, determine, describe) with synoptic assessment.',
-    'WJEC': 'Generate content according to the WJEC specification. Use WJEC structured mark schemes with Welsh context where appropriate.',
-    'CIE': 'Generate content according to the Cambridge International (CAIE) specification. Use Cambridge-style structured data response and essay-type questions.',
-    'IB': 'Generate content according to the IB programme specification. Use IB internal assessment style and extended response questions.',
-    'AP': 'Generate content according to the College Board AP specification. Use AP-style free response and multiple-choice sections.',
-    'SAT': 'Generate content according to the College Board SAT specification. Use SAT-style multiple-choice and grid-in questions.',
-    'CBSE': 'Generate content according to the CBSE specification. Use CBSE-style comprehensive questions with detailed mark schemes.',
-    'ICSE': 'Generate content according to the ICSE specification. Use ICSE-style application-based questions.',
+    'aqa': 'Generate content according to the AQA specification. Use AQA command words (evaluate, explain, compare, give) and AO1/AO2/AO3 mark allocation.',
+    'edexcel': 'Generate content according to the Pearson Edexcel specification. Use Edexcel-style data-response and multi-part questions with progressive difficulty.',
+    'ocr': 'Generate content according to the OCR specification. Use OCR command terms (show that, determine, describe) with synoptic assessment.',
+    'wjec': 'Generate content according to the WJEC specification. Use WJEC structured mark schemes with Welsh context where appropriate.',
+    'cie': 'Generate content according to the Cambridge International (CAIE) specification. Use Cambridge-style structured data response and essay-type questions.',
+    'ib': 'Generate content according to the IB programme specification. Use IB internal assessment style and extended response questions.',
+    'college_board': 'Generate content according to the College Board AP/SAT specification. Use AP-style free response and multiple-choice sections.',
+    'cbse': 'Generate content according to the CBSE specification. Use CBSE-style comprehensive questions with detailed step-marking.',
+    'icse': 'Generate content according to the ICSE specification. Use ICSE-style application-based questions with step-by-step marking.',
+    'ncea': 'Generate content according to NCEA (New Zealand) standards. Use Achievement/Merit/Excellence criteria levels.',
+    'vce': 'Generate content according to VCE (Victoria, Australia) study design. Use key knowledge and key skills framework.',
+    'hsc': 'Generate content according to HSC (NSW, Australia) syllabi. Use Band descriptors for extended responses.',
+    'leaving_cert': 'Generate content according to the Irish Leaving Certificate specification. Use Ordinary/Higher level differentiation.',
   };
-  return boardTranslation[examBoard] || examBoard;
+  // Try lowercase key first, then original
+  return boardTranslation[examBoard.toLowerCase()] || boardTranslation[examBoard] || examBoard;
+}
+
+/** Board-specific mark scheme language */
+export function getBoardMarkSchemeStyle(boardId: string): string {
+  const styles: Record<string, string> = {
+    aqa: `Use AQA-style mark schemes: "Allow" for alternatives, "Accept" for equivalents, "Do not accept" for wrong answers. Award B1/M1/A1 marks.`,
+    edexcel: `Use Edexcel-style: "Award 1 mark for..." format. Progressive marking. QWC for 6-mark questions.`,
+    ocr: `Use OCR-style: "Credit any sensible answer that..." AO1/AO2/AO3 labelling. Level of response for extended answers.`,
+    ib: `Use IB-style: Assessment criteria bands (A/B/C/D). "Award [1] for..." format. Level descriptors for extended response.`,
+    college_board: `Use AP-style rubrics: Point-based FRQ rubrics. "Acceptable"/"Not acceptable" for alternatives. Include "Scoring Note".`,
+    cbse: `Use CBSE-style: Step marking with "Value Points" per mark. Include "Any other relevant answer".`,
+    wjec: `Use WJEC-style: B/M/A notation. "Credit" for alternatives. Indicative content for extended responses.`,
+    cie: `Use Cambridge-style: M1/A1/B1 notation. "or equivalent" for alternatives. [1] notation.`,
+  };
+  return styles[boardId] || '';
 }
