@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Filter, X, FileText } from "lucide-react";
 import { ExamRowItem, ExamWithSubmission } from "./ExamRowItem";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AllExamsModalProps {
