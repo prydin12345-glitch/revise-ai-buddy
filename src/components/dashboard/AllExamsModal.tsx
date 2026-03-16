@@ -74,6 +74,11 @@ export const AllExamsModal = ({
       result = result.filter(exam => selectedSubjects.includes(exam.subject_id));
     }
 
+    // Board filter
+    if (selectedBoard !== 'all') {
+      result = result.filter(exam => (exam as any).exam_board === selectedBoard);
+    }
+
     // Sort
     result.sort((a, b) => {
       switch (sortBy) {
