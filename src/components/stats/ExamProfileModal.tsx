@@ -103,7 +103,8 @@ export const ExamProfileModal = ({
       const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
-      const tier = initialData?.educational_tier || "";
+      // Pre-fill educational tier from profile if no initial data
+      const tier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
       const known = isKnownLevel(tier);
       setEducationalTier(known || !tier ? tier : "other");
       setCustomTier(known || !tier ? "" : tier);
