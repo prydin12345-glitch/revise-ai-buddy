@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   Play, 
   Eye, 
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 interface PracticeSetProgress {
   questions_attempted: number;
@@ -148,6 +151,22 @@ export const PracticeSetCard = ({
               </h3>
               {/* Subject */}
               <p className="text-sm text-muted-foreground">{set.subject_id}</p>
+
+              {/* Board & Level tags */}
+              {(set.exam_board || set.educational_tier) && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {set.exam_board && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-semibold bg-primary/10 text-primary border-primary/30">
+                      {getBoardDisplayName(set.exam_board)}
+                    </Badge>
+                  )}
+                  {set.educational_tier && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted text-muted-foreground border-border">
+                      {LEVEL_DISPLAY_NAMES[set.educational_tier] ?? set.educational_tier}
+                    </Badge>
+                  )}
+                </div>
+              )}
               
               {/* Progress indicator */}
               <div className="flex items-center gap-3 mt-4">

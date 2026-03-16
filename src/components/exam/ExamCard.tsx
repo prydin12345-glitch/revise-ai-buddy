@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   Play, 
   Eye, 
@@ -16,6 +17,8 @@ import {
   BookOpen,
   ChevronRight
 } from "lucide-react";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 interface ExamProgress {
   questionsCompleted: number;
@@ -34,6 +37,8 @@ interface Exam {
   status: string;
   type: string;
   display_order?: number;
+  exam_board?: string | null;
+  qualification_level?: string | null;
   exam_topics: Array<{ topic_name: string }>;
 }
 
@@ -120,6 +125,22 @@ export const ExamCard = ({
               </h3>
               {/* Subject (smaller, secondary) */}
               <p className="text-sm text-muted-foreground">{exam.subject_id}</p>
+
+              {/* Board & Level tags */}
+              {(exam.exam_board || exam.qualification_level) && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {exam.exam_board && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-semibold bg-primary/10 text-primary border-primary/30">
+                      {getBoardDisplayName(exam.exam_board)}
+                    </Badge>
+                  )}
+                  {exam.qualification_level && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted text-muted-foreground border-border">
+                      {LEVEL_DISPLAY_NAMES[exam.qualification_level] ?? exam.qualification_level}
+                    </Badge>
+                  )}
+                </div>
+              )}
               
               {/* Progress indicator - wider bar with percentage on same row */}
               <div className="flex items-center gap-3 mt-4">

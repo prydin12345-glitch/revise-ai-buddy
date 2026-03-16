@@ -1,11 +1,14 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2, Globe } from "lucide-react";
+import { Loader2, Globe, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
+import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 
 const languages = [
@@ -94,6 +97,86 @@ export const PersonalizationSection = () => {
             <p className="text-xs text-amber-500 mt-3 text-center">
               Select your region to improve AI question quality.
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Exam Board & Level */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-primary" />
+            <CardTitle>Exam Board & Level</CardTitle>
+          </div>
+          <CardDescription>
+            This pre-fills your exam and practice quiz creation forms. You can always override it per session.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Preferred Exam Board — filtered by region */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Preferred Exam Board
+            </Label>
+            <Select
+              value={preferences?.preferred_exam_board ?? ''}
+              onValueChange={(val) => {
+                updatePreference({ preferred_exam_board: val || null });
+                // Reset level if it's not valid for the new board
+                if (val && preferences?.preferred_educational_level) {
+                  const validLevels = getLevelsForBoard(val);
+                  if (!validLevels.some(l => l.id === preferences.preferred_educational_level)) {
+                    updatePreference({ preferred_educational_level: null });
+                  }
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select board..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No preference</SelectItem>
+                {getRegionBoards(preferences?.curriculum_region).map(board => (
+                  <SelectItem key={board.id} value={board.id}>{board.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Current Level — filtered by board */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Current Level
+            </Label>
+            <Select
+              value={preferences?.preferred_educational_level ?? ''}
+              onValueChange={(val) => updatePreference({ preferred_educational_level: val || null })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select level..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No preference</SelectItem>
+                {getLevelsForBoard(preferences?.preferred_exam_board).map(level => (
+                  <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Preview of what AI will use */}
+          {preferences?.preferred_exam_board && preferences?.preferred_educational_level && (
+            <div className="p-3 rounded-md bg-primary/5 border-l-3 border-primary text-sm text-muted-foreground">
+              ✓ Your exams will be generated in{' '}
+              <strong className="text-foreground">
+                {EXAM_BOARD_OPTIONS.find(b => b.id === preferences.preferred_exam_board)?.name}
+              </strong>{' '}
+              style at{' '}
+              <strong className="text-foreground">
+                {LEVEL_DISPLAY_NAMES[preferences.preferred_educational_level] ?? preferences.preferred_educational_level}
+              </strong>{' '}
+              level
+            </div>
           )}
         </CardContent>
       </Card>

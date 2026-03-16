@@ -28,6 +28,9 @@ import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { EXAM_BOARD_OPTIONS, getBoardDisplayName } from "@/lib/board-scrubber";
+import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 const EDUCATIONAL_TIERS = [
   { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
@@ -97,6 +100,7 @@ export default function CreateExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt state
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
@@ -129,9 +133,9 @@ export default function CreateExam() {
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
-  // Legacy fields kept as empty for backend compatibility
-  const [examBoard] = useState("");
-  const [qualificationLevel] = useState("");
+  // Legacy fields — now populated from preferences
+  const [examBoard, setExamBoard] = useState("");
+  const [qualificationLevel, setQualificationLevel] = useState("");
   
   // File uploads
   const [file, setFile] = useState<File | null>(null);
@@ -211,6 +215,17 @@ export default function CreateExam() {
       }
     }
   }, [subjectId, getSubjectColor]);
+
+  // Auto-populate board & level from user preferences
+  useEffect(() => {
+    if (preferences?.preferred_exam_board && !examBoard) {
+      setExamBoard(preferences.preferred_exam_board);
+    }
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
 
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
@@ -328,7 +343,7 @@ export default function CreateExam() {
       });
       return;
     }
-    
+
 
     if (!educationalTier) {
       toast({

@@ -36,12 +36,14 @@ import { sanitizeNotes, type NotesSanitizationResult } from "@/lib/notes-sanitiz
 import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { getSubjectColor } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
@@ -112,6 +114,17 @@ const CreatePracticeQuestions = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-populate board & level from user preferences
+  useEffect(() => {
+    if (preferences?.preferred_exam_board && !examBoard) {
+      setExamBoard(preferences.preferred_exam_board);
+    }
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
 
   // Pre-fill from weak topics navigation
   const prefillSubtopic = searchParams.get("subtopic");

@@ -50,7 +50,13 @@ export const EXAM_BOARD_OPTIONS = [
   { id: "cie", name: "Cambridge International (CAIE)" },
   { id: "ib", name: "International Baccalaureate (IB)" },
   { id: "wjec", name: "WJEC" },
-  { id: "college_board", name: "College Board (AP)" },
+  { id: "college_board", name: "College Board (AP/SAT)" },
+  { id: "cbse", name: "CBSE (India)" },
+  { id: "icse", name: "ICSE (India)" },
+  { id: "ncea", name: "NCEA (New Zealand)" },
+  { id: "vce", name: "VCE (Victoria, Australia)" },
+  { id: "hsc", name: "HSC (NSW, Australia)" },
+  { id: "leaving_cert", name: "Leaving Certificate (Ireland)" },
   { id: "other", name: "Other" },
 ];
 
