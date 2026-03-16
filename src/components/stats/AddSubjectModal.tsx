@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Check } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Plus, Check, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { classifySubjectName } from "@/hooks/useSubjectCategory";
@@ -19,6 +20,9 @@ import { ColourConflictModal } from "./ColourConflictModal";
 import { SuggestedTopicsModal } from "./SuggestedTopicsModal";
 import { PRESET_COLOURS, getNextAvailableColour, isSpecialisedSubject } from "@/lib/subject-colours";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getRegionBoards } from "@/lib/board-level-mapping";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 
 interface SubjectOption {
   id: string;
@@ -61,6 +65,7 @@ export const AddSubjectModal = ({
   existingColours = [],
 }: AddSubjectModalProps) => {
   const { addTopic } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<SubjectOption | null>(null);
@@ -70,6 +75,10 @@ export const AddSubjectModal = ({
   const [selectedColour, setSelectedColour] = useState(
     getNextAvailableColour(existingColours)
   );
+  const [examBoard, setExamBoard] = useState<string>("");
+
+  // "confirmed" = user picked a subject and is now on the confirmation view
+  const [confirmed, setConfirmed] = useState(false);
 
   // Colour conflict state
   const [colourConflict, setColourConflict] = useState<{
@@ -82,6 +91,9 @@ export const AddSubjectModal = ({
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const [justAddedSubjectName, setJustAddedSubjectName] = useState("");
 
+  // Region-filtered boards
+  const regionBoards = getRegionBoards(preferences?.curriculum_region);
+
   useEffect(() => {
     if (open) {
       loadSubjects();
@@ -89,7 +101,9 @@ export const AddSubjectModal = ({
       setSelectedSubject(null);
       setCustomName("");
       setShowCustom(false);
+      setConfirmed(false);
       setSelectedColour(getNextAvailableColour(existingColours));
+      setExamBoard(preferences?.preferred_exam_board || "");
     }
   }, [open, existingColours]);
 
@@ -120,6 +134,11 @@ export const AddSubjectModal = ({
 
   const categoryOrder = ["maths", "sciences", "languages", "humanities", "other"];
 
+  const handleSelectFromList = (s: SubjectOption) => {
+    setSelectedSubject(s);
+    setConfirmed(true);
+  };
+
   const handleAdd = async () => {
     setLoading(true);
     try {
@@ -128,6 +147,7 @@ export const AddSubjectModal = ({
 
       let subjectName: string;
       const colour = selectedColour || CATEGORY_COLORS.other;
+      const boardValue = examBoard && examBoard !== "__none" ? examBoard : null;
 
       if (showCustom && customName.trim()) {
         subjectName = customName.trim();
@@ -139,6 +159,7 @@ export const AddSubjectModal = ({
             subject_color: colour,
             is_custom: true,
             custom_name: subjectName,
+            exam_board: boardValue,
           }),
           classifySubjectName(subjectName),
         ]);
@@ -160,6 +181,7 @@ export const AddSubjectModal = ({
             subject_name: subjectName,
             subject_color: colour,
             is_custom: false,
+            exam_board: boardValue,
           }),
           classifySubjectName(subjectName),
         ]);
@@ -192,12 +214,6 @@ export const AddSubjectModal = ({
   };
 
   const handleColourChange = (newColour: string) => {
-    // Check for conflict with existing subject colours
-    const conflictIdx = existingColours.findIndex(
-      c => c.toLowerCase() === newColour.toLowerCase()
-    );
-    // We don't have the conflicting subject name easily here, so just allow it with a note
-    // The conflict modal is more relevant on SubjectCard colour changes
     setSelectedColour(newColour);
   };
 
@@ -208,6 +224,8 @@ export const AddSubjectModal = ({
     toast.success(`Added ${topics.length} topic${topics.length !== 1 ? "s" : ""}`);
   };
 
+  const confirmationName = showCustom ? customName.trim() : selectedSubject?.name || "";
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -215,11 +233,77 @@ export const AddSubjectModal = ({
           <DialogHeader>
             <DialogTitle>Add Subject</DialogTitle>
             <DialogDescription>
-              Search for a subject or add a custom one.
+              {confirmed || (showCustom && customName.trim())
+                ? "Configure your subject details"
+                : "Search for a subject or add a custom one."}
             </DialogDescription>
           </DialogHeader>
 
-          {!showCustom ? (
+          {/* --- Confirmation View (after selecting a subject) --- */}
+          {(confirmed && !showCustom) ? (
+            <div className="space-y-4">
+              {/* Selected subject display */}
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+                  style={{ backgroundColor: selectedColour, color: '#fff' }}
+                >
+                  {confirmationName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground truncate">{confirmationName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedSubject?.category ? CATEGORY_LABELS[selectedSubject.category] || selectedSubject.category : "Subject"}
+                  </p>
+                </div>
+                <Check className="h-5 w-5 text-primary shrink-0" />
+              </div>
+
+              {/* Colour picker */}
+              <ColourSwatchPicker
+                value={selectedColour}
+                onChange={handleColourChange}
+                usedColours={existingColours}
+              />
+
+              {/* Exam Board dropdown */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Exam Board
+                </Label>
+                <Select value={examBoard || "__none"} onValueChange={(val) => setExamBoard(val === "__none" ? "" : val)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select exam board (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No preference</SelectItem>
+                    {regionBoards.map((board) => (
+                      <SelectItem key={board.id} value={board.id}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Links this subject to a specific exam board for accurate question generation
+                </p>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => {
+                  setConfirmed(false);
+                  setSelectedSubject(null);
+                }}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to list
+              </Button>
+            </div>
+          ) : !showCustom ? (
+            /* --- Search / Selection View --- */
             <div className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -247,12 +331,8 @@ export const AddSubjectModal = ({
                         {grouped[cat].map((s) => (
                           <button
                             key={s.id}
-                            onClick={() => setSelectedSubject(s)}
-                            className={`w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors ${
-                              selectedSubject?.id === s.id
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "hover:bg-muted text-foreground"
-                            }`}
+                            onClick={() => handleSelectFromList(s)}
+                            className="w-full text-left text-sm px-3 py-2 rounded-md flex items-center justify-between transition-colors hover:bg-muted text-foreground"
                           >
                             <div className="flex items-center gap-2">
                               <div
@@ -261,24 +341,12 @@ export const AddSubjectModal = ({
                               />
                               <span>{s.name}</span>
                             </div>
-                            {selectedSubject?.id === s.id && (
-                              <Check className="h-4 w-4 shrink-0" />
-                            )}
                           </button>
                         ))}
                       </div>
                     ))
                 )}
               </div>
-
-              {/* Colour picker for selected subject */}
-              {selectedSubject && (
-                <ColourSwatchPicker
-                  value={selectedColour}
-                  onChange={handleColourChange}
-                  usedColours={existingColours}
-                />
-              )}
 
               <Button
                 variant="ghost"
@@ -291,6 +359,7 @@ export const AddSubjectModal = ({
               </Button>
             </div>
           ) : (
+            /* --- Custom Subject View --- */
             <div className="space-y-4">
               <div>
                 <Label>Custom Subject Name</Label>
@@ -306,6 +375,26 @@ export const AddSubjectModal = ({
                 onChange={handleColourChange}
                 usedColours={existingColours}
               />
+
+              {/* Exam Board dropdown for custom subject too */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Exam Board
+                </Label>
+                <Select value={examBoard || "__none"} onValueChange={(val) => setExamBoard(val === "__none" ? "" : val)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select exam board (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No preference</SelectItem>
+                    {regionBoards.map((board) => (
+                      <SelectItem key={board.id} value={board.id}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <Button
                 variant="ghost"

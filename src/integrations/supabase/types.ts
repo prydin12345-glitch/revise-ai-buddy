@@ -1883,6 +1883,7 @@ export type Database = {
           created_at: string
           difficulty_progression: string | null
           educational_tier: string | null
+          exam_board: string | null
           extended_marks: number | null
           id: string
           include_extended: boolean | null
@@ -1907,6 +1908,7 @@ export type Database = {
           created_at?: string
           difficulty_progression?: string | null
           educational_tier?: string | null
+          exam_board?: string | null
           extended_marks?: number | null
           id?: string
           include_extended?: boolean | null
@@ -1931,6 +1933,7 @@ export type Database = {
           created_at?: string
           difficulty_progression?: string | null
           educational_tier?: string | null
+          exam_board?: string | null
           extended_marks?: number | null
           id?: string
           include_extended?: boolean | null
@@ -2529,6 +2532,7 @@ export type Database = {
           created_at: string
           curriculum_tag: string | null
           custom_name: string | null
+          exam_board: string | null
           id: string
           is_custom: boolean | null
           proficiency_estimate: number | null
@@ -2543,6 +2547,7 @@ export type Database = {
           created_at?: string
           curriculum_tag?: string | null
           custom_name?: string | null
+          exam_board?: string | null
           id?: string
           is_custom?: boolean | null
           proficiency_estimate?: number | null
@@ -2557,6 +2562,7 @@ export type Database = {
           created_at?: string
           curriculum_tag?: string | null
           custom_name?: string | null
+          exam_board?: string | null
           id?: string
           is_custom?: boolean | null
           proficiency_estimate?: number | null

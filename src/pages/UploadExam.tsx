@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getLevelsForBoard } from "@/lib/board-level-mapping";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -28,6 +30,7 @@ const subjects = [
 
 export default function UploadExam() {
   const navigate = useNavigate();
+  const { preferences } = useUserPreferences();
   const [file, setFile] = useState<File | null>(null);
   const [subjectId, setSubjectId] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
@@ -41,6 +44,18 @@ export default function UploadExam() {
   const [followReference, setFollowReference] = useState(false);
 
   const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
+
+  // Auto-populate from preferences
+  const examBoard = preferences?.preferred_exam_board || null;
+  const dynamicLevels = getLevelsForBoard(examBoard);
+
+  // Pre-fill educational tier from preferences
+  useEffect(() => {
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
 
   const subjectProfiles = useMemo(
     () => (subjectId ? getProfilesForSubject(subjectId) : []),
@@ -284,14 +299,18 @@ export default function UploadExam() {
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="secondary_14_16">Level 1 — High School / Secondary (Ages 14–16)</SelectItem>
-                      <SelectItem value="college_16_18">Level 2 — College / Sixth Form (Ages 16–18)</SelectItem>
-                      <SelectItem value="university_18plus">Level 3 — University / Undergraduate (Ages 18+)</SelectItem>
+                      {dynamicLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.label}
+                        </SelectItem>
+                      ))}
                       <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Optional — helps calibrate question difficulty
+                    {preferences?.preferred_educational_level
+                      ? "Pre-filled from your profile · Change in Settings"
+                      : "Optional — helps calibrate question difficulty"}
                   </p>
                 </div>
               </CollapsibleContent>

@@ -3,7 +3,7 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2 } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2, GraduationCap } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,7 +17,7 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 interface SubjectCardProps {
-  subject: { id: string; subject_name: string; subject_color: string };
+  subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
   getTopicsForSubject: (s: string) => { id: string; topic: string }[];
   getProfilesForSubject: (s: string) => { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }[];
   handleAddTopic: (subject: string, topic: string) => Promise<void>;
@@ -26,7 +26,7 @@ interface SubjectCardProps {
   handleOpenEditProfile: (subject: string, profile: { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }) => void;
   deleteProfile: (id: string) => Promise<void>;
   /** All subject colours for conflict detection */
-  allSubjects?: { id: string; subject_name: string; subject_color: string }[];
+  allSubjects?: { id: string; subject_name: string; subject_color: string; exam_board?: string | null }[];
 }
 
 const MASTERY_LABELS = {
@@ -128,6 +128,11 @@ export const SubjectCard = ({
                 {subject.subject_name.charAt(0).toUpperCase()}
               </div>
               <h3 className="font-semibold text-foreground">{subject.subject_name}</h3>
+              {subject.exam_board && subject.exam_board !== 'other' && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                  {subject.exam_board.toUpperCase()}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               {/* Colour picker button */}

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +28,7 @@ import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 
 // Legacy arrays removed - exam board is now auto-detected
 
-const EDUCATIONAL_TIERS = [
-  { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
-  { id: "college_16_18", name: "Level 2 — College / Sixth Form (Ages 16–18)" },
-  { id: "university_18plus", name: "Level 3 — University / Undergraduate (Ages 18+)" },
-  { id: "other", name: "Other (Custom)" },
-];
+// Dynamic levels from board-level mapping
 
 const PRESET_COLORS = [
   "#3B82F6", "#10B981", "#8B5CF6", "#14B8A6", "#FF7F6A",
@@ -44,8 +41,9 @@ const getRandomColor = () => {
 
 export default function CreateTutorExam() {
   const navigate = useNavigate();
-  const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getSubjectColor, saveOrUpdateSubject, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt state
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
@@ -58,8 +56,19 @@ export default function CreateTutorExam() {
   const [notes, setNotes] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
-  const [examBoard] = useState("");
+  const [examBoard, setExamBoard] = useState("");
   const [qualificationLevel] = useState("");
+
+  // Auto-populate from preferences
+  useEffect(() => {
+    if (preferences?.preferred_exam_board && !examBoard) {
+      setExamBoard(preferences.preferred_exam_board);
+    }
+    if (preferences?.preferred_educational_level && !educationalTier) {
+      setEducationalTier(preferences.preferred_educational_level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences]);
   
   // File uploads
   const [file, setFile] = useState<File | null>(null);
@@ -635,11 +644,12 @@ export default function CreateTutorExam() {
                     <SelectValue placeholder="Select educational level..." />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    {EDUCATIONAL_TIERS.map((tier) => (
-                      <SelectItem key={tier.id} value={tier.id}>
-                        {tier.name}
+                    {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.label}
                       </SelectItem>
                     ))}
+                    <SelectItem value="other">Other (Custom)</SelectItem>
                   </SelectContent>
                 </Select>
                 
