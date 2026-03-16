@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getLevelsForBoard } from "@/lib/board-level-mapping";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Sparkles, Upload, Info, Settings2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
