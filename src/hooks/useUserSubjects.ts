@@ -7,6 +7,7 @@ interface UserSubject {
   subject_name: string;
   subject_color: string;
   subject_id?: string | null;
+  exam_board?: string | null;
 }
 
 export const useUserSubjects = () => {
@@ -42,6 +43,13 @@ export const useUserSubjects = () => {
       (s) => s.subject_name.toLowerCase() === subjectName.toLowerCase()
     );
     return subject?.subject_color || "#3B82F6";
+  };
+
+  const getSubjectExamBoard = (subjectName: string): string | null => {
+    const subject = subjects.find(
+      (s) => s.subject_name.toLowerCase() === subjectName.toLowerCase()
+    );
+    return subject?.exam_board || null;
   };
 
   const getAffectedEntityCounts = async (subjectName: string) => {
@@ -80,7 +88,7 @@ export const useUserSubjects = () => {
     }
   };
 
-  const saveOrUpdateSubject = async (subjectName: string, color: string) => {
+  const saveOrUpdateSubject = async (subjectName: string, color: string, examBoard?: string | null) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -98,13 +106,18 @@ export const useUserSubjects = () => {
 
     if (existingSubject) {
       // Update existing subject color in user_subjects
+      const updatePayload: Record<string, any> = { 
+        subject_color: color, 
+        updated_at: new Date().toISOString(),
+        subject_id: subjectData?.id || existingSubject.subject_id || null,
+      };
+      if (examBoard !== undefined) {
+        updatePayload.exam_board = examBoard;
+      }
+
       const { error } = await supabase
         .from("user_subjects")
-        .update({ 
-          subject_color: color, 
-          updated_at: new Date().toISOString(),
-          subject_id: subjectData?.id || existingSubject.subject_id || null,
-        })
+        .update(updatePayload)
         .eq("id", existingSubject.id);
 
       if (error) throw error;
@@ -138,7 +151,7 @@ export const useUserSubjects = () => {
       
       setSubjects(subjects.map(s => 
         s.id === existingSubject.id 
-          ? { ...s, subject_color: color }
+          ? { ...s, subject_color: color, ...(examBoard !== undefined ? { exam_board: examBoard } : {}) }
           : s
       ));
     } else {
@@ -154,6 +167,7 @@ export const useUserSubjects = () => {
           subject_id: subjectData?.id || null,
           is_custom: isCustomSubject,
           custom_name: isCustomSubject ? subjectName : null,
+          exam_board: examBoard || null,
         })
         .select()
         .single();
@@ -167,6 +181,7 @@ export const useUserSubjects = () => {
     subjects,
     isLoading,
     getSubjectColor,
+    getSubjectExamBoard,
     saveOrUpdateSubject,
     getAffectedEntityCounts,
     refetch: fetchSubjects,
