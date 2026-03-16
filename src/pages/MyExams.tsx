@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 
 interface Exam {
   id: string;
