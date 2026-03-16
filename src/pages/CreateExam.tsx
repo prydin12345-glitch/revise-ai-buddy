@@ -100,6 +100,7 @@ export default function CreateExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   
   // Smart profile prompt state
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
