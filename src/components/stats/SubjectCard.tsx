@@ -17,7 +17,7 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 
 interface SubjectCardProps {
-  subject: { id: string; subject_name: string; subject_color: string };
+  subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
   getTopicsForSubject: (s: string) => { id: string; topic: string }[];
   getProfilesForSubject: (s: string) => { id: string; profile_name: string; topics: string[]; question_count: number; educational_tier?: string | null; time_limit_minutes?: number | null }[];
   handleAddTopic: (subject: string, topic: string) => Promise<void>;
