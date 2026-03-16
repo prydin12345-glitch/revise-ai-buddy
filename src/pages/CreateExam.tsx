@@ -28,6 +28,9 @@ import { AIResourceGenerator } from "@/components/practice/AIResourceGenerator";
 import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { EXAM_BOARD_OPTIONS, getBoardDisplayName } from "@/lib/board-scrubber";
+import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 const EDUCATIONAL_TIERS = [
   { id: "secondary_14_16", name: "Level 1 — High School / Secondary (Ages 14–16)" },
