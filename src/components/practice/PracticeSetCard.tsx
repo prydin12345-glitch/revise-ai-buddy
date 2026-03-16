@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { 
   Play, 
   Eye, 
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
 interface PracticeSetProgress {
   questions_attempted: number;
