@@ -244,6 +244,7 @@ const MyQuizzes = () => {
     if (activeTab === 'favourites' && !favourites.has(set.id)) return false;
     if (activeTab === 'completed' && !progressMap[set.id]?.completed_at) return false;
     if (filterSubject !== 'all' && set.subject_id !== filterSubject) return false;
+    if (filterBoard !== 'all' && set.exam_board !== filterBoard) return false;
     if (debouncedSearch && !set.set_name.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
     return true;
   });
