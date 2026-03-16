@@ -92,6 +92,7 @@ const MyExams = () => {
     status: [] as string[],
     dateRange: { start: '', end: '' },
     dateType: 'published' as 'published' | 'accessed',
+    board: 'all' as string,
   });
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false);
 
