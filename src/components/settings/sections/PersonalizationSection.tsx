@@ -156,7 +156,7 @@ export const PersonalizationSection = () => {
                 <SelectValue placeholder="Select level..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No preference</SelectItem>
+                <SelectItem value="__none">No preference</SelectItem>
                 {getLevelsForBoard(preferences?.preferred_exam_board).map(level => (
                   <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
                 ))}
