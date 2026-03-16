@@ -2324,6 +2324,8 @@ export type Database = {
           id: string
           in_app_notifications: boolean | null
           language: string | null
+          preferred_educational_level: string | null
+          preferred_exam_board: string | null
           push_notifications: boolean | null
           save_revision_history: boolean | null
           theme_mode: string | null
@@ -2346,6 +2348,8 @@ export type Database = {
           id?: string
           in_app_notifications?: boolean | null
           language?: string | null
+          preferred_educational_level?: string | null
+          preferred_exam_board?: string | null
           push_notifications?: boolean | null
           save_revision_history?: boolean | null
           theme_mode?: string | null
@@ -2368,6 +2372,8 @@ export type Database = {
           id?: string
           in_app_notifications?: boolean | null
           language?: string | null
+          preferred_educational_level?: string | null
+          preferred_exam_board?: string | null
           push_notifications?: boolean | null
           save_revision_history?: boolean | null
           theme_mode?: string | null
