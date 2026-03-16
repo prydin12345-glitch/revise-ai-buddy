@@ -500,6 +500,11 @@ const MyExams = () => {
       );
     }
 
+    // Board filter
+    if (filters.board && filters.board !== 'all') {
+      filtered = filtered.filter(e => e.exam_board === filters.board);
+    }
+
     if (filters.status.length > 0) {
       filtered = filtered.filter(e => {
         if (filters.status.includes('active') && e.status === 'published') return true;
