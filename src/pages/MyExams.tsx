@@ -30,6 +30,8 @@ interface Exam {
   status: string;
   type: string;
   display_order?: number;
+  exam_board?: string;
+  qualification_level?: string;
   exam_topics: Array<{ topic_name: string }>;
 }
 
