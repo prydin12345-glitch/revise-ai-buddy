@@ -131,6 +131,13 @@ const CreatePracticeQuestions = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading, preferences]);
 
+  const effectiveExamBoard = examBoard || preferences?.preferred_exam_board || "";
+  const effectiveEducationalTier =
+    educationalTier === "other"
+      ? customEducationalTier
+      : educationalTier || preferences?.preferred_educational_level || "";
+  const effectiveLevelOptions = getLevelsForBoard(effectiveExamBoard || null);
+
   // Pre-fill from weak topics navigation
   const prefillSubtopic = searchParams.get("subtopic");
   const prefillSource = searchParams.get("source");
