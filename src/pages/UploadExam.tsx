@@ -19,6 +19,7 @@ import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-sc
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
