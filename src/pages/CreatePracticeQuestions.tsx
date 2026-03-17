@@ -539,6 +539,14 @@ const CreatePracticeQuestions = () => {
           </Button>
         </div>
 
+        {/* Configuration Summary */}
+        <ConfigSummary
+          examBoard={examBoard || preferences?.preferred_exam_board}
+          educationalLevel={educationalTier || preferences?.preferred_educational_level}
+          subject={subjectId || null}
+          questionCount={questionCount}
+        />
+
         {/* Main Form */}
         <div className="grid grid-cols-1 lg:grid-cols-[65%_35%] gap-4 lg:gap-6">
           {/* Left Column - Form Fields */}
