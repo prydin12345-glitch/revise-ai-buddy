@@ -102,6 +102,8 @@ export default function UploadExam() {
       formData.append('fileName', fileName);
       const tier = selectedProfile?.educational_tier || educationalTier;
       if (tier) formData.append('educationalTier', tier);
+      const board = examBoard || preferences?.preferred_exam_board;
+      if (board) formData.append('examBoard', board);
       if (selectedProfile) {
         formData.append('structureMode', followReference ? 'reference' : 'profile');
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
