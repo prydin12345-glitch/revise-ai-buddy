@@ -976,9 +976,15 @@ const CreatePracticeQuestions = () => {
                   </p>
                 </div>
                 <div>
+                  <p className="text-muted-foreground">Exam Board</p>
+                  <p className="font-medium">{effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not set"}</p>
+                </div>
+                <div>
                   <p className="text-muted-foreground">Level</p>
                   <p className="font-medium">
-                    {educationalTier === "other" ? customEducationalTier : educationalTier || "Not set"}
+                    {effectiveEducationalTier
+                      ? LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier
+                      : "Not set"}
                   </p>
                 </div>
               </div>
