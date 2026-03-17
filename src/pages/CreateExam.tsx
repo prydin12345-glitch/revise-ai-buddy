@@ -990,7 +990,7 @@ export default function CreateExam() {
                       </Badge>
                     )}
                   </div>
-                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
                     <SelectTrigger className="h-12 bg-background border-border">
                       <SelectValue placeholder="Select educational level..." />
                     </SelectTrigger>

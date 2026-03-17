@@ -897,7 +897,7 @@ const CreatePracticeQuestions = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
                     <SelectTrigger id="educational-tier">
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
