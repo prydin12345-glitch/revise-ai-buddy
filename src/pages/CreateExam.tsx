@@ -370,7 +370,38 @@ export default function CreateExam() {
       });
       return;
     }
-...
+
+    if (timerEnabled && (!duration || duration <= 0)) {
+      setDurationError(true);
+      toast({
+        title: "Invalid Duration",
+        description: "Please enter a positive duration",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save subject color to database for consistency
+    if (subjectId && subjectColor) {
+      await saveOrUpdateSubject(subjectId, subjectColor);
+    }
+
+    setGenerating(true);
+    setCurrentMessage(loadingMessages[0]);
+
+    // Rotate messages every 4 seconds
+    let messageInterval: number | undefined;
+    let pollInterval: number | undefined;
+
+    messageInterval = window.setInterval(() => {
+      setCurrentMessage(prev => {
+        const currentIndex = loadingMessages.indexOf(prev);
+        return loadingMessages[(currentIndex + 1) % loadingMessages.length];
+      });
+    }, 4000);
+
+    try {
+      // Upload exam with all settings
       const formData = new FormData();
       const resolvedEducationalTier = effectiveEducationalTier;
       if (file) formData.append('file', file);
