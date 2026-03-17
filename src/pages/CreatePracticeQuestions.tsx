@@ -38,6 +38,7 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
