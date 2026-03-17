@@ -650,8 +650,8 @@ const CreatePracticeQuestions = () => {
                   subject={subjectId}
                   selectedSubtopics={selectedSubtopics}
                   onSubtopicsChange={setSelectedSubtopics}
-                  educationalTier={educationalTier}
-                  examBoard={examBoard}
+                  educationalTier={effectiveEducationalTier}
+                  examBoard={effectiveExamBoard}
                   useAIInterpretation={useAIInterpretation}
                   onAIInterpretationChange={setUseAIInterpretation}
                   autoExtractedTopics={autoExtractedTopics.length > 0 ? autoExtractedTopics : undefined}
@@ -660,37 +660,12 @@ const CreatePracticeQuestions = () => {
                 />
               </Card>
             )}
-
-            {/* Difficulty Settings */}
-            <DifficultySettings
-              mode={difficultyMode}
-              level={difficultyLevel}
-              onModeChange={setDifficultyMode}
-              onLevelChange={setDifficultyLevel}
-            />
-
-            {/* Visual Question Types - Auto-detected */}
-            {/* Removed manual toggles - AI automatically includes graphs/tables when relevant to the subject/subtopics */}
-
-            {/* Resource Mode Selection */}
-            <ResourceModeSelector
-              value={resourceMode}
-              onChange={(mode) => {
-                setResourceMode(mode);
-                if (mode === 'none') {
-                  setResourcePack(null);
-                }
-              }}
-              subjectColor={subjectColor}
-              disabled={generating}
-            />
-
-            {/* Resource Pack Upload (when mode is 'uploaded') */}
+...
             {resourceMode === 'uploaded' && (
               <ResourcePackUploader
                 subjectId={subjectId}
-                educationalTier={educationalTier}
-                examBoard={examBoard}
+                educationalTier={effectiveEducationalTier}
+                examBoard={effectiveExamBoard}
                 onPackReady={setResourcePack}
                 onPackCleared={() => setResourcePack(null)}
                 currentPack={resourcePack}
@@ -702,8 +677,8 @@ const CreatePracticeQuestions = () => {
             {resourceMode === 'ai_generated' && !resourcePack && (
               <AIResourceGenerator
                 subjectId={subjectId}
-                educationalTier={educationalTier}
-                examBoard={examBoard}
+                educationalTier={effectiveEducationalTier}
+                examBoard={effectiveExamBoard}
                 subtopics={selectedSubtopics}
                 onPackReady={setResourcePack}
                 subjectColor={subjectColor}
