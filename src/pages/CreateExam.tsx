@@ -457,7 +457,7 @@ export default function CreateExam() {
       } else {
         format = {
           useOriginal,
-          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          educationalTier: effectiveEducationalTier,
           ...((!useOriginal) && {
             totalQuestions,
             oneMarkCount,
