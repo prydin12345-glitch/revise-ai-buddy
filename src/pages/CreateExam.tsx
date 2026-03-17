@@ -436,7 +436,7 @@ export default function CreateExam() {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,
-          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          educationalTier: effectiveEducationalTier,
           mcq: { count: profileMcqCount || 0, marksEach: 1 },
           shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
           longForm: { count: 0, marksEach: 0 },
