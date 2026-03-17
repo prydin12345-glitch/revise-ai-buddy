@@ -551,8 +551,8 @@ const CreatePracticeQuestions = () => {
 
         {/* Configuration Summary */}
         <ConfigSummary
-          examBoard={examBoard || preferences?.preferred_exam_board}
-          educationalLevel={educationalTier || preferences?.preferred_educational_level}
+          examBoard={effectiveExamBoard || null}
+          educationalLevel={effectiveEducationalTier || null}
           subject={subjectId || null}
           questionCount={questionCount}
         />
