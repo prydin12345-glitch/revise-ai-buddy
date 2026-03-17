@@ -269,7 +269,7 @@ const CreatePracticeQuestions = () => {
       return;
     }
 
-    if (!educationalTier) {
+    if (!effectiveEducationalTier) {
       toast.error("Please select an educational level");
       return;
     }
