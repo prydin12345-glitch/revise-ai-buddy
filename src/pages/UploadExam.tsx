@@ -31,11 +31,12 @@ const subjects = [
 
 export default function UploadExam() {
   const navigate = useNavigate();
-  const { preferences } = useUserPreferences();
+  const { preferences, loading: prefsLoading } = useUserPreferences();
   const [file, setFile] = useState<File | null>(null);
   const [subjectId, setSubjectId] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
   const [educationalTier, setEducationalTier] = useState<string>("");
+  const [examBoard, setExamBoard] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [titleWarning, setTitleWarning] = useState<string | null>(null);
@@ -46,17 +47,20 @@ export default function UploadExam() {
 
   const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
 
-  // Auto-populate from preferences
-  const examBoard = preferences?.preferred_exam_board || null;
-  const dynamicLevels = getLevelsForBoard(examBoard);
+  const dynamicLevels = getLevelsForBoard(examBoard || null);
 
-  // Pre-fill educational tier from preferences
+  // Pre-fill from preferences once loaded
   useEffect(() => {
-    if (preferences?.preferred_educational_level && !educationalTier) {
-      setEducationalTier(preferences.preferred_educational_level);
+    if (!prefsLoading && preferences) {
+      if (preferences.preferred_exam_board && !examBoard) {
+        setExamBoard(preferences.preferred_exam_board);
+      }
+      if (preferences.preferred_educational_level && !educationalTier) {
+        setEducationalTier(preferences.preferred_educational_level);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences]);
+  }, [prefsLoading, preferences]);
 
   const subjectProfiles = useMemo(
     () => (subjectId ? getProfilesForSubject(subjectId) : []),
