@@ -989,11 +989,12 @@ export default function CreateExam() {
                       <SelectValue placeholder="Select educational level..." />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      {EDUCATIONAL_TIERS.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id}>
-                          {tier.name}
+                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.label}
                         </SelectItem>
                       ))}
+                      <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
                   

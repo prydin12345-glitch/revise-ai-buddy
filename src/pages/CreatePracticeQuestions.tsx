@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Sparkles, Upload, Info, Settings2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
 const CreatePracticeQuestions = () => {
