@@ -1133,12 +1133,21 @@ export default function CreateExam() {
                   </div>
 
                   <div className="pb-4 border-b border-border">
+                    <p className="text-sm text-muted-foreground mb-1">Exam Board</p>
+                    <p className="font-medium">
+                      {examBoard || preferences?.preferred_exam_board
+                        ? getBoardDisplayName(examBoard || preferences?.preferred_exam_board || "")
+                        : "Not selected"}
+                    </p>
+                  </div>
+
+                  <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Educational Level</p>
                     <p className="font-medium">
-                      {educationalTier 
-                        ? (educationalTier === 'other' 
-                            ? (customTier || 'Not specified') 
-                            : EDUCATIONAL_TIERS.find(t => t.id === educationalTier)?.name)
+                      {(educationalTier || preferences?.preferred_educational_level)
+                        ? (educationalTier === 'other'
+                            ? (customTier || 'Not specified')
+                            : LEVEL_DISPLAY_NAMES[educationalTier || preferences?.preferred_educational_level || ""] || (educationalTier || preferences?.preferred_educational_level))
                         : 'Not selected'}
                     </p>
                   </div>
