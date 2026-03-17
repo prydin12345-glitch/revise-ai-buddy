@@ -836,9 +836,17 @@ const CreatePracticeQuestions = () => {
                     <p className="font-medium">{exampleFile ? exampleFile.name.slice(0, 20) + "…" : "None"}</p>
                   </div>
                   <div>
+                    <p className="text-sm text-muted-foreground">Exam Board</p>
+                    <p className="font-medium text-sm">
+                      {effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not selected"}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-sm text-muted-foreground">Educational Level</p>
                     <p className="font-medium text-sm">
-                      {educationalTier === "other" ? customEducationalTier : educationalTier || "Not selected"}
+                      {effectiveEducationalTier
+                        ? LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier
+                        : "Not selected"}
                     </p>
                   </div>
                 </div>
