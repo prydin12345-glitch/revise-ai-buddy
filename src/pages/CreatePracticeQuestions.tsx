@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Sparkles, Upload, Info, Settings2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
 const CreatePracticeQuestions = () => {
@@ -129,6 +130,13 @@ const CreatePracticeQuestions = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading, preferences]);
+
+  const effectiveExamBoard = examBoard || preferences?.preferred_exam_board || "";
+  const effectiveEducationalTier =
+    educationalTier === "other"
+      ? customEducationalTier
+      : educationalTier || preferences?.preferred_educational_level || "";
+  const effectiveLevelOptions = getLevelsForBoard(effectiveExamBoard || null);
 
   // Pre-fill from weak topics navigation
   const prefillSubtopic = searchParams.get("subtopic");
@@ -261,7 +269,7 @@ const CreatePracticeQuestions = () => {
       return;
     }
 
-    if (!educationalTier) {
+    if (!effectiveEducationalTier) {
       toast.error("Please select an educational level");
       return;
     }
@@ -358,8 +366,8 @@ const CreatePracticeQuestions = () => {
           difficulty_level: difficultyLevel,
           specification_file_url: null,
           example_questions_file_url: exampleFileUrl,
-          educational_tier: educationalTier === "other" ? customEducationalTier : educationalTier,
-          exam_board: examBoard === "other" ? customExamBoard : (examBoard || null),
+          educational_tier: effectiveEducationalTier || null,
+          exam_board: examBoard === "other" ? customExamBoard.trim() : (effectiveExamBoard || null),
           status: "draft",
           extraction_status: "pending",
           // Graphs and tables are now auto-detected by AI based on context
@@ -543,8 +551,8 @@ const CreatePracticeQuestions = () => {
 
         {/* Configuration Summary */}
         <ConfigSummary
-          examBoard={examBoard || preferences?.preferred_exam_board}
-          educationalLevel={educationalTier || preferences?.preferred_educational_level}
+          examBoard={effectiveExamBoard || null}
+          educationalLevel={effectiveEducationalTier || null}
           subject={subjectId || null}
           questionCount={questionCount}
         />
@@ -642,8 +650,8 @@ const CreatePracticeQuestions = () => {
                   subject={subjectId}
                   selectedSubtopics={selectedSubtopics}
                   onSubtopicsChange={setSelectedSubtopics}
-                  educationalTier={educationalTier}
-                  examBoard={examBoard}
+                  educationalTier={effectiveEducationalTier}
+                  examBoard={effectiveExamBoard}
                   useAIInterpretation={useAIInterpretation}
                   onAIInterpretationChange={setUseAIInterpretation}
                   autoExtractedTopics={autoExtractedTopics.length > 0 ? autoExtractedTopics : undefined}
@@ -652,37 +660,12 @@ const CreatePracticeQuestions = () => {
                 />
               </Card>
             )}
-
-            {/* Difficulty Settings */}
-            <DifficultySettings
-              mode={difficultyMode}
-              level={difficultyLevel}
-              onModeChange={setDifficultyMode}
-              onLevelChange={setDifficultyLevel}
-            />
-
-            {/* Visual Question Types - Auto-detected */}
-            {/* Removed manual toggles - AI automatically includes graphs/tables when relevant to the subject/subtopics */}
-
-            {/* Resource Mode Selection */}
-            <ResourceModeSelector
-              value={resourceMode}
-              onChange={(mode) => {
-                setResourceMode(mode);
-                if (mode === 'none') {
-                  setResourcePack(null);
-                }
-              }}
-              subjectColor={subjectColor}
-              disabled={generating}
-            />
-
-            {/* Resource Pack Upload (when mode is 'uploaded') */}
+...
             {resourceMode === 'uploaded' && (
               <ResourcePackUploader
                 subjectId={subjectId}
-                educationalTier={educationalTier}
-                examBoard={examBoard}
+                educationalTier={effectiveEducationalTier}
+                examBoard={effectiveExamBoard}
                 onPackReady={setResourcePack}
                 onPackCleared={() => setResourcePack(null)}
                 currentPack={resourcePack}
@@ -694,8 +677,8 @@ const CreatePracticeQuestions = () => {
             {resourceMode === 'ai_generated' && !resourcePack && (
               <AIResourceGenerator
                 subjectId={subjectId}
-                educationalTier={educationalTier}
-                examBoard={examBoard}
+                educationalTier={effectiveEducationalTier}
+                examBoard={effectiveExamBoard}
                 subtopics={selectedSubtopics}
                 onPackReady={setResourcePack}
                 subjectColor={subjectColor}
@@ -765,12 +748,12 @@ const CreatePracticeQuestions = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
                     <SelectTrigger id="educational-tier-mobile">
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                      {effectiveLevelOptions.map((level) => (
                         <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
                       ))}
                       <SelectItem value="other">Other (Custom)</SelectItem>
@@ -828,9 +811,17 @@ const CreatePracticeQuestions = () => {
                     <p className="font-medium">{exampleFile ? exampleFile.name.slice(0, 20) + "…" : "None"}</p>
                   </div>
                   <div>
+                    <p className="text-sm text-muted-foreground">Exam Board</p>
+                    <p className="font-medium text-sm">
+                      {effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not selected"}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-sm text-muted-foreground">Educational Level</p>
                     <p className="font-medium text-sm">
-                      {educationalTier === "other" ? customEducationalTier : educationalTier || "Not selected"}
+                      {effectiveEducationalTier
+                        ? LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier
+                        : "Not selected"}
                     </p>
                   </div>
                 </div>
@@ -906,12 +897,12 @@ const CreatePracticeQuestions = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
                     <SelectTrigger id="educational-tier">
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                      {effectiveLevelOptions.map((level) => (
                         <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
                       ))}
                       <SelectItem value="other">Other (Custom)</SelectItem>
@@ -960,9 +951,15 @@ const CreatePracticeQuestions = () => {
                   </p>
                 </div>
                 <div>
+                  <p className="text-muted-foreground">Exam Board</p>
+                  <p className="font-medium">{effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not set"}</p>
+                </div>
+                <div>
                   <p className="text-muted-foreground">Level</p>
                   <p className="font-medium">
-                    {educationalTier === "other" ? customEducationalTier : educationalTier || "Not set"}
+                    {effectiveEducationalTier
+                      ? LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier
+                      : "Not set"}
                   </p>
                 </div>
               </div>

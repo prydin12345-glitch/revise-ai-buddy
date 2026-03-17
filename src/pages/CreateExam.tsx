@@ -100,7 +100,7 @@ export default function CreateExam() {
   const navigate = useNavigate();
   const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
-  const { preferences } = useUserPreferences();
+  const { preferences, loading: prefsLoading } = useUserPreferences();
   
   // Smart profile prompt state
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
@@ -218,14 +218,22 @@ export default function CreateExam() {
 
   // Auto-populate board & level from user preferences
   useEffect(() => {
-    if (preferences?.preferred_exam_board && !examBoard) {
-      setExamBoard(preferences.preferred_exam_board);
-    }
-    if (preferences?.preferred_educational_level && !educationalTier) {
-      setEducationalTier(preferences.preferred_educational_level);
+    if (!prefsLoading && preferences) {
+      if (preferences.preferred_exam_board && !examBoard) {
+        setExamBoard(preferences.preferred_exam_board);
+      }
+      if (preferences.preferred_educational_level && !educationalTier) {
+        setEducationalTier(preferences.preferred_educational_level);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences]);
+  }, [prefsLoading, preferences]);
+
+  const effectiveExamBoard = examBoard || preferences?.preferred_exam_board || "";
+  const effectiveEducationalTier =
+    educationalTier === 'other'
+      ? customTier.trim()
+      : educationalTier || preferences?.preferred_educational_level || "";
 
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
@@ -345,7 +353,7 @@ export default function CreateExam() {
     }
 
 
-    if (!educationalTier) {
+    if (!effectiveEducationalTier) {
       toast({
         title: "Educational Level Required",
         description: "Please select an educational level",
@@ -395,12 +403,12 @@ export default function CreateExam() {
     try {
       // Upload exam with all settings
       const formData = new FormData();
-      const resolvedEducationalTier = educationalTier === 'other' ? customTier.trim() : educationalTier;
+      const resolvedEducationalTier = effectiveEducationalTier;
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
       if (resolvedEducationalTier) formData.append('educationalTier', resolvedEducationalTier);
-      if (examBoard) formData.append('examBoard', examBoard);
+      if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (notes) formData.append('notes', notes);
       if (activeProfileTopics.length > 0) {
@@ -428,7 +436,7 @@ export default function CreateExam() {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,
-          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          educationalTier: effectiveEducationalTier,
           mcq: { count: profileMcqCount || 0, marksEach: 1 },
           shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
           longForm: { count: 0, marksEach: 0 },
@@ -449,7 +457,7 @@ export default function CreateExam() {
       } else {
         format = {
           useOriginal,
-          educationalTier: educationalTier === 'other' ? customTier : educationalTier,
+          educationalTier: effectiveEducationalTier,
           ...((!useOriginal) && {
             totalQuestions,
             oneMarkCount,
@@ -747,7 +755,7 @@ export default function CreateExam() {
               <AIResourceGenerator
                 subjectId={subjectId}
                 subjectColor={subjectColor}
-                educationalTier={educationalTier === 'other' ? customTier : educationalTier}
+                educationalTier={effectiveEducationalTier}
                 subtopics={[]}
                 onPackReady={(pack) => setResourcePack(pack)}
               />
@@ -982,16 +990,17 @@ export default function CreateExam() {
                       </Badge>
                     )}
                   </div>
-                  <Select value={educationalTier} onValueChange={setEducationalTier}>
+                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
                     <SelectTrigger className="h-12 bg-background border-border">
                       <SelectValue placeholder="Select educational level..." />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      {EDUCATIONAL_TIERS.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id}>
-                          {tier.name}
+                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.label}
                         </SelectItem>
                       ))}
+                      <SelectItem value="other">Other (Custom)</SelectItem>
                     </SelectContent>
                   </Select>
                   
@@ -1130,12 +1139,21 @@ export default function CreateExam() {
                   </div>
 
                   <div className="pb-4 border-b border-border">
+                    <p className="text-sm text-muted-foreground mb-1">Exam Board</p>
+                    <p className="font-medium">
+                      {examBoard || preferences?.preferred_exam_board
+                        ? getBoardDisplayName(examBoard || preferences?.preferred_exam_board || "")
+                        : "Not selected"}
+                    </p>
+                  </div>
+
+                  <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Educational Level</p>
                     <p className="font-medium">
-                      {educationalTier 
-                        ? (educationalTier === 'other' 
-                            ? (customTier || 'Not specified') 
-                            : EDUCATIONAL_TIERS.find(t => t.id === educationalTier)?.name)
+                      {(educationalTier || preferences?.preferred_educational_level)
+                        ? (educationalTier === 'other'
+                            ? (customTier || 'Not specified')
+                            : LEVEL_DISPLAY_NAMES[educationalTier || preferences?.preferred_educational_level || ""] || (educationalTier || preferences?.preferred_educational_level))
                         : 'Not selected'}
                     </p>
                   </div>
