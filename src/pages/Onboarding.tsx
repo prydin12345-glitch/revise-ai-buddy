@@ -9,22 +9,47 @@ import { supabase } from "@/integrations/supabase/client";
 import SubjectsSelection from "@/components/onboarding/SubjectsSelection";
 import GoalsForm from "@/components/onboarding/GoalsForm";
 import TutorOnboarding from "@/components/onboarding/TutorOnboarding";
+import ProfileSetupStep from "@/components/onboarding/ProfileSetupStep";
+
+type StudentStep = "subjects" | "profile" | "goals";
+
+const STUDENT_STEPS: StudentStep[] = ["subjects", "profile", "goals"];
 
 const Onboarding = () => {
-  const [step, setStep] = useState<"subjects" | "goals" | "tutor" | null>(null);
+  const [step, setStep] = useState<StudentStep | "tutor" | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<UserSubject[]>([]);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { primaryRole, loading: roleLoading } = useUserRole();
   const { subjects, saveUserSubjects } = useSubjects();
 
+  // Check if already fully onboarded → redirect
+  useEffect(() => {
+    const checkAlreadyCompleted = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("user_onboarding_status")
+        .select("subjects_completed, goals_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data?.subjects_completed && data?.goals_completed) {
+        setAlreadyCompleted(true);
+        navigate("/dashboard", { replace: true });
+      }
+    };
+    checkAlreadyCompleted();
+  }, [navigate]);
+
   useEffect(() => {
     const checkAuth = async () => {
-      if (!roleLoading) {
+      if (!roleLoading && !alreadyCompleted) {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          // No authenticated user - redirect to auth
           toast({
             title: "Authentication required",
             description: "Please sign in to continue",
@@ -35,11 +60,9 @@ const Onboarding = () => {
         }
         
         if (step === null) {
-          // Set step based on role, defaulting to student flow if no role found
           if (primaryRole === "tutor") {
             setStep("tutor");
           } else {
-            // Default to subjects for student/teacher or if no role determined yet
             setStep("subjects");
           }
         }
@@ -47,20 +70,14 @@ const Onboarding = () => {
     };
     
     checkAuth();
-  }, [primaryRole, roleLoading, step, navigate, toast]);
+  }, [primaryRole, roleLoading, step, navigate, toast, alreadyCompleted]);
 
   const handleSubjectsComplete = async (selected: UserSubject[]) => {
-    // Validate input
     if (!selected || selected.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one subject",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please select at least one subject", variant: "destructive" });
       return;
     }
 
-    // Ensure all subjects have required fields
     const validSubjects = selected.map(s => ({
       ...s,
       subject_name: s.subject_name || s.custom_name || "Unknown",
@@ -69,12 +86,9 @@ const Onboarding = () => {
     }));
 
     setSelectedSubjects(validSubjects);
-    
-    // Save subjects to database
     const success = await saveUserSubjects(validSubjects);
     if (!success) return;
 
-    // Update onboarding status
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
@@ -84,11 +98,13 @@ const Onboarding = () => {
           role: primaryRole || "student",
           subjects_completed: true,
           last_step: "subjects"
-        }, {
-          onConflict: "user_id,role"
-        });
+        }, { onConflict: "user_id,role" });
     }
 
+    setStep("profile");
+  };
+
+  const handleProfileComplete = () => {
     setStep("goals");
   };
 
@@ -97,18 +113,11 @@ const Onboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Validate goals
-      if (!goals || goals.length === 0) {
-        throw new Error("No goals to save");
-      }
+      if (!goals || goals.length === 0) throw new Error("No goals to save");
 
-      // Validate each goal has required fields
       const validGoals = goals.filter(g => g.subject && g.subject.trim() !== "");
-      if (validGoals.length === 0) {
-        throw new Error("All goals must have a subject");
-      }
+      if (validGoals.length === 0) throw new Error("All goals must have a subject");
 
-      // Insert goals
       const { error: goalsError } = await supabase
         .from("revision_goals")
         .insert(validGoals.map(g => ({
@@ -122,7 +131,6 @@ const Onboarding = () => {
         throw goalsError;
       }
 
-      // Auto-schedule tasks if requested
       const autoScheduleGoals = goals.filter(g => g.auto_schedule);
       for (const goal of autoScheduleGoals) {
         const { data: insertedGoal } = await supabase
@@ -142,7 +150,6 @@ const Onboarding = () => {
         }
       }
 
-      // Update onboarding status
       await supabase
         .from("user_onboarding_status")
         .upsert({
@@ -152,9 +159,7 @@ const Onboarding = () => {
           goals_completed: true,
           completed_at: new Date().toISOString(),
           last_step: "goals"
-        }, {
-          onConflict: "user_id,role"
-        });
+        }, { onConflict: "user_id,role" });
 
       toast({
         title: "Welcome aboard!",
@@ -179,13 +184,14 @@ const Onboarding = () => {
   if (roleLoading || step === null) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center">
-        <div className="animate-pulse">Loading your profile...</div>
+        <div className="animate-pulse text-muted-foreground">Loading your profile...</div>
       </div>
     );
   }
 
   const isTutor = primaryRole === "tutor";
   const showProgressBar = !isTutor;
+  const currentStepIndex = isTutor ? 0 : STUDENT_STEPS.indexOf(step as StudentStep);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
@@ -207,19 +213,18 @@ const Onboarding = () => {
         {showProgressBar && (
           <div className="mb-8">
             <div className="flex items-center justify-center gap-2">
-              <div
-                className={`h-2 w-24 rounded-full ${
-                  step === "subjects" || step === "goals" ? "bg-primary" : "bg-muted"
-                }`}
-              />
-              <div
-                className={`h-2 w-24 rounded-full ${
-                  step === "goals" ? "bg-primary" : "bg-muted"
-                }`}
-              />
+              {STUDENT_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-2 w-20 rounded-full transition-colors ${
+                    i <= currentStepIndex ? "bg-primary" : "bg-muted"
+                  }`}
+                />
+              ))}
             </div>
-            <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+            <div className="flex justify-between mt-2 text-sm text-muted-foreground px-2">
               <span>Subjects</span>
+              <span>Profile</span>
               <span>Goals</span>
             </div>
           </div>
@@ -229,11 +234,13 @@ const Onboarding = () => {
           <CardHeader>
             <CardTitle>
               {step === "subjects" && "Select Your Subjects"}
+              {step === "profile" && "Study Profile"}
               {step === "goals" && "Set Your Goals"}
               {step === "tutor" && "Tutor Profile"}
             </CardTitle>
             <CardDescription>
               {step === "subjects" && "Choose the subjects you want to study"}
+              {step === "profile" && "Tell us about your exam board and level"}
               {step === "goals" && "Define what you want to achieve"}
               {step === "tutor" && "Tell us about your teaching"}
             </CardDescription>
@@ -244,6 +251,9 @@ const Onboarding = () => {
                 subjects={subjects}
                 onComplete={handleSubjectsComplete}
               />
+            )}
+            {step === "profile" && (
+              <ProfileSetupStep onComplete={handleProfileComplete} />
             )}
             {step === "goals" && (
               <GoalsForm
