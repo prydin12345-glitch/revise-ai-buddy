@@ -1,0 +1,1 @@
+ALTER TABLE public.user_onboarding_status ADD COLUMN IF NOT EXISTS profile_completed boolean DEFAULT false;
