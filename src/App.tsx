@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
 
 // Only eagerly load the landing page + auth (first paint)
 import Index from "./pages/Index";
@@ -73,47 +74,52 @@ const App = () => {
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Public routes — no guard */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/stats" element={<Stats />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin/verifications" element={<AdminVerifications />} />
+
+              {/* Dev/demo pages — no guard */}
               <Route path="/graph-test" element={<GraphTest />} />
               <Route path="/mechanics-demo" element={<MechanicsDemo />} />
               <Route path="/circuit-demo" element={<CircuitDemo />} />
               <Route path="/science-diagrams" element={<ScienceDiagramDemo />} />
-              <Route path="/my-exams" element={<MyExams />} />
-              <Route path="/my-classes" element={<MyClasses />} />
-              <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
-              <Route path="/quizzes" element={<MyQuizzes />} />
-              <Route path="/practice-questions/:setId/preview" element={<PracticeSetPreview />} />
-              <Route path="/practice-questions/:setId/take" element={<TakePracticeQuiz />} />
-              <Route path="/upload" element={<CreateExam />} />
+
+              {/* Protected routes — onboarding guard */}
+              <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
+              <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
+              <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
+              <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
+              <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
+              <Route path="/my-classes" element={<OnboardingGuard><MyClasses /></OnboardingGuard>} />
+              <Route path="/create-practice-questions" element={<OnboardingGuard><CreatePracticeQuestions /></OnboardingGuard>} />
+              <Route path="/quizzes" element={<OnboardingGuard><MyQuizzes /></OnboardingGuard>} />
+              <Route path="/practice-questions/:setId/preview" element={<OnboardingGuard><PracticeSetPreview /></OnboardingGuard>} />
+              <Route path="/practice-questions/:setId/take" element={<OnboardingGuard><TakePracticeQuiz /></OnboardingGuard>} />
+              <Route path="/upload" element={<OnboardingGuard><CreateExam /></OnboardingGuard>} />
               
-              <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
-              <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
-              <Route path="/upload/:draftId/settings" element={<ExamSettings />} />
-              <Route path="/upload/:draftId/format" element={<FormatExam />} />
-              <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
-              <Route path="/upload/:draftId/preview" element={<RedirectToReview />} />
-              <Route path="/exam/:examId/preview" element={<ExamPreview />} />
-              <Route path="/exam/:examId/live" element={<ExamInProgress />} />
-              <Route path="/exam/:examId/in-progress" element={<ExamInProgress />} />
-              <Route path="/exam/:examId/review" element={<ExamReview />} />
+              <Route path="/upload/:draftId/analyze" element={<OnboardingGuard><AnalyzeExam /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/review-questions" element={<OnboardingGuard><ReviewQuestions /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/settings" element={<OnboardingGuard><ExamSettings /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/format" element={<OnboardingGuard><FormatExam /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/timer" element={<OnboardingGuard><TimerSetup /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/preview" element={<OnboardingGuard><RedirectToReview /></OnboardingGuard>} />
+              <Route path="/exam/:examId/preview" element={<OnboardingGuard><ExamPreview /></OnboardingGuard>} />
+              <Route path="/exam/:examId/live" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
+              <Route path="/exam/:examId/in-progress" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
+              <Route path="/exam/:examId/review" element={<OnboardingGuard><ExamReview /></OnboardingGuard>} />
               
               {/* Tutor Routes */}
-              <Route path="/tutor/exams" element={<TutorLayout><ManageExams /></TutorLayout>} />
-              <Route path="/tutor/exams/create" element={<TutorLayout><CreateTutorExam /></TutorLayout>} />
-              <Route path="/tutor/exams/create-manual" element={<TutorLayout><ManualExamCreator /></TutorLayout>} />
-              <Route path="/tutor/exams/:examId" element={<TutorLayout><ExamHub /></TutorLayout>} />
-              <Route path="/tutor/exams/:examId/edit" element={<TutorLayout><EditExam /></TutorLayout>} />
-              <Route path="/tutor/exams/:examId/student/:studentId" element={<TutorLayout><StudentExamReview /></TutorLayout>} />
-              <Route path="/tutor/practice" element={<TutorLayout><ManagePracticeSets /></TutorLayout>} />
-              <Route path="/tutor/students" element={<TutorLayout><ManageStudents /></TutorLayout>} />
-              <Route path="/tutor/progress" element={<TutorLayout><StudentProgress /></TutorLayout>} />
-              <Route path="/tutor/feedback" element={<TutorLayout><ManageFeedback /></TutorLayout>} />
+              <Route path="/tutor/exams" element={<OnboardingGuard><TutorLayout><ManageExams /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams/create" element={<OnboardingGuard><TutorLayout><CreateTutorExam /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams/create-manual" element={<OnboardingGuard><TutorLayout><ManualExamCreator /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams/:examId" element={<OnboardingGuard><TutorLayout><ExamHub /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams/:examId/edit" element={<OnboardingGuard><TutorLayout><EditExam /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams/:examId/student/:studentId" element={<OnboardingGuard><TutorLayout><StudentExamReview /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/practice" element={<OnboardingGuard><TutorLayout><ManagePracticeSets /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/students" element={<OnboardingGuard><TutorLayout><ManageStudents /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/progress" element={<OnboardingGuard><TutorLayout><StudentProgress /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/feedback" element={<OnboardingGuard><TutorLayout><ManageFeedback /></TutorLayout></OnboardingGuard>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

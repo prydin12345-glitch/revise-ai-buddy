@@ -2279,6 +2279,7 @@ export type Database = {
           goals_completed: boolean | null
           id: string
           last_step: string | null
+          profile_completed: boolean | null
           role: string
           subjects_completed: boolean | null
           tutor_profile_completed: boolean | null
@@ -2291,6 +2292,7 @@ export type Database = {
           goals_completed?: boolean | null
           id?: string
           last_step?: string | null
+          profile_completed?: boolean | null
           role: string
           subjects_completed?: boolean | null
           tutor_profile_completed?: boolean | null
@@ -2303,6 +2305,7 @@ export type Database = {
           goals_completed?: boolean | null
           id?: string
           last_step?: string | null
+          profile_completed?: boolean | null
           role?: string
           subjects_completed?: boolean | null
           tutor_profile_completed?: boolean | null

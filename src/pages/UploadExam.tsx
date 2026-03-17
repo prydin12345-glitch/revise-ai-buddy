@@ -19,6 +19,7 @@ import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-sc
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
 const subjects = [
   { id: "mathematics", name: "Mathematics" },
@@ -138,6 +139,12 @@ export default function UploadExam() {
           subtitle="Upload your exam document to get started"
           step="Step 1 of 4"
           showBack={false}
+        />
+
+        <ConfigSummary
+          examBoard={examBoard}
+          educationalLevel={educationalTier}
+          subject={subjectId ? subjects.find(s => s.id === subjectId)?.name : null}
         />
 
         <Card className="p-8 shadow-[var(--shadow-card)] space-y-6">
