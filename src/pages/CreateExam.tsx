@@ -755,7 +755,7 @@ export default function CreateExam() {
               <AIResourceGenerator
                 subjectId={subjectId}
                 subjectColor={subjectColor}
-                educationalTier={educationalTier === 'other' ? customTier : educationalTier}
+                educationalTier={effectiveEducationalTier}
                 subtopics={[]}
                 onPackReady={(pack) => setResourcePack(pack)}
               />
