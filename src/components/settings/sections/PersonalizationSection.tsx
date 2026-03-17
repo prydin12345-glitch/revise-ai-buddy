@@ -54,8 +54,34 @@ export const PersonalizationSection = () => {
     );
   }
 
+  const profileFields = [
+    { key: 'curriculum_region' as const, label: 'Region' },
+    { key: 'preferred_exam_board' as const, label: 'Exam Board' },
+    { key: 'preferred_educational_level' as const, label: 'Level' },
+  ];
+  const completedFields = profileFields.filter(f => preferences?.[f.key]);
+  const completionPct = Math.round((completedFields.length / profileFields.length) * 100);
+
   return (
     <div className="space-y-6">
+      {/* Profile Completeness Indicator */}
+      {completionPct < 100 && (
+        <div className="flex items-center gap-3 rounded-lg bg-muted/50 border border-border p-3.5">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">Complete your study profile</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {completedFields.length}/{profileFields.length} fields set — missing:{" "}
+              {profileFields.filter(f => !preferences?.[f.key]).map(f => f.label).join(", ")}
+            </p>
+          </div>
+          <span className={cn(
+            "text-sm font-bold",
+            completionPct === 100 ? "text-green-500" : "text-amber-500"
+          )}>
+            {completionPct}%
+          </span>
+        </div>
+      )}
       {/* Curriculum Region — visual flag grid */}
       <Card className="border-primary/20">
         <CardHeader>
