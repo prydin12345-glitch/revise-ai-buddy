@@ -141,6 +141,12 @@ export default function UploadExam() {
           showBack={false}
         />
 
+        <ConfigSummary
+          examBoard={examBoard}
+          educationalLevel={educationalTier}
+          subject={subjectId ? subjects.find(s => s.id === subjectId)?.name : null}
+        />
+
         <Card className="p-8 shadow-[var(--shadow-card)] space-y-6">
           <div className="space-y-6">
             <div className="space-y-2">
