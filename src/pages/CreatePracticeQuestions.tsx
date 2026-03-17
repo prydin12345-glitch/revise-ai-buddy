@@ -366,8 +366,8 @@ const CreatePracticeQuestions = () => {
           difficulty_level: difficultyLevel,
           specification_file_url: null,
           example_questions_file_url: exampleFileUrl,
-          educational_tier: educationalTier === "other" ? customEducationalTier : educationalTier,
-          exam_board: examBoard === "other" ? customExamBoard : (examBoard || null),
+          educational_tier: effectiveEducationalTier || null,
+          exam_board: examBoard === "other" ? customExamBoard.trim() : (effectiveExamBoard || null),
           status: "draft",
           extraction_status: "pending",
           // Graphs and tables are now auto-detected by AI based on context
