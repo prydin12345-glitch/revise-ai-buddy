@@ -229,6 +229,12 @@ export default function CreateExam() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading, preferences]);
 
+  const effectiveExamBoard = examBoard || preferences?.preferred_exam_board || "";
+  const effectiveEducationalTier =
+    educationalTier === 'other'
+      ? customTier.trim()
+      : educationalTier || preferences?.preferred_educational_level || "";
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
