@@ -919,7 +919,7 @@ const CreatePracticeQuestions = () => {
                       <SelectValue placeholder="Select level..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                      {effectiveLevelOptions.map((level) => (
                         <SelectItem key={level.id} value={level.id}>{level.label}</SelectItem>
                       ))}
                       <SelectItem value="other">Other (Custom)</SelectItem>
