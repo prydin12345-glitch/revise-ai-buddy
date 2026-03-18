@@ -125,6 +125,9 @@ export default function CreateExam() {
   const [profileExtendedMarks, setProfileExtendedMarks] = useState<number | null>(null);
   const [profileStructurePreset, setProfileStructurePreset] = useState<string | null>(null);
   const [profileMcqPosition, setProfileMcqPosition] = useState<string | null>(null);
+  const [profileMcqOptionsCount, setProfileMcqOptionsCount] = useState<number | null>(null);
+  const [profileIncludeGraphs, setProfileIncludeGraphs] = useState<boolean | null>(null);
+  const [profileIncludeTables, setProfileIncludeTables] = useState<boolean | null>(null);
   
   // Basic info
   const [examName, setExamName] = useState("");
