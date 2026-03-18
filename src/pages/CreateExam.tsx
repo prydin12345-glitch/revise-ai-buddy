@@ -293,11 +293,9 @@ export default function CreateExam() {
       setProfileStructurePreset(profile.structure_preset ?? null);
       setProfileMcqPosition(profile.mcq_position ?? null);
       
-      // Profile overrides format structure — disable "use original"
-      if ((profile.mcq_count ?? 0) > 0 || (profile.written_question_count ?? 0) > 0) {
-        setUseOriginal(false);
-        setIncludeMCQ((profile.mcq_count ?? 0) > 0);
-      }
+      // Profile always overrides format structure
+      setUseOriginal(false);
+      setIncludeMCQ((profile.mcq_count ?? 0) > 0);
     }
     setShowProfilePrompt(false);
   };
