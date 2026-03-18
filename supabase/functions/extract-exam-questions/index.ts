@@ -259,8 +259,35 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
   }
 
+  // ── MCQ-ONLY SAFETY NET: Flatten sub-parts if profile is MCQ-only ──
+  const isMcqOnlyProfile = desiredMcqCount !== null && desiredMcqCount > 0 && (!desiredWrittenCount || desiredWrittenCount === 0);
+  if (isMcqOnlyProfile) {
+    // Group by root, keep only first sub-part per root, renumber sequentially
+    const rootGroups: Record<string, any[]> = {};
+    for (const q of questions) {
+      const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
+      if (!rootGroups[root]) rootGroups[root] = [];
+      rootGroups[root].push(q);
+    }
+    const flatQuestions: any[] = [];
+    const sortedRoots = Object.keys(rootGroups).sort((a, b) => parseInt(a) - parseInt(b));
+    for (let i = 0; i < sortedRoots.length && i < desiredMcqCount; i++) {
+      const group = rootGroups[sortedRoots[i]];
+      const q = group[0]; // keep first sub-part only
+      q.question_number = String(i + 1);
+      q.parent_question_number = null;
+      q.root_question_number = String(i + 1);
+      q.question_type = 'mcq'; // enforce MCQ type
+      flatQuestions.push(q);
+    }
+    if (flatQuestions.length !== questions.length) {
+      console.log(`MCQ-only flattening: ${questions.length} rows -> ${flatQuestions.length} flat MCQs`);
+    }
+    questions = flatQuestions;
+  }
+
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
-  if (desiredQuestionCount && desiredQuestionCount > 0) {
+  if (desiredQuestionCount && desiredQuestionCount > 0 && !isMcqOnlyProfile) {
     const uniqueRoots = [...new Set(questions.map((q: any) => {
       const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
       return String(root);
