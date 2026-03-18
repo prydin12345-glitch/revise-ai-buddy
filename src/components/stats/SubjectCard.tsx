@@ -3,7 +3,7 @@ import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2, GraduationCap } from "lucide-react";
+import { Plus, X, FileText, Pencil, Trash2, Layers, Clock, Palette, Sparkles, Loader2, GraduationCap, Settings2 } from "lucide-react";
 import { TopicSearchInput } from "./TopicSearchInput";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,6 +15,10 @@ import { SuggestedTopicsModal } from "./SuggestedTopicsModal";
 import { getNextAvailableColour, isSpecialisedSubject } from "@/lib/subject-colours";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getRegionBoards } from "@/lib/board-level-mapping";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
@@ -52,11 +56,16 @@ export const SubjectCard = ({
   const { getPerformance } = useTopicPerformance(subject.subject_name);
   const { saveOrUpdateSubject, refetch } = useUserSubjects();
   const { addTopic } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
+  const [boardEditorOpen, setBoardEditorOpen] = useState(false);
+  const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
   const VISIBLE_TOPIC_COUNT = 3;
+
+  const regionBoards = getRegionBoards(preferences?.curriculum_region);
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
@@ -110,6 +119,17 @@ export const SubjectCard = ({
     setConflict(null);
   };
 
+  const handleBoardSave = async (newBoard: string) => {
+    try {
+      const boardValue = newBoard === "__none" ? null : newBoard;
+      await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
+      await refetch();
+      setBoardEditorOpen(false);
+    } catch (err) {
+      console.error("Error updating exam board:", err);
+    }
+  };
+
   return (
     <>
       <Card className="overflow-hidden relative group transition-shadow hover:shadow-lg">
@@ -135,6 +155,52 @@ export const SubjectCard = ({
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              {/* Edit subject button (exam board) */}
+              <Popover open={boardEditorOpen} onOpenChange={(open) => {
+                setBoardEditorOpen(open);
+                if (open) setEditingBoard(subject.exam_board || "");
+              }}>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit subject settings"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Exam Board
+                    </Label>
+                    <Select
+                      value={editingBoard || "__none"}
+                      onValueChange={(val) => {
+                        const newBoard = val === "__none" ? "" : val;
+                        setEditingBoard(newBoard);
+                        handleBoardSave(newBoard);
+                      }}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select exam board" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No preference</SelectItem>
+                        {regionBoards.map((board) => (
+                          <SelectItem key={board.id} value={board.id}>
+                            {board.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      Changes which mark scheme style is used for this subject
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
               {/* Colour picker button */}
               <Popover open={colourPickerOpen} onOpenChange={setColourPickerOpen}>
                 <PopoverTrigger asChild>
