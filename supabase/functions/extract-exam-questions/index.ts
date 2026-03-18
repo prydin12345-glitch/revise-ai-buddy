@@ -1290,8 +1290,17 @@ EXAMPLE OUTPUT for a question with 3 parts (adapt the style to match YOUR subjec
 - "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
 - "Tom is investigating whether there is a correlation between hours studied and test scores."`;
 
-  const scenarioRequirement = archetype?.requireScenario ? `
-SCENARIO REQUIREMENT (MANDATORY):
+  const scenarioRequirement = isMcqOnly
+    ? `
+SCENARIO CONTEXT (OPTIONAL FOR MCQ):
+MCQ questions may optionally include a brief scenario in the stem for context,
+but this is NOT required. The question stem must be clear and self-contained.
+Do NOT force a named character into every MCQ — it reads unnaturally.
+Example of good MCQ stem: "What is the minimum holding time at 134°C for a large porous load cycle?"
+Example of bad MCQ stem: "A technician named James is performing a test. State the minimum..."
+`
+    : archetype?.requireScenario ? `
+SCENARIO REQUIREMENT (MANDATORY FOR WRITTEN QUESTIONS):
 Every parent question MUST begin with a named character or professional context and a real-world scenario.
 DO NOT generate abstract standalone questions without context.
 The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
