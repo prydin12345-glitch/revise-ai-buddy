@@ -173,8 +173,8 @@ export default function UploadExam() {
         />
 
         <ConfigSummary
-          examBoard={examBoard}
-          educationalLevel={educationalTier}
+          examBoard={effectiveExamBoard || null}
+          educationalLevel={effectiveEducationalTier || null}
           subject={subjectId ? subjects.find(s => s.id === subjectId)?.name : null}
         />
 
