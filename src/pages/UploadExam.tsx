@@ -121,10 +121,9 @@ export default function UploadExam() {
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      const tier = selectedProfile?.educational_tier || educationalTier;
+      const tier = effectiveEducationalTier;
       if (tier) formData.append('educationalTier', tier);
-      const board = examBoard || preferences?.preferred_exam_board;
-      if (board) formData.append('examBoard', board);
+      if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
       if (selectedProfile) {
         formData.append('structureMode', followReference ? 'reference' : 'profile');
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
