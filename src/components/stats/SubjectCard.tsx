@@ -127,11 +127,13 @@ export const SubjectCard = ({
   const handleBoardSave = async (newBoard: string) => {
     try {
       const boardValue = newBoard === "__none" ? null : newBoard;
+      setEditingBoard(newBoard === "__none" ? "" : newBoard);
       await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
       await refetch();
       setBoardEditorOpen(false);
     } catch (err) {
       console.error("Error updating exam board:", err);
+      setEditingBoard(subject.exam_board || "");
     }
   };
 
