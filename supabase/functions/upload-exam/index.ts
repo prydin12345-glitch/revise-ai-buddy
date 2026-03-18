@@ -50,6 +50,9 @@ serve(async (req) => {
     const profileQuestionCount = formData.get('profileQuestionCount') as string | null;
     const profileMcqCount = formData.get('profileMcqCount') as string | null;
     const profileWrittenCount = formData.get('profileWrittenCount') as string | null;
+    const profileMcqOptionsCount = formData.get('profileMcqOptionsCount') as string | null;
+    const profileIncludeGraphs = formData.get('profileIncludeGraphs') as string | null;
+    const profileIncludeTables = formData.get('profileIncludeTables') as string | null;
 
     let curriculumTopics: string[] = [];
     if (curriculumTopicsRaw) {

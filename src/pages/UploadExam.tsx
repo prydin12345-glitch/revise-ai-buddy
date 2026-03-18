@@ -117,6 +117,9 @@ export default function UploadExam() {
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
         formData.append('profileMcqCount', String(selectedProfileMcqCount ?? 0));
         formData.append('profileWrittenCount', String(selectedProfileWrittenCount ?? 0));
+        formData.append('profileMcqOptionsCount', String(selectedProfile.mcq_options_count ?? 4));
+        formData.append('profileIncludeGraphs', String(selectedProfile.include_graphs ?? false));
+        formData.append('profileIncludeTables', String(selectedProfile.include_tables ?? false));
         if (selectedProfile.topics.length > 0) {
           formData.append('curriculumTopics', JSON.stringify(selectedProfile.topics));
         }
