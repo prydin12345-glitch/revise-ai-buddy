@@ -60,6 +60,11 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [boardEditorOpen, setBoardEditorOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
+  
+  // Sync editingBoard when subject prop changes (after refetch)
+  useEffect(() => {
+    setEditingBoard(subject.exam_board || "");
+  }, [subject.exam_board]);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
