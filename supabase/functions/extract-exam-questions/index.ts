@@ -765,106 +765,43 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
     grouped[root].push(q);
   }
 
-  const hardeningRules = getExamHardeningRules();
   const rootKeys = Object.keys(grouped).slice(0, 10); // Limit to prevent timeout
-
-  // Build question-type-specific rules that will be appended LAST
-  const questionTypeRules = questionType === 'mcq' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting MCQ questions. Every rewritten question MUST:
-- Start with: "Which of the following...", "What is...", "Identify...", "Select...", "According to...", "In accordance with..."
-- NEVER start with: "State", "Describe", "Explain", "Outline", "Evaluate", "Discuss", "Give", "Calculate"
-- The question stem must be a clear, self-contained question — NOT a command
-- Have exactly 4 answer options that are all plausible and similar in length
-- Have one clearly correct answer that directly answers the question stem
-- Be completely self-contained — no "as described above" or "using the data provided" or "based on the provided data"
-- The correct_answer field must EXACTLY match one of the 4 option strings
-- Do NOT include scenarios with named characters unless it adds genuine context — keep stems clean and direct
-- Do NOT append "Give your answer to X significant figures" or "State your answer" — these are meaningless for MCQs
-` : questionType === 'short_answer' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting short answer questions. Every rewritten question MUST:
-- Use command verbs: State, Describe, Identify, Outline, Give, Name, List
-- Have a clear mark scheme with one marking point per mark
-- NOT have multiple choice options
-` : questionType === 'long_form' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting extended response questions. Every rewritten question MUST:
-- Use command verbs: Explain, Evaluate, Discuss, Analyse, Justify, Compare
-- Have a detailed mark scheme with indicative content
-- Be worth 4 or more marks
-` : '';
 
   for (const rootNum of rootKeys) {
     const siblings = grouped[rootNum];
-    // Sort by question_number so sub-parts are in order
     siblings.sort((a: any, b: any) => String(a.question_number).localeCompare(String(b.question_number)));
 
-    const siblingsSummary = siblings.map((s: any) => 
+    const siblingsSummary = siblings.map((s: any) =>
       `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
     ).join('\n');
 
-    // For MCQ regeneration, also include the options so the AI can rewrite coherently
-    const mcqOptionsSummary = questionType === 'mcq'
-      ? siblings.map((s: any) => {
-          if (s.options && Array.isArray(s.options)) {
-            return `  Q${s.question_number} options: ${s.options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}`;
-          }
-          return '';
-        }).filter(Boolean).join('\n')
-      : '';
+    const regenPrompt = `
+You are rewriting exam questions about "${subjectId}".
+Write completely new questions — do not copy the originals.
+Keep the same question type, mark allocation, and topic as the originals.
 
-    // Subject-aware regeneration rules
-    const subjectRules = isCustomNiche ? `
-SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
-- Do NOT introduce mathematics, probability, statistics, or algebra
-- Do NOT use LaTeX distribution notation like $X \\sim B(n,p)$ or $N(\\mu, \\sigma^2)$
-- Do NOT generate formula-based or calculation-based questions
-- Use domain-specific terminology from "${subjectId}"
-- Questions must be answerable ONLY by someone trained in "${subjectId}"
-- Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+${isCustomNiche ? `All questions must be about "${subjectId}" only. No mathematics, statistics, or unrelated content.` : ''}
+
+${questionType === 'mcq' ? `
+These are MCQ questions. Every rewritten question must:
+- Start with: What, Which, Identify, Select, According to, How, When, Where
+- NEVER start with: State, Describe, Explain, Calculate, Discuss, Outline, Evaluate
+- Have exactly 4 plausible options
+- Have one clearly correct answer that matches an option exactly
+- Be completely self-contained
 ` : `
-CRITICAL RULES:
-1. SCENARIO LOCKING: Introduce ONE scenario in the first sub-part. ALL subsequent sub-parts MUST stay within that EXACT same scenario. NEVER switch topics between parts.
-2. CLINICAL TONE: No fluff adjectives ("renowned", "bustling", "freshly"). State facts plainly.
-3. FORMAL NOTATION: Define distributions explicitly using LaTeX: $X \\sim B(n,p)$, $Y \\sim N(\\mu, \\sigma^2)$, $Z \\sim \\text{Po}(\\lambda)$. Use "probability" NEVER "likelihood".
-4. COMMAND VERBS: Every sub-part must start with Calculate, State, Determine, Show that, Test, Explain, Justify, Hence, or Deduce.
-5. LOGICAL PROGRESSION: (a) base calculation, (b) assumption/constraint, (c) scale/approximate/test.
-6. For large-sample sub-parts (n ≥ 30): instruct "Use a suitable approximation" and require continuity correction.
-7. For sub-parts worth 4+ marks: include guidance like "State your hypotheses clearly. Show your working."
-8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
-`;
+These are written questions. Use appropriate command verbs.
+Keep the same mark allocation.
+`}
 
-    // For MCQ regen, also ask the AI to return options and correct_answer
-    const mcqReturnFormat = questionType === 'mcq'
-      ? `Return a JSON array. Each object MUST include: question_number, question_text, options (array of exactly 4 strings), correct_answer (must EXACTLY match one option).
-Example: [{"question_number": "1", "question_text": "What is the required air leak rate...", "options": ["1.0 mbar/min", "1.3 mbar/min", "1.5 mbar/min", "2.0 mbar/min"], "correct_answer": "1.3 mbar/min"}]
-Return ONLY the JSON array.`
-      : `Return a JSON array of objects, one per sub-part, in this exact format:
-[{"question_number": "${siblings[0]?.question_number}", "question_text": "new text here"}, ...]
-Return ONLY the JSON array.`;
-
-    const basePrompt = `${hardeningRules}
-
-${isCustomNiche ? `YOUR SUBJECT: "${subjectId}" — ALL rewritten questions must be about this subject ONLY.\n` : ''}
-You are rewriting ${questionType === 'mcq' ? 'multiple choice (MCQ)' : 'an entire multi-part exam'} question${questionType !== 'mcq' ? '. ALL sub-parts MUST share the SAME scenario/context (Thread Rule)' : ''}.
-
-ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
+Original questions to rewrite:
 ${siblingsSummary}
-${mcqOptionsSummary ? `\nOriginal options:\n${mcqOptionsSummary}\n` : ''}
 
-Topic: ${siblings[0]?.topic_tag || 'general'}
-${isCustomNiche ? `Subject: ${subjectId}` : ''}
+${hasResourcePack && resourceContext ? `Source context:\n${resourceContext.slice(0, 3000)}` : ''}
 
-${subjectRules}
-
-${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
-
-${mcqReturnFormat}
-${questionTypeRules}`;
+Return a JSON array only:
+[{"question_number": "1", "question_text": "rewritten question here", "options": ${questionType === 'mcq' ? '[\"opt A\", \"opt B\", \"opt C\", \"opt D\"]' : 'null'}, "correct_answer": "...", "mark_scheme": "..."}]
+`;
 
     try {
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -872,7 +809,7 @@ ${questionTypeRules}`;
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: basePrompt }],
+          messages: [{ role: 'user', content: regenPrompt }],
           temperature: questionType === 'mcq' ? 0.3 : 0.5,
           response_format: { type: 'json_object' },
         }),
@@ -882,7 +819,7 @@ ${questionTypeRules}`;
         const data = await resp.json();
         let content = data.choices?.[0]?.message?.content?.trim() || '';
         content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        
+
         let parsed: any[];
         try {
           const raw = JSON.parse(content);
@@ -902,7 +839,7 @@ ${questionTypeRules}`;
               question_text: newText,
               generation_status: 'ai_generated',
             };
-            
+
             // For MCQ regen, also update options and correct_answer if provided
             if (questionType === 'mcq' && parsed[i]?.options && Array.isArray(parsed[i].options)) {
               updatePayload.options = parsed[i].options;
