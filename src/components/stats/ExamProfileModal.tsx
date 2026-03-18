@@ -97,8 +97,12 @@ export const ExamProfileModal = ({
   const [questionStructure, setQuestionStructure] = useState("standalone");
   const [parentQuestionCount, setParentQuestionCount] = useState(4);
   const [maxPartsPerQuestion, setMaxPartsPerQuestion] = useState(3);
+  const [mcqOptionsCount, setMcqOptionsCount] = useState(4);
+  const [includeGraphs, setIncludeGraphs] = useState(false);
+  const [includeTables, setIncludeTables] = useState(false);
 
   const totalQuestionCount = writtenCount + mcqCount;
+  const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
 
   useEffect(() => {
     if (open) {
