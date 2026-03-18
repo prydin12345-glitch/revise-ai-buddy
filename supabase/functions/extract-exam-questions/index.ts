@@ -135,24 +135,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   
   if (formatData) {
     if (formatData.use_original_structure === false) {
-      const mcq = formatData.mcq_count || 0;
-      const sa = formatData.short_answer_count || 0;
-      const lf = formatData.long_form_count || 0;
-      const breakdownSum = mcq + sa + lf;
-      
-      if (mcq > 0 && sa > 0) {
-        // Profile with explicit MCQ + written split
+      const mcq = Math.max(formatData.mcq_count || 0, 0);
+      const sa = Math.max(formatData.short_answer_count || 0, 0);
+      const lf = Math.max(formatData.long_form_count || 0, 0);
+      const writtenTotal = sa + lf;
+      const breakdownSum = mcq + writtenTotal;
+
+      if (breakdownSum > 0) {
+        desiredQuestionCount = breakdownSum;
         desiredMcqCount = mcq;
-        desiredWrittenCount = sa + lf;
-        desiredQuestionCount = mcq + sa + lf;
-        console.log(`Profile split: ${mcq} MCQ + ${sa} written + ${lf} long = ${desiredQuestionCount} total`);
-      } else if (breakdownSum > 0) {
-        if (mcq === 0 && lf === 0 && sa > 0) {
-          desiredQuestionCount = sa;
-          console.log('Profile question count from exam_format:', desiredQuestionCount);
-        } else {
-          desiredQuestionCount = breakdownSum;
-        }
+        desiredWrittenCount = writtenTotal;
+        console.log(`Profile split enforced: ${mcq} MCQ + ${writtenTotal} written = ${desiredQuestionCount} total`);
       }
     }
   }
