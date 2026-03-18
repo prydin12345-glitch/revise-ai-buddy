@@ -218,6 +218,11 @@ export const ExamProfileModal = ({
     },
   ];
 
+  const MCQ_STRUCTURE_OPTIONS = [
+    { id: 3, label: "3 options", example: "A, B, C", detail: "Compact MCQs with three choices." },
+    { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-card/95 border-border/50">
