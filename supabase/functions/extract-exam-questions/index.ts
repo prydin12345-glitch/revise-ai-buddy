@@ -286,6 +286,25 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     questions = flatQuestions;
   }
 
+  // ── MCQ TEXT CLEANUP: Strip inappropriate phrases from MCQ questions ──
+  for (const q of questions) {
+    if (q.question_type === 'mcq' && q.question_text) {
+      // Remove "Give your answer to X significant figures/decimal places" from MCQs
+      q.question_text = q.question_text
+        .replace(/\.\s*Give your answer to \d+ (significant figures|decimal places|s\.f\.|d\.p\.)\.?/gi, '.')
+        .replace(/Give your answer to \d+ (significant figures|decimal places|s\.f\.|d\.p\.)\.?\s*/gi, '')
+        .replace(/\.\s*State your answer\.\s*/gi, '. ')
+        .replace(/\.\s*Show your working\.\s*/gi, '. ')
+        .trim();
+      
+      // If question references "provided data" / "data below" but has no table_data, rewrite the reference
+      if (/based on the (provided |given )?data|the (table|data) (above|below|provided)/i.test(q.question_text) && !q.table_data) {
+        console.warn(`MCQ Q${q.question_number} references external data but has none — flagging`);
+        q.extraction_confidence = Math.min(q.extraction_confidence || 1, 0.4);
+      }
+    }
+  }
+
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
   if (desiredQuestionCount && desiredQuestionCount > 0 && !isMcqOnlyProfile) {
     const uniqueRoots = [...new Set(questions.map((q: any) => {
