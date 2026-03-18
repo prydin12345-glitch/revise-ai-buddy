@@ -133,6 +133,9 @@ export const ExamProfileModal = ({
       setQuestionStructure(initialData?.question_structure || "standalone");
       setParentQuestionCount(initialData?.parent_question_count ?? 4);
       setMaxPartsPerQuestion(initialData?.max_parts_per_question ?? 3);
+      setMcqOptionsCount(initialData?.mcq_options_count ?? 4);
+      setIncludeGraphs(initialData?.include_graphs ?? false);
+      setIncludeTables(initialData?.include_tables ?? false);
     }
   }, [open, initialData]);
 
