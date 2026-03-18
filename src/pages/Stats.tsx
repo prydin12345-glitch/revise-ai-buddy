@@ -141,9 +141,6 @@ const Stats = () => {
             <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
           </TabsContent>
 
-          <TabsContent value="my-subjects">
-            <MySubjectsPanel />
-          </TabsContent>
         </Tabs>
 
         {/* Stats Drilldown Drawer */}
