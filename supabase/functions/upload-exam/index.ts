@@ -50,6 +50,9 @@ serve(async (req) => {
     const profileQuestionCount = formData.get('profileQuestionCount') as string | null;
     const profileMcqCount = formData.get('profileMcqCount') as string | null;
     const profileWrittenCount = formData.get('profileWrittenCount') as string | null;
+    const profileMcqOptionsCount = formData.get('profileMcqOptionsCount') as string | null;
+    const profileIncludeGraphs = formData.get('profileIncludeGraphs') as string | null;
+    const profileIncludeTables = formData.get('profileIncludeTables') as string | null;
 
     let curriculumTopics: string[] = [];
     if (curriculumTopicsRaw) {
@@ -157,6 +160,11 @@ serve(async (req) => {
       const writtenCount = parseOptionalInt(profileWrittenCount);
       const useOriginal = structureMode === 'reference';
 
+      const profileMetadata: Record<string, any> = {};
+      if (profileMcqOptionsCount) profileMetadata.mcq_options_count = parseInt(profileMcqOptionsCount, 10) || 4;
+      if (profileIncludeGraphs === 'true') profileMetadata.include_graphs = true;
+      if (profileIncludeTables === 'true') profileMetadata.include_tables = true;
+
       const { error: formatInsertError } = await supabase.from('exam_format').insert({
         exam_id: examData.id,
         use_original_structure: useOriginal,
@@ -164,12 +172,13 @@ serve(async (req) => {
         mcq_count: useOriginal ? null : mcqCount,
         short_answer_count: useOriginal ? null : (writtenCount ?? questionCount),
         long_form_count: useOriginal ? null : 0,
+        profile_metadata: profileMetadata,
       });
 
       if (formatInsertError) {
         console.error('Failed to store structure mode:', formatInsertError);
       } else {
-        console.log('Stored structure mode:', structureMode, 'MCQ:', mcqCount, 'Written:', writtenCount, 'Total:', questionCount);
+        console.log('Stored structure mode:', structureMode, 'MCQ:', mcqCount, 'Written:', writtenCount, 'Total:', questionCount, 'Metadata:', profileMetadata);
       }
     }
 
