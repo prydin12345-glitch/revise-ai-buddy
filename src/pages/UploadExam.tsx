@@ -18,6 +18,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { getLevelsForBoard } from "@/lib/board-level-mapping";
 import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
@@ -46,6 +47,14 @@ export default function UploadExam() {
   const [followReference, setFollowReference] = useState(false);
 
   const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
+  const { subjects: userSubjects } = useUserSubjects();
+
+  // Resolve subject-level exam board
+  const subjectBoard = useMemo(() => {
+    if (!subjectId) return null;
+    const match = userSubjects.find(s => s.subject_name?.toLowerCase() === subjectId.toLowerCase());
+    return match?.exam_board || null;
+  }, [subjectId, userSubjects]);
 
   const dynamicLevels = getLevelsForBoard(examBoard || null);
 
@@ -80,6 +89,10 @@ export default function UploadExam() {
     ? (selectedProfile.written_question_count ?? Math.max(selectedProfile.question_count - (selectedProfile.mcq_count ?? 0), 0))
     : null;
 
+  // Effective exam board: profile > subject-level > manual selection > user preference
+  const effectiveExamBoard = selectedProfile?.exam_board || subjectBoard || examBoard || preferences?.preferred_exam_board || '';
+  const effectiveEducationalTier = selectedProfile?.educational_tier || educationalTier;
+
   const isLockedByProfile = !!selectedProfile && !followReference;
   const showReferenceToggle = !!selectedProfile && !!file;
 
@@ -108,10 +121,9 @@ export default function UploadExam() {
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', fileName);
-      const tier = selectedProfile?.educational_tier || educationalTier;
+      const tier = effectiveEducationalTier;
       if (tier) formData.append('educationalTier', tier);
-      const board = examBoard || preferences?.preferred_exam_board;
-      if (board) formData.append('examBoard', board);
+      if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
       if (selectedProfile) {
         formData.append('structureMode', followReference ? 'reference' : 'profile');
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
@@ -161,8 +173,8 @@ export default function UploadExam() {
         />
 
         <ConfigSummary
-          examBoard={examBoard}
-          educationalLevel={educationalTier}
+          examBoard={effectiveExamBoard || null}
+          educationalLevel={effectiveEducationalTier || null}
           subject={subjectId ? subjects.find(s => s.id === subjectId)?.name : null}
         />
 
