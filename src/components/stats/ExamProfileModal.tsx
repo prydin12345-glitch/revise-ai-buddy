@@ -64,6 +64,9 @@ interface ExamProfileModalProps {
     question_structure?: string | null;
     parent_question_count?: number | null;
     max_parts_per_question?: number | null;
+    mcq_options_count?: number | null;
+    include_graphs?: boolean | null;
+    include_tables?: boolean | null;
   };
 }
 
