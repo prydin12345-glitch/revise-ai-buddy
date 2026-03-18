@@ -15,6 +15,10 @@ import { SuggestedTopicsModal } from "./SuggestedTopicsModal";
 import { getNextAvailableColour, isSpecialisedSubject } from "@/lib/subject-colours";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getRegionBoards } from "@/lib/board-level-mapping";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
