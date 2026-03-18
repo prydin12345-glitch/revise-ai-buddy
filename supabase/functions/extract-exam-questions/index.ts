@@ -1146,6 +1146,17 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
     desiredWrittenCount !== null &&
     desiredQuestionCount > 0;
 
+  const mcqQualityRules = `
+MCQ QUALITY RULES (CRITICAL — APPLY TO ALL MCQ QUESTIONS):
+- NEVER append "Give your answer to X significant figures" or "Give your answer to X decimal places" to MCQ questions. The student picks an option — precision instructions are meaningless.
+- NEVER append "State your answer" or "Show your working" to MCQ questions.
+- NEVER reference "provided data", "the table above", "the data below", or "based on the data" UNLESS the data is explicitly embedded IN the question_text itself (e.g. a small inline table or list of values).
+- Every MCQ must be SELF-CONTAINED: all information needed to answer must appear in the question_text.
+- All ${mcqOptionsCount} options must be PLAUSIBLE and similar in length/structure. Avoid one option being obviously different (e.g. only one containing "and" or being much longer).
+- The correct_answer must EXACTLY match one of the options.
+- Do NOT use command verbs like "Calculate", "Determine", "State" for MCQs. Instead use: "Which of the following...", "What is...", "Identify...", "Select...".
+`;
+
   const mcqWrittenSplitInstruction = hasProfileTypeSplit
     ? desiredMcqCount > 0 && desiredWrittenCount > 0
       ? `
@@ -1158,6 +1169,7 @@ MCQ QUESTIONS (${desiredMcqCount} total):
 - Each MCQ is worth 1 mark
 - MCQ questions should come FIRST (Q1 through Q${desiredMcqCount})
 - MCQ questions are standalone — no sub-parts needed
+${mcqQualityRules}
 
 WRITTEN QUESTIONS (${desiredWrittenCount} total):
 - question_type should be "short_answer" or "extended" depending on marks
@@ -1176,6 +1188,7 @@ You MUST generate exactly ${desiredMcqCount} parent questions and EVERY question
 - Each MCQ is worth 1 mark
 - Number questions Q1 through Q${desiredMcqCount}
 - Do NOT generate any written, short-answer, or extended questions
+${mcqQualityRules}
 ${graphTableInstruction}`
         : `
 QUESTION TYPE RULE (MANDATORY — WRITTEN-ONLY PROFILE):
