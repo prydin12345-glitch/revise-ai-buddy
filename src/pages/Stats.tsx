@@ -85,7 +85,6 @@ const Stats = () => {
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Weak Topics
               </TabsTrigger>
-              <TabsTrigger 
                 value="my-subjects"
                 className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
               >
