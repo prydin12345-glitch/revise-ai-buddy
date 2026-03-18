@@ -358,7 +358,12 @@ export const ExamProfileModal = ({
                   max={30}
                   step={1}
                   value={[mcqCount]}
-                  onValueChange={(v) => setMcqCount(v[0])}
+                  onValueChange={(v) => {
+                    const newVal = v[0];
+                    // Ensure at least one type has questions
+                    if (newVal === 0 && writtenCount === 0) return;
+                    setMcqCount(newVal);
+                  }}
                   style={{
                     "--slider-track": "hsl(var(--muted))",
                     "--slider-range": "hsl(160 84% 39%)",
