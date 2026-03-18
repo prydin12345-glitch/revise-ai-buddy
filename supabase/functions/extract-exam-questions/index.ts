@@ -176,40 +176,39 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   console.log('Desired parent question count:', desiredQuestionCount, 'MCQ:', desiredMcqCount, 'Written:', desiredWrittenCount);
 
-  // Resolve stealth archetype for difficulty calibration
-  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
-  console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
+  // Build prompt using simplified buildPrompt
+  const topicsList = specTopics.map((s: any) => s.topic_name || s);
+  const { systemPrompt, userPrompt: extractionPrompt_raw } = buildPrompt({
+    subject: exam.subject_id ?? '',
+    topics: topicsList,
+    desiredMcqCount: desiredMcqCount ?? 0,
+    desiredWrittenCount: desiredWrittenCount ?? 0,
+    questionStructure: formatData?.question_structure ?? 'standalone',
+    parentQuestionCount: formatData?.parent_question_count ?? 4,
+    maxPartsPerQuestion: formatData?.max_parts_per_question ?? 3,
+    educationalLevel: qualificationLevel,
+    curriculumRegion: curriculumRegion ?? '',
+    examBoard: examBoard,
+    markSchemeStyle: getBoardMarkSchemeStyle(examBoard),
+    difficultyProgression: formatData?.difficulty_progression ?? 'ascending',
+    calculatorPolicy: formatData?.calculator_policy ?? 'allowed',
+    isCustomNiche: isCustomNicheForValidation,
+    pdfContent: pdfText,
+    topicTagVocabulary: canonicalTopicList,
+    extendedResponseMarks: formatData?.extended_marks ?? 0,
+    includeExtended: formatData?.include_extended ?? false,
+  });
 
-  // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  let extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount, profileMeta);
+  let extractionPrompt = extractionPrompt_raw;
 
   // Inject literary copyright rules if applicable
-  const specTopicNames = specTopics.map((t: any) => t.topic_name || t);
+  const specTopicNames = topicsList;
   const detectedLitText = detectLiteraryText(exam.subject_id || '', specTopicNames);
   if (detectedLitText) {
     extractionPrompt += '\n' + buildLiteraryTextInstructions(detectedLitText);
     console.log('Literary text detected:', detectedLitText, '— copyright rules injected');
   }
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
-
-  // Detect custom niche subject for system prompt and post-validation
-  const subjectLower = (exam.subject_id || '').toLowerCase();
-  const isCustomNicheForValidation = !(
-    subjectLower.includes('math') || subjectLower.includes('physics') ||
-    subjectLower.includes('chemistry') || subjectLower.includes('biology') ||
-    subjectLower.includes('english') || subjectLower.includes('history') ||
-    subjectLower.includes('geography') || subjectLower.includes('econ') ||
-    subjectLower.includes('computer') || subjectLower.includes('psychology') ||
-    subjectLower.includes('business') || subjectLower.includes('law') ||
-    subjectLower.includes('politics') || subjectLower.includes('statistic')
-  );
-
-  // System prompt — subject name FIRST for custom subjects
-  const systemPromptOpening = `YOUR SUBJECT THIS SESSION: "${exam.subject_id}"\nALL questions must be about "${exam.subject_id}" ONLY.\n\n`;
-  const baseSystemPrompt = hasResourcePack
-    ? 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
-    : 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
-  const systemPrompt = systemPromptOpening + baseSystemPrompt;
 
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
