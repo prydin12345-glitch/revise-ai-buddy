@@ -430,7 +430,7 @@ export default function CreateExam() {
       
       
       let format: any;
-      if (hasMcqFromProfile || hasWrittenFromProfile) {
+      if (hasProfileStructure) {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,
