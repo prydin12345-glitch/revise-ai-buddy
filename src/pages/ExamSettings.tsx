@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Clock, FileText, Info } from "lucide-react";
+import { Clock, FileText, Info, Lock } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -18,7 +19,9 @@ export default function ExamSettings() {
   const { draftId } = useParams();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
-  
+  const [loadingFormat, setLoadingFormat] = useState(true);
+  const [profileLocked, setProfileLocked] = useState(false);
+
   // Format settings
   const [useOriginal, setUseOriginal] = useState(true);
   const [customFormat, setCustomFormat] = useState({
@@ -33,6 +36,58 @@ export default function ExamSettings() {
 
   // Difficulty calibration
   const [difficulty, setDifficulty] = useState("exam_board_standard");
+
+  useEffect(() => {
+    const loadExistingFormat = async () => {
+      if (!draftId) {
+        setLoadingFormat(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("exam_format")
+          .select("*")
+          .eq("exam_id", draftId)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          const isLegacyProfileLock =
+            data.use_original_structure === false &&
+            data.mcq_count === null &&
+            data.long_form_count === null &&
+            data.short_answer_count !== null;
+
+          const isProfileLockedFormat =
+            data.use_original_structure === false &&
+            (data.difficulty_calibration === "profile_locked" || isLegacyProfileLock);
+
+          setProfileLocked(isProfileLockedFormat);
+          setUseOriginal(isProfileLockedFormat ? false : data.use_original_structure ?? true);
+
+          if (data.use_original_structure === false) {
+            setCustomFormat({
+              mcq: { count: data.mcq_count ?? 0, marksEach: data.mcq_marks_each ?? 1 },
+              shortAnswer: { count: data.short_answer_count ?? 0, marksEach: data.short_answer_marks_each ?? 3 },
+              longForm: { count: data.long_form_count ?? 0, marksEach: data.long_form_marks_each ?? 10 },
+            });
+          }
+
+          if (data.difficulty_calibration && data.difficulty_calibration !== "profile_locked") {
+            setDifficulty(data.difficulty_calibration);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load format settings:", error);
+      } finally {
+        setLoadingFormat(false);
+      }
+    };
+
+    loadExistingFormat();
+  }, [draftId]);
 
   const getTotalMarks = () => {
     if (useOriginal) return "As per original";
@@ -56,21 +111,21 @@ export default function ExamSettings() {
     setSaving(true);
 
     try {
-      // Save format
-      const format = {
-        useOriginal,
-        difficulty,
-        ...(useOriginal ? {} : customFormat),
-      };
+      if (!profileLocked) {
+        const format = {
+          useOriginal,
+          difficulty,
+          ...(useOriginal ? {} : customFormat),
+        };
 
-      const { error: formatError } = await supabase.functions.invoke('save-exam-format', {
-        body: { draftId, format },
-      });
+        const { error: formatError } = await supabase.functions.invoke("save-exam-format", {
+          body: { draftId, format },
+        });
 
-      if (formatError) throw formatError;
+        if (formatError) throw formatError;
+      }
 
-      // Save timer
-      const { error: timerError } = await supabase.functions.invoke('save-exam-timer', {
+      const { error: timerError } = await supabase.functions.invoke("save-exam-timer", {
         body: { draftId, enabled: timerEnabled, duration },
       });
 
@@ -78,12 +133,14 @@ export default function ExamSettings() {
 
       toast({
         title: "Settings Saved",
-        description: "Proceeding to review",
+        description: profileLocked
+          ? "Profile structure kept intact. Proceeding to review"
+          : "Proceeding to review",
       });
 
       navigate(`/upload/${draftId}/preview`);
     } catch (error: any) {
-      console.error('Save settings error:', error);
+      console.error("Save settings error:", error);
       toast({
         title: "Save Failed",
         description: error.message || "Failed to save settings",
@@ -93,6 +150,26 @@ export default function ExamSettings() {
       setSaving(false);
     }
   };
+
+  if (loadingFormat) {
+    return (
+      <DashboardLayout>
+        <PageContainer maxWidth="lg">
+          <PageHeader
+            title="Exam Settings"
+            subtitle="Loading your saved profile structure"
+            step="Step 2 of 4"
+            backTo="/upload"
+          />
+          <Card className="p-8 shadow-[var(--shadow-card)]">
+            <p className="text-muted-foreground">Loading format settings...</p>
+          </Card>
+        </PageContainer>
+      </DashboardLayout>
+    );
+  }
+
+  const writtenCount = customFormat.shortAnswer.count + customFormat.longForm.count;
 
   return (
     <DashboardLayout>
@@ -111,9 +188,24 @@ export default function ExamSettings() {
               <div className="flex items-center gap-2 mb-6">
                 <FileText className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Format Selection</h2>
+                {profileLocked && (
+                  <Badge variant="outline" className="ml-auto gap-1 text-[11px]">
+                    <Lock className="h-3 w-3" />
+                    Locked by Profile
+                  </Badge>
+                )}
               </div>
 
-              <div className="space-y-6">
+              {profileLocked && (
+                <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/10">
+                  <p className="text-sm font-medium">Profile structure is enforced for this upload.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {customFormat.mcq.count} MCQ • {writtenCount} written
+                  </p>
+                </div>
+              )}
+
+              <div className={`space-y-6 ${profileLocked ? "opacity-70" : ""}`}>
                 <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div>
@@ -144,6 +236,7 @@ export default function ExamSettings() {
                   <Switch
                     checked={useOriginal}
                     onCheckedChange={setUseOriginal}
+                    disabled={profileLocked}
                   />
                 </div>
 
@@ -165,6 +258,7 @@ export default function ExamSettings() {
                               mcq: { ...customFormat.mcq, count: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                         <div>
@@ -177,6 +271,7 @@ export default function ExamSettings() {
                               mcq: { ...customFormat.mcq, marksEach: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                       </div>
@@ -196,6 +291,7 @@ export default function ExamSettings() {
                               shortAnswer: { ...customFormat.shortAnswer, count: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                         <div>
@@ -208,6 +304,7 @@ export default function ExamSettings() {
                               shortAnswer: { ...customFormat.shortAnswer, marksEach: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                       </div>
@@ -227,6 +324,7 @@ export default function ExamSettings() {
                               longForm: { ...customFormat.longForm, count: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                         <div>
@@ -239,12 +337,13 @@ export default function ExamSettings() {
                               longForm: { ...customFormat.longForm, marksEach: parseInt(e.target.value) || 0 },
                             })}
                             className="mt-1"
+                            disabled={profileLocked}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
-                 )}
+                )}
               </div>
             </Card>
 
@@ -257,7 +356,7 @@ export default function ExamSettings() {
 
               <div className="space-y-4">
                 <Label className="text-base font-medium">Difficulty Level</Label>
-                <Select value={difficulty} onValueChange={setDifficulty}>
+                <Select value={difficulty} onValueChange={setDifficulty} disabled={profileLocked}>
                   <SelectTrigger className="h-11">
                     <SelectValue />
                   </SelectTrigger>
@@ -336,12 +435,12 @@ export default function ExamSettings() {
           <div className="lg:col-span-1">
             <Card className="p-6 shadow-[var(--shadow-card)] sticky top-6">
               <h3 className="text-lg font-semibold mb-4">Configuration Summary</h3>
-              
+
               <div className="space-y-4">
                 <div className="pb-4 border-b">
                   <p className="text-sm text-muted-foreground mb-1">Format</p>
                   <p className="font-medium">
-                    {useOriginal ? "Original Structure" : "Custom Format"}
+                    {profileLocked ? "Locked by Profile" : useOriginal ? "Original Structure" : "Custom Format"}
                   </p>
                 </div>
 

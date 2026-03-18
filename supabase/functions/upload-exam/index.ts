@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const parseOptionalInt = (value: string | null): number | null => {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +26,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -42,6 +48,8 @@ serve(async (req) => {
     const curriculumTopicsRaw = formData.get('curriculumTopics') as string | null;
     const structureMode = formData.get('structureMode') as string | null;
     const profileQuestionCount = formData.get('profileQuestionCount') as string | null;
+    const profileMcqCount = formData.get('profileMcqCount') as string | null;
+    const profileWrittenCount = formData.get('profileWrittenCount') as string | null;
 
     let curriculumTopics: string[] = [];
     if (curriculumTopicsRaw) {
@@ -100,14 +108,14 @@ serve(async (req) => {
       const specExt = specFile.name.split('.').pop();
       const specPath = `${user.id}/specs/${crypto.randomUUID()}.${specExt}`;
       const specBuffer = await specFile.arrayBuffer();
-      
+
       const { data: specUploadData, error: specUploadError } = await supabase.storage
         .from('exam-files')
         .upload(specPath, specBuffer, {
           contentType: specFile.type,
           upsert: false,
         });
-        
+
       if (!specUploadError && specUploadData) {
         specFileUrl = specUploadData.path;
         console.log('Specification uploaded:', specFileUrl);
@@ -142,18 +150,27 @@ serve(async (req) => {
 
     console.log('Exam created:', examData.id);
 
-    // Store structure mode and profile question count in exam_format
+    // Store structure mode and profile question split in exam_format
     if (structureMode && profileQuestionCount) {
-      const questionCount = parseInt(profileQuestionCount, 10);
+      const questionCount = parseOptionalInt(profileQuestionCount) ?? 0;
+      const mcqCount = parseOptionalInt(profileMcqCount);
+      const writtenCount = parseOptionalInt(profileWrittenCount);
       const useOriginal = structureMode === 'reference';
-      
-      await supabase.from('exam_format').insert({
+
+      const { error: formatInsertError } = await supabase.from('exam_format').insert({
         exam_id: examData.id,
         use_original_structure: useOriginal,
-        // Store total from profile in breakdown (the extraction function reads this)
-        short_answer_count: useOriginal ? null : questionCount,
+        difficulty_calibration: useOriginal ? 'exam_board_standard' : 'profile_locked',
+        mcq_count: useOriginal ? null : mcqCount,
+        short_answer_count: useOriginal ? null : (writtenCount ?? questionCount),
+        long_form_count: useOriginal ? null : 0,
       });
-      console.log('Stored structure mode:', structureMode, 'question count:', questionCount);
+
+      if (formatInsertError) {
+        console.error('Failed to store structure mode:', formatInsertError);
+      } else {
+        console.log('Stored structure mode:', structureMode, 'MCQ:', mcqCount, 'Written:', writtenCount, 'Total:', questionCount);
+      }
     }
 
     if (curriculumTopics.length > 0) {

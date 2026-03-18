@@ -72,6 +72,14 @@ export default function UploadExam() {
     [subjectProfiles, selectedProfileId]
   );
 
+  const selectedProfileMcqCount = selectedProfile
+    ? (selectedProfile.mcq_count ?? 0)
+    : null;
+
+  const selectedProfileWrittenCount = selectedProfile
+    ? (selectedProfile.written_question_count ?? Math.max(selectedProfile.question_count - (selectedProfile.mcq_count ?? 0), 0))
+    : null;
+
   const isLockedByProfile = !!selectedProfile && !followReference;
   const showReferenceToggle = !!selectedProfile && !!file;
 
@@ -83,12 +91,12 @@ export default function UploadExam() {
 
   const handleUpload = async () => {
     const newErrors = { subject: "", fileName: "" };
-    
+
     if (!subjectId) newErrors.subject = "Please select a subject";
     if (!fileName.trim()) newErrors.fileName = "Please name this exam";
-    
+
     setErrors(newErrors);
-    
+
     if (newErrors.subject || newErrors.fileName) {
       return;
     }
@@ -107,6 +115,8 @@ export default function UploadExam() {
       if (selectedProfile) {
         formData.append('structureMode', followReference ? 'reference' : 'profile');
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
+        formData.append('profileMcqCount', String(selectedProfileMcqCount ?? 0));
+        formData.append('profileWrittenCount', String(selectedProfileWrittenCount ?? 0));
         if (selectedProfile.topics.length > 0) {
           formData.append('curriculumTopics', JSON.stringify(selectedProfile.topics));
         }
@@ -203,6 +213,16 @@ export default function UploadExam() {
                       <Lock className="h-3 w-3" />
                       {selectedProfile.question_count} Questions
                     </Badge>
+                    {selectedProfileMcqCount !== null && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfileMcqCount} MCQ
+                      </Badge>
+                    )}
+                    {selectedProfileWrittenCount !== null && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {selectedProfileWrittenCount} Written
+                      </Badge>
+                    )}
                     {selectedProfile.educational_tier && (
                       <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                         {selectedProfile.educational_tier}
@@ -211,6 +231,11 @@ export default function UploadExam() {
                     {selectedProfile.time_limit_minutes && (
                       <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                         {selectedProfile.time_limit_minutes} min
+                      </Badge>
+                    )}
+                    {isLockedByProfile && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        Structure locked
                       </Badge>
                     )}
                   </div>
@@ -264,7 +289,7 @@ export default function UploadExam() {
                     <p className="text-xs text-muted-foreground">
                       {followReference
                         ? 'Question count follows the uploaded PDF'
-                        : `Question count locked to profile (${selectedProfile.question_count}Q)`}
+                        : `Structure locked to profile (${selectedProfileMcqCount ?? 0} MCQ, ${selectedProfileWrittenCount ?? 0} written)`}
                     </p>
                   </div>
                 </div>
