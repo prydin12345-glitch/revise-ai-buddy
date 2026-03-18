@@ -1161,7 +1161,20 @@ ${graphTableInstruction}`
     : '';
 
   const minParts = archetype?.minSubParts || 2;
-  const hierarchicalInstructions = `
+  const isMcqOnly = desiredMcqCount !== null && desiredMcqCount > 0 && (!desiredWrittenCount || desiredWrittenCount === 0);
+
+  const hierarchicalInstructions = isMcqOnly
+    ? `
+
+FLAT QUESTION STRUCTURE (MCQ-ONLY EXAM — CRITICAL):
+- Each question is standalone. Number them 1, 2, 3, ..., ${desiredMcqCount}.
+- Do NOT create sub-parts (a, b, c). Each question_number is just "1", "2", "3", etc.
+- Set parent_question_number to null for every question.
+- Set root_question_number to the question_number itself.
+- VIOLATION: Creating sub-parts like "1a", "1b" is WRONG for this exam.
+${questionCountInstruction}
+`
+    : `
 
 HIERARCHICAL QUESTION STRUCTURE (CRITICAL):
 1. A "Parent Question" is a top-level numbered question: Q1, Q2, Q3, etc.
