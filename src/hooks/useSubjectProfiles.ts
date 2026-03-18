@@ -31,6 +31,7 @@ interface ExamProfile {
   mcq_options_count: number | null;
   include_graphs: boolean | null;
   include_tables: boolean | null;
+  exam_board: string | null;
   created_at: string;
   updated_at: string;
 }
