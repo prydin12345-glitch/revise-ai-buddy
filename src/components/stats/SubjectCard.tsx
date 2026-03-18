@@ -56,11 +56,16 @@ export const SubjectCard = ({
   const { getPerformance } = useTopicPerformance(subject.subject_name);
   const { saveOrUpdateSubject, refetch } = useUserSubjects();
   const { addTopic } = useSubjectProfiles();
+  const { preferences } = useUserPreferences();
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
+  const [boardEditorOpen, setBoardEditorOpen] = useState(false);
+  const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
   const VISIBLE_TOPIC_COUNT = 3;
+
+  const regionBoards = getRegionBoards(preferences?.curriculum_region);
 
   // Conflict modal state
   const [conflict, setConflict] = useState<{ colour: string; subjectName: string } | null>(null);
