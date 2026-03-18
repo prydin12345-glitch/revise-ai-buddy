@@ -336,7 +336,20 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       correctAnswer = JSON.stringify(correctAnswer);
       console.log(`Q${q.question_number}: Graph question detected, synced to options`);
     } else if (qType === 'mcq') {
-      correctAnswer = correctAnswer || 'A';
+      // Validate MCQ correct_answer — do NOT silently default to 'A'
+      if (!correctAnswer) {
+        console.error(`Missing correct_answer for MCQ Q${q.question_number}: "${(q.question_text || '').slice(0, 80)}"`);
+        // Leave as null — do not guess
+      } else if (options && Array.isArray(options)) {
+        const answerLower = String(correctAnswer).toLowerCase().trim();
+        const matchesOption = options.some(
+          (opt: string) => String(opt).toLowerCase().trim() === answerLower ||
+                           answerLower.length === 1 && 'abcd'.indexOf(answerLower) >= 0
+        );
+        if (!matchesOption) {
+          console.warn(`MCQ Q${q.question_number}: correct_answer "${correctAnswer}" may not match options — flagging`);
+        }
+      }
     }
 
     // Handle chart_data (box plots, histograms) — store in options for frontend rendering
