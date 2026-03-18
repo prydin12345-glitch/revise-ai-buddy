@@ -47,8 +47,19 @@ export default function UploadExam() {
   const [followReference, setFollowReference] = useState(false);
 
   const { examProfiles, getProfilesForSubject } = useSubjectProfiles();
+  const { subjects: userSubjects } = useUserSubjects();
 
-  const dynamicLevels = getLevelsForBoard(examBoard || null);
+  // Resolve the effective exam board: profile > subject-level > user preference
+  const subjectBoard = useMemo(() => {
+    if (!subjectId) return null;
+    const match = userSubjects.find(s => s.subject_name?.toLowerCase() === subjectId.toLowerCase());
+    return match?.exam_board || null;
+  }, [subjectId, userSubjects]);
+
+  const effectiveExamBoard = selectedProfile?.exam_board || subjectBoard || examBoard || preferences?.preferred_exam_board || '';
+  const effectiveEducationalTier = selectedProfile?.educational_tier || educationalTier;
+
+  const dynamicLevels = getLevelsForBoard(effectiveExamBoard || null);
 
   // Pre-fill from preferences once loaded
   useEffect(() => {
