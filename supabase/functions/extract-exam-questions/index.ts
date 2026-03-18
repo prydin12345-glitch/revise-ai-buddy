@@ -983,7 +983,7 @@ DIFFICULTY ARCHETYPE: General Academic Standard
 }
 
 // ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[], desiredMcqCount?: number | null, desiredWrittenCount?: number | null): string {
+function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[], desiredMcqCount?: number | null, desiredWrittenCount?: number | null, profileMeta?: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean }): string {
   const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
 
   // Inject regional persona and region-aware subject instructions
