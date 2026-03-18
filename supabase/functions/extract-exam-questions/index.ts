@@ -137,9 +137,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let profileMeta: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean } = {};
   
   if (formatData) {
-    // Extract profile metadata
+    // Extract profile metadata — keys may be camelCase (from frontend) or snake_case
     if (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') {
-      profileMeta = formatData.profile_metadata as typeof profileMeta;
+      const pm = formatData.profile_metadata;
+      profileMeta = {
+        mcq_options_count: pm.mcq_options_count ?? pm.mcqOptionsCount ?? undefined,
+        include_graphs: pm.include_graphs ?? pm.includeGraphs ?? undefined,
+        include_tables: pm.include_tables ?? pm.includeTables ?? undefined,
+      };
     }
 
     if (formatData.use_original_structure === false) {
