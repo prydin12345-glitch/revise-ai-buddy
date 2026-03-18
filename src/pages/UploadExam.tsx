@@ -89,6 +89,10 @@ export default function UploadExam() {
     ? (selectedProfile.written_question_count ?? Math.max(selectedProfile.question_count - (selectedProfile.mcq_count ?? 0), 0))
     : null;
 
+  // Effective exam board: profile > subject-level > manual selection > user preference
+  const effectiveExamBoard = (selectedProfile as any)?.exam_board || subjectBoard || examBoard || preferences?.preferred_exam_board || '';
+  const effectiveEducationalTier = selectedProfile?.educational_tier || educationalTier;
+
   const isLockedByProfile = !!selectedProfile && !followReference;
   const showReferenceToggle = !!selectedProfile && !!file;
 
