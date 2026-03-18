@@ -382,12 +382,44 @@ serve(async (req) => {
           }
         }
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
-        // Simple exact match for MCQ
-        const correctAnswer = question.correct_answer?.toLowerCase().trim() || '';
-        const studentAnswerLower = studentAnswer.toLowerCase().trim();
-        isCorrect = studentAnswerLower === correctAnswer;
+        // MCQ grading: student submits a letter (A/B/C/D), correct_answer may be letter OR full text
+        const correctAnswer = (question.correct_answer || '').trim();
+        const studentAnswerTrimmed = studentAnswer.trim();
+        const options: string[] = Array.isArray(question.options) ? question.options : [];
+        
+        // Resolve student's letter to option text (A=0, B=1, C=2, D=3)
+        const studentLetterIndex = studentAnswerTrimmed.length === 1 
+          ? studentAnswerTrimmed.toUpperCase().charCodeAt(0) - 65 
+          : -1;
+        const studentOptionText = (studentLetterIndex >= 0 && studentLetterIndex < options.length) 
+          ? options[studentLetterIndex] 
+          : studentAnswerTrimmed;
+        
+        // Resolve correct answer: could be a letter OR full option text
+        const correctLetterIndex = correctAnswer.length === 1 
+          ? correctAnswer.toUpperCase().charCodeAt(0) - 65 
+          : -1;
+        const correctOptionText = (correctLetterIndex >= 0 && correctLetterIndex < options.length)
+          ? options[correctLetterIndex]
+          : correctAnswer;
+        
+        // Match by: letter-to-letter, text-to-text, or letter-resolved-to-text
+        const letterMatch = studentAnswerTrimmed.toLowerCase() === correctAnswer.toLowerCase();
+        const textMatch = studentOptionText.toLowerCase() === correctOptionText.toLowerCase();
+        // Also check if student's selected option text matches correct_answer directly
+        const crossMatch = studentOptionText.toLowerCase() === correctAnswer.toLowerCase();
+        
+        isCorrect = letterMatch || textMatch || crossMatch;
         score = isCorrect ? question.marks : 0;
-        feedback = isCorrect ? 'Correct!' : `Incorrect. Correct answer: ${question.correct_answer}`;
+        
+        // Show the correct option letter + text in feedback
+        let correctDisplay = correctAnswer;
+        if (correctLetterIndex < 0 && options.length > 0) {
+          // correct_answer is text — find which letter it corresponds to
+          const matchIdx = options.findIndex(o => o.toLowerCase().trim() === correctAnswer.toLowerCase());
+          if (matchIdx >= 0) correctDisplay = `${String.fromCharCode(65 + matchIdx)}) ${correctAnswer}`;
+        }
+        feedback = isCorrect ? 'Correct!' : `Incorrect. Correct answer: ${correctDisplay}`;
       } else {
         // Use Lovable AI to score written answers
         const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
