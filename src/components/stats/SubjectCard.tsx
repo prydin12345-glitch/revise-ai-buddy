@@ -119,6 +119,17 @@ export const SubjectCard = ({
     setConflict(null);
   };
 
+  const handleBoardSave = async (newBoard: string) => {
+    try {
+      const boardValue = newBoard === "__none" ? null : newBoard;
+      await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
+      await refetch();
+      setBoardEditorOpen(false);
+    } catch (err) {
+      console.error("Error updating exam board:", err);
+    }
+  };
+
   return (
     <>
       <Card className="overflow-hidden relative group transition-shadow hover:shadow-lg">
