@@ -335,6 +335,9 @@ export default function CreateExam() {
     setProfileExtendedMarks(null);
     setProfileStructurePreset(null);
     setProfileMcqPosition(null);
+    setProfileMcqOptionsCount(null);
+    setProfileIncludeGraphs(null);
+    setProfileIncludeTables(null);
   };
 
   const handleGenerate = async () => {
