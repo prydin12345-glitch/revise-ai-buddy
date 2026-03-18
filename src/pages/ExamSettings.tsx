@@ -200,7 +200,11 @@ export default function ExamSettings() {
                 <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/10">
                   <p className="text-sm font-medium">Profile structure is enforced for this upload.</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {customFormat.mcq.count} MCQ • {writtenCount} written
+                    {customFormat.mcq.count > 0 && writtenCount === 0
+                      ? `${customFormat.mcq.count} MCQ only`
+                      : customFormat.mcq.count === 0 && writtenCount > 0
+                        ? `${writtenCount} written only`
+                        : `${customFormat.mcq.count} MCQ • ${writtenCount} written`}
                   </p>
                 </div>
               )}
