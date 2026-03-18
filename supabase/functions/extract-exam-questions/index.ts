@@ -259,8 +259,35 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
   }
 
+  // ── MCQ-ONLY SAFETY NET: Flatten sub-parts if profile is MCQ-only ──
+  const isMcqOnlyProfile = desiredMcqCount !== null && desiredMcqCount > 0 && (!desiredWrittenCount || desiredWrittenCount === 0);
+  if (isMcqOnlyProfile) {
+    // Group by root, keep only first sub-part per root, renumber sequentially
+    const rootGroups: Record<string, any[]> = {};
+    for (const q of questions) {
+      const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
+      if (!rootGroups[root]) rootGroups[root] = [];
+      rootGroups[root].push(q);
+    }
+    const flatQuestions: any[] = [];
+    const sortedRoots = Object.keys(rootGroups).sort((a, b) => parseInt(a) - parseInt(b));
+    for (let i = 0; i < sortedRoots.length && i < desiredMcqCount; i++) {
+      const group = rootGroups[sortedRoots[i]];
+      const q = group[0]; // keep first sub-part only
+      q.question_number = String(i + 1);
+      q.parent_question_number = null;
+      q.root_question_number = String(i + 1);
+      q.question_type = 'mcq'; // enforce MCQ type
+      flatQuestions.push(q);
+    }
+    if (flatQuestions.length !== questions.length) {
+      console.log(`MCQ-only flattening: ${questions.length} rows -> ${flatQuestions.length} flat MCQs`);
+    }
+    questions = flatQuestions;
+  }
+
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
-  if (desiredQuestionCount && desiredQuestionCount > 0) {
+  if (desiredQuestionCount && desiredQuestionCount > 0 && !isMcqOnlyProfile) {
     const uniqueRoots = [...new Set(questions.map((q: any) => {
       const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
       return String(root);
@@ -1161,7 +1188,20 @@ ${graphTableInstruction}`
     : '';
 
   const minParts = archetype?.minSubParts || 2;
-  const hierarchicalInstructions = `
+  const isMcqOnly = desiredMcqCount !== null && desiredMcqCount > 0 && (!desiredWrittenCount || desiredWrittenCount === 0);
+
+  const hierarchicalInstructions = isMcqOnly
+    ? `
+
+FLAT QUESTION STRUCTURE (MCQ-ONLY EXAM — CRITICAL):
+- Each question is standalone. Number them 1, 2, 3, ..., ${desiredMcqCount}.
+- Do NOT create sub-parts (a, b, c). Each question_number is just "1", "2", "3", etc.
+- Set parent_question_number to null for every question.
+- Set root_question_number to the question_number itself.
+- VIOLATION: Creating sub-parts like "1a", "1b" is WRONG for this exam.
+${questionCountInstruction}
+`
+    : `
 
 HIERARCHICAL QUESTION STRUCTURE (CRITICAL):
 1. A "Parent Question" is a top-level numbered question: Q1, Q2, Q3, etc.
@@ -1308,13 +1348,24 @@ Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
+  // Use stronger model for custom niche subjects to reduce hallucination
+  const sysLower = systemPrompt.toLowerCase();
+  const isNicheSubject = !(
+    sysLower.includes('math') || sysLower.includes('physics') ||
+    sysLower.includes('chemistry') || sysLower.includes('biology') ||
+    sysLower.includes('english') || sysLower.includes('history') ||
+    sysLower.includes('geography') || sysLower.includes('econ') ||
+    sysLower.includes('computer') || sysLower.includes('psychology')
+  );
+  const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+  console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
+
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: selectedModel,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      // Gemini uses max_tokens, OpenAI uses max_completion_tokens
       max_tokens: 32000,
       temperature: hasResourcePack ? 0.1 : 0.3,
       response_format: { type: 'json_object' },

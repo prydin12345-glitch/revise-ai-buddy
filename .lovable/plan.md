@@ -1,80 +1,118 @@
 
 
-## Problem Diagnosis
+# Plan: Manual Exam Creator for Tutors
 
-I investigated the "Friday" exam (`e24efa45-...`) end-to-end. Here's what's happening:
+## Overview
+Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
 
-### Issue 1: MCQ questions have sub-parts (1a, 1b instead of Q1, Q2)
+## Database Changes
 
-**Root cause**: The `buildPrompt` function in `extract-exam-questions/index.ts` injects two conflicting instructions:
+**New table: `tutor_question_bank`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL) — references auth.users
+- `question_text` (text, NOT NULL)
+- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
+- `expected_answer` (text) — mark scheme / model answer
+- `max_marks` (integer, NOT NULL)
+- `topic_tag` (text) — linked to class sub-topics
+- `subject_name` (text, NOT NULL)
+- `options` (jsonb) — for MCQ
+- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
+- `estimated_minutes` (integer) — AI-suggested time
+- `metadata` (jsonb, default '{}')
+- `created_at`, `updated_at` (timestamptz)
 
-1. The **MCQ-only block** (line ~1146) correctly says: "MCQ questions are standalone — no sub-parts needed"
-2. But the **hierarchical instructions** block (line ~1164) unconditionally says: "Each parent question MUST have at least 2 sub-parts that escalate in difficulty" — and includes examples like `"1a", "1b", "1c"`
+RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
 
-The hierarchical block comes AFTER the MCQ block in the prompt, so the AI follows the last instruction and generates sub-parts for every MCQ. The profile metadata contains `questionStructure: "mcq_only"` but the edge function never reads this field to conditionally skip the hierarchical instructions.
+**New table: `tutor_manual_exams`**
+- `id` (uuid, PK)
+- `tutor_id` (uuid, NOT NULL)
+- `title` (text, NOT NULL)
+- `subject_name` (text, NOT NULL)
+- `subject_color` (text, default '#3B82F6')
+- `marking_preference` (text, default 'ai_assisted')
+- `educational_tier` (text)
+- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
+- `total_marks` (integer, default 0)
+- `estimated_minutes` (integer)
+- `status` (text, default 'draft') — draft, published
+- `created_at`, `updated_at` (timestamptz)
 
-### Issue 2: 48 questions instead of 24
+RLS: tutor can CRUD own rows.
 
-**Direct consequence of Issue 1.** The profile specifies `mcq_count: 24`. The AI generates 24 parent questions — but with 2 sub-parts each (a, b), producing 48 rows. The trim logic on line ~263 only checks unique root numbers (24 roots = correct), but each root has 2 children, so 48 total questions are saved.
+## New Route
+- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
 
-### Issue 3: AI hallucination on domain-specific content
+## New Components
 
-The AI (Gemini Flash) generates plausible-sounding but potentially inaccurate content for niche subjects like sterilizer engineering. This is inherent to LLM generation. Mitigations:
+### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
+Split-view layout:
+- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
+- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
+- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
 
-- Lower the temperature for niche subjects (currently 0.3)
-- Add a prompt instruction telling the AI to flag low-confidence questions
-- Consider using a stronger model (Gemini Pro) for custom/niche subjects
+Key behaviors:
+- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
+- Inline editing: click question number to rename, click mark bubble to change
+- Focus mode: when editing a question, dim others with opacity
+- Auto-save indicator in header
+- Empty state illustration when no questions exist
 
----
+### 2. `src/components/tutor/ManualQuestionEditor.tsx`
+- Rich text fields for question and mark scheme
+- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
+- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
+- Max marks input (1-10)
+- "Polish with AI" button
 
-## Plan
+### 3. `src/components/tutor/ManualQuestionPreview.tsx`
+- Renders the question exactly as students see it using `MathRenderer`
+- Shows mark allocation badge, topic tag
 
-### Step 1: Conditionally skip hierarchical sub-part instructions for MCQ-only exams
+### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
+- Each option has description text
 
-In `supabase/functions/extract-exam-questions/index.ts`, modify the `buildPrompt` function:
+### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
+- Sticky sidebar showing:
+  - Total marks counter
+  - Topic distribution (mini pie chart via recharts)
+  - Estimated completion time (marks × 1.5 min ratio)
+  - Question count
 
-- When the profile is MCQ-only (`desiredMcqCount > 0 && desiredWrittenCount === 0`), **skip** the `hierarchicalInstructions` block entirely and instead inject a flat numbering instruction: "Number each question as 1, 2, 3... Each is standalone with no sub-parts."
-- For mixed exams, only apply hierarchical instructions to the written portion.
+## Edge Function: `polish-question`
+- Takes raw question text + subject + educational tier
+- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
+- Returns polished text preserving mathematical requirements
 
-### Step 2: Add post-generation flattening safety net
+## Integration Points
 
-After AI generation, if the profile is MCQ-only, strip any sub-part suffixes from question numbers:
-- Rename `"1a"` → `"1"`, `"2a"` → `"2"`, discard `"1b"`, `"2b"` etc. (keep only the first sub-part per root)
-- This ensures even if the AI ignores the prompt, the output is correct.
+1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
 
-### Step 3: Improve niche subject accuracy
+2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
 
-- Increase the AI model to `google/gemini-2.5-pro` when the subject is detected as a custom niche (non-standard academic subject) — stronger reasoning produces more accurate domain content.
-- Add a prompt instruction: "If you are unsure about a technical fact, include `extraction_confidence: 0.5` so it can be flagged for review."
+3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
 
-### Step 4: Redeploy the edge function
+4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
 
-Deploy the updated `extract-exam-questions` function.
+5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
 
-### Technical Details
+## UI Details
+- Subject-themed accent colors on save buttons, active borders, progress bars
+- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
+- Dark-themed empty state with illustration text: "Your masterpiece starts here"
+- Auto-save with subtle "All changes saved ✓" indicator that pulses
 
-**File**: `supabase/functions/extract-exam-questions/index.ts`
+## Files to Create
+1. `src/pages/tutor/ManualExamCreator.tsx`
+2. `src/components/tutor/ManualQuestionEditor.tsx`
+3. `src/components/tutor/ManualQuestionPreview.tsx`
+4. `src/components/tutor/MarkingPreferenceSelector.tsx`
+5. `src/components/tutor/ExamCompositionSidebar.tsx`
+6. `supabase/functions/polish-question/index.ts`
 
-**Key change in `buildPrompt`** (~line 1163):
-```text
-// Before hierarchicalInstructions, check if MCQ-only
-const isMcqOnly = desiredMcqCount > 0 && (desiredWrittenCount === 0 || desiredWrittenCount === null);
-
-const hierarchicalInstructions = isMcqOnly
-  ? `\nFLAT QUESTION STRUCTURE (MCQ-ONLY EXAM):\n- Each question is standalone. Number them 1, 2, 3, ..., ${desiredMcqCount}.\n- Do NOT create sub-parts (a, b, c). Each question_number is just "1", "2", "3".\n- Set parent_question_number to null and root_question_number to the question number.\n`
-  : `... existing hierarchical block ...`;
-```
-
-**Post-generation safety net** (~line 262):
-```text
-// If MCQ-only, flatten sub-parts: keep first per root, renumber
-if (desiredMcqCount > 0 && (desiredWrittenCount === 0 || !desiredWrittenCount)) {
-  // deduplicate by root, keep first, renumber sequentially
-}
-```
-
-**Model upgrade for niche subjects** (~line 1316):
-```text
-model: isCustomNicheForValidation ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash'
-```
+## Files to Edit
+1. `src/App.tsx` — add route `/tutor/exams/create-manual`
+2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
+3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
 
