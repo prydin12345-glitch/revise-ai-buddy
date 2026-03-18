@@ -426,8 +426,8 @@ export default function CreateExam() {
       const draftId = uploadData.draftId;
 
       // Save format — include profile structure if a profile is active
-      const hasMcqFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileMcqCount ?? 0) > 0;
-      const hasWrittenFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileWrittenCount ?? 0) > 0;
+      const hasProfileStructure = selectedProfile && selectedProfile !== 'all_topics';
+      
       
       let format: any;
       if (hasMcqFromProfile || hasWrittenFromProfile) {
