@@ -26,6 +26,7 @@ const ExamInProgress = lazy(() => import("./pages/ExamInProgress"));
 const ExamPreview = lazy(() => import("./pages/ExamPreview"));
 const ExamReview = lazy(() => import("./pages/ExamReview"));
 const Stats = lazy(() => import("./pages/Stats"));
+const MySubjects = lazy(() => import("./pages/MySubjects"));
 const CreatePracticeQuestions = lazy(() => import("./pages/CreatePracticeQuestions"));
 const MyQuizzes = lazy(() => import("./pages/MyQuizzes"));
 const PracticeSetPreview = lazy(() => import("./pages/PracticeSetPreview"));
