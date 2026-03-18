@@ -1442,7 +1442,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   catch { return { questions: [], topics: [] }; }
 }
 
-async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false) {
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false, questionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = 'mixed') {
   // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
   const grouped: Record<string, any[]> = {};
   for (const q of questions) {
@@ -1454,6 +1454,36 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
   const hardeningRules = getExamHardeningRules();
   const rootKeys = Object.keys(grouped).slice(0, 10); // Limit to prevent timeout
 
+  // Build question-type-specific rules that will be appended LAST
+  const questionTypeRules = questionType === 'mcq' ? `
+
+FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
+You are rewriting MCQ questions. Every rewritten question MUST:
+- Start with: "Which of the following...", "What is...", "Identify...", "Select...", "According to...", "In accordance with..."
+- NEVER start with: "State", "Describe", "Explain", "Outline", "Evaluate", "Discuss", "Give", "Calculate"
+- The question stem must be a clear, self-contained question — NOT a command
+- Have exactly 4 answer options that are all plausible and similar in length
+- Have one clearly correct answer that directly answers the question stem
+- Be completely self-contained — no "as described above" or "using the data provided" or "based on the provided data"
+- The correct_answer field must EXACTLY match one of the 4 option strings
+- Do NOT include scenarios with named characters unless it adds genuine context — keep stems clean and direct
+- Do NOT append "Give your answer to X significant figures" or "State your answer" — these are meaningless for MCQs
+` : questionType === 'short_answer' ? `
+
+FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
+You are rewriting short answer questions. Every rewritten question MUST:
+- Use command verbs: State, Describe, Identify, Outline, Give, Name, List
+- Have a clear mark scheme with one marking point per mark
+- NOT have multiple choice options
+` : questionType === 'long_form' ? `
+
+FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
+You are rewriting extended response questions. Every rewritten question MUST:
+- Use command verbs: Explain, Evaluate, Discuss, Analyse, Justify, Compare
+- Have a detailed mark scheme with indicative content
+- Be worth 4 or more marks
+` : '';
+
   for (const rootNum of rootKeys) {
     const siblings = grouped[rootNum];
     // Sort by question_number so sub-parts are in order
@@ -1463,6 +1493,16 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
       `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
     ).join('\n');
 
+    // For MCQ regeneration, also include the options so the AI can rewrite coherently
+    const mcqOptionsSummary = questionType === 'mcq'
+      ? siblings.map((s: any) => {
+          if (s.options && Array.isArray(s.options)) {
+            return `  Q${s.question_number} options: ${s.options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}`;
+          }
+          return '';
+        }).filter(Boolean).join('\n')
+      : '';
+
     // Subject-aware regeneration rules
     const subjectRules = isCustomNiche ? `
 SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
@@ -1471,7 +1511,6 @@ SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
 - Do NOT generate formula-based or calculation-based questions
 - Use domain-specific terminology from "${subjectId}"
 - Questions must be answerable ONLY by someone trained in "${subjectId}"
-- Use command verbs: State, Describe, Explain, Identify, Outline, Evaluate, Justify, Compare
 - Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
 ` : `
 CRITICAL RULES:
@@ -1485,13 +1524,23 @@ CRITICAL RULES:
 8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
 `;
 
+    // For MCQ regen, also ask the AI to return options and correct_answer
+    const mcqReturnFormat = questionType === 'mcq'
+      ? `Return a JSON array. Each object MUST include: question_number, question_text, options (array of exactly 4 strings), correct_answer (must EXACTLY match one option).
+Example: [{"question_number": "1", "question_text": "What is the required air leak rate...", "options": ["1.0 mbar/min", "1.3 mbar/min", "1.5 mbar/min", "2.0 mbar/min"], "correct_answer": "1.3 mbar/min"}]
+Return ONLY the JSON array.`
+      : `Return a JSON array of objects, one per sub-part, in this exact format:
+[{"question_number": "${siblings[0]?.question_number}", "question_text": "new text here"}, ...]
+Return ONLY the JSON array.`;
+
     const basePrompt = `${hardeningRules}
 
 ${isCustomNiche ? `YOUR SUBJECT: "${subjectId}" — ALL rewritten questions must be about this subject ONLY.\n` : ''}
-You are rewriting an entire multi-part exam question. ALL sub-parts MUST share the SAME scenario/context (Thread Rule).
+You are rewriting ${questionType === 'mcq' ? 'multiple choice (MCQ)' : 'an entire multi-part exam'} question${questionType !== 'mcq' ? '. ALL sub-parts MUST share the SAME scenario/context (Thread Rule)' : ''}.
 
 ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
 ${siblingsSummary}
+${mcqOptionsSummary ? `\nOriginal options:\n${mcqOptionsSummary}\n` : ''}
 
 Topic: ${siblings[0]?.topic_tag || 'general'}
 ${isCustomNiche ? `Subject: ${subjectId}` : ''}
@@ -1500,9 +1549,8 @@ ${subjectRules}
 
 ${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
 
-Return a JSON array of objects, one per sub-part, in this exact format:
-[{"question_number": "${siblings[0]?.question_number}", "question_text": "new text here"}, ...]
-Return ONLY the JSON array.`;
+${mcqReturnFormat}
+${questionTypeRules}`;
 
     try {
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -1511,7 +1559,7 @@ Return ONLY the JSON array.`;
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [{ role: 'user', content: basePrompt }],
-          temperature: 0.5,
+          temperature: questionType === 'mcq' ? 0.3 : 0.5,
           response_format: { type: 'json_object' },
         }),
       });
@@ -1535,11 +1583,21 @@ Return ONLY the JSON array.`;
         for (let i = 0; i < siblings.length && i < parsed.length; i++) {
           const newText = parsed[i]?.question_text?.trim();
           if (newText && newText.length > 10) {
-            await supabase.from('exam_question_drafts').update({
+            const updatePayload: any = {
               original_question_text: siblings[i].question_text,
               question_text: newText,
               generation_status: 'ai_generated',
-            }).eq('id', siblings[i].id);
+            };
+            
+            // For MCQ regen, also update options and correct_answer if provided
+            if (questionType === 'mcq' && parsed[i]?.options && Array.isArray(parsed[i].options)) {
+              updatePayload.options = parsed[i].options;
+              if (parsed[i]?.correct_answer) {
+                updatePayload.correct_answer = parsed[i].correct_answer;
+              }
+            }
+
+            await supabase.from('exam_question_drafts').update(updatePayload).eq('id', siblings[i].id);
             console.log(`Regenerated Q${siblings[i].question_number} (grouped with Q${rootNum})`);
           }
         }
