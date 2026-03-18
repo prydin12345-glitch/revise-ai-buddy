@@ -1371,6 +1371,9 @@ When a question includes tabular or visual data, populate the "chart_data" field
     : `Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
 Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}`;
 
+  // ── REORDERED PROMPT: MCQ/question-type rules come LAST before JSON format ──
+  // Order: Subject lock → Regional → Hardening → Content → Archetype → Subject repeat →
+  //        Prohibitions → Scenario → LaTeX → PDF → Topics → MCQ rules → Structure → JSON format
   return `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
@@ -1386,8 +1389,7 @@ ${scenarioRequirement}
 ${latexInstruction}
 
 ${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
-${mcqWrittenSplitInstruction}
-${hierarchicalInstructions}${graphInstructions}
+${graphInstructions}
 REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
 ${pdfText.substring(0, 45000)}
 ${chartSchemas}
@@ -1398,7 +1400,10 @@ You MUST set topic_tag to EXACTLY one value from this list — do not invent new
 ${canonicalTopicList.join(', ')}
 ` : `Set topic_tag to a clear descriptive topic name using Title Case (e.g. "Quadratic Equations" not "quadratic_equations" or "quadratics").`}
 
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+${mcqWrittenSplitInstruction}
+${hierarchicalInstructions}
+
+Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb for written questions OR 'Which/What/Identify/Select' stem for MCQs)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string that EXACTLY matches one option for MCQ, or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
