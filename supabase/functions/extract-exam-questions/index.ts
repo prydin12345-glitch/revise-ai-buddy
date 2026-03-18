@@ -135,24 +135,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   
   if (formatData) {
     if (formatData.use_original_structure === false) {
-      const mcq = formatData.mcq_count || 0;
-      const sa = formatData.short_answer_count || 0;
-      const lf = formatData.long_form_count || 0;
-      const breakdownSum = mcq + sa + lf;
-      
-      if (mcq > 0 && sa > 0) {
-        // Profile with explicit MCQ + written split
+      const mcq = Math.max(formatData.mcq_count || 0, 0);
+      const sa = Math.max(formatData.short_answer_count || 0, 0);
+      const lf = Math.max(formatData.long_form_count || 0, 0);
+      const writtenTotal = sa + lf;
+      const breakdownSum = mcq + writtenTotal;
+
+      if (breakdownSum > 0) {
+        desiredQuestionCount = breakdownSum;
         desiredMcqCount = mcq;
-        desiredWrittenCount = sa + lf;
-        desiredQuestionCount = mcq + sa + lf;
-        console.log(`Profile split: ${mcq} MCQ + ${sa} written + ${lf} long = ${desiredQuestionCount} total`);
-      } else if (breakdownSum > 0) {
-        if (mcq === 0 && lf === 0 && sa > 0) {
-          desiredQuestionCount = sa;
-          console.log('Profile question count from exam_format:', desiredQuestionCount);
-        } else {
-          desiredQuestionCount = breakdownSum;
-        }
+        desiredWrittenCount = writtenTotal;
+        console.log(`Profile split enforced: ${mcq} MCQ + ${writtenTotal} written = ${desiredQuestionCount} total`);
       }
     }
   }
@@ -1096,9 +1089,16 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
 - COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
     : '';
 
-  // MCQ/Written split instruction — when profile specifies exact breakdown
-  const mcqWrittenSplitInstruction = (desiredMcqCount && desiredMcqCount > 0 && desiredWrittenCount && desiredWrittenCount > 0)
-    ? `
+  // MCQ/Written split instruction — supports mixed, MCQ-only, and written-only profiles
+  const hasProfileTypeSplit =
+    desiredQuestionCount !== null &&
+    desiredMcqCount !== null &&
+    desiredWrittenCount !== null &&
+    desiredQuestionCount > 0;
+
+  const mcqWrittenSplitInstruction = hasProfileTypeSplit
+    ? desiredMcqCount > 0 && desiredWrittenCount > 0
+      ? `
 QUESTION TYPE SPLIT (MANDATORY — FROM EXAM PROFILE):
 You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenCount} written questions.
 
@@ -1116,7 +1116,24 @@ WRITTEN QUESTIONS (${desiredWrittenCount} total):
 - Mark allocation should vary: mix of 2-mark, 4-mark, and 6+ mark questions
 
 TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
-DO NOT deviate from this split. DO NOT make all questions the same type.
+DO NOT deviate from this split.
+`
+      : desiredMcqCount > 0
+        ? `
+QUESTION TYPE RULE (MANDATORY — MCQ-ONLY PROFILE):
+You MUST generate exactly ${desiredMcqCount} parent questions and EVERY question MUST be question_type "mcq".
+- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ is worth 1 mark
+- Number questions Q1 through Q${desiredMcqCount}
+- Do NOT generate any written, short-answer, or extended questions
+`
+        : `
+QUESTION TYPE RULE (MANDATORY — WRITTEN-ONLY PROFILE):
+You MUST generate exactly ${desiredWrittenCount} parent questions and ZERO MCQ questions.
+- question_type should be "short_answer" or "extended" depending on marks
+- Use varied mark allocation (2, 4, and 6+ where appropriate)
+- Number questions Q1 through Q${desiredWrittenCount}
+- Do NOT generate any "mcq" questions
 `
     : '';
 
