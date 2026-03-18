@@ -11,7 +11,7 @@ import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { Card, CardContent } from "@/components/ui/card";
-import { MySubjectsPanel } from "@/components/stats/MySubjectsPanel";
+
 import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
 import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect } from "react";
