@@ -97,6 +97,9 @@ export const MySubjectsPanel = () => {
         question_structure: structureSettings?.questionStructure ?? "standalone",
         parent_question_count: structureSettings?.parentQuestionCount ?? 4,
         max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
+        mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
+        include_graphs: structureSettings?.includeGraphs ?? false,
+        include_tables: structureSettings?.includeTables ?? false,
       });
     } else {
       await createProfile(activeSubject, profileName, topics, questionCount, educationalTier, timeLimitMinutes, advanced, writtenQuestionCount, structureSettings);

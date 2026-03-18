@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { X, Check, Plus, ChevronsUpDown, Clock } from "lucide-react";
 import {
   Command,
@@ -27,6 +28,9 @@ export interface QuestionStructureSettings {
   questionStructure: string;
   parentQuestionCount: number;
   maxPartsPerQuestion: number;
+  mcqOptionsCount?: number;
+  includeGraphs?: boolean;
+  includeTables?: boolean;
 }
 
 interface ExamProfileModalProps {
@@ -63,6 +67,9 @@ interface ExamProfileModalProps {
     question_structure?: string | null;
     parent_question_count?: number | null;
     max_parts_per_question?: number | null;
+    mcq_options_count?: number | null;
+    include_graphs?: boolean | null;
+    include_tables?: boolean | null;
   };
 }
 
@@ -93,8 +100,12 @@ export const ExamProfileModal = ({
   const [questionStructure, setQuestionStructure] = useState("standalone");
   const [parentQuestionCount, setParentQuestionCount] = useState(4);
   const [maxPartsPerQuestion, setMaxPartsPerQuestion] = useState(3);
+  const [mcqOptionsCount, setMcqOptionsCount] = useState(4);
+  const [includeGraphs, setIncludeGraphs] = useState(false);
+  const [includeTables, setIncludeTables] = useState(false);
 
   const totalQuestionCount = writtenCount + mcqCount;
+  const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
 
   useEffect(() => {
     if (open) {
@@ -125,6 +136,9 @@ export const ExamProfileModal = ({
       setQuestionStructure(initialData?.question_structure || "standalone");
       setParentQuestionCount(initialData?.parent_question_count ?? 4);
       setMaxPartsPerQuestion(initialData?.max_parts_per_question ?? 3);
+      setMcqOptionsCount(initialData?.mcq_options_count ?? 4);
+      setIncludeGraphs(initialData?.include_graphs ?? false);
+      setIncludeTables(initialData?.include_tables ?? false);
     }
   }, [open, initialData]);
 
@@ -162,6 +176,7 @@ export const ExamProfileModal = ({
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const finalTier = educationalTier === "other" ? customTier : educationalTier;
     const advancedWithMcq = { ...advanced, mcqCount };
+    const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
       selectedTopics,
@@ -170,7 +185,14 @@ export const ExamProfileModal = ({
       timeVal,
       advancedWithMcq,
       writtenCount,
-      { questionStructure, parentQuestionCount, maxPartsPerQuestion }
+      {
+        questionStructure: resolvedQuestionStructure,
+        parentQuestionCount,
+        maxPartsPerQuestion,
+        mcqOptionsCount,
+        includeGraphs,
+        includeTables,
+      }
     );
     onOpenChange(false);
   };
@@ -197,6 +219,11 @@ export const ExamProfileModal = ({
       detail: "Combination of both. Mirrors many real exam papers.",
       icon: "🔀",
     },
+  ];
+
+  const MCQ_STRUCTURE_OPTIONS = [
+    { id: 3, label: "3 options", example: "A, B, C", detail: "Compact MCQs with three choices." },
+    { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
   return (
@@ -486,125 +513,107 @@ export const ExamProfileModal = ({
           {/* Question Structure */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Question Structure
+              {isMcqOnlyProfile ? "MCQ Structure" : "Question Structure"}
             </Label>
             <p className="text-[11px] text-muted-foreground">
-              How should written questions be organised?
+              {isMcqOnlyProfile
+                ? "For MCQ-only profiles, choose the answer-option pattern and visual content preferences."
+                : "How should written questions be organised?"}
             </p>
 
-            <div className="flex flex-col gap-2">
-              {STRUCTURE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setQuestionStructure(option.id)}
-                  className={`rounded-lg border p-3 text-left transition-all ${
-                    questionStructure === option.id
-                      ? "border-primary bg-primary/10"
-                      : "border-border/50 bg-card/60 hover:bg-card"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg">{option.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                        {option.label}
-                        <span className="text-[10px] text-muted-foreground font-normal rounded bg-muted px-1.5 py-0.5">
-                          {option.example}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        {option.detail}
-                      </div>
-                    </div>
-                    {questionStructure === option.id && (
-                      <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Sub-question config */}
-            {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
-              <div className="rounded-lg border border-border/40 bg-muted/30 p-3 mt-2 space-y-3">
-                <p className="text-xs text-muted-foreground">Sub-question configuration</p>
-
-                {/* Parent questions */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Parent questions</span>
-                    <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
-                      {parentQuestionCount}
-                    </span>
-                  </div>
-                  <Slider
-                    min={2} max={8} step={1}
-                    value={[parentQuestionCount]}
-                    onValueChange={(v) => setParentQuestionCount(v[0])}
-                    style={{
-                      "--slider-track": "hsl(var(--muted))",
-                      "--slider-range": subjectColor,
-                    } as React.CSSProperties}
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>2</span><span>8 max</span>
-                  </div>
-                </div>
-
-                {/* Parts per question */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Parts per question (max)</span>
-                    <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
-                      {maxPartsPerQuestion}
-                    </span>
-                  </div>
-                  <Slider
-                    min={2} max={5} step={1}
-                    value={[maxPartsPerQuestion]}
-                    onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
-                    style={{
-                      "--slider-track": "hsl(var(--muted))",
-                      "--slider-range": subjectColor,
-                    } as React.CSSProperties}
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>2 parts</span><span>5 parts max</span>
-                  </div>
-                </div>
-
-                {/* Preview */}
-                <div className="rounded-md bg-card/60 border border-border/30 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
-                  <p className="text-muted-foreground/60 mb-1">Preview:</p>
-                  {Array.from({ length: Math.min(parentQuestionCount, 3) }).map((_, i) => (
-                    <div key={i}>
-                      <span className="text-foreground/70">Question {i + 1}: </span>
-                      {Array.from({ length: maxPartsPerQuestion }).map((_, j) => (
-                        <span key={j}>({String.fromCharCode(97 + j)}) </span>
-                      ))}
-                    </div>
+            {isMcqOnlyProfile ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {MCQ_STRUCTURE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setMcqOptionsCount(option.id)}
+                      className={`rounded-lg border p-3 text-left transition-all ${
+                        mcqOptionsCount === option.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border/50 bg-card/60 hover:bg-card"
+                      }`}
+                    >
+                      <div className="text-xs font-semibold text-foreground">{option.label}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
+                      <div className="text-[10px] text-muted-foreground/80 mt-1">{option.detail}</div>
+                    </button>
                   ))}
-                  {parentQuestionCount > 3 && (
-                    <div className="text-muted-foreground/40">
-                      ...and {parentQuestionCount - 3} more questions
-                    </div>
-                  )}
                 </div>
 
-                {/* Total parts */}
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Estimated total parts:</span>
-                  <span className="text-foreground/70">
-                    ~{parentQuestionCount * maxPartsPerQuestion} question parts
-                    {parentQuestionCount * maxPartsPerQuestion > 24 && (
-                      <span className="text-orange-400 ml-1">⚠ High — may reduce quality</span>
-                    )}
-                  </span>
+                <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">Include graph-based questions</p>
+                      <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
+                    </div>
+                    <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">Include table/data questions</p>
+                      <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
+                    </div>
+                    <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
+                  </div>
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  {STRUCTURE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setQuestionStructure(option.id)}
+                      className={`rounded-lg border p-3 text-left transition-all ${
+                        questionStructure === option.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border/50 bg-card/60 hover:bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">{option.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                            {option.label}
+                            <span className="text-[10px] text-muted-foreground font-normal rounded bg-muted px-1.5 py-0.5">
+                              {option.example}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">{option.detail}</div>
+                        </div>
+                        {questionStructure === option.id && (
+                          <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
+                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
+                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 mt-2 space-y-3">
+                    <p className="text-xs text-muted-foreground">Sub-question configuration</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Parent questions</span>
+                        <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
+                      </div>
+                      <Slider min={2} max={8} step={1} value={[parentQuestionCount]} onValueChange={(v) => setParentQuestionCount(v[0])} style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Parts per question (max)</span>
+                        <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
+                      </div>
+                      <Slider min={2} max={5} step={1} value={[maxPartsPerQuestion]} onValueChange={(v) => setMaxPartsPerQuestion(v[0])} style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

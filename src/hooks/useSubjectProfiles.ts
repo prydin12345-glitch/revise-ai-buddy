@@ -28,6 +28,9 @@ interface ExamProfile {
   question_structure: string | null;
   parent_question_count: number | null;
   max_parts_per_question: number | null;
+  mcq_options_count: number | null;
+  include_graphs: boolean | null;
+  include_tables: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +152,9 @@ export const useSubjectProfiles = () => {
       questionStructure?: string;
       parentQuestionCount?: number;
       maxPartsPerQuestion?: number;
+      mcqOptionsCount?: number;
+      includeGraphs?: boolean;
+      includeTables?: boolean;
     }
   ) => {
     try {
@@ -177,6 +183,9 @@ export const useSubjectProfiles = () => {
           question_structure: structureSettings?.questionStructure ?? "standalone",
           parent_question_count: structureSettings?.parentQuestionCount ?? 4,
           max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
+          mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
+          include_graphs: structureSettings?.includeGraphs ?? false,
+          include_tables: structureSettings?.includeTables ?? false,
         } as any)
         .select()
         .single();
@@ -196,7 +205,8 @@ export const useSubjectProfiles = () => {
       "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes" |
       "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
       "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy" |
-      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question"
+      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question" |
+      "mcq_options_count" | "include_graphs" | "include_tables"
     >>
   ) => {
     try {

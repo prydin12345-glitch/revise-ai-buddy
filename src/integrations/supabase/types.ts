@@ -225,6 +225,7 @@ export type Database = {
           long_form_marks_each: number | null
           mcq_count: number | null
           mcq_marks_each: number | null
+          profile_metadata: Json
           short_answer_count: number | null
           short_answer_marks_each: number | null
           use_original_structure: boolean | null
@@ -237,6 +238,7 @@ export type Database = {
           long_form_marks_each?: number | null
           mcq_count?: number | null
           mcq_marks_each?: number | null
+          profile_metadata?: Json
           short_answer_count?: number | null
           short_answer_marks_each?: number | null
           use_original_structure?: boolean | null
@@ -249,6 +251,7 @@ export type Database = {
           long_form_marks_each?: number | null
           mcq_count?: number | null
           mcq_marks_each?: number | null
+          profile_metadata?: Json
           short_answer_count?: number | null
           short_answer_marks_each?: number | null
           use_original_structure?: boolean | null
@@ -1887,9 +1890,12 @@ export type Database = {
           extended_marks: number | null
           id: string
           include_extended: boolean | null
+          include_graphs: boolean
+          include_tables: boolean
           mark_distribution: Json | null
           max_parts_per_question: number | null
           mcq_count: number | null
+          mcq_options_count: number
           mcq_position: string | null
           parent_question_count: number | null
           profile_name: string
@@ -1912,9 +1918,12 @@ export type Database = {
           extended_marks?: number | null
           id?: string
           include_extended?: boolean | null
+          include_graphs?: boolean
+          include_tables?: boolean
           mark_distribution?: Json | null
           max_parts_per_question?: number | null
           mcq_count?: number | null
+          mcq_options_count?: number
           mcq_position?: string | null
           parent_question_count?: number | null
           profile_name: string
@@ -1937,9 +1946,12 @@ export type Database = {
           extended_marks?: number | null
           id?: string
           include_extended?: boolean | null
+          include_graphs?: boolean
+          include_tables?: boolean
           mark_distribution?: Json | null
           max_parts_per_question?: number | null
           mcq_count?: number | null
+          mcq_options_count?: number
           mcq_position?: string | null
           parent_question_count?: number | null
           profile_name?: string

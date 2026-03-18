@@ -125,6 +125,9 @@ export default function CreateExam() {
   const [profileExtendedMarks, setProfileExtendedMarks] = useState<number | null>(null);
   const [profileStructurePreset, setProfileStructurePreset] = useState<string | null>(null);
   const [profileMcqPosition, setProfileMcqPosition] = useState<string | null>(null);
+  const [profileMcqOptionsCount, setProfileMcqOptionsCount] = useState<number | null>(null);
+  const [profileIncludeGraphs, setProfileIncludeGraphs] = useState<boolean | null>(null);
+  const [profileIncludeTables, setProfileIncludeTables] = useState<boolean | null>(null);
   
   // Basic info
   const [examName, setExamName] = useState("");
@@ -235,6 +238,11 @@ export default function CreateExam() {
       ? customTier.trim()
       : educationalTier || preferences?.preferred_educational_level || "";
 
+  const hasLockedProfileStructure = !!selectedProfile && selectedProfile !== 'all_topics';
+  const resolvedProfileMcqCount = profileMcqCount ?? 0;
+  const resolvedProfileWrittenCount = profileWrittenCount ?? 0;
+  const resolvedProfileMcqOptionsCount = profileMcqOptionsCount ?? 4;
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
@@ -292,10 +300,15 @@ export default function CreateExam() {
       setProfileExtendedMarks(profile.extended_marks ?? null);
       setProfileStructurePreset(profile.structure_preset ?? null);
       setProfileMcqPosition(profile.mcq_position ?? null);
-      
+      setProfileMcqOptionsCount(profile.mcq_options_count ?? 4);
+      setProfileIncludeGraphs(profile.include_graphs ?? false);
+      setProfileIncludeTables(profile.include_tables ?? false);
+
       // Profile always overrides format structure
       setUseOriginal(false);
       setIncludeMCQ((profile.mcq_count ?? 0) > 0);
+      setIncludeGraphs(profile.include_graphs ?? true);
+      setIncludeDiagrams(profile.include_tables ?? true);
     }
     setShowProfilePrompt(false);
   };
@@ -327,6 +340,9 @@ export default function CreateExam() {
     setProfileExtendedMarks(null);
     setProfileStructurePreset(null);
     setProfileMcqPosition(null);
+    setProfileMcqOptionsCount(null);
+    setProfileIncludeGraphs(null);
+    setProfileIncludeTables(null);
   };
 
   const handleGenerate = async () => {
@@ -434,6 +450,7 @@ export default function CreateExam() {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,
+          difficulty: 'profile_locked',
           educationalTier: effectiveEducationalTier,
           mcq: { count: profileMcqCount || 0, marksEach: 1 },
           shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
@@ -450,6 +467,9 @@ export default function CreateExam() {
             extendedMarks: profileExtendedMarks,
             structurePreset: profileStructurePreset,
             mcqPosition: profileMcqPosition,
+            mcqOptionsCount: profileMcqOptionsCount,
+            includeGraphs: profileIncludeGraphs,
+            includeTables: profileIncludeTables,
           },
         };
       } else {
@@ -825,7 +845,7 @@ export default function CreateExam() {
               {/* Left: Format, Difficulty, Timer */}
               <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
                 {/* Format Selection */}
-                <div className={`mb-6 ${selectedProfile ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className={`mb-6 ${hasLockedProfileStructure ? 'opacity-70' : ''}`}>
                   <div className="flex items-center gap-2 mb-4">
                     <FileText className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Format Selection</h2>
@@ -864,6 +884,7 @@ export default function CreateExam() {
                     <Switch
                       checked={useOriginal}
                       onCheckedChange={setUseOriginal}
+                      disabled={hasLockedProfileStructure}
                     />
                   </div>
                   
@@ -1121,7 +1142,21 @@ export default function CreateExam() {
                   <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Exam Structure</p>
                     <p className="font-medium">
-                      {useOriginal ? (
+                      {hasLockedProfileStructure ? (
+                        <span className="text-sm">
+                          {resolvedProfileMcqCount > 0 && resolvedProfileWrittenCount === 0
+                            ? `MCQ-only: ${resolvedProfileMcqCount} questions`
+                            : resolvedProfileMcqCount === 0
+                              ? `Written-only: ${resolvedProfileWrittenCount} questions`
+                              : `${resolvedProfileMcqCount} MCQ + ${resolvedProfileWrittenCount} written`}
+                          {resolvedProfileMcqCount > 0 && (
+                            <><br/>MCQ options: {resolvedProfileMcqOptionsCount === 3 ? 'A–C (3)' : 'A–D (4)'}</>
+                          )}
+                          {(profileIncludeGraphs || profileIncludeTables) && (
+                            <><br/>Extras: {[profileIncludeGraphs ? 'Graphs' : null, profileIncludeTables ? 'Tables' : null].filter(Boolean).join(' + ')}</>
+                          )}
+                        </span>
+                      ) : useOriginal ? (
                         "As per original"
                       ) : (
                         <span className="text-sm">
