@@ -450,6 +450,7 @@ export default function CreateExam() {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,
+          difficulty: 'profile_locked',
           educationalTier: effectiveEducationalTier,
           mcq: { count: profileMcqCount || 0, marksEach: 1 },
           shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
@@ -466,6 +467,9 @@ export default function CreateExam() {
             extendedMarks: profileExtendedMarks,
             structurePreset: profileStructurePreset,
             mcqPosition: profileMcqPosition,
+            mcqOptionsCount: profileMcqOptionsCount,
+            includeGraphs: profileIncludeGraphs,
+            includeTables: profileIncludeTables,
           },
         };
       } else {
