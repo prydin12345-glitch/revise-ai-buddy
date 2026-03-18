@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
-import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
-import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
@@ -178,40 +176,39 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   console.log('Desired parent question count:', desiredQuestionCount, 'MCQ:', desiredMcqCount, 'Written:', desiredWrittenCount);
 
-  // Resolve stealth archetype for difficulty calibration
-  const archetype = resolveStealthArchetype(qualificationLevel, exam.subject_id || '', curriculumRegion);
-  console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
+  // Build prompt using simplified buildPrompt
+  const topicsList = specTopics.map((s: any) => s.topic_name || s);
+  const { systemPrompt, userPrompt: extractionPrompt_raw } = buildPrompt({
+    subject: exam.subject_id ?? '',
+    topics: topicsList,
+    desiredMcqCount: desiredMcqCount ?? 0,
+    desiredWrittenCount: desiredWrittenCount ?? 0,
+    questionStructure: formatData?.question_structure ?? 'standalone',
+    parentQuestionCount: formatData?.parent_question_count ?? 4,
+    maxPartsPerQuestion: formatData?.max_parts_per_question ?? 3,
+    educationalLevel: qualificationLevel,
+    curriculumRegion: curriculumRegion ?? '',
+    examBoard: examBoard,
+    markSchemeStyle: getBoardMarkSchemeStyle(examBoard),
+    difficultyProgression: formatData?.difficulty_progression ?? 'ascending',
+    calculatorPolicy: formatData?.calculator_policy ?? 'allowed',
+    isCustomNiche: isCustomNicheForValidation,
+    pdfContent: pdfText,
+    topicTagVocabulary: canonicalTopicList,
+    extendedResponseMarks: formatData?.extended_marks ?? 0,
+    includeExtended: formatData?.include_extended ?? false,
+  });
 
-  // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  let extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount, profileMeta);
+  let extractionPrompt = extractionPrompt_raw;
 
   // Inject literary copyright rules if applicable
-  const specTopicNames = specTopics.map((t: any) => t.topic_name || t);
+  const specTopicNames = topicsList;
   const detectedLitText = detectLiteraryText(exam.subject_id || '', specTopicNames);
   if (detectedLitText) {
     extractionPrompt += '\n' + buildLiteraryTextInstructions(detectedLitText);
     console.log('Literary text detected:', detectedLitText, '— copyright rules injected');
   }
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
-
-  // Detect custom niche subject for system prompt and post-validation
-  const subjectLower = (exam.subject_id || '').toLowerCase();
-  const isCustomNicheForValidation = !(
-    subjectLower.includes('math') || subjectLower.includes('physics') ||
-    subjectLower.includes('chemistry') || subjectLower.includes('biology') ||
-    subjectLower.includes('english') || subjectLower.includes('history') ||
-    subjectLower.includes('geography') || subjectLower.includes('econ') ||
-    subjectLower.includes('computer') || subjectLower.includes('psychology') ||
-    subjectLower.includes('business') || subjectLower.includes('law') ||
-    subjectLower.includes('politics') || subjectLower.includes('statistic')
-  );
-
-  // System prompt — subject name FIRST for custom subjects
-  const systemPromptOpening = `YOUR SUBJECT THIS SESSION: "${exam.subject_id}"\nALL questions must be about "${exam.subject_id}" ONLY.\n\n`;
-  const baseSystemPrompt = hasResourcePack
-    ? 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions based on the source content. Use the sources for context/themes but generate fresh question wording. DO NOT copy questions from the PDF. Return valid JSON.'
-    : 'You are an expert exam generator producing professional-standard assessment papers. Create COMPLETELY NEW and ORIGINAL questions inspired by the content. DO NOT copy questions verbatim. Return valid JSON.';
-  const systemPrompt = systemPromptOpening + baseSystemPrompt;
 
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
@@ -508,903 +505,220 @@ async function extractPdfText(fileUrl: string | null, supabase: any): Promise<st
   }
 }
 
-// ── Stealth Archetype System ──────────────────────────────────────────────────
-interface StealthArchetype {
-  name: string;
-  promptBlock: string;
-  minSubParts: number;
-  requireScenario: boolean;
+// ── Helper: Board Mark Scheme Style ──────────────────────────────────────────
+function getBoardMarkSchemeStyle(board: string): string {
+  const b = (board || '').toLowerCase();
+  if (b.includes('aqa')) return 'AQA-style marking with AO1/AO2/AO3 breakdown';
+  if (b.includes('edexcel') || b.includes('pearson')) return 'Edexcel-style with M1/A1/B1 marks';
+  if (b.includes('ocr')) return 'OCR-style with command verb alignment';
+  if (b.includes('ib')) return 'IB-style criterion-referenced marking (A-D)';
+  if (b.includes('college_board') || b.includes('ap')) return 'AP-style rubric scoring (1-6 or 1-9)';
+  if (b.includes('cambridge') || b.includes('cie')) return 'Cambridge-style with M/A/B marks';
+  return 'Standard marking with clear marking points per mark';
 }
 
-function resolveStealthArchetype(qualificationLevel: string, subjectId: string, curriculumRegion?: string | null): StealthArchetype {
-  const level = (qualificationLevel || '').toLowerCase();
-  const subject = (subjectId || '').toLowerCase();
-  const region = (curriculumRegion || '').toUpperCase();
-  const isMath = subject.includes('math') || subject.includes('maths') || subject.includes('statistics') || subject.includes('stats');
-  const isPhysics = subject.includes('physics');
-  const isEcon = subject.includes('econ');
-  const isEnglish = subject.includes('english');
-  const isChemistry = subject.includes('chem');
-  const isBiology = subject.includes('bio');
-  const isHistory = subject.includes('history') || subject.includes('hist');
-  const isGeography = subject.includes('geography') || subject.includes('geog');
+// ── Simplified Prompt Builder ────────────────────────────────────────────────
+function buildPrompt(params: {
+  subject: string;
+  topics: string[];
+  desiredMcqCount: number;
+  desiredWrittenCount: number;
+  questionStructure: 'standalone' | 'sub_questions' | 'mixed';
+  parentQuestionCount?: number;
+  maxPartsPerQuestion?: number;
+  educationalLevel: string;
+  curriculumRegion: string;
+  examBoard: string;
+  markSchemeStyle: string;
+  difficultyProgression: 'ascending' | 'descending' | 'mixed';
+  calculatorPolicy: 'allowed' | 'not_allowed' | 'mixed';
+  isCustomNiche: boolean;
+  pdfContent?: string;
+  topicTagVocabulary?: string[];
+  extendedResponseMarks?: number;
+  includeExtended?: boolean;
+}): { systemPrompt: string; userPrompt: string } {
+  const {
+    subject,
+    topics,
+    desiredMcqCount,
+    desiredWrittenCount,
+    questionStructure,
+    parentQuestionCount = 4,
+    maxPartsPerQuestion = 3,
+    educationalLevel,
+    curriculumRegion,
+    examBoard,
+    markSchemeStyle,
+    difficultyProgression,
+    calculatorPolicy,
+    isCustomNiche,
+    pdfContent,
+    topicTagVocabulary,
+    extendedResponseMarks = 0,
+    includeExtended = false,
+  } = params;
 
-  // Region-based flags
-  const isUKRegion = region === 'GB' || region === 'UK';
-  const isUSRegion = region === 'US';
-  const isAURegion = region === 'AU';
-  const isCARegion = region === 'CA';
-  const isAERegion = region === 'AE';
-  const isINRegion = region === 'IN';
-  const isSGRegion = region === 'SG';
-  const isHKRegion = region === 'HK';
-  const isIERegion = region === 'IE';
-  const isNZRegion = region === 'NZ';
-  const isZARegion = region === 'ZA';
-  const isIBRegion = region === 'IB';
+  const totalQuestions = desiredMcqCount + desiredWrittenCount;
+  const isMcqOnly = desiredMcqCount > 0 && desiredWrittenCount === 0;
+  const isWrittenOnly = desiredWrittenCount > 0 && desiredMcqCount === 0;
+  const isMixed = desiredMcqCount > 0 && desiredWrittenCount > 0;
 
-  const isLevel2 = level.includes('college') || level.includes('16_18') || level.includes('a_level') || level.includes('a-level') || level.includes('level 2');
-  const isLevel1 = level.includes('secondary') || level.includes('14_16') || level.includes('gcse') || level.includes('level 1');
-  // Region-aware effective levels
-  const effectiveLevel2 = isLevel2 || (isUKRegion && (level.includes('college') || level.includes('sixth') || level.includes('advanced')));
-  const effectiveLevel1 = isLevel1 || (isUKRegion && (level.includes('secondary') || level.includes('high')));
+  // ── SYSTEM PROMPT ──────────────────────────────────────────────────────────
+  const systemPrompt = `You are an expert exam question writer.
+Your only job is to write original, high quality exam questions.
+You always return valid JSON and nothing else.
+Every question you write must be directly and specifically about: "${subject}"`;
 
-  // ── US Region ──
-  if (isUSRegion && isMath) {
-    return {
-      name: 'US_AP_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: AP Mathematics (US College Board Standard)
-1. Questions must follow AP Calculus/Statistics free-response format.
-2. Multi-part: (a) set-up/compute, (b) interpret/justify, (c) extend/evaluate.
-3. Use formal AP command language: "justify your answer", "interpret in context", "is there sufficient evidence".
-4. LaTeX for all math. Mark ranges: 3-9 points per question.
-5. Include real-world data sets and scenarios (surveys, experiments, observational studies).
-`
-    };
+  // ── BLOCK 1: CONTEXT ───────────────────────────────────────────────────────
+  const contextBlock = `
+## EXAM CONTEXT
+Subject: ${subject}
+${topics.length > 0 ? `Topics to cover: ${topics.join(', ')}` : ''}
+${educationalLevel ? `Level: ${educationalLevel}` : ''}
+${curriculumRegion ? `Region: ${curriculumRegion}` : ''}
+${examBoard ? `Exam board style: ${examBoard}` : ''}
+${calculatorPolicy !== 'allowed' ? `Calculator: ${calculatorPolicy === 'not_allowed' ? 'NOT permitted' : 'Mixed — some questions calculator, some not'}` : ''}`.trim();
+
+  // ── BLOCK 2: SUBJECT RULES ─────────────────────────────────────────────────
+  const subjectRulesBlock = isCustomNiche ? `
+## SUBJECT RULES
+Every question must be about "${subject}" only.
+Use only terminology, procedures, and standards from this specific domain.
+Do not generate questions about mathematics, statistics, probability, or any unrelated academic subject.
+A question is only acceptable if it could appear in a real assessment for "${subject}".`
+  : `
+## SUBJECT RULES
+Every question must be about ${subject}.
+Use appropriate academic terminology for ${educationalLevel} level.
+Questions must match the style and difficulty of ${examBoard || curriculumRegion} examinations.`;
+
+  // ── BLOCK 3: QUESTION COUNT AND TYPES ─────────────────────────────────────
+  let questionCountBlock = `\n## WHAT TO GENERATE\n`;
+
+  if (isMcqOnly) {
+    questionCountBlock += `Generate exactly ${desiredMcqCount} multiple choice questions.
+Each question must have exactly 4 answer options.
+All ${desiredMcqCount} questions are standalone — number them 1 through ${desiredMcqCount}.
+No sub-parts. No (a)(b)(c). Just Q1, Q2, Q3 etc.`;
+  } else if (isWrittenOnly) {
+    if (questionStructure === 'standalone') {
+      questionCountBlock += `Generate exactly ${desiredWrittenCount} written questions.
+Number them 1 through ${desiredWrittenCount}.
+Each question is standalone with its own mark allocation.`;
+    } else if (questionStructure === 'sub_questions') {
+      questionCountBlock += `Generate exactly ${parentQuestionCount} parent questions, each with up to ${maxPartsPerQuestion} sub-parts labelled (a), (b), (c) etc.
+Total written parts should be approximately ${desiredWrittenCount}.`;
+    } else {
+      questionCountBlock += `Generate ${desiredWrittenCount} written questions using a mix of standalone questions and questions with sub-parts.`;
+    }
+    if (includeExtended && extendedResponseMarks > 0) {
+      questionCountBlock += `\nThe final question must be an extended response question worth ${extendedResponseMarks} marks.`;
+    }
+  } else if (isMixed) {
+    questionCountBlock += `Generate two sections:
+Section A: ${desiredMcqCount} multiple choice questions (standalone, numbered 1 through ${desiredMcqCount}, 1 mark each)
+Section B: ${desiredWrittenCount} written questions (${questionStructure === 'sub_questions' ? `${parentQuestionCount} parent questions with sub-parts` : 'standalone questions'})
+${includeExtended && extendedResponseMarks > 0 ? `The final written question must be an extended response worth ${extendedResponseMarks} marks.` : ''}`;
   }
 
-  // ── Australia ──
-  if (isAURegion && isMath) {
-    return {
-      name: 'AU_ATAR_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: ATAR Mathematics (Australian Standard)
-1. Questions follow WACE/HSC/VCE extended-response style.
-2. Multi-part with escalating difficulty: (a) routine calculation, (b) application, (c) analysis.
-3. Command verbs: "show that", "hence find", "determine", "explain why".
-4. LaTeX for all notation. Real-world contexts required.
-`
-    };
+  if (difficultyProgression === 'ascending') {
+    questionCountBlock += `\nOrder questions from easiest to hardest.`;
+  } else if (difficultyProgression === 'descending') {
+    questionCountBlock += `\nOrder questions from hardest to easiest.`;
   }
 
-  // ── India ──
-  if (isINRegion && isMath) {
-    return {
-      name: 'IN_CBSE_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: CBSE/ISC Mathematics (Indian Board Standard)
-1. Questions follow CBSE Board Examination pattern with Section A (1 mark), B (2 marks), C (3 marks), D (5 marks).
-2. Include "prove that", "show that", "find the value of" command verbs.
-3. Emphasis on step-by-step working and formal mathematical proof.
-4. LaTeX for all notation. Combine theory and application.
-`
-    };
-  }
+  // ── BLOCK 4: MCQ RULES (only injected when there are MCQ questions) ────────
+  const mcqRulesBlock = (isMcqOnly || isMixed) ? `
+## MCQ RULES
+Question stems must start with: What, Which, Identify, Select, According to, How, When, Where
+NEVER start a MCQ stem with: State, Describe, Explain, Calculate, Discuss, Outline, Evaluate
+Each question must be completely self-contained — no references to tables, data above, or provided information
+All 4 options must be plausible and similar in length
+The correct answer must directly and logically answer the question stem
+Never append "Give your answer to X significant figures" or "Show your working" to MCQ questions` : '';
 
-  // ── Singapore ──
-  if (isSGRegion && isMath) {
-    return {
-      name: 'SG_GCE_MATHS',
-      minSubParts: 3,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: GCE A-Level Mathematics (Singapore Standard)
-1. Follow Cambridge A-Level format used in Singapore. Multi-part structured questions.
-2. Escalation: (i) straightforward, (ii) application, (iii) contextual interpretation.
-3. Command verbs: "show that", "hence or otherwise", "deduce", "state".
-4. LaTeX for all math. Mark schemes: 8-12 marks per question.
-`
-    };
-  }
+  // ── BLOCK 5: WRITTEN QUESTION RULES (only when there are written questions) ─
+  const writtenRulesBlock = (isWrittenOnly || isMixed) ? `
+## WRITTEN QUESTION RULES
+Use appropriate command verbs for ${examBoard || curriculumRegion} style:
+${examBoard?.toLowerCase().includes('aqa')
+    ? '- 1-2 marks: State, Give, Identify\n- 3-4 marks: Describe, Explain\n- 5+ marks: Evaluate, Discuss, Analyse, Justify'
+    : examBoard?.toLowerCase().includes('ib')
+    ? '- Short: State, Define, Outline\n- Medium: Describe, Explain, Distinguish\n- Extended: Evaluate, Discuss, To what extent'
+    : examBoard?.toLowerCase().includes('college_board') || examBoard?.toLowerCase().includes('ap')
+    ? '- Short: Identify, Define\n- Medium: Explain, Describe\n- FRQ: Analyse, Evaluate, Justify'
+    : '- Short (1-2 marks): State, Give, Identify, Name\n- Medium (3-4 marks): Describe, Explain, Outline\n- Extended (5+ marks): Evaluate, Discuss, Analyse, Justify, Compare'
+}
+${markSchemeStyle ? `Mark scheme style: ${markSchemeStyle}` : ''}
+Each mark allocation must be shown in brackets e.g. (2 marks)
+Sub-parts within a question must build on each other in difficulty` : '';
 
-  // ── Hong Kong ──
-  if (isHKRegion && isMath) {
-    return {
-      name: 'HK_DSE_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: DSE Mathematics (Hong Kong Standard)
-1. Follow HKDSE format: conventional questions and multiple-choice.
-2. Multi-part: (a) routine, (b) problem-solving, (c) non-routine application.
-3. Real-world contexts. Use "find", "show that", "explain".
-4. LaTeX for all notation.
-`
-    };
-  }
+  // ── BLOCK 6: SOURCE MATERIAL (only when PDF is provided) ──────────────────
+  const sourceBlock = pdfContent ? `
+## SOURCE MATERIAL
+Use the following as context and inspiration. Do not copy questions verbatim — write entirely new questions inspired by this content:
+${pdfContent.slice(0, 40000)}` : '';
 
-  // ── Ireland ──
-  if (isIERegion && isMath) {
-    return {
-      name: 'IE_LC_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Leaving Certificate Mathematics (Irish Standard)
-1. Follow Leaving Cert Higher/Ordinary Level format.
-2. Multi-part with contexts: statistics, probability, calculus, algebra.
-3. Command verbs: "investigate", "verify", "show", "solve".
-4. LaTeX for all notation. Emphasis on mathematical reasoning.
-`
-    };
-  }
+  // ── BLOCK 7: TOPIC TAGS ───────────────────────────────────────────────────
+  const topicTagBlock = topicTagVocabulary && topicTagVocabulary.length > 0 ? `
+## TOPIC TAGS
+When setting topic_tag for each question, use only values from this list:
+${topicTagVocabulary.join(', ')}` : '';
 
-  // ── New Zealand ──
-  if (isNZRegion && isMath) {
-    return {
-      name: 'NZ_NCEA_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: NCEA Mathematics (New Zealand Standard)
-1. Follow NCEA Achievement Standard format: Achieved, Merit, Excellence tiers.
-2. Questions escalate from procedural (Achieved) to relational (Merit) to extended abstract (Excellence).
-3. Real-world modelling contexts required.
-4. LaTeX for all math notation.
-`
-    };
-  }
-
-  // ── South Africa ──
-  if (isZARegion && isMath) {
-    return {
-      name: 'ZA_NSC_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: NSC Mathematics (South African Standard)
-1. Follow NSC Paper 1 (Algebra/Calculus) and Paper 2 (Geometry/Trig/Stats) format.
-2. Multi-part structured questions with mark allocations.
-3. Command verbs: "determine", "prove", "show that", "calculate".
-4. LaTeX for all notation. Include data handling/statistics contexts.
-`
-    };
-  }
-
-  // ── IB Diploma ──
-  if (isIBRegion && isMath) {
-    return {
-      name: 'IB_DIPLOMA_MATHS',
-      minSubParts: 3,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: IB Diploma Mathematics (International Baccalaureate Standard)
-1. Follow IB Mathematics AA/AI Paper 1 & 2 format.
-2. Multi-part: (a) show/prove, (b) hence find, (c) interpret/evaluate.
-3. Emphasis on mathematical communication and notation.
-4. Use "hence or otherwise", "show that", "find", "verify".
-5. LaTeX for all notation. Mark ranges: 6-15 marks per question.
-6. Include GDC (graphing calculator) and non-GDC sections as appropriate.
-`
-    };
-  }
-
-  // ── UAE / Canada / generic international (non-math subjects fall through) ──
-  if ((isAERegion || isCARegion) && isMath) {
-    return {
-      name: 'INTL_STANDARD_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: International Standard Mathematics
-1. Multi-part questions with real-world contexts.
-2. Escalate from routine calculation to application to evaluation.
-3. Use formal command verbs: "calculate", "show that", "explain", "justify".
-4. LaTeX for all notation. Mark ranges: 6-12 marks per question.
-`
-    };
-  }
-
-  if ((effectiveLevel2 || isLevel2) && isMath) {
-    return {
-      name: 'UK_A_LEVEL_MATHS',
-      minSubParts: 3,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Advanced Level 2 Mathematics (Professional Exam Standard)
-You are writing questions that match the tone and rigour of a UK A-Level Mathematics paper.
-
-MANDATORY RULES:
-1. SCENARIO-FIRST: Every parent question MUST open with a named character and a real-world dataset.
-   Examples: "Barbara is investigating the relationship between GDP and population density.",
-   "A machine puts liquid into bottles. The volume, $V$ ml, follows $V \\sim N(503, 2.6^2)$."
-2. MULTI-PART ESCALATION (THREE-TIER STRUCTURE): Each parent question MUST have 3-5 sub-parts following this cognitive progression:
-   (a) Calculation — A straightforward application of a formula. e.g., "Calculate $P(X = 4)$.", "Find $P(X > 10)$."
-   (b) Constraint/Assumption — Ask for a condition, assumption, or model justification. e.g., "State two assumptions required for this model.", "Explain why a Poisson distribution is appropriate here.", "State the distribution of $\\bar{X}$."
-   (c) 'Show That' / Reverse Question — Higher-difficulty task forcing logarithms, algebraic rearrangement, or inverse reasoning. e.g., "Given that $P(X = 0) = 0.05$, show that $\\lambda \\approx 3.0$.", "Test, at the 5% significance level, whether..."
-   (d) Evaluation/Interpretation (2-3 marks) — e.g., "Comment on the validity of this model."
-3. MANDATORY FORMAL NOTATION:
-   - Use formal probability notation in EVERY question: $P(X = 4)$, $P(X < 2)$, $P(X \\leq 1)$, NOT "Find the likelihood of fewer than 2".
-   - State distributions explicitly: $X \\sim \\text{Po}(3.5)$, $Y \\sim B(20, 0.3)$, $W \\sim N(50, 4^2)$.
-   - Use the word "probability", NEVER "likelihood" or "chance".
-   - Do NOT name distributions in the question text (e.g., do NOT say "Poisson process") — let the student identify the model from context.
-4. CLINICAL LINGUISTIC STYLING:
-   - Use exam board command verbs ONLY: 'Calculate', 'Determine', 'Evaluate', 'Verify', 'State', 'Show that', 'Hence', 'Deduce', 'Justify', 'Give your answer to 3 significant figures'.
-   - NEVER use conversational language: no "Find the likelihood", no "What are the chances", no "How likely is it".
-   - At least ONE sub-part per question must require a text-based explanation in context (e.g., "Interpret this value in context.").
-5. MARK SCHEME ALIGNMENT:
-   - Every sub-part's correct_answer MUST include M1/A1/B1 marking breakdown.
-   - M1 = Method mark (correct approach/formula setup), A1 = Accuracy mark (correct numerical answer), B1 = Independent mark (standalone fact/definition).
-   - Format: Include marking breakdown in correct_answer like: "M1 for identifying $\\lambda = 3.5$, M1 for $P(X \\leq 1) = P(X=0) + P(X=1)$, A1 for 0.1359"
-   - Total marks per sub-part must equal the sum of M/A/B marks.
-6. STATISTICS BLUEPRINTS (use these structures when relevant topics appear):
-   - Hypothesis Testing: State $H_0$/$H_1$, calculate test statistic, compare with critical value, conclude in context.
-   - Normal Distribution: Given $X \\sim N(\\mu, \\sigma^2)$, find probabilities, use coding ($Y = \\frac{X - a}{b}$), inverse normal.
-   - Binomial/Poisson: Model real situations, approximate with Normal when $n$ is large.
-   - Regression/Correlation: Interpret $r$, use regression line for prediction, comment on extrapolation.
-   - Box Plots with Outliers: Provide summary statistics and ask students to identify outliers using $Q_1 - 1.5 \\times IQR$ rule.
-
-CHART DATA FOR STATISTICAL DIAGRAMS:
-When a question involves box plots, histograms, or cumulative frequency diagrams, include a "chart_data" field:
+  // ── BLOCK 8: OUTPUT FORMAT ────────────────────────────────────────────────
+  const outputBlock = `
+## OUTPUT FORMAT
+Return a single JSON object in exactly this structure:
 {
-  "chart_data": {
-    "type": "boxplot",
-    "data": { "min": 7.6, "q1": 19.5, "med": 23.5, "q3": 26.5, "max": 32.5 },
-    "outliers": [7.6],
-    "xLabel": "Temperature (°C)",
-    "domainX": [5, 35]
-  }
-}
-The frontend will render this as a crisp SVG chart. Do NOT describe the chart in text — provide the data.
-
-7. MARK WEIGHTING: Total marks per parent question should be 8-15. Individual sub-parts: 1-5 marks each.
-8. NEVER generate standalone single-mark questions. Every question must have depth.
-9. MINIMUM 4 marks per question — no simple 1-2 mark procedural tasks without reasoning.
-`
-    };
-  }
-
-  if ((effectiveLevel1 || isLevel1) && isMath) {
-    return {
-      name: 'UK_GCSE_MATHS',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Level 1 Mathematics (Secondary Standard)
-MANDATORY RULES:
-1. Questions should use real-world contexts (shopping, travel, measurement, data handling).
-2. Each parent question should have 2-3 sub-parts escalating from recall to application.
-3. Use command verbs: 'calculate', 'work out', 'give your answer to...', 'explain why'.
-4. LaTeX for all math: $\\frac{a}{b}$, $x^2$, $\\sqrt{x}$.
-5. Mark range per parent: 4-8 marks total.
-6. Include chart_data for any questions involving statistical diagrams (box plots, bar charts, pie charts).
-`
-    };
-  }
-
-  // ── Regional Biology Archetypes ──
-  if (isUSRegion && isBiology) {
-    return { name: 'US_AP_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: AP Biology (US College Board)
-1. Free-response format: "Design an experiment", "Justify your answer using evidence".
-2. Data analysis from tables, diagrams, phylogenetic trees.
-3. Command verbs: Describe, Explain, Justify, Calculate, Predict, Analyze.
-4. Multi-part: (a) identify/describe, (b) explain mechanism, (c) predict outcome, (d) justify.
-` };
-  }
-  if (isINRegion && isBiology) {
-    return { name: 'IN_CBSE_BIO', minSubParts: 2, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: CBSE Biology (Indian Board)
-1. "Draw and label", "Differentiate between" — diagram-heavy.
-2. Structured: 1-mark (define), 2-mark (differentiate), 3-mark (explain with diagram), 5-mark (detailed).
-3. Command verbs: Define, Describe, Explain, Differentiate, Draw, Label, Give reasons.
-` };
-  }
-  if (isSGRegion && isBiology) {
-    return { name: 'SG_CAMBRIDGE_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: Cambridge Biology (Singapore)
-1. "Suggest an explanation", high-complexity application.
-2. Command verbs: State, Describe, Explain, Suggest, Predict, Deduce, Calculate.
-3. Multi-step experimental analysis with data interpretation.
-` };
-  }
-  if (isIBRegion && isBiology) {
-    return { name: 'IB_BIO', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: IB Biology (International Baccalaureate)
-1. Data-based questions, extended response. IB command terms: Outline, Describe, Explain, Discuss, Evaluate, Suggest, Deduce.
-2. Include experimental design, data analysis, ethical evaluation.
-3. Reference IB assessment objectives: AO1 (knowledge), AO2 (application), AO3 (synthesis).
-` };
-  }
-
-  // ── Regional Chemistry Archetypes ──
-  if (isUSRegion && isChemistry) {
-    return { name: 'US_AP_CHEM', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: AP Chemistry (US College Board)
-1. Free-response: "Design a procedure", "Calculate the molar mass".
-2. Equilibrium, thermodynamics, kinetics emphasis.
-3. Command verbs: Calculate, Justify, Explain, Design, Predict, Represent.
-4. AP FRQ scoring (multi-point rubric).
-` };
-  }
-  if (isINRegion && isChemistry) {
-    return { name: 'IN_CBSE_CHEM', minSubParts: 2, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: CBSE Chemistry (Indian Board)
-1. "Write the balanced equation", "Name the product", derivation-based.
-2. Organic reaction mechanisms, inorganic qualitative analysis.
-3. Command verbs: Define, Write, Balance, Name, Explain, Derive, Calculate.
-` };
-  }
-  if (isSGRegion && isChemistry) {
-    return { name: 'SG_CAMBRIDGE_CHEM', minSubParts: 3, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: Cambridge Chemistry (Singapore)
-1. Multi-step calculations, organic synthesis pathways.
-2. Command verbs: State, Describe, Explain, Suggest, Predict, Deduce, Calculate.
-3. High-complexity novel reaction scenarios.
-` };
-  }
-  if (isIBRegion && isChemistry) {
-    return { name: 'IB_CHEM', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: IB Chemistry (International Baccalaureate)
-1. Data analysis, "Deduce the structure", IB command terms.
-2. Include data-based questions, stoichiometric calculations, spectroscopic analysis.
-3. IB command terms: Define, State, Describe, Explain, Deduce, Predict, Discuss, Evaluate.
-` };
-  }
-
-  // ── Regional Physics Archetypes ──
-  if (isUSRegion && isPhysics) {
-    return { name: 'US_AP_PHYSICS', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: AP Physics (US College Board)
-1. "Derive an expression", "Justify with physics principles" — FRQ format.
-2. Multi-part problem solving with both conceptual and quantitative questions.
-3. Command verbs: Derive, Calculate, Justify, Explain, Sketch, Rank, Determine.
-4. AP FRQ scoring rubric format.
-` };
-  }
-  if (isINRegion && isPhysics) {
-    return { name: 'IN_CBSE_PHYSICS', minSubParts: 2, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: CBSE Physics (Indian Board)
-1. "Derive" expressions, numerical problems with step-by-step working.
-2. Ray diagrams, circuit diagrams, force diagrams mandatory.
-3. Command verbs: Define, State, Derive, Prove, Calculate, Draw, Explain.
-4. Structured: 1-mark (define), 2-mark (state law), 3-mark (numerical), 5-mark (derive + numerical).
-` };
-  }
-  if (isSGRegion && isPhysics) {
-    return { name: 'SG_CAMBRIDGE_PHYSICS', minSubParts: 3, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: Cambridge Physics (Singapore)
-1. "Calculate the magnitude", multi-part with "hence" chains.
-2. Command verbs: State, Calculate, Determine, Explain, Show that, Deduce, Sketch.
-3. High mathematical rigour with formal SI notation.
-` };
-  }
-  if (isIBRegion && isPhysics) {
-    return { name: 'IB_PHYSICS', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: IB Physics (International Baccalaureate)
-1. Paper 2/3 format with data-based questions and extended response.
-2. IB command terms: Define, State, Outline, Describe, Explain, Deduce, Determine, Calculate, Discuss, Evaluate.
-3. Experimental design, data analysis, uncertainty calculations.
-` };
-  }
-
-  // ── Regional Economics Archetypes ──
-  if (isUSRegion && isEcon) {
-    return { name: 'US_AP_ECON', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: AP Economics (US College Board)
-1. "Using a correctly labeled graph, show..." — FRQ with mandatory diagrams.
-2. Free-response with graph requirements for major questions.
-3. Command verbs: Define, Identify, Calculate, Explain, Show (on graph), Determine.
-4. Include both Micro and Macro AP-style questions.
-` };
-  }
-  if (isIBRegion && isEcon) {
-    return { name: 'IB_ECON', minSubParts: 2, requireScenario: true, promptBlock: `
-DIFFICULTY ARCHETYPE: IB Economics (International Baccalaureate)
-1. Paper 1: Essay — "Using real-world examples, evaluate...".
-2. Paper 2: Data response with calculations and diagram analysis.
-3. IB command terms: Define, Describe, Explain, Analyse, Discuss, Evaluate, Compare, Contrast.
-` };
-  }
-
-  // ── Regional English Archetypes ──
-  if (isUSRegion && isEnglish) {
-    return { name: 'US_AP_ENGLISH', minSubParts: 1, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: AP English Language & Composition (US College Board)
-1. Rhetorical analysis essay, argument essay, synthesis essay.
-2. Passage-based analysis with rhetorical strategies (ethos, pathos, logos).
-3. Command verbs: Analyze, Evaluate, Argue, Synthesize, Explain.
-4. AP scoring rubric (1-6 scale for essays).
-` };
-  }
-  if (isIBRegion && isEnglish) {
-    return { name: 'IB_ENGLISH', minSubParts: 1, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: IB English (International Baccalaureate)
-1. Paper 1: Guided literary analysis of unseen text.
-2. Paper 2: Comparative essay on studied works.
-3. IB command terms: Analyse, Compare, Evaluate, Discuss, Examine, Comment.
-4. Reference IB assessment criteria (Criterion A-D).
-` };
-  }
-
-  // ── Regional History/Geography Archetypes ──
-  if (isUSRegion && isHistory) {
-    return { name: 'US_AP_HISTORY', minSubParts: 2, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: AP History (US College Board)
-1. Document-Based Question (DBQ), Long Essay (LEQ), Short Answer (SAQ).
-2. Command verbs: Describe, Explain, Evaluate, Compare, Analyze, Identify.
-3. Require specific historical evidence and thesis-driven argument.
-` };
-  }
-  if (isIBRegion && isHistory) {
-    return { name: 'IB_HISTORY', minSubParts: 2, requireScenario: false, promptBlock: `
-DIFFICULTY ARCHETYPE: IB History (International Baccalaureate)
-1. Paper 1: Source-based with OPVL analysis.
-2. Paper 2/3: Essay with comparative and evaluative tasks.
-3. IB command terms: Describe, Explain, Analyse, Compare, Contrast, Evaluate, Discuss, "To what extent".
-` };
-  }
-
-  // ── Existing UK-specific archetypes ──
-  if ((effectiveLevel2 || isLevel2) && isPhysics) {
-    return {
-      name: 'UK_A_LEVEL_PHYSICS',
-      minSubParts: 3,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Advanced Level 2 Physics (Professional Standard)
-1. Every question must include a physical scenario with specific numerical data.
-2. Sub-parts escalate: (a) define/state, (b) calculate using equations, (c) explain/evaluate.
-3. Use LaTeX for all equations: $F = ma$, $v = u + at$, $E_k = \\frac{1}{2}mv^2$.
-4. Include graph questions for motion, force-extension, V-I characteristics.
-5. Mark range per parent: 8-15 marks.
-`
-    };
-  }
-
-  if ((effectiveLevel2 || isLevel2) && isEcon) {
-    return {
-      name: 'UK_A_LEVEL_ECONOMICS',
-      minSubParts: 3,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Advanced Level 2 Economics (Professional Standard)
-1. Every question must reference real economic data, markets, or policy scenarios.
-2. Sub-parts: (a) define key terms, (b) analyse using diagrams/data, (c) evaluate arguments, (d) discuss.
-3. Include chart_data for supply-demand diagrams, cost curves, market equilibrium.
-4. Use command verbs: 'analyse', 'evaluate', 'to what extent', 'discuss'.
-5. Mark range per parent: 8-20 marks.
-`
-    };
-  }
-
-  // ── Custom/Professional/Niche Subject Archetype ──
-  // Fires BEFORE generic fallback for subjects that don't match any standard academic subject
-  const isCustomProfessionalSubject = !isMath && !isPhysics && !isChemistry && !isBiology &&
-    !isEnglish && !isHistory && !isGeography && !isEcon;
-
-  if (isCustomProfessionalSubject) {
-    return {
-      name: 'CUSTOM_PROFESSIONAL',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Specialist / Professional / Vocational Subject
-You are generating assessment questions for a specialist professional
-or vocational subject: "${subjectId}".
-The domain is ENTIRELY defined by the subject name and topics provided.
-There is NO standard academic template — do not borrow from other subjects.
-
-MANDATORY GENERATION RULES FOR THIS ARCHETYPE:
-1. Questions must assess knowledge specific to "${subjectId}" ONLY
-2. Use terminology, standards, regulations, and procedures from this domain
-3. Question styles: scenario-based, procedural knowledge,
-   regulatory/compliance understanding, practical application
-4. Do NOT use probability, statistics, algebra, calculus, or any
-   pure mathematics unless the subject explicitly requires it
-5. Do NOT generate graphs, coordinate geometry, or formula-based questions
-6. Mark scheme should use descriptive marking points (B1 for knowledge),
-   NOT M1/A1 codes (those are for maths)
-7. For professional/vocational subjects, questions should reflect
-   real workplace assessment style
-8. Every question must be answerable ONLY by someone trained in "${subjectId}"
-`
-    };
-  }
-
-  // Generic fallback for any Level 2 subject
-  if (effectiveLevel2 || isLevel2) {
-    return {
-      name: 'GENERIC_LEVEL_2',
-      minSubParts: 2,
-      requireScenario: true,
-      promptBlock: `
-DIFFICULTY ARCHETYPE: Advanced Level 2 (Professional Standard)
-1. Every question must use a real-world scenario or dataset as context.
-2. Sub-parts must escalate: (a) recall/identify, (b) apply/analyse, (c) evaluate/justify.
-3. Use formal academic language and command verbs: 'evaluate', 'analyse', 'justify', 'to what extent'.
-4. Mark range per parent: 6-15 marks.
-5. Use LaTeX for any mathematical notation.
-`
-    };
-  }
-
-  return {
-    name: 'GENERIC_ACADEMIC',
-    minSubParts: 1,
-    requireScenario: false,
-    promptBlock: `
-DIFFICULTY ARCHETYPE: General Academic Standard
-1. Questions should test understanding, not just recall.
-2. Include a mix of short-answer and extended-response questions.
-3. Use LaTeX for mathematical notation where applicable.
-`
-  };
+  "detected_subject": "${subject}",
+  "subject_confidence": 0.95,
+  "questions": [
+    {
+      "question_number": "1",
+      "parent_question_number": null,
+      "root_question_number": "1",
+      "question_text": "Question stem here",
+      "question_type": ${isMcqOnly ? '"mcq"' : '"short_answer" | "long_form" | "mcq"'},
+      "marks": 1,
+      "options": ${isMcqOnly ? '["Option A text", "Option B text", "Option C text", "Option D text"]' : 'null (for written questions)'},
+      "correct_answer": "The full text of the correct option (MCQ) or model answer (written)",
+      "mark_scheme": "Marking guidance here",
+      "topic_tag": "Topic name from the list above",
+      "difficulty_level": "easy | medium | hard",
+      "extraction_confidence": 0.9,
+      "needs_review": false,
+      "has_figures": false,
+      "has_tables": false,
+      "has_math": false,
+      "diagramConfig": null
+    }
+  ],
+  "topics": [{"topic_name": "...", "confidence_score": 0.8}]
 }
 
-// ── Prompt Builder ───────────────────────────────────────────────────────────
-function buildPrompt(exam: any, pdfText: string, resourceCtx: string, specs: any[], board: string, level: string, useOriginal: boolean, fallback: boolean, desiredQuestionCount: number | null = null, archetype?: StealthArchetype, curriculumRegion?: string | null, canonicalTopicList?: string[], desiredMcqCount?: number | null, desiredWrittenCount?: number | null, profileMeta?: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean }): string {
-  const specList = specs.length ? `Topics: ${specs.map((s: any) => s.topic_name).join(', ')}\n` : '';
+CRITICAL JSON RULES:
+- Return ONLY the JSON object — no markdown, no backticks, no explanation
+- Every question must have correct_answer set — never leave it null or empty
+- For MCQ: correct_answer must be the FULL TEXT of the correct option, exactly matching one of the options array values
+- For written: correct_answer is the model answer or key marking points
+- parent_question_number is null for standalone questions and MCQs
+- root_question_number equals question_number for standalone questions and MCQs
+- options must be null for written questions, never an empty array`;
 
-  // Inject regional persona and region-aware subject instructions
-  const regionalPersona = getRegionalPersona(curriculumRegion || '');
-  const regionSubjectInstructions = getRegionAwareSubjectInstructions(exam.subject_id || '', board, level, curriculumRegion || '');
-  const genCtx = buildGenerationContext(curriculumRegion, level);
-  const generationContextPrompt = formatGenerationContextPrompt(genCtx);
-  
-  const mode = fallback 
-    ? `Generate typical ${level} ${exam.subject_id} questions (no PDF text available).`
-    : `CRITICAL: Generate COMPLETELY NEW and ORIGINAL questions inspired by this exam paper. 
-DO NOT copy questions from the PDF - create fresh questions that test similar skills but with:
-- Different wording and phrasing
-- Different specific references or examples
-- Fresh scenarios or contexts
-The uploaded PDF is for INSPIRATION ONLY - your questions must be unique.`;
+  // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
+  const userPrompt = [
+    contextBlock,
+    subjectRulesBlock,
+    questionCountBlock,
+    mcqRulesBlock,
+    writtenRulesBlock,
+    sourceBlock,
+    topicTagBlock,
+    outputBlock,
+  ].filter(s => s.trim().length > 0).join('\n\n');
 
-  // Detect if the subject warrants automatic graph generation
-  const subjectId = (exam.subject_id || '').toLowerCase();
-  const topicNames = specs.map((s: any) => (s.topic_name || '').toLowerCase()).join(' ');
-  const pdfLower = pdfText.substring(0, 5000).toLowerCase();
-  const combinedText = `${subjectId} ${topicNames} ${pdfLower}`;
-
-  // Subject classification for graph/maths gating
-  const isMathSubject = subjectId.includes('math') || subjectId.includes('maths') ||
-    subjectId.includes('statistic') || subjectId.includes('calculus') || subjectId.includes('algebra');
-  const isPhysicsSubject = subjectId.includes('physics') || subjectId.includes('mechanics') || subjectId.includes('electronic');
-  const isChemSubject = subjectId.includes('chemistry') || subjectId.includes('chemical');
-  const isBioSubject = subjectId.includes('biology') || subjectId.includes('biolog');
-  const isEconSubject = subjectId.includes('econ');
-  const isGeogSubject = subjectId.includes('geography') || subjectId.includes('geog');
-  const isRecognisedSTEM = isMathSubject || isPhysicsSubject || isChemSubject || isBioSubject;
-  const isRecognisedGraphSubject = isRecognisedSTEM || isEconSubject || isGeogSubject;
-
-  // Only graph-specific keywords (not domain-ambiguous ones like "temperature", "pressure")
-  const graphSpecificKeywords = [
-    'graph', 'curve', 'plot', 'sketch', 'coordinate', 'transform', 'function',
-    'f(x)', 'y=', 'linear', 'quadratic', 'cubic', 'parabola', 'asymptote',
-    'gradient', 'intercept', 'tangent', 'differentiation', 'integration',
-    'polynomial', 'exponential', 'logarithm', 'trigonometric', 'sine', 'cosine',
-    'distance-time', 'velocity-time', 'force-extension', 'current-voltage',
-    'supply', 'demand', 'market equilibrium', 'projectile motion',
-  ];
-
-  // Require BOTH a recognised STEM/graph subject AND graph keywords
-  const needsGraphs = isRecognisedGraphSubject && graphSpecificKeywords.some(kw => combinedText.includes(kw));
-
-  // Detect custom/niche professional subjects
-  const isCustomNicheSubject = !isRecognisedSTEM &&
-    !subjectId.includes('english') && !subjectId.includes('history') &&
-    !isGeogSubject && !subjectId.includes('business') && !isEconSubject &&
-    !subjectId.includes('psychology') && !subjectId.includes('computer') &&
-    !subjectId.includes('law') && !subjectId.includes('politics');
-
-  let graphInstructions = '';
-  if (needsGraphs && !isCustomNicheSubject) {
-    graphInstructions = `
-
-AUTOMATIC GRAPH GENERATION (VISUAL-HEAVY TOPICS DETECTED):
-When a question covers a topic that is better tested visually, you MUST generate a graph question.
-Supported question_types: "graph_plotting", "graph_interpretation", "short_answer", "mcq", "long_form"
-
-For graph_plotting questions, correct_answer MUST be a JSON object (not a string):
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x-axis label with units",
-    "yLabel": "y-axis label with units",
-    "domainX": [min, max],
-    "domainY": [min, max],
-    "series": [{"name": "Reference", "data": [{"x":0,"y":0}, ...], "color": "#3b82f6"}]${!isMathSubject ? `,
-    "subjectProfile": {"subject": "${exam.subject_id}", "quadrantMode": "q1"}` : ''}
-  },
-  "plottingAnswer": {${isMathSubject ? `
-    "markingFormula": "REQUIRED — the evaluatable algebraic expression using * for multiplication, ^ for powers, standard function names (sin, cos, ln, abs, sqrt, exp). Examples: 'x^2 - 4*x + 7', '(x+2)*(x-1)*(x-3)', '1/(x+4)', 'sin(2*x)', 'abs(x-2)'. For transformations, pre-compute the substitution: if f(x)=(x+2)*(x-1)*(x-3) and question asks for f(x+1), write '(x+3)*x*(x-2)'. NEVER leave null or as bare reference like 'f(x)'.",
-    "expectedCurve": [{"x":0,"y":2}, {"x":1,"y":0}, ...at least 10 points],
-    "tolerancePercent": 8` : `
-    "expectedPath": [{"x":0,"y":0}, {"x":100,"y":300}, ...ordered vertices],
-    "pathAnnotations": [{"pointIndex":0,"label":"Start"}, ...],
-    "toleranceUnits": 15`}
-  }
-}
-
-For graph_interpretation questions, correct_answer MUST be:
-{
-  "graphType": "interpretation",
-  "graphConfig": { ...same as above with populated series.data... },
-  "interpretationFields": [
-    {"id": "field1", "label": "What is the gradient?", "expectedAnswer": "2.5", "tolerance": 0.2}
-  ]
-}
-
-RULES:
-- At least 20% of questions should be graph questions when visual topics are detected
-- If a question says "sketch", "plot", "draw" or "the graph shows" it MUST be graph_plotting
-- Graph questions MUST have complete graphConfig with series.data containing at least 10 points
-- LaTeX is ONLY for text fields. NEVER put LaTeX in graphConfig numeric data or coordinate arrays
-`;
-  }
-
-  // HIERARCHICAL QUESTION STRUCTURE INSTRUCTIONS
-  const questionCountInstruction = desiredQuestionCount
-    ? `
-STRICT QUESTION COUNT RULE (CRITICAL — DO NOT VIOLATE):
-You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 2, 3, ..., ${desiredQuestionCount}.
-- A "Parent Question" = one top-level numbered question (Q1, Q2, etc.)
-- Sub-parts (a, b, c, d) are CHILDREN of a parent and DO NOT count toward the ${desiredQuestionCount} limit.
-- If the limit is ${desiredQuestionCount}, you produce exactly ${desiredQuestionCount} distinct root_question_number values.
-- VIOLATION: Producing fewer or more than ${desiredQuestionCount} parent questions is WRONG.
-- COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
-    : '';
-
-  // MCQ/Written split instruction — supports mixed, MCQ-only, and written-only profiles
-  const mcqOptionsCount = profileMeta?.mcq_options_count || 4;
-  const optionLetters = mcqOptionsCount === 3 ? 'A, B, C' : 'A, B, C, D';
-  const wantGraphs = profileMeta?.include_graphs === true;
-  const wantTables = profileMeta?.include_tables === true;
-  const graphTableInstruction = (wantGraphs || wantTables)
-    ? `\nADDITIONAL FORMAT REQUIREMENTS:${wantGraphs ? '\n- Include graph-based questions where appropriate. Set has_figures=true and provide graph_description for these.' : ''}${wantTables ? '\n- Include table/data-based questions where appropriate. Set has_tables=true and provide table_data for these.' : ''}\n`
-    : '';
-
-  const hasProfileTypeSplit =
-    desiredQuestionCount !== null &&
-    desiredMcqCount !== null &&
-    desiredWrittenCount !== null &&
-    desiredQuestionCount > 0;
-
-  const mcqQualityRules = `
-MCQ QUALITY RULES (CRITICAL — APPLY TO ALL MCQ QUESTIONS):
-- NEVER append "Give your answer to X significant figures" or "Give your answer to X decimal places" to MCQ questions. The student picks an option — precision instructions are meaningless.
-- NEVER append "State your answer" or "Show your working" to MCQ questions.
-- NEVER reference "provided data", "the table above", "the data below", or "based on the data" UNLESS the data is explicitly embedded IN the question_text itself (e.g. a small inline table or list of values).
-- Every MCQ must be SELF-CONTAINED: all information needed to answer must appear in the question_text.
-- All ${mcqOptionsCount} options must be PLAUSIBLE and similar in length/structure. Avoid one option being obviously different (e.g. only one containing "and" or being much longer).
-- The correct_answer must EXACTLY match one of the options.
-- Do NOT use command verbs like "Calculate", "Determine", "State" for MCQs. Instead use: "Which of the following...", "What is...", "Identify...", "Select...".
-`;
-
-  const mcqWrittenSplitInstruction = hasProfileTypeSplit
-    ? desiredMcqCount > 0 && desiredWrittenCount > 0
-      ? `
-QUESTION TYPE SPLIT (MANDATORY — FROM EXAM PROFILE):
-You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenCount} written questions.
-
-MCQ QUESTIONS (${desiredMcqCount} total):
-- question_type MUST be "mcq"
-- Each MCQ must have an "options" array with exactly ${mcqOptionsCount} choices (${optionLetters}) (text only, no letter prefixes)
-- Each MCQ is worth 1 mark
-- MCQ questions should come FIRST (Q1 through Q${desiredMcqCount})
-- MCQ questions are standalone — no sub-parts needed
-${mcqQualityRules}
-
-WRITTEN QUESTIONS (${desiredWrittenCount} total):
-- question_type should be "short_answer" or "extended" depending on marks
-- Written questions come AFTER MCQs (Q${desiredMcqCount + 1} through Q${desiredQuestionCount})
-- Written questions CAN have sub-parts (a, b, c) if appropriate
-- Mark allocation should vary: mix of 2-mark, 4-mark, and 6+ mark questions
-
-TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
-DO NOT deviate from this split.
-${graphTableInstruction}`
-      : desiredMcqCount > 0
-        ? `
-QUESTION TYPE RULE (MANDATORY — MCQ-ONLY PROFILE):
-You MUST generate exactly ${desiredMcqCount} parent questions and EVERY question MUST be question_type "mcq".
-- Each MCQ must have an "options" array with exactly ${mcqOptionsCount} choices (${optionLetters}) (text only, no letter prefixes)
-- Each MCQ is worth 1 mark
-- Number questions Q1 through Q${desiredMcqCount}
-- Do NOT generate any written, short-answer, or extended questions
-${mcqQualityRules}
-${graphTableInstruction}`
-        : `
-QUESTION TYPE RULE (MANDATORY — WRITTEN-ONLY PROFILE):
-You MUST generate exactly ${desiredWrittenCount} parent questions and ZERO MCQ questions.
-- question_type should be "short_answer" or "extended" depending on marks
-- Use varied mark allocation (2, 4, and 6+ where appropriate)
-- Number questions Q1 through Q${desiredWrittenCount}
-- Do NOT generate any "mcq" questions
-${graphTableInstruction}`
-    : '';
-
-  const minParts = archetype?.minSubParts || 2;
-  const isMcqOnly = desiredMcqCount !== null && desiredMcqCount > 0 && (!desiredWrittenCount || desiredWrittenCount === 0);
-
-  const hierarchicalInstructions = isMcqOnly
-    ? `
-
-FLAT QUESTION STRUCTURE (MCQ-ONLY EXAM — CRITICAL):
-- Each question is standalone. Number them 1, 2, 3, ..., ${desiredMcqCount}.
-- Do NOT create sub-parts (a, b, c). Each question_number is just "1", "2", "3", etc.
-- Set parent_question_number to null for every question.
-- Set root_question_number to the question_number itself.
-- VIOLATION: Creating sub-parts like "1a", "1b" is WRONG for this exam.
-${questionCountInstruction}
-`
-    : `
-
-HIERARCHICAL QUESTION STRUCTURE (CRITICAL):
-1. A "Parent Question" is a top-level numbered question: Q1, Q2, Q3, etc.
-2. Sub-parts (a), (b), (c) are children of a parent question and do NOT count toward the question limit.
-3. Each parent question MUST have at least ${minParts} sub-parts that escalate in difficulty.
-${questionCountInstruction}
-
-SUB-PART FORMATTING RULES:
-- NEVER combine sub-parts (a) and (b) into a single question_text block.
-- Each sub-part MUST be its own separate entry in the questions array.
-- Each sub-part MUST have its own marks value.
-- Use question_number format: "1a" for first sub-part, "1b" for second, etc. Do NOT create a bare "1" entry — only sub-parts appear in the array.
-- Set parent_question_number to the parent's number (e.g., "1" for sub-part "1a").
-- Set root_question_number to the top-level number (e.g., "1").
-
-QUESTION TEXT QUALITY RULES (CRITICAL):
-- Every sub-part question_text MUST contain an explicit, answerable instruction or question.
-- NEVER write a question_text that only describes a scenario without asking the student to DO something.
-- Every question_text MUST start with or contain a command verb: Find, Calculate, State, Show that, Determine, Test, Explain, Justify, Comment on, Hence, Deduce, Describe, Identify, Outline, etc.
-- The scenario/context goes in the FIRST sub-part's question_text. Subsequent sub-parts can reference "Using your answer to part (a)..." etc.
-
-EXAMPLE OUTPUT for a question with 3 parts (adapt the style to match YOUR subject "${exam.subject_id}"):
-[
-  {"question_number": "1a", "question_text": "[Scenario relevant to ${exam.subject_id}]\\n\\n[Command verb question about ${exam.subject_id}]", "marks": 1, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1b", "question_text": "[Follow-up question building on part (a)]", "marks": 3, "parent_question_number": "1", "root_question_number": "1"},
-  {"question_number": "1c", "question_text": "[Higher-order evaluation or justification question]", "marks": 2, "parent_question_number": "1", "root_question_number": "1"}
-]
-`;
-
-  // Inject stealth archetype prompt
-  const archetypeBlock = archetype?.promptBlock || '';
-
-  // Scenario requirement — use subject-appropriate examples
-  const scenarioExamples = isCustomNicheSubject
-    ? `Examples relevant to "${exam.subject_id}":
-- "A technician is performing a quarterly validation test on a large porous load sterilizer."
-- "A hospital decontamination unit receives a batch of surgical instruments for processing."
-- "An engineer reviews the maintenance log for an autoclave that failed its daily Bowie-Dick test."`
-    : `Examples:
-- "Sarah records the daily rainfall, in mm, for her town over a 30-day period."
-- "A factory produces bolts. The length, $L$ mm, of a bolt follows $L \\sim N(50, 0.4^2)$."
-- "Tom is investigating whether there is a correlation between hours studied and test scores."`;
-
-  const scenarioRequirement = isMcqOnly
-    ? `
-SCENARIO CONTEXT (OPTIONAL FOR MCQ):
-MCQ questions may optionally include a brief scenario in the stem for context,
-but this is NOT required. The question stem must be clear and self-contained.
-Do NOT force a named character into every MCQ — it reads unnaturally.
-Example of good MCQ stem: "What is the minimum holding time at 134°C for a large porous load cycle?"
-Example of bad MCQ stem: "A technician named James is performing a test. State the minimum..."
-`
-    : archetype?.requireScenario ? `
-SCENARIO REQUIREMENT (MANDATORY FOR WRITTEN QUESTIONS):
-Every parent question MUST begin with a named character or professional context and a real-world scenario.
-DO NOT generate abstract standalone questions without context.
-The scenario goes in the FIRST sub-part (part a). Later sub-parts reference it.
-Use diverse names and scenarios.
-${scenarioExamples}
-` : '';
-
-  const hardeningRules = getExamHardeningRules();
-
-  // SUBJECT LOCK — hard constraint to prevent subject drift
-  const subjectLockInstruction = `
-ABSOLUTE RULE — READ THIS FIRST:
-You are generating questions EXCLUSIVELY for this subject:
-"${exam.subject_id}"
-
-This is a HARD CONSTRAINT. You must NEVER generate questions about:
-- Any other academic subject
-- Mathematics, statistics, or probability (unless the subject explicitly requires it)
-- Physics, chemistry, biology, history, geography or any other domain
-- Generic exam-style questions unrelated to "${exam.subject_id}"
-
-EVERY question you generate must:
-1. Be directly and specifically about "${exam.subject_id}"
-2. Use terminology, procedures, standards, and concepts from "${exam.subject_id}" only
-3. Be answerable by someone who has studied "${exam.subject_id}"
-4. Be completely unanswerable by someone who has NOT studied "${exam.subject_id}"
-
-If you cannot generate enough high-quality questions about "${exam.subject_id}"
-without drifting into other subjects, generate FEWER questions of higher quality.
-`;
-
-  // Subject lock repeat — placed AFTER archetype to reassert dominance
-  const subjectLockRepeat = `
-===== SUBJECT DOMAIN REMINDER (MANDATORY) =====
-You are STILL generating questions about: "${exam.subject_id}"
-Every question must be about this subject and NOTHING else.
-If any instruction above conflicts with this subject domain,
-IGNORE that instruction and stay within "${exam.subject_id}".
-================================================
-`;
-
-  // Explicit prohibitions for custom/niche subjects
-  const customSubjectProhibitions = isCustomNicheSubject ? `
-EXPLICITLY PROHIBITED for subject "${exam.subject_id}":
-- Do NOT generate: probability questions (P(X=...), binomial, Poisson, normal distribution)
-- Do NOT generate: algebra or equation solving (find x, solve for y)
-- Do NOT generate: graph plotting or coordinate geometry
-- Do NOT generate: calculus, differentiation, integration
-- Do NOT generate: statistics, data analysis with mathematical formulas
-- Do NOT generate: ANY question that could appear in a Mathematics exam
-- Do NOT use M1/A1 mark scheme codes — use B1 (knowledge point) marks instead
-
-If you are about to generate a question involving X as a variable
-in an equation, STOP and generate a subject-specific question instead.
-` : '';
-
-  // For custom subjects, skip chart data schemas and LaTeX-heavy instructions
-  const chartSchemas = isCustomNicheSubject ? '' : `
-CHART DATA SCHEMAS:
-When a question includes tabular or visual data, populate the "chart_data" field:
-- Box Plot: {"type":"boxplot","data":{"min":10,"q1":15,"med":20,"q3":28,"max":35},"outliers":[4,42],"xLabel":"Height (cm)"}
-- Histogram (unequal class widths): {"type":"histogram","bins":[{"lower":0,"upper":10,"frequency":5},{"lower":10,"upper":25,"frequency":30}],"xLabel":"Time (s)","yLabel":"Frequency Density"}
-- Scatter with regression: Include regression data in graph_plotting config via series + a "regressionLine" field: {"slope":0.8,"intercept":2.1}
-`;
-
-  const latexInstruction = isCustomNicheSubject
-    ? 'Use LaTeX only if the subject requires mathematical or scientific notation.'
-    : `Wrap ALL math in LaTeX delimiters: $...$ for inline, $$...$$ for standalone equations.
-Use proper LaTeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\Sigma x, \\Sigma x^2, \\Sigma xy, S_{xx}, S_{xy}`;
-
-  // ── REORDERED PROMPT: MCQ/question-type rules come LAST before JSON format ──
-  // Order: Subject lock → Regional → Hardening → Content → Archetype → Subject repeat →
-  //        Prohibitions → Scenario → LaTeX → PDF → Topics → MCQ rules → Structure → JSON format
-  return `${subjectLockInstruction}
-${regionalPersona}
-${generationContextPrompt}
-${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
-${hardeningRules}
-${resourceCtx}
-Generate NEW questions for ${level} ${exam.subject_id}.
-${specList}${mode}
-${archetypeBlock}
-${subjectLockRepeat}
-${customSubjectProhibitions}
-${scenarioRequirement}
-${latexInstruction}
-
-${!fallback ? `MARK DISTRIBUTION CLONING: When a reference PDF is provided, replicate the mark allocation pattern from the original paper. If the reference gives 5 marks to a 'Show that' derivation, your generated equivalent must also allocate 5 marks. Match the ratio of low-mark (1-2) to high-mark (5+) questions.` : ''}
-${graphInstructions}
-REFERENCE PDF (USE FOR INSPIRATION - DO NOT COPY):
-${pdfText.substring(0, 45000)}
-${chartSchemas}
-
-${canonicalTopicList && canonicalTopicList.length > 0 ? `
-TOPIC TAG CONTROLLED VOCABULARY (CRITICAL):
-You MUST set topic_tag to EXACTLY one value from this list — do not invent new values, do not change capitalisation, do not add plurals:
-${canonicalTopicList.join(', ')}
-` : `Set topic_tag to a clear descriptive topic name using Title Case (e.g. "Quadratic Equations" not "quadratic_equations" or "quadratics").`}
-
-${mcqWrittenSplitInstruction}
-${hierarchicalInstructions}
-
-Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[{"question_number":"1a","question_type":"short_answer|mcq|long_form|graph_plotting|graph_interpretation","question_text":"YOUR NEW QUESTION (one sub-part only, MUST contain a command verb for written questions OR 'Which/What/Identify/Select' stem for MCQs)","marks":2,"topic_tag":"...","difficulty_level":"medium","has_figures":false,"correct_answer":"string that EXACTLY matches one option for MCQ, or JSON object for graph questions","chart_data":null,"parent_question_number":"1 or null","root_question_number":"1"}],"topics":[{"topic_name":"...","confidence_score":0.8}]}`;
+  return { systemPrompt, userPrompt };
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
@@ -1451,106 +765,43 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
     grouped[root].push(q);
   }
 
-  const hardeningRules = getExamHardeningRules();
   const rootKeys = Object.keys(grouped).slice(0, 10); // Limit to prevent timeout
-
-  // Build question-type-specific rules that will be appended LAST
-  const questionTypeRules = questionType === 'mcq' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting MCQ questions. Every rewritten question MUST:
-- Start with: "Which of the following...", "What is...", "Identify...", "Select...", "According to...", "In accordance with..."
-- NEVER start with: "State", "Describe", "Explain", "Outline", "Evaluate", "Discuss", "Give", "Calculate"
-- The question stem must be a clear, self-contained question — NOT a command
-- Have exactly 4 answer options that are all plausible and similar in length
-- Have one clearly correct answer that directly answers the question stem
-- Be completely self-contained — no "as described above" or "using the data provided" or "based on the provided data"
-- The correct_answer field must EXACTLY match one of the 4 option strings
-- Do NOT include scenarios with named characters unless it adds genuine context — keep stems clean and direct
-- Do NOT append "Give your answer to X significant figures" or "State your answer" — these are meaningless for MCQs
-` : questionType === 'short_answer' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting short answer questions. Every rewritten question MUST:
-- Use command verbs: State, Describe, Identify, Outline, Give, Name, List
-- Have a clear mark scheme with one marking point per mark
-- NOT have multiple choice options
-` : questionType === 'long_form' ? `
-
-FINAL INSTRUCTION — THIS OVERRIDES EVERYTHING ABOVE:
-You are rewriting extended response questions. Every rewritten question MUST:
-- Use command verbs: Explain, Evaluate, Discuss, Analyse, Justify, Compare
-- Have a detailed mark scheme with indicative content
-- Be worth 4 or more marks
-` : '';
 
   for (const rootNum of rootKeys) {
     const siblings = grouped[rootNum];
-    // Sort by question_number so sub-parts are in order
     siblings.sort((a: any, b: any) => String(a.question_number).localeCompare(String(b.question_number)));
 
-    const siblingsSummary = siblings.map((s: any) => 
+    const siblingsSummary = siblings.map((s: any) =>
       `  Part ${s.question_number}: "${s.question_text}" [${s.marks} marks, type: ${s.question_type}]`
     ).join('\n');
 
-    // For MCQ regeneration, also include the options so the AI can rewrite coherently
-    const mcqOptionsSummary = questionType === 'mcq'
-      ? siblings.map((s: any) => {
-          if (s.options && Array.isArray(s.options)) {
-            return `  Q${s.question_number} options: ${s.options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}) ${o}`).join(' | ')}`;
-          }
-          return '';
-        }).filter(Boolean).join('\n')
-      : '';
+    const regenPrompt = `
+You are rewriting exam questions about "${subjectId}".
+Write completely new questions — do not copy the originals.
+Keep the same question type, mark allocation, and topic as the originals.
 
-    // Subject-aware regeneration rules
-    const subjectRules = isCustomNiche ? `
-SUBJECT LOCK (CRITICAL): You are rewriting questions for "${subjectId}" ONLY.
-- Do NOT introduce mathematics, probability, statistics, or algebra
-- Do NOT use LaTeX distribution notation like $X \\sim B(n,p)$ or $N(\\mu, \\sigma^2)$
-- Do NOT generate formula-based or calculation-based questions
-- Use domain-specific terminology from "${subjectId}"
-- Questions must be answerable ONLY by someone trained in "${subjectId}"
-- Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
+${isCustomNiche ? `All questions must be about "${subjectId}" only. No mathematics, statistics, or unrelated content.` : ''}
+
+${questionType === 'mcq' ? `
+These are MCQ questions. Every rewritten question must:
+- Start with: What, Which, Identify, Select, According to, How, When, Where
+- NEVER start with: State, Describe, Explain, Calculate, Discuss, Outline, Evaluate
+- Have exactly 4 plausible options
+- Have one clearly correct answer that matches an option exactly
+- Be completely self-contained
 ` : `
-CRITICAL RULES:
-1. SCENARIO LOCKING: Introduce ONE scenario in the first sub-part. ALL subsequent sub-parts MUST stay within that EXACT same scenario. NEVER switch topics between parts.
-2. CLINICAL TONE: No fluff adjectives ("renowned", "bustling", "freshly"). State facts plainly.
-3. FORMAL NOTATION: Define distributions explicitly using LaTeX: $X \\sim B(n,p)$, $Y \\sim N(\\mu, \\sigma^2)$, $Z \\sim \\text{Po}(\\lambda)$. Use "probability" NEVER "likelihood".
-4. COMMAND VERBS: Every sub-part must start with Calculate, State, Determine, Show that, Test, Explain, Justify, Hence, or Deduce.
-5. LOGICAL PROGRESSION: (a) base calculation, (b) assumption/constraint, (c) scale/approximate/test.
-6. For large-sample sub-parts (n ≥ 30): instruct "Use a suitable approximation" and require continuity correction.
-7. For sub-parts worth 4+ marks: include guidance like "State your hypotheses clearly. Show your working."
-8. Keep mark allocations: ${siblings.map((s: any) => `${s.question_number}=${s.marks}m`).join(', ')}.
-`;
+These are written questions. Use appropriate command verbs.
+Keep the same mark allocation.
+`}
 
-    // For MCQ regen, also ask the AI to return options and correct_answer
-    const mcqReturnFormat = questionType === 'mcq'
-      ? `Return a JSON array. Each object MUST include: question_number, question_text, options (array of exactly 4 strings), correct_answer (must EXACTLY match one option).
-Example: [{"question_number": "1", "question_text": "What is the required air leak rate...", "options": ["1.0 mbar/min", "1.3 mbar/min", "1.5 mbar/min", "2.0 mbar/min"], "correct_answer": "1.3 mbar/min"}]
-Return ONLY the JSON array.`
-      : `Return a JSON array of objects, one per sub-part, in this exact format:
-[{"question_number": "${siblings[0]?.question_number}", "question_text": "new text here"}, ...]
-Return ONLY the JSON array.`;
-
-    const basePrompt = `${hardeningRules}
-
-${isCustomNiche ? `YOUR SUBJECT: "${subjectId}" — ALL rewritten questions must be about this subject ONLY.\n` : ''}
-You are rewriting ${questionType === 'mcq' ? 'multiple choice (MCQ)' : 'an entire multi-part exam'} question${questionType !== 'mcq' ? '. ALL sub-parts MUST share the SAME scenario/context (Thread Rule)' : ''}.
-
-ORIGINAL QUESTION GROUP (Q${rootNum}) — DO NOT COPY, create something NEW:
+Original questions to rewrite:
 ${siblingsSummary}
-${mcqOptionsSummary ? `\nOriginal options:\n${mcqOptionsSummary}\n` : ''}
 
-Topic: ${siblings[0]?.topic_tag || 'general'}
-${isCustomNiche ? `Subject: ${subjectId}` : ''}
+${hasResourcePack && resourceContext ? `Source context:\n${resourceContext.slice(0, 3000)}` : ''}
 
-${subjectRules}
-
-${hasResourcePack && resourceContext ? `SOURCE CONTEXT:\n${resourceContext.substring(0, 3000)}\n` : ''}
-
-${mcqReturnFormat}
-${questionTypeRules}`;
+Return a JSON array only:
+[{"question_number": "1", "question_text": "rewritten question here", "options": ${questionType === 'mcq' ? '[\"opt A\", \"opt B\", \"opt C\", \"opt D\"]' : 'null'}, "correct_answer": "...", "mark_scheme": "..."}]
+`;
 
     try {
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -1558,7 +809,7 @@ ${questionTypeRules}`;
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: basePrompt }],
+          messages: [{ role: 'user', content: regenPrompt }],
           temperature: questionType === 'mcq' ? 0.3 : 0.5,
           response_format: { type: 'json_object' },
         }),
@@ -1568,7 +819,7 @@ ${questionTypeRules}`;
         const data = await resp.json();
         let content = data.choices?.[0]?.message?.content?.trim() || '';
         content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        
+
         let parsed: any[];
         try {
           const raw = JSON.parse(content);
@@ -1588,7 +839,7 @@ ${questionTypeRules}`;
               question_text: newText,
               generation_status: 'ai_generated',
             };
-            
+
             // For MCQ regen, also update options and correct_answer if provided
             if (questionType === 'mcq' && parsed[i]?.options && Array.isArray(parsed[i].options)) {
               updatePayload.options = parsed[i].options;
