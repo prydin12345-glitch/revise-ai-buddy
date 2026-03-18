@@ -845,7 +845,7 @@ export default function CreateExam() {
               {/* Left: Format, Difficulty, Timer */}
               <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
                 {/* Format Selection */}
-                <div className={`mb-6 ${selectedProfile ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className={`mb-6 ${hasLockedProfileStructure ? 'opacity-70' : ''}`}>
                   <div className="flex items-center gap-2 mb-4">
                     <FileText className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Format Selection</h2>
