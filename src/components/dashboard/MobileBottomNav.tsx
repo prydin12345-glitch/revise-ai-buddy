@@ -13,7 +13,7 @@ interface NavItem {
 const studentNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'exams', label: 'Exams', icon: FileText, path: '/my-exams' },
-  { id: 'classes', label: 'Classes', icon: Users, path: '/my-classes' },
+  { id: 'subjects', label: 'Subjects', icon: BookOpen, path: '/my-subjects' },
   { id: 'stats', label: 'Stats', icon: TrendingUp, path: '/stats' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];

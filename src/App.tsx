@@ -89,6 +89,7 @@ const App = () => {
               {/* Protected routes — onboarding guard */}
               <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
               <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
+              <Route path="/my-subjects" element={<OnboardingGuard><MySubjects /></OnboardingGuard>} />
               <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
               <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
               <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
