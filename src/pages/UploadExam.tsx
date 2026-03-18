@@ -90,7 +90,7 @@ export default function UploadExam() {
     : null;
 
   // Effective exam board: profile > subject-level > manual selection > user preference
-  const effectiveExamBoard = (selectedProfile as any)?.exam_board || subjectBoard || examBoard || preferences?.preferred_exam_board || '';
+  const effectiveExamBoard = selectedProfile?.exam_board || subjectBoard || examBoard || preferences?.preferred_exam_board || '';
   const effectiveEducationalTier = selectedProfile?.educational_tier || educationalTier;
 
   const isLockedByProfile = !!selectedProfile && !followReference;
