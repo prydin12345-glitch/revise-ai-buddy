@@ -238,6 +238,11 @@ export default function CreateExam() {
       ? customTier.trim()
       : educationalTier || preferences?.preferred_educational_level || "";
 
+  const hasLockedProfileStructure = !!selectedProfile && selectedProfile !== 'all_topics';
+  const resolvedProfileMcqCount = profileMcqCount ?? 0;
+  const resolvedProfileWrittenCount = profileWrittenCount ?? 0;
+  const resolvedProfileMcqOptionsCount = profileMcqOptionsCount ?? 4;
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
