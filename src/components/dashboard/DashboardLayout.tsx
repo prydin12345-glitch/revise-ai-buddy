@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2 } from "lucide-react";
+import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,6 +47,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: FileText, label: "My Exams", path: "/my-exams" },
     { icon: CheckSquare, label: "Practice Quizzes", path: "/quizzes" },
     { icon: Users, label: "My Classes", path: "/my-classes" },
+    { icon: BookOpen, label: "My Subjects", path: "/my-subjects" },
     { icon: TrendingUp, label: "My Progress", path: "/stats" },
   ];
 

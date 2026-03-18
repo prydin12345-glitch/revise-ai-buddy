@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,11 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [boardEditorOpen, setBoardEditorOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
+  
+  // Sync editingBoard when subject prop changes (after refetch)
+  useEffect(() => {
+    setEditingBoard(subject.exam_board || "");
+  }, [subject.exam_board]);
   const [pendingColour, setPendingColour] = useState(subject.subject_color);
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
@@ -122,11 +127,13 @@ export const SubjectCard = ({
   const handleBoardSave = async (newBoard: string) => {
     try {
       const boardValue = newBoard === "__none" ? null : newBoard;
+      setEditingBoard(newBoard === "__none" ? "" : newBoard);
       await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
       await refetch();
       setBoardEditorOpen(false);
     } catch (err) {
       console.error("Error updating exam board:", err);
+      setEditingBoard(subject.exam_board || "");
     }
   };
 
@@ -148,9 +155,9 @@ export const SubjectCard = ({
                 {subject.subject_name.charAt(0).toUpperCase()}
               </div>
               <h3 className="font-semibold text-foreground">{subject.subject_name}</h3>
-              {subject.exam_board && subject.exam_board !== 'other' && (
+              {(editingBoard || subject.exam_board) && (editingBoard || subject.exam_board) !== 'other' && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-                  {subject.exam_board.toUpperCase()}
+                  {(editingBoard || subject.exam_board || "").toUpperCase()}
                 </Badge>
               )}
             </div>

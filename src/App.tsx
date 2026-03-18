@@ -26,6 +26,7 @@ const ExamInProgress = lazy(() => import("./pages/ExamInProgress"));
 const ExamPreview = lazy(() => import("./pages/ExamPreview"));
 const ExamReview = lazy(() => import("./pages/ExamReview"));
 const Stats = lazy(() => import("./pages/Stats"));
+const MySubjects = lazy(() => import("./pages/MySubjects"));
 const CreatePracticeQuestions = lazy(() => import("./pages/CreatePracticeQuestions"));
 const MyQuizzes = lazy(() => import("./pages/MyQuizzes"));
 const PracticeSetPreview = lazy(() => import("./pages/PracticeSetPreview"));
@@ -88,6 +89,7 @@ const App = () => {
               {/* Protected routes — onboarding guard */}
               <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
               <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
+              <Route path="/my-subjects" element={<OnboardingGuard><MySubjects /></OnboardingGuard>} />
               <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
               <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
               <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />

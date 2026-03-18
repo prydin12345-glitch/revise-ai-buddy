@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, CheckSquare, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle } from "lucide-react";
+import { LayoutDashboard, FileText, CheckSquare, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -13,7 +13,7 @@ interface NavItem {
 const studentNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'exams', label: 'Exams', icon: FileText, path: '/my-exams' },
-  { id: 'classes', label: 'Classes', icon: Users, path: '/my-classes' },
+  { id: 'subjects', label: 'Subjects', icon: BookOpen, path: '/my-subjects' },
   { id: 'stats', label: 'Stats', icon: TrendingUp, path: '/stats' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];

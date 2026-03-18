@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, AlertCircle, BookOpen } from "lucide-react";
+import { BarChart3, AlertCircle } from "lucide-react";
 import { TopStatsCards } from "@/components/stats/TopStatsCards";
 import { ExamResultsChart } from "@/components/stats/ExamResultsChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
@@ -11,7 +11,7 @@ import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { Card, CardContent } from "@/components/ui/card";
-import { MySubjectsPanel } from "@/components/stats/MySubjectsPanel";
+
 import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
 import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect } from "react";
@@ -85,13 +85,6 @@ const Stats = () => {
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Weak Topics
               </TabsTrigger>
-              <TabsTrigger 
-                value="my-subjects"
-                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                My Subjects
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -148,9 +141,6 @@ const Stats = () => {
             <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
           </TabsContent>
 
-          <TabsContent value="my-subjects">
-            <MySubjectsPanel />
-          </TabsContent>
         </Tabs>
 
         {/* Stats Drilldown Drawer */}
