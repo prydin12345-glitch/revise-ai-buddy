@@ -173,6 +173,7 @@ export const ExamProfileModal = ({
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const finalTier = educationalTier === "other" ? customTier : educationalTier;
     const advancedWithMcq = { ...advanced, mcqCount };
+    const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
       selectedTopics,
@@ -181,7 +182,14 @@ export const ExamProfileModal = ({
       timeVal,
       advancedWithMcq,
       writtenCount,
-      { questionStructure, parentQuestionCount, maxPartsPerQuestion }
+      {
+        questionStructure: resolvedQuestionStructure,
+        parentQuestionCount,
+        maxPartsPerQuestion,
+        mcqOptionsCount,
+        includeGraphs,
+        includeTables,
+      }
     );
     onOpenChange(false);
   };
