@@ -295,10 +295,15 @@ export default function CreateExam() {
       setProfileExtendedMarks(profile.extended_marks ?? null);
       setProfileStructurePreset(profile.structure_preset ?? null);
       setProfileMcqPosition(profile.mcq_position ?? null);
-      
+      setProfileMcqOptionsCount(profile.mcq_options_count ?? 4);
+      setProfileIncludeGraphs(profile.include_graphs ?? false);
+      setProfileIncludeTables(profile.include_tables ?? false);
+
       // Profile always overrides format structure
       setUseOriginal(false);
       setIncludeMCQ((profile.mcq_count ?? 0) > 0);
+      setIncludeGraphs(profile.include_graphs ?? true);
+      setIncludeDiagrams(profile.include_tables ?? true);
     }
     setShowProfilePrompt(false);
   };
