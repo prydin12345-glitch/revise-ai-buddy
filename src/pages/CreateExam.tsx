@@ -1141,7 +1141,21 @@ export default function CreateExam() {
                   <div className="pb-4 border-b border-border">
                     <p className="text-sm text-muted-foreground mb-1">Exam Structure</p>
                     <p className="font-medium">
-                      {useOriginal ? (
+                      {hasLockedProfileStructure ? (
+                        <span className="text-sm">
+                          {resolvedProfileMcqCount > 0 && resolvedProfileWrittenCount === 0
+                            ? `MCQ-only: ${resolvedProfileMcqCount} questions`
+                            : resolvedProfileMcqCount === 0
+                              ? `Written-only: ${resolvedProfileWrittenCount} questions`
+                              : `${resolvedProfileMcqCount} MCQ + ${resolvedProfileWrittenCount} written`}
+                          {resolvedProfileMcqCount > 0 && (
+                            <><br/>MCQ options: {resolvedProfileMcqOptionsCount === 3 ? 'A–C (3)' : 'A–D (4)'}</>
+                          )}
+                          {(profileIncludeGraphs || profileIncludeTables) && (
+                            <><br/>Extras: {[profileIncludeGraphs ? 'Graphs' : null, profileIncludeTables ? 'Tables' : null].filter(Boolean).join(' + ')}</>
+                          )}
+                        </span>
+                      ) : useOriginal ? (
                         "As per original"
                       ) : (
                         <span className="text-sm">
