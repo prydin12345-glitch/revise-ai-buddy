@@ -205,7 +205,8 @@ export const useSubjectProfiles = () => {
       "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes" |
       "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
       "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy" |
-      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question"
+      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question" |
+      "mcq_options_count" | "include_graphs" | "include_tables"
     >>
   ) => {
     try {

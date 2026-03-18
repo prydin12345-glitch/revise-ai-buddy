@@ -68,6 +68,7 @@ serve(async (req) => {
       short_answer_marks_each: format.shortAnswer?.marksEach || null,
       long_form_count: format.longForm?.count || null,
       long_form_marks_each: format.longForm?.marksEach || null,
+      profile_metadata: format.profileMetadata || {},
     };
 
     // Log profile metadata if present (for debugging)
