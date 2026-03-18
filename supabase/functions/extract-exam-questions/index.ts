@@ -384,7 +384,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
   // ALWAYS regenerate questions with new wording (regardless of resource pack)
-  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation);
+  const regenQuestionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = isMcqOnlyProfile ? 'mcq' : (desiredMcqCount === 0 ? 'mixed' : 'mixed');
+  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
 
   // ── POST-REGENERATION VALIDATION: Re-check for maths contamination after regen ──
   if (isCustomNicheForValidation) {
