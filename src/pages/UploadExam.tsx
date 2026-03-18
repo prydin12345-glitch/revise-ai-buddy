@@ -18,6 +18,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { UPLOAD_DECLARATION, checkTitleForBoardReferences } from "@/lib/board-scrubber";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { getLevelsForBoard } from "@/lib/board-level-mapping";
 import { ConfigSummary } from "@/components/exam/ConfigSummary";
 
