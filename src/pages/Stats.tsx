@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, AlertCircle, BookOpen } from "lucide-react";
+import { BarChart3, AlertCircle } from "lucide-react";
 import { TopStatsCards } from "@/components/stats/TopStatsCards";
 import { ExamResultsChart } from "@/components/stats/ExamResultsChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
