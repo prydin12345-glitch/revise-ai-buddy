@@ -293,11 +293,9 @@ export default function CreateExam() {
       setProfileStructurePreset(profile.structure_preset ?? null);
       setProfileMcqPosition(profile.mcq_position ?? null);
       
-      // Profile overrides format structure — disable "use original"
-      if ((profile.mcq_count ?? 0) > 0 || (profile.written_question_count ?? 0) > 0) {
-        setUseOriginal(false);
-        setIncludeMCQ((profile.mcq_count ?? 0) > 0);
-      }
+      // Profile always overrides format structure
+      setUseOriginal(false);
+      setIncludeMCQ((profile.mcq_count ?? 0) > 0);
     }
     setShowProfilePrompt(false);
   };
@@ -428,11 +426,11 @@ export default function CreateExam() {
       const draftId = uploadData.draftId;
 
       // Save format — include profile structure if a profile is active
-      const hasMcqFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileMcqCount ?? 0) > 0;
-      const hasWrittenFromProfile = selectedProfile && selectedProfile !== 'all_topics' && (profileWrittenCount ?? 0) > 0;
+      const hasProfileStructure = selectedProfile && selectedProfile !== 'all_topics';
+      
       
       let format: any;
-      if (hasMcqFromProfile || hasWrittenFromProfile) {
+      if (hasProfileStructure) {
         // Profile defines MCQ/written split — pass structured breakdown
         format = {
           useOriginal: false,

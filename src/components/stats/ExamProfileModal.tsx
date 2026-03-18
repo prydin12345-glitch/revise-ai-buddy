@@ -317,18 +317,23 @@ export const ExamProfileModal = ({
                   </span>
                 </div>
                 <Slider
-                  min={1}
+                  min={0}
                   max={20}
                   step={1}
                   value={[writtenCount]}
-                  onValueChange={(v) => setWrittenCount(v[0])}
+                  onValueChange={(v) => {
+                    const newVal = v[0];
+                    // Ensure at least one type has questions
+                    if (newVal === 0 && mcqCount === 0) return;
+                    setWrittenCount(newVal);
+                  }}
                   style={{
                     "--slider-track": "hsl(var(--muted))",
                     "--slider-range": subjectColor,
                   } as React.CSSProperties}
                 />
                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>1</span>
+                  <span>0 (none)</span>
                   <span>20 max</span>
                 </div>
                 {writtenCount >= 15 && (
@@ -353,7 +358,12 @@ export const ExamProfileModal = ({
                   max={30}
                   step={1}
                   value={[mcqCount]}
-                  onValueChange={(v) => setMcqCount(v[0])}
+                  onValueChange={(v) => {
+                    const newVal = v[0];
+                    // Ensure at least one type has questions
+                    if (newVal === 0 && writtenCount === 0) return;
+                    setMcqCount(newVal);
+                  }}
                   style={{
                     "--slider-track": "hsl(var(--muted))",
                     "--slider-range": "hsl(160 84% 39%)",
