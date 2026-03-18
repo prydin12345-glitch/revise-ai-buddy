@@ -1348,24 +1348,24 @@ Return JSON: {"detected_subject":"string","subject_confidence":0.9,"questions":[
 }
 
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
+  // Use stronger model for custom niche subjects to reduce hallucination
+  const sysLower = systemPrompt.toLowerCase();
+  const isNicheSubject = !(
+    sysLower.includes('math') || sysLower.includes('physics') ||
+    sysLower.includes('chemistry') || sysLower.includes('biology') ||
+    sysLower.includes('english') || sysLower.includes('history') ||
+    sysLower.includes('geography') || sysLower.includes('econ') ||
+    sysLower.includes('computer') || sysLower.includes('psychology')
+  );
+  const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+  console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
+
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    // Use stronger model for custom niche subjects to reduce hallucination
-    const isNicheSubject = !(
-      systemPrompt.includes('math') || systemPrompt.includes('physics') ||
-      systemPrompt.includes('chemistry') || systemPrompt.includes('biology') ||
-      systemPrompt.includes('english') || systemPrompt.includes('history') ||
-      systemPrompt.includes('geography') || systemPrompt.includes('econ') ||
-      systemPrompt.includes('computer') || systemPrompt.includes('psychology')
-    );
-    const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
-    console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
-
     body: JSON.stringify({
       model: selectedModel,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      // Gemini uses max_tokens, OpenAI uses max_completion_tokens
       max_tokens: 32000,
       temperature: hasResourcePack ? 0.1 : 0.3,
       response_format: { type: 'json_object' },
