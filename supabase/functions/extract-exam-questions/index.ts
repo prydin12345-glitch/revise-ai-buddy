@@ -1098,6 +1098,14 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
     : '';
 
   // MCQ/Written split instruction — supports mixed, MCQ-only, and written-only profiles
+  const mcqOptionsCount = profileMeta?.mcq_options_count || 4;
+  const optionLetters = mcqOptionsCount === 3 ? 'A, B, C' : 'A, B, C, D';
+  const wantGraphs = profileMeta?.include_graphs === true;
+  const wantTables = profileMeta?.include_tables === true;
+  const graphTableInstruction = (wantGraphs || wantTables)
+    ? `\nADDITIONAL FORMAT REQUIREMENTS:${wantGraphs ? '\n- Include graph-based questions where appropriate. Set has_figures=true and provide graph_description for these.' : ''}${wantTables ? '\n- Include table/data-based questions where appropriate. Set has_tables=true and provide table_data for these.' : ''}\n`
+    : '';
+
   const hasProfileTypeSplit =
     desiredQuestionCount !== null &&
     desiredMcqCount !== null &&
@@ -1112,7 +1120,7 @@ You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenC
 
 MCQ QUESTIONS (${desiredMcqCount} total):
 - question_type MUST be "mcq"
-- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ must have an "options" array with exactly ${mcqOptionsCount} choices (${optionLetters}) (text only, no letter prefixes)
 - Each MCQ is worth 1 mark
 - MCQ questions should come FIRST (Q1 through Q${desiredMcqCount})
 - MCQ questions are standalone — no sub-parts needed
@@ -1125,16 +1133,16 @@ WRITTEN QUESTIONS (${desiredWrittenCount} total):
 
 TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
 DO NOT deviate from this split.
-`
+${graphTableInstruction}`
       : desiredMcqCount > 0
         ? `
 QUESTION TYPE RULE (MANDATORY — MCQ-ONLY PROFILE):
 You MUST generate exactly ${desiredMcqCount} parent questions and EVERY question MUST be question_type "mcq".
-- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ must have an "options" array with exactly ${mcqOptionsCount} choices (${optionLetters}) (text only, no letter prefixes)
 - Each MCQ is worth 1 mark
 - Number questions Q1 through Q${desiredMcqCount}
 - Do NOT generate any written, short-answer, or extended questions
-`
+${graphTableInstruction}`
         : `
 QUESTION TYPE RULE (MANDATORY — WRITTEN-ONLY PROFILE):
 You MUST generate exactly ${desiredWrittenCount} parent questions and ZERO MCQ questions.
@@ -1142,7 +1150,7 @@ You MUST generate exactly ${desiredWrittenCount} parent questions and ZERO MCQ q
 - Use varied mark allocation (2, 4, and 6+ where appropriate)
 - Number questions Q1 through Q${desiredWrittenCount}
 - Do NOT generate any "mcq" questions
-`
+${graphTableInstruction}`
     : '';
 
   const minParts = archetype?.minSubParts || 2;
