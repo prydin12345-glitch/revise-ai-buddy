@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, FileText, CheckSquare, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle } from "lucide-react";
+import { LayoutDashboard, FileText, CheckSquare, TrendingUp, Settings, Calendar, BarChart3, Users, MessageCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 
