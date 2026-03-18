@@ -1089,9 +1089,16 @@ You MUST generate EXACTLY ${desiredQuestionCount} PARENT questions, numbered 1, 
 - COUNT CHECK: Before returning, count the number of unique root_question_number values. It MUST equal ${desiredQuestionCount}.`
     : '';
 
-  // MCQ/Written split instruction — when profile specifies exact breakdown
-  const mcqWrittenSplitInstruction = (desiredMcqCount && desiredMcqCount > 0 && desiredWrittenCount && desiredWrittenCount > 0)
-    ? `
+  // MCQ/Written split instruction — supports mixed, MCQ-only, and written-only profiles
+  const hasProfileTypeSplit =
+    desiredQuestionCount !== null &&
+    desiredMcqCount !== null &&
+    desiredWrittenCount !== null &&
+    desiredQuestionCount > 0;
+
+  const mcqWrittenSplitInstruction = hasProfileTypeSplit
+    ? desiredMcqCount > 0 && desiredWrittenCount > 0
+      ? `
 QUESTION TYPE SPLIT (MANDATORY — FROM EXAM PROFILE):
 You MUST generate exactly ${desiredMcqCount} MCQ questions and ${desiredWrittenCount} written questions.
 
@@ -1109,7 +1116,24 @@ WRITTEN QUESTIONS (${desiredWrittenCount} total):
 - Mark allocation should vary: mix of 2-mark, 4-mark, and 6+ mark questions
 
 TOTAL: ${desiredMcqCount} MCQ + ${desiredWrittenCount} written = ${desiredQuestionCount} parent questions.
-DO NOT deviate from this split. DO NOT make all questions the same type.
+DO NOT deviate from this split.
+`
+      : desiredMcqCount > 0
+        ? `
+QUESTION TYPE RULE (MANDATORY — MCQ-ONLY PROFILE):
+You MUST generate exactly ${desiredMcqCount} parent questions and EVERY question MUST be question_type "mcq".
+- Each MCQ must have an "options" array with 4 choices (text only, no A/B/C/D prefixes)
+- Each MCQ is worth 1 mark
+- Number questions Q1 through Q${desiredMcqCount}
+- Do NOT generate any written, short-answer, or extended questions
+`
+        : `
+QUESTION TYPE RULE (MANDATORY — WRITTEN-ONLY PROFILE):
+You MUST generate exactly ${desiredWrittenCount} parent questions and ZERO MCQ questions.
+- question_type should be "short_answer" or "extended" depending on marks
+- Use varied mark allocation (2, 4, and 6+ where appropriate)
+- Number questions Q1 through Q${desiredWrittenCount}
+- Do NOT generate any "mcq" questions
 `
     : '';
 
