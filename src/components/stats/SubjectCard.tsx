@@ -155,6 +155,52 @@ export const SubjectCard = ({
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              {/* Edit subject button (exam board) */}
+              <Popover open={boardEditorOpen} onOpenChange={(open) => {
+                setBoardEditorOpen(open);
+                if (open) setEditingBoard(subject.exam_board || "");
+              }}>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit subject settings"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Exam Board
+                    </Label>
+                    <Select
+                      value={editingBoard || "__none"}
+                      onValueChange={(val) => {
+                        const newBoard = val === "__none" ? "" : val;
+                        setEditingBoard(newBoard);
+                        handleBoardSave(newBoard);
+                      }}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select exam board" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No preference</SelectItem>
+                        {regionBoards.map((board) => (
+                          <SelectItem key={board.id} value={board.id}>
+                            {board.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      Changes which mark scheme style is used for this subject
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
               {/* Colour picker button */}
               <Popover open={colourPickerOpen} onOpenChange={setColourPickerOpen}>
                 <PopoverTrigger asChild>
