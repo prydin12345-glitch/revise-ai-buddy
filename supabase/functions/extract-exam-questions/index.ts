@@ -132,8 +132,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
+  let profileMeta: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean } = {};
   
   if (formatData) {
+    // Extract profile metadata
+    if (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') {
+      profileMeta = formatData.profile_metadata as typeof profileMeta;
+    }
+
     if (formatData.use_original_structure === false) {
       const mcq = Math.max(formatData.mcq_count || 0, 0);
       const sa = Math.max(formatData.short_answer_count || 0, 0);
@@ -149,6 +155,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
   }
+
+  console.log('Profile metadata:', JSON.stringify(profileMeta));
 
   // Fallback: check exam title metadata for a question count hint
   if (!desiredQuestionCount && exam.title) {
@@ -168,7 +176,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   console.log('Stealth archetype resolved:', archetype.name, 'region:', curriculumRegion);
 
   // Build prompt and call AI - ALWAYS generate NEW questions (never copy verbatim)
-  let extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount);
+  let extractionPrompt = buildPrompt(exam, pdfText, resourcePackContext, specTopics, examBoard, qualificationLevel, false, useFallbackMode, desiredQuestionCount, archetype, curriculumRegion, canonicalTopicList, desiredMcqCount, desiredWrittenCount, profileMeta);
 
   // Inject literary copyright rules if applicable
   const specTopicNames = specTopics.map((t: any) => t.topic_name || t);
