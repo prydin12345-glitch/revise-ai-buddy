@@ -1351,8 +1351,19 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    // Use stronger model for custom niche subjects to reduce hallucination
+    const isNicheSubject = !(
+      systemPrompt.includes('math') || systemPrompt.includes('physics') ||
+      systemPrompt.includes('chemistry') || systemPrompt.includes('biology') ||
+      systemPrompt.includes('english') || systemPrompt.includes('history') ||
+      systemPrompt.includes('geography') || systemPrompt.includes('econ') ||
+      systemPrompt.includes('computer') || systemPrompt.includes('psychology')
+    );
+    const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
+    console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
+
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: selectedModel,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       // Gemini uses max_tokens, OpenAI uses max_completion_tokens
       max_tokens: 32000,
