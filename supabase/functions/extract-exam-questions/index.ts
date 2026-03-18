@@ -128,7 +128,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const useFallbackMode = pdfText.length < 100;
 
   // Determine desired PARENT question count and MCQ/written split
-  const formatData = exam.exam_format?.[0];
+  // exam_format is a one-to-one relation — PostgREST returns an object (not array)
+  const rawFormat = exam.exam_format;
+  const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
