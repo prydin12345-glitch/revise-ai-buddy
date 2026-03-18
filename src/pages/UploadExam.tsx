@@ -216,14 +216,19 @@ export default function UploadExam() {
                       <Lock className="h-3 w-3" />
                       {selectedProfile.question_count} Questions
                     </Badge>
-                    {selectedProfileMcqCount !== null && (
+                    {selectedProfileMcqCount !== null && selectedProfileMcqCount > 0 && (
                       <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
-                        {selectedProfileMcqCount} MCQ
+                        {selectedProfileMcqCount} MCQ ({selectedProfile.mcq_options_count ?? 4} options)
                       </Badge>
                     )}
-                    {selectedProfileWrittenCount !== null && (
+                    {selectedProfileWrittenCount !== null && selectedProfileWrittenCount > 0 && (
                       <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                         {selectedProfileWrittenCount} Written
+                      </Badge>
+                    )}
+                    {selectedProfileMcqCount !== null && selectedProfileMcqCount > 0 && selectedProfileWrittenCount === 0 && (
+                      <Badge variant="outline" className="text-[10px] border-accent/60 text-accent-foreground bg-accent/20">
+                        MCQ Only
                       </Badge>
                     )}
                     {selectedProfile.educational_tier && (
@@ -234,6 +239,16 @@ export default function UploadExam() {
                     {selectedProfile.time_limit_minutes && (
                       <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                         {selectedProfile.time_limit_minutes} min
+                      </Badge>
+                    )}
+                    {selectedProfile.include_graphs && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        Graphs
+                      </Badge>
+                    )}
+                    {selectedProfile.include_tables && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        Tables
                       </Badge>
                     )}
                     {isLockedByProfile && (
