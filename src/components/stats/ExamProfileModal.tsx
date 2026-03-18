@@ -28,6 +28,9 @@ export interface QuestionStructureSettings {
   questionStructure: string;
   parentQuestionCount: number;
   maxPartsPerQuestion: number;
+  mcqOptionsCount?: number;
+  includeGraphs?: boolean;
+  includeTables?: boolean;
 }
 
 interface ExamProfileModalProps {
