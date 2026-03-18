@@ -884,6 +884,7 @@ export default function CreateExam() {
                     <Switch
                       checked={useOriginal}
                       onCheckedChange={setUseOriginal}
+                      disabled={hasLockedProfileStructure}
                     />
                   </div>
                   
