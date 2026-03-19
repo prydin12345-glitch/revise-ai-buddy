@@ -79,6 +79,21 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const examBoard = exam.exam_board || 'generic';
   const qualificationLevel = exam.qualification_level || 'not specified';
   const specTopics = exam.exam_specifications || [];
+
+  // Determine if this is a custom/niche subject (not a common academic subject)
+  const COMMON_SUBJECTS = [
+    'mathematics', 'maths', 'math', 'physics', 'chemistry', 'biology',
+    'english', 'history', 'geography', 'economics', 'business',
+    'computer science', 'psychology', 'sociology', 'french', 'spanish',
+    'german', 'art', 'music', 'drama', 'religious studies', 'philosophy',
+    'politics', 'law', 'accounting', 'statistics', 'further maths',
+    'engineering', 'design technology', 'food technology', 'pe',
+    'physical education', 'environmental science', 'geology',
+    'astronomy', 'media studies', 'film studies',
+  ];
+  const subjectLower = (exam.subject_id || '').toLowerCase();
+  const isCustomNicheForValidation = !COMMON_SUBJECTS.some(s => subjectLower.includes(s));
+  console.log('Is custom niche subject:', isCustomNicheForValidation, '| Subject:', exam.subject_id);
   const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
 
   // Fetch user's curriculum_region for stealth framework
