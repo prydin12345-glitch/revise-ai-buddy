@@ -1389,50 +1389,21 @@ const ExamInProgress = () => {
         {/* Main Panel - Wider with page navigation */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Page Navigation Header */}
-          <div className="border-b bg-muted/30 px-6 py-4 flex items-center justify-between relative">
+          <div className="border-b bg-muted/30 px-4 sm:px-6 py-3 flex items-center gap-3">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex"
+              className="hidden lg:flex h-8 w-8 shrink-0"
             >
-              <Menu className="h-4 w-4 mr-2" />
-              {sidebarOpen ? 'Hide' : 'Show'} Navigation
+              <Menu className="h-4 w-4" />
             </Button>
-            <div className="flex-1 flex justify-center">
-              <h2 className="text-lg font-semibold">
-                {currentGroup.parent}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await flushCurrentPageSaves();
-                  setCurrentPage(prev => prev - 1);
-                }}
-                disabled={!hasPrevPage}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous Section
-              </Button>
-              <span className="text-sm text-muted-foreground px-3">
-                {currentPage + 1} / {questionGroups.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await flushCurrentPageSaves();
-                  setCurrentPage(prev => prev + 1);
-                }}
-                disabled={!hasNextPage}
-              >
-                Next Section
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <h2 className="text-base sm:text-lg font-semibold flex-1 text-center lg:text-left">
+              {currentGroup.parent}
+            </h2>
+            <span className="text-sm text-muted-foreground shrink-0">
+              {currentPage + 1} / {questionGroups.length}
+            </span>
           </div>
 
           {/* Questions Container */}
