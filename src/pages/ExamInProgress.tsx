@@ -1194,7 +1194,7 @@ const ExamInProgress = () => {
 
       <div className="flex flex-1">
         {/* Left Sidebar - Collapsible */}
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto`}>
+        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide`}>
           <div className="p-6 flex flex-col gap-6 h-full">
             <div>
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
@@ -1233,7 +1233,6 @@ const ExamInProgress = () => {
                                 }}>
                                   {rootNum}
                                 </span>
-                                <span className="text-muted-foreground text-xs">{totalMarks}m</span>
                               </div>
                               <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform" />
                             </CollapsibleTrigger>
@@ -1263,7 +1262,7 @@ const ExamInProgress = () => {
                                     }} >
                                       {subLabel || rootNum}
                                     </span>
-                                    <span className="text-muted-foreground truncate">{q.marks}m</span>
+                                    {/* marks label removed for cleaner sidebar */}
                                     {isFlagged && <Flag className="w-2.5 h-2.5 text-yellow-500 ml-auto" fill="currentColor" />}
                                   </button>
                                 );
@@ -1295,7 +1294,7 @@ const ExamInProgress = () => {
                                 }}>
                                   {rootNum}
                                 </span>
-                                <span className="text-muted-foreground text-xs">{q.marks}m</span>
+                                {/* marks label removed for cleaner sidebar */}
                                 {isFlagged && <Flag className="w-2.5 h-2.5 text-yellow-500 ml-auto" fill="currentColor" />}
                               </button>
                             );
@@ -1390,55 +1389,26 @@ const ExamInProgress = () => {
         {/* Main Panel - Wider with page navigation */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Page Navigation Header */}
-          <div className="border-b bg-muted/30 px-6 py-4 flex items-center justify-between relative">
+          <div className="border-b bg-muted/30 px-4 sm:px-6 py-3 flex items-center gap-3">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex"
+              className="hidden lg:flex h-8 w-8 shrink-0"
             >
-              <Menu className="h-4 w-4 mr-2" />
-              {sidebarOpen ? 'Hide' : 'Show'} Navigation
+              <Menu className="h-4 w-4" />
             </Button>
-            <div className="flex-1 flex justify-center">
-              <h2 className="text-lg font-semibold">
-                {currentGroup.parent}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await flushCurrentPageSaves();
-                  setCurrentPage(prev => prev - 1);
-                }}
-                disabled={!hasPrevPage}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous Section
-              </Button>
-              <span className="text-sm text-muted-foreground px-3">
-                {currentPage + 1} / {questionGroups.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await flushCurrentPageSaves();
-                  setCurrentPage(prev => prev + 1);
-                }}
-                disabled={!hasNextPage}
-              >
-                Next Section
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <h2 className="text-base sm:text-lg font-semibold flex-1 text-center lg:text-left">
+              {currentGroup.parent}
+            </h2>
+            <span className="text-sm text-muted-foreground shrink-0">
+              {currentPage + 1} / {questionGroups.length}
+            </span>
           </div>
 
           {/* Questions Container */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-7xl py-8 px-8 space-y-8">
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="container max-w-7xl py-8 px-4 sm:px-8 space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
                 const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
@@ -1809,7 +1779,7 @@ const ExamInProgress = () => {
                                 <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
                                   <span className="font-medium mr-2">{optionLetter})</span>
                                   <MathRenderer 
-                                    content={option} 
+                                    content={option.replace(/^[A-Da-d][.)]\s*/, '')} 
                                     hasMath={question.has_math}
                                     inline={true}
                                   />
