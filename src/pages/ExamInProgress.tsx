@@ -1294,7 +1294,7 @@ const ExamInProgress = () => {
                                 }}>
                                   {rootNum}
                                 </span>
-                                <span className="text-muted-foreground text-xs">{q.marks}m</span>
+                                {/* marks label removed for cleaner sidebar */}
                                 {isFlagged && <Flag className="w-2.5 h-2.5 text-yellow-500 ml-auto" fill="currentColor" />}
                               </button>
                             );
