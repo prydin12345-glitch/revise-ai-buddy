@@ -1407,8 +1407,8 @@ const ExamInProgress = () => {
           </div>
 
           {/* Questions Container */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-7xl py-8 px-8 space-y-8">
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="container max-w-7xl py-8 px-4 sm:px-8 space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
                 const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
