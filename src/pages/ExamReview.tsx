@@ -520,7 +520,7 @@ const ExamReview = () => {
                   {isMcq && question.options && Array.isArray(question.options) && question.options.length > 0 && (
                     <div className="mb-4 space-y-2">
                       {question.options.map((opt, idx) => {
-                        const optText = typeof opt === "string" ? opt : (opt as any)?.text ?? "";
+                        const optText = (typeof opt === "string" ? opt : (opt as any)?.text ?? "").replace(/^[A-Da-d][.)]\s*/, '');
                         const label = getOptionLabel(idx);
                         const studentSelected = answer?.answer_text?.trim().toUpperCase() === label || answer?.answer_text?.trim() === optText;
                         const isCorrectOpt = question.correct_answer === optText || question.correct_answer === label || question.correct_answer?.trim() === optText;
