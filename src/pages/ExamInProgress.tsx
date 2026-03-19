@@ -1233,7 +1233,6 @@ const ExamInProgress = () => {
                                 }}>
                                   {rootNum}
                                 </span>
-                                <span className="text-muted-foreground text-xs">{totalMarks}m</span>
                               </div>
                               <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform" />
                             </CollapsibleTrigger>
