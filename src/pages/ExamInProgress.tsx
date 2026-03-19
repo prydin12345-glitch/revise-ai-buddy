@@ -1779,7 +1779,7 @@ const ExamInProgress = () => {
                                 <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
                                   <span className="font-medium mr-2">{optionLetter})</span>
                                   <MathRenderer 
-                                    content={option} 
+                                    content={option.replace(/^[A-Da-d][.)]\s*/, '')} 
                                     hasMath={question.has_math}
                                     inline={true}
                                   />
