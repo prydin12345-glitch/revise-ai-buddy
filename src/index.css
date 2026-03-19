@@ -376,3 +376,12 @@ math-field::part(selection) {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Hide scrollbar but keep content scrollable */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
