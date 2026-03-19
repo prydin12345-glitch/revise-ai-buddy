@@ -1194,7 +1194,7 @@ const ExamInProgress = () => {
 
       <div className="flex flex-1">
         {/* Left Sidebar - Collapsible */}
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto`}>
+        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide`}>
           <div className="p-6 flex flex-col gap-6 h-full">
             <div>
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
