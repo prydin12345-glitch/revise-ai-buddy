@@ -168,7 +168,6 @@ When generating multi-part questions involving circuit diagrams:
 6. LABEL FORMAT: Use Unicode subscripts (R₁, R₂, R₃) not LaTeX subscripts in diagram labels. Use ε for EMF, r for internal resistance.
 `;
 }
-}
 
 /** Translate exam board to board-specific style instruction */
 export function translateExamBoard(examBoard: string | undefined): string {
