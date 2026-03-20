@@ -19,6 +19,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getRegionBoards } from "@/lib/board-level-mapping";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
