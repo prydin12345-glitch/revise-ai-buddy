@@ -176,6 +176,12 @@ const CreatePracticeQuestions = () => {
     setProfileMaxQuestions(null);
     setProfileTopics([]);
     
+    // Pull subject-level exam board if set
+    const subjectBoard = getSubjectExamBoard(value);
+    if (subjectBoard) {
+      setExamBoard(subjectBoard);
+    }
+    
     // Check if user has topics for smart prompt
     const topics = getTopicsForSubject(value);
     if (topics.length > 1) {
