@@ -7,6 +7,7 @@ import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, p
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
+import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -1011,8 +1012,6 @@ A-LEVEL GRAPH QUESTIONS (when relevant to subtopics):
 `;
     }
 
-    // Use shared board translation + mark scheme style
-    const { translateExamBoard, getBoardMarkSchemeStyle } = await import("../_shared/prompt-templates.ts");
     const translatedBoard = translateExamBoard(setData.exam_board);
     const markSchemeStyle = setData.exam_board ? getBoardMarkSchemeStyle(setData.exam_board.toLowerCase()) : '';
 

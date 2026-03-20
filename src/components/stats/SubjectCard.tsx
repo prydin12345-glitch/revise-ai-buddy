@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getRegionBoards } from "@/lib/board-level-mapping";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface SubjectCardProps {
   subject: { id: string; subject_name: string; subject_color: string; exam_board?: string | null };
@@ -60,6 +61,9 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [boardEditorOpen, setBoardEditorOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
+  const [isCustomBoard, setIsCustomBoard] = useState(false);
+  const [customBoardText, setCustomBoardText] = useState("");
+  const customBoardRef = useRef<HTMLInputElement>(null);
   
   // Sync editingBoard when subject prop changes (after refetch)
   useEffect(() => {
@@ -128,6 +132,7 @@ export const SubjectCard = ({
     try {
       const boardValue = newBoard === "__none" ? null : newBoard;
       setEditingBoard(newBoard === "__none" ? "" : newBoard);
+      setIsCustomBoard(false);
       await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
       await refetch();
       setBoardEditorOpen(false);
@@ -135,6 +140,12 @@ export const SubjectCard = ({
       console.error("Error updating exam board:", err);
       setEditingBoard(subject.exam_board || "");
     }
+  };
+
+  const handleCustomBoardSave = async () => {
+    const trimmed = customBoardText.trim();
+    if (!trimmed) return;
+    await handleBoardSave(trimmed.toLowerCase());
   };
 
   return (
@@ -155,7 +166,7 @@ export const SubjectCard = ({
                 {subject.subject_name.charAt(0).toUpperCase()}
               </div>
               <h3 className="font-semibold text-foreground">{subject.subject_name}</h3>
-              {(editingBoard || subject.exam_board) && (editingBoard || subject.exam_board) !== 'other' && (
+              {(editingBoard || subject.exam_board) && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
                   {(editingBoard || subject.exam_board || "").toUpperCase()}
                 </Badge>
@@ -165,7 +176,13 @@ export const SubjectCard = ({
               {/* Edit subject button (exam board) */}
               <Popover open={boardEditorOpen} onOpenChange={(open) => {
                 setBoardEditorOpen(open);
-                if (open) setEditingBoard(subject.exam_board || "");
+                if (open) {
+                  const currentBoard = subject.exam_board || "";
+                  setEditingBoard(currentBoard);
+                  const isKnown = !currentBoard || currentBoard === "__none" || regionBoards.some(b => b.id === currentBoard);
+                  setIsCustomBoard(!isKnown && !!currentBoard);
+                  setCustomBoardText(!isKnown && currentBoard ? currentBoard : "");
+                }
               }}>
                 <PopoverTrigger asChild>
                   <Button
@@ -183,11 +200,18 @@ export const SubjectCard = ({
                       Exam Board
                     </Label>
                     <Select
-                      value={editingBoard || "__none"}
+                      value={isCustomBoard ? "__other" : (editingBoard || "__none")}
                       onValueChange={(val) => {
-                        const newBoard = val === "__none" ? "" : val;
-                        setEditingBoard(newBoard);
-                        handleBoardSave(newBoard);
+                        if (val === "__other") {
+                          setIsCustomBoard(true);
+                          setCustomBoardText("");
+                          setTimeout(() => customBoardRef.current?.focus(), 50);
+                        } else {
+                          setIsCustomBoard(false);
+                          const newBoard = val === "__none" ? "" : val;
+                          setEditingBoard(newBoard);
+                          handleBoardSave(newBoard);
+                        }
                       }}
                     >
                       <SelectTrigger className="h-9">
@@ -200,8 +224,24 @@ export const SubjectCard = ({
                             {board.name}
                           </SelectItem>
                         ))}
+                        <SelectItem value="__other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    {isCustomBoard && (
+                      <div className="flex gap-2">
+                        <Input
+                          ref={customBoardRef}
+                          placeholder="e.g. NZQA, SACE"
+                          value={customBoardText}
+                          onChange={(e) => setCustomBoardText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleCustomBoardSave(); }}
+                          className="h-9 text-sm"
+                        />
+                        <Button size="sm" className="h-9 px-3" onClick={handleCustomBoardSave} disabled={!customBoardText.trim()}>
+                          Save
+                        </Button>
+                      </div>
+                    )}
                     <p className="text-[11px] text-muted-foreground">
                       Changes which mark scheme style is used for this subject
                     </p>
