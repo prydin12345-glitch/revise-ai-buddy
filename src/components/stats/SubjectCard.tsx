@@ -199,10 +199,10 @@ export const SubjectCard = ({
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Exam Board
                     </Label>
-                    <Select
-                      value={isCustomBoard ? "__other" : (editingBoard || "__none")}
+                      <Select
+                      value={isCustomBoard ? "other" : (editingBoard || "__none")}
                       onValueChange={(val) => {
-                        if (val === "__other") {
+                        if (val === "other") {
                           setIsCustomBoard(true);
                           setCustomBoardText("");
                           setTimeout(() => customBoardRef.current?.focus(), 50);
@@ -224,7 +224,6 @@ export const SubjectCard = ({
                             {board.name}
                           </SelectItem>
                         ))}
-                        <SelectItem value="__other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                     {isCustomBoard && (

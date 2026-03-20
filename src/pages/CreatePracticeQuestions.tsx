@@ -44,7 +44,7 @@ import { ConfigSummary } from "@/components/exam/ConfigSummary";
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getSubjectColor } = useUserSubjects();
+  const { getSubjectColor, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
   const { preferences, loading: prefsLoading } = useUserPreferences();
   
@@ -175,6 +175,12 @@ const CreatePracticeQuestions = () => {
     setSelectedProfileId(null);
     setProfileMaxQuestions(null);
     setProfileTopics([]);
+    
+    // Pull subject-level exam board if set
+    const subjectBoard = getSubjectExamBoard(value);
+    if (subjectBoard) {
+      setExamBoard(subjectBoard);
+    }
     
     // Check if user has topics for smart prompt
     const topics = getTopicsForSubject(value);

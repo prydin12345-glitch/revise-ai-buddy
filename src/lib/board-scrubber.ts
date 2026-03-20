@@ -66,7 +66,9 @@ export const EXAM_BOARD_OPTIONS = [
 export function getBoardDisplayName(boardId: string | null | undefined): string {
   if (!boardId) return '';
   const found = EXAM_BOARD_OPTIONS.find(b => b.id === boardId);
-  return found?.name || boardId;
+  if (found) return found.name;
+  // Custom board — title-case it for display
+  return boardId.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /**
