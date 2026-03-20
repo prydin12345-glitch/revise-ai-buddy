@@ -44,7 +44,7 @@ import { ConfigSummary } from "@/components/exam/ConfigSummary";
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getSubjectColor } = useUserSubjects();
+  const { getSubjectColor, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
   const { preferences, loading: prefsLoading } = useUserPreferences();
   
