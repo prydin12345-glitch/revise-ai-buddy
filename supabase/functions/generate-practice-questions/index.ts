@@ -7,6 +7,7 @@ import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, p
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
+import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
