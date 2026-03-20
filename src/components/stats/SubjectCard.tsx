@@ -131,6 +131,7 @@ export const SubjectCard = ({
     try {
       const boardValue = newBoard === "__none" ? null : newBoard;
       setEditingBoard(newBoard === "__none" ? "" : newBoard);
+      setIsCustomBoard(false);
       await saveOrUpdateSubject(subject.subject_name, subject.subject_color, boardValue);
       await refetch();
       setBoardEditorOpen(false);
@@ -138,6 +139,12 @@ export const SubjectCard = ({
       console.error("Error updating exam board:", err);
       setEditingBoard(subject.exam_board || "");
     }
+  };
+
+  const handleCustomBoardSave = async () => {
+    const trimmed = customBoardText.trim();
+    if (!trimmed) return;
+    await handleBoardSave(trimmed.toLowerCase());
   };
 
   return (
