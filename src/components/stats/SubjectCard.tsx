@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTopicPerformance, MASTERY_COLORS } from "@/hooks/useTopicPerformance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
