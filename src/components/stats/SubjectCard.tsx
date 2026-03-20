@@ -60,6 +60,9 @@ export const SubjectCard = ({
   const [colourPickerOpen, setColourPickerOpen] = useState(false);
   const [boardEditorOpen, setBoardEditorOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState(subject.exam_board || "");
+  const [isCustomBoard, setIsCustomBoard] = useState(false);
+  const [customBoardText, setCustomBoardText] = useState("");
+  const customBoardRef = useRef<HTMLInputElement>(null);
   
   // Sync editingBoard when subject prop changes (after refetch)
   useEffect(() => {
