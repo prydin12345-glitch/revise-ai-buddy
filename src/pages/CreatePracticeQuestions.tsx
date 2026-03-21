@@ -794,7 +794,7 @@ const CreatePracticeQuestions = () => {
             {/* Resource Mode Selector */}
             <ResourceModeSelector
               value={resourceMode}
-              onValueChange={setResourceMode}
+              onChange={setResourceMode}
               subjectColor={subjectColor}
             />
 
