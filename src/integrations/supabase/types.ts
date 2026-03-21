@@ -1082,8 +1082,10 @@ export type Database = {
           id: string
           include_graphs: boolean | null
           include_tables: boolean | null
+          mcq_count: number | null
           notes: string | null
           question_count: number
+          question_format: string | null
           resource_mode: string | null
           resource_pack_id: string | null
           set_name: string
@@ -1094,6 +1096,7 @@ export type Database = {
           total_questions_generated: number | null
           updated_at: string | null
           user_id: string
+          written_count: number | null
         }
         Insert: {
           created_at?: string | null
@@ -1107,8 +1110,10 @@ export type Database = {
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
+          mcq_count?: number | null
           notes?: string | null
           question_count: number
+          question_format?: string | null
           resource_mode?: string | null
           resource_pack_id?: string | null
           set_name: string
@@ -1119,6 +1124,7 @@ export type Database = {
           total_questions_generated?: number | null
           updated_at?: string | null
           user_id: string
+          written_count?: number | null
         }
         Update: {
           created_at?: string | null
@@ -1132,8 +1138,10 @@ export type Database = {
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
+          mcq_count?: number | null
           notes?: string | null
           question_count?: number
+          question_format?: string | null
           resource_mode?: string | null
           resource_pack_id?: string | null
           set_name?: string
@@ -1144,6 +1152,7 @@ export type Database = {
           total_questions_generated?: number | null
           updated_at?: string | null
           user_id?: string
+          written_count?: number | null
         }
         Relationships: [
           {

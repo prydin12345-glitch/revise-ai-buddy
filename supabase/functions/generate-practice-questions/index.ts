@@ -1066,12 +1066,27 @@ Topics to cover: ${(setData.subtopics || []).join(', ')}
 These topics must be interpreted ONLY within the context of "${subjectName}".
 `;
 
+    // Determine MCQ/written split from format settings
+    const questionFormat = setData.question_format || 'written_only';
+    const desiredMcqCount = questionFormat === 'mcq_only' ? setData.question_count : (setData.mcq_count || 0);
+    const desiredWrittenCount = questionFormat === 'written_only' ? setData.question_count : (setData.written_count || setData.question_count);
+
+    let mcqFormatInstruction = '';
+    if (questionFormat === 'mcq_only') {
+      mcqFormatInstruction = `\nQUESTION FORMAT: ALL ${setData.question_count} questions MUST be multiple choice (question_type: "mcq"). Every question must have exactly 4 options.\n`;
+    } else if (questionFormat === 'mixed' && desiredMcqCount > 0) {
+      mcqFormatInstruction = `\nQUESTION FORMAT: Generate exactly ${desiredMcqCount} multiple choice questions (question_type: "mcq") and ${desiredWrittenCount} written questions (short_answer, extended, graph_plotting, etc.). MCQ questions should appear first.\n`;
+    } else {
+      mcqFormatInstruction = `\nQUESTION FORMAT: All questions should be written format (short_answer, extended, graph_plotting, graph_interpretation, table_grid, etc.). Do NOT generate MCQ questions unless the topic specifically requires it.\n`;
+    }
+
     const prompt = `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 Generate ${setData.question_count} practice questions.
+${mcqFormatInstruction}
 
 Context:
 - Subject: ${subjectName}

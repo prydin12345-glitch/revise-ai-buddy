@@ -39,7 +39,8 @@ import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
-import { ConfigSummary } from "@/components/exam/ConfigSummary";
+
+type QuestionFormat = 'written_only' | 'mcq_only' | 'mixed';
 
 const CreatePracticeQuestions = () => {
   const navigate = useNavigate();
@@ -77,6 +78,10 @@ const CreatePracticeQuestions = () => {
   const [customExamBoard, setCustomExamBoard] = useState("");
   const [notesValidation, setNotesValidation] = useState<NotesSanitizationResult | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // MCQ format state
+  const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('written_only');
+  const [mcqCount, setMcqCount] = useState(5);
 
   // Board detection + deep topic scan state
   const [detectedBoard, setDetectedBoard] = useState<BoardDetectionResult | null>(null);
@@ -258,6 +263,10 @@ const CreatePracticeQuestions = () => {
     }
   };
 
+  // Compute effective MCQ/written counts
+  const effectiveMcqCount = questionFormat === 'mcq_only' ? questionCount : questionFormat === 'mixed' ? mcqCount : 0;
+  const effectiveWrittenCount = questionFormat === 'written_only' ? questionCount : questionFormat === 'mixed' ? questionCount - mcqCount : 0;
+
   const handleGenerate = async () => {
     // Validation
     if (!setName.trim()) {
@@ -382,7 +391,11 @@ const CreatePracticeQuestions = () => {
           // Resource pack linking
           resource_pack_id: resourcePack?.id || null,
           resource_mode: resourceMode,
-        })
+          // MCQ format settings
+          question_format: questionFormat,
+          mcq_count: effectiveMcqCount,
+          written_count: effectiveWrittenCount,
+        } as any)
         .select()
         .single();
 
@@ -505,6 +518,42 @@ const CreatePracticeQuestions = () => {
     }
   };
 
+  // Question format display helper
+  const formatDisplayLabel = questionFormat === 'written_only' 
+    ? 'Written only'
+    : questionFormat === 'mcq_only' 
+    ? 'Multiple choice only'
+    : `Mixed (${mcqCount} MCQ + ${questionCount - mcqCount} written)`;
+
+  // Clamp mcqCount when questionCount changes
+  useEffect(() => {
+    const maxMcq = Math.floor(questionCount * 0.75);
+    if (mcqCount > maxMcq) {
+      setMcqCount(Math.max(1, maxMcq));
+    }
+  }, [questionCount, mcqCount]);
+
+  const formatOptions = [
+    {
+      id: 'written_only' as QuestionFormat,
+      label: 'Written questions only',
+      detail: 'Short answer and extended response questions',
+      icon: '✍️',
+    },
+    {
+      id: 'mcq_only' as QuestionFormat,
+      label: 'Multiple choice only',
+      detail: 'All questions have 4 answer options — good for quick revision',
+      icon: '☑️',
+    },
+    {
+      id: 'mixed' as QuestionFormat,
+      label: 'Mix of both',
+      detail: 'Combination of MCQ and written questions',
+      icon: '🔀',
+    },
+  ];
+
   return (
     <DashboardLayout>
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
@@ -554,14 +603,6 @@ const CreatePracticeQuestions = () => {
             Generate
           </Button>
         </div>
-
-        {/* Configuration Summary */}
-        <ConfigSummary
-          examBoard={effectiveExamBoard || null}
-          educationalLevel={effectiveEducationalTier || null}
-          subject={subjectId || null}
-          questionCount={questionCount}
-        />
 
         {/* Main Form */}
         <div className="grid grid-cols-1 lg:grid-cols-[65%_35%] gap-4 lg:gap-6">
@@ -666,7 +707,98 @@ const CreatePracticeQuestions = () => {
                 />
               </Card>
             )}
-...
+
+            {/* Difficulty Settings */}
+            <DifficultySettings
+              mode={difficultyMode}
+              level={difficultyLevel}
+              onModeChange={setDifficultyMode}
+              onLevelChange={setDifficultyLevel}
+            />
+
+            {/* Question Format (MCQ Options) */}
+            <Card className="p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Question Format</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Choose how your practice questions are formatted
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {formatOptions.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setQuestionFormat(option.id)}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border text-left transition-all ${
+                      questionFormat === option.id
+                        ? 'bg-primary/10 border-primary'
+                        : 'bg-muted/30 border-border hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <span className="text-lg shrink-0">{option.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${questionFormat === option.id ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {option.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        {option.detail}
+                      </p>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                      questionFormat === option.id ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+                    }`}>
+                      {questionFormat === option.id && (
+                        <span className="text-primary-foreground text-[9px]">✓</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* MCQ count slider — only for mixed */}
+              {questionFormat === 'mixed' && (
+                <div className="pt-3 border-t border-border">
+                  <div className="flex justify-between mb-1.5">
+                    <span className="text-xs text-muted-foreground">MCQ questions</span>
+                    <span className="text-sm font-bold text-primary">{mcqCount}</span>
+                  </div>
+                  <Slider
+                    min={1}
+                    max={Math.max(1, Math.floor(questionCount * 0.75))}
+                    step={1}
+                    value={[mcqCount]}
+                    onValueChange={(v) => setMcqCount(v[0])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                    <span>1</span>
+                    <span>{Math.floor(questionCount * 0.75)} max</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {mcqCount} MCQ + {questionCount - mcqCount} written = {questionCount} total
+                  </p>
+                </div>
+              )}
+
+              {questionFormat === 'mcq_only' && (
+                <div className="pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground rounded-md bg-muted/50 px-2.5 py-1.5">
+                    All {questionCount} questions will be multiple choice
+                  </p>
+                </div>
+              )}
+            </Card>
+
+            {/* Resource Mode Selector */}
+            <ResourceModeSelector
+              value={resourceMode}
+              onChange={setResourceMode}
+              subjectColor={subjectColor}
+            />
+
+            {/* Resource Pack Uploader (when mode is 'uploaded') */}
             {resourceMode === 'uploaded' && (
               <ResourcePackUploader
                 subjectId={subjectId}
@@ -791,16 +923,24 @@ const CreatePracticeQuestions = () => {
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">Selected Subject</p>
+                    <p className="text-sm text-muted-foreground">Subject</p>
                     <p className="font-medium">{subjectId || "Not selected"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Selected Subtopics</p>
+                    <p className="text-sm text-muted-foreground">Topics</p>
                     <p className="font-medium text-sm">
                       {selectedSubtopics.length > 0
-                        ? selectedSubtopics.join(", ")
-                        : "None"}
+                        ? `${selectedSubtopics.length} topic${selectedSubtopics.length > 1 ? 's' : ''} selected`
+                        : "None — will cover all topics"}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Question Format</p>
+                    <p className="font-medium text-sm">{formatDisplayLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Questions</p>
+                    <p className="font-medium">{questionCount} questions</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Difficulty</p>
@@ -813,13 +953,9 @@ const CreatePracticeQuestions = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Example Questions</p>
-                    <p className="font-medium">{exampleFile ? exampleFile.name.slice(0, 20) + "…" : "None"}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-muted-foreground">Exam Board</p>
                     <p className="font-medium text-sm">
-                      {effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not selected"}
+                      {effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Not set — generic style"}
                     </p>
                   </div>
                   <div>
@@ -827,8 +963,12 @@ const CreatePracticeQuestions = () => {
                     <p className="font-medium text-sm">
                       {effectiveEducationalTier
                         ? LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier
-                        : "Not selected"}
+                        : "Not set"}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Example Questions</p>
+                    <p className="font-medium">{exampleFile ? exampleFile.name.slice(0, 20) + "…" : "None"}</p>
                   </div>
                 </div>
               </div>
@@ -945,6 +1085,10 @@ const CreatePracticeQuestions = () => {
                 <div>
                   <p className="text-muted-foreground">Questions</p>
                   <p className="font-medium">{questionCount}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Format</p>
+                  <p className="font-medium text-sm">{formatDisplayLabel}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Difficulty</p>
