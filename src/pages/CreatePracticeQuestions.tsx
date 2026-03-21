@@ -710,10 +710,10 @@ const CreatePracticeQuestions = () => {
 
             {/* Difficulty Settings */}
             <DifficultySettings
-              difficultyMode={difficultyMode}
-              difficultyLevel={difficultyLevel}
-              onDifficultyModeChange={setDifficultyMode}
-              onDifficultyLevelChange={setDifficultyLevel}
+              mode={difficultyMode}
+              level={difficultyLevel}
+              onModeChange={setDifficultyMode}
+              onLevelChange={setDifficultyLevel}
             />
 
             {/* Question Format (MCQ Options) */}
