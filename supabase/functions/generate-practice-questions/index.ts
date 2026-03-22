@@ -3873,6 +3873,7 @@ ${notesSection}`;
         equation_complexity: q.equation_complexity || null,
         correct_answer: correctAnswer,
         options: options,
+        rationale: q.rationale || null,
       };
     });
     
