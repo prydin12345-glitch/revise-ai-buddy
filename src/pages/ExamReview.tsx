@@ -570,19 +570,22 @@ const ExamReview = () => {
                   {isMcq && question.options && Array.isArray(question.options) && question.options.length > 0 && (
                     <div className="mb-4 space-y-2">
                       {question.options.map((opt, idx) => {
-                        const optText = (typeof opt === "string" ? opt : (opt as any)?.text ?? "").replace(/^[A-Da-d][.)]\s*/, '');
+                        const rawText = typeof opt === "string" ? opt : (opt as any)?.text ?? "";
+                        const optText = scrubOptionText(rawText);
                         const label = getOptionLabel(idx);
-                        const studentSelected = answer?.answer_text?.trim().toUpperCase() === label || answer?.answer_text?.trim() === optText;
-                        const isCorrectOpt = question.correct_answer === optText || question.correct_answer === label || question.correct_answer?.trim() === optText;
+                        const studentSelected = didStudentSelect(answer?.answer_text, idx, rawText);
+                        const isCorrectOpt = isOptionCorrect(question.correct_answer, idx, rawText);
 
-                        let optClass = "p-3 rounded-lg border text-sm flex items-start gap-2 transition-colors ";
-                        if (!scoresHidden && isCorrectOpt) {
-                          optClass += "border-green-500 bg-green-500/10 ";
-                        }
-                        if (studentSelected && !scoresHidden && !isCorrectOpt) {
-                          optClass += "border-destructive bg-destructive/10 ";
-                        }
-                        if (!studentSelected && !isCorrectOpt) {
+                        let optClass = "p-3 rounded-lg border-2 text-sm flex items-start gap-2 transition-colors ";
+                        if (!scoresHidden) {
+                          if (isCorrectOpt) {
+                            optClass += "border-green-500 bg-green-500/10 ";
+                          } else if (studentSelected) {
+                            optClass += "border-destructive bg-destructive/10 ";
+                          } else {
+                            optClass += "border-border bg-muted/30 ";
+                          }
+                        } else {
                           optClass += "border-border bg-muted/30 ";
                         }
 
@@ -595,9 +598,6 @@ const ExamReview = () => {
                             )}
                             {!scoresHidden && isCorrectOpt && (
                               <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                            )}
-                            {studentSelected && (
-                              <Badge variant="secondary" className="text-[10px] shrink-0">Your answer</Badge>
                             )}
                           </div>
                         );
