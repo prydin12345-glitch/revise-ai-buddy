@@ -55,6 +55,11 @@ interface Submission {
   time_taken_seconds: number;
 }
 
+// ── Helper: strip leading letter prefixes from option text ──────────────────
+function scrubOptionText(text: string): string {
+  return text.replace(/^[A-Da-d][.)]\s*/, '').trim();
+}
+
 // ── Helper: resolve MCQ letter to full option text ──────────────────────────
 function resolveOptionText(answerText: string | undefined, options: Question["options"]): string | null {
   if (!answerText || !options || !Array.isArray(options) || options.length === 0) return null;
@@ -65,10 +70,36 @@ function resolveOptionText(answerText: string | undefined, options: Question["op
     const idx = trimmed.toUpperCase().charCodeAt(0) - 65;
     if (idx >= 0 && idx < options.length) {
       const opt = options[idx];
-      return typeof opt === "string" ? opt : (opt as any)?.text ?? null;
+      const raw = typeof opt === "string" ? opt : (opt as any)?.text ?? null;
+      return raw ? scrubOptionText(raw) : null;
     }
   }
   return null;
+}
+
+// ── Helper: check if student selected this option ──────────────────────────
+function didStudentSelect(answerText: string | undefined, optIndex: number, optText: string): boolean {
+  if (!answerText) return false;
+  const trimmed = answerText.trim();
+  const label = getOptionLabel(optIndex);
+  // Match by letter
+  if (trimmed.toUpperCase() === label) return true;
+  // Match by scrubbed text
+  if (scrubOptionText(trimmed) === scrubOptionText(optText)) return true;
+  return false;
+}
+
+// ── Helper: check if this option is the correct answer ─────────────────────
+function isOptionCorrect(correctAnswer: string | undefined, optIndex: number, optText: string): boolean {
+  if (!correctAnswer) return false;
+  const ca = correctAnswer.trim();
+  const label = getOptionLabel(optIndex);
+  const scrubbed = scrubOptionText(optText);
+  // Match by letter
+  if (ca.toUpperCase() === label) return true;
+  // Match by raw or scrubbed text
+  if (ca === optText || scrubOptionText(ca) === scrubbed) return true;
+  return false;
 }
 
 function getOptionLabel(index: number): string {
