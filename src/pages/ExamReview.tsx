@@ -695,31 +695,7 @@ const ExamReview = () => {
                   </div>
                   )}
 
-                  {/* For MCQ: show a compact "Your answer / Correct answer" summary below options */}
-                  {isMcq && (
-                    <div className="text-sm space-y-1">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground">Your answer:</span>
-                        <span className="font-medium">
-                          {answer?.answer_text 
-                            ? (() => {
-                                const resolved = resolveOptionText(answer.answer_text, question.options);
-                                return resolved 
-                                  ? `${answer.answer_text.trim().toUpperCase()}) ${resolved}` 
-                                  : answer.answer_text;
-                              })()
-                            : <span className="italic text-muted-foreground">No answer</span>
-                          }
-                        </span>
-                      </div>
-                      {!scoresHidden && question.correct_answer && (
-                        <div className="flex gap-2">
-                          <span className="text-green-600 dark:text-green-400">Correct:</span>
-                          <span className="font-medium text-green-600 dark:text-green-400">{question.correct_answer}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* MCQ redundant text removed — options highlighting is sufficient */}
 
                   {/* Non-MCQ correct answer */}
                   {!isMcq && !scoresHidden && (
