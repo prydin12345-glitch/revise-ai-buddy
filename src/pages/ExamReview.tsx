@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send, Lightbulb } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
@@ -36,6 +36,7 @@ interface Question {
   correct_answer?: string;
   has_math?: boolean;
   question_latex?: string;
+  rationale?: string;
 }
 
 interface Answer {
@@ -54,6 +55,11 @@ interface Submission {
   time_taken_seconds: number;
 }
 
+// ── Helper: strip leading letter prefixes from option text ──────────────────
+function scrubOptionText(text: string): string {
+  return text.replace(/^[A-Da-d][.)]\s*/, '').trim();
+}
+
 // ── Helper: resolve MCQ letter to full option text ──────────────────────────
 function resolveOptionText(answerText: string | undefined, options: Question["options"]): string | null {
   if (!answerText || !options || !Array.isArray(options) || options.length === 0) return null;
@@ -64,10 +70,36 @@ function resolveOptionText(answerText: string | undefined, options: Question["op
     const idx = trimmed.toUpperCase().charCodeAt(0) - 65;
     if (idx >= 0 && idx < options.length) {
       const opt = options[idx];
-      return typeof opt === "string" ? opt : (opt as any)?.text ?? null;
+      const raw = typeof opt === "string" ? opt : (opt as any)?.text ?? null;
+      return raw ? scrubOptionText(raw) : null;
     }
   }
   return null;
+}
+
+// ── Helper: check if student selected this option ──────────────────────────
+function didStudentSelect(answerText: string | undefined, optIndex: number, optText: string): boolean {
+  if (!answerText) return false;
+  const trimmed = answerText.trim();
+  const label = getOptionLabel(optIndex);
+  // Match by letter
+  if (trimmed.toUpperCase() === label) return true;
+  // Match by scrubbed text
+  if (scrubOptionText(trimmed) === scrubOptionText(optText)) return true;
+  return false;
+}
+
+// ── Helper: check if this option is the correct answer ─────────────────────
+function isOptionCorrect(correctAnswer: string | undefined, optIndex: number, optText: string): boolean {
+  if (!correctAnswer) return false;
+  const ca = correctAnswer.trim();
+  const label = getOptionLabel(optIndex);
+  const scrubbed = scrubOptionText(optText);
+  // Match by letter
+  if (ca.toUpperCase() === label) return true;
+  // Match by raw or scrubbed text
+  if (ca === optText || scrubOptionText(ca) === scrubbed) return true;
+  return false;
 }
 
 function getOptionLabel(index: number): string {
@@ -453,6 +485,25 @@ const ExamReview = () => {
                       <span className="text-sm font-medium text-muted-foreground shrink-0">
                         ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
                       </span>
+                      {/* Status badge - Correct/Incorrect/Partial */}
+                      {!scoresHidden && answer && (
+                        answer.is_correct ? (
+                          <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Correct
+                          </Badge>
+                        ) : answer.score > 0 ? (
+                          <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Partial
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
+                            <XCircle className="w-3 h-3" />
+                            Incorrect
+                          </Badge>
+                        )
+                      )}
                     </div>
                     <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
                       {/* Help button: AI explain for self-study, feedback thread for tutor-assigned */}
@@ -470,7 +521,6 @@ const ExamReview = () => {
                           <span className="hidden sm:inline">Ask for Help</span>
                         </Button>
                       ) : null}
-                      {getStatusIcon(answer)}
                       {!scoresHidden && answer && (
                         <Badge className={getStatusColor(answer)}>
                           {Math.round(answer.score)}/{question.marks}
@@ -520,19 +570,22 @@ const ExamReview = () => {
                   {isMcq && question.options && Array.isArray(question.options) && question.options.length > 0 && (
                     <div className="mb-4 space-y-2">
                       {question.options.map((opt, idx) => {
-                        const optText = (typeof opt === "string" ? opt : (opt as any)?.text ?? "").replace(/^[A-Da-d][.)]\s*/, '');
+                        const rawText = typeof opt === "string" ? opt : (opt as any)?.text ?? "";
+                        const optText = scrubOptionText(rawText);
                         const label = getOptionLabel(idx);
-                        const studentSelected = answer?.answer_text?.trim().toUpperCase() === label || answer?.answer_text?.trim() === optText;
-                        const isCorrectOpt = question.correct_answer === optText || question.correct_answer === label || question.correct_answer?.trim() === optText;
+                        const studentSelected = didStudentSelect(answer?.answer_text, idx, rawText);
+                        const isCorrectOpt = isOptionCorrect(question.correct_answer, idx, rawText);
 
-                        let optClass = "p-3 rounded-lg border text-sm flex items-start gap-2 transition-colors ";
-                        if (!scoresHidden && isCorrectOpt) {
-                          optClass += "border-green-500 bg-green-500/10 ";
-                        }
-                        if (studentSelected && !scoresHidden && !isCorrectOpt) {
-                          optClass += "border-destructive bg-destructive/10 ";
-                        }
-                        if (!studentSelected && !isCorrectOpt) {
+                        let optClass = "p-3 rounded-lg border-2 text-sm flex items-start gap-2 transition-colors ";
+                        if (!scoresHidden) {
+                          if (isCorrectOpt) {
+                            optClass += "border-green-500 bg-green-500/10 ";
+                          } else if (studentSelected) {
+                            optClass += "border-destructive bg-destructive/10 ";
+                          } else {
+                            optClass += "border-border bg-muted/30 ";
+                          }
+                        } else {
                           optClass += "border-border bg-muted/30 ";
                         }
 
@@ -545,9 +598,6 @@ const ExamReview = () => {
                             )}
                             {!scoresHidden && isCorrectOpt && (
                               <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                            )}
-                            {studentSelected && (
-                              <Badge variant="secondary" className="text-[10px] shrink-0">Your answer</Badge>
                             )}
                           </div>
                         );
@@ -645,31 +695,7 @@ const ExamReview = () => {
                   </div>
                   )}
 
-                  {/* For MCQ: show a compact "Your answer / Correct answer" summary below options */}
-                  {isMcq && (
-                    <div className="text-sm space-y-1">
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground">Your answer:</span>
-                        <span className="font-medium">
-                          {answer?.answer_text 
-                            ? (() => {
-                                const resolved = resolveOptionText(answer.answer_text, question.options);
-                                return resolved 
-                                  ? `${answer.answer_text.trim().toUpperCase()}) ${resolved}` 
-                                  : answer.answer_text;
-                              })()
-                            : <span className="italic text-muted-foreground">No answer</span>
-                          }
-                        </span>
-                      </div>
-                      {!scoresHidden && question.correct_answer && (
-                        <div className="flex gap-2">
-                          <span className="text-green-600 dark:text-green-400">Correct:</span>
-                          <span className="font-medium text-green-600 dark:text-green-400">{question.correct_answer}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* MCQ redundant text removed — options highlighting is sufficient */}
 
                   {/* Non-MCQ correct answer */}
                   {!isMcq && !scoresHidden && (
@@ -719,11 +745,26 @@ const ExamReview = () => {
                     {!isTutorAssigned && !scoresHidden && (
                       <AIExplainPanel question={question} answer={answer} />
                     )}
+
+                    {/* MCQ Rationale / Insight Box — review mode only */}
+                    {!scoresHidden && isMcq && question.rationale && (
+                      <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 flex items-start gap-2.5">
+                        <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">Quick Insight</p>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{question.rationale}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  {/* Bottom padding to prevent cutoff */}
+                  <div className="pb-2" />
                 </Card>
                 </div>
               );
             })}
+            {/* Extra bottom padding so last card isn't flush with footer */}
+            <div className="pb-8" />
           </div>
         </div>
       </div>

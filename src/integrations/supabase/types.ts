@@ -425,6 +425,7 @@ export type Database = {
           question_number: string
           question_text: string
           question_type: string
+          rationale: string | null
           root_question_number: string | null
           scenario_context: string | null
           table_data: string | null
@@ -460,6 +461,7 @@ export type Database = {
           question_number: string
           question_text: string
           question_type: string
+          rationale?: string | null
           root_question_number?: string | null
           scenario_context?: string | null
           table_data?: string | null
@@ -495,6 +497,7 @@ export type Database = {
           question_number?: string
           question_text?: string
           question_type?: string
+          rationale?: string | null
           root_question_number?: string | null
           scenario_context?: string | null
           table_data?: string | null
@@ -1179,6 +1182,7 @@ export type Database = {
           question_number_int: number | null
           question_text: string
           question_type: string
+          rationale: string | null
           resource_item_ids: string[] | null
           resource_references: string[] | null
           set_id: string | null
@@ -1199,6 +1203,7 @@ export type Database = {
           question_number_int?: number | null
           question_text: string
           question_type: string
+          rationale?: string | null
           resource_item_ids?: string[] | null
           resource_references?: string[] | null
           set_id?: string | null
@@ -1219,6 +1224,7 @@ export type Database = {
           question_number_int?: number | null
           question_text?: string
           question_type?: string
+          rationale?: string | null
           resource_item_ids?: string[] | null
           resource_references?: string[] | null
           set_id?: string | null

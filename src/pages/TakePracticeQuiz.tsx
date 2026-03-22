@@ -35,7 +35,8 @@ import {
   Calculator,
   BookOpen,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Lightbulb
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
@@ -116,6 +117,7 @@ interface Question {
   question_latex?: string;
   subtopic: string;
   worked_solution?: string;
+  rationale?: string;
 }
 
 interface UserAnswer {
@@ -2374,6 +2376,18 @@ const TakePracticeQuiz = () => {
                             </div>
                             <div className="text-sm lg:text-base leading-relaxed">
                               <MathRenderer content={currentQuestion.worked_solution} />
+                            </div>
+                          </div>
+                        )}
+                        {/* MCQ Rationale Insight Box — only in review/submitted mode */}
+                        {currentQuestion.rationale && currentQuestion.question_type === 'mcq' && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 flex items-start gap-2.5">
+                              <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">Quick Insight</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">{currentQuestion.rationale}</p>
+                              </div>
                             </div>
                           </div>
                         )}

@@ -1152,6 +1152,7 @@ MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
 - options MUST be an array of 4 strings WITHOUT letter prefixes.
 - correct_answer MUST be one of: "A", "B", "C", "D".
+- rationale MUST be a 1–2 sentence explanation (max 40 words) that explains why the correct answer is right and why common distractors are wrong. Example: "A is correct because standard textile packs are capped at 3kg for steam penetration. B exceeds the safety weight limit."
 
 ${!isMathSubject ? `
 MULTI-SERIES GRAPHS (Economics, Science, etc.):
@@ -1627,6 +1628,7 @@ ${notesSection}`;
       correct_answer: z.unknown(),
       options: z.array(z.string()).optional().nullable(),
       worked_solution: z.string().optional().nullable(),
+      rationale: z.string().optional().nullable(),
       table_data: z.unknown().optional().nullable(),
     }).passthrough();
 
@@ -1733,6 +1735,7 @@ ${notesSection}`;
                   correct_answer: {},
                   options: { type: 'array', items: { type: 'string' }, nullable: true },
                   worked_solution: { type: 'string', nullable: true },
+                  rationale: { type: 'string', nullable: true },
                   table_data: { type: 'object', nullable: true },
                 },
               },
@@ -3870,6 +3873,7 @@ ${notesSection}`;
         equation_complexity: q.equation_complexity || null,
         correct_answer: correctAnswer,
         options: options,
+        rationale: q.rationale || null,
       };
     });
     
