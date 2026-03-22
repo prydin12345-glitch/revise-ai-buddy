@@ -116,6 +116,7 @@ interface Question {
   question_latex?: string;
   subtopic: string;
   worked_solution?: string;
+  rationale?: string;
 }
 
 interface UserAnswer {
