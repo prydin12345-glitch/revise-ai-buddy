@@ -1628,6 +1628,7 @@ ${notesSection}`;
       correct_answer: z.unknown(),
       options: z.array(z.string()).optional().nullable(),
       worked_solution: z.string().optional().nullable(),
+      rationale: z.string().optional().nullable(),
       table_data: z.unknown().optional().nullable(),
     }).passthrough();
 
