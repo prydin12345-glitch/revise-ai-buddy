@@ -1735,6 +1735,7 @@ ${notesSection}`;
                   correct_answer: {},
                   options: { type: 'array', items: { type: 'string' }, nullable: true },
                   worked_solution: { type: 'string', nullable: true },
+                  rationale: { type: 'string', nullable: true },
                   table_data: { type: 'object', nullable: true },
                 },
               },
