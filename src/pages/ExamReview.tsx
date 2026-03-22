@@ -36,6 +36,7 @@ interface Question {
   correct_answer?: string;
   has_math?: boolean;
   question_latex?: string;
+  rationale?: string;
 }
 
 interface Answer {
