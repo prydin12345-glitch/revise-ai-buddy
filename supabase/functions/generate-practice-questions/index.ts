@@ -1152,6 +1152,7 @@ MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
 - options MUST be an array of 4 strings WITHOUT letter prefixes.
 - correct_answer MUST be one of: "A", "B", "C", "D".
+- rationale MUST be a 1–2 sentence explanation (max 40 words) that explains why the correct answer is right and why common distractors are wrong. Example: "A is correct because standard textile packs are capped at 3kg for steam penetration. B exceeds the safety weight limit."
 
 ${!isMathSubject ? `
 MULTI-SERIES GRAPHS (Economics, Science, etc.):
