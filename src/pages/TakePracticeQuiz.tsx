@@ -35,7 +35,8 @@ import {
   Calculator,
   BookOpen,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Lightbulb
 } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
