@@ -485,6 +485,25 @@ const ExamReview = () => {
                       <span className="text-sm font-medium text-muted-foreground shrink-0">
                         ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
                       </span>
+                      {/* Status badge - Correct/Incorrect/Partial */}
+                      {!scoresHidden && answer && (
+                        answer.is_correct ? (
+                          <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Correct
+                          </Badge>
+                        ) : answer.score > 0 ? (
+                          <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Partial
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
+                            <XCircle className="w-3 h-3" />
+                            Incorrect
+                          </Badge>
+                        )
+                      )}
                     </div>
                     <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
                       {/* Help button: AI explain for self-study, feedback thread for tutor-assigned */}
@@ -502,7 +521,6 @@ const ExamReview = () => {
                           <span className="hidden sm:inline">Ask for Help</span>
                         </Button>
                       ) : null}
-                      {getStatusIcon(answer)}
                       {!scoresHidden && answer && (
                         <Badge className={getStatusColor(answer)}>
                           {Math.round(answer.score)}/{question.marks}
