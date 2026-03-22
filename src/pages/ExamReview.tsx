@@ -745,11 +745,26 @@ const ExamReview = () => {
                     {!isTutorAssigned && !scoresHidden && (
                       <AIExplainPanel question={question} answer={answer} />
                     )}
+
+                    {/* MCQ Rationale / Insight Box — review mode only */}
+                    {!scoresHidden && isMcq && question.rationale && (
+                      <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 flex items-start gap-2.5">
+                        <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">Quick Insight</p>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{question.rationale}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  {/* Bottom padding to prevent cutoff */}
+                  <div className="pb-2" />
                 </Card>
                 </div>
               );
             })}
+            {/* Extra bottom padding so last card isn't flush with footer */}
+            <div className="pb-8" />
           </div>
         </div>
       </div>
