@@ -451,6 +451,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     detected_subject: parsedData.detected_subject,
     subject_confidence: parsedData.subject_confidence,
   }).eq('id', draftId);
+  // Log AI usage
+  await logAIUsage(supabase, {
+    userId: userId,
+    feature: 'exam_extraction',
+    model: modelUsed,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheHit: false,
+    subject: exam.subject_id,
+    durationMs: Date.now() - startTime,
+  });
 
   console.log('Extraction completed:', questions.length, 'questions');
 }
