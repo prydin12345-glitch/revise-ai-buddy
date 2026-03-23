@@ -16,26 +16,44 @@ export type Database = {
     Tables: {
       ai_usage_tracking: {
         Row: {
+          cache_hit: boolean | null
           cost_credits: number | null
           created_at: string | null
+          duration_ms: number | null
           feature_name: string
           id: string
+          input_tokens: number | null
+          model: string | null
+          output_tokens: number | null
+          subject: string | null
           tokens_used: number | null
           user_id: string
         }
         Insert: {
+          cache_hit?: boolean | null
           cost_credits?: number | null
           created_at?: string | null
+          duration_ms?: number | null
           feature_name: string
           id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          subject?: string | null
           tokens_used?: number | null
           user_id: string
         }
         Update: {
+          cache_hit?: boolean | null
           cost_credits?: number | null
           created_at?: string | null
+          duration_ms?: number | null
           feature_name?: string
           id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          subject?: string | null
           tokens_used?: number | null
           user_id?: string
         }
@@ -1356,6 +1374,54 @@ export type Database = {
           },
         ]
       }
+      question_generation_cache: {
+        Row: {
+          cache_key: string
+          created_at: string | null
+          difficulty: string | null
+          educational_level: string | null
+          exam_board: string | null
+          expires_at: string | null
+          hit_count: number | null
+          id: string
+          question_count: number | null
+          question_format: string | null
+          questions: Json
+          subject: string
+          topics: string[] | null
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string | null
+          difficulty?: string | null
+          educational_level?: string | null
+          exam_board?: string | null
+          expires_at?: string | null
+          hit_count?: number | null
+          id?: string
+          question_count?: number | null
+          question_format?: string | null
+          questions: Json
+          subject: string
+          topics?: string[] | null
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string | null
+          difficulty?: string | null
+          educational_level?: string | null
+          exam_board?: string | null
+          expires_at?: string | null
+          hit_count?: number | null
+          id?: string
+          question_count?: number | null
+          question_format?: string | null
+          questions?: Json
+          subject?: string
+          topics?: string[] | null
+        }
+        Relationships: []
+      }
       resource_items: {
         Row: {
           attribution: string | null
@@ -2651,6 +2717,18 @@ export type Database = {
       }
     }
     Views: {
+      ai_usage_summary: {
+        Row: {
+          cache_hit_rate_pct: number | null
+          cache_hits: number | null
+          call_count: number | null
+          feature_name: string | null
+          month: string | null
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       student_profiles_safe: {
         Row: {
           avatar_url: string | null
