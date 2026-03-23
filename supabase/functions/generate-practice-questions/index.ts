@@ -91,6 +91,66 @@ async function generateQuestionsInBackground(
   try {
     console.log('Starting background generation for set:', setId);
 
+    // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
+    const knownAcademicForCache = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
+    const isCustomNicheForCache = !knownAcademicForCache.some(s => (setData.subject_id || '').toLowerCase().includes(s));
+
+    const cacheKey = buildCacheKey({
+      subject: setData.subject_id ?? '',
+      examBoard: setData.exam_board ?? '',
+      educationalLevel: setData.educational_tier ?? '',
+      topics: setData.subtopics ?? [],
+      difficulty: setData.difficulty_level ?? 'mixed',
+      questionFormat: setData.question_format ?? 'written_only',
+      questionCount: setData.question_count ?? 20,
+      isCustomNiche: isCustomNicheForCache,
+    });
+
+    if (cacheKey) {
+      const { data: cached } = await supabaseClient
+        .from('question_generation_cache')
+        .select('questions, hit_count')
+        .eq('cache_key', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (cached) {
+        console.log(`Cache HIT for key ${cacheKey} — skipping AI call`);
+        await supabaseClient.from('question_generation_cache')
+          .update({ hit_count: (cached.hit_count || 0) + 1 })
+          .eq('cache_key', cacheKey);
+
+        const shuffled = shuffleArray(cached.questions as any[]);
+        // Assign new IDs and set_id
+        const questionsToInsert = shuffled.map((q: any, i: number) => ({
+          ...q,
+          set_id: setId,
+        }));
+
+        await supabaseClient.from('practice_questions').delete().eq('set_id', setId);
+        await supabaseClient.from('practice_questions').insert(questionsToInsert);
+        await supabaseClient.from('practice_question_sets').update({
+          extraction_status: 'completed',
+          total_questions_generated: questionsToInsert.length,
+        }).eq('id', setId);
+
+        // Log cache hit
+        await logAIUsage(supabaseClient, {
+          userId: userId,
+          feature: 'practice_generation',
+          model: 'cache',
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheHit: true,
+          subject: setData.subject_id,
+        });
+
+        console.log(`Served ${questionsToInsert.length} cached questions for set ${setId}`);
+        return;
+      }
+      console.log(`Cache MISS for key ${cacheKey} — proceeding with AI generation`);
+    }
+
     // Make retries idempotent: clear any previously inserted questions + reset status/error.
     // (If a previous attempt partially inserted rows, this prevents duplicates.)
     await supabaseClient
