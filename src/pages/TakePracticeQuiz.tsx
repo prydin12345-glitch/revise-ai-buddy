@@ -2380,49 +2380,9 @@ const TakePracticeQuiz = () => {
                           </div>
                         )}
                         {/* MCQ Rationale Insight Box — on-demand in review/submitted mode */}
-                        {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (() => {
-                          const [rationaleText, setRationaleText] = useState<string | null>(currentQuestion.rationale ?? null);
-                          const [loadingRationale, setLoadingRationale] = useState(false);
-                          const [showRationale, setShowRationale] = useState(!!currentQuestion.rationale);
-
-                          const handleExplain = async () => {
-                            if (rationaleText) { setShowRationale(true); return; }
-                            setLoadingRationale(true);
-                            try {
-                              const { data } = await supabase.functions.invoke('generate-rationale', {
-                                body: {
-                                  questionId: currentQuestion.id,
-                                  questionText: currentQuestion.question_text,
-                                  correctAnswer: currentQuestion.correct_answer,
-                                  subject: quizTitle,
-                                },
-                              });
-                              if (data?.rationale) {
-                                setRationaleText(data.rationale);
-                                setShowRationale(true);
-                              }
-                            } catch (e) { console.error('Rationale error:', e); }
-                            finally { setLoadingRationale(false); }
-                          };
-
-                          return (
-                            <div className="mt-4 pt-4 border-t">
-                              {showRationale && rationaleText ? (
-                                <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 flex items-start gap-2.5">
-                                  <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">Quick Insight</p>
-                                    <p className="text-xs leading-relaxed text-muted-foreground">{rationaleText}</p>
-                                  </div>
-                                </div>
-                              ) : (
-                                <Button variant="ghost" size="sm" onClick={handleExplain} disabled={loadingRationale} className="text-xs">
-                                  {loadingRationale ? <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Explaining...</> : <><Lightbulb className="w-3 h-3 mr-1" /> Explain this answer</>}
-                                </Button>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (
+                          <OnDemandRationale question={currentQuestion} subjectName={quizTitle} />
+                        )}
                       </CardContent>
                     </Card>
                   )}
