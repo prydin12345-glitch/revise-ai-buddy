@@ -226,6 +226,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
 
+  const startTime = Date.now();
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
   if (!parsedData.questions?.length) {
