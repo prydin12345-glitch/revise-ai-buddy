@@ -764,24 +764,38 @@ CRITICAL JSON RULES:
   return { systemPrompt, userPrompt };
 }
 
+// Track which model was actually used for logging
+let modelUsed = 'google/gemini-2.5-flash';
+
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
-  // Use stronger model for custom niche subjects to reduce hallucination
-  const sysLower = systemPrompt.toLowerCase();
-  const isNicheSubject = !(
-    sysLower.includes('math') || sysLower.includes('physics') ||
-    sysLower.includes('chemistry') || sysLower.includes('biology') ||
-    sysLower.includes('english') || sysLower.includes('history') ||
-    sysLower.includes('geography') || sysLower.includes('econ') ||
-    sysLower.includes('computer') || sysLower.includes('psychology')
-  );
-  const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
-  console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
+  // ── OPTIMISATION 4: Always try Flash first, only upgrade to Pro on failure ──
+  try {
+    console.log('Attempting generation with gemini-2.5-flash');
+    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash');
+    if (result?.questions && result.questions.length > 0) {
+      console.log('Flash generation successful');
+      modelUsed = 'google/gemini-2.5-flash';
+      return result;
+    }
+    console.log('Flash returned no questions — upgrading to Pro');
+  } catch (flashError: any) {
+    console.log('Flash failed — upgrading to Pro:', flashError.message);
+  }
+
+  // Only reach here if Flash failed
+  console.log('Attempting generation with gemini-2.5-pro');
+  modelUsed = 'google/gemini-2.5-pro';
+  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro');
+}
+
+async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string) {
+  console.log(`AI model selected: ${model}`);
 
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: selectedModel,
+      model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       max_tokens: 32000,
       temperature: hasResourcePack ? 0.1 : 0.3,
