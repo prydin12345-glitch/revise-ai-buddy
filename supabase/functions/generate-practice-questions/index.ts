@@ -8,6 +8,8 @@ import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardening
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
+import { buildCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
+import { logAIUsage } from "../_shared/usage-logger.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
