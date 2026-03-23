@@ -813,6 +813,35 @@ async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt:
   catch { return { questions: [], topics: [] }; }
 }
 
+// ── OPTIMISATION 2: Quality scoring function ──
+function scoreGenerationQuality(
+  questions: any[],
+  params: { desiredMcqCount: number; desiredWrittenCount: number; subject: string; isCustomNiche: boolean; }
+): number {
+  if (!questions || questions.length === 0) return 0;
+  let score = 100;
+
+  const totalDesired = params.desiredMcqCount + params.desiredWrittenCount;
+  if (totalDesired > 0 && questions.length / totalDesired < 0.8) score -= 25;
+
+  const mcqQuestions = questions.filter(q => q.question_type === 'mcq');
+  const brokenMcq = mcqQuestions.filter(q =>
+    !q.options || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct_answer
+  );
+  if (brokenMcq.length > 0) score -= (brokenMcq.length / Math.max(mcqQuestions.length, 1)) * 30;
+
+  const missingAnswers = questions.filter(q => !q.correct_answer);
+  if (missingAnswers.length > 0) score -= (missingAnswers.length / questions.length) * 25;
+
+  if (params.isCustomNiche) {
+    const mathsPatterns = [/\bP\(X\s*[=<>]/, /binomial|poisson|normal distribution/i, /\blet\s+X\b/i];
+    const contaminated = questions.filter(q => mathsPatterns.some(p => p.test(q.question_text ?? '')));
+    if (contaminated.length > 0) score -= contaminated.length * 15;
+  }
+
+  return Math.max(0, Math.round(score));
+}
+
 async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false, questionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = 'mixed') {
   // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
   const grouped: Record<string, any[]> = {};
