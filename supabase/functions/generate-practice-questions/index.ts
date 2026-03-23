@@ -8,6 +8,8 @@ import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardening
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
+import { buildCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
+import { logAIUsage } from "../_shared/usage-logger.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -88,6 +90,66 @@ async function generateQuestionsInBackground(
 
   try {
     console.log('Starting background generation for set:', setId);
+
+    // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
+    const knownAcademicForCache = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
+    const isCustomNicheForCache = !knownAcademicForCache.some(s => (setData.subject_id || '').toLowerCase().includes(s));
+
+    const cacheKey = buildCacheKey({
+      subject: setData.subject_id ?? '',
+      examBoard: setData.exam_board ?? '',
+      educationalLevel: setData.educational_tier ?? '',
+      topics: setData.subtopics ?? [],
+      difficulty: setData.difficulty_level ?? 'mixed',
+      questionFormat: setData.question_format ?? 'written_only',
+      questionCount: setData.question_count ?? 20,
+      isCustomNiche: isCustomNicheForCache,
+    });
+
+    if (cacheKey) {
+      const { data: cached } = await supabaseClient
+        .from('question_generation_cache')
+        .select('questions, hit_count')
+        .eq('cache_key', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (cached) {
+        console.log(`Cache HIT for key ${cacheKey} — skipping AI call`);
+        await supabaseClient.from('question_generation_cache')
+          .update({ hit_count: (cached.hit_count || 0) + 1 })
+          .eq('cache_key', cacheKey);
+
+        const shuffled = shuffleArray(cached.questions as any[]);
+        // Assign new IDs and set_id
+        const questionsToInsert = shuffled.map((q: any, i: number) => ({
+          ...q,
+          set_id: setId,
+        }));
+
+        await supabaseClient.from('practice_questions').delete().eq('set_id', setId);
+        await supabaseClient.from('practice_questions').insert(questionsToInsert);
+        await supabaseClient.from('practice_question_sets').update({
+          extraction_status: 'completed',
+          total_questions_generated: questionsToInsert.length,
+        }).eq('id', setId);
+
+        // Log cache hit
+        await logAIUsage(supabaseClient, {
+          userId: userId,
+          feature: 'practice_generation',
+          model: 'cache',
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheHit: true,
+          subject: setData.subject_id,
+        });
+
+        console.log(`Served ${questionsToInsert.length} cached questions for set ${setId}`);
+        return;
+      }
+      console.log(`Cache MISS for key ${cacheKey} — proceeding with AI generation`);
+    }
 
     // Make retries idempotent: clear any previously inserted questions + reset status/error.
     // (If a previous attempt partially inserted rows, this prevents duplicates.)
@@ -1152,7 +1214,7 @@ MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
 - options MUST be an array of 4 strings WITHOUT letter prefixes.
 - correct_answer MUST be one of: "A", "B", "C", "D".
-- rationale MUST be a 1–2 sentence explanation (max 40 words) that explains why the correct answer is right and why common distractors are wrong. Example: "A is correct because standard textile packs are capped at 3kg for steam penetration. B exceeds the safety weight limit."
+- rationale: set to null (rationales are generated on-demand when students review answers, not upfront)
 
 ${!isMathSubject ? `
 MULTI-SERIES GRAPHS (Economics, Science, etc.):
@@ -3898,6 +3960,38 @@ ${notesSection}`;
       .eq('id', setId);
 
     console.log('Questions generated successfully');
+
+    // ── OPTIMISATION 1: SAVE TO CACHE after successful generation ──
+    if (cacheKey && questionsToInsert.length > 0) {
+      try {
+        await supabaseClient.from('question_generation_cache').upsert({
+          cache_key: cacheKey,
+          subject: setData.subject_id,
+          exam_board: setData.exam_board,
+          educational_level: setData.educational_tier,
+          topics: setData.subtopics,
+          difficulty: setData.difficulty_level,
+          question_format: setData.question_format,
+          question_count: setData.question_count,
+          questions: questionsToInsert,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        console.log(`Cached ${questionsToInsert.length} questions with key ${cacheKey}`);
+      } catch (cacheErr) {
+        console.warn('Failed to cache questions:', cacheErr);
+      }
+    }
+
+    // ── OPTIMISATION 5: LOG USAGE ──
+    await logAIUsage(supabaseClient, {
+      userId: userId,
+      feature: 'practice_generation',
+      model: 'google/gemini-2.5-flash',
+      inputTokens: 0, // token counts not easily available from tool calls
+      outputTokens: 0,
+      cacheHit: false,
+      subject: setData.subject_id,
+    });
 
   } catch (error: any) {
     console.error('Error generating practice questions:', error);

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
+import { logAIUsage } from "../_shared/usage-logger.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -225,6 +226,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
 
+  const startTime = Date.now();
   const parsedData = await callAI(lovableApiKey, systemPrompt, extractionPrompt, hasResourcePack);
   
   if (!parsedData.questions?.length) {
@@ -395,9 +397,24 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const { data: inserted, error: insertError } = await supabase.from('exam_question_drafts').insert(drafts).select();
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
-  // ALWAYS regenerate questions with new wording (regardless of resource pack)
+  // ── OPTIMISATION 2: CONDITIONAL REGENERATION — only if quality is below threshold ──
+  const qualityScore = scoreGenerationQuality(questions, {
+    desiredMcqCount: desiredMcqCount ?? 0,
+    desiredWrittenCount: desiredWrittenCount ?? questions.length,
+    subject: exam.subject_id,
+    isCustomNiche: isCustomNicheForValidation,
+  });
+  console.log(`Generation quality score: ${qualityScore}/100`);
+
+  const REGEN_THRESHOLD = 70;
   const regenQuestionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = isMcqOnlyProfile ? 'mcq' : (desiredMcqCount === 0 ? 'mixed' : 'mixed');
-  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
+
+  if (qualityScore < REGEN_THRESHOLD) {
+    console.log(`Quality below ${REGEN_THRESHOLD} — running regeneration pass`);
+    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
+  } else {
+    console.log(`Quality above ${REGEN_THRESHOLD} — skipping regeneration pass (saved an AI call)`);
+  }
 
   // ── POST-REGENERATION VALIDATION: Re-check for maths contamination after regen ──
   if (isCustomNicheForValidation) {
@@ -434,6 +451,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     detected_subject: parsedData.detected_subject,
     subject_confidence: parsedData.subject_confidence,
   }).eq('id', draftId);
+  // Log AI usage
+  await logAIUsage(supabase, {
+    userId: userId,
+    feature: 'exam_extraction',
+    model: modelUsed,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheHit: false,
+    subject: exam.subject_id,
+    durationMs: Date.now() - startTime,
+  });
 
   console.log('Extraction completed:', questions.length, 'questions');
 }
@@ -736,24 +764,38 @@ CRITICAL JSON RULES:
   return { systemPrompt, userPrompt };
 }
 
+// Track which model was actually used for logging
+let modelUsed = 'google/gemini-2.5-flash';
+
 async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
-  // Use stronger model for custom niche subjects to reduce hallucination
-  const sysLower = systemPrompt.toLowerCase();
-  const isNicheSubject = !(
-    sysLower.includes('math') || sysLower.includes('physics') ||
-    sysLower.includes('chemistry') || sysLower.includes('biology') ||
-    sysLower.includes('english') || sysLower.includes('history') ||
-    sysLower.includes('geography') || sysLower.includes('econ') ||
-    sysLower.includes('computer') || sysLower.includes('psychology')
-  );
-  const selectedModel = isNicheSubject ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
-  console.log(`AI model selected: ${selectedModel} (niche=${isNicheSubject})`);
+  // ── OPTIMISATION 4: Always try Flash first, only upgrade to Pro on failure ──
+  try {
+    console.log('Attempting generation with gemini-2.5-flash');
+    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash');
+    if (result?.questions && result.questions.length > 0) {
+      console.log('Flash generation successful');
+      modelUsed = 'google/gemini-2.5-flash';
+      return result;
+    }
+    console.log('Flash returned no questions — upgrading to Pro');
+  } catch (flashError: any) {
+    console.log('Flash failed — upgrading to Pro:', flashError.message);
+  }
+
+  // Only reach here if Flash failed
+  console.log('Attempting generation with gemini-2.5-pro');
+  modelUsed = 'google/gemini-2.5-pro';
+  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro');
+}
+
+async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string) {
+  console.log(`AI model selected: ${model}`);
 
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: selectedModel,
+      model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       max_tokens: 32000,
       temperature: hasResourcePack ? 0.1 : 0.3,
@@ -769,6 +811,35 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   
   try { return JSON.parse(content); } 
   catch { return { questions: [], topics: [] }; }
+}
+
+// ── OPTIMISATION 2: Quality scoring function ──
+function scoreGenerationQuality(
+  questions: any[],
+  params: { desiredMcqCount: number; desiredWrittenCount: number; subject: string; isCustomNiche: boolean; }
+): number {
+  if (!questions || questions.length === 0) return 0;
+  let score = 100;
+
+  const totalDesired = params.desiredMcqCount + params.desiredWrittenCount;
+  if (totalDesired > 0 && questions.length / totalDesired < 0.8) score -= 25;
+
+  const mcqQuestions = questions.filter(q => q.question_type === 'mcq');
+  const brokenMcq = mcqQuestions.filter(q =>
+    !q.options || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct_answer
+  );
+  if (brokenMcq.length > 0) score -= (brokenMcq.length / Math.max(mcqQuestions.length, 1)) * 30;
+
+  const missingAnswers = questions.filter(q => !q.correct_answer);
+  if (missingAnswers.length > 0) score -= (missingAnswers.length / questions.length) * 25;
+
+  if (params.isCustomNiche) {
+    const mathsPatterns = [/\bP\(X\s*[=<>]/, /binomial|poisson|normal distribution/i, /\blet\s+X\b/i];
+    const contaminated = questions.filter(q => mathsPatterns.some(p => p.test(q.question_text ?? '')));
+    if (contaminated.length > 0) score -= contaminated.length * 15;
+  }
+
+  return Math.max(0, Math.round(score));
 }
 
 async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false, questionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = 'mixed') {
