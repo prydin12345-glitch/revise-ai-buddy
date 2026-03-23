@@ -3961,6 +3961,38 @@ ${notesSection}`;
 
     console.log('Questions generated successfully');
 
+    // ── OPTIMISATION 1: SAVE TO CACHE after successful generation ──
+    if (cacheKey && questionsToInsert.length > 0) {
+      try {
+        await supabaseClient.from('question_generation_cache').upsert({
+          cache_key: cacheKey,
+          subject: setData.subject_id,
+          exam_board: setData.exam_board,
+          educational_level: setData.educational_tier,
+          topics: setData.subtopics,
+          difficulty: setData.difficulty_level,
+          question_format: setData.question_format,
+          question_count: setData.question_count,
+          questions: questionsToInsert,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        console.log(`Cached ${questionsToInsert.length} questions with key ${cacheKey}`);
+      } catch (cacheErr) {
+        console.warn('Failed to cache questions:', cacheErr);
+      }
+    }
+
+    // ── OPTIMISATION 5: LOG USAGE ──
+    await logAIUsage(supabaseClient, {
+      userId: userId,
+      feature: 'practice_generation',
+      model: 'google/gemini-2.5-flash',
+      inputTokens: 0, // token counts not easily available from tool calls
+      outputTokens: 0,
+      cacheHit: false,
+      subject: setData.subject_id,
+    });
+
   } catch (error: any) {
     console.error('Error generating practice questions:', error);
     
