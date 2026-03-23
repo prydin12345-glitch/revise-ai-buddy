@@ -397,9 +397,24 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const { data: inserted, error: insertError } = await supabase.from('exam_question_drafts').insert(drafts).select();
   if (insertError) throw new Error(`Failed to save questions: ${insertError.message}`);
 
-  // ALWAYS regenerate questions with new wording (regardless of resource pack)
+  // ── OPTIMISATION 2: CONDITIONAL REGENERATION — only if quality is below threshold ──
+  const qualityScore = scoreGenerationQuality(questions, {
+    desiredMcqCount: desiredMcqCount ?? 0,
+    desiredWrittenCount: desiredWrittenCount ?? questions.length,
+    subject: exam.subject_id,
+    isCustomNiche: isCustomNicheForValidation,
+  });
+  console.log(`Generation quality score: ${qualityScore}/100`);
+
+  const REGEN_THRESHOLD = 70;
   const regenQuestionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = isMcqOnlyProfile ? 'mcq' : (desiredMcqCount === 0 ? 'mixed' : 'mixed');
-  await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
+
+  if (qualityScore < REGEN_THRESHOLD) {
+    console.log(`Quality below ${REGEN_THRESHOLD} — running regeneration pass`);
+    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
+  } else {
+    console.log(`Quality above ${REGEN_THRESHOLD} — skipping regeneration pass (saved an AI call)`);
+  }
 
   // ── POST-REGENERATION VALIDATION: Re-check for maths contamination after regen ──
   if (isCustomNicheForValidation) {
