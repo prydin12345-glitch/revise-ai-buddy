@@ -2188,7 +2188,7 @@ export function GraphPlottingQuestion({
             <span className="text-sm text-muted-foreground">(</span>
             <Input
               type="number"
-              step="0.1"
+              step="any"
               placeholder="x"
               value={manualX}
               onChange={(e) => setManualX(e.target.value)}
