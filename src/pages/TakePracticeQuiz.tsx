@@ -2380,7 +2380,9 @@ const TakePracticeQuiz = () => {
                           </div>
                         )}
                         {/* MCQ Rationale Insight Box — on-demand in review/submitted mode */}
-                        {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (() => {
+                        {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (
+                          <OnDemandRationaleBox question={currentQuestion} subjectName={quizTitle} />
+                        )}
                           const [rationale, setRationale] = useState<string | null>(currentQuestion.rationale ?? null);
                           const [loading, setLoading] = useState(false);
                           const [show, setShow] = useState(!!currentQuestion.rationale);
