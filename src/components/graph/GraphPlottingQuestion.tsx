@@ -995,7 +995,16 @@ export function GraphPlottingQuestion({
    * Uses activeDragPointId to find the point and update position.
    */
   const handlePointPointerMove = useCallback((e: React.PointerEvent) => {
-    // Only process if we have an active drag start and correct pointer
+    // Cancel long-press if finger moved too far
+    if (longPressTouchStartRef.current) {
+      const dx = e.clientX - longPressTouchStartRef.current.x;
+      const dy = e.clientY - longPressTouchStartRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_CANCEL) {
+        clearLongPress();
+      }
+    }
+
+    // Only process drag if we have an active drag start and correct pointer
     if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
     const currentDragPointId = activeDragPointIdRef.current;
     if (readOnly || !currentDragPointId) return;
@@ -1011,7 +1020,6 @@ export function GraphPlottingQuestion({
     if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
       isDraggingRef.current = true;
       setDraggingPointId(currentDragPointId);
-      // Save history when drag starts
       saveToHistory();
     }
     
@@ -1022,8 +1030,6 @@ export function GraphPlottingQuestion({
       const pixelX = e.clientX - rect.left;
       const pixelY = e.clientY - rect.top;
       
-      // Convert to data coordinates
-      // Use screenToGraphRef if available (camera-based), otherwise fallback to pixelToData
       let dataX: number, dataY: number;
       if (screenToGraphRef.current) {
         const coords = screenToGraphRef.current(pixelX, pixelY);
@@ -1035,12 +1041,10 @@ export function GraphPlottingQuestion({
         dataY = coords.dataY;
       }
       
-      // Snap to 1dp - do NOT clamp to initial domain (allows pan/zoom plotting)
       const snapped = snapPoint(dataX, dataY);
-      
       setDraggingPosition(snapped);
     }
-  }, [readOnly, pixelToData, snapPoint, saveToHistory]); // Remove domainX, domainY deps
+  }, [readOnly, pixelToData, snapPoint, saveToHistory, clearLongPress]);
 
   /**
    * Handle pointer up - end drag or trigger click.
