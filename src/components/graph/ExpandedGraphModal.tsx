@@ -184,21 +184,21 @@ export function ExpandedGraphModal({
   }, [studentPoints, activeDragPointId]);
 
   /**
-   * Round a value to 1 decimal place.
+   * Round a value to 4 decimal places.
    */
-  const round1dp = useCallback((value: number): number => {
-    return Math.round(value * 10) / 10;
+  const roundCoord = useCallback((value: number): number => {
+    return Math.round(value * 10000) / 10000;
   }, []);
 
   /**
-   * Snap a coordinate to 1 decimal place precision.
+   * Snap a coordinate to 4 decimal place precision.
    */
   const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
     return { 
-      x: round1dp(x), 
-      y: round1dp(y) 
+      x: roundCoord(x), 
+      y: roundCoord(y) 
     };
-  }, [round1dp]);
+  }, [roundCoord]);
 
   /**
    * Add a new point to the graph.
