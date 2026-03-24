@@ -2383,44 +2383,6 @@ const TakePracticeQuiz = () => {
                         {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (
                           <OnDemandRationaleBox question={currentQuestion} subjectName={quizTitle} />
                         )}
-                          const [rationale, setRationale] = useState<string | null>(currentQuestion.rationale ?? null);
-                          const [loading, setLoading] = useState(false);
-                          const [show, setShow] = useState(!!currentQuestion.rationale);
-
-                          const handleExplain = async () => {
-                            if (rationale) { setShow(true); return; }
-                            setLoading(true);
-                            try {
-                              const { data } = await supabase.functions.invoke('generate-rationale', {
-                                body: {
-                                  questionId: currentQuestion.id,
-                                  questionText: currentQuestion.question_text,
-                                  correctAnswer: currentQuestion.correct_answer,
-                                  subject: quizTitle,
-                                },
-                              });
-                              if (data?.rationale) { setRationale(data.rationale); setShow(true); }
-                            } finally { setLoading(false); }
-                          };
-
-                          return (
-                            <div className="mt-4 pt-4 border-t">
-                              {!show ? (
-                                <Button variant="ghost" size="sm" onClick={handleExplain} disabled={loading} className="text-xs text-muted-foreground">
-                                  {loading ? <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Explaining...</> : <><Lightbulb className="w-3 h-3 mr-1" /> Explain this answer</>}
-                                </Button>
-                              ) : (
-                                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Lightbulb className="w-3.5 h-3.5 text-blue-600" />
-                                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Quick Insight</span>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground leading-relaxed">{rationale}</p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
                       </CardContent>
                     </Card>
                   )}
