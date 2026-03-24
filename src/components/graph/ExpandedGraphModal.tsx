@@ -408,7 +408,7 @@ export function ExpandedGraphModal({
               {eraseMode ? (
                 'Tap a point, line, or angle label to delete it. Tap the eraser icon again to exit.'
               ) : activeDragPoint ? (
-                `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, tap the point or empty space to exit.`
+                `Drag mode active for (${activeDragPoint.x}, ${activeDragPoint.y}). Drag to move, tap the point or empty space to exit.`
               ) : isAngleMode ? (
                 selectedSegmentIds.length === 0 ? (
                   angleMeasurements.length > 0
