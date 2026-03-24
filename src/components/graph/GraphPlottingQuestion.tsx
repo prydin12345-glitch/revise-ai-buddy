@@ -389,16 +389,25 @@ export function GraphPlottingQuestion({
   }, []);
 
   /**
-   * Round a value to 1 decimal place.
+   * Round a value to 4 decimal places (prevents floating point noise).
    */
-  const round1dp = useCallback((value: number): number => {
-    return Math.round(value * 10) / 10;
+  const roundCoord = useCallback((value: number): number => {
+    return Math.round(value * 10000) / 10000;
+  }, []);
+
+  /**
+   * Format a coordinate for display: up to 4dp, trailing zeros trimmed.
+   */
+  const formatCoord = useCallback((n: number): string => {
+    if (Number.isInteger(n)) return n.toString();
+    const str = n.toFixed(4);
+    return parseFloat(str).toString();
   }, []);
 
   /**
    * Snap a coordinate to the nearest grid intersection.
    * Uses stepX/stepY from config (default 0.5) for clean grid values.
-   * Falls back to 1dp rounding if snapToGrid is not enabled.
+   * Falls back to 4dp rounding if snapToGrid is not enabled.
    */
   const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
     const snapEnabled = config.snapToGrid !== false; // default true
@@ -413,10 +422,10 @@ export function GraphPlottingQuestion({
     }
     
     return { 
-      x: round1dp(x), 
-      y: round1dp(y) 
+      x: roundCoord(x), 
+      y: roundCoord(y) 
     };
-  }, [round1dp, config.snapToGrid, config.stepX, config.stepY]);
+  }, [roundCoord, config.snapToGrid, config.stepX, config.stepY]);
 
   /**
    * Check if a point is currently selected for joining.
