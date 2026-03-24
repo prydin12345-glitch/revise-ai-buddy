@@ -834,8 +834,11 @@ export function GraphPlottingQuestion({
   const getPointStatus = useCallback((point: GraphPoint): 'correct' | 'incorrect' | 'neutral' => {
     if (!showCorrectAnswers || !markingData?.perPointResults) return 'neutral';
     
+    // Use tolerance-based matching to avoid floating point mismatch on reload (Bug 4 fix)
     const result = markingData.perPointResults.find(r => 
-      r.studentPoint?.x === point.x && r.studentPoint?.y === point.y
+      r.studentPoint && 
+      Math.abs(r.studentPoint.x - point.x) < 0.01 && 
+      Math.abs(r.studentPoint.y - point.y) < 0.01
     );
     
     if (!result) return 'neutral';
