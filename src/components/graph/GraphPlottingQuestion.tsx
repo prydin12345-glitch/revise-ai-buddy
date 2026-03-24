@@ -148,16 +148,25 @@ export function GraphPlottingQuestion({
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
-  // Double-tap detection for activating drag mode
+  // Long-press detection for activating drag mode (replaces unreliable double-tap on touch)
+  const LONG_PRESS_DURATION = 500; // ms
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressPointIdRef = useRef<string | null>(null);
+  const longPressTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const LONG_PRESS_MOVE_CANCEL = 8; // px - cancel long-press if finger moves more than this
+
+  // Drag hint (shown once per session, hidden after first drag activation)
+  const [showDragHint, setShowDragHint] = useState(true);
+
+  // Double-tap detection kept as fallback for mouse/desktop
   const lastTapRef = useRef<{ pointId: string | null; time: number; x: number; y: number }>({
     pointId: null,
     time: 0,
     x: 0,
     y: 0
   });
-  // INCREASED thresholds for reliable double-tap detection
-  const DOUBLE_TAP_THRESHOLD = 600; // ms - generous for touch reliability
-  const DOUBLE_TAP_DISTANCE = 80; // px max movement - very generous for finger variance
+  const DOUBLE_TAP_THRESHOLD = 600;
+  const DOUBLE_TAP_DISTANCE = 80;
 
   // Hit radius for touch targets (larger for all devices to fix "dead zone" issue)
   const isCoarsePointer = useMemo(() => {
