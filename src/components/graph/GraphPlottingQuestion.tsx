@@ -744,27 +744,31 @@ export function GraphPlottingQuestion({
   /**
    * Add a new point to the graph.
    */
-  const addPoint = useCallback((x: number, y: number) => {
+  const addPoint = useCallback((x: number, y: number, bypassSnap = false) => {
     if (readOnly) return;
     
     const maxPoints = config.maxPoints ?? 20;
     if (studentPoints.length >= maxPoints) return;
 
-    const snapped = snapPoint(x, y);
+    const finalCoord = bypassSnap 
+      ? { x: roundCoord(x), y: roundCoord(y) }
+      : snapPoint(x, y);
     
     // Check if point already exists at this location
-    const exists = studentPoints.some(p => p.x === snapped.x && p.y === snapped.y);
+    const exists = studentPoints.some(p => 
+      Math.abs(p.x - finalCoord.x) < 0.0001 && Math.abs(p.y - finalCoord.y) < 0.0001
+    );
     if (exists) return;
 
     // Save to history and add point with stable ID
     saveToHistory();
     const newPoint: GraphPoint = {
       id: generatePointId(),
-      x: snapped.x,
-      y: snapped.y,
+      x: finalCoord.x,
+      y: finalCoord.y,
     };
     onPointsChange([...studentPoints, newPoint]);
-  }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange, saveToHistory]);
+  }, [readOnly, config.maxPoints, studentPoints, snapPoint, roundCoord, onPointsChange, saveToHistory]);
 
   /**
    * Remove a point by index.
