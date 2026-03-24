@@ -1540,6 +1540,9 @@ export function GraphPlottingQuestion({
   ) => {
     if (readOnly) return;
     
+    // Clear long-press timer
+    clearLongPress();
+    
     // Decrement touch counter
     if (e.pointerType === 'touch') {
       activeTouchCountRef.current = Math.max(0, activeTouchCountRef.current - 1);
