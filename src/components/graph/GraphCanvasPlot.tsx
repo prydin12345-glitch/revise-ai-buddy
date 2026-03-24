@@ -236,8 +236,11 @@ export function GraphCanvasPlot({
   const getPointStatus = useCallback((point: GraphPoint): 'correct' | 'incorrect' | 'neutral' => {
     if (!showCorrectAnswers || !markingData?.perPointResults) return 'neutral';
     
+    // Use tolerance-based matching to avoid floating point mismatch on reload (Bug 4 fix)
     const result = markingData.perPointResults.find(r => 
-      r.studentPoint?.x === point.x && r.studentPoint?.y === point.y
+      r.studentPoint && 
+      Math.abs(r.studentPoint.x - point.x) < 0.01 && 
+      Math.abs(r.studentPoint.y - point.y) < 0.01
     );
     
     if (!result) return 'neutral';
@@ -325,13 +328,29 @@ export function GraphCanvasPlot({
     // Start tap detection
     tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now(), pointerId: e.pointerId };
     
-    // Let camera handle pan/zoom if enabled (works in readOnly too)
-    if (panZoomEnabled) {
+    // Bug 1 fix: If there's an active drag point and pointer is near it,
+    // skip camera pan handlers to prevent pan/drag conflict
+    let skipCamera = false;
+    if (activeDragPointId && !readOnly) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      for (const pt of studentPoints) {
+        if (pt.id === activeDragPointId) {
+          const screen = graphToScreen(pt.x, pt.y);
+          const dist = Math.sqrt((sx - screen.x) ** 2 + (sy - screen.y) ** 2);
+          if (dist < 60) { skipCamera = true; break; }
+        }
+      }
+    }
+    
+    // Let camera handle pan/zoom if enabled and not near drag point
+    if (panZoomEnabled && !skipCamera) {
       cameraHandlers.onPointerDown(e);
     }
     // Also call custom handler with screenToGraph for coordinate conversion
     onContainerPointerDown?.(e, screenToGraph);
-  }, [panZoomEnabled, cameraHandlers, onContainerPointerDown, screenToGraph]);
+  }, [panZoomEnabled, cameraHandlers, onContainerPointerDown, screenToGraph, activeDragPointId, readOnly, studentPoints, graphToScreen]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // Check if we've moved too far to be a tap
@@ -1143,7 +1162,7 @@ export function GraphCanvasPlot({
           }}
         >
           <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-lg font-mono whitespace-nowrap">
-            ({draggingPosition.x.toFixed(1)}, {draggingPosition.y.toFixed(1)})
+            ({Number.isInteger(draggingPosition.x) ? draggingPosition.x : parseFloat(draggingPosition.x.toFixed(4))}, {Number.isInteger(draggingPosition.y) ? draggingPosition.y : parseFloat(draggingPosition.y.toFixed(4))})
           </div>
         </div>
       )}

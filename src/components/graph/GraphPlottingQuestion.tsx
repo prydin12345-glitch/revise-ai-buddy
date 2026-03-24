@@ -148,16 +148,25 @@ export function GraphPlottingQuestion({
   // Selected points for creating segments (tap Point A, then Point B)
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
 
-  // Double-tap detection for activating drag mode
+  // Long-press detection for activating drag mode (replaces unreliable double-tap on touch)
+  const LONG_PRESS_DURATION = 500; // ms
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressPointIdRef = useRef<string | null>(null);
+  const longPressTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const LONG_PRESS_MOVE_CANCEL = 8; // px - cancel long-press if finger moves more than this
+
+  // Drag hint (shown once per session, hidden after first drag activation)
+  const [showDragHint, setShowDragHint] = useState(true);
+
+  // Double-tap detection kept as fallback for mouse/desktop
   const lastTapRef = useRef<{ pointId: string | null; time: number; x: number; y: number }>({
     pointId: null,
     time: 0,
     x: 0,
     y: 0
   });
-  // INCREASED thresholds for reliable double-tap detection
-  const DOUBLE_TAP_THRESHOLD = 600; // ms - generous for touch reliability
-  const DOUBLE_TAP_DISTANCE = 80; // px max movement - very generous for finger variance
+  const DOUBLE_TAP_THRESHOLD = 600;
+  const DOUBLE_TAP_DISTANCE = 80;
 
   // Hit radius for touch targets (larger for all devices to fix "dead zone" issue)
   const isCoarsePointer = useMemo(() => {
@@ -221,6 +230,16 @@ export function GraphPlottingQuestion({
     return studentPoints.find(p => p.id === id);
   }, [studentPoints]);
 
+  // Clear long-press timer helper
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressPointIdRef.current = null;
+    longPressTouchStartRef.current = null;
+  }, []);
+
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
     setSelectedJoinPoints([]);
@@ -235,7 +254,13 @@ export function GraphPlottingQuestion({
     setEraseMode(false);
     setUndoStack([]);
     setRedoStack([]);
+    clearLongPress();
   }, [questionId]);
+
+  // Cleanup long-press timer on unmount
+  useEffect(() => {
+    return () => { clearLongPress(); };
+  }, [clearLongPress]);
 
   // Observe container size changes
   useEffect(() => {
@@ -364,16 +389,25 @@ export function GraphPlottingQuestion({
   }, []);
 
   /**
-   * Round a value to 1 decimal place.
+   * Round a value to 4 decimal places (prevents floating point noise).
    */
-  const round1dp = useCallback((value: number): number => {
-    return Math.round(value * 10) / 10;
+  const roundCoord = useCallback((value: number): number => {
+    return Math.round(value * 10000) / 10000;
+  }, []);
+
+  /**
+   * Format a coordinate for display: up to 4dp, trailing zeros trimmed.
+   */
+  const formatCoord = useCallback((n: number): string => {
+    if (Number.isInteger(n)) return n.toString();
+    const str = n.toFixed(4);
+    return parseFloat(str).toString();
   }, []);
 
   /**
    * Snap a coordinate to the nearest grid intersection.
    * Uses stepX/stepY from config (default 0.5) for clean grid values.
-   * Falls back to 1dp rounding if snapToGrid is not enabled.
+   * Falls back to 4dp rounding if snapToGrid is not enabled.
    */
   const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
     const snapEnabled = config.snapToGrid !== false; // default true
@@ -388,10 +422,10 @@ export function GraphPlottingQuestion({
     }
     
     return { 
-      x: round1dp(x), 
-      y: round1dp(y) 
+      x: roundCoord(x), 
+      y: roundCoord(y) 
     };
-  }, [round1dp, config.snapToGrid, config.stepX, config.stepY]);
+  }, [roundCoord, config.snapToGrid, config.stepX, config.stepY]);
 
   /**
    * Check if a point is currently selected for joining.
@@ -710,27 +744,31 @@ export function GraphPlottingQuestion({
   /**
    * Add a new point to the graph.
    */
-  const addPoint = useCallback((x: number, y: number) => {
+  const addPoint = useCallback((x: number, y: number, bypassSnap = false) => {
     if (readOnly) return;
     
     const maxPoints = config.maxPoints ?? 20;
     if (studentPoints.length >= maxPoints) return;
 
-    const snapped = snapPoint(x, y);
+    const finalCoord = bypassSnap 
+      ? { x: roundCoord(x), y: roundCoord(y) }
+      : snapPoint(x, y);
     
     // Check if point already exists at this location
-    const exists = studentPoints.some(p => p.x === snapped.x && p.y === snapped.y);
+    const exists = studentPoints.some(p => 
+      Math.abs(p.x - finalCoord.x) < 0.0001 && Math.abs(p.y - finalCoord.y) < 0.0001
+    );
     if (exists) return;
 
     // Save to history and add point with stable ID
     saveToHistory();
     const newPoint: GraphPoint = {
       id: generatePointId(),
-      x: snapped.x,
-      y: snapped.y,
+      x: finalCoord.x,
+      y: finalCoord.y,
     };
     onPointsChange([...studentPoints, newPoint]);
-  }, [readOnly, config.maxPoints, studentPoints, snapPoint, onPointsChange, saveToHistory]);
+  }, [readOnly, config.maxPoints, studentPoints, snapPoint, roundCoord, onPointsChange, saveToHistory]);
 
   /**
    * Remove a point by index.
@@ -796,8 +834,11 @@ export function GraphPlottingQuestion({
   const getPointStatus = useCallback((point: GraphPoint): 'correct' | 'incorrect' | 'neutral' => {
     if (!showCorrectAnswers || !markingData?.perPointResults) return 'neutral';
     
+    // Use tolerance-based matching to avoid floating point mismatch on reload (Bug 4 fix)
     const result = markingData.perPointResults.find(r => 
-      r.studentPoint?.x === point.x && r.studentPoint?.y === point.y
+      r.studentPoint && 
+      Math.abs(r.studentPoint.x - point.x) < 0.01 && 
+      Math.abs(r.studentPoint.y - point.y) < 0.01
     );
     
     if (!result) return 'neutral';
@@ -954,7 +995,16 @@ export function GraphPlottingQuestion({
    * Uses activeDragPointId to find the point and update position.
    */
   const handlePointPointerMove = useCallback((e: React.PointerEvent) => {
-    // Only process if we have an active drag start and correct pointer
+    // Cancel long-press if finger moved too far
+    if (longPressTouchStartRef.current) {
+      const dx = e.clientX - longPressTouchStartRef.current.x;
+      const dy = e.clientY - longPressTouchStartRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_CANCEL) {
+        clearLongPress();
+      }
+    }
+
+    // Only process drag if we have an active drag start and correct pointer
     if (!dragStartRef.current || dragStartRef.current.pointerId !== e.pointerId) return;
     const currentDragPointId = activeDragPointIdRef.current;
     if (readOnly || !currentDragPointId) return;
@@ -970,7 +1020,6 @@ export function GraphPlottingQuestion({
     if (!isDraggingRef.current && distance >= DRAG_THRESHOLD) {
       isDraggingRef.current = true;
       setDraggingPointId(currentDragPointId);
-      // Save history when drag starts
       saveToHistory();
     }
     
@@ -981,8 +1030,6 @@ export function GraphPlottingQuestion({
       const pixelX = e.clientX - rect.left;
       const pixelY = e.clientY - rect.top;
       
-      // Convert to data coordinates
-      // Use screenToGraphRef if available (camera-based), otherwise fallback to pixelToData
       let dataX: number, dataY: number;
       if (screenToGraphRef.current) {
         const coords = screenToGraphRef.current(pixelX, pixelY);
@@ -994,12 +1041,10 @@ export function GraphPlottingQuestion({
         dataY = coords.dataY;
       }
       
-      // Snap to 1dp - do NOT clamp to initial domain (allows pan/zoom plotting)
       const snapped = snapPoint(dataX, dataY);
-      
       setDraggingPosition(snapped);
     }
-  }, [readOnly, pixelToData, snapPoint, saveToHistory]); // Remove domainX, domainY deps
+  }, [readOnly, pixelToData, snapPoint, saveToHistory, clearLongPress]);
 
   /**
    * Handle pointer up - end drag or trigger click.
@@ -1401,89 +1446,89 @@ export function GraphPlottingQuestion({
   ) => {
     if (readOnly) return;
     
-    // Palm rejection: reject touches with large contact area (width/height > 30px)
+    // Palm rejection
     if (e.pointerType === 'touch') {
-      if (e.width > 30 || e.height > 30) return; // Palm/arm resting on screen
+      if (e.width > 30 || e.height > 30) return;
       activeTouchCountRef.current++;
-      if (activeTouchCountRef.current > 1) return; // Multi-touch guard
+      if (activeTouchCountRef.current > 1) return;
     }
     
-    // Record pointer-down position for jitter buffer
     cameraPointerDownRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
-    
-    // Store screenToGraph for use in move/up handlers
     screenToGraphRef.current = screenToGraph;
     
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
     
-    // Create a graphToScreen function for hit testing
-    // This is derived from screenToGraph by computing the inverse
     const graphToScreen = (gx: number, gy: number): { x: number; y: number } => {
-      // We compute this by projecting based on viewport
       const width = rect.width;
       const height = rect.height;
-      
-      // Get bounds from domain
-      const domainWidth = domainX[1] - domainX[0];
-      const domainHeight = domainY[1] - domainY[0];
-      
-      // screenToGraph at corners to determine mapping
       const topLeft = screenToGraph(0, 0);
       const bottomRight = screenToGraph(width, height);
-      
       const scaleX = width / (bottomRight.x - topLeft.x);
-      const scaleY = height / (topLeft.y - bottomRight.y); // Y is inverted
-      
-      const screenX = (gx - topLeft.x) * scaleX;
-      const screenY = (topLeft.y - gy) * scaleY;
-      
-      return { x: screenX, y: screenY };
+      const scaleY = height / (topLeft.y - bottomRight.y);
+      return { x: (gx - topLeft.x) * scaleX, y: (topLeft.y - gy) * scaleY };
     };
     
-    // Use camera-aware hit testing
     const nearestPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
     
-    if (!nearestPoint) return; // No point nearby
+    if (!nearestPoint) return;
     
-    // Mark that pointer started on a point
     pointerStartedOnPointRef.current = true;
     e.stopPropagation();
     
-    // Handle erase mode - erase is handled on pointerUp
     if (eraseMode) return;
-    
-    // Handle join/angle modes - selection is handled on pointerUp
     if (isJoinModeActive || isAngleMode) return;
     
-    // Check for double-tap to activate drag mode
-    const now = Date.now();
-    const lastTap = lastTapRef.current;
-    const timeDiff = now - lastTap.time;
-    const isSamePoint = lastTap.pointId === nearestPoint.id;
-    const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
-    const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
-    
-    lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
-    
-    if (isDoubleTap) {
-      const currentDragId = activeDragPointIdRef.current;
-      if (currentDragId === nearestPoint.id) {
-        setActiveDragPointId(null);
-      } else {
-        setActiveDragPointId(nearestPoint.id || null);
-      }
-      lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
-      return;
-    }
-    
-    // If this point is in drag mode, start potential drag
+    // If this point is already in drag mode, start potential drag immediately
     const currentDragPointId = activeDragPointIdRef.current;
     if (currentDragPointId && currentDragPointId === nearestPoint.id) {
       dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+      return;
     }
-  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPointCamera, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, domainX, domainY]);
+    
+    // --- Long-press detection (touch) OR double-tap fallback (mouse) ---
+    if (e.pointerType === 'touch') {
+      // Start long-press timer
+      clearLongPress();
+      longPressTouchStartRef.current = { x: e.clientX, y: e.clientY };
+      longPressPointIdRef.current = nearestPoint.id || null;
+      longPressTimerRef.current = setTimeout(() => {
+        // Long press confirmed — enter drag mode
+        const pointId = longPressPointIdRef.current;
+        if (pointId) {
+          setActiveDragPointId(pointId);
+          setShowDragHint(false);
+          // Haptic feedback
+          if (navigator.vibrate) navigator.vibrate(50);
+        }
+        longPressTimerRef.current = null;
+        longPressPointIdRef.current = null;
+        longPressTouchStartRef.current = null;
+      }, LONG_PRESS_DURATION);
+    } else {
+      // Mouse/pen: use double-tap detection
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      const timeDiff = now - lastTap.time;
+      const isSamePoint = lastTap.pointId === nearestPoint.id;
+      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+      
+      lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+      
+      if (isDoubleTap) {
+        const currentDragId = activeDragPointIdRef.current;
+        if (currentDragId === nearestPoint.id) {
+          setActiveDragPointId(null);
+        } else {
+          setActiveDragPointId(nearestPoint.id || null);
+          setShowDragHint(false);
+        }
+        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
+      }
+    }
+  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPointCamera, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, domainX, domainY, clearLongPress]);
 
   /**
    * Camera-aware container pointer up handler.
@@ -1494,6 +1539,9 @@ export function GraphPlottingQuestion({
     screenToGraph: (x: number, y: number) => { x: number; y: number }
   ) => {
     if (readOnly) return;
+    
+    // Clear long-press timer
+    clearLongPress();
     
     // Decrement touch counter
     if (e.pointerType === 'touch') {
@@ -1638,23 +1686,26 @@ export function GraphPlottingQuestion({
     // Check if tap is near an existing point
     const nearbyPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
     if (nearbyPoint) {
-      // Handle double-tap for drag mode
-      const now = Date.now();
-      const lastTap = lastTapRef.current;
-      const timeDiff = now - lastTap.time;
-      const isSamePoint = lastTap.pointId === nearbyPoint.id;
-      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
-      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
-      
-      lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
-      
-      if (isDoubleTap) {
-        if (activeDragPointId === nearbyPoint.id) {
-          setActiveDragPointId(null);
-        } else {
-          setActiveDragPointId(nearbyPoint.id || null);
+      // For mouse: handle double-tap for drag mode (touch uses long-press instead)
+      if (e.pointerType !== 'touch') {
+        const now = Date.now();
+        const lastTap = lastTapRef.current;
+        const timeDiff = now - lastTap.time;
+        const isSamePoint = lastTap.pointId === nearbyPoint.id;
+        const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+        const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+        
+        lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+        
+        if (isDoubleTap) {
+          if (activeDragPointId === nearbyPoint.id) {
+            setActiveDragPointId(null);
+          } else {
+            setActiveDragPointId(nearbyPoint.id || null);
+            setShowDragHint(false);
+          }
+          lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
         }
-        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
       }
       return;
     }
@@ -1812,7 +1863,7 @@ export function GraphPlottingQuestion({
         />
         
         {/* Tooltip on hover */}
-        <title>{`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`}</title>
+        <title>{`(${formatCoord(point.x)}, ${formatCoord(point.y)})`}</title>
       </g>
     );
   }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, 
@@ -1989,7 +2040,7 @@ export function GraphPlottingQuestion({
           {eraseMode ? (
             'Tap a point, line, or angle label to delete it. Tap the eraser icon again to exit.'
           ) : activeDragPoint ? (
-            `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, tap the point or empty space to exit.`
+            `Drag mode active for (${formatCoord(activeDragPoint.x)}, ${formatCoord(activeDragPoint.y)}). Drag to move, tap the point or empty space to exit.`
           ) : isAngleMode ? (
             selectedSegmentIds.length === 0 ? (
               angleMeasurements.length > 0
@@ -2006,12 +2057,12 @@ export function GraphPlottingQuestion({
             ) : selectedJoinPoints.length === 0 ? (
               `Tap a point to select it for joining. Deselect the mode to add points.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point (${selectedJoinPoints[0].x.toFixed(1)}, ${selectedJoinPoints[0].y.toFixed(1)}) selected. Tap another point to connect.`
+              `Point (${formatCoord(selectedJoinPoints[0].x)}, ${formatCoord(selectedJoinPoints[0].y)}) selected. Tap another point to connect.`
             ) : (
               'Creating segment...'
             )
           ) : (
-            'Tap to plot points (1dp). Double-tap a point to enable drag mode.'
+            'Tap to plot points. Hold a point to drag it.'
           )}
         </p>
       )}
@@ -2044,7 +2095,7 @@ export function GraphPlottingQuestion({
             subjectColor={subjectColor}
             readOnly={readOnly}
             showCorrectAnswers={showCorrectAnswers}
-            panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
+            panZoomEnabled={true}
             eraseMode={eraseMode}
             angleMeasurements={angleMeasurements}
             selectedSegmentIds={selectedSegmentIds}
@@ -2080,7 +2131,7 @@ export function GraphPlottingQuestion({
                 className="flex items-center gap-1 bg-background px-2 py-1 rounded text-sm border"
               >
                 <span>
-                  ({seg.from.x.toFixed(1)}, {seg.from.y.toFixed(1)}) → ({seg.to.x.toFixed(1)}, {seg.to.y.toFixed(1)})
+                  ({formatCoord(seg.from.x)}, {formatCoord(seg.from.y)}) → ({formatCoord(seg.to.x)}, {formatCoord(seg.to.y)})
                 </span>
                 <span className="text-muted-foreground text-xs">
                   [{seg.mode}]
@@ -2137,7 +2188,7 @@ export function GraphPlottingQuestion({
             <span className="text-sm text-muted-foreground">(</span>
             <Input
               type="number"
-              step="0.1"
+              step="any"
               placeholder="x"
               value={manualX}
               onChange={(e) => setManualX(e.target.value)}
@@ -2147,7 +2198,7 @@ export function GraphPlottingQuestion({
                   const x = parseFloat(manualX);
                   const y = parseFloat(manualY);
                   if (!isNaN(x) && !isNaN(y)) {
-                    addPoint(x, y);
+                    addPoint(x, y, true);
                     setManualX('');
                     setManualY('');
                   }
@@ -2157,7 +2208,7 @@ export function GraphPlottingQuestion({
             <span className="text-sm text-muted-foreground">,</span>
             <Input
               type="number"
-              step="0.1"
+              step="any"
               placeholder="y"
               value={manualY}
               onChange={(e) => setManualY(e.target.value)}
@@ -2167,7 +2218,7 @@ export function GraphPlottingQuestion({
                   const x = parseFloat(manualX);
                   const y = parseFloat(manualY);
                   if (!isNaN(x) && !isNaN(y)) {
-                    addPoint(x, y);
+                    addPoint(x, y, true);
                     setManualX('');
                     setManualY('');
                   }
@@ -2183,7 +2234,7 @@ export function GraphPlottingQuestion({
                 const x = parseFloat(manualX);
                 const y = parseFloat(manualY);
                 if (!isNaN(x) && !isNaN(y)) {
-                  addPoint(x, y);
+                  addPoint(x, y, true);
                   setManualX('');
                   setManualY('');
                 }
@@ -2209,7 +2260,7 @@ export function GraphPlottingQuestion({
                     !showCorrectAnswers && "bg-background"
                   )}
                 >
-                  <span>({point.x.toFixed(1)}, {point.y.toFixed(1)})</span>
+                  <span>({formatCoord(point.x)}, {formatCoord(point.y)})</span>
                   {!readOnly && (
                     <Button
                       variant="ghost"

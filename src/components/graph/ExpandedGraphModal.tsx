@@ -184,21 +184,21 @@ export function ExpandedGraphModal({
   }, [studentPoints, activeDragPointId]);
 
   /**
-   * Round a value to 1 decimal place.
+   * Round a value to 4 decimal places.
    */
-  const round1dp = useCallback((value: number): number => {
-    return Math.round(value * 10) / 10;
+  const roundCoord = useCallback((value: number): number => {
+    return Math.round(value * 10000) / 10000;
   }, []);
 
   /**
-   * Snap a coordinate to 1 decimal place precision.
+   * Snap a coordinate to 4 decimal place precision.
    */
   const snapPoint = useCallback((x: number, y: number): { x: number; y: number } => {
     return { 
-      x: round1dp(x), 
-      y: round1dp(y) 
+      x: roundCoord(x), 
+      y: roundCoord(y) 
     };
-  }, [round1dp]);
+  }, [roundCoord]);
 
   /**
    * Add a new point to the graph.
@@ -408,7 +408,7 @@ export function ExpandedGraphModal({
               {eraseMode ? (
                 'Tap a point, line, or angle label to delete it. Tap the eraser icon again to exit.'
               ) : activeDragPoint ? (
-                `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, tap the point or empty space to exit.`
+                `Drag mode active for (${activeDragPoint.x}, ${activeDragPoint.y}). Drag to move, tap the point or empty space to exit.`
               ) : isAngleMode ? (
                 selectedSegmentIds.length === 0 ? (
                   angleMeasurements.length > 0
@@ -425,12 +425,12 @@ export function ExpandedGraphModal({
                 ) : selectedJoinPoints.length === 0 ? (
                   `Tap a point to select it for joining. Deselect the mode to add points.`
                 ) : selectedJoinPoints.length === 1 ? (
-                  `Point (${selectedJoinPoints[0].x.toFixed(1)}, ${selectedJoinPoints[0].y.toFixed(1)}) selected. Tap another point to connect.`
+                  `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect.`
                 ) : (
                   'Creating segment...'
                 )
               ) : (
-                'Tap to plot points (1dp). Double-tap a point to enable drag mode.'
+                'Tap to plot points. Hold a point to drag it.'
               )}
             </p>
           )}
@@ -467,7 +467,7 @@ export function ExpandedGraphModal({
                 subjectColor={subjectColor}
                 readOnly={readOnly}
                 showCorrectAnswers={showCorrectAnswers}
-                panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
+                panZoomEnabled={true}
                 eraseMode={eraseMode}
                 angleMeasurements={angleMeasurements}
                 selectedSegmentIds={selectedSegmentIds}
