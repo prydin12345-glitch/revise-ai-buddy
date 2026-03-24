@@ -42,6 +42,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { useTextareaInsert } from "@/hooks/useTextareaInsert";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
+import { OnDemandRationaleBox } from "@/components/quiz/OnDemandRationaleBox";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid,
@@ -2381,7 +2382,7 @@ const TakePracticeQuiz = () => {
                         )}
                         {/* MCQ Rationale Insight Box — on-demand in review/submitted mode */}
                         {currentQuestion.question_type === 'mcq' && (currentAnswer.submitted || isReviewMode) && (
-                          <OnDemandRationale question={currentQuestion} subjectName={quizTitle} />
+                          <OnDemandRationaleBox question={currentQuestion} subjectName={quizTitle} />
                         )}
                       </CardContent>
                     </Card>
