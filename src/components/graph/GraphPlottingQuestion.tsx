@@ -1863,7 +1863,7 @@ export function GraphPlottingQuestion({
         />
         
         {/* Tooltip on hover */}
-        <title>{`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`}</title>
+        <title>{`(${formatCoord(point.x)}, ${formatCoord(point.y)})`}</title>
       </g>
     );
   }, [subjectColor, showCorrectAnswers, getPointStatus, isPointSelected, readOnly, 
