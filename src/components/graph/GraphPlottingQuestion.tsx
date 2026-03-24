@@ -230,6 +230,16 @@ export function GraphPlottingQuestion({
     return studentPoints.find(p => p.id === id);
   }, [studentPoints]);
 
+  // Clear long-press timer helper
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressPointIdRef.current = null;
+    longPressTouchStartRef.current = null;
+  }, []);
+
   // Reset internal state when question changes (navigation/retry)
   useEffect(() => {
     setSelectedJoinPoints([]);
@@ -244,7 +254,13 @@ export function GraphPlottingQuestion({
     setEraseMode(false);
     setUndoStack([]);
     setRedoStack([]);
+    clearLongPress();
   }, [questionId]);
+
+  // Cleanup long-press timer on unmount
+  useEffect(() => {
+    return () => { clearLongPress(); };
+  }, [clearLongPress]);
 
   // Observe container size changes
   useEffect(() => {
