@@ -1686,23 +1686,26 @@ export function GraphPlottingQuestion({
     // Check if tap is near an existing point
     const nearbyPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
     if (nearbyPoint) {
-      // Handle double-tap for drag mode
-      const now = Date.now();
-      const lastTap = lastTapRef.current;
-      const timeDiff = now - lastTap.time;
-      const isSamePoint = lastTap.pointId === nearbyPoint.id;
-      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
-      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
-      
-      lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
-      
-      if (isDoubleTap) {
-        if (activeDragPointId === nearbyPoint.id) {
-          setActiveDragPointId(null);
-        } else {
-          setActiveDragPointId(nearbyPoint.id || null);
+      // For mouse: handle double-tap for drag mode (touch uses long-press instead)
+      if (e.pointerType !== 'touch') {
+        const now = Date.now();
+        const lastTap = lastTapRef.current;
+        const timeDiff = now - lastTap.time;
+        const isSamePoint = lastTap.pointId === nearbyPoint.id;
+        const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+        const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+        
+        lastTapRef.current = { pointId: nearbyPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+        
+        if (isDoubleTap) {
+          if (activeDragPointId === nearbyPoint.id) {
+            setActiveDragPointId(null);
+          } else {
+            setActiveDragPointId(nearbyPoint.id || null);
+            setShowDragHint(false);
+          }
+          lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
         }
-        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
       }
       return;
     }
