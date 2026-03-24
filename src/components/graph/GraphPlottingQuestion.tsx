@@ -2095,7 +2095,7 @@ export function GraphPlottingQuestion({
             subjectColor={subjectColor}
             readOnly={readOnly}
             showCorrectAnswers={showCorrectAnswers}
-            panZoomEnabled={!isJoinModeActive && !eraseMode && !isAngleMode}
+            panZoomEnabled={true}
             eraseMode={eraseMode}
             angleMeasurements={angleMeasurements}
             selectedSegmentIds={selectedSegmentIds}
