@@ -2260,7 +2260,7 @@ export function GraphPlottingQuestion({
                     !showCorrectAnswers && "bg-background"
                   )}
                 >
-                  <span>({point.x.toFixed(1)}, {point.y.toFixed(1)})</span>
+                  <span>({formatCoord(point.x)}, {formatCoord(point.y)})</span>
                   {!readOnly && (
                     <Button
                       variant="ghost"

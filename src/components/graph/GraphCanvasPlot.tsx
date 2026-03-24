@@ -1162,7 +1162,7 @@ export function GraphCanvasPlot({
           }}
         >
           <div className="bg-popover text-popover-foreground border rounded px-2 py-1 text-sm shadow-lg font-mono whitespace-nowrap">
-            ({draggingPosition.x.toFixed(1)}, {draggingPosition.y.toFixed(1)})
+            ({Number.isInteger(draggingPosition.x) ? draggingPosition.x : parseFloat(draggingPosition.x.toFixed(4))}, {Number.isInteger(draggingPosition.y) ? draggingPosition.y : parseFloat(draggingPosition.y.toFixed(4))})
           </div>
         </div>
       )}
