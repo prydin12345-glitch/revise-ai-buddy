@@ -328,13 +328,29 @@ export function GraphCanvasPlot({
     // Start tap detection
     tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now(), pointerId: e.pointerId };
     
-    // Let camera handle pan/zoom if enabled (works in readOnly too)
-    if (panZoomEnabled) {
+    // Bug 1 fix: If there's an active drag point and pointer is near it,
+    // skip camera pan handlers to prevent pan/drag conflict
+    let skipCamera = false;
+    if (activeDragPointId && !readOnly) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      for (const pt of studentPoints) {
+        if (pt.id === activeDragPointId) {
+          const screen = graphToScreen(pt.x, pt.y);
+          const dist = Math.sqrt((sx - screen.x) ** 2 + (sy - screen.y) ** 2);
+          if (dist < 60) { skipCamera = true; break; }
+        }
+      }
+    }
+    
+    // Let camera handle pan/zoom if enabled and not near drag point
+    if (panZoomEnabled && !skipCamera) {
       cameraHandlers.onPointerDown(e);
     }
     // Also call custom handler with screenToGraph for coordinate conversion
     onContainerPointerDown?.(e, screenToGraph);
-  }, [panZoomEnabled, cameraHandlers, onContainerPointerDown, screenToGraph]);
+  }, [panZoomEnabled, cameraHandlers, onContainerPointerDown, screenToGraph, activeDragPointId, readOnly, studentPoints, graphToScreen]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // Check if we've moved too far to be a tap
