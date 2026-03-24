@@ -1446,89 +1446,89 @@ export function GraphPlottingQuestion({
   ) => {
     if (readOnly) return;
     
-    // Palm rejection: reject touches with large contact area (width/height > 30px)
+    // Palm rejection
     if (e.pointerType === 'touch') {
-      if (e.width > 30 || e.height > 30) return; // Palm/arm resting on screen
+      if (e.width > 30 || e.height > 30) return;
       activeTouchCountRef.current++;
-      if (activeTouchCountRef.current > 1) return; // Multi-touch guard
+      if (activeTouchCountRef.current > 1) return;
     }
     
-    // Record pointer-down position for jitter buffer
     cameraPointerDownRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
-    
-    // Store screenToGraph for use in move/up handlers
     screenToGraphRef.current = screenToGraph;
     
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
     
-    // Create a graphToScreen function for hit testing
-    // This is derived from screenToGraph by computing the inverse
     const graphToScreen = (gx: number, gy: number): { x: number; y: number } => {
-      // We compute this by projecting based on viewport
       const width = rect.width;
       const height = rect.height;
-      
-      // Get bounds from domain
-      const domainWidth = domainX[1] - domainX[0];
-      const domainHeight = domainY[1] - domainY[0];
-      
-      // screenToGraph at corners to determine mapping
       const topLeft = screenToGraph(0, 0);
       const bottomRight = screenToGraph(width, height);
-      
       const scaleX = width / (bottomRight.x - topLeft.x);
-      const scaleY = height / (topLeft.y - bottomRight.y); // Y is inverted
-      
-      const screenX = (gx - topLeft.x) * scaleX;
-      const screenY = (topLeft.y - gy) * scaleY;
-      
-      return { x: screenX, y: screenY };
+      const scaleY = height / (topLeft.y - bottomRight.y);
+      return { x: (gx - topLeft.x) * scaleX, y: (topLeft.y - gy) * scaleY };
     };
     
-    // Use camera-aware hit testing
     const nearestPoint = findNearestPointCamera(clickX, clickY, POINT_HIT_RADIUS, screenToGraph, graphToScreen);
     
-    if (!nearestPoint) return; // No point nearby
+    if (!nearestPoint) return;
     
-    // Mark that pointer started on a point
     pointerStartedOnPointRef.current = true;
     e.stopPropagation();
     
-    // Handle erase mode - erase is handled on pointerUp
     if (eraseMode) return;
-    
-    // Handle join/angle modes - selection is handled on pointerUp
     if (isJoinModeActive || isAngleMode) return;
     
-    // Check for double-tap to activate drag mode
-    const now = Date.now();
-    const lastTap = lastTapRef.current;
-    const timeDiff = now - lastTap.time;
-    const isSamePoint = lastTap.pointId === nearestPoint.id;
-    const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
-    const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
-    
-    lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
-    
-    if (isDoubleTap) {
-      const currentDragId = activeDragPointIdRef.current;
-      if (currentDragId === nearestPoint.id) {
-        setActiveDragPointId(null);
-      } else {
-        setActiveDragPointId(nearestPoint.id || null);
-      }
-      lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
-      return;
-    }
-    
-    // If this point is in drag mode, start potential drag
+    // If this point is already in drag mode, start potential drag immediately
     const currentDragPointId = activeDragPointIdRef.current;
     if (currentDragPointId && currentDragPointId === nearestPoint.id) {
       dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+      return;
     }
-  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPointCamera, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, domainX, domainY]);
+    
+    // --- Long-press detection (touch) OR double-tap fallback (mouse) ---
+    if (e.pointerType === 'touch') {
+      // Start long-press timer
+      clearLongPress();
+      longPressTouchStartRef.current = { x: e.clientX, y: e.clientY };
+      longPressPointIdRef.current = nearestPoint.id || null;
+      longPressTimerRef.current = setTimeout(() => {
+        // Long press confirmed — enter drag mode
+        const pointId = longPressPointIdRef.current;
+        if (pointId) {
+          setActiveDragPointId(pointId);
+          setShowDragHint(false);
+          // Haptic feedback
+          if (navigator.vibrate) navigator.vibrate(50);
+        }
+        longPressTimerRef.current = null;
+        longPressPointIdRef.current = null;
+        longPressTouchStartRef.current = null;
+      }, LONG_PRESS_DURATION);
+    } else {
+      // Mouse/pen: use double-tap detection
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      const timeDiff = now - lastTap.time;
+      const isSamePoint = lastTap.pointId === nearestPoint.id;
+      const distanceMoved = Math.sqrt(Math.pow(e.clientX - lastTap.x, 2) + Math.pow(e.clientY - lastTap.y, 2));
+      const isDoubleTap = isSamePoint && timeDiff < DOUBLE_TAP_THRESHOLD && distanceMoved < DOUBLE_TAP_DISTANCE;
+      
+      lastTapRef.current = { pointId: nearestPoint.id || null, time: now, x: e.clientX, y: e.clientY };
+      
+      if (isDoubleTap) {
+        const currentDragId = activeDragPointIdRef.current;
+        if (currentDragId === nearestPoint.id) {
+          setActiveDragPointId(null);
+        } else {
+          setActiveDragPointId(nearestPoint.id || null);
+          setShowDragHint(false);
+        }
+        lastTapRef.current = { pointId: null, time: 0, x: 0, y: 0 };
+      }
+    }
+  }, [readOnly, eraseMode, isJoinModeActive, isAngleMode, findNearestPointCamera, POINT_HIT_RADIUS, DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, domainX, domainY, clearLongPress]);
 
   /**
    * Camera-aware container pointer up handler.
