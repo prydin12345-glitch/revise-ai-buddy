@@ -2198,7 +2198,7 @@ export function GraphPlottingQuestion({
                   const x = parseFloat(manualX);
                   const y = parseFloat(manualY);
                   if (!isNaN(x) && !isNaN(y)) {
-                    addPoint(x, y);
+                    addPoint(x, y, true);
                     setManualX('');
                     setManualY('');
                   }
