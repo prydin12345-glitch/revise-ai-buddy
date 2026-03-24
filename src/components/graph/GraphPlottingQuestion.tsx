@@ -2131,7 +2131,7 @@ export function GraphPlottingQuestion({
                 className="flex items-center gap-1 bg-background px-2 py-1 rounded text-sm border"
               >
                 <span>
-                  ({seg.from.x.toFixed(1)}, {seg.from.y.toFixed(1)}) → ({seg.to.x.toFixed(1)}, {seg.to.y.toFixed(1)})
+                  ({formatCoord(seg.from.x)}, {formatCoord(seg.from.y)}) → ({formatCoord(seg.to.x)}, {formatCoord(seg.to.y)})
                 </span>
                 <span className="text-muted-foreground text-xs">
                   [{seg.mode}]
