@@ -425,12 +425,12 @@ export function ExpandedGraphModal({
                 ) : selectedJoinPoints.length === 0 ? (
                   `Tap a point to select it for joining. Deselect the mode to add points.`
                 ) : selectedJoinPoints.length === 1 ? (
-                  `Point (${selectedJoinPoints[0].x.toFixed(1)}, ${selectedJoinPoints[0].y.toFixed(1)}) selected. Tap another point to connect.`
+                  `Point (${selectedJoinPoints[0].x}, ${selectedJoinPoints[0].y}) selected. Tap another point to connect.`
                 ) : (
                   'Creating segment...'
                 )
               ) : (
-                'Tap to plot points (1dp). Double-tap a point to enable drag mode.'
+                'Tap to plot points. Hold a point to drag it.'
               )}
             </p>
           )}
