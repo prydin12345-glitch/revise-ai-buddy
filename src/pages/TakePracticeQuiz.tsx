@@ -42,6 +42,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
 import { useTextareaInsert } from "@/hooks/useTextareaInsert";
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
+import { OnDemandRationaleBox } from "@/components/quiz/OnDemandRationaleBox";
 import { 
   TableGridQuestion, 
   parseMarkdownToTableGrid,
