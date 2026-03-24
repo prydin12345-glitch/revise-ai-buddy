@@ -2040,7 +2040,7 @@ export function GraphPlottingQuestion({
           {eraseMode ? (
             'Tap a point, line, or angle label to delete it. Tap the eraser icon again to exit.'
           ) : activeDragPoint ? (
-            `Drag mode active for (${activeDragPoint.x.toFixed(1)}, ${activeDragPoint.y.toFixed(1)}). Drag to move, tap the point or empty space to exit.`
+            `Drag mode active for (${formatCoord(activeDragPoint.x)}, ${formatCoord(activeDragPoint.y)}). Drag to move, tap the point or empty space to exit.`
           ) : isAngleMode ? (
             selectedSegmentIds.length === 0 ? (
               angleMeasurements.length > 0
@@ -2057,12 +2057,12 @@ export function GraphPlottingQuestion({
             ) : selectedJoinPoints.length === 0 ? (
               `Tap a point to select it for joining. Deselect the mode to add points.`
             ) : selectedJoinPoints.length === 1 ? (
-              `Point (${selectedJoinPoints[0].x.toFixed(1)}, ${selectedJoinPoints[0].y.toFixed(1)}) selected. Tap another point to connect.`
+              `Point (${formatCoord(selectedJoinPoints[0].x)}, ${formatCoord(selectedJoinPoints[0].y)}) selected. Tap another point to connect.`
             ) : (
               'Creating segment...'
             )
           ) : (
-            'Tap to plot points (1dp). Double-tap a point to enable drag mode.'
+            'Tap to plot points. Hold a point to drag it.'
           )}
         </p>
       )}
