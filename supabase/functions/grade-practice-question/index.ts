@@ -288,14 +288,160 @@ serve(async (req) => {
         const parsed = JSON.parse(answerText);
         if (parsed._type === 'graph_plotting') {
           const questionData = JSON.parse(question.correct_answer || '{}');
-          const expected = questionData.plottingAnswer?.expectedPoints || [];
-          const toleranceUnits = questionData.plottingAnswer?.toleranceUnits || 0.5;
-          // Support separate x/y tolerance (default ±0.2)
+          const plottingAnswer = questionData.plottingAnswer || {};
+          
+          // ============================================================
+          // V2 KEY-POINT + CURVE SHAPE MARKING
+          // If plottingAnswer has keyPoints array, use new marking system
+          // ============================================================
+          const hasKeyPoints = Array.isArray(plottingAnswer.keyPoints) && plottingAnswer.keyPoints.length > 0;
+          
+          if (hasKeyPoints) {
+            console.log('[graph-grading] Using V2 KEY-POINT + CURVE SHAPE marking');
+            const studentPoints: GraphPoint[] = parsed.points || [];
+            
+            // Collect drawn curve points from segments and spline
+            const drawnCurvePoints: Array<{ x: number; y: number }> = [];
+            // From explicit drawn curves (if stored)
+            if (Array.isArray(parsed.drawnCurves)) {
+              for (const curve of parsed.drawnCurves) {
+                if (Array.isArray(curve.graphPoints)) {
+                  drawnCurvePoints.push(...curve.graphPoints);
+                }
+              }
+            }
+            // From drawn paths (freeform)
+            if (Array.isArray(parsed.drawnPaths)) {
+              for (const path of parsed.drawnPaths) {
+                if (Array.isArray(path.dataPoints)) {
+                  drawnCurvePoints.push(...path.dataPoints);
+                }
+              }
+            }
+            
+            const domainX = questionData.graphConfig?.domainX || plottingAnswer.domainX || [-10, 10];
+            const domainY = questionData.graphConfig?.domainY || plottingAnswer.domainY || [-10, 10];
+            const xRange = Math.abs(domainX[1] - domainX[0]);
+            const yRange = Math.abs(domainY[1] - domainY[0]);
+            const toleranceRadius = Math.sqrt(Math.pow(xRange * 0.08, 2) + Math.pow(yRange * 0.08, 2));
+            
+            // Check key points
+            const allPoints = [...studentPoints, ...drawnCurvePoints];
+            const keyPointResults = plottingAnswer.keyPoints.map((kp: any) => {
+              let achieved = false;
+              let nearestPoint: { x: number; y: number } | null = null;
+              let minDistance = Infinity;
+              const effectiveTolerance = kp.toleranceOverride ?? toleranceRadius;
+              
+              for (const sp of allPoints) {
+                const dist = Math.sqrt(Math.pow(sp.x - kp.x, 2) + Math.pow(sp.y - kp.y, 2));
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  nearestPoint = { x: sp.x, y: sp.y };
+                }
+                if (dist <= effectiveTolerance) {
+                  achieved = true;
+                  break;
+                }
+              }
+              
+              return {
+                keyPoint: kp,
+                label: kp.label,
+                type: kp.type,
+                achieved,
+                nearestStudentPoint: nearestPoint,
+                distanceFromExpected: Math.round(minDistance * 100) / 100,
+                marks: kp.marks || 1,
+              };
+            });
+            
+            // Check curve shape rules
+            const curveShapeRules = plottingAnswer.curveShapeRules || [];
+            let curveShapeResult = { achieved: true, marks: 0, feedback: '' };
+            if (curveShapeRules.length > 0) {
+              const rule = curveShapeRules[0];
+              const sortedPoints = [...allPoints].sort((a, b) => a.x - b.x);
+              
+              if (sortedPoints.length >= 2) {
+                const leftY = sortedPoints[0].y;
+                const rightY = sortedPoints[sortedPoints.length - 1].y;
+                const midY = sortedPoints[Math.floor(sortedPoints.length / 2)].y;
+                let shapeCorrect = false;
+                let feedback = '';
+                
+                switch (rule.type) {
+                  case 'positive_cubic': shapeCorrect = rightY > leftY; feedback = shapeCorrect ? 'Correct cubic shape' : 'Curve direction incorrect'; break;
+                  case 'negative_cubic': shapeCorrect = rightY < leftY; feedback = shapeCorrect ? 'Correct cubic shape' : 'Curve direction incorrect'; break;
+                  case 'positive_quadratic': shapeCorrect = midY < leftY && midY < rightY; feedback = shapeCorrect ? 'Correct U-shape' : 'Curve should open upward'; break;
+                  case 'negative_quadratic': shapeCorrect = midY > leftY && midY > rightY; feedback = shapeCorrect ? 'Correct n-shape' : 'Curve should open downward'; break;
+                  case 'exponential_growth': shapeCorrect = rightY > leftY && rightY > midY; feedback = shapeCorrect ? 'Correct exponential' : 'Should increase steeply right'; break;
+                  case 'exponential_decay': shapeCorrect = rightY < leftY; feedback = shapeCorrect ? 'Correct decay' : 'Should decrease right'; break;
+                  default: shapeCorrect = true; feedback = '';
+                }
+                
+                // Check crossing count
+                if (rule.crossingsCount !== undefined && shapeCorrect) {
+                  let crossings = 0;
+                  for (let i = 1; i < sortedPoints.length; i++) {
+                    if ((sortedPoints[i-1].y >= 0 && sortedPoints[i].y < 0) || (sortedPoints[i-1].y < 0 && sortedPoints[i].y >= 0)) {
+                      crossings++;
+                    }
+                  }
+                  if (Math.abs(crossings - rule.crossingsCount) > 1) {
+                    shapeCorrect = false;
+                    feedback = `Expected ${rule.crossingsCount} x-axis crossing(s), found ~${crossings}`;
+                  }
+                }
+                
+                curveShapeResult = {
+                  achieved: shapeCorrect,
+                  marks: shapeCorrect ? (rule.marks || 1) : 0,
+                  feedback,
+                };
+              } else {
+                curveShapeResult = { achieved: false, marks: 0, feedback: 'Not enough points for shape check' };
+              }
+            }
+            
+            const keyPointScore = keyPointResults.filter((r: any) => r.achieved).reduce((s: number, r: any) => s + (r.marks || 1), 0);
+            const totalScore = keyPointScore + curveShapeResult.marks;
+            const totalMarks = plottingAnswer.totalMarks || question.marks;
+            
+            const missedLabels = keyPointResults.filter((r: any) => !r.achieved && r.keyPoint?.required !== false).map((r: any) => r.label);
+            let feedbackText = '';
+            if (totalScore === totalMarks) {
+              feedbackText = 'Excellent — all key points and curve shape correct.';
+            } else {
+              if (missedLabels.length > 0) feedbackText += `Missing: ${missedLabels.join(', ')}. `;
+              if (!curveShapeResult.achieved && curveShapeResult.feedback) feedbackText += curveShapeResult.feedback;
+            }
+            
+            graphResult = {
+              score: totalScore,
+              feedback: feedbackText,
+              isCorrect: totalScore >= totalMarks * 0.8,
+              markingData: {
+                markingType: 'key-point-v2',
+                keyPointResults,
+                curveShapeResult,
+                markingFormula: plottingAnswer.markingFormula,
+                totalScore,
+                totalMarks,
+              }
+            };
+          } else {
+          // ============================================================
+          // LEGACY MARKING (V1) — kept as fallback
+          // ============================================================
+          const expected = plottingAnswer.expectedPoints || [];
+          const toleranceUnits = plottingAnswer.toleranceUnits || 0.5;
           const toleranceX = questionData.graphConfig?.toleranceX ?? toleranceUnits;
           const toleranceY = questionData.graphConfig?.toleranceY ?? toleranceUnits;
           const studentPoints: GraphPoint[] = parsed.points || [];
           const studentJoinMode = parsed.joinMode;
           const joinPointsMode = questionData.graphConfig?.joinPointsMode;
+          const markingFormula = plottingAnswer.markingFormula || null;
           
           // CRITICAL: Check for markingFormula (THE PRIMARY KEY for marking)
           // If present, use formula-based coordinate sampling instead of stored points
