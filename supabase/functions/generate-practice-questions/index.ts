@@ -1059,6 +1059,34 @@ CRITICAL RULES:
    
    NEVER leave markingFormula as null, empty, or a bare function reference like "f(x)".
 
+   V2 KEY-POINT MARKING (PREFERRED):
+   When generating graph_plotting questions, plottingAnswer SHOULD include these V2 fields alongside markingFormula:
+   
+   "keyPoints": [
+     {"x": -2, "y": 0, "type": "root", "label": "(-2, 0)", "required": true, "marks": 1},
+     {"x": 0, "y": 0, "type": "root", "label": "(0, 0)", "required": true, "marks": 1},
+     {"x": 3, "y": 0, "type": "turning_point", "label": "local max", "required": false, "marks": 1}
+   ],
+   "curveShapeRules": [
+     {"type": "positive_cubic", "crossingsCount": 3, "turningPointCount": 2, "marks": 1}
+   ],
+   "totalMarks": 4,
+   "showKeyPointsAfterSubmit": true
+   
+   Key point types: "root", "turning_point", "y_intercept", "asymptote", "inflection"
+   Curve shape types: "positive_cubic", "negative_cubic", "positive_quadratic", "negative_quadratic",
+     "exponential_growth", "exponential_decay", "positive_linear", "negative_linear", "reciprocal_positive"
+   
+   Rules for keyPoints:
+   - Roots (x-intercepts): required: true, 1 mark each
+   - Turning points: required: false (unless question asks), 1 mark each
+   - y-intercept: include if distinct from roots, required: true, 1 mark
+   - curveShapeRules: always 1 entry, always 1 mark
+   - totalMarks = sum of all keyPoint.marks + curveShapeRule.marks
+   - domainX/domainY: calculated so ALL key points are visible with 20% padding
+   
+   NEVER set domainX to [-30, 30] unless the function genuinely requires it.
+
 4. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
 5. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
 6. NEVER include a graph just because the topic involves functions - only when visual interaction is required
