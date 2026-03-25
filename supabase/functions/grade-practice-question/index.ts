@@ -736,6 +736,7 @@ serve(async (req) => {
               }
             };
           }
+          } // close V2 else block
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
