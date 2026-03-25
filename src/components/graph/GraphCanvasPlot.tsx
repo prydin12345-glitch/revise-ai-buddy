@@ -653,10 +653,15 @@ export function GraphCanvasPlot({
           );
         })}
         
-        {/* Formula-based correct answer curve — always draw after submit if markingFormula is available */}
+        {/* Formula-based correct answer curve — color based on score, not hardcoded green */}
         {showCorrectAnswers && markingData && (markingData as any).markingFormula && expectedCurveSeries.length === 0 && (() => {
           const formula = (markingData as any).markingFormula;
           const branches = generateCurveFromFormula(formula, domainX, 500);
+          // Determine formula curve color from actual score
+          const scoreRatio = markingData.totalMarks > 0 
+            ? markingData.totalScore / markingData.totalMarks 
+            : 0;
+          const formulaCurveColor = scoreRatio >= 0.8 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
           return branches.map((branch, idx) => {
             const validData = branch.data.filter(p => Number.isFinite(p.y));
             if (validData.length < 2) return null;
@@ -665,7 +670,7 @@ export function GraphCanvasPlot({
                 key={`formula-curve-${idx}`}
                 data={validData}
                 graphToScreen={graphToScreen}
-                stroke="#22c55e"
+                stroke={formulaCurveColor}
                 strokeWidth={2.5}
                 strokeDasharray="6 3"
                 opacity={0.85}
@@ -674,17 +679,56 @@ export function GraphCanvasPlot({
           });
         })()}
         
-        {/* In review mode: color by score. Before submit: blue. */}
+        {/* Key point markers after submit (V2 marking) */}
+        {showCorrectAnswers && markingData && (markingData as any).keyPointResults && (() => {
+          const keyPointResults = (markingData as any).keyPointResults as Array<{
+            label?: string;
+            keyPoint?: { x: number; y: number; label: string };
+            achieved: boolean;
+            marks?: number;
+            type?: string;
+          }>;
+          return keyPointResults.map((result, i) => {
+            const kp = result.keyPoint || result;
+            const x = (kp as any).x;
+            const y = (kp as any).y;
+            if (x === undefined || y === undefined) return null;
+            const screen = graphToScreen(x, y);
+            if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
+            const achieved = result.achieved;
+            const label = result.label || (result.keyPoint as any)?.label || `(${x}, ${y})`;
+            return (
+              <g key={`kp-${i}`}>
+                <circle
+                  cx={screen.x}
+                  cy={screen.y}
+                  r={6}
+                  fill={achieved ? '#22c55e' : '#ef4444'}
+                  stroke="white"
+                  strokeWidth={2}
+                  opacity={0.9}
+                />
+                <text
+                  x={screen.x + 10}
+                  y={screen.y - 8}
+                  fontSize={10}
+                  fill={achieved ? '#22c55e' : '#ef4444'}
+                  fontFamily="serif"
+                >
+                  {label}{achieved ? ' ✓' : ' ✗'}
+                </text>
+              </g>
+            );
+          });
+        })()}
+        
+        {/* In review mode: color by score. Before submit: blue. NEVER hide student line. */}
         {curvedLineData && (() => {
           if (showCorrectAnswers && markingData) {
-            // Determine line color by score
             const scoreRatio = markingData.totalMarks > 0 
               ? markingData.totalScore / markingData.totalMarks 
               : 0;
             const lineColor = scoreRatio >= 1 ? '#22c55e' : scoreRatio >= 0.5 ? '#f97316' : '#ef4444';
-            const isPerfectMatch = scoreRatio >= 0.8;
-            // Hide student line ONLY for perfect match (glow line replaces it)
-            if (isPerfectMatch) return null;
             return (
               <CurveLayer
                 data={curvedLineData}
