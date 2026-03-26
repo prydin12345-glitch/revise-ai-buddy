@@ -852,122 +852,18 @@ COMPLEXITY LEVEL: Standard
     if (forceTransformationType) {
       transformationInstructions = `
 MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
-***** CRITICAL: AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
+***** AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
 
-For this A-Level transformation topic set, you MUST generate professional exam-style graph questions.
-These questions should show a reference function and ask students to plot transformed points or curves.
+For graph_plotting: correct_answer must be JSON with:
+- graphType: "plotting"
+- graphConfig: {chartType:"line", xLabel, yLabel, domainX, domainY, grid:{show:true,stepX:1,stepY:1}, series:[{id,label,data:[{x,y},...],showLine:true}]}
+- plottingAnswer: {expectedPoints:[{x,y},...], toleranceUnits:0.3, marksPerPoint:N, markingFormula:"js expression"}
+- For math subjects: ALWAYS include markingFormula in plottingAnswer
 
-HERE IS A COMPLETE WORKING EXAMPLE - COPY THIS STRUCTURE EXACTLY:
-
-question_type: "graph_plotting"
-question_text: "The curve y = f(x) where f(x) = x(x + 2)(1 - x) has a maximum at A(-0.55, 1.63) and crosses the x-axis at O(0,0), B(-2,0) and C(1,0). On the grid, plot the coordinates of the maximum point on the curve y = f(x + 3)."
-marks: 3
-
-correct_answer (THIS IS A COMPLETE WORKING JSON OBJECT - USE THIS FORMAT):
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-6, 4],
-    "yDomain": [-4, 6],
-    "domainX": [-6, 4],
-    "domainY": [-4, 6],
-    "grid": {"show": true, "stepX": 1, "stepY": 1},
-    "series": [
-      {
-        "id": "original",
-        "label": "y = f(x)",
-        "data": [
-          {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
-          {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
-          {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
-        ],
-        "showLine": true,
-        "lineStyle": "solid"
-      }
-    ]
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": -3.55, "y": 1.63}],
-    "toleranceUnits": 0.3,
-    "marksPerPoint": 3
-  }
-}
-
-ANOTHER EXAMPLE - SKETCHING TRANSFORMED CURVE:
-
-question_type: "graph_plotting"  
-question_text: "The curve y = f(x) = (x-1)² has vertex at V(1, 0). On the grid, sketch the curve y = 2f(x) + 3 by plotting the vertex and at least two other points."
-marks: 4
-
-correct_answer:
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-4, 6],
-    "yDomain": [-2, 14],
-    "domainX": [-4, 6],
-    "domainY": [-2, 14],
-    "grid": {"show": true, "stepX": 1, "stepY": 2},
-    "series": [
-      {
-        "id": "original",
-        "label": "y = f(x) = (x-1)² (reference)",
-        "data": [{"x": -1, "y": 4}, {"x": 0, "y": 1}, {"x": 1, "y": 0}, {"x": 2, "y": 1}, {"x": 3, "y": 4}],
-        "showLine": true,
-        "lineStyle": "dashed"
-      }
-    ]
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": 1, "y": 3}, {"x": 0, "y": 5}, {"x": 2, "y": 5}, {"x": 3, "y": 11}],
-    "toleranceUnits": 0.3,
-    "marksPerPoint": 1
-  }
-}
-
-EXAMPLE - GRAPH INTERPRETATION (for text/numeric answers with visible graph):
-
-question_type: "graph_interpretation"
-question_text: "The curve y = f(x) = 1/(x+3) has a vertical asymptote at x = -3. State the equation of the vertical asymptote of y = f(x - 1)."
-marks: 2
-
-correct_answer:
-{
-  "graphType": "interpretation",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-8, 6],
-    "yDomain": [-4, 4],
-    "domainX": [-8, 6],
-    "domainY": [-4, 4],
-    "grid": {"show": true, "stepX": 1, "stepY": 1},
-    "series": [
-      {
-        "id": "left",
-        "label": "y = f(x)",
-        "data": [{"x": -7, "y": -0.25}, {"x": -6, "y": -0.33}, {"x": -5, "y": -0.5}, {"x": -4, "y": -1}],
-        "showLine": true
-      },
-      {
-        "id": "right",
-        "label": "y = f(x)",
-        "data": [{"x": -2, "y": 1}, {"x": -1, "y": 0.5}, {"x": 0, "y": 0.33}, {"x": 2, "y": 0.2}],
-        "showLine": true
-      }
-    ]
-  },
-  "interpretationFields": [
-    {"id": "asymptote", "type": "text", "question": "State the equation of the vertical asymptote of y = f(x - 1)", "correctAnswer": "x = -2", "marks": 2, "alternatives": ["x=-2", "-2"]}
-  ]
-}
+For graph_interpretation: correct_answer must be JSON with:
+- graphType: "interpretation"
+- graphConfig: same structure as above
+- interpretationFields: [{id, type:"text", question, correctAnswer, marks, alternatives:[]}]
 
 TRANSFORMATIONS TO INCLUDE (vary these across questions):
 - Horizontal translations: y = f(x + a), y = f(x - a)
