@@ -658,46 +658,10 @@ For non-mathematics graph_plotting questions (Physics distance-time, Economics s
 - Do NOT provide markingFormula for piecewise journeys or event-based paths
 - ALWAYS provide subjectProfile with appropriate axis labels and units
 
-EXAMPLE - Distance-Time Journey:
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "Time (s)",
-    "yLabel": "Distance (m)",
-    "domainX": [0, 350],
-    "domainY": [0, 700],
-    "series": [],
-    "subjectProfile": {
-      "subject": "Physics",
-      "axisLabels": {"x": "Time (s)", "y": "Distance (m)"},
-      "quadrantMode": "q1"
-    }
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": 0, "y": 0}, {"x": 100, "y": 300}, {"x": 200, "y": 300}, {"x": 300, "y": 600}],
-    "toleranceUnits": 15,
-    "expectedPath": [
-      {"x": 0, "y": 0},
-      {"x": 100, "y": 300},
-      {"x": 200, "y": 300},
-      {"x": 300, "y": 600}
-    ],
-    "pathAnnotations": [
-      {"pointIndex": 0, "label": "Start"},
-      {"pointIndex": 2, "label": "Bus Stop (stationary)"},
-      {"pointIndex": 3, "label": "Arrives"}
-    ]
-  }
-}
+EXAMPLE correct_answer for distance-time:
+{"graphType":"plotting","graphConfig":{"chartType":"line","xLabel":"Time (s)","yLabel":"Distance (m)","domainX":[0,350],"domainY":[0,700],"series":[],"subjectProfile":{"subject":"Physics","axisLabels":{"x":"Time (s)","y":"Distance (m)"},"quadrantMode":"q1"}},"plottingAnswer":{"expectedPoints":[{"x":0,"y":0},{"x":100,"y":300},{"x":200,"y":300},{"x":300,"y":600}],"toleranceUnits":15,"expectedPath":[{"x":0,"y":0},{"x":100,"y":300},{"x":200,"y":300},{"x":300,"y":600}],"pathAnnotations":[{"pointIndex":0,"label":"Start"},{"pointIndex":2,"label":"Stationary"},{"pointIndex":3,"label":"Arrives"}]}}
 
-RULES FOR expectedPath:
-1. Every stage described in the question text MUST map to specific vertices in expectedPath
-2. If the question says "stays stationary for 100 seconds at 300m", expectedPath MUST have two consecutive points with the same y-value
-3. Sharp direction changes (acceleration, deceleration, price shifts) = new vertex
-4. pathAnnotations bind labels to vertices by index (0-based)
-5. expectedPoints should contain the same key vertices for point-matching marking
-6. toleranceUnits should be appropriate for the scale (e.g., 15 for a 0-600 range, not 0.3)
+RULES: Every stage in question text = vertex in expectedPath. Stationary = two points same y. toleranceUnits proportional to scale.
 `;
     } else if (isMathSubject && needsGraphs) {
       subjectGraphInstructions = `
