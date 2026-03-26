@@ -441,11 +441,7 @@ serve(async (req) => {
           const studentPoints: GraphPoint[] = parsed.points || [];
           const studentJoinMode = parsed.joinMode;
           const joinPointsMode = questionData.graphConfig?.joinPointsMode;
-          const markingFormula = plottingAnswer.markingFormula || null;
-          
-          // CRITICAL: Check for markingFormula (THE PRIMARY KEY for marking)
-          // If present, use formula-based coordinate sampling instead of stored points
-          const markingFormula = questionData.plottingAnswer?.markingFormula || null;
+          const markingFormula = plottingAnswer.markingFormula || questionData.plottingAnswer?.markingFormula || null;
           
           // Detect if this is a sketch question (requires feature-based marking)
           const isSketchMode = questionData.graphConfig?.isSketchMode === true ||

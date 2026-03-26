@@ -658,46 +658,10 @@ For non-mathematics graph_plotting questions (Physics distance-time, Economics s
 - Do NOT provide markingFormula for piecewise journeys or event-based paths
 - ALWAYS provide subjectProfile with appropriate axis labels and units
 
-EXAMPLE - Distance-Time Journey:
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "Time (s)",
-    "yLabel": "Distance (m)",
-    "domainX": [0, 350],
-    "domainY": [0, 700],
-    "series": [],
-    "subjectProfile": {
-      "subject": "Physics",
-      "axisLabels": {"x": "Time (s)", "y": "Distance (m)"},
-      "quadrantMode": "q1"
-    }
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": 0, "y": 0}, {"x": 100, "y": 300}, {"x": 200, "y": 300}, {"x": 300, "y": 600}],
-    "toleranceUnits": 15,
-    "expectedPath": [
-      {"x": 0, "y": 0},
-      {"x": 100, "y": 300},
-      {"x": 200, "y": 300},
-      {"x": 300, "y": 600}
-    ],
-    "pathAnnotations": [
-      {"pointIndex": 0, "label": "Start"},
-      {"pointIndex": 2, "label": "Bus Stop (stationary)"},
-      {"pointIndex": 3, "label": "Arrives"}
-    ]
-  }
-}
+EXAMPLE correct_answer for distance-time:
+{"graphType":"plotting","graphConfig":{"chartType":"line","xLabel":"Time (s)","yLabel":"Distance (m)","domainX":[0,350],"domainY":[0,700],"series":[],"subjectProfile":{"subject":"Physics","axisLabels":{"x":"Time (s)","y":"Distance (m)"},"quadrantMode":"q1"}},"plottingAnswer":{"expectedPoints":[{"x":0,"y":0},{"x":100,"y":300},{"x":200,"y":300},{"x":300,"y":600}],"toleranceUnits":15,"expectedPath":[{"x":0,"y":0},{"x":100,"y":300},{"x":200,"y":300},{"x":300,"y":600}],"pathAnnotations":[{"pointIndex":0,"label":"Start"},{"pointIndex":2,"label":"Stationary"},{"pointIndex":3,"label":"Arrives"}]}}
 
-RULES FOR expectedPath:
-1. Every stage described in the question text MUST map to specific vertices in expectedPath
-2. If the question says "stays stationary for 100 seconds at 300m", expectedPath MUST have two consecutive points with the same y-value
-3. Sharp direction changes (acceleration, deceleration, price shifts) = new vertex
-4. pathAnnotations bind labels to vertices by index (0-based)
-5. expectedPoints should contain the same key vertices for point-matching marking
-6. toleranceUnits should be appropriate for the scale (e.g., 15 for a 0-600 range, not 0.3)
+RULES: Every stage in question text = vertex in expectedPath. Stationary = two points same y. toleranceUnits proportional to scale.
 `;
     } else if (isMathSubject && needsGraphs) {
       subjectGraphInstructions = `
@@ -852,122 +816,18 @@ COMPLEXITY LEVEL: Standard
     if (forceTransformationType) {
       transformationInstructions = `
 MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
-***** CRITICAL: AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
+***** AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
 
-For this A-Level transformation topic set, you MUST generate professional exam-style graph questions.
-These questions should show a reference function and ask students to plot transformed points or curves.
+For graph_plotting: correct_answer must be JSON with:
+- graphType: "plotting"
+- graphConfig: {chartType:"line", xLabel, yLabel, domainX, domainY, grid:{show:true,stepX:1,stepY:1}, series:[{id,label,data:[{x,y},...],showLine:true}]}
+- plottingAnswer: {expectedPoints:[{x,y},...], toleranceUnits:0.3, marksPerPoint:N, markingFormula:"js expression"}
+- For math subjects: ALWAYS include markingFormula in plottingAnswer
 
-HERE IS A COMPLETE WORKING EXAMPLE - COPY THIS STRUCTURE EXACTLY:
-
-question_type: "graph_plotting"
-question_text: "The curve y = f(x) where f(x) = x(x + 2)(1 - x) has a maximum at A(-0.55, 1.63) and crosses the x-axis at O(0,0), B(-2,0) and C(1,0). On the grid, plot the coordinates of the maximum point on the curve y = f(x + 3)."
-marks: 3
-
-correct_answer (THIS IS A COMPLETE WORKING JSON OBJECT - USE THIS FORMAT):
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-6, 4],
-    "yDomain": [-4, 6],
-    "domainX": [-6, 4],
-    "domainY": [-4, 6],
-    "grid": {"show": true, "stepX": 1, "stepY": 1},
-    "series": [
-      {
-        "id": "original",
-        "label": "y = f(x)",
-        "data": [
-          {"x": -3, "y": -12}, {"x": -2.5, "y": -4.375}, {"x": -2, "y": 0}, 
-          {"x": -1.5, "y": 2.19}, {"x": -1, "y": 2}, {"x": -0.55, "y": 1.63},
-          {"x": 0, "y": 0}, {"x": 0.5, "y": -0.94}, {"x": 1, "y": 0}
-        ],
-        "showLine": true,
-        "lineStyle": "solid"
-      }
-    ]
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": -3.55, "y": 1.63}],
-    "toleranceUnits": 0.3,
-    "marksPerPoint": 3
-  }
-}
-
-ANOTHER EXAMPLE - SKETCHING TRANSFORMED CURVE:
-
-question_type: "graph_plotting"  
-question_text: "The curve y = f(x) = (x-1)² has vertex at V(1, 0). On the grid, sketch the curve y = 2f(x) + 3 by plotting the vertex and at least two other points."
-marks: 4
-
-correct_answer:
-{
-  "graphType": "plotting",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-4, 6],
-    "yDomain": [-2, 14],
-    "domainX": [-4, 6],
-    "domainY": [-2, 14],
-    "grid": {"show": true, "stepX": 1, "stepY": 2},
-    "series": [
-      {
-        "id": "original",
-        "label": "y = f(x) = (x-1)² (reference)",
-        "data": [{"x": -1, "y": 4}, {"x": 0, "y": 1}, {"x": 1, "y": 0}, {"x": 2, "y": 1}, {"x": 3, "y": 4}],
-        "showLine": true,
-        "lineStyle": "dashed"
-      }
-    ]
-  },
-  "plottingAnswer": {
-    "expectedPoints": [{"x": 1, "y": 3}, {"x": 0, "y": 5}, {"x": 2, "y": 5}, {"x": 3, "y": 11}],
-    "toleranceUnits": 0.3,
-    "marksPerPoint": 1
-  }
-}
-
-EXAMPLE - GRAPH INTERPRETATION (for text/numeric answers with visible graph):
-
-question_type: "graph_interpretation"
-question_text: "The curve y = f(x) = 1/(x+3) has a vertical asymptote at x = -3. State the equation of the vertical asymptote of y = f(x - 1)."
-marks: 2
-
-correct_answer:
-{
-  "graphType": "interpretation",
-  "graphConfig": {
-    "chartType": "line",
-    "xLabel": "x",
-    "yLabel": "y",
-    "xDomain": [-8, 6],
-    "yDomain": [-4, 4],
-    "domainX": [-8, 6],
-    "domainY": [-4, 4],
-    "grid": {"show": true, "stepX": 1, "stepY": 1},
-    "series": [
-      {
-        "id": "left",
-        "label": "y = f(x)",
-        "data": [{"x": -7, "y": -0.25}, {"x": -6, "y": -0.33}, {"x": -5, "y": -0.5}, {"x": -4, "y": -1}],
-        "showLine": true
-      },
-      {
-        "id": "right",
-        "label": "y = f(x)",
-        "data": [{"x": -2, "y": 1}, {"x": -1, "y": 0.5}, {"x": 0, "y": 0.33}, {"x": 2, "y": 0.2}],
-        "showLine": true
-      }
-    ]
-  },
-  "interpretationFields": [
-    {"id": "asymptote", "type": "text", "question": "State the equation of the vertical asymptote of y = f(x - 1)", "correctAnswer": "x = -2", "marks": 2, "alternatives": ["x=-2", "-2"]}
-  ]
-}
+For graph_interpretation: correct_answer must be JSON with:
+- graphType: "interpretation"
+- graphConfig: same structure as above
+- interpretationFields: [{id, type:"text", question, correctAnswer, marks, alternatives:[]}]
 
 TRANSFORMATIONS TO INCLUDE (vary these across questions):
 - Horizontal translations: y = f(x + a), y = f(x - a)
@@ -1060,32 +920,12 @@ CRITICAL RULES:
    NEVER leave markingFormula as null, empty, or a bare function reference like "f(x)".
 
    V2 KEY-POINT MARKING (PREFERRED):
-   When generating graph_plotting questions, plottingAnswer SHOULD include these V2 fields alongside markingFormula:
-   
-   "keyPoints": [
-     {"x": -2, "y": 0, "type": "root", "label": "(-2, 0)", "required": true, "marks": 1},
-     {"x": 0, "y": 0, "type": "root", "label": "(0, 0)", "required": true, "marks": 1},
-     {"x": 3, "y": 0, "type": "turning_point", "label": "local max", "required": false, "marks": 1}
-   ],
-   "curveShapeRules": [
-     {"type": "positive_cubic", "crossingsCount": 3, "turningPointCount": 2, "marks": 1}
-   ],
-   "totalMarks": 4,
-   "showKeyPointsAfterSubmit": true
-   
-   Key point types: "root", "turning_point", "y_intercept", "asymptote", "inflection"
-   Curve shape types: "positive_cubic", "negative_cubic", "positive_quadratic", "negative_quadratic",
-     "exponential_growth", "exponential_decay", "positive_linear", "negative_linear", "reciprocal_positive"
-   
-   Rules for keyPoints:
-   - Roots (x-intercepts): required: true, 1 mark each
-   - Turning points: required: false (unless question asks), 1 mark each
-   - y-intercept: include if distinct from roots, required: true, 1 mark
-   - curveShapeRules: always 1 entry, always 1 mark
-   - totalMarks = sum of all keyPoint.marks + curveShapeRule.marks
-   - domainX/domainY: calculated so ALL key points are visible with 20% padding
-   
-   NEVER set domainX to [-30, 30] unless the function genuinely requires it.
+   For graph_plotting, plottingAnswer SHOULD include:
+   - "keyPoints": array of roots/intercepts ONLY (do NOT calculate turning points — system computes them automatically)
+     Each: {"x": num, "y": num, "type": "root"|"y_intercept"|"asymptote", "label": "(x, y)", "required": true, "marks": 1}
+   - "curveShapeRules": [{"type": "positive_cubic"|"negative_cubic"|"positive_quadratic"|"negative_quadratic"|"exponential_growth"|"exponential_decay"|"reciprocal_positive", "crossingsCount": N, "marks": 1}]
+   - "totalMarks": sum of keyPoint marks + shape rule marks
+   - domainX/domainY: show all key points with 1-2 unit padding. NEVER [-30,30] unless needed.
 
 4. For short_answer coordinates: use {"coordinateAnswer": {"x": val, "y": val}, "textAnswer": "(x, y)"}
 5. For short_answer equations: use {"textAnswer": "x = value", "alternatives": [...]}
