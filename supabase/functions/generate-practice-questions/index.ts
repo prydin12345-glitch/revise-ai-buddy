@@ -665,11 +665,40 @@ RULES: Every stage in question text = vertex in expectedPath. Stationary = two p
 `;
     } else if (isMathSubject && needsGraphs) {
       subjectGraphInstructions = `
-MATH GRAPH ANNOTATIONS:
-For graph questions that mention specific features, include an "annotations" array in graphConfig:
+MATH GRAPH QUESTION REQUIREMENTS — MANDATORY:
+Every graph_plotting or graph_sketch question MUST include a plottingAnswer with markingFormula and keyPoints.
+
+Structure:
+{
+  "plottingAnswer": {
+    "markingFormula": "JavaScript evaluatable formula — use * for multiply, Math.pow(x,n) for powers",
+    "keyPoints": [
+      {"x": -2, "y": 0, "type": "root", "label": "(-2, 0)", "required": true, "marks": 1}
+    ],
+    "curveShapeRules": [
+      {"type": "positive_cubic", "crossingsCount": 3, "marks": 1}
+    ],
+    "domainX": [-4, 5],
+    "domainY": [-12, 8],
+    "totalMarks": 4
+  }
+}
+
+markingFormula rules:
+- Must be valid JavaScript: x*(x-3)*(x+2) not x(x-3)(x+2)
+- Use * for ALL multiplication, Math.pow(x,n) for powers, 1/(x+4) for reciprocals
+- NEVER include trailing $ or LaTeX characters
+- NEVER write f(x) — write the actual expression
+- For transformations like f(x+1), substitute and simplify first: (x+3)*x*(x-2)
+
+keyPoints: Only roots (solve formula=0) and y-intercept (x=0). Never turning points — these are auto-calculated.
+curveShapeRules type: positive_cubic|negative_cubic|positive_quadratic|negative_quadratic|reciprocal_positive|reciprocal_negative|exponential_growth|exponential_decay|logarithmic|positive_linear|negative_linear
+domainX: Show all roots with 1-2 unit padding. Never [-30,30].
+totalMarks: Sum of all keyPoint marks + curveShapeRule marks.
+
+For graph questions that mention specific features, also include an "annotations" array in graphConfig:
 - If question mentions turning points/maxima/minima: add annotation with type "point", showCoordinates: true
 - If question mentions roots/intercepts: add annotation with type "intercept" and the axis
-- Example: {"id": "max1", "type": "point", "coords": {"x": -0.55, "y": 1.63}, "label": "Maximum", "showCoordinates": true}
 These annotations are visual-only and do NOT affect marking.
 `;
     }
