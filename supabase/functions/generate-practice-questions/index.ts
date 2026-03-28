@@ -3547,25 +3547,55 @@ ${notesSection}`;
         }
       }
       
-      // ========== PRE-STORAGE ASSERTION: markingFormula must be a real expression ==========
-      // If markingFormula is a bare function reference like "f(x)" or "g(x)", it cannot
-      // be evaluated. Log a warning and null it out so the frontend falls back to expectedCurve.
+      // ========== PRE-STORAGE VALIDATION: markingFormula must be a valid JS expression ==========
       if (q.question_type === 'graph_plotting') {
         try {
           const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
-          if (gd?.plottingAnswer?.markingFormula) {
-            const mf = String(gd.plottingAnswer.markingFormula).trim();
-            const isBareRef = /^[a-zA-Z]\(x\)$/.test(mf);
-            if (isBareRef) {
-              console.error(`Question ${q.question_number}: PRE-STORAGE ASSERTION FAILED — markingFormula is bare reference "${mf}", nulling out`);
-              gd.plottingAnswer.markingFormula = null;
-              q.correct_answer = gd;
+          if (gd?.plottingAnswer) {
+            let mf = gd.plottingAnswer.markingFormula;
+            
+            // Step 1: Clean trailing $ and whitespace
+            if (mf && typeof mf === 'string') {
+              mf = mf.replace(/[\$\s]+$/, '').trim();
+              gd.plottingAnswer.markingFormula = mf;
             }
-          }
-          // FINAL SAFETY NET: Strip markingFormula for non-math subjects no matter what
-          if (!isMathSubject && gd?.plottingAnswer?.markingFormula) {
-            console.warn(`Q${q.question_number}: FINAL SAFETY NET — stripping markingFormula for non-math subject`);
-            gd.plottingAnswer.markingFormula = null;
+            
+            // Step 2: Reject bare references like "f(x)"
+            const isBareRef = mf && /^[a-zA-Z]\(x\)$/.test(mf);
+            if (isBareRef) {
+              console.error(`Q${q.question_number}: markingFormula is bare reference "${mf}", nulling`);
+              mf = null;
+              gd.plottingAnswer.markingFormula = null;
+            }
+            
+            // Step 3: Validate by evaluating at x=1
+            if (mf) {
+              try {
+                const testFn = new Function('x', `
+                  const Math = globalThis.Math;
+                  const abs = Math.abs; const sqrt = Math.sqrt;
+                  const sin = Math.sin; const cos = Math.cos; const tan = Math.tan;
+                  const log = Math.log; const exp = Math.exp; const pow = Math.pow;
+                  const PI = Math.PI; const E = Math.E;
+                  return ${mf};
+                `);
+                const result = testFn(1);
+                if (typeof result !== 'number' || !isFinite(result)) {
+                  console.warn(`Q${q.question_number}: markingFormula "${mf}" failed eval at x=1 (result=${result}), nulling`);
+                  gd.plottingAnswer.markingFormula = null;
+                }
+              } catch (evalErr) {
+                console.warn(`Q${q.question_number}: markingFormula "${mf}" is invalid JS: ${evalErr}, nulling`);
+                gd.plottingAnswer.markingFormula = null;
+              }
+            }
+            
+            // Step 4: Strip markingFormula for non-math subjects (they use expectedPath)
+            if (!isMathSubject && gd.plottingAnswer.markingFormula) {
+              console.warn(`Q${q.question_number}: stripping markingFormula for non-math subject`);
+              gd.plottingAnswer.markingFormula = null;
+            }
+            
             q.correct_answer = gd;
           }
         } catch { /* non-critical */ }
