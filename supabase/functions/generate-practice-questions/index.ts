@@ -665,11 +665,40 @@ RULES: Every stage in question text = vertex in expectedPath. Stationary = two p
 `;
     } else if (isMathSubject && needsGraphs) {
       subjectGraphInstructions = `
-MATH GRAPH ANNOTATIONS:
-For graph questions that mention specific features, include an "annotations" array in graphConfig:
+MATH GRAPH QUESTION REQUIREMENTS — MANDATORY:
+Every graph_plotting or graph_sketch question MUST include a plottingAnswer with markingFormula and keyPoints.
+
+Structure:
+{
+  "plottingAnswer": {
+    "markingFormula": "JavaScript evaluatable formula — use * for multiply, Math.pow(x,n) for powers",
+    "keyPoints": [
+      {"x": -2, "y": 0, "type": "root", "label": "(-2, 0)", "required": true, "marks": 1}
+    ],
+    "curveShapeRules": [
+      {"type": "positive_cubic", "crossingsCount": 3, "marks": 1}
+    ],
+    "domainX": [-4, 5],
+    "domainY": [-12, 8],
+    "totalMarks": 4
+  }
+}
+
+markingFormula rules:
+- Must be valid JavaScript: x*(x-3)*(x+2) not x(x-3)(x+2)
+- Use * for ALL multiplication, Math.pow(x,n) for powers, 1/(x+4) for reciprocals
+- NEVER include trailing $ or LaTeX characters
+- NEVER write f(x) — write the actual expression
+- For transformations like f(x+1), substitute and simplify first: (x+3)*x*(x-2)
+
+keyPoints: Only roots (solve formula=0) and y-intercept (x=0). Never turning points — these are auto-calculated.
+curveShapeRules type: positive_cubic|negative_cubic|positive_quadratic|negative_quadratic|reciprocal_positive|reciprocal_negative|exponential_growth|exponential_decay|logarithmic|positive_linear|negative_linear
+domainX: Show all roots with 1-2 unit padding. Never [-30,30].
+totalMarks: Sum of all keyPoint marks + curveShapeRule marks.
+
+For graph questions that mention specific features, also include an "annotations" array in graphConfig:
 - If question mentions turning points/maxima/minima: add annotation with type "point", showCoordinates: true
 - If question mentions roots/intercepts: add annotation with type "intercept" and the axis
-- Example: {"id": "max1", "type": "point", "coords": {"x": -0.55, "y": 1.63}, "label": "Maximum", "showCoordinates": true}
 These annotations are visual-only and do NOT affect marking.
 `;
     }
@@ -3518,25 +3547,55 @@ ${notesSection}`;
         }
       }
       
-      // ========== PRE-STORAGE ASSERTION: markingFormula must be a real expression ==========
-      // If markingFormula is a bare function reference like "f(x)" or "g(x)", it cannot
-      // be evaluated. Log a warning and null it out so the frontend falls back to expectedCurve.
+      // ========== PRE-STORAGE VALIDATION: markingFormula must be a valid JS expression ==========
       if (q.question_type === 'graph_plotting') {
         try {
           const gd = typeof q.correct_answer === 'string' ? JSON.parse(q.correct_answer) : q.correct_answer;
-          if (gd?.plottingAnswer?.markingFormula) {
-            const mf = String(gd.plottingAnswer.markingFormula).trim();
-            const isBareRef = /^[a-zA-Z]\(x\)$/.test(mf);
-            if (isBareRef) {
-              console.error(`Question ${q.question_number}: PRE-STORAGE ASSERTION FAILED — markingFormula is bare reference "${mf}", nulling out`);
-              gd.plottingAnswer.markingFormula = null;
-              q.correct_answer = gd;
+          if (gd?.plottingAnswer) {
+            let mf = gd.plottingAnswer.markingFormula;
+            
+            // Step 1: Clean trailing $ and whitespace
+            if (mf && typeof mf === 'string') {
+              mf = mf.replace(/[\$\s]+$/, '').trim();
+              gd.plottingAnswer.markingFormula = mf;
             }
-          }
-          // FINAL SAFETY NET: Strip markingFormula for non-math subjects no matter what
-          if (!isMathSubject && gd?.plottingAnswer?.markingFormula) {
-            console.warn(`Q${q.question_number}: FINAL SAFETY NET — stripping markingFormula for non-math subject`);
-            gd.plottingAnswer.markingFormula = null;
+            
+            // Step 2: Reject bare references like "f(x)"
+            const isBareRef = mf && /^[a-zA-Z]\(x\)$/.test(mf);
+            if (isBareRef) {
+              console.error(`Q${q.question_number}: markingFormula is bare reference "${mf}", nulling`);
+              mf = null;
+              gd.plottingAnswer.markingFormula = null;
+            }
+            
+            // Step 3: Validate by evaluating at x=1
+            if (mf) {
+              try {
+                const testFn = new Function('x', `
+                  const Math = globalThis.Math;
+                  const abs = Math.abs; const sqrt = Math.sqrt;
+                  const sin = Math.sin; const cos = Math.cos; const tan = Math.tan;
+                  const log = Math.log; const exp = Math.exp; const pow = Math.pow;
+                  const PI = Math.PI; const E = Math.E;
+                  return ${mf};
+                `);
+                const result = testFn(1);
+                if (typeof result !== 'number' || !isFinite(result)) {
+                  console.warn(`Q${q.question_number}: markingFormula "${mf}" failed eval at x=1 (result=${result}), nulling`);
+                  gd.plottingAnswer.markingFormula = null;
+                }
+              } catch (evalErr) {
+                console.warn(`Q${q.question_number}: markingFormula "${mf}" is invalid JS: ${evalErr}, nulling`);
+                gd.plottingAnswer.markingFormula = null;
+              }
+            }
+            
+            // Step 4: Strip markingFormula for non-math subjects (they use expectedPath)
+            if (!isMathSubject && gd.plottingAnswer.markingFormula) {
+              console.warn(`Q${q.question_number}: stripping markingFormula for non-math subject`);
+              gd.plottingAnswer.markingFormula = null;
+            }
+            
             q.correct_answer = gd;
           }
         } catch { /* non-critical */ }

@@ -709,7 +709,38 @@ ${pdfContent.slice(0, 40000)}` : '';
 When setting topic_tag for each question, use only values from this list:
 ${topicTagVocabulary.join(', ')}` : '';
 
-  // ── BLOCK 8: OUTPUT FORMAT ────────────────────────────────────────────────
+  // ── BLOCK 8: GRAPH QUESTION REQUIREMENTS ────────────────────────────────
+  const graphBlock = `
+## GRAPH QUESTION REQUIREMENTS — MANDATORY
+If any question uses question_type "graph_plotting" or "graph_sketch", its correct_answer must include a plottingAnswer with:
+
+{
+  "plottingAnswer": {
+    "markingFormula": "JavaScript evaluatable formula — use * for multiply, Math.pow(x,n) for powers, 1/(x+4) for reciprocals. NEVER include trailing $ or LaTeX. NEVER write f(x) — write the actual expression.",
+    "keyPoints": [
+      {"x": -2, "y": 0, "type": "root", "label": "(-2, 0)", "required": true, "marks": 1}
+    ],
+    "curveShapeRules": [
+      {"type": "positive_cubic", "crossingsCount": 3, "marks": 1}
+    ],
+    "domainX": [-4, 5],
+    "domainY": [-12, 8],
+    "totalMarks": 4
+  }
+}
+
+markingFormula examples:
+  y = x(x-3)(x+2) → "x*(x-3)*(x+2)"
+  y = x² - 4x + 7 → "x*x - 4*x + 7"
+  y = 1/(x+4) → "1/(x+4)"
+  y = 2^x → "Math.pow(2,x)"
+
+keyPoints: Only roots (set formula=0) and y-intercept (x=0). Never turning points.
+curveShapeRules type: positive_cubic|negative_cubic|positive_quadratic|negative_quadratic|reciprocal_positive|reciprocal_negative|exponential_growth|exponential_decay|logarithmic|positive_linear|negative_linear
+domainX: Show all roots with 1-2 unit padding. Never [-30,30] unless genuinely needed.
+totalMarks: Sum of all keyPoint marks + curveShapeRule marks.`;
+
+  // ── BLOCK 9: OUTPUT FORMAT ────────────────────────────────────────────────
   const outputBlock = `
 ## OUTPUT FORMAT
 Return a single JSON object in exactly this structure:
@@ -758,6 +789,7 @@ CRITICAL JSON RULES:
     writtenRulesBlock,
     sourceBlock,
     topicTagBlock,
+    graphBlock,
     outputBlock,
   ].filter(s => s.trim().length > 0).join('\n\n');
 
