@@ -650,10 +650,27 @@ No sub-parts. No (a)(b)(c). Just Q1, Q2, Q3 etc.`;
 Number them 1 through ${desiredWrittenCount}.
 Each question is standalone with its own mark allocation.`;
     } else if (questionStructure === 'sub_questions') {
-      questionCountBlock += `Generate exactly ${parentQuestionCount} parent questions, each with up to ${maxPartsPerQuestion} sub-parts labelled (a), (b), (c) etc.
-Total written parts should be approximately ${desiredWrittenCount}.`;
+      questionCountBlock += `Generate written questions using a sub-part structure (e.g. Q1(a), Q1(b), Q1(c)).
+
+Rules for sub-parts:
+- Each parent question should have 2 to 4 sub-parts
+- NEVER exceed 4 sub-parts on a single parent question
+- Sub-parts must share a common scenario, context, or data set
+- Sub-parts must increase in difficulty: (a) easiest, final part hardest
+- Use the marks allocation to guide how many parts make sense:
+  a low-mark question (3-4 marks total) needs only 2 parts,
+  a higher-mark question (8-10 marks) can have 3-4 parts
+- Total written questions: ${desiredWrittenCount}`;
     } else {
-      questionCountBlock += `Generate ${desiredWrittenCount} written questions using a mix of standalone questions and questions with sub-parts.`;
+      questionCountBlock += `Generate a mix of standalone questions and questions with sub-parts.
+
+Rules:
+- Approximately half the questions should be standalone
+- The other half should use sub-parts (a)(b)(c) style
+- For sub-part questions: 2 to 4 parts maximum per question
+- NEVER exceed 4 sub-parts on any single question
+- Sub-parts must share a common context and increase in difficulty
+- Total written questions: ${desiredWrittenCount}`;
     }
     if (includeExtended && extendedResponseMarks > 0) {
       questionCountBlock += `\nThe final question must be an extended response question worth ${extendedResponseMarks} marks.`;
@@ -661,7 +678,7 @@ Total written parts should be approximately ${desiredWrittenCount}.`;
   } else if (isMixed) {
     questionCountBlock += `Generate two sections:
 Section A: ${desiredMcqCount} multiple choice questions (standalone, numbered 1 through ${desiredMcqCount}, 1 mark each)
-Section B: ${desiredWrittenCount} written questions (${questionStructure === 'sub_questions' ? `${parentQuestionCount} parent questions with sub-parts` : 'standalone questions'})
+Section B: ${desiredWrittenCount} written questions (${questionStructure === 'sub_questions' ? 'using sub-part structure with 2-4 parts per parent question' : questionStructure === 'mixed' ? 'a mix of standalone and sub-part questions' : 'standalone questions'})
 ${includeExtended && extendedResponseMarks > 0 ? `The final written question must be an extended response worth ${extendedResponseMarks} marks.` : ''}`;
   }
 

@@ -202,21 +202,18 @@ export const ExamProfileModal = ({
       id: "standalone",
       label: "Standalone questions",
       example: "Q1, Q2, Q3, Q4...",
-      detail: "Each question is independent. Best for short answer and GCSE style.",
       icon: "1️⃣",
     },
     {
       id: "sub_questions",
       label: "Questions with sub-parts",
       example: "Q1a, Q1b, Q1c — Q2a, Q2b...",
-      detail: "Questions share a common stem or context. Best for A-Level, IB, and AP style.",
       icon: "🔢",
     },
     {
       id: "mixed",
       label: "Mixed structure",
       example: "Some standalone, some with parts",
-      detail: "Combination of both. Mirrors many real exam papers.",
       icon: "🔀",
     },
   ];
@@ -582,7 +579,7 @@ export const ExamProfileModal = ({
                               {option.example}
                             </span>
                           </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">{option.detail}</div>
+                          
                         </div>
                         {questionStructure === option.id && (
                           <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -594,25 +591,6 @@ export const ExamProfileModal = ({
                   ))}
                 </div>
 
-                {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
-                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 mt-2 space-y-3">
-                    <p className="text-xs text-muted-foreground">Sub-question configuration</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Parent questions</span>
-                        <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
-                      </div>
-                      <Slider min={2} max={8} step={1} value={[parentQuestionCount]} onValueChange={(v) => setParentQuestionCount(v[0])} style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Parts per question (max)</span>
-                        <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
-                      </div>
-                      <Slider min={2} max={5} step={1} value={[maxPartsPerQuestion]} onValueChange={(v) => setMaxPartsPerQuestion(v[0])} style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
