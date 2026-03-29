@@ -98,6 +98,9 @@ const Onboarding = () => {
   const [step2Data, setStep2Data] = useState<any>(null);
   const [step3Data, setStep3Data] = useState<any>(null);
 
+  // Tutor step tracking
+  const [tutorStep, setTutorStep] = useState(1);
+
   useEffect(() => {
     const checkAlreadyCompleted = async () => {
       const {
