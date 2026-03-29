@@ -6,14 +6,14 @@ import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { supabase } from "@/integrations/supabase/client";
 
 const REGIONS = [
-  { id: "GB", code: "UK", label: "United Kingdom" },
-  { id: "US", code: "US", label: "United States" },
-  { id: "IN", code: "IN", label: "India" },
-  { id: "AU", code: "AU", label: "Australia" },
-  { id: "IB", code: "IB", label: "International / IB" },
-  { id: "IE", code: "IE", label: "Ireland" },
-  { id: "NZ", code: "NZ", label: "New Zealand" },
-  { id: "Other", code: "??", label: "Other" },
+  { id: "GB", flag: "🇬🇧", label: "United Kingdom" },
+  { id: "US", flag: "🇺🇸", label: "United States" },
+  { id: "IN", flag: "🇮🇳", label: "India" },
+  { id: "AU", flag: "🇦🇺", label: "Australia" },
+  { id: "IB", flag: "🌐", label: "International / IB" },
+  { id: "IE", flag: "🇮🇪", label: "Ireland" },
+  { id: "NZ", flag: "🇳🇿", label: "New Zealand" },
+  { id: "Other", flag: "🌍", label: "Other" },
 ];
 
 const UNIVERSAL_LEVELS = [
@@ -56,33 +56,48 @@ const selectStyle: React.CSSProperties = {
 };
 
 interface ProfileSetupStepProps {
-  onComplete: () => void;
-  defaultRegion?: string | null;
-  defaultBoard?: string | null;
-  defaultLevel?: string | null;
+  onComplete: (data?: any) => void;
+  onBack?: () => void;
+  initialValues?: {
+    region?: string;
+    board?: string;
+    level?: string;
+    customRegionText?: string;
+    customBoardText?: string;
+    customLevelText?: string;
+  } | null;
 }
 
-const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLevel }: ProfileSetupStepProps) => {
-  const [region, setRegion] = useState(defaultRegion ?? "");
-  const [board, setBoard] = useState(defaultBoard ?? "");
-  const [level, setLevel] = useState(defaultLevel ?? "");
-  const [customRegionText, setCustomRegionText] = useState("");
-  const [customBoardText, setCustomBoardText] = useState("");
-  const [customLevelText, setCustomLevelText] = useState("");
+const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupStepProps) => {
+  const [region, setRegion] = useState(initialValues?.region ?? "");
+  const [board, setBoard] = useState(initialValues?.board ?? "");
+  const [level, setLevel] = useState(initialValues?.level ?? "");
+  const [customRegionText, setCustomRegionText] = useState(initialValues?.customRegionText ?? "");
+  const [customBoardText, setCustomBoardText] = useState(initialValues?.customBoardText ?? "");
+  const [customLevelText, setCustomLevelText] = useState(initialValues?.customLevelText ?? "");
   const [saving, setSaving] = useState(false);
 
   const regionBoards = region
     ? getRegionBoards(region === "Other" ? "international" : region)
     : [];
-  const boardLevels = board && board !== "other" ? (BOARD_LEVEL_MAP[board] ?? []) : [];
+  const boardLevels = board && board !== "other" && board !== "none" ? (BOARD_LEVEL_MAP[board] ?? []) : [];
 
+  const hasBoard = !!board && (board !== "other" || !!customBoardText.trim());
+  const hasLevel = !!level && (level !== "other" || !!customLevelText.trim());
   const allFilled =
     !!region &&
     (region !== "Other" || !!customRegionText.trim()) &&
-    !!board &&
-    (board !== "other" || !!customBoardText.trim()) &&
-    !!level &&
-    (level !== "other" || !!customLevelText.trim());
+    hasBoard &&
+    hasLevel;
+
+  const getCurrentData = () => ({
+    region,
+    board,
+    level,
+    customRegionText,
+    customBoardText,
+    customLevelText,
+  });
 
   const handleSave = async () => {
     setSaving(true);
@@ -93,7 +108,7 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
       if (!user) throw new Error("Not authenticated");
 
       const regionValue = region === "Other" ? customRegionText || "Other" : region;
-      const boardValue = board === "other" ? customBoardText : board;
+      const boardValue = board === "none" ? null : board === "other" ? customBoardText : board;
       const levelValue = level === "other" ? customLevelText : level;
 
       const { error: prefError } = await supabase.from("user_preferences").upsert(
@@ -118,7 +133,7 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
         { onConflict: "user_id,role" }
       );
 
-      onComplete();
+      onComplete(getCurrentData());
     } catch (err) {
       console.error("Error saving profile setup:", err);
     } finally {
@@ -127,14 +142,13 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
   };
 
   const handleSkip = async () => {
-    // Save partial data before skipping
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (user && (region || board || level)) {
         const regionValue = region === "Other" ? customRegionText || null : region || null;
-        const boardValue = board === "other" ? customBoardText || null : board || null;
+        const boardValue = board === "none" ? null : board === "other" ? customBoardText || null : board || null;
         const levelValue = level === "other" ? customLevelText || null : level || null;
 
         await supabase.from("user_preferences").upsert(
@@ -150,7 +164,7 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
     } catch (err) {
       console.error("Error saving partial profile:", err);
     }
-    onComplete();
+    onComplete(getCurrentData());
   };
 
   return (
@@ -204,25 +218,14 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
                 transition: "all 0.15s",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 10,
               }}
             >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: region === r.id ? "#3b82f6" : "#334155",
-                  background: region === r.id ? "#1e3a5f" : "#1e293b",
-                  border: `1px solid ${region === r.id ? "#3b82f6" : "#334155"}`,
-                  borderRadius: 3,
-                  padding: "1px 4px",
-                  letterSpacing: "0.05em",
-                  flexShrink: 0,
-                }}
-              >
-                {r.code}
-              </span>
-              {r.label}
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{r.flag}</span>
+              <span>{r.label}</span>
+              {region === r.id && (
+                <Check size={12} color="#3b82f6" strokeWidth={2.5} style={{ marginLeft: "auto" }} />
+              )}
             </motion.button>
           ))}
         </div>
@@ -258,8 +261,43 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
             style={{ marginBottom: 16 }}
           >
             <label style={labelStyle}>EXAM BOARD</label>
+
+            {/* No exam board option */}
+            <motion.button
+              onClick={() => { setBoard("none"); setLevel(""); }}
+              whileHover={{ scale: 1.01 }}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                background: board === "none" ? "#1a2e1a" : "#0f172a",
+                border: `1px solid ${board === "none" ? "#22c55e" : "#334155"}`,
+                borderRadius: 8,
+                color: board === "none" ? "#86efac" : "#64748b",
+                fontSize: 13,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: "inherit",
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                transition: "all 0.15s",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>—</span>
+              <div>
+                <div style={{ fontWeight: 500 }}>No exam board / Not sure</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>
+                  Questions will use general academic style for your level
+                </div>
+              </div>
+              {board === "none" && (
+                <Check size={12} color="#22c55e" strokeWidth={2.5} style={{ marginLeft: "auto" }} />
+              )}
+            </motion.button>
+
             <select
-              value={board}
+              value={board === "none" ? "" : board}
               onChange={(e) => {
                 setBoard(e.target.value);
                 setLevel("");
@@ -291,16 +329,16 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
 
             {!board && (
               <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
-                Not sure? Pick the one most of your subjects use.
+                Not sure? Pick the one most of your subjects use, or select "No exam board".
               </p>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Level */}
+      {/* Level — shows when board is selected (including 'none') */}
       <AnimatePresence>
-        {board && (
+        {board && board !== "" && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -308,8 +346,8 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
           >
             <label style={labelStyle}>YOUR CURRENT LEVEL</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {/* Board-specific levels */}
-              {boardLevels.map((levelId) => (
+              {/* Board-specific levels (not shown for 'none') */}
+              {board !== "none" && boardLevels.map((levelId) => (
                 <motion.button
                   key={levelId}
                   onClick={() => setLevel(levelId)}
@@ -332,19 +370,21 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
               ))}
 
               {/* Universal higher ed levels */}
-              {!UNIVERSAL_LEVELS.some((u) => boardLevels.includes(u.id)) && (
+              {(board === "none" || !UNIVERSAL_LEVELS.some((u) => boardLevels.includes(u.id))) && (
                 <>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "#334155",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      padding: "6px 0 2px",
-                    }}
-                  >
-                    Higher Education & Professional
-                  </div>
+                  {board !== "none" && boardLevels.length > 0 && (
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "#334155",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        padding: "6px 0 2px",
+                      }}
+                    >
+                      Higher Education & Professional
+                    </div>
+                  )}
                   {UNIVERSAL_LEVELS.map((opt) => (
                     <motion.button
                       key={opt.id}
@@ -424,7 +464,9 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
             <Check size={12} color="#22c55e" style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
             Questions will be generated in{" "}
             <strong style={{ color: "#86efac" }}>
-              {getBoardDisplayName(board === "other" ? customBoardText : board)}{" "}
+              {board === "none"
+                ? "general academic"
+                : getBoardDisplayName(board === "other" ? customBoardText : board)}{" "}
               {LEVEL_DISPLAY_NAMES[level] ?? customLevelText}
             </strong>{" "}
             style
@@ -432,29 +474,60 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
         )}
       </AnimatePresence>
 
-      {/* Continue */}
+      {/* Continue + Back */}
       <div style={{ paddingTop: 8 }}>
-        <motion.button
-          whileHover={{ scale: allFilled ? 1.02 : 1 }}
-          whileTap={{ scale: allFilled ? 0.97 : 1 }}
-          onClick={handleSave}
-          disabled={!allFilled || saving}
-          style={{
-            width: "100%",
-            padding: "12px",
-            background: allFilled ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#1e293b",
-            border: "none",
-            borderRadius: 8,
-            color: allFilled ? "white" : "#334155",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: allFilled ? "pointer" : "not-allowed",
-            fontFamily: "inherit",
-            marginBottom: 8,
-          }}
-        >
-          {saving ? "Saving..." : "Continue →"}
-        </motion.button>
+        <div style={{ display: "flex", gap: 10 }}>
+          {onBack && (
+            <button
+              onClick={() => onBack()}
+              style={{
+                flex: "0 0 auto",
+                padding: "10px 20px",
+                background: "transparent",
+                border: "1px solid #334155",
+                borderRadius: 8,
+                color: "#64748b",
+                fontSize: 14,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                transition: "border-color 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#475569";
+                e.currentTarget.style.color = "#94a3b8";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#334155";
+                e.currentTarget.style.color = "#64748b";
+              }}
+            >
+              ← Back
+            </button>
+          )}
+          <motion.button
+            whileHover={{ scale: allFilled ? 1.02 : 1 }}
+            whileTap={{ scale: allFilled ? 0.97 : 1 }}
+            onClick={handleSave}
+            disabled={!allFilled || saving}
+            style={{
+              flex: 1,
+              padding: "12px",
+              background: allFilled ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#1e293b",
+              border: "none",
+              borderRadius: 8,
+              color: allFilled ? "white" : "#334155",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: allFilled ? "pointer" : "not-allowed",
+              fontFamily: "inherit",
+            }}
+          >
+            {saving ? "Saving..." : "Continue →"}
+          </motion.button>
+        </div>
 
         <button
           onClick={handleSkip}
@@ -467,6 +540,7 @@ const ProfileSetupStep = ({ onComplete, defaultRegion, defaultBoard, defaultLeve
             fontSize: 12,
             cursor: "pointer",
             fontFamily: "inherit",
+            marginTop: 8,
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#475569")}

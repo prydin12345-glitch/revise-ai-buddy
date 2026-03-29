@@ -14,12 +14,14 @@ interface ConfigSummaryProps {
 export const ConfigSummary = ({ examBoard, educationalLevel, subject, questionCount, timeLimit }: ConfigSummaryProps) => {
   const navigate = useNavigate();
 
+  const hasBoard = examBoard && examBoard !== "none";
+
   const rows = [
     {
       label: "Exam Board",
-      value: examBoard ? getBoardDisplayName(examBoard) : null,
-      missing: !examBoard,
-      missingMsg: "Not set — set in Settings",
+      value: hasBoard ? getBoardDisplayName(examBoard) : "General style",
+      missing: false,
+      missingMsg: "",
     },
     {
       label: "Level",
@@ -47,7 +49,7 @@ export const ConfigSummary = ({ examBoard, educationalLevel, subject, questionCo
     },
   ].filter(r => r.value || r.missing);
 
-  const hasMissing = !examBoard || !educationalLevel;
+  const hasMissing = !educationalLevel;
 
   return (
     <div className="rounded-lg bg-muted/30 border border-border p-3.5 mb-4 space-y-2.5">
@@ -69,7 +71,7 @@ export const ConfigSummary = ({ examBoard, educationalLevel, subject, questionCo
         <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px] text-amber-300">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           <span>
-            Set your exam board and level in{" "}
+            Set your level in{" "}
             <button
               onClick={() => navigate("/settings")}
               className="underline text-amber-400 hover:text-amber-300"
