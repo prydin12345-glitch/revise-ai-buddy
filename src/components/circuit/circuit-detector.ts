@@ -28,6 +28,19 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   const cleaned = stripLatex(questionText);
   const text = cleaned.toLowerCase();
 
+  // AC circuit keywords
+  const acKeywords = [
+    'alternating current', 'ac circuit', 'ac source',
+    'impedance', 'reactance', 'inductance', 'capacitance',
+    'inductor', 'capacitor', 'phasor',
+    'angular frequency', 'omega', 'ω',
+    'complex impedance', 'r + jx', 'r + jω',
+    'admittance', 'susceptance',
+    'rlc', 'rc circuit', 'rl circuit', 'lc circuit',
+    'resonant frequency', 'resonance',
+  ];
+  const isAcCircuit = acKeywords.some(kw => text.includes(kw));
+
   const circuitKeywords = [
     'circuit', 'resistor', 'resistance', 'voltmeter', 'ammeter',
     'battery', 'cell', 'lamp', 'bulb', 'switch', 'diode',
@@ -35,7 +48,7 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
     'series', 'parallel', 'connected in', 'thermistor', 'potential divider',
     'ldr', 'light dependent resistor'
   ];
-  if (!circuitKeywords.some(kw => text.includes(kw))) return null;
+  if (!isAcCircuit && !circuitKeywords.some(kw => text.includes(kw))) return null;
 
   const mechExclude = ['inclined plane', 'slope', 'pulley', 'beam', 'rod', 'projectile', 'tension'];
   if (mechExclude.some(kw => text.includes(kw))) return null;
@@ -45,6 +58,11 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   // Skip dual questions (motor + mechanical action) — handled by mechanics detector
   const isDual = /motor/i.test(text) && /lift|raise|pump|height|distance/i.test(text) && /\d+\s*kg/i.test(text);
   if (isDual) return null;
+
+  // ── AC circuit path ──
+  if (isAcCircuit) {
+    return buildAcCircuitConfig(cleaned, text);
+  }
 
   // ── Extract values ──
 
