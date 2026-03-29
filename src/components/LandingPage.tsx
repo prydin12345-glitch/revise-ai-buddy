@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X } from "lucide-react";
+import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
@@ -98,6 +98,19 @@ const LandingPage = () => {
   const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on scroll or outside click
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const close = () => setMobileMenuOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    document.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("scroll", close);
+      document.removeEventListener("click", close);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
