@@ -844,6 +844,61 @@ CRITICAL JSON RULES:
     return dist ? `\n## MARK DISTRIBUTION\nGenerate questions with this exact mark distribution: ${dist}.\nTotal written questions: ${desiredWrittenCount}.` : '';
   })();
 
+  // ── BLOCK 10: CIRCUIT DIAGRAM INSTRUCTIONS ─────────────────────────────────
+  const lowerSubject = subject.toLowerCase();
+  const circuitTopicHints = ['circuit', 'resistor', 'resistance', 'emf', 'parallel', 'series',
+    'impedance', 'capacitor', 'inductor', 'ac', 'alternating', 'rlc', 'electronics', 'physics'];
+  const needsCircuitInstructions = circuitTopicHints.some(kw =>
+    lowerSubject.includes(kw) || topics.some(t => t.toLowerCase().includes(kw)));
+
+  const circuitBlock = needsCircuitInstructions ? `
+## CIRCUIT DIAGRAM REQUIREMENTS
+When generating circuit diagram questions, include a diagramConfig field in the question.
+
+### Supported component types — use ONLY these exact strings:
+DC: "battery", "resistor", "variable_resistor", "thermistor", "lamp", "voltmeter", "ammeter", "switch_open", "switch_closed", "diode", "motor", "fuse"
+AC: "ac_source", "inductor", "capacitor", "impedance", "current_source"
+Universal: "wire", "ground", "open_terminal"
+
+### When to use AC components:
+- AC circuit / alternating current → use "ac_source" not "battery"
+- Inductance / coil / L in circuit → use "inductor"
+- Capacitance / C in circuit → use "capacitor"
+- Z = R + jX or impedance block → use "impedance"
+- DC circuit → use "battery"
+- Current source questions → use "current_source"
+
+### Circuit config schema:
+{
+  "type": "circuit",
+  "gridSpacing": 80,
+  "nodes": [
+    {"id": "TL", "col": 0, "row": 0},
+    {"id": "TR", "col": 3, "row": 0},
+    {"id": "BR", "col": 3, "row": 2},
+    {"id": "BL", "col": 0, "row": 2}
+  ],
+  "wires": [
+    {"from": "BL", "to": "TL", "component": "ac_source", "label": "100V"},
+    {"from": "TL", "to": "TR", "component": "impedance", "label": "Z = 10Ω"},
+    {"from": "TR", "to": "BR", "component": "ammeter", "label": "I"},
+    {"from": "BR", "to": "BL", "component": "wire"}
+  ],
+  "junctions": [],
+  "showLabels": true
+}
+
+### Rules:
+- Every circuit must be a closed loop
+- Minimum 4 nodes, minimum 4 wires
+- Every node referenced in wires must exist in nodes array
+- Labels must match the values given in the question
+- Use "wire" for connections with no component
+- Add ammeter when current is being calculated
+- Add voltmeter in parallel (new branch) when voltage is being measured
+- Set diagramConfig: null for phasor diagram questions (these cannot be rendered as circuits)
+` : '';
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
@@ -856,6 +911,7 @@ CRITICAL JSON RULES:
     sourceBlock,
     topicTagBlock,
     graphBlock,
+    circuitBlock,
     outputBlock,
   ].filter(s => s.trim().length > 0).join('\n\n');
 
