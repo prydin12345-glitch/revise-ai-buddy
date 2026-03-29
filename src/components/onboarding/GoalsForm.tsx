@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Target, TrendingUp, BookOpen, Heart, BarChart2, PenTool } from "lucide-react";
+import { Target, TrendingUp, BookOpen, Heart, BarChart2, PenTool, Check } from "lucide-react";
 
 interface GoalFormData {
   goal_type: string;
@@ -20,6 +20,16 @@ interface GoalFormData {
 interface GoalsFormProps {
   subjects: Array<{ subject_name?: string; custom_name?: string; subject_color: string }>;
   onComplete: (goals: GoalFormData[]) => void;
+  onBack?: () => void;
+  initialValues?: {
+    selectedGoalTypes?: string[];
+    targetScore?: number;
+    effortHours?: number;
+    deadline?: string;
+    customGoalText?: string;
+    selectedSubject?: string;
+    selectedColor?: string;
+  } | null;
 }
 
 const GOAL_TYPES = [
@@ -55,21 +65,29 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color 0.15s",
 };
 
-const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
+const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormProps) => {
   const defaultSubject =
     subjects.length > 0 ? subjects[0]?.subject_name || subjects[0]?.custom_name || "" : "";
   const defaultColor = subjects.length > 0 ? subjects[0]?.subject_color || "#3b82f6" : "#3b82f6";
 
-  const [goalType, setGoalType] = useState("improve_grade");
-  const [targetScore, setTargetScore] = useState(80);
-  const [effortHours, setEffortHours] = useState(5);
-  const [deadline, setDeadline] = useState("");
-  const [customGoalText, setCustomGoalText] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState(defaultSubject);
-  const [selectedColor, setSelectedColor] = useState(defaultColor);
+  const [selectedGoalTypes, setSelectedGoalTypes] = useState<string[]>(
+    initialValues?.selectedGoalTypes ?? ["improve_grade"]
+  );
+  const [targetScore, setTargetScore] = useState(initialValues?.targetScore ?? 80);
+  const [effortHours, setEffortHours] = useState(initialValues?.effortHours ?? 5);
+  const [deadline, setDeadline] = useState(initialValues?.deadline ?? "");
+  const [customGoalText, setCustomGoalText] = useState(initialValues?.customGoalText ?? "");
+  const [selectedSubject, setSelectedSubject] = useState(initialValues?.selectedSubject ?? defaultSubject);
+  const [selectedColor, setSelectedColor] = useState(initialValues?.selectedColor ?? defaultColor);
+
+  const toggleGoalType = (id: string) => {
+    setSelectedGoalTypes((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
+    );
+  };
 
   const handleComplete = () => {
-    const goal: GoalFormData = {
+    const goals: GoalFormData[] = selectedGoalTypes.map((goalType) => ({
       goal_type: goalType,
       custom_goal_text: goalType === "custom" ? customGoalText : undefined,
       target_metric:
@@ -81,12 +99,11 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
       auto_schedule: false,
       subject: selectedSubject,
       subject_color: selectedColor,
-    };
-    onComplete([goal]);
+    }));
+    onComplete(goals);
   };
 
   const handleSkip = () => {
-    // Create a minimal goal so onComplete still works
     const goal: GoalFormData = {
       goal_type: "improve_grade",
       target_metric: { score: 80, unit: "%" },
@@ -158,24 +175,25 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
         </div>
       )}
 
-      {/* Goal type */}
+      {/* Goal type — multi-select */}
       <div style={{ marginBottom: 20 }}>
-        <label style={labelStyle}>WHAT'S YOUR MAIN GOAL?</label>
+        <label style={labelStyle}>WHAT ARE YOUR GOALS?</label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 8 }}>
           {GOAL_TYPES.map((type) => {
             const Icon = type.icon;
+            const isSelected = selectedGoalTypes.includes(type.id);
             return (
               <motion.button
                 key={type.id}
-                onClick={() => setGoalType(type.id)}
+                onClick={() => toggleGoalType(type.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
                 style={{
                   padding: "12px 14px",
-                  background: goalType === type.id ? "#1e3a5f" : "#0f172a",
-                  border: `1px solid ${goalType === type.id ? "#3b82f6" : "#334155"}`,
+                  background: isSelected ? "#1e3a5f" : "#0f172a",
+                  border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
                   borderRadius: 8,
-                  color: goalType === type.id ? "#93c5fd" : "#64748b",
+                  color: isSelected ? "#93c5fd" : "#64748b",
                   fontSize: 12,
                   cursor: "pointer",
                   textAlign: "left",
@@ -183,19 +201,43 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
                   transition: "all 0.15s",
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "space-between",
                   gap: 8,
                 }}
               >
-                <Icon size={14} />
-                {type.label}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Icon size={14} />
+                  {type.label}
+                </div>
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 4,
+                    border: `2px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                    background: isSelected ? "#3b82f6" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {isSelected && <Check size={10} color="white" strokeWidth={3} />}
+                </div>
               </motion.button>
             );
           })}
         </div>
+        {selectedGoalTypes.length > 0 && (
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>
+            {selectedGoalTypes.length} goal{selectedGoalTypes.length > 1 ? "s" : ""} selected
+          </div>
+        )}
       </div>
 
       {/* Custom goal text */}
-      {goalType === "custom" && (
+      {selectedGoalTypes.includes("custom") && (
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>DESCRIBE YOUR GOAL</label>
           <input
@@ -209,7 +251,7 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
       )}
 
       {/* Target score */}
-      {goalType === "improve_grade" && (
+      {selectedGoalTypes.includes("improve_grade") && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <label style={{ ...labelStyle, marginBottom: 0 }}>TARGET SCORE</label>
@@ -266,26 +308,62 @@ const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
         />
       </div>
 
-      {/* Complete */}
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={handleComplete}
-        style={{
-          width: "100%",
-          padding: "13px",
-          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-          border: "none",
-          borderRadius: 8,
-          color: "white",
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        Start Practising →
-      </motion.button>
+      {/* Continue + Back */}
+      <div style={{ display: "flex", gap: 10 }}>
+        {onBack && (
+          <button
+            onClick={() => onBack()}
+            style={{
+              flex: "0 0 auto",
+              padding: "10px 20px",
+              background: "transparent",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              color: "#64748b",
+              fontSize: 14,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "border-color 0.15s, color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#475569";
+              e.currentTarget.style.color = "#94a3b8";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#334155";
+              e.currentTarget.style.color = "#64748b";
+            }}
+          >
+            ← Back
+          </button>
+        )}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleComplete}
+          disabled={selectedGoalTypes.length === 0}
+          style={{
+            flex: 1,
+            padding: "13px",
+            background:
+              selectedGoalTypes.length > 0
+                ? "linear-gradient(135deg, #3b82f6, #2563eb)"
+                : "#1e293b",
+            border: "none",
+            borderRadius: 8,
+            color: selectedGoalTypes.length > 0 ? "white" : "#334155",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: selectedGoalTypes.length > 0 ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+          }}
+        >
+          Start Practising →
+        </motion.button>
+      </div>
 
       <button
         onClick={handleSkip}

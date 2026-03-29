@@ -20,10 +20,12 @@ const StepProgress = ({
   currentStep,
   totalSteps,
   stepLabels,
+  onStepClick,
 }: {
   currentStep: number;
   totalSteps: number;
   stepLabels: string[];
+  onStepClick?: (step: number) => void;
 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 8 }}>
     {stepLabels.map((label, i) => {
@@ -36,6 +38,7 @@ const StepProgress = ({
         <div key={label} style={{ display: "flex", alignItems: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
             <motion.div
+              onClick={isComplete && onStepClick ? () => onStepClick(stepNum) : undefined}
               animate={{
                 background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#1e293b",
                 borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#334155",
@@ -52,6 +55,7 @@ const StepProgress = ({
                 fontSize: 12,
                 fontWeight: 700,
                 color: isPending ? "#475569" : "white",
+                cursor: isComplete ? "pointer" : "default",
               }}
             >
               {isComplete ? <Check size={14} strokeWidth={2.5} /> : stepNum}
@@ -89,6 +93,10 @@ const Onboarding = () => {
   const { toast } = useToast();
   const { primaryRole, loading: roleLoading } = useUserRole();
   const { subjects, saveUserSubjects } = useSubjects();
+
+  // Saved step data for back navigation
+  const [step2Data, setStep2Data] = useState<any>(null);
+  const [step3Data, setStep3Data] = useState<any>(null);
 
   useEffect(() => {
     const checkAlreadyCompleted = async () => {
@@ -176,8 +184,22 @@ const Onboarding = () => {
     setStep("profile");
   };
 
-  const handleProfileComplete = () => {
+  const handleProfileComplete = (data?: any) => {
+    if (data) setStep2Data(data);
     setStep("goals");
+  };
+
+  const handleBack = () => {
+    if (step === "goals") {
+      setStep("profile");
+    } else if (step === "profile") {
+      setStep("subjects");
+    }
+  };
+
+  const handleStepClick = (stepNum: number) => {
+    const targetStep = STUDENT_STEPS[stepNum - 1];
+    if (targetStep) setStep(targetStep);
   };
 
   const handleGoalsComplete = async (goals: any[]) => {
@@ -333,7 +355,14 @@ const Onboarding = () => {
       </div>
 
       {/* Step progress - students only */}
-      {!isTutor && <StepProgress currentStep={currentStepIndex + 1} totalSteps={3} stepLabels={STEP_LABELS} />}
+      {!isTutor && (
+        <StepProgress
+          currentStep={currentStepIndex + 1}
+          totalSteps={3}
+          stepLabels={STEP_LABELS}
+          onStepClick={handleStepClick}
+        />
+      )}
 
       {/* Step content */}
       <AnimatePresence mode="wait">
@@ -354,8 +383,21 @@ const Onboarding = () => {
           }}
         >
           {step === "subjects" && <SubjectsSelection subjects={subjects} onComplete={handleSubjectsComplete} />}
-          {step === "profile" && <ProfileSetupStep onComplete={handleProfileComplete} />}
-          {step === "goals" && <GoalsForm subjects={selectedSubjects} onComplete={handleGoalsComplete} />}
+          {step === "profile" && (
+            <ProfileSetupStep
+              initialValues={step2Data}
+              onComplete={handleProfileComplete}
+              onBack={handleBack}
+            />
+          )}
+          {step === "goals" && (
+            <GoalsForm
+              subjects={selectedSubjects}
+              onComplete={handleGoalsComplete}
+              onBack={handleBack}
+              initialValues={step3Data}
+            />
+          )}
           {step === "tutor" && <TutorOnboarding subjects={subjects} onComplete={handleTutorComplete} />}
         </motion.div>
       </AnimatePresence>
