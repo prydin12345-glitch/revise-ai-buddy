@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X } from "lucide-react";
+import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
@@ -98,6 +98,19 @@ const LandingPage = () => {
   const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on scroll or outside click
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const close = () => setMobileMenuOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    document.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("scroll", close);
+      document.removeEventListener("click", close);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -116,11 +129,51 @@ const LandingPage = () => {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/auth?mode=login")}>Log In</Button>
             <Button size="sm" onClick={() => navigate("/auth?mode=signup")}>Get Started Free</Button>
           </div>
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden flex flex-col gap-[5px] items-center justify-center p-1 bg-transparent border-none cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(!mobileMenuOpen); }}
+            aria-label="Open menu"
+          >
+            {mobileMenuOpen ? (
+              <X size={22} className="text-muted-foreground" />
+            ) : (
+              <Menu size={22} className="text-muted-foreground" />
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden border-t border-border/30 bg-background/95 backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="container mx-auto px-4 py-3 flex flex-col gap-1">
+              {["Features", "How It Works", "Pricing"].map(link => (
+                <button
+                  key={link}
+                  onClick={() => { scrollToSection(link.toLowerCase().replace(/ /g, "-")); setMobileMenuOpen(false); }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] text-left py-3 border-b border-border/20"
+                >
+                  {link}
+                </button>
+              ))}
+              <div className="flex gap-3 pt-3 pb-1">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { navigate("/auth?mode=login"); setMobileMenuOpen(false); }}>
+                  Log In
+                </Button>
+                <Button size="sm" className="flex-1" onClick={() => { navigate("/auth?mode=signup"); setMobileMenuOpen(false); }}>
+                  Get Started
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── Hero ── */}

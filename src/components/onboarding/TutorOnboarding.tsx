@@ -190,7 +190,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 1 of 4
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               What do you teach?
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -230,7 +230,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           </div>
 
           {/* Subject grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, maxHeight: 280, overflowY: "auto", marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(clamp(100px, 30vw, 140px), 1fr))", gap: 8, maxHeight: 280, overflowY: "auto", marginBottom: 16 }}>
             {filteredSubjects.map(subject => {
               const isSelected = selectedSubjects.includes(subject.id);
               return (
@@ -288,7 +288,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 2 of 4
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Your teaching profile
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -299,7 +299,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           {/* Region */}
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>WHERE DO YOU TEACH?</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "clamp(6px, 2vw, 8px)", marginTop: 8 }}>
               {REGIONS.map(r => (
                 <motion.button
                   key={r.id}
@@ -307,10 +307,10 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   style={{
-                    padding: "10px 14px", background: region === r.id ? "#1e3a5f" : "#0f172a",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)", background: region === r.id ? "#1e3a5f" : "#0f172a",
                     border: `1px solid ${region === r.id ? "#3b82f6" : "#334155"}`,
                     borderRadius: 8, color: region === r.id ? "#93c5fd" : "#64748b",
-                    fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    fontSize: "clamp(12px, 3vw, 13px)", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     transition: "all 0.15s", display: "flex", alignItems: "center", gap: 10,
                   }}
                 >
@@ -516,7 +516,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 3 of 4
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Set up your classes
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -685,7 +685,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 4 of 4
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Almost done
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -715,7 +715,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <p style={{ fontSize: 11, color: "#475569", margin: "0 0 10px" }}>
               Let students know when you're generally available
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(56px, 1fr))", gap: 6 }}>
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => {
                 const isSelected = !!availability[day];
                 return (
@@ -802,7 +802,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
             style={{
               background: "#1e293b", border: "1px solid #334155",
-              borderRadius: 16, padding: "32px 28px",
+              borderRadius: 16, padding: "clamp(20px, 5vw, 32px) clamp(16px, 4vw, 28px)",
               width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto",
             }}
           >

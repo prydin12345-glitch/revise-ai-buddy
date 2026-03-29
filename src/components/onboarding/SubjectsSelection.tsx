@@ -135,7 +135,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
         >
           Step 1 of 3
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           What are you studying?
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Select your subjects. You can add more later.</p>
@@ -184,7 +184,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(clamp(100px, 30vw, 140px), 1fr))",
           gap: 8,
           maxHeight: 280,
           overflowY: "auto",
@@ -340,7 +340,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
                 background: "#1e293b",
                 border: "1px solid #334155",
                 borderRadius: 14,
-                padding: "28px 24px",
+                padding: "clamp(20px, 5vw, 28px) clamp(16px, 4vw, 24px)",
                 width: "100%",
                 maxWidth: 400,
               }}

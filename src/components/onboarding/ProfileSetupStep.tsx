@@ -183,7 +183,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
         >
           Step 2 of 3
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           Set up your study profile
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -194,7 +194,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
       {/* Region */}
       <div style={{ marginBottom: 20 }}>
         <label style={labelStyle}>WHERE ARE YOU STUDYING?</label>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "clamp(6px, 2vw, 8px)" }}>
           {REGIONS.map((r) => (
             <motion.button
               key={r.id}
@@ -206,12 +206,12 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               style={{
-                padding: "10px 14px",
+                padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)",
                 background: region === r.id ? "#1e3a5f" : "#0f172a",
                 border: `1px solid ${region === r.id ? "#3b82f6" : "#334155"}`,
                 borderRadius: 8,
                 color: region === r.id ? "#93c5fd" : "#64748b",
-                fontSize: 13,
+                fontSize: "clamp(12px, 3vw, 13px)",
                 cursor: "pointer",
                 textAlign: "left",
                 fontFamily: "inherit",
