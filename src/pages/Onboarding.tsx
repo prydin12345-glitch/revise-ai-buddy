@@ -98,6 +98,9 @@ const Onboarding = () => {
   const [step2Data, setStep2Data] = useState<any>(null);
   const [step3Data, setStep3Data] = useState<any>(null);
 
+  // Tutor step tracking
+  const [tutorStep, setTutorStep] = useState(1);
+
   useEffect(() => {
     const checkAlreadyCompleted = async () => {
       const {
@@ -294,8 +297,14 @@ const Onboarding = () => {
     );
   }
 
+  const TUTOR_STEPS = ["Subjects", "Profile", "Classes", "About"];
+
   const isTutor = primaryRole === "tutor";
-  const currentStepIndex = isTutor ? 0 : STUDENT_STEPS.indexOf(step as StudentStep);
+  const currentStepIndex = isTutor ? tutorStep - 1 : STUDENT_STEPS.indexOf(step as StudentStep);
+
+  const handleTutorStepClick = (stepNum: number) => {
+    if (stepNum < tutorStep) setTutorStep(stepNum);
+  };
 
   return (
     <div
@@ -354,8 +363,15 @@ const Onboarding = () => {
         Exam<span style={{ color: "#3b82f6" }}>ly</span>
       </div>
 
-      {/* Step progress - students only */}
-      {!isTutor && (
+      {/* Step progress */}
+      {isTutor ? (
+        <StepProgress
+          currentStep={tutorStep}
+          totalSteps={4}
+          stepLabels={TUTOR_STEPS}
+          onStepClick={handleTutorStepClick}
+        />
+      ) : (
         <StepProgress
           currentStep={currentStepIndex + 1}
           totalSteps={3}
@@ -398,7 +414,14 @@ const Onboarding = () => {
               initialValues={step3Data}
             />
           )}
-          {step === "tutor" && <TutorOnboarding subjects={subjects} onComplete={handleTutorComplete} />}
+          {step === "tutor" && (
+            <TutorOnboarding
+              subjects={subjects}
+              onComplete={handleTutorComplete}
+              currentStep={tutorStep}
+              onStepChange={setTutorStep}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
