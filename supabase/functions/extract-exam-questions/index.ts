@@ -212,6 +212,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     topicTagVocabulary: canonicalTopicList,
     extendedResponseMarks: formatData?.extended_marks ?? 0,
     includeExtended: formatData?.include_extended ?? false,
+    includeGraphs: profileMeta.include_graphs ?? null,
+    includeTables: profileMeta.include_tables ?? null,
+    includeDiagrams: profileMeta.include_diagrams ?? null,
+    markDistribution: formatData?.mark_distribution ?? null,
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -579,6 +583,10 @@ function buildPrompt(params: {
   topicTagVocabulary?: string[];
   extendedResponseMarks?: number;
   includeExtended?: boolean;
+  includeGraphs?: boolean | null;
+  includeTables?: boolean | null;
+  includeDiagrams?: boolean | null;
+  markDistribution?: Record<string, number> | null;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -599,6 +607,10 @@ function buildPrompt(params: {
     topicTagVocabulary,
     extendedResponseMarks = 0,
     includeExtended = false,
+    includeGraphs,
+    includeTables,
+    includeDiagrams,
+    markDistribution,
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
