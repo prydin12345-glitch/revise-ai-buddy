@@ -297,8 +297,6 @@ const Onboarding = () => {
     );
   }
 
-  // Tutor step tracking
-  const [tutorStep, setTutorStep] = useState(1);
   const TUTOR_STEPS = ["Subjects", "Profile", "Classes", "About"];
 
   const isTutor = primaryRole === "tutor";
