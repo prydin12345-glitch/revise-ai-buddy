@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -26,64 +27,84 @@ const StepProgress = ({
   totalSteps: number;
   stepLabels: string[];
   onStepClick?: (step: number) => void;
-}) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 8 }}>
-    {stepLabels.map((label, i) => {
-      const stepNum = i + 1;
-      const isComplete = stepNum < currentStep;
-      const isActive = stepNum === currentStep;
-      const isPending = stepNum > currentStep;
+}) => {
+  const [isNarrow, setIsNarrow] = useState(
+    typeof window !== "undefined" && window.innerWidth < 400
+  );
 
-      return (
-        <div key={label} style={{ display: "flex", alignItems: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <motion.div
-              onClick={isComplete && onStepClick ? () => onStepClick(stepNum) : undefined}
-              animate={{
-                background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#1e293b",
-                borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#334155",
-              }}
-              transition={{ duration: 0.3 }}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                border: "2px solid",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                color: isPending ? "#475569" : "white",
-                cursor: isComplete ? "pointer" : "default",
-              }}
-            >
-              {isComplete ? <Check size={14} strokeWidth={2.5} /> : stepNum}
-            </motion.div>
-            <span
-              style={{
-                fontSize: 11,
-                color: isActive ? "#f1f5f9" : "#475569",
-                fontWeight: isActive ? 600 : 400,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {label}
-            </span>
+  useEffect(() => {
+    const handler = () => setIsNarrow(window.innerWidth < 400);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 8 }}>
+      {stepLabels.map((label, i) => {
+        const stepNum = i + 1;
+        const isComplete = stepNum < currentStep;
+        const isActive = stepNum === currentStep;
+        const isPending = stepNum > currentStep;
+
+        return (
+          <div key={label} style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <motion.div
+                onClick={isComplete && onStepClick ? () => onStepClick(stepNum) : undefined}
+                animate={{
+                  background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#1e293b",
+                  borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#334155",
+                }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  width: isNarrow ? 28 : 32,
+                  height: isNarrow ? 28 : 32,
+                  borderRadius: "50%",
+                  border: "2px solid",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: isNarrow ? 10 : 12,
+                  fontWeight: 700,
+                  color: isPending ? "#475569" : "white",
+                  cursor: isComplete ? "pointer" : "default",
+                }}
+              >
+                {isComplete ? <Check size={isNarrow ? 12 : 14} strokeWidth={2.5} /> : stepNum}
+              </motion.div>
+              {!isNarrow && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: isActive ? "#f1f5f9" : "#475569",
+                    fontWeight: isActive ? 600 : 400,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                </span>
+              )}
+            </div>
+
+            {i < totalSteps - 1 && (
+              <motion.div
+                animate={{ background: isComplete ? "#22c55e" : "#334155" }}
+                transition={{ duration: 0.4 }}
+                style={{
+                  height: 2,
+                  width: "clamp(20px, 8vw, 60px)",
+                  marginBottom: isNarrow ? 0 : 22,
+                  borderRadius: 1,
+                  flexShrink: 1,
+                }}
+              />
+            )}
           </div>
-
-          {i < totalSteps - 1 && (
-            <motion.div
-              animate={{ background: isComplete ? "#22c55e" : "#334155" }}
-              transition={{ duration: 0.4 }}
-              style={{ height: 2, width: 60, marginBottom: 22, borderRadius: 1 }}
-            />
-          )}
-        </div>
-      );
-    })}
-  </div>
-);
+        );
+      })}
+    </div>
+  );
+};
 
 const Onboarding = () => {
   const [step, setStep] = useState<StudentStep | "tutor" | null>(null);
@@ -315,9 +336,9 @@ const Onboarding = () => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "40px 24px",
+        padding: "clamp(24px, 5vw, 40px) clamp(12px, 3vw, 24px)",
         position: "relative",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {/* Background blobs */}
@@ -394,7 +415,7 @@ const Onboarding = () => {
             background: "#1e293b",
             border: "1px solid #334155",
             borderRadius: 16,
-            padding: "36px 32px",
+            padding: "clamp(20px, 5vw, 36px) clamp(16px, 4vw, 32px)",
             marginTop: 24,
           }}
         >
