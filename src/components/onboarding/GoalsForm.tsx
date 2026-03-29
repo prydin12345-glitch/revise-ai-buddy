@@ -1,13 +1,6 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
-import { Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
+import { Target, TrendingUp, BookOpen, Heart, BarChart2, PenTool } from "lucide-react";
 
 interface GoalFormData {
   goal_type: string;
@@ -30,221 +23,289 @@ interface GoalsFormProps {
 }
 
 const GOAL_TYPES = [
-  { value: "improve_grade", label: "Improve Exam Grade", metric: "score" },
-  { value: "build_confidence", label: "Build Confidence", metric: "count" },
-  { value: "exam_techniques", label: "Learn Exam Techniques", metric: "count" },
-  { value: "reduce_stress", label: "Reduce Stress", metric: "count" },
-  { value: "track_progress", label: "Track My Progress", metric: "count" },
-  { value: "custom", label: "Custom Goal", metric: "custom" }
+  { id: "improve_grade", label: "Improve Grade", icon: TrendingUp },
+  { id: "build_confidence", label: "Build Confidence", icon: Heart },
+  { id: "exam_techniques", label: "Exam Techniques", icon: BookOpen },
+  { id: "reduce_stress", label: "Reduce Stress", icon: Target },
+  { id: "track_progress", label: "Track Progress", icon: BarChart2 },
+  { id: "custom", label: "Custom Goal", icon: PenTool },
 ];
 
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#475569",
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  display: "block",
+  marginBottom: 8,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 14px",
+  background: "#0f172a",
+  border: "1px solid #334155",
+  borderRadius: 8,
+  color: "#f1f5f9",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box" as const,
+  fontFamily: "inherit",
+  transition: "border-color 0.15s",
+};
+
 const GoalsForm = ({ subjects, onComplete }: GoalsFormProps) => {
-  // Handle empty subjects array
-  const defaultSubject = subjects.length > 0 
-    ? (subjects[0]?.subject_name || subjects[0]?.custom_name || "")
-    : "";
-  const defaultColor = subjects.length > 0 
-    ? (subjects[0]?.subject_color || "#3b82f6")
-    : "#3b82f6";
+  const defaultSubject =
+    subjects.length > 0 ? subjects[0]?.subject_name || subjects[0]?.custom_name || "" : "";
+  const defaultColor = subjects.length > 0 ? subjects[0]?.subject_color || "#3b82f6" : "#3b82f6";
 
-  const [goals, setGoals] = useState<GoalFormData[]>([{
-    goal_type: "improve_grade",
-    target_metric: { score: 80, unit: "%" },
-    deadline: "",
-    effort_estimate: 5,
-    auto_schedule: false,
-    subject: defaultSubject,
-    subject_color: defaultColor
-  }]);
+  const [goalType, setGoalType] = useState("improve_grade");
+  const [targetScore, setTargetScore] = useState(80);
+  const [effortHours, setEffortHours] = useState(5);
+  const [deadline, setDeadline] = useState("");
+  const [customGoalText, setCustomGoalText] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState(defaultSubject);
+  const [selectedColor, setSelectedColor] = useState(defaultColor);
 
-  const updateGoal = (index: number, updates: Partial<GoalFormData>) => {
-    const newGoals = [...goals];
-    newGoals[index] = { ...newGoals[index], ...updates };
-    setGoals(newGoals);
+  const handleComplete = () => {
+    const goal: GoalFormData = {
+      goal_type: goalType,
+      custom_goal_text: goalType === "custom" ? customGoalText : undefined,
+      target_metric:
+        goalType === "improve_grade"
+          ? { score: targetScore, unit: "%" }
+          : { count: 10, unit: "sessions" },
+      deadline: deadline || undefined,
+      effort_estimate: effortHours,
+      auto_schedule: false,
+      subject: selectedSubject,
+      subject_color: selectedColor,
+    };
+    onComplete([goal]);
   };
 
-  const addGoal = () => {
-    const defaultSubject = subjects.length > 0 
-      ? (subjects[0]?.subject_name || subjects[0]?.custom_name || "")
-      : "";
-    const defaultColor = subjects.length > 0 
-      ? (subjects[0]?.subject_color || "#3b82f6")
-      : "#3b82f6";
-
-    setGoals([...goals, {
+  const handleSkip = () => {
+    // Create a minimal goal so onComplete still works
+    const goal: GoalFormData = {
       goal_type: "improve_grade",
       target_metric: { score: 80, unit: "%" },
-      deadline: "",
       effort_estimate: 5,
       auto_schedule: false,
       subject: defaultSubject,
-      subject_color: defaultColor
-    }]);
+      subject_color: defaultColor,
+    };
+    onComplete([goal]);
   };
 
+  if (subjects.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px 20px", color: "#475569", fontSize: 13 }}>
+        No subjects selected. Please go back and select your subjects first.
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {subjects.length === 0 ? (
-        <div className="text-center p-8 text-muted-foreground">
-          No subjects selected. Please go back and select your subjects first.
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#3b82f6",
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            marginBottom: 8,
+          }}
+        >
+          Step 3 of 3
         </div>
-      ) : (
-        <>
-      {goals.map((goal, index) => (
-        <div key={index} className="space-y-4 p-4 border rounded-lg">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Subject</Label>
-              <Select
-                value={goal.subject}
-                onValueChange={(value) => {
-                  const subject = subjects.find(s => 
-                    (s.subject_name || s.custom_name) === value
-                  );
-                  updateGoal(index, { 
-                    subject: value,
-                    subject_color: subject?.subject_color || "#3b82f6"
-                  });
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+          Set your goals
+        </h1>
+        <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+          Tell us what you want to achieve. You can update these any time.
+        </p>
+      </div>
+
+      {/* Subject selector (if multiple) */}
+      {subjects.length > 1 && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>SUBJECT</label>
+          <select
+            value={selectedSubject}
+            onChange={(e) => {
+              setSelectedSubject(e.target.value);
+              const sub = subjects.find(
+                (s) => (s.subject_name || s.custom_name) === e.target.value
+              );
+              setSelectedColor(sub?.subject_color || "#3b82f6");
+            }}
+            style={{
+              ...inputStyle,
+              appearance: "none" as const,
+              cursor: "pointer",
+            }}
+          >
+            {subjects.map((s, idx) => (
+              <option key={idx} value={s.subject_name || s.custom_name || ""}>
+                {s.subject_name || s.custom_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Goal type */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={labelStyle}>WHAT'S YOUR MAIN GOAL?</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 8 }}>
+          {GOAL_TYPES.map((type) => {
+            const Icon = type.icon;
+            return (
+              <motion.button
+                key={type.id}
+                onClick={() => setGoalType(type.id)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  padding: "12px 14px",
+                  background: goalType === type.id ? "#1e3a5f" : "#0f172a",
+                  border: `1px solid ${goalType === type.id ? "#3b82f6" : "#334155"}`,
+                  borderRadius: 8,
+                  color: goalType === type.id ? "#93c5fd" : "#64748b",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                  transition: "all 0.15s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
                 }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s, idx) => (
-                    <SelectItem key={idx} value={s.subject_name || s.custom_name || ""}>
-                      {s.subject_name || s.custom_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <Icon size={14} />
+                {type.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
 
-            <div>
-              <Label>Goal Type</Label>
-              <Select
-                value={goal.goal_type}
-                onValueChange={(value) => updateGoal(index, { goal_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GOAL_TYPES.map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Custom goal text */}
+      {goalType === "custom" && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>DESCRIBE YOUR GOAL</label>
+          <input
+            type="text"
+            placeholder="What do you want to achieve?"
+            value={customGoalText}
+            onChange={(e) => setCustomGoalText(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+      )}
+
+      {/* Target score */}
+      {goalType === "improve_grade" && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>TARGET SCORE</label>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#3b82f6" }}>{targetScore}%</span>
           </div>
-
-          {goal.goal_type === "custom" && (
-            <div>
-              <Label>Describe Your Goal</Label>
-              <Textarea
-                value={goal.custom_goal_text || ""}
-                onChange={(e) => updateGoal(index, { custom_goal_text: e.target.value })}
-                placeholder="What do you want to achieve?"
-              />
-            </div>
-          )}
-
-          {goal.goal_type === "improve_grade" && (
-            <div>
-              <Label>Target Score (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={goal.target_metric.score || 80}
-                onChange={(e) => updateGoal(index, {
-                  target_metric: { ...goal.target_metric, score: parseInt(e.target.value), unit: "%" }
-                })}
-              />
-            </div>
-          )}
-
-          {goal.goal_type !== "custom" && goal.goal_type !== "improve_grade" && (
-            <div>
-              <Label>Number of Sessions</Label>
-              <Input
-                type="number"
-                min="1"
-                value={goal.target_metric.count || 10}
-                onChange={(e) => updateGoal(index, {
-                  target_metric: { ...goal.target_metric, count: parseInt(e.target.value), unit: "sessions" }
-                })}
-              />
-            </div>
-          )}
-
-          <div>
-            <Label>Deadline</Label>
-            <Input
-              type="date"
-              value={goal.deadline || ""}
-              onChange={(e) => updateGoal(index, { deadline: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <Label>Effort (hours per week): {goal.effort_estimate}</Label>
-            <Slider
-              value={[goal.effort_estimate || 5]}
-              onValueChange={([value]) => updateGoal(index, { effort_estimate: value })}
-              min={1}
-              max={20}
-              step={1}
-              className="mt-2"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Label htmlFor={`auto-schedule-${index}`}>Auto-schedule revision tasks</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Automatically create revision tasks based on spaced repetition principles</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <Switch
-              id={`auto-schedule-${index}`}
-              checked={goal.auto_schedule}
-              onCheckedChange={(checked) => updateGoal(index, { auto_schedule: checked })}
-            />
+          <input
+            type="range"
+            min={40}
+            max={100}
+            step={5}
+            value={targetScore}
+            onChange={(e) => setTargetScore(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "#3b82f6" }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 10,
+              color: "#334155",
+              marginTop: 2,
+            }}
+          >
+            <span>40%</span>
+            <span>100%</span>
           </div>
         </div>
-      ))}
-
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={addGoal} className="flex-1">
-          Add Another Goal
-        </Button>
-        <Button 
-          onClick={() => {
-            // Validate goals before submitting
-            const validGoals = goals.filter(g => 
-              g.subject && g.subject.trim() !== ""
-            );
-            if (validGoals.length === 0) return;
-            onComplete(validGoals);
-          }} 
-          className="flex-1"
-          disabled={goals.every(g => !g.subject || g.subject.trim() === "")}
-        >
-          Complete Setup
-        </Button>
-      </div>
-        </>
       )}
+
+      {/* Effort */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>HOURS PER WEEK</label>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#3b82f6" }}>{effortHours}h</span>
+        </div>
+        <input
+          type="range"
+          min={1}
+          max={20}
+          value={effortHours}
+          onChange={(e) => setEffortHours(Number(e.target.value))}
+          style={{ width: "100%", accentColor: "#3b82f6" }}
+        />
+      </div>
+
+      {/* Deadline */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={labelStyle}>EXAM DATE (OPTIONAL)</label>
+        <input
+          type="date"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+          style={{ ...inputStyle, colorScheme: "dark" }}
+        />
+      </div>
+
+      {/* Complete */}
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={handleComplete}
+        style={{
+          width: "100%",
+          padding: "13px",
+          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+          border: "none",
+          borderRadius: 8,
+          color: "white",
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        Start Practising →
+      </motion.button>
+
+      <button
+        onClick={handleSkip}
+        style={{
+          width: "100%",
+          padding: "8px",
+          background: "none",
+          border: "none",
+          color: "#334155",
+          fontSize: 12,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          marginTop: 8,
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#475569")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#334155")}
+      >
+        Skip — I'll set goals later
+      </button>
     </div>
   );
 };

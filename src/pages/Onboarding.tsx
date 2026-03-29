@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain } from "lucide-react";
+import { Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSubjects, UserSubject } from "@/hooks/useSubjects";
@@ -14,6 +14,72 @@ import ProfileSetupStep from "@/components/onboarding/ProfileSetupStep";
 type StudentStep = "subjects" | "profile" | "goals";
 
 const STUDENT_STEPS: StudentStep[] = ["subjects", "profile", "goals"];
+const STEP_LABELS = ["Subjects", "Profile", "Goals"];
+
+const StepProgress = ({
+  currentStep,
+  totalSteps,
+  stepLabels,
+}: {
+  currentStep: number;
+  totalSteps: number;
+  stepLabels: string[];
+}) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 8 }}>
+    {stepLabels.map((label, i) => {
+      const stepNum = i + 1;
+      const isComplete = stepNum < currentStep;
+      const isActive = stepNum === currentStep;
+      const isPending = stepNum > currentStep;
+
+      return (
+        <div key={label} style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <motion.div
+              animate={{
+                background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#1e293b",
+                borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#334155",
+              }}
+              transition={{ duration: 0.3 }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: "2px solid",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                color: isPending ? "#475569" : "white",
+              }}
+            >
+              {isComplete ? <Check size={14} strokeWidth={2.5} /> : stepNum}
+            </motion.div>
+            <span
+              style={{
+                fontSize: 11,
+                color: isActive ? "#f1f5f9" : "#475569",
+                fontWeight: isActive ? 600 : 400,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </span>
+          </div>
+
+          {i < totalSteps - 1 && (
+            <motion.div
+              animate={{ background: isComplete ? "#22c55e" : "#334155" }}
+              transition={{ duration: 0.4 }}
+              style={{ height: 2, width: 60, marginBottom: 22, borderRadius: 1 }}
+            />
+          )}
+        </div>
+      );
+    })}
+  </div>
+);
 
 const Onboarding = () => {
   const [step, setStep] = useState<StudentStep | "tutor" | null>(null);
@@ -24,10 +90,11 @@ const Onboarding = () => {
   const { primaryRole, loading: roleLoading } = useUserRole();
   const { subjects, saveUserSubjects } = useSubjects();
 
-  // Check if already fully onboarded → redirect
   useEffect(() => {
     const checkAlreadyCompleted = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data } = await supabase
@@ -47,8 +114,10 @@ const Onboarding = () => {
   useEffect(() => {
     const checkAuth = async () => {
       if (!roleLoading && !alreadyCompleted) {
-        const { data: { user } } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) {
           toast({
             title: "Authentication required",
@@ -58,7 +127,7 @@ const Onboarding = () => {
           navigate("/auth");
           return;
         }
-        
+
         if (step === null) {
           if (primaryRole === "tutor") {
             setStep("tutor");
@@ -68,7 +137,7 @@ const Onboarding = () => {
         }
       }
     };
-    
+
     checkAuth();
   }, [primaryRole, roleLoading, step, navigate, toast, alreadyCompleted]);
 
@@ -78,27 +147,30 @@ const Onboarding = () => {
       return;
     }
 
-    const validSubjects = selected.map(s => ({
+    const validSubjects = selected.map((s) => ({
       ...s,
       subject_name: s.subject_name || s.custom_name || "Unknown",
       subject_color: s.subject_color || "#3B82F6",
-      is_custom: Boolean(s.is_custom)
+      is_custom: Boolean(s.is_custom),
     }));
 
     setSelectedSubjects(validSubjects);
     const success = await saveUserSubjects(validSubjects);
     if (!success) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
-      await supabase
-        .from("user_onboarding_status")
-        .upsert({
+      await supabase.from("user_onboarding_status").upsert(
+        {
           user_id: user.id,
           role: primaryRole || "student",
           subjects_completed: true,
-          last_step: "subjects"
-        }, { onConflict: "user_id,role" });
+          last_step: "subjects",
+        },
+        { onConflict: "user_id,role" }
+      );
     }
 
     setStep("profile");
@@ -110,28 +182,30 @@ const Onboarding = () => {
 
   const handleGoalsComplete = async (goals: any[]) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       if (!goals || goals.length === 0) throw new Error("No goals to save");
 
-      const validGoals = goals.filter(g => g.subject && g.subject.trim() !== "");
+      const validGoals = goals.filter((g) => g.subject && g.subject.trim() !== "");
       if (validGoals.length === 0) throw new Error("All goals must have a subject");
 
-      const { error: goalsError } = await supabase
-        .from("revision_goals")
-        .insert(validGoals.map(g => ({
+      const { error: goalsError } = await supabase.from("revision_goals").insert(
+        validGoals.map((g) => ({
           ...g,
           user_id: user.id,
-          target_metric: g.target_metric || {}
-        })));
+          target_metric: g.target_metric || {},
+        }))
+      );
 
       if (goalsError) {
         console.error("Error inserting goals:", goalsError);
         throw goalsError;
       }
 
-      const autoScheduleGoals = goals.filter(g => g.auto_schedule);
+      const autoScheduleGoals = goals.filter((g) => g.auto_schedule);
       for (const goal of autoScheduleGoals) {
         const { data: insertedGoal } = await supabase
           .from("revision_goals")
@@ -145,21 +219,22 @@ const Onboarding = () => {
 
         if (insertedGoal) {
           await supabase.functions.invoke("auto-schedule-goal", {
-            body: { goal_id: insertedGoal.id }
+            body: { goal_id: insertedGoal.id },
           });
         }
       }
 
-      await supabase
-        .from("user_onboarding_status")
-        .upsert({
+      await supabase.from("user_onboarding_status").upsert(
+        {
           user_id: user.id,
           role: primaryRole || "student",
           subjects_completed: true,
           goals_completed: true,
           completed_at: new Date().toISOString(),
-          last_step: "goals"
-        }, { onConflict: "user_id,role" });
+          last_step: "goals",
+        },
+        { onConflict: "user_id,role" }
+      );
 
       toast({
         title: "Welcome aboard!",
@@ -183,93 +258,107 @@ const Onboarding = () => {
 
   if (roleLoading || step === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading your profile...</div>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#0f172a",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ color: "#475569", fontSize: 14 }}>Loading your profile...</div>
       </div>
     );
   }
 
   const isTutor = primaryRole === "tutor";
-  const showProgressBar = !isTutor;
   const currentStepIndex = isTutor ? 0 : STUDENT_STEPS.indexOf(step as StudentStep);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-9 h-9 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold mb-2">
-            {isTutor ? "Welcome, Tutor!" : "Let's Get You Started"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isTutor
-              ? "Set up your tutor profile to start managing your students"
-              : "Tell us about yourself so we can personalize your experience"}
-          </p>
-        </div>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0f172a",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 24px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Background blobs */}
+      <div
+        style={{
+          position: "fixed",
+          top: "-10%",
+          left: "-5%",
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)",
+          filter: "blur(40px)",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          position: "fixed",
+          bottom: "-10%",
+          right: "-5%",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)",
+          filter: "blur(40px)",
+          pointerEvents: "none",
+        }}
+      />
 
-        {showProgressBar && (
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-2">
-              {STUDENT_STEPS.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 w-20 rounded-full transition-colors ${
-                    i <= currentStepIndex ? "bg-primary" : "bg-muted"
-                  }`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-sm text-muted-foreground px-2">
-              <span>Subjects</span>
-              <span>Profile</span>
-              <span>Goals</span>
-            </div>
-          </div>
-        )}
-
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle>
-              {step === "subjects" && "Select Your Subjects"}
-              {step === "profile" && "Study Profile"}
-              {step === "goals" && "Set Your Goals"}
-              {step === "tutor" && "Tutor Profile"}
-            </CardTitle>
-            <CardDescription>
-              {step === "subjects" && "Choose the subjects you want to study"}
-              {step === "profile" && "Tell us about your exam board and level"}
-              {step === "goals" && "Define what you want to achieve"}
-              {step === "tutor" && "Tell us about your teaching"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {step === "subjects" && (
-              <SubjectsSelection
-                subjects={subjects}
-                onComplete={handleSubjectsComplete}
-              />
-            )}
-            {step === "profile" && (
-              <ProfileSetupStep onComplete={handleProfileComplete} />
-            )}
-            {step === "goals" && (
-              <GoalsForm
-                subjects={selectedSubjects}
-                onComplete={handleGoalsComplete}
-              />
-            )}
-            {step === "tutor" && (
-              <TutorOnboarding
-                subjects={subjects}
-                onComplete={handleTutorComplete}
-              />
-            )}
-          </CardContent>
-        </Card>
+      {/* Logo */}
+      <div
+        style={{
+          position: "fixed",
+          top: 24,
+          left: 32,
+          fontSize: 20,
+          fontWeight: 800,
+          color: "#f1f5f9",
+          zIndex: 10,
+        }}
+      >
+        Exam<span style={{ color: "#3b82f6" }}>ly</span>
       </div>
+
+      {/* Step progress - students only */}
+      {!isTutor && <StepProgress currentStep={currentStepIndex + 1} totalSteps={3} stepLabels={STEP_LABELS} />}
+
+      {/* Step content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          style={{
+            width: "100%",
+            maxWidth: 580,
+            background: "#1e293b",
+            border: "1px solid #334155",
+            borderRadius: 16,
+            padding: "36px 32px",
+            marginTop: 24,
+          }}
+        >
+          {step === "subjects" && <SubjectsSelection subjects={subjects} onComplete={handleSubjectsComplete} />}
+          {step === "profile" && <ProfileSetupStep onComplete={handleProfileComplete} />}
+          {step === "goals" && <GoalsForm subjects={selectedSubjects} onComplete={handleGoalsComplete} />}
+          {step === "tutor" && <TutorOnboarding subjects={subjects} onComplete={handleTutorComplete} />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };
