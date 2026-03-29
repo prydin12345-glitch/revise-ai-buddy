@@ -3,11 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Brain, ArrowLeft, GraduationCap, Users, BookOpen } from "lucide-react";
+import { GraduationCap, Users, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -28,18 +28,14 @@ const Auth = () => {
   ] as const;
 
   useEffect(() => {
-    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/dashboard");
-      }
+      if (session) navigate("/dashboard");
     });
   }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -47,125 +43,143 @@ const Auth = () => {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              first_name: firstName,
-              last_name: lastName || null,
-              signup_role: selectedRole,
-            },
+            data: { first_name: firstName, last_name: lastName || null, signup_role: selectedRole },
           },
         });
-
         if (error) throw error;
-
-        // Wait for session to be established - trigger handles user_roles and user_profiles
         if (data.user && data.session) {
-          toast({
-            title: "Account created!",
-            description: "Welcome! Let's set up your profile.",
-          });
+          toast({ title: "Account created!", description: "Welcome! Let's set up your profile." });
           navigate("/onboarding");
         } else {
-          toast({
-            title: "Account created!",
-            description: "Please check your email to confirm your account.",
-          });
+          toast({ title: "Account created!", description: "Please check your email to confirm your account." });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-
-        toast({
-          title: "Welcome back!",
-          description: "Successfully logged in.",
-        });
-
+        toast({ title: "Welcome back!", description: "Successfully logged in." });
         navigate("/dashboard");
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "An error occurred", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/")}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Button>
+  const inputClass =
+    "w-full bg-background border-border/50 focus:border-primary transition-colors";
 
-        <Card className="border-2">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Brain className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <CardTitle className="text-2xl">
-              {mode === "signup" ? "Create your account" : "Welcome back"}
-            </CardTitle>
-            <CardDescription>
-              {mode === "signup"
-                ? "Start your AI-powered revision journey"
-                : "Log in to continue your revision"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
+  return (
+    <div className="min-h-screen flex bg-background text-foreground relative overflow-hidden">
+      {/* Background blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full opacity-10 blur-[120px]"
+          style={{ background: "hsl(var(--primary))" }}
+        />
+        <motion.div
+          animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-1/3 right-1/4 w-[300px] h-[300px] rounded-full opacity-10 blur-[120px]"
+          style={{ background: "hsl(263 70% 58%)" }}
+        />
+      </div>
+
+      {/* ── Left panel (desktop only) ── */}
+      <div className="hidden md:flex flex-col justify-center w-1/2 p-16 relative z-10">
+        <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+          <button onClick={() => navigate("/")} className="text-2xl font-bold tracking-tight mb-12 block hover:opacity-80 transition-opacity">
+            Examly
+          </button>
+          <h2 className="text-3xl font-bold mb-4 leading-tight">
+            Smarter revision starts here
+          </h2>
+          <p className="text-muted-foreground leading-relaxed mb-12 max-w-md">
+            Join thousands of students generating unlimited AI-powered practice questions tailored to their exact syllabus.
+          </p>
+
+          <div className="space-y-4">
+            {[
+              { value: "10,000+", label: "Questions generated daily" },
+              { value: "94%", label: "Of students improve their grade" },
+              { value: "Free", label: "To get started — no card needed" },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
+                className="flex items-center gap-4"
+              >
+                <div className="w-1 h-10 rounded-full bg-primary/50" />
+                <div>
+                  <div className="text-sm font-semibold">{item.value}</div>
+                  <div className="text-xs text-muted-foreground">{item.label}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── Right panel (form) ── */}
+      <div className="flex-1 flex items-center justify-center p-6 md:p-16 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
+          {/* Mobile logo */}
+          <div className="md:hidden text-center mb-8">
+            <button onClick={() => navigate("/")} className="text-2xl font-bold tracking-tight">Examly</button>
+          </div>
+
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold mb-1">
+              {mode === "login" ? "Welcome back" : "Create your account"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {mode === "login" ? "Sign in to continue your revision" : "Start practising smarter today"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 md:p-8">
+            <form onSubmit={handleAuth} className="space-y-5">
               {mode === "signup" && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        placeholder="John"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                      />
+                      <Label htmlFor="firstName" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        First Name
+                      </Label>
+                      <Input id="firstName" type="text" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} required className={inputClass} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        type="text"
-                        placeholder="Doe"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                      />
+                      <Label htmlFor="lastName" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Last Name
+                      </Label>
+                      <Input id="lastName" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required className={inputClass} />
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <Label>I am a...</Label>
-                    <RadioGroup value={selectedRole} onValueChange={(value: any) => setSelectedRole(value)}>
-                      {roleOptions.map((option) => {
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">I am a...</Label>
+                    <RadioGroup value={selectedRole} onValueChange={(v: any) => setSelectedRole(v)}>
+                      {roleOptions.map(option => {
                         const Icon = option.icon;
                         return (
-                          <div key={option.value} className="flex items-center space-x-3 border rounded-lg p-3 hover:bg-accent/50 cursor-pointer transition-colors">
+                          <div key={option.value} className="flex items-center space-x-3 border border-border/50 rounded-lg p-3 hover:border-primary/30 cursor-pointer transition-colors">
                             <RadioGroupItem value={option.value} id={option.value} />
                             <Label htmlFor={option.value} className="flex items-center gap-3 cursor-pointer flex-1">
-                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <Icon className="w-5 h-5 text-primary" />
+                              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Icon className="w-4 h-4 text-primary" />
                               </div>
                               <div className="flex-1">
-                                <div className="font-medium">{option.label}</div>
-                                <div className="text-sm text-muted-foreground">{option.description}</div>
+                                <div className="text-sm font-medium">{option.label}</div>
+                                <div className="text-xs text-muted-foreground">{option.description}</div>
                               </div>
                             </Label>
                           </div>
@@ -177,58 +191,34 @@ const Auth = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</Label>
+                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required className={inputClass} />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</Label>
+                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className={inputClass} />
               </div>
+
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Loading..." : mode === "signup" ? "Create Account" : "Log In"}
+                {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
               </Button>
             </form>
+          </div>
 
-            <div className="mt-4 text-center text-sm">
-              {mode === "signup" ? (
-                <p className="text-muted-foreground">
-                  Already have an account?{" "}
-                  <button
-                    onClick={() => setMode("login")}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Log in
-                  </button>
-                </p>
-              ) : (
-                <p className="text-muted-foreground">
-                  Don't have an account?{" "}
-                  <button
-                    onClick={() => setMode("signup")}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Sign up
-                  </button>
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+            <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="text-primary font-semibold hover:underline">
+              {mode === "login" ? "Sign up free" : "Sign in"}
+            </button>
+          </p>
+
+          <div className="text-center mt-4">
+            <button onClick={() => navigate("/")} className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              ← Back to home
+            </button>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
