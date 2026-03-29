@@ -473,21 +473,19 @@ export default function CreateExam() {
           },
         };
       } else {
-        format = {
-          useOriginal,
-          educationalTier: effectiveEducationalTier,
-          ...((!useOriginal) && {
-            totalQuestions,
-            oneMarkCount,
-            twoMarkCount,
-            fourMarkCount,
-            extendedCount,
-            topicWeighting,
-            includeDiagrams,
-            includeMCQ,
-            includeGraphs,
-          }),
-        };
+          format = {
+            useOriginal,
+            educationalTier: effectiveEducationalTier,
+            ...((!useOriginal) && {
+              totalQuestions,
+              oneMarkCount,
+              twoMarkCount,
+              fourMarkCount,
+              extendedCount,
+              topicWeighting,
+              includeMCQ,
+            }),
+          };
       }
 
       const { error: formatError } = await supabase.functions.invoke('save-exam-format', {
@@ -888,8 +886,8 @@ export default function CreateExam() {
                     />
                   </div>
                   
-                  {/* Custom Exam Structure Panel */}
-                  {!useOriginal && (
+                  {/* Custom Exam Structure Panel — only when no profile is active */}
+                  {!useOriginal && !hasLockedProfileStructure && (
                     <div className="mt-4 p-5 bg-background rounded-lg border border-border space-y-5">
                       <div className="flex items-center gap-2 mb-2">
                         <SlidersHorizontal className="h-4 w-4 text-primary" />
@@ -966,36 +964,93 @@ export default function CreateExam() {
                         />
                       </div>
 
-                      {/* Question Features */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium block">Question Features</Label>
-                        
-                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
-                          <Label className="text-sm cursor-pointer">Include Diagrams or Data Tables</Label>
-                          <Switch
-                            checked={includeDiagrams}
-                            onCheckedChange={setIncludeDiagrams}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
-                          <Label className="text-sm cursor-pointer">Include Multiple-Choice Section</Label>
-                          <Switch
-                            checked={includeMCQ}
-                            onCheckedChange={setIncludeMCQ}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
-                          <Label className="text-sm cursor-pointer">Include Graph-Based Questions</Label>
-                          <Switch
-                            checked={includeGraphs}
-                            onCheckedChange={setIncludeGraphs}
-                          />
-                        </div>
+                      {/* MCQ toggle — kept since it changes question type structure */}
+                      <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                        <Label className="text-sm cursor-pointer">Include Multiple-Choice Section</Label>
+                        <Switch
+                          checked={includeMCQ}
+                          onCheckedChange={setIncludeMCQ}
+                        />
                       </div>
                     </div>
                   )}
+
+                  {/* Profile Structure Summary — shown when profile is active */}
+                  {hasLockedProfileStructure && selectedProfile && (() => {
+                    const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                    if (!profile) return null;
+                    const summaryRows = [
+                      {
+                        label: 'Written questions',
+                        value: profile.written_question_count
+                          ? `${profile.written_question_count} questions`
+                          : 'AI decides',
+                      },
+                      {
+                        label: 'MCQ questions',
+                        value: (profile.mcq_count ?? 0) > 0
+                          ? `${profile.mcq_count} questions`
+                          : 'None',
+                      },
+                      {
+                        label: 'Question structure',
+                        value: profile.question_structure === 'sub_questions'
+                          ? 'Sub-parts (1a, 1b, 1c...)'
+                          : profile.question_structure === 'mixed'
+                          ? 'Mixed (some standalone, some sub-parts)'
+                          : 'Standalone (Q1, Q2, Q3...)',
+                      },
+                      {
+                        label: 'Difficulty',
+                        value: profile.difficulty_progression === 'descending'
+                          ? 'Hard → Easy'
+                          : profile.difficulty_progression === 'mixed'
+                          ? 'Mixed'
+                          : 'Easy → Hard',
+                      },
+                      {
+                        label: 'Calculator',
+                        value: profile.calculator_policy === 'not_allowed'
+                          ? 'Not permitted'
+                          : profile.calculator_policy === 'mixed'
+                          ? 'Mixed paper'
+                          : 'Permitted',
+                      },
+                      ...(profile.include_extended ? [{
+                        label: 'Extended response',
+                        value: `${profile.extended_marks ?? 0} mark question at end`,
+                      }] : []),
+                      ...(profile.mark_distribution && Object.keys(profile.mark_distribution).length > 0 ? [{
+                        label: 'Mark distribution',
+                        value: Object.entries(profile.mark_distribution)
+                          .filter(([, count]) => (count as number) > 0)
+                          .map(([marks, count]) => `${count}×${marks}mk`)
+                          .join(', ') || 'AI decides',
+                      }] : []),
+                    ];
+                    return (
+                      <div className="mt-4 p-4 bg-background rounded-lg border border-border">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">
+                          Structure defined by profile
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {summaryRows.map((row) => (
+                            <div key={row.label} className="flex justify-between text-xs py-1 border-b border-border last:border-0">
+                              <span className="text-muted-foreground">{row.label}</span>
+                              <span className="text-foreground font-medium">{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/stats?tab=my-subjects')}
+                          className="mt-3 text-[11px] text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
+                        >
+                          Edit profile in My Subjects →
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Educational Level */}

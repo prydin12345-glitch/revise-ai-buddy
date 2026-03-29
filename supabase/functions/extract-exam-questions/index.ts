@@ -148,18 +148,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
-  let profileMeta: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean } = {};
+  let profileMeta: { mcq_options_count?: number; include_graphs?: boolean | null; include_tables?: boolean | null; include_diagrams?: boolean | null } = {};
   
   if (formatData) {
-    // Extract profile metadata — keys may be camelCase (from frontend) or snake_case
-    if (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') {
-      const pm = formatData.profile_metadata;
-      profileMeta = {
-        mcq_options_count: pm.mcq_options_count ?? pm.mcqOptionsCount ?? undefined,
-        include_graphs: pm.include_graphs ?? pm.includeGraphs ?? undefined,
-        include_tables: pm.include_tables ?? pm.includeTables ?? undefined,
-      };
-    }
+    // Read from top-level columns (written by save-exam-format) with fallback to profile_metadata
+    const pm = (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') ? formatData.profile_metadata : {};
+    profileMeta = {
+      mcq_options_count: pm.mcq_options_count ?? pm.mcqOptionsCount ?? undefined,
+      include_graphs: formatData.include_graphs ?? pm.include_graphs ?? pm.includeGraphs ?? undefined,
+      include_tables: formatData.include_tables ?? pm.include_tables ?? pm.includeTables ?? undefined,
+      include_diagrams: formatData.include_diagrams ?? pm.include_diagrams ?? pm.includeDiagrams ?? undefined,
+    };
 
     if (formatData.use_original_structure === false) {
       const mcq = Math.max(formatData.mcq_count || 0, 0);
@@ -213,6 +212,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     topicTagVocabulary: canonicalTopicList,
     extendedResponseMarks: formatData?.extended_marks ?? 0,
     includeExtended: formatData?.include_extended ?? false,
+    includeGraphs: profileMeta.include_graphs ?? null,
+    includeTables: profileMeta.include_tables ?? null,
+    includeDiagrams: profileMeta.include_diagrams ?? null,
+    markDistribution: formatData?.mark_distribution ?? null,
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -580,6 +583,10 @@ function buildPrompt(params: {
   topicTagVocabulary?: string[];
   extendedResponseMarks?: number;
   includeExtended?: boolean;
+  includeGraphs?: boolean | null;
+  includeTables?: boolean | null;
+  includeDiagrams?: boolean | null;
+  markDistribution?: Record<string, number> | null;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -600,6 +607,10 @@ function buildPrompt(params: {
     topicTagVocabulary,
     extendedResponseMarks = 0,
     includeExtended = false,
+    includeGraphs,
+    includeTables,
+    includeDiagrams,
+    markDistribution,
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -797,6 +808,42 @@ CRITICAL JSON RULES:
 - root_question_number equals question_number for standalone questions and MCQs
 - options must be null for written questions, never an empty array`;
 
+  // ── MEDIA INSTRUCTIONS (based on include_graphs/tables/diagrams) ────────
+  const mediaInstruction = (() => {
+    const parts: string[] = [];
+    if (includeGraphs === true) {
+      parts.push('Include graph-based questions where appropriate for this subject.');
+    } else if (includeGraphs === false) {
+      parts.push('Do NOT include any graph plotting or graph sketching questions.');
+    }
+    if (includeTables === true) {
+      parts.push('Include data table questions where appropriate.');
+    } else if (includeTables === false) {
+      parts.push('Do NOT include questions that reference data tables or provided datasets.');
+    }
+    if (includeDiagrams === true) {
+      parts.push('Include diagram-based questions where appropriate for this subject.');
+    } else if (includeDiagrams === false) {
+      parts.push('Do NOT include questions requiring diagram drawing or labelling.');
+    }
+    return parts.length > 0 ? `\n## MEDIA INSTRUCTIONS\n${parts.join('\n')}` : '';
+  })();
+
+  // ── MARK DISTRIBUTION INSTRUCTION ─────────────────────────────────────────
+  const markDistributionInstruction = (() => {
+    if (!markDistribution || Object.keys(markDistribution).length === 0) {
+      if (desiredWrittenCount > 0) {
+        return `\n## MARK DISTRIBUTION\nDistribute marks naturally across questions. For a ${desiredWrittenCount}-question written exam, use a mix of short questions (2-4 marks) and structured questions (6-10 marks). The total marks across all questions should roughly equal ${desiredWrittenCount * 5} marks (approximate — adjust as appropriate for the subject and level).`;
+      }
+      return '';
+    }
+    const dist = Object.entries(markDistribution)
+      .filter(([, count]) => (count as number) > 0)
+      .map(([marks, count]) => `${count} question${(count as number) > 1 ? 's' : ''} worth ${marks} marks`)
+      .join(', ');
+    return dist ? `\n## MARK DISTRIBUTION\nGenerate questions with this exact mark distribution: ${dist}.\nTotal written questions: ${desiredWrittenCount}.` : '';
+  })();
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
@@ -804,6 +851,8 @@ CRITICAL JSON RULES:
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
+    mediaInstruction,
+    markDistributionInstruction,
     sourceBlock,
     topicTagBlock,
     graphBlock,

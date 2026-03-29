@@ -53,11 +53,13 @@ serve(async (req) => {
       });
     }
 
-    // Calculate total questions: either from breakdown or from totalQuestions field
+    // Calculate total questions
     const totalFromBreakdown = (format.mcq?.count || 0) + (format.shortAnswer?.count || 0) + (format.longForm?.count || 0);
     const effectiveTotal = format.totalQuestions || totalFromBreakdown || null;
 
-    // Upsert format
+    // Unpack profileMetadata for top-level columns
+    const profileMeta = format.profileMetadata || {};
+
     const formatPayload: any = {
       exam_id: draftId,
       use_original_structure: format.useOriginal || false,
@@ -68,10 +70,20 @@ serve(async (req) => {
       short_answer_marks_each: format.shortAnswer?.marksEach || null,
       long_form_count: format.longForm?.count || null,
       long_form_marks_each: format.longForm?.marksEach || null,
-      profile_metadata: format.profileMetadata || {},
+      profile_metadata: profileMeta,
+      // Top-level columns from profile metadata — source of truth for edge functions
+      question_structure: profileMeta.questionStructure ?? 'standalone',
+      difficulty_progression: profileMeta.difficultyProgression ?? 'ascending',
+      calculator_policy: profileMeta.calculatorPolicy ?? 'allowed',
+      include_extended: profileMeta.includeExtended ?? false,
+      extended_marks: profileMeta.extendedMarks ?? 0,
+      mark_distribution: profileMeta.markDistribution ?? {},
+      mcq_position: profileMeta.mcqPosition ?? 'start',
+      include_graphs: profileMeta.includeGraphs ?? null,
+      include_tables: profileMeta.includeTables ?? null,
+      include_diagrams: profileMeta.includeDiagrams ?? null,
     };
 
-    // Log profile metadata if present (for debugging)
     if (format.profileMetadata) {
       console.log('Profile metadata received:', JSON.stringify(format.profileMetadata));
     }
