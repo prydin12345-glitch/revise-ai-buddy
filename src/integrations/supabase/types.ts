@@ -236,40 +236,70 @@ export type Database = {
       }
       exam_format: {
         Row: {
+          calculator_policy: string | null
           difficulty_calibration: string | null
+          difficulty_progression: string | null
           exam_id: string
+          extended_marks: number | null
           id: string
+          include_diagrams: boolean | null
+          include_extended: boolean | null
+          include_graphs: boolean | null
+          include_tables: boolean | null
           long_form_count: number | null
           long_form_marks_each: number | null
+          mark_distribution: Json | null
           mcq_count: number | null
           mcq_marks_each: number | null
+          mcq_position: string | null
           profile_metadata: Json
+          question_structure: string | null
           short_answer_count: number | null
           short_answer_marks_each: number | null
           use_original_structure: boolean | null
         }
         Insert: {
+          calculator_policy?: string | null
           difficulty_calibration?: string | null
+          difficulty_progression?: string | null
           exam_id: string
+          extended_marks?: number | null
           id?: string
+          include_diagrams?: boolean | null
+          include_extended?: boolean | null
+          include_graphs?: boolean | null
+          include_tables?: boolean | null
           long_form_count?: number | null
           long_form_marks_each?: number | null
+          mark_distribution?: Json | null
           mcq_count?: number | null
           mcq_marks_each?: number | null
+          mcq_position?: string | null
           profile_metadata?: Json
+          question_structure?: string | null
           short_answer_count?: number | null
           short_answer_marks_each?: number | null
           use_original_structure?: boolean | null
         }
         Update: {
+          calculator_policy?: string | null
           difficulty_calibration?: string | null
+          difficulty_progression?: string | null
           exam_id?: string
+          extended_marks?: number | null
           id?: string
+          include_diagrams?: boolean | null
+          include_extended?: boolean | null
+          include_graphs?: boolean | null
+          include_tables?: boolean | null
           long_form_count?: number | null
           long_form_marks_each?: number | null
+          mark_distribution?: Json | null
           mcq_count?: number | null
           mcq_marks_each?: number | null
+          mcq_position?: string | null
           profile_metadata?: Json
+          question_structure?: string | null
           short_answer_count?: number | null
           short_answer_marks_each?: number | null
           use_original_structure?: boolean | null
