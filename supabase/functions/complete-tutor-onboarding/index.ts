@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // User client for operations that need RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -21,7 +20,6 @@ serve(async (req) => {
       }
     );
 
-    // Service role client for student_groups operations (bypasses RLS to avoid recursion)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -33,22 +31,27 @@ serve(async (req) => {
       }
     );
 
-    const { 
+    const body = await req.json();
+    const {
       subjects_taught,
       student_count_estimate,
       teaching_mode,
       preferred_group_size,
       availability,
-      bio
-    } = await req.json();
+      bio,
+      teaching_region,
+      custom_region,
+      boards_taught,
+      levels_taught,
+      classes,
+    } = body;
 
-    // Get current user
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     console.log('Creating tutor profile for user:', user.id);
 
-    // Upsert tutor profile
+    // Upsert tutor profile with new fields
     const { data: profile, error: profileError } = await supabaseClient
       .from('tutor_profiles')
       .upsert({
@@ -59,6 +62,10 @@ serve(async (req) => {
         preferred_group_size,
         availability,
         bio,
+        teaching_region: teaching_region || null,
+        custom_region: custom_region || null,
+        boards_taught: boards_taught || [],
+        levels_taught: levels_taught || [],
         onboarding_completed: true,
         updated_at: new Date().toISOString()
       }, {
@@ -74,49 +81,50 @@ serve(async (req) => {
 
     console.log('Tutor profile created:', profile);
 
-    // Generate suggested groups if using group mode
-    const suggestedGroups = [];
-    if (teaching_mode === 'groups' && student_count_estimate && preferred_group_size) {
-      const groupCount = Math.ceil(student_count_estimate / preferred_group_size);
-      console.log(`Generating ${groupCount} suggested groups`);
-      
-      for (let i = 0; i < groupCount; i++) {
-        const inviteCode = generateInviteCode();
-        // Use admin client to bypass RLS and avoid infinite recursion
-        const { data: group, error: groupError } = await supabaseAdmin
-          .from('student_groups')
-          .insert({
-            tutor_id: user.id,
-            name: `Group ${String.fromCharCode(65 + i)}`,
-            capacity: preferred_group_size,
-            is_suggested: true,
-            invite_code: inviteCode,
-            subjects_covered: subjects_taught
-          })
-          .select()
-          .single();
+    // Create named classes instead of auto-generated groups
+    const suggestedGroups: any[] = [];
+    const classesToCreate = (classes || [])
+      .filter((c: any) => c.name && c.name.trim())
+      .map((c: any) => ({
+        tutor_id: user.id,
+        name: c.name.trim(),
+        capacity: c.studentCount || null,
+        is_suggested: false,
+        invite_code: generateInviteCode(),
+        subjects_covered: subjects_taught,
+      }));
 
-        if (groupError) {
-          console.error('Error creating group:', groupError);
-          throw groupError;
-        }
+    if (classesToCreate.length > 0) {
+      const { data: groups, error: groupError } = await supabaseAdmin
+        .from('student_groups')
+        .insert(classesToCreate)
+        .select();
 
-        const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:5173';
-        suggestedGroups.push({
-          ...group,
-          invite_link: `${frontendUrl}/join/${inviteCode}`
-        });
+      if (groupError) {
+        console.error('Error creating groups:', groupError);
+        throw groupError;
       }
 
-      console.log(`Created ${suggestedGroups.length} groups`);
+      if (groups) {
+        const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:5173';
+        for (const group of groups) {
+          suggestedGroups.push({
+            ...group,
+            invite_link: `${frontendUrl}/join/${group.invite_code}`
+          });
+        }
+      }
+
+      console.log(`Created ${suggestedGroups.length} named classes`);
     }
 
-    // Update onboarding status
-    await supabaseClient
+    // Update onboarding status — include subjects_completed so OnboardingGuard doesn't redirect
+    await supabaseAdmin
       .from('user_onboarding_status')
       .upsert({
         user_id: user.id,
         role: 'tutor',
+        subjects_completed: true,
         tutor_profile_completed: true,
         completed_at: new Date().toISOString(),
         last_step: 'tutor_profile'
