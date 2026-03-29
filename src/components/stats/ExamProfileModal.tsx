@@ -579,7 +579,7 @@ export const ExamProfileModal = ({
                               {option.example}
                             </span>
                           </div>
-                          {'detail' in option && option.detail && <div className="text-[11px] text-muted-foreground mt-0.5">{(option as any).detail}</div>}
+                          
                         </div>
                         {questionStructure === option.id && (
                           <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
