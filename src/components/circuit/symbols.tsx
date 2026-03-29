@@ -274,6 +274,30 @@ export const CircuitComponent: React.FC<{
     case 'switch_open': return <SwitchOpenSymbol {...props} />;
     case 'switch_closed': return <SwitchClosedSymbol {...props} />;
     case 'diode': return <DiodeSymbol {...props} />;
-    default: return null;
+    case 'ac_source': return <AcSourceSymbol {...props} />;
+    case 'inductor': return <InductorSymbol {...props} />;
+    case 'capacitor': return <CapacitorSymbol {...props} />;
+    case 'impedance': return <ImpedanceSymbol {...props} />;
+    case 'fuse': return <FuseSymbol {...props} />;
+    case 'current_source': return <CurrentSourceSymbol {...props} />;
+    case 'ground': return (
+      <g>
+        <line x1={x} y1={y - 10} x2={x} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+        <line x1={x - 12} y1={y} x2={x + 12} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+        <line x1={x - 8} y1={y + 5} x2={x + 8} y2={y + 5} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+        <line x1={x - 4} y1={y + 10} x2={x + 4} y2={y + 10} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+      </g>
+    );
+    case 'open_terminal': return (
+      <circle cx={x} cy={y} r={5} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+    );
+    default: return (
+      <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+        <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke="#cc0000" strokeWidth={STROKE_W} />
+        <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke="#cc0000" strokeWidth={STROKE_W} />
+        <rect x={x - 15} y={y - 8} width={30} height={16} fill="#fff8f8" stroke="#cc0000" strokeWidth={1.5} strokeDasharray="3 2" rx={2} />
+        <text x={x} y={y + 4} textAnchor="middle" fontSize={10} fill="#cc0000" fontFamily="serif">?</text>
+      </g>
+    );
   }
 };
