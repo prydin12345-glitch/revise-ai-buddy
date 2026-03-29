@@ -2276,39 +2276,51 @@ export type Database = {
         Row: {
           availability: Json | null
           bio: string | null
+          boards_taught: string[] | null
           created_at: string | null
+          custom_region: string | null
           id: string
+          levels_taught: string[] | null
           onboarding_completed: boolean | null
           preferred_group_size: number | null
           student_count_estimate: number | null
           subjects_taught: Json | null
           teaching_mode: string | null
+          teaching_region: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           availability?: Json | null
           bio?: string | null
+          boards_taught?: string[] | null
           created_at?: string | null
+          custom_region?: string | null
           id?: string
+          levels_taught?: string[] | null
           onboarding_completed?: boolean | null
           preferred_group_size?: number | null
           student_count_estimate?: number | null
           subjects_taught?: Json | null
           teaching_mode?: string | null
+          teaching_region?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           availability?: Json | null
           bio?: string | null
+          boards_taught?: string[] | null
           created_at?: string | null
+          custom_region?: string | null
           id?: string
+          levels_taught?: string[] | null
           onboarding_completed?: boolean | null
           preferred_group_size?: number | null
           student_count_estimate?: number | null
           subjects_taught?: Json | null
           teaching_mode?: string | null
+          teaching_region?: string | null
           updated_at?: string | null
           user_id?: string
         }
