@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
@@ -26,6 +26,18 @@ const fmt = (n: number) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(0) + "K";
   return n.toString();
+};
+
+const scrollToSection = (sectionId: string) => {
+  const element = document.getElementById(sectionId);
+  if (element) {
+    const navbarHeight = 64;
+    const elementTop = element.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({
+      top: elementTop - navbarHeight - 16,
+      behavior: "smooth",
+    });
+  }
 };
 
 const StatCounter = ({ stat, inView, delay }: { stat: { value: number; suffix: string; label: string; color: string }; inView: boolean; delay: number }) => {
@@ -55,10 +67,10 @@ const stats = [
 ];
 
 const features = [
-  { icon: "🧠", title: "AI Question Generation", description: "Generate unlimited original questions for any subject, topic, and difficulty level. Never see the same question twice.", color: "hsl(var(--primary))" },
-  { icon: "📊", title: "Smart Progress Tracking", description: "See exactly which topics need work. Your weak areas are identified and targeted automatically.", color: "hsl(145 65% 42%)" },
-  { icon: "🎯", title: "Exam Board Accurate", description: "Questions match the style of AQA, Edexcel, OCR, IB, AP and more. Practise exactly what you'll face.", color: "hsl(263 70% 58%)" },
-  { icon: "⚡", title: "Instant Feedback", description: "Every answer is marked instantly with detailed explanations. Learn from mistakes in real time.", color: "hsl(38 92% 50%)" },
+  { icon: Sparkles, title: "AI Question Generation", description: "Generate unlimited original questions for any subject, topic, and difficulty level. Never see the same question twice.", color: "hsl(var(--primary))" },
+  { icon: BarChart2, title: "Smart Progress Tracking", description: "See exactly which topics need work. Your weak areas are identified and targeted automatically.", color: "hsl(145 65% 42%)" },
+  { icon: Target, title: "Exam Board Accurate", description: "Questions match the style of AQA, Edexcel, OCR, IB, AP and more. Practise exactly what you'll face.", color: "hsl(263 70% 58%)" },
+  { icon: Zap, title: "Instant Feedback", description: "Every answer is marked instantly with detailed explanations. Learn from mistakes in real time.", color: "hsl(38 92% 50%)" },
 ];
 
 const steps = [
@@ -84,6 +96,8 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const statsRef = useRef(null);
   const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -93,9 +107,13 @@ const LandingPage = () => {
           <span className="text-xl font-bold tracking-tight">Examly</span>
           <div className="hidden md:flex items-center gap-8">
             {["Features", "How It Works", "Pricing"].map(l => (
-              <a key={l} href={`#${l.toLowerCase().replace(/ /g, "-")}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                key={l}
+                onClick={() => scrollToSection(l.toLowerCase().replace(/ /g, "-"))}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
+              >
                 {l}
-              </a>
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-3">
@@ -106,7 +124,7 @@ const LandingPage = () => {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center px-4 pt-[100px] pb-[60px] overflow-hidden">
         {/* Gradient blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
@@ -160,7 +178,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── Stats ── */}
-      <section ref={statsRef} className="py-20 px-4 border-y border-border/30">
+      <section ref={statsRef} className="py-10 px-4 border-y border-border/30">
         <div className="container mx-auto max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-10">
           {stats.map((s, i) => (
             <StatCounter key={i} stat={s} inView={statsInView} delay={i * 0.15} />
@@ -169,36 +187,44 @@ const LandingPage = () => {
       </section>
 
       {/* ── Features ── */}
-      <section id="features" className="py-24 px-4">
+      <section id="features" className="py-[70px] px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Features</span>
             <h2 className="text-3xl md:text-4xl font-bold">Everything you need to excel</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            {features.map((f, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="relative rounded-xl border border-border/50 bg-card/50 p-8 hover:border-primary/30 transition-colors group"
-              >
-                <div className="absolute top-0 left-8 right-8 h-px" style={{ background: `linear-gradient(90deg, transparent, ${f.color}40, transparent)` }} />
-                <div className="text-3xl mb-4">{f.icon}</div>
-                <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
-              </motion.div>
-            ))}
+            {features.map((f, i) => {
+              const Icon = f.icon;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  className="relative rounded-xl border border-border/50 bg-card/50 p-8 hover:border-primary/30 transition-colors group"
+                >
+                  <div className="absolute top-0 left-8 right-8 h-px" style={{ background: `linear-gradient(90deg, transparent, ${f.color}40, transparent)` }} />
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+                    style={{ background: `${f.color}18` }}
+                  >
+                    <Icon size={22} style={{ color: f.color }} strokeWidth={1.8} />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ── How It Works ── */}
-      <section id="how-it-works" className="py-24 px-4 bg-muted/10">
+      <section id="how-it-works" className="py-[70px] px-4 bg-muted/10">
         <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">How It Works</span>
             <h2 className="text-3xl md:text-4xl font-bold">Up and running in minutes</h2>
           </div>
@@ -222,9 +248,9 @@ const LandingPage = () => {
       </section>
 
       {/* ── Testimonials ── */}
-      <section id="testimonials" className="py-24 px-4">
+      <section id="testimonials" className="py-[70px] px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Testimonials</span>
             <h2 className="text-3xl md:text-4xl font-bold">Students who used Examly</h2>
           </div>
@@ -256,9 +282,9 @@ const LandingPage = () => {
       </section>
 
       {/* ── Pricing ── */}
-      <section id="pricing" className="py-24 px-4 bg-muted/10">
+      <section id="pricing" className="py-[70px] px-4 bg-muted/10">
         <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Pricing</span>
             <h2 className="text-3xl md:text-4xl font-bold mb-3">Simple, honest pricing</h2>
             <p className="text-muted-foreground">Start free. Upgrade when you're ready.</p>
@@ -287,7 +313,7 @@ const LandingPage = () => {
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((f, fi) => (
                     <li key={fi} className="flex items-start gap-2 text-sm">
-                      <span className="text-primary mt-0.5">✓</span>
+                      <Check size={14} className="text-primary mt-0.5 shrink-0" strokeWidth={2.5} />
                       <span className="text-muted-foreground">{f}</span>
                     </li>
                   ))}
@@ -306,7 +332,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="py-24 px-4">
+      <section className="py-[70px] px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -314,7 +340,7 @@ const LandingPage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="text-5xl mb-6">🏆</div>
+            <div className="w-12 h-[2px] bg-gradient-to-r from-primary to-[hsl(263_70%_58%)] rounded-full mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to start practising?</h2>
             <p className="text-lg text-muted-foreground mb-8">
               Join thousands of students already using Examly to prepare smarter, not harder.
@@ -330,31 +356,66 @@ const LandingPage = () => {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border/30 py-16 px-4">
+      <footer className="border-t border-border/30 py-10 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-4 gap-10 mb-12">
+          <div className="grid md:grid-cols-4 gap-10 mb-8">
             <div>
               <span className="text-lg font-bold tracking-tight block mb-3">Examly</span>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 AI-powered exam practice for students and tutors worldwide.
               </p>
             </div>
-            {[
-              { heading: "Product", links: [{ text: "Features", href: "#features" }, { text: "How It Works", href: "#how-it-works" }, { text: "Pricing", href: "#pricing" }] },
-              { heading: "Subjects", links: [{ text: "Mathematics", href: "#" }, { text: "Sciences", href: "#" }, { text: "English", href: "#" }, { text: "Humanities", href: "#" }] },
-              { heading: "Legal", links: [{ text: "Privacy Policy", href: "#" }, { text: "Terms of Service", href: "#" }, { text: "About", href: "#" }] },
-            ].map(col => (
-              <div key={col.heading}>
-                <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">{col.heading}</h4>
-                <ul className="space-y-2">
-                  {col.links.map(l => (
-                    <li key={l.text}>
-                      <a href={l.href} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors">{l.text}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {/* Product */}
+            <div>
+              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Product</h4>
+              <ul className="space-y-2">
+                {[
+                  { label: "Features", action: () => scrollToSection("features") },
+                  { label: "How It Works", action: () => scrollToSection("how-it-works") },
+                  { label: "Pricing", action: () => scrollToSection("pricing") },
+                ].map(l => (
+                  <li key={l.label}>
+                    <button onClick={l.action} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                      {l.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* Subjects */}
+            <div>
+              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Subjects</h4>
+              <ul className="space-y-2">
+                {["Mathematics", "Sciences", "English", "Humanities"].map(s => (
+                  <li key={s}>
+                    <button onClick={() => navigate(`/auth?mode=signup&subject=${s.toLowerCase()}`)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                      {s}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* Legal */}
+            <div>
+              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Legal</h4>
+              <ul className="space-y-2">
+                <li>
+                  <button onClick={() => setShowPrivacyModal(true)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                    Privacy Policy
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setShowTermsModal(true)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                    Terms of Service
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection("how-it-works")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                    About
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
           <div className="border-t border-border/20 pt-8 text-center space-y-2">
             <p className="text-sm text-muted-foreground/60">© {new Date().getFullYear()} Examly. All rights reserved.</p>
@@ -364,6 +425,40 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* ── Privacy Modal ── */}
+      {showPrivacyModal && (
+        <div onClick={() => setShowPrivacyModal(false)} className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]">
+          <div onClick={e => e.stopPropagation()} className="bg-card border border-border rounded-xl p-8 max-w-lg w-[90%] max-h-[70vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-bold">Privacy Policy</h2>
+              <button onClick={() => setShowPrivacyModal(false)} className="text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Examly collects only the information necessary to provide the service — your name, email address, and the study content you generate. We do not sell your data to third parties. All data is stored securely. This policy will be updated with full detail before public launch.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Terms Modal ── */}
+      {showTermsModal && (
+        <div onClick={() => setShowTermsModal(false)} className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]">
+          <div onClick={e => e.stopPropagation()} className="bg-card border border-border rounded-xl p-8 max-w-lg w-[90%] max-h-[70vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-bold">Terms of Service</h2>
+              <button onClick={() => setShowTermsModal(false)} className="text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              By using Examly you agree to use the platform for educational purposes only. AI-generated content is provided as practice material and should not be considered official exam papers. We reserve the right to update these terms. Full terms will be published before public launch.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
