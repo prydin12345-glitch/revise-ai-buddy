@@ -139,7 +139,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
         >
           Step 3 of 3
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           Set your goals
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -178,7 +178,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
       {/* Goal type — multi-select */}
       <div style={{ marginBottom: 20 }}>
         <label style={labelStyle}>WHAT ARE YOUR GOALS?</label>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, marginTop: 8 }}>
           {GOAL_TYPES.map((type) => {
             const Icon = type.icon;
             const isSelected = selectedGoalTypes.includes(type.id);
@@ -189,12 +189,12 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
                 style={{
-                  padding: "12px 14px",
+                  padding: "clamp(8px, 2vw, 12px) clamp(10px, 2.5vw, 14px)",
                   background: isSelected ? "#1e3a5f" : "#0f172a",
                   border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
                   borderRadius: 8,
                   color: isSelected ? "#93c5fd" : "#64748b",
-                  fontSize: 12,
+                  fontSize: "clamp(11px, 2.5vw, 12px)",
                   cursor: "pointer",
                   textAlign: "left",
                   fontFamily: "inherit",
