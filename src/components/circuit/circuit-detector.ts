@@ -28,6 +28,19 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   const cleaned = stripLatex(questionText);
   const text = cleaned.toLowerCase();
 
+  // AC circuit keywords
+  const acKeywords = [
+    'alternating current', 'ac circuit', 'ac source',
+    'impedance', 'reactance', 'inductance', 'capacitance',
+    'inductor', 'capacitor', 'phasor',
+    'angular frequency', 'omega', 'ω',
+    'complex impedance', 'r + jx', 'r + jω',
+    'admittance', 'susceptance',
+    'rlc', 'rc circuit', 'rl circuit', 'lc circuit',
+    'resonant frequency', 'resonance',
+  ];
+  const isAcCircuit = acKeywords.some(kw => text.includes(kw));
+
   const circuitKeywords = [
     'circuit', 'resistor', 'resistance', 'voltmeter', 'ammeter',
     'battery', 'cell', 'lamp', 'bulb', 'switch', 'diode',
@@ -35,7 +48,7 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
     'series', 'parallel', 'connected in', 'thermistor', 'potential divider',
     'ldr', 'light dependent resistor'
   ];
-  if (!circuitKeywords.some(kw => text.includes(kw))) return null;
+  if (!isAcCircuit && !circuitKeywords.some(kw => text.includes(kw))) return null;
 
   const mechExclude = ['inclined plane', 'slope', 'pulley', 'beam', 'rod', 'projectile', 'tension'];
   if (mechExclude.some(kw => text.includes(kw))) return null;
@@ -45,6 +58,11 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
   // Skip dual questions (motor + mechanical action) — handled by mechanics detector
   const isDual = /motor/i.test(text) && /lift|raise|pump|height|distance/i.test(text) && /\d+\s*kg/i.test(text);
   if (isDual) return null;
+
+  // ── AC circuit path ──
+  if (isAcCircuit) {
+    return buildAcCircuitConfig(cleaned, text);
+  }
 
   // ── Extract values ──
 
@@ -386,4 +404,94 @@ function buildSeriesCircuit(
   }
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, showLabels: true };
+}
+
+/**
+ * Build an AC circuit config from question text.
+ */
+function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
+  const hasInductor = /inductor|inductance|coil|\bL\s*=/i.test(cleaned);
+  const hasCapacitor = /capacitor|capacitance|\bC\s*=/i.test(cleaned);
+  const hasImpedance = /impedance|\bZ\s*=|R\s*\+\s*j/i.test(cleaned);
+
+  const resistanceMatch = cleaned.match(/R\s*=\s*([\d.]+)\s*[ΩΩ]/);
+  const reactanceMatch = cleaned.match(/X\s*=\s*([\d.]+)\s*[ΩΩ]/);
+  const impedanceMatch = cleaned.match(/Z\s*=\s*([\d.]+)\s*[ΩΩ]/);
+  const voltageMatch = cleaned.match(/V\s*=\s*([\d.]+)/);
+  const inductanceMatch = cleaned.match(/L\s*=\s*([\d.]+)\s*[mM]?H/);
+  const capacitanceMatch = cleaned.match(/C\s*=\s*([\d.]+)\s*[μuµ]?F/);
+
+  const R = resistanceMatch ? `${resistanceMatch[1]}Ω` : 'R';
+  const Z = impedanceMatch ? `${impedanceMatch[1]}Ω` : 'Z';
+  const V = voltageMatch ? `${voltageMatch[1]}V` : 'V';
+  const L = inductanceMatch ? `${inductanceMatch[1]}H` : 'L';
+  const C = capacitanceMatch ? `${capacitanceMatch[1]}F` : 'C';
+
+  // Determine series components
+  const seriesComponents: Array<{ type: CircuitComponentType; label: string }> = [];
+
+  if (hasImpedance && !hasInductor && !hasCapacitor) {
+    const zLabel = reactanceMatch ? `Z = ${R} + j${reactanceMatch[1]}Ω` : `Z = ${Z}`;
+    seriesComponents.push({ type: 'impedance', label: zLabel });
+  } else {
+    if (resistanceMatch) {
+      seriesComponents.push({ type: 'resistor', label: `R = ${R}` });
+    }
+    if (hasInductor) {
+      seriesComponents.push({ type: 'inductor', label: `L = ${L}` });
+    }
+    if (hasCapacitor) {
+      seriesComponents.push({ type: 'capacitor', label: `C = ${C}` });
+    }
+  }
+
+  // Fallback: at least one component
+  if (seriesComponents.length === 0) {
+    seriesComponents.push({ type: 'impedance', label: 'Z' });
+  }
+
+  const totalCols = Math.max(3, seriesComponents.length + 1);
+
+  const nodes: CircuitConfig['nodes'] = [
+    { id: 'TL', col: 0, row: 0 },
+    { id: 'TR', col: totalCols, row: 0 },
+    { id: 'BR', col: totalCols, row: 2 },
+    { id: 'BL', col: 0, row: 2 },
+    ...seriesComponents.slice(0, -1).map((_, i) => ({
+      id: `TM${i}`,
+      col: i + 1,
+      row: 0,
+    })),
+  ];
+
+  const wires: CircuitConfig['wires'] = [
+    { from: 'BL', to: 'TL', component: 'ac_source' as CircuitComponentType, label: V },
+    { from: 'BR', to: 'BL', component: 'wire' as CircuitComponentType },
+    {
+      from: 'TR', to: 'BR',
+      component: (text.includes('current') ? 'ammeter' : 'wire') as CircuitComponentType,
+      label: text.includes('current') ? 'I' : undefined,
+    },
+  ];
+
+  // Top wire with components
+  if (seriesComponents.length === 1) {
+    wires.push({
+      from: 'TL', to: 'TR',
+      component: seriesComponents[0].type,
+      label: seriesComponents[0].label,
+    });
+  } else {
+    const topNodes = ['TL', ...seriesComponents.slice(0, -1).map((_, i) => `TM${i}`), 'TR'];
+    seriesComponents.forEach((comp, i) => {
+      wires.push({
+        from: topNodes[i],
+        to: topNodes[i + 1],
+        component: comp.type,
+        label: comp.label,
+      });
+    });
+  }
+
+  return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [], showLabels: true };
 }

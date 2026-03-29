@@ -19,7 +19,16 @@ export type CircuitComponentType =
   | 'diode'
   | 'motor'
   | 'wire'
-  | 'junction';
+  | 'junction'
+  // AC & universal components
+  | 'ac_source'
+  | 'inductor'
+  | 'capacitor'
+  | 'impedance'
+  | 'ground'
+  | 'open_terminal'
+  | 'fuse'
+  | 'current_source';
 
 export interface CircuitWire {
   from: string;

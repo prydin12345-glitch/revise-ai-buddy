@@ -250,6 +250,105 @@ export const JunctionDot: React.FC<{ x: number; y: number }> = ({ x, y }) => (
   <circle cx={x} cy={y} r={4} fill={CIRCUIT_COLORS.junction} />
 );
 
+/** AC Source — circle with sine wave inside */
+export const AcSourceSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <circle cx={x} cy={y} r={14} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <path
+        d={`M ${x - 8} ${y} C ${x - 6} ${y - 7}, ${x - 2} ${y - 7}, ${x} ${y} C ${x + 2} ${y + 7}, ${x + 6} ${y + 7}, ${x + 8} ${y}`}
+        fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} strokeLinecap="round"
+      />
+      <line x1={x - 30} y1={y} x2={x - 14} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 14} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
+/** Inductor — series of 4 semi-circle bumps (IEC) */
+export const InductorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <line x1={x - 30} y1={y} x2={x - 20} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 20} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      {[-15, -5, 5, 15].map((cx, i) => (
+        <path
+          key={i}
+          d={`M ${x + cx - 5} ${y} A 5 5 0 0 1 ${x + cx + 5} ${y}`}
+          fill="none" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} strokeLinecap="round"
+        />
+      ))}
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
+/** Capacitor — two parallel vertical lines with gap */
+export const CapacitorSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <line x1={x - 30} y1={y} x2={x - 4} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 4} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x - 4} y1={y - 12} x2={x - 4} y2={y + 12} stroke={CIRCUIT_COLORS.component} strokeWidth={2.5} strokeLinecap="round" />
+      <line x1={x + 4} y1={y - 12} x2={x + 4} y2={y + 12} stroke={CIRCUIT_COLORS.component} strokeWidth={2.5} strokeLinecap="round" />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
+/** Impedance — rectangle with Z label */
+export const ImpedanceSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <rect x={x - 15} y={y - 6} width={30} height={12} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} rx={1} />
+      <text x={x} y={y + 4} textAnchor="middle" fontSize={10} fontStyle="italic" fontFamily={CIRCUIT_FONT.family} fill={CIRCUIT_COLORS.label}>Z</text>
+      <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
+/** Fuse — rectangle with dashed line through middle */
+export const FuseSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <rect x={x - 15} y={y - 7} width={30} height={14} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} rx={2} />
+      <line x1={x - 15} y1={y} x2={x + 15} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={1} strokeDasharray="2 2" />
+      <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
+/** Current Source — circle with arrow inside */
+export const CurrentSourceSymbol: React.FC<SymbolProps> = ({ x, y, rotation, label, showLabel, highlight }) => (
+  <g>
+    <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+      <circle cx={x} cy={y} r={14} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+      <line x1={x - 7} y1={y} x2={x + 5} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={1.5} />
+      <polygon points={`${x + 5},${y - 3} ${x + 5},${y + 3} ${x + 11},${y}`} fill={CIRCUIT_COLORS.component} />
+      <line x1={x - 30} y1={y} x2={x - 14} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+      <line x1={x + 14} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+    </g>
+    {showLabel && label ? (
+      <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+    ) : null}
+  </g>
+);
+
 /** Renders the appropriate component symbol */
 export const CircuitComponent: React.FC<{
   component: string;
@@ -274,6 +373,30 @@ export const CircuitComponent: React.FC<{
     case 'switch_open': return <SwitchOpenSymbol {...props} />;
     case 'switch_closed': return <SwitchClosedSymbol {...props} />;
     case 'diode': return <DiodeSymbol {...props} />;
-    default: return null;
+    case 'ac_source': return <AcSourceSymbol {...props} />;
+    case 'inductor': return <InductorSymbol {...props} />;
+    case 'capacitor': return <CapacitorSymbol {...props} />;
+    case 'impedance': return <ImpedanceSymbol {...props} />;
+    case 'fuse': return <FuseSymbol {...props} />;
+    case 'current_source': return <CurrentSourceSymbol {...props} />;
+    case 'ground': return (
+      <g>
+        <line x1={x} y1={y - 10} x2={x} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+        <line x1={x - 12} y1={y} x2={x + 12} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+        <line x1={x - 8} y1={y + 5} x2={x + 8} y2={y + 5} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+        <line x1={x - 4} y1={y + 10} x2={x + 4} y2={y + 10} stroke={CIRCUIT_COLORS.component} strokeWidth={2} />
+      </g>
+    );
+    case 'open_terminal': return (
+      <circle cx={x} cy={y} r={5} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+    );
+    default: return (
+      <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+        <line x1={x - 30} y1={y} x2={x - 15} y2={y} stroke="#cc0000" strokeWidth={STROKE_W} />
+        <line x1={x + 15} y1={y} x2={x + 30} y2={y} stroke="#cc0000" strokeWidth={STROKE_W} />
+        <rect x={x - 15} y={y - 8} width={30} height={16} fill="#fff8f8" stroke="#cc0000" strokeWidth={1.5} strokeDasharray="3 2" rx={2} />
+        <text x={x} y={y + 4} textAnchor="middle" fontSize={10} fill="#cc0000" fontFamily="serif">?</text>
+      </g>
+    );
   }
 };
