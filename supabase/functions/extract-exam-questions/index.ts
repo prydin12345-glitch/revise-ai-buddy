@@ -148,18 +148,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
-  let profileMeta: { mcq_options_count?: number; include_graphs?: boolean; include_tables?: boolean } = {};
+  let profileMeta: { mcq_options_count?: number; include_graphs?: boolean | null; include_tables?: boolean | null; include_diagrams?: boolean | null } = {};
   
   if (formatData) {
-    // Extract profile metadata — keys may be camelCase (from frontend) or snake_case
-    if (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') {
-      const pm = formatData.profile_metadata;
-      profileMeta = {
-        mcq_options_count: pm.mcq_options_count ?? pm.mcqOptionsCount ?? undefined,
-        include_graphs: pm.include_graphs ?? pm.includeGraphs ?? undefined,
-        include_tables: pm.include_tables ?? pm.includeTables ?? undefined,
-      };
-    }
+    // Read from top-level columns (written by save-exam-format) with fallback to profile_metadata
+    const pm = (formatData.profile_metadata && typeof formatData.profile_metadata === 'object') ? formatData.profile_metadata : {};
+    profileMeta = {
+      mcq_options_count: pm.mcq_options_count ?? pm.mcqOptionsCount ?? undefined,
+      include_graphs: formatData.include_graphs ?? pm.include_graphs ?? pm.includeGraphs ?? undefined,
+      include_tables: formatData.include_tables ?? pm.include_tables ?? pm.includeTables ?? undefined,
+      include_diagrams: formatData.include_diagrams ?? pm.include_diagrams ?? pm.includeDiagrams ?? undefined,
+    };
 
     if (formatData.use_original_structure === false) {
       const mcq = Math.max(formatData.mcq_count || 0, 0);
