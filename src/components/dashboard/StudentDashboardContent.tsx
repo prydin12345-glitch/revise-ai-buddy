@@ -206,15 +206,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: streakData } = await supabase
-        .from('user_streaks')
-        .select('current_streak, last_exam_submitted_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      try {
+        const { data: streakData } = await supabase
+          .from('user_streaks')
+          .select('current_streak, last_exam_submitted_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (streakData?.last_exam_submitted_at) {
-        const hoursSince = (Date.now() - new Date(streakData.last_exam_submitted_at).getTime()) / (1000 * 60 * 60);
-        setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
+        if (streakData?.last_exam_submitted_at) {
+          const hoursSince = (Date.now() - new Date(streakData.last_exam_submitted_at).getTime()) / (1000 * 60 * 60);
+          setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
+        }
+      } catch {
+        // user_streaks table may not exist — default to 0
+        setCurrentStreak(0);
       }
 
       const { data: ownExams } = await supabase
