@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, ChevronRight, Plus, Users, Megaphone, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, ChevronRight, Plus, Users, Megaphone, TrendingUp, AlertTriangle, CheckCircle2, Zap, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,7 @@ interface AnnouncementInfo {
   id: string;
   title: string;
   className: string;
+  groupId: string;
   timeAgo: string;
   color: string;
 }
@@ -172,12 +173,49 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return allExams.filter(e => e.submission?.status === 'in_progress' || (!e.submission && e.status === 'published'));
   }, [allExams]);
 
+  const recentCompletedExams = useMemo(() => {
+    return allExams
+      .filter(e => 
+        e.submission?.status === 'graded' || 
+        e.submission?.status === 'submitted' || 
+        e.submission?.status === 'completed'
+      )
+      .slice(0, 2)
+      .map(e => ({
+        ...e,
+        score: e.submission && e.submission.total_marks > 0
+          ? Math.round((e.submission.total_score / e.submission.total_marks) * 100)
+          : null,
+      }));
+  }, [allExams]);
+
+  const streakDisplay = currentStreak > 0 ? currentStreak.toString() : '—';
+
   const stats = [
     { label: "Exams", value: completedExamsCount.toString(), emoji: "📝", drilldown: 'exams' as DrilldownType },
     { label: "Avg Score", value: averageScore !== null ? `${averageScore}%` : "-", emoji: "🏆", drilldown: 'scores' as DrilldownType },
     { label: "Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}` : "0", emoji: "⏱", drilldown: 'study-hours' as DrilldownType },
-    { label: "Streak", value: loading ? "..." : currentStreak.toString(), emoji: "🔥", drilldown: 'streak' as DrilldownType },
+    { label: "Streak", value: loading ? "..." : streakDisplay, emoji: "🔥", drilldown: 'streak' as DrilldownType },
   ];
+
+  const scoreHistory = useMemo(() => {
+    const gradedExams = allExams.filter(e => 
+      e.submission?.status === 'graded' && e.submission.total_marks > 0
+    );
+    if (gradedExams.length === 0) return [];
+    const byMonth: Record<string, { scores: number[]; color: string }> = {};
+    gradedExams.forEach(e => {
+      const month = new Date(e.created_at).toLocaleDateString('en-GB', { month: 'short' });
+      const score = Math.round((e.submission!.total_score / e.submission!.total_marks) * 100);
+      if (!byMonth[month]) byMonth[month] = { scores: [], color: getSubjectColor(e.subject_id) };
+      byMonth[month].scores.push(score);
+    });
+    return Object.entries(byMonth).map(([month, data]) => ({
+      month,
+      avgScore: Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length),
+      color: data.color,
+    }));
+  }, [allExams, getSubjectColor]);
 
   useEffect(() => {
     loadStudentData();
@@ -188,15 +226,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: streakData } = await supabase
-        .from('user_streaks')
-        .select('current_streak, last_exam_submitted_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      try {
+        const { data: streakData } = await supabase
+          .from('user_streaks')
+          .select('current_streak, last_exam_submitted_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (streakData?.last_exam_submitted_at) {
-        const hoursSince = (Date.now() - new Date(streakData.last_exam_submitted_at).getTime()) / (1000 * 60 * 60);
-        setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
+        if (streakData?.last_exam_submitted_at) {
+          const hoursSince = (Date.now() - new Date(streakData.last_exam_submitted_at).getTime()) / (1000 * 60 * 60);
+          setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
+        }
+      } catch {
+        // user_streaks table may not exist — default to 0
+        setCurrentStreak(0);
       }
 
       const { data: ownExams } = await supabase
@@ -208,7 +251,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       const { data: assignments } = await supabase
         .from("exam_assignments")
         .select(`exam_id, deadline, exams (*)`)
-        .eq("assignment_type", "all_students")
+        .in("assignment_type", ["individual", "group", "class", "student", "all_students"])
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -327,6 +370,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 id: a.id,
                 title: a.title,
                 className: (a.student_groups as any)?.name || "Class",
+                groupId: a.group_id,
                 timeAgo,
                 color: getSubjectColor((a.student_groups as any)?.name || ""),
               };
@@ -381,19 +425,41 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   }
 
   return (
-    <div className="space-y-4 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
+    <div className="space-y-3 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
       {/* Welcome Banner */}
-      <div className="px-1">
-        <h1 className="text-[22px] font-bold text-foreground">
+      <div className="px-1 py-1">
+        <h1 className="text-xl font-bold text-foreground">
           Welcome back, {userName}!
         </h1>
-        <p className="text-[13px] text-muted-foreground mt-1">
+        <p className="text-[13px] text-muted-foreground mt-0.5">
           {getGreetingByTime()} — here's your study overview.
         </p>
       </div>
 
+      {/* Quick-Start CTAs */}
+      <div className="flex gap-2 flex-wrap px-1">
+        {[
+          { label: 'New Exam', icon: Plus, onClick: () => navigate('/upload'), primary: true },
+          { label: 'Practice Quiz', icon: Zap, onClick: () => navigate('/create-practice-questions'), primary: false },
+          { label: 'My Progress', icon: BarChart2, onClick: () => navigate('/stats'), primary: false },
+        ].map(action => (
+          <button
+            key={action.label}
+            onClick={action.onClick}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+              action.primary
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
+            }`}
+          >
+            <action.icon size={13} />
+            {action.label}
+          </button>
+        ))}
+      </div>
+
       {/* 3-Column Dashboard Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_320px] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_300px] gap-3">
         
         {/* Column 1: Mock Exams */}
         <Card className="rounded-2xl border-border/50">
@@ -459,6 +525,28 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   </div>
                 );
               })
+            )}
+            {/* Recently completed */}
+            {recentCompletedExams.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold">Recently completed</p>
+                {recentCompletedExams.map(exam => (
+                  <div
+                    key={exam.id}
+                    onClick={() => navigate(`/exam/${exam.id}/review`)}
+                    className="flex justify-between items-center py-1.5 cursor-pointer hover:text-foreground transition-colors"
+                  >
+                    <span className="text-xs text-muted-foreground truncate flex-1 mr-2">{exam.title}</span>
+                    {exam.score !== null && (
+                      <span className={`text-[11px] font-semibold ${
+                        exam.score >= 70 ? 'text-success' : exam.score >= 50 ? 'text-warning' : 'text-destructive'
+                      }`}>
+                        {exam.score}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -620,7 +708,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   {announcements.slice(0, 3).map(ann => (
                     <div
                       key={ann.id}
-                      className="p-2.5 rounded-lg bg-background/50"
+                      className="p-2.5 rounded-lg bg-background/50 cursor-pointer border-l-2 border-primary/40 hover:border-primary hover:bg-muted/50 transition-all"
+                      onClick={() => navigate(`/my-classes?classId=${ann.groupId}`)}
                     >
                       <p className="text-xs font-medium">{ann.title}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">{ann.className} · {ann.timeAgo}</p>
@@ -639,6 +728,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             subjects={subjects}
             getSubjectColor={getSubjectColor}
             studyActivityData={studyActivityData}
+            scoreHistory={scoreHistory}
           />
         </div>
       </div>
