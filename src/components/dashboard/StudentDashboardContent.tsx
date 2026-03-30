@@ -172,11 +172,29 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return allExams.filter(e => e.submission?.status === 'in_progress' || (!e.submission && e.status === 'published'));
   }, [allExams]);
 
+  const recentCompletedExams = useMemo(() => {
+    return allExams
+      .filter(e => 
+        e.submission?.status === 'graded' || 
+        e.submission?.status === 'submitted' || 
+        e.submission?.status === 'completed'
+      )
+      .slice(0, 2)
+      .map(e => ({
+        ...e,
+        score: e.submission && e.submission.total_marks > 0
+          ? Math.round((e.submission.total_score / e.submission.total_marks) * 100)
+          : null,
+      }));
+  }, [allExams]);
+
+  const streakDisplay = currentStreak > 0 ? currentStreak.toString() : '—';
+
   const stats = [
     { label: "Exams", value: completedExamsCount.toString(), emoji: "📝", drilldown: 'exams' as DrilldownType },
     { label: "Avg Score", value: averageScore !== null ? `${averageScore}%` : "-", emoji: "🏆", drilldown: 'scores' as DrilldownType },
     { label: "Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}` : "0", emoji: "⏱", drilldown: 'study-hours' as DrilldownType },
-    { label: "Streak", value: loading ? "..." : currentStreak.toString(), emoji: "🔥", drilldown: 'streak' as DrilldownType },
+    { label: "Streak", value: loading ? "..." : streakDisplay, emoji: "🔥", drilldown: 'streak' as DrilldownType },
   ];
 
   useEffect(() => {
