@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const isMobile = useIsMobile();
   const { primaryRole } = useUserRole();
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
@@ -186,7 +193,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-14 lg:h-16 bg-sidebar-background border-b border-sidebar-border shadow-lg">
+        <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
+          scrolled
+            ? 'bg-sidebar-background/95 backdrop-blur-md shadow-lg border-sidebar-border'
+            : 'bg-sidebar-background border-transparent shadow-none'
+        }`}>
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
             {/* Left: Logo */}
             <div className="flex items-center gap-6 flex-1">
