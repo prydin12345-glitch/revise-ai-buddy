@@ -505,6 +505,28 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 );
               })
             )}
+            {/* Recently completed */}
+            {recentCompletedExams.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold">Recently completed</p>
+                {recentCompletedExams.map(exam => (
+                  <div
+                    key={exam.id}
+                    onClick={() => navigate(`/exam/${exam.id}/review`)}
+                    className="flex justify-between items-center py-1.5 cursor-pointer hover:text-foreground transition-colors"
+                  >
+                    <span className="text-xs text-muted-foreground truncate flex-1 mr-2">{exam.title}</span>
+                    {exam.score !== null && (
+                      <span className={`text-[11px] font-semibold ${
+                        exam.score >= 70 ? 'text-success' : exam.score >= 50 ? 'text-warning' : 'text-destructive'
+                      }`}>
+                        {exam.score}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
