@@ -5,11 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 import { AlertTriangle, CheckCircle2, TrendingUp, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
+interface ScoreHistoryItem {
+  month: string;
+  avgScore: number;
+  color: string;
+}
+
 interface ProgressCarouselProps {
   weakTopics: UnifiedTopicScore[];
   subjects: { subject_name: string; subject_color: string }[];
   getSubjectColor: (name: string) => string;
   studyActivityData: any[];
+  scoreHistory?: ScoreHistoryItem[];
 }
 
 const SLIDE_DURATION = 12000;
@@ -30,7 +37,7 @@ const SLIDE_DESTINATIONS: Record<typeof SLIDES[number], string> = {
   recent_activity: '/stats?tab=stats',
 };
 
-export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyActivityData }: ProgressCarouselProps) => {
+export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyActivityData, scoreHistory = [] }: ProgressCarouselProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [animKey, setAnimKey] = useState(0);
@@ -149,7 +156,7 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
 
         {/* Slide content — clickable to navigate to stats */}
         <div
-          className="min-h-[180px] animate-fade-in cursor-pointer"
+          className="min-h-[220px] animate-fade-in cursor-pointer"
           key={`slide-${currentSlide}-${animKey}`}
           onClick={() => navigate(SLIDE_DESTINATIONS[SLIDES[currentSlide]])}
         >
