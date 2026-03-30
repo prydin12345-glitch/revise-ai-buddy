@@ -689,7 +689,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   {announcements.slice(0, 3).map(ann => (
                     <div
                       key={ann.id}
-                      className="p-2.5 rounded-lg bg-background/50"
+                      className="p-2.5 rounded-lg bg-background/50 cursor-pointer border-l-2 border-primary/40 hover:border-primary hover:bg-muted/50 transition-all"
+                      onClick={() => navigate(`/my-classes?classId=${ann.groupId}`)}
                     >
                       <p className="text-xs font-medium">{ann.title}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">{ann.className} · {ann.timeAgo}</p>
