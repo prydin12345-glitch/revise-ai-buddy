@@ -198,6 +198,25 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     { label: "Streak", value: loading ? "..." : streakDisplay, emoji: "🔥", drilldown: 'streak' as DrilldownType },
   ];
 
+  const scoreHistory = useMemo(() => {
+    const gradedExams = allExams.filter(e => 
+      e.submission?.status === 'graded' && e.submission.total_marks > 0
+    );
+    if (gradedExams.length === 0) return [];
+    const byMonth: Record<string, { scores: number[]; color: string }> = {};
+    gradedExams.forEach(e => {
+      const month = new Date(e.created_at).toLocaleDateString('en-GB', { month: 'short' });
+      const score = Math.round((e.submission!.total_score / e.submission!.total_marks) * 100);
+      if (!byMonth[month]) byMonth[month] = { scores: [], color: getSubjectColor(e.subject_id) };
+      byMonth[month].scores.push(score);
+    });
+    return Object.entries(byMonth).map(([month, data]) => ({
+      month,
+      avgScore: Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length),
+      color: data.color,
+    }));
+  }, [allExams, getSubjectColor]);
+
   useEffect(() => {
     loadStudentData();
   }, []);
@@ -709,6 +728,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             subjects={subjects}
             getSubjectColor={getSubjectColor}
             studyActivityData={studyActivityData}
+            scoreHistory={scoreHistory}
           />
         </div>
       </div>
