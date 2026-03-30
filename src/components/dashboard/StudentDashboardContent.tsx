@@ -404,19 +404,41 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   }
 
   return (
-    <div className="space-y-4 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
+    <div className="space-y-3 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
       {/* Welcome Banner */}
-      <div className="px-1">
-        <h1 className="text-[22px] font-bold text-foreground">
+      <div className="px-1 py-1">
+        <h1 className="text-xl font-bold text-foreground">
           Welcome back, {userName}!
         </h1>
-        <p className="text-[13px] text-muted-foreground mt-1">
+        <p className="text-[13px] text-muted-foreground mt-0.5">
           {getGreetingByTime()} — here's your study overview.
         </p>
       </div>
 
+      {/* Quick-Start CTAs */}
+      <div className="flex gap-2 flex-wrap px-1">
+        {[
+          { label: 'New Exam', icon: Plus, onClick: () => navigate('/upload'), primary: true },
+          { label: 'Practice Quiz', icon: Zap, onClick: () => navigate('/create-practice-questions'), primary: false },
+          { label: 'My Progress', icon: BarChart2, onClick: () => navigate('/stats'), primary: false },
+        ].map(action => (
+          <button
+            key={action.label}
+            onClick={action.onClick}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+              action.primary
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
+            }`}
+          >
+            <action.icon size={13} />
+            {action.label}
+          </button>
+        ))}
+      </div>
+
       {/* 3-Column Dashboard Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_320px] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_300px] gap-3">
         
         {/* Column 1: Mock Exams */}
         <Card className="rounded-2xl border-border/50">
