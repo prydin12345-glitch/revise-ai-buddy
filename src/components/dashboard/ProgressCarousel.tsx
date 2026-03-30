@@ -166,24 +166,32 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium">Score Trends</span>
               </div>
-              {subjectsWithData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Add subjects and complete exams to see score trends</p>
+              {scoreHistory.length === 0 && subjectsWithData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Complete exams to see score trends</p>
+              ) : scoreHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {scoreHistory.slice(0, 6).map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-12">{item.month}</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${item.avgScore}%`, backgroundColor: item.color || 'hsl(var(--primary))' }} />
+                      </div>
+                      <span className="text-xs font-medium w-8 text-right">{item.avgScore}%</span>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-3">
                   {subjectsWithData.slice(0, 5).map((s, i) => {
-                    // Use actual study hours as a proxy score indicator (no random values)
-                    const totalHours = studyActivityData.reduce((sum, day) => sum + (Number(day[s.subject_name]) || 0), 0);
-                    const normalised = Math.min(Math.round(totalHours * 20), 100);
+                    const totalHrs = studyActivityData.reduce((sum: number, day: any) => sum + (Number(day[s.subject_name]) || 0), 0);
+                    const norm = Math.min(Math.round(totalHrs * 20), 100);
                     return (
                       <div key={i} className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground w-20 truncate">{s.subject_name}</span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${normalised}%`, backgroundColor: s.subject_color }}
-                          />
+                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${norm}%`, backgroundColor: s.subject_color }} />
                         </div>
-                        <span className="text-xs font-medium w-8 text-right">{normalised}%</span>
+                        <span className="text-xs font-medium w-8 text-right">{norm}%</span>
                       </div>
                     );
                   })}
