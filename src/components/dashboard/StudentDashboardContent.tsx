@@ -48,6 +48,7 @@ interface AnnouncementInfo {
   id: string;
   title: string;
   className: string;
+  groupId: string;
   timeAgo: string;
   color: string;
 }
@@ -350,6 +351,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 id: a.id,
                 title: a.title,
                 className: (a.student_groups as any)?.name || "Class",
+                groupId: a.group_id,
                 timeAgo,
                 color: getSubjectColor((a.student_groups as any)?.name || ""),
               };
