@@ -411,20 +411,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return 'not_started';
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-16 rounded-2xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ gridTemplateColumns: '1fr 1fr 320px' }}>
-          <Skeleton className="h-64 rounded-2xl" />
-          <Skeleton className="h-64 rounded-2xl" />
-          <Skeleton className="h-96 rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
-
-  // Mobile swipeable screens state
+  // Mobile swipeable screens state (hooks must be before early returns)
   const [activeScreen, setActiveScreen] = useState(0);
   const SCREENS = ['Overview', 'My Work', 'Progress'];
   const swipeStartX = useRef(0);
@@ -446,6 +433,19 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   }, [showSwipeHint]);
 
   const greeting = getGreetingByTime();
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-16 rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ gridTemplateColumns: '1fr 1fr 320px' }}>
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-96 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   // Shared modals
   const modals = (
