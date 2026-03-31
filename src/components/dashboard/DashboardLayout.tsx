@@ -9,8 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileNavFAB } from "./MobileNavFAB";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
