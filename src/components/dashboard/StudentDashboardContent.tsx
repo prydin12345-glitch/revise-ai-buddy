@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, ChevronRight, Plus, Users, Megaphone, TrendingUp, AlertTriangle, CheckCircle2, Zap, BarChart2, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useExamStats } from "@/hooks/useExamStats";
