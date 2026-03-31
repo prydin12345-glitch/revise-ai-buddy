@@ -189,7 +189,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
