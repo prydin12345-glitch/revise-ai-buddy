@@ -271,8 +271,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && <MobileBottomNav />}
+      {/* Mobile Floating Nav */}
+      <MobileNavFAB />
     </div>
   );
 };
