@@ -28,7 +28,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const { primaryRole } = useUserRole();
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
