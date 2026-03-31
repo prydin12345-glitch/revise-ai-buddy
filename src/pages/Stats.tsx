@@ -70,7 +70,7 @@ const Stats = () => {
       <div className="p-6 space-y-6">
         <Tabs defaultValue={defaultTab} className="w-full">
           <div className="flex items-center gap-4 mb-8">
-            <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5">
+            <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5 overflow-x-auto max-w-full scrollbar-hide">
               <TabsTrigger 
                 value="stats" 
                 className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"

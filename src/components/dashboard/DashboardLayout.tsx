@@ -9,8 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileNavFAB } from "./MobileNavFAB";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
@@ -29,7 +28,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const { primaryRole } = useUserRole();
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -91,7 +89,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="min-h-screen flex w-full bg-background">
       {/* Sidebar - Hidden on mobile */}
       <aside
-        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
+        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
@@ -191,7 +189,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
@@ -270,11 +268,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="p-4 pb-24 lg:p-6 lg:pb-6 overflow-y-auto">{children}</main>
+        <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && <MobileBottomNav />}
+      {/* Mobile Floating Nav */}
+      <MobileNavFAB />
     </div>
   );
 };
