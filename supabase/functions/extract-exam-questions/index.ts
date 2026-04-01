@@ -897,6 +897,36 @@ Universal: "wire", "ground", "open_terminal"
 - Add ammeter when current is being calculated
 - Add voltmeter in parallel (new branch) when voltage is being measured
 - Set diagramConfig: null for phasor diagram questions (these cannot be rendered as circuits)
+
+### Multi-loop circuit examples
+
+**Two resistors in series with voltmeter across R2:**
+Nodes: TL(0,0), TM0(2,0), TM1(4,0), TR(6,0), BR(6,2), BL(0,2), VM_BOT(4,3), VM_BOT2(6,3)
+Wires: BL→TL: battery "6V", TL→TM0: resistor "R₁ = 4Ω", TM0→TM1: resistor "R₂ = 2Ω", TM1→TR: wire, TR→BR: wire, BR→BL: wire, TM0→VM_BOT: wire, VM_BOT→VM_BOT2: voltmeter "V", VM_BOT2→TM1: wire
+Junctions: TM0, TM1
+
+**Series-parallel combination (R₁ in series with R₂∥R₃):**
+Nodes: TL(0,0), TM(2,0), TR(4,0), ML(2,2), MR(4,2), BL(0,2)
+Wires: BL→TL: battery "12V", TL→TM: resistor "R₁ = 6Ω", TM→TR: resistor "R₂ = 4Ω", ML→MR: resistor "R₃ = 4Ω", TM→ML: wire, TR→MR: wire, MR→BL: wire
+Junctions: TM, MR
+
+**Wheatstone bridge:**
+Nodes: TL(0,0), TM(2,0), TR(4,0), BL(0,2), BM(2,2), BR(4,2)
+Wires: TL→TM: resistor "P", TM→TR: resistor "Q", BL→BM: resistor "R", BM→BR: resistor "S", TM→BM: galvanometer "G", TL→BL: battery "E", TR→BR: wire
+Junctions: TM, BM
+
+**Three components in series:**
+Nodes: TL(0,0), TM1(2,0), TM2(4,0), TR(6,0), BR(6,2), BL(0,2)
+Wires: BL→TL: battery, TL→TM1: resistor "R₁", TM1→TM2: resistor "R₂", TM2→TR: lamp "L₁", TR→BR: ammeter "A", BR→BL: wire
+
+IMPORTANT RULES FOR MULTI-LOOP CIRCUITS:
+- Every junction where wires branch MUST be listed in the junctions array
+- Every node referenced in a wire must exist in the nodes array
+- The circuit must form at least one complete closed loop
+- Never leave a wire endpoint unconnected
+- For parallel branches always add junction dots at both split and merge points
+- Labels must exactly match the values given in the question
+- "galvanometer" is a supported component type (renders as circle with G)
 ` : '';
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────

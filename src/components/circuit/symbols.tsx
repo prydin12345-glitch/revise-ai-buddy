@@ -379,6 +379,19 @@ export const CircuitComponent: React.FC<{
     case 'impedance': return <ImpedanceSymbol {...props} />;
     case 'fuse': return <FuseSymbol {...props} />;
     case 'current_source': return <CurrentSourceSymbol {...props} />;
+    case 'galvanometer': return (
+      <g>
+        <g transform={`rotate(${rotation}, ${x}, ${y})`}>
+          <circle cx={x} cy={y} r={14} fill="white" stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
+          <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="central" fontFamily={CIRCUIT_FONT.family} fontStyle={CIRCUIT_FONT.style} fontSize={14} fill={CIRCUIT_COLORS.label}>G</text>
+          <line x1={x - 30} y1={y} x2={x - 14} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+          <line x1={x + 14} y1={y} x2={x + 30} y2={y} stroke={CIRCUIT_COLORS.wire} strokeWidth={STROKE_W} />
+        </g>
+        {showLabel && label ? (
+          <ComponentLabel x={x} y={y} rotation={rotation} text={label} show={true} highlight={highlight} />
+        ) : null}
+      </g>
+    );
     case 'ground': return (
       <g>
         <line x1={x} y1={y - 10} x2={x} y2={y} stroke={CIRCUIT_COLORS.component} strokeWidth={STROKE_W} />
