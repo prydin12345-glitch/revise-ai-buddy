@@ -143,12 +143,55 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
     );
   }
 
+  // ── Wheatstone bridge ──
+  const isWheatstoneBridge =
+    /wheatstone|bridge circuit|balanced.*bridge/i.test(text) ||
+    (resistors.length === 4 && /galvanometer/i.test(text));
+  if (isWheatstoneBridge) {
+    return buildWheatstoneBridge(
+      resistors[0]?.label ?? 'R₁', resistors[1]?.label ?? 'R₂',
+      resistors[2]?.label ?? 'R₃', resistors[3]?.label ?? 'R₄',
+      'G', emfLabel,
+    );
+  }
+
+  // ── Series-parallel mixed ──
+  const isSeriesParallel =
+    /series.*parallel|parallel.*series|combination circuit/i.test(text) && resistors.length >= 3;
+  if (isSeriesParallel) {
+    return buildSeriesParallelCircuit(
+      [{ type: 'resistor', label: resistors[0]?.label ?? 'R₁' }],
+      [
+        { type: 'resistor', label: resistors[1]?.label ?? 'R₂' },
+        { type: 'resistor', label: resistors[2]?.label ?? 'R₃' },
+      ],
+      emfLabel, hasInternalRes ? intResLabel : undefined,
+    );
+  }
+
   if (isParallel && resistors.length >= 2) {
     return buildParallelResistorCircuit(resistors, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter);
   }
 
   if (isParallel && (resistors.length >= 1 || lampCount >= 1)) {
     return buildSimpleParallelCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter);
+  }
+
+  // ── Voltmeter across a component (non-parallel) ──
+  const hasVoltmeterAcross = hasVoltmeter && resistors.length >= 2 && !isParallel;
+  if (hasVoltmeterAcross) {
+    return buildCircuitWithVoltmeter(
+      resistors.map(r => ({ type: 'resistor' as const, label: r.label })),
+      0, emfLabel,
+    );
+  }
+
+  // ── 3+ series components ──
+  if (!isParallel && resistors.length >= 3) {
+    return buildTwoLoopSeriesCircuit(
+      resistors.slice(0, 3).map(r => ({ type: 'resistor' as const, label: r.label })),
+      emfLabel,
+    );
   }
 
   return buildSeriesCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter, hasSwitch);
