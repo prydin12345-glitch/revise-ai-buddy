@@ -143,12 +143,55 @@ export function detectCircuitConfig(questionText: string): CircuitConfig | null 
     );
   }
 
+  // ── Wheatstone bridge ──
+  const isWheatstoneBridge =
+    /wheatstone|bridge circuit|balanced.*bridge/i.test(text) ||
+    (resistors.length === 4 && /galvanometer/i.test(text));
+  if (isWheatstoneBridge) {
+    return buildWheatstoneBridge(
+      resistors[0]?.label ?? 'R₁', resistors[1]?.label ?? 'R₂',
+      resistors[2]?.label ?? 'R₃', resistors[3]?.label ?? 'R₄',
+      'G', emfLabel,
+    );
+  }
+
+  // ── Series-parallel mixed ──
+  const isSeriesParallel =
+    /series.*parallel|parallel.*series|combination circuit/i.test(text) && resistors.length >= 3;
+  if (isSeriesParallel) {
+    return buildSeriesParallelCircuit(
+      [{ type: 'resistor', label: resistors[0]?.label ?? 'R₁' }],
+      [
+        { type: 'resistor', label: resistors[1]?.label ?? 'R₂' },
+        { type: 'resistor', label: resistors[2]?.label ?? 'R₃' },
+      ],
+      emfLabel, hasInternalRes ? intResLabel : undefined,
+    );
+  }
+
   if (isParallel && resistors.length >= 2) {
     return buildParallelResistorCircuit(resistors, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter);
   }
 
   if (isParallel && (resistors.length >= 1 || lampCount >= 1)) {
     return buildSimpleParallelCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter);
+  }
+
+  // ── Voltmeter across a component (non-parallel) ──
+  const hasVoltmeterAcross = hasVoltmeter && resistors.length >= 2 && !isParallel;
+  if (hasVoltmeterAcross) {
+    return buildCircuitWithVoltmeter(
+      resistors.map(r => ({ type: 'resistor' as const, label: r.label })),
+      0, emfLabel,
+    );
+  }
+
+  // ── 3+ series components ──
+  if (!isParallel && resistors.length >= 3) {
+    return buildTwoLoopSeriesCircuit(
+      resistors.slice(0, 3).map(r => ({ type: 'resistor' as const, label: r.label })),
+      emfLabel,
+    );
   }
 
   return buildSeriesCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter, hasSwitch);
@@ -494,4 +537,124 @@ function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
   }
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [], showLabels: true };
+}
+
+// ── New multi-loop topology builders ──
+
+function buildSeriesParallelCircuit(
+  seriesComponents: Array<{ type: string; label: string }>,
+  parallelComponents: Array<{ type: string; label: string }>,
+  batteryLabel: string,
+  internalResistance?: string,
+): CircuitConfig {
+  const nodes: CircuitConfig['nodes'] = [
+    { id: 'TL', col: 0, row: 0 },
+    { id: 'TM', col: 2, row: 0 },
+    { id: 'TR', col: 4, row: 0 },
+    { id: 'ML', col: 2, row: 2 },
+    { id: 'MR', col: 4, row: 2 },
+    { id: 'BL', col: 0, row: 2 },
+  ];
+  const wires: CircuitConfig['wires'] = [
+    { from: 'BL', to: 'TL', component: 'battery' as CircuitComponentType, label: batteryLabel },
+    { from: 'TL', to: 'TM', component: (seriesComponents[0]?.type ?? 'wire') as CircuitComponentType, label: seriesComponents[0]?.label },
+    { from: 'TM', to: 'TR', component: (parallelComponents[0]?.type ?? 'resistor') as CircuitComponentType, label: parallelComponents[0]?.label },
+    { from: 'ML', to: 'MR', component: (parallelComponents[1]?.type ?? 'resistor') as CircuitComponentType, label: parallelComponents[1]?.label },
+    { from: 'TR', to: 'MR', component: 'wire' as CircuitComponentType },
+    { from: 'MR', to: 'BL', component: internalResistance ? 'resistor' as CircuitComponentType : 'wire' as CircuitComponentType, label: internalResistance },
+    { from: 'TM', to: 'ML', component: 'wire' as CircuitComponentType },
+  ];
+  return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [{ at: 'TM' }, { at: 'MR' }], showLabels: true };
+}
+
+function buildTwoLoopSeriesCircuit(
+  components: Array<{ type: string; label: string }>,
+  batteryLabel: string,
+): CircuitConfig {
+  const nodes: CircuitConfig['nodes'] = [
+    { id: 'TL', col: 0, row: 0 },
+    { id: 'TM1', col: 2, row: 0 },
+    { id: 'TM2', col: 4, row: 0 },
+    { id: 'TR', col: 6, row: 0 },
+    { id: 'BR', col: 6, row: 2 },
+    { id: 'BL', col: 0, row: 2 },
+  ];
+  const wires: CircuitConfig['wires'] = [
+    { from: 'BL', to: 'TL', component: 'battery' as CircuitComponentType, label: batteryLabel },
+    { from: 'TL', to: 'TM1', component: (components[0]?.type ?? 'resistor') as CircuitComponentType, label: components[0]?.label },
+    { from: 'TM1', to: 'TM2', component: (components[1]?.type ?? 'resistor') as CircuitComponentType, label: components[1]?.label },
+    { from: 'TM2', to: 'TR', component: components[2] ? components[2].type as CircuitComponentType : 'wire' as CircuitComponentType, label: components[2]?.label },
+    { from: 'TR', to: 'BR', component: 'wire' as CircuitComponentType },
+    { from: 'BR', to: 'BL', component: 'wire' as CircuitComponentType },
+  ];
+  return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [], showLabels: true };
+}
+
+function buildCircuitWithVoltmeter(
+  mainComponents: Array<{ type: string; label: string }>,
+  voltmeterAcross: number,
+  batteryLabel: string,
+): CircuitConfig {
+  const numMain = mainComponents.length;
+  const topNodeIds = ['TL', ...mainComponents.map((_, i) => `TM${i}`), 'TR'];
+
+  const nodes: CircuitConfig['nodes'] = [
+    { id: 'TL', col: 0, row: 0 },
+    ...mainComponents.map((_, i) => ({ id: `TM${i}`, col: (i + 1) * 2, row: 0 })),
+    { id: 'TR', col: (numMain + 1) * 2, row: 0 },
+    { id: 'BR', col: (numMain + 1) * 2, row: 2 },
+    { id: 'BL', col: 0, row: 2 },
+    { id: 'VM_BOT', col: (voltmeterAcross + 1) * 2, row: 3 },
+    { id: 'VM_BOT2', col: (voltmeterAcross + 2) * 2, row: 3 },
+  ];
+
+  const wires: CircuitConfig['wires'] = [
+    { from: 'BL', to: 'TL', component: 'battery' as CircuitComponentType, label: batteryLabel },
+    ...mainComponents.map((comp, i) => ({
+      from: topNodeIds[i],
+      to: topNodeIds[i + 1],
+      component: comp.type as CircuitComponentType,
+      label: comp.label,
+    })),
+    { from: 'TR', to: 'BR', component: 'wire' as CircuitComponentType },
+    { from: 'BR', to: 'BL', component: 'wire' as CircuitComponentType },
+    { from: topNodeIds[voltmeterAcross], to: 'VM_BOT', component: 'wire' as CircuitComponentType },
+    { from: 'VM_BOT', to: 'VM_BOT2', component: 'voltmeter' as CircuitComponentType, label: 'V' },
+    { from: 'VM_BOT2', to: topNodeIds[voltmeterAcross + 1], component: 'wire' as CircuitComponentType },
+  ];
+
+  return {
+    type: 'circuit', gridSpacing: 80, nodes, wires,
+    junctions: [{ at: topNodeIds[voltmeterAcross] }, { at: topNodeIds[voltmeterAcross + 1] }],
+    showLabels: true,
+  };
+}
+
+function buildWheatstoneBridge(
+  r1: string, r2: string, r3: string, r4: string,
+  galvanometerLabel: string, batteryLabel: string,
+): CircuitConfig {
+  return {
+    type: 'circuit',
+    gridSpacing: 80,
+    nodes: [
+      { id: 'TL', col: 0, row: 0 },
+      { id: 'TM', col: 2, row: 0 },
+      { id: 'TR', col: 4, row: 0 },
+      { id: 'BL', col: 0, row: 2 },
+      { id: 'BM', col: 2, row: 2 },
+      { id: 'BR', col: 4, row: 2 },
+    ],
+    wires: [
+      { from: 'TL', to: 'TM', component: 'resistor', label: r1 },
+      { from: 'TM', to: 'TR', component: 'resistor', label: r2 },
+      { from: 'BL', to: 'BM', component: 'resistor', label: r3 },
+      { from: 'BM', to: 'BR', component: 'resistor', label: r4 },
+      { from: 'TM', to: 'BM', component: 'galvanometer', label: galvanometerLabel },
+      { from: 'TL', to: 'BL', component: 'battery', label: batteryLabel },
+      { from: 'TR', to: 'BR', component: 'wire' },
+    ],
+    junctions: [{ at: 'TM' }, { at: 'BM' }],
+    showLabels: true,
+  };
 }

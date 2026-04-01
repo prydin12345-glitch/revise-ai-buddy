@@ -28,7 +28,8 @@ export type CircuitComponentType =
   | 'ground'
   | 'open_terminal'
   | 'fuse'
-  | 'current_source';
+  | 'current_source'
+  | 'galvanometer';
 
 export interface CircuitWire {
   from: string;
