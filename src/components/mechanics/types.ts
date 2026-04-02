@@ -119,6 +119,17 @@ export interface VerticalLiftConfig {
   unknowns?: string[];
 }
 
+export interface PhasorDiagramConfig {
+  type: 'phasor_diagram';
+  title?: string;
+  phasors: Array<{
+    magnitude: number;
+    angleDeg: number;
+    label: string;
+    colour?: string;
+  }>;
+}
+
 export interface DualConfig {
   type: 'dual';
   left: any; // CircuitConfig — imported at component level to avoid circular deps
@@ -135,6 +146,7 @@ export type MechanicsConfig =
   | ConicalPendulumConfig
   | VerticalMotionConfig
   | VerticalLiftConfig
+  | PhasorDiagramConfig
   | DualConfig;
 
 // ── Shared Styling Constants ──

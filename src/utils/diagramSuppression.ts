@@ -58,6 +58,7 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'voltage divider', 'wheatstone bridge', 'kirchhoff',
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
   'series-parallel', 'ladder network', 'bridge circuit',
+  'phasor diagram', 'phasor_diagram',
 ];
 
 export const shouldSuppressDiagram = (

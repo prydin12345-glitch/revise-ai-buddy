@@ -45,6 +45,68 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
       return <DualRenderer config={config as any} />;
     }
 
+    // Phasor diagram renders its own SVG, not inside the shared wrapper
+    if (config.type === 'phasor_diagram') {
+      const { phasors, title } = config as any;
+      const cx = 150; const cy = 150;
+      const maxMag = Math.max(...phasors.map((p: any) => p.magnitude));
+      const drawScale = 110 / maxMag;
+
+      return (
+        <svg viewBox="0 0 300 300" width="100%"
+          style={{ background: COLORS.background, maxWidth: 300, display: 'block', margin: '0 auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+          {/* Grid circles */}
+          {[0.25, 0.5, 0.75, 1].map(r => (
+            <circle key={r} cx={cx} cy={cy} r={maxMag * drawScale * r}
+              fill="none" stroke="#e5e7eb" strokeWidth={0.5} strokeDasharray="3 3" />
+          ))}
+          {/* Axes */}
+          <line x1={cx - 130} y1={cy} x2={cx + 130} y2={cy} stroke="#d1d5db" strokeWidth={1} />
+          <line x1={cx} y1={cy - 130} x2={cx} y2={cy + 130} stroke="#d1d5db" strokeWidth={1} />
+          <text x={cx + 132} y={cy + 4} fontSize={9} fill="#9ca3af" textAnchor="start">Re</text>
+          <text x={cx + 3} y={cy - 132} fontSize={9} fill="#9ca3af">Im</text>
+          {/* Phasor arrows */}
+          {phasors.map((p: any, i: number) => {
+            const angleRad = (p.angleDeg * Math.PI) / 180;
+            const ex = cx + p.magnitude * drawScale * Math.cos(angleRad);
+            const ey = cy - p.magnitude * drawScale * Math.sin(angleRad);
+            const colour = p.colour ?? ['#3b82f6', '#ef4444', '#22c55e'][i % 3];
+            const markerId = `arrow-phasor-${i}`;
+            return (
+              <g key={i}>
+                <defs>
+                  <marker id={markerId} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <path d="M0,0 L6,3 L0,6 Z" fill={colour} />
+                  </marker>
+                </defs>
+                <line x1={cx} y1={cy} x2={ex} y2={ey} stroke={colour} strokeWidth={2.5} markerEnd={`url(#${markerId})`} />
+                <text
+                  x={cx + (p.magnitude * drawScale * 0.5) * Math.cos(angleRad) + (i % 2 === 0 ? 8 : -8)}
+                  y={cy - (p.magnitude * drawScale * 0.5) * Math.sin(angleRad)}
+                  fontSize={10} fill={colour} fontFamily="serif" fontStyle="italic"
+                >{p.magnitude}</text>
+                <text
+                  x={ex + Math.cos(angleRad) * 12}
+                  y={ey - Math.sin(angleRad) * 12}
+                  fontSize={11} fill={colour} fontFamily="serif" fontStyle="italic" fontWeight="bold"
+                >{p.label}</text>
+                {p.angleDeg !== 0 && i > 0 && (
+                  <text
+                    x={cx + 30 * Math.cos(angleRad / 2)}
+                    y={cy - 30 * Math.sin(angleRad / 2)}
+                    fontSize={9} fill={colour} fontFamily="serif"
+                  >{p.angleDeg > 0 ? '+' : ''}{p.angleDeg}°</text>
+                )}
+              </g>
+            );
+          })}
+          {title && (
+            <text x={150} y={288} textAnchor="middle" fontSize={10} fill="#6b7280" fontFamily="serif" fontStyle="italic">{title}</text>
+          )}
+        </svg>
+      );
+    }
+
     const renderDiagram = () => {
       switch (config.type) {
         case 'slope':
