@@ -1589,14 +1589,14 @@ ${notesSection}`;
       type: 'function',
       function: {
         name: 'generate_practice_questions',
-        description: `Generate exactly ${setData.question_count} practice questions as structured data.`,
+        description: `Generate exactly ${effectiveQuestionCount} practice questions as structured data.`,
         parameters: {
           type: 'object',
           required: ['questions'],
           properties: {
             questions: {
               type: 'array',
-              description: `Array of exactly ${setData.question_count} questions`,
+              description: `Array of exactly ${effectiveQuestionCount} questions`,
               items: {
                 type: 'object',
                 required: [
