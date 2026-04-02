@@ -1,4 +1,5 @@
 import type { CircuitConfig, CircuitComponentType } from './types';
+import { shouldSuppressDiagram } from '@/utils/diagramSuppression';
 
 /**
  * Strip LaTeX markup so regex can match plain values.
