@@ -19,8 +19,8 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'sequence component', 'positive sequence', 'negative sequence',
   'zero sequence',
 
-  // Phasor analysis — phasor diagrams are a separate diagram type
-  'phasor', 'phasor diagram', 'argand', 'polar form',
+  // Phasor analysis — purely mathematical (but NOT 'phasor diagram' which is now renderable)
+  'phasor analysis', 'phasor theory', 'argand', 'polar form',
   'rectangular form', 'complex notation', 'j notation',
   'sinusoidal', 'phase angle', 'power factor angle',
 
@@ -58,6 +58,7 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'voltage divider', 'wheatstone bridge', 'kirchhoff',
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
   'series-parallel', 'ladder network', 'bridge circuit',
+  'phasor diagram', 'phasor_diagram',
 ];
 
 export const shouldSuppressDiagram = (
