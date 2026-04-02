@@ -25,8 +25,14 @@ function stripLatex(raw: string): string {
 /**
  * Detects a circuit diagram config from question text.
  */
-export function detectCircuitConfig(questionText: string): CircuitConfig | null {
+export function detectCircuitConfig(questionText: string, topicTag?: string, subjectName?: string): CircuitConfig | null {
+  // Early exit — suppress diagram for theoretical topics
+  if (shouldSuppressDiagram(topicTag ?? '', questionText, subjectName ?? '')) {
+    return null;
+  }
+
   const cleaned = stripLatex(questionText);
+  const text = cleaned.toLowerCase();
   const text = cleaned.toLowerCase();
 
   // AC circuit keywords
