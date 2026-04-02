@@ -1093,7 +1093,8 @@ ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
-Generate ${setData.question_count} practice questions.
+${diagramSuppressionNotice}
+Generate ${effectiveQuestionCount} practice questions.
 ${mcqFormatInstruction}
 
 Context:
