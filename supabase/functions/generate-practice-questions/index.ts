@@ -1864,12 +1864,12 @@ ${notesSection}`;
       // If the model returns EXTRA questions, keep the first N rather than failing and retrying.
       // This dramatically improves reliability and reduces timeouts for graph-heavy sets.
       let normalizedQuestions = parsed.data.questions;
-      if (normalizedQuestions.length < setData.question_count) {
-        throw new Error(`AI returned ${normalizedQuestions.length} questions, expected ${setData.question_count}`);
+      if (normalizedQuestions.length < effectiveQuestionCount) {
+        throw new Error(`AI returned ${normalizedQuestions.length} questions, expected ${effectiveQuestionCount}`);
       }
-      if (normalizedQuestions.length > setData.question_count) {
-        console.warn(`AI returned ${normalizedQuestions.length} questions; trimming to ${setData.question_count}`);
-        normalizedQuestions = normalizedQuestions.slice(0, setData.question_count);
+      if (normalizedQuestions.length > effectiveQuestionCount) {
+        console.warn(`AI returned ${normalizedQuestions.length} questions; trimming to ${effectiveQuestionCount}`);
+        normalizedQuestions = normalizedQuestions.slice(0, effectiveQuestionCount);
       }
 
       // Enforce: question_latex must be null
