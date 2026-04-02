@@ -536,6 +536,55 @@ EXAMPLE QUESTION FORMATS:
       ? `\nSPECIALISED SUBJECT CONTEXT:\nThis is a specialised subject: "${setData.subject_id}". Generate questions appropriate for professional or vocational study in this area. Use domain-specific terminology and realistic practical scenarios. The student may be a practitioner, not a traditional academic student.\n`
       : '';
 
+    // ── DIAGRAM SUPPRESSION — prevent timeouts on theoretical topics ──
+    const SUPPRESS_DIAGRAM_TOPICS = [
+      'thevenin', 'norton', 'superposition', 'blondel', 'reciprocity', 'maximum power transfer', 'millman', 'tellegen', 'compensation',
+      'three-phase', 'three phase', 'delta-star', 'star-delta', 'delta-wye', 'wye-delta', 'delta to star', 'star to star',
+      'unbalanced load', 'unconnected neutral', 'neutral point', 'sequence component', 'positive sequence', 'negative sequence', 'zero sequence',
+      'phasor', 'phasor diagram', 'argand', 'polar form', 'rectangular form', 'complex notation', 'j notation', 'sinusoidal', 'phase angle', 'power factor angle',
+      'power factor', 'reactive power', 'apparent power', 'real power', 'active power', 'power triangle', 'power measurement', 'power calculation',
+      'kvar', 'kva ', 'power correction', 'pfc capacitor', 'blondel theorem',
+      'transformer', 'nameplate', 'turns ratio', 'voltage ratio', 'tap changer', 'tap-changer', 'cooling method', 'impedance voltage', 'transformer impedance',
+      'mesh analysis', 'nodal analysis', 'mesh current', 'node voltage', 'determinant', 'matrix method', 'cramer', 'gaussian', 'simultaneous equation',
+      'reactance', 'impedance triangle', 'admittance', 'susceptance', 'conductance', 'complex impedance', 'r + jx', 'z = ', 'rlc theory',
+      'angular frequency', 'resonant frequency', 'resonance', 'bandwidth', 'quality factor', 'q factor', 'frequency response', 'bode',
+    ];
+    const ALWAYS_DIAGRAM_TOPICS = [
+      'series circuit', 'parallel circuit', 'potential divider', 'voltage divider', 'wheatstone bridge', 'kirchhoff',
+      'current divider', 'rc circuit', 'rl circuit', 'lc circuit', 'series-parallel', 'ladder network', 'bridge circuit',
+    ];
+    const topicsCombined = ((setData.subtopics || []).join(' ') + ' ' + (setData.notes || '')).toLowerCase();
+    const hasDiagramTopic = ALWAYS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
+    const hasSuppressedTopic = !hasDiagramTopic && SUPPRESS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
+
+    const diagramSuppressionNotice = hasSuppressedTopic ? `
+## DIAGRAM NOTICE
+This subject uses theoretical and mathematical content.
+Do NOT include diagramConfig in any question.
+Set diagramConfig: null for all questions.
+Questions should be expressed through equations, text descriptions, and mathematical notation only.
+` : '';
+
+    if (hasSuppressedTopic) {
+      console.log('Diagram suppression active — theoretical topics detected in:', setData.subtopics);
+    }
+
+    // ── TIMEOUT CAP — reduce question count for complex subjects ──
+    const educationalLevel = (setData.educational_tier || '').toLowerCase();
+    const isComplexSubject = isSpecialised && (
+      educationalLevel.includes('undergrad') ||
+      educationalLevel.includes('postgrad') ||
+      educationalLevel.includes('professional') ||
+      educationalLevel.includes('university') ||
+      (setData.subtopics || []).length > 5
+    );
+    const effectiveQuestionCount = isComplexSubject
+      ? Math.min(setData.question_count, 8)
+      : setData.question_count;
+    if (effectiveQuestionCount < setData.question_count) {
+      console.log(`Complex subject detected — capping generation at ${effectiveQuestionCount} questions (requested: ${setData.question_count}) to prevent timeout`);
+    }
+
     // Build regional persona and region-aware subject instructions
     const regionalPersona = getRegionalPersona(curriculumRegion);
     const regionSubjectInstructions = getRegionAwareSubjectInstructions(
@@ -1044,7 +1093,8 @@ ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
-Generate ${setData.question_count} practice questions.
+${diagramSuppressionNotice}
+Generate ${effectiveQuestionCount} practice questions.
 ${mcqFormatInstruction}
 
 Context:
@@ -1539,14 +1589,14 @@ ${notesSection}`;
       type: 'function',
       function: {
         name: 'generate_practice_questions',
-        description: `Generate exactly ${setData.question_count} practice questions as structured data.`,
+        description: `Generate exactly ${effectiveQuestionCount} practice questions as structured data.`,
         parameters: {
           type: 'object',
           required: ['questions'],
           properties: {
             questions: {
               type: 'array',
-              description: `Array of exactly ${setData.question_count} questions`,
+              description: `Array of exactly ${effectiveQuestionCount} questions`,
               items: {
                 type: 'object',
                 required: [
@@ -1814,12 +1864,12 @@ ${notesSection}`;
       // If the model returns EXTRA questions, keep the first N rather than failing and retrying.
       // This dramatically improves reliability and reduces timeouts for graph-heavy sets.
       let normalizedQuestions = parsed.data.questions;
-      if (normalizedQuestions.length < setData.question_count) {
-        throw new Error(`AI returned ${normalizedQuestions.length} questions, expected ${setData.question_count}`);
+      if (normalizedQuestions.length < effectiveQuestionCount) {
+        throw new Error(`AI returned ${normalizedQuestions.length} questions, expected ${effectiveQuestionCount}`);
       }
-      if (normalizedQuestions.length > setData.question_count) {
-        console.warn(`AI returned ${normalizedQuestions.length} questions; trimming to ${setData.question_count}`);
-        normalizedQuestions = normalizedQuestions.slice(0, setData.question_count);
+      if (normalizedQuestions.length > effectiveQuestionCount) {
+        console.warn(`AI returned ${normalizedQuestions.length} questions; trimming to ${effectiveQuestionCount}`);
+        normalizedQuestions = normalizedQuestions.slice(0, effectiveQuestionCount);
       }
 
       // Enforce: question_latex must be null
