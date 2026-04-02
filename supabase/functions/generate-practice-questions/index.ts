@@ -1151,6 +1151,8 @@ ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 ${diagramSuppressionNotice}
+${phasorDiagramInstructions}
+${nodalAnalysisInstruction}
 Generate ${effectiveQuestionCount} practice questions.
 ${mcqFormatInstruction}
 
