@@ -33,7 +33,6 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
 
   const cleaned = stripLatex(questionText);
   const text = cleaned.toLowerCase();
-  const text = cleaned.toLowerCase();
 
   // AC circuit keywords
   const acKeywords = [
