@@ -1,53 +1,54 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, BookOpen, FileText, Zap, CheckCircle2, ChevronDown, ChevronUp, X } from "lucide-react";
-import { UnifiedTopicScore, UnifiedMastery } from "@/hooks/useUnifiedTopicPerformance";
+import { BookOpen, FileText, Zap, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  UnifiedTopicScore,
+  UnifiedMastery,
+} from "@/hooks/useUnifiedTopicPerformance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseTopicTags } from "@/lib/normalise-topic";
 import { cn } from "@/lib/utils";
 import { MathRenderer } from "@/components/MathRenderer";
+import { EmptyChartState } from "./EmptyChartState";
 
 interface WeakTopicsTabProps {
   topics: UnifiedTopicScore[];
   loading: boolean;
 }
 
-const MASTERY_CONFIG = {
+const MASTERY_COLOURS: Record<
+  UnifiedMastery,
+  { bar: string; badge: string; badgeBg: string; border: string; filterBg: string }
+> = {
   weak: {
-    border: "border-l-destructive",
-    badge: "bg-[hsl(0_50%_15%)] text-[hsl(0_90%_72%)] border-[hsl(0_60%_25%)]",
-    bar: "bg-destructive",
-    label: "Weak",
-    accent: "hsl(0, 90%, 72%)",
-    cardBorder: "border-destructive",
+    bar: "#ef4444",
+    badge: "#fca5a5",
+    badgeBg: "#450a0a",
+    border: "#ef4444",
+    filterBg: "#450a0a",
   },
   developing: {
-    border: "border-l-amber-500",
-    badge: "bg-[hsl(30_70%_15%)] text-[hsl(48_96%_56%)] border-[hsl(28_73%_18%)]",
-    bar: "bg-amber-500",
-    label: "Developing",
-    accent: "hsl(48, 96%, 56%)",
-    cardBorder: "border-amber-500",
+    bar: "#f97316",
+    badge: "#fdba74",
+    badgeBg: "#431407",
+    border: "#f97316",
+    filterBg: "#431407",
   },
   strong: {
-    border: "border-l-emerald-500",
-    badge: "bg-[hsl(145_50%_12%)] text-[hsl(142_69%_58%)] border-[hsl(145_63%_16%)]",
-    bar: "bg-emerald-500",
-    label: "Strong",
-    accent: "hsl(142, 69%, 58%)",
-    cardBorder: "border-emerald-500",
+    bar: "#22c55e",
+    badge: "#86efac",
+    badgeBg: "#14532d",
+    border: "#22c55e",
+    filterBg: "#14532d",
   },
   untested: {
-    border: "border-l-muted-foreground/30",
-    badge: "bg-muted text-muted-foreground border-border",
-    bar: "bg-muted-foreground/30",
-    label: "Untested",
-    accent: "hsl(215, 16%, 47%)",
-    cardBorder: "border-border",
+    bar: "hsl(var(--muted-foreground))",
+    badge: "hsl(var(--muted-foreground))",
+    badgeBg: "hsl(var(--muted))",
+    border: "hsl(var(--border))",
+    filterBg: "hsl(var(--muted))",
   },
 };
 
@@ -55,15 +56,11 @@ const MASTERY_CONFIG = {
 /*  Wrong Answers Panel                                                */
 /* ------------------------------------------------------------------ */
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
 const formatCorrectAnswer = (raw: string): string => {
   return raw
-    .replace(/\b[BMAC]\d+\s*(for\s*)?/gi, '') // remove M1, B1, A1, C1
-    .replace(/\(\d+\s*marks?\)/gi, '')         // remove (3 marks)
-    .replace(/\s{2,}/g, ' ')
+    .replace(/\b[BMAC]\d+\s*(for\s*)?/gi, "")
+    .replace(/\(\d+\s*marks?\)/gi, "")
+    .replace(/\s{2,}/g, " ")
     .trim();
 };
 
@@ -71,13 +68,9 @@ const splitAnswerSteps = (answer: string): string[] => {
   const cleaned = formatCorrectAnswer(answer);
   return cleaned
     .split(/\.\s+(?=[A-Z$])/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 };
-
-/* ------------------------------------------------------------------ */
-/*  Wrong Answers Panel                                                */
-/* ------------------------------------------------------------------ */
 
 interface WrongAnswer {
   score: number | null;
@@ -119,7 +112,9 @@ const WrongAnswersPanel = ({
       const qIds = [...new Set(answers.map((a) => a.question_id))];
       const { data: questions } = await supabase
         .from("exam_questions")
-        .select("id, topic_tag, correct_answer, marks, question_text, question_number")
+        .select(
+          "id, topic_tag, correct_answer, marks, question_text, question_number"
+        )
         .in("id", qIds);
 
       if (!questions || cancelled) {
@@ -128,9 +123,12 @@ const WrongAnswersPanel = ({
         return;
       }
 
-      const rawTags = [...new Set(questions.map((q) => q.topic_tag).filter(Boolean) as string[])];
+      const rawTags = [
+        ...new Set(
+          questions.map((q) => q.topic_tag).filter(Boolean) as string[]
+        ),
+      ];
       const normMap = await normaliseTopicTags(rawTags);
-
       const qMap = new Map(questions.map((q) => [q.id, q]));
 
       const wrong: WrongAnswer[] = [];
@@ -158,7 +156,6 @@ const WrongAnswersPanel = ({
         setLoading(false);
       }
     };
-
     fetchWrong();
     return () => {
       cancelled = true;
@@ -167,7 +164,9 @@ const WrongAnswersPanel = ({
 
   if (loading)
     return (
-      <div className="py-3 text-xs text-muted-foreground animate-pulse">Loading wrong answers…</div>
+      <div className="py-3 text-xs text-muted-foreground animate-pulse">
+        Loading wrong answers…
+      </div>
     );
 
   if (wrongAnswers.length === 0)
@@ -178,36 +177,37 @@ const WrongAnswersPanel = ({
     );
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-3 space-y-2">
       {wrongAnswers.map((answer, i) => (
         <div
           key={i}
-          className="rounded-md border border-border/30 bg-background/50 p-3"
+          className="rounded-lg border border-border/40 bg-background/50 p-3"
         >
-          {/* Question text */}
           <div className="text-[13px] leading-relaxed text-foreground/80 mb-2 line-clamp-3">
-            <span className="text-muted-foreground mr-1">Q{answer.questionNumber}:</span>
+            <span className="text-muted-foreground mr-1">
+              Q{answer.questionNumber}:
+            </span>
             <MathRenderer
               content={answer.questionText}
               hasMath={/\$[^$]+\$/.test(answer.questionText)}
               inline
             />
           </div>
-
-          {/* Score row */}
           <div className="flex items-center gap-2 mb-2.5">
             <span className="text-xs text-muted-foreground">Score:</span>
-            <span className={cn(
-              "text-[13px] font-bold",
-              (answer.score ?? 0) >= answer.marks ? "text-emerald-400" : "text-destructive"
-            )}>
+            <span
+              className={cn(
+                "text-[13px] font-bold",
+                (answer.score ?? 0) >= answer.marks
+                  ? "text-emerald-400"
+                  : "text-destructive"
+              )}
+            >
               {answer.score}/{answer.marks}
             </span>
           </div>
-
-          {/* Correct answer — full width, stacked */}
           {answer.correctAnswer && (
-            <div className="rounded-md border border-emerald-900/40 bg-emerald-950/30 p-2.5">
+            <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 p-2.5">
               <div className="text-[11px] text-emerald-400 tracking-widest uppercase mb-1.5">
                 Model Answer
               </div>
@@ -215,7 +215,9 @@ const WrongAnswersPanel = ({
                 {splitAnswerSteps(answer.correctAnswer).map((step, si, arr) => (
                   <div key={si} className="flex gap-2">
                     {arr.length > 1 && (
-                      <span className="text-emerald-500 flex-shrink-0 mt-0.5">›</span>
+                      <span className="text-emerald-500 flex-shrink-0 mt-0.5">
+                        ›
+                      </span>
                     )}
                     <MathRenderer
                       content={step}
@@ -228,8 +230,6 @@ const WrongAnswersPanel = ({
               </div>
             </div>
           )}
-
-          {/* Date */}
           <p className="text-[10px] text-muted-foreground/50 mt-1.5">
             {new Date(answer.submitted_at).toLocaleDateString("en-GB", {
               day: "numeric",
@@ -254,17 +254,17 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
   const handlePracticeWeakTopic = (topic: UnifiedTopicScore) => {
     const params = new URLSearchParams({
       subtopic: topic.topic,
-      source: 'weak_topics',
+      source: "weak_topics",
     });
-    if (topic.subjectId) {
-      params.set('subject', topic.subjectId);
-    }
+    if (topic.subjectId) params.set("subject", topic.subjectId);
     navigate(`/create-practice-questions?${params.toString()}`);
   };
 
@@ -280,26 +280,24 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
 
   if (topics.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center text-muted-foreground py-12">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-2">No Topic Data Yet</p>
-            <p className="text-sm mb-4">
-              Complete exams or practice quizzes to see your topic-level performance breakdown.
-            </p>
-            <Button variant="outline" onClick={() => navigate("/create-practice-questions")}>
-              <FileText className="w-4 h-4 mr-2" />
-              Start Practicing
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-card border border-border rounded-xl p-8">
+        <EmptyChartState
+          message="Complete exams or practice quizzes to see your topic-level performance breakdown."
+          icon={BookOpen}
+          action={{
+            label: "Start Practicing",
+            onClick: () => navigate("/create-practice-questions"),
+          }}
+          height={200}
+        />
+      </div>
     );
   }
 
   const weakCount = topics.filter((t) => t.mastery === "weak").length;
-  const developingCount = topics.filter((t) => t.mastery === "developing").length;
+  const developingCount = topics.filter(
+    (t) => t.mastery === "developing"
+  ).length;
   const strongCount = topics.filter((t) => t.mastery === "strong").length;
 
   const testedTopics = topics.filter((t) => t.mastery !== "untested");
@@ -307,138 +305,153 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
     ? testedTopics.filter((t) => t.mastery === activeFilter)
     : testedTopics;
 
-  const summaryCards: { mastery: UnifiedMastery; count: number; label: string }[] = [
+  const summaryCards: {
+    mastery: UnifiedMastery;
+    count: number;
+    label: string;
+  }[] = [
     { mastery: "weak", count: weakCount, label: "WEAK" },
     { mastery: "developing", count: developingCount, label: "DEVELOPING" },
     { mastery: "strong", count: strongCount, label: "STRONG" },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Summary strip — clickable filters */}
+    <div className="space-y-5">
+      {/* Summary filter cards */}
       <div className="grid grid-cols-3 gap-3">
         {summaryCards.map(({ mastery, count, label }) => {
-          const config = MASTERY_CONFIG[mastery];
+          const colours = MASTERY_COLOURS[mastery];
           const isActive = activeFilter === mastery;
           const isDimmed = activeFilter !== null && !isActive;
 
           return (
-            <Card
+            <button
               key={mastery}
               onClick={() => setActiveFilter(isActive ? null : mastery)}
               className={cn(
-                "cursor-pointer transition-all duration-200 border-l-4",
-                config.border,
-                isActive && `ring-2 ring-offset-1 ring-offset-background ${config.cardBorder}`,
-                isDimmed && "opacity-40",
-                "hover:border-opacity-80"
+                "rounded-[10px] p-4 text-left transition-all border font-inherit",
+                isDimmed && "opacity-40"
               )}
+              style={{
+                background: isActive ? colours.filterBg : "hsl(var(--card))",
+                borderColor: isActive
+                  ? colours.border
+                  : "hsl(var(--border))",
+              }}
             >
-              <CardContent className="py-4 px-5 flex flex-col gap-1">
-                <p
-                  className="text-[28px] font-bold"
-                  style={{ color: config.accent }}
-                >
-                  {count}
-                </p>
-                <p className="text-xs tracking-widest uppercase text-muted-foreground">
-                  {label}
-                </p>
-              </CardContent>
-            </Card>
+              <div
+                className="text-[28px] font-extrabold leading-none tracking-tighter"
+                style={{ color: colours.bar }}
+              >
+                {count}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-widest">
+                {label}
+              </div>
+            </button>
           );
         })}
       </div>
 
-      {/* Active filter indicator */}
+      {/* Active filter clear */}
       {activeFilter && (
         <button
           onClick={() => setActiveFilter(null)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <X className="h-3 w-3" />
-          Clear filter
+          ✕ Clear filter
         </button>
       )}
 
       {/* Topic cards */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {filteredTopics.map((topic) => {
-          const config = MASTERY_CONFIG[topic.mastery];
+          const colours = MASTERY_COLOURS[topic.mastery];
           const isExpanded = expandedTopic === topic.topic;
 
           return (
-            <Card
+            <div
               key={topic.topic}
-              className={cn("border-l-4 transition-colors", config.border)}
+              className="bg-card border border-border rounded-[10px] transition-colors"
+              style={{ borderLeftWidth: 3, borderLeftColor: colours.border }}
             >
-              <CardContent className="py-5 px-5 space-y-3">
+              <div className="p-4 space-y-3">
                 {/* Header row */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[15px] font-semibold truncate text-foreground">
-                    {topic.topic}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={cn("text-[11px] shrink-0 border", config.badge)}
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[15px] font-semibold text-foreground truncate">
+                      {topic.topic}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1.5">
+                      {topic.examScore !== null && (
+                        <span className="flex items-center gap-1">
+                          <FileText className="h-3 w-3" />
+                          Exam:{" "}
+                          <strong className="text-foreground">
+                            {topic.examScore}%
+                          </strong>
+                        </span>
+                      )}
+                      {topic.practiceScore !== null && (
+                        <span className="flex items-center gap-1">
+                          <Zap className="h-3 w-3" />
+                          Practice:{" "}
+                          <strong className="text-foreground">
+                            {topic.practiceScore}%
+                          </strong>
+                        </span>
+                      )}
+                      <span>
+                        Combined:{" "}
+                        <strong className="text-foreground">
+                          {topic.unifiedScore}%
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="text-[11px] font-semibold rounded-full px-2.5 py-0.5 shrink-0 whitespace-nowrap"
+                    style={{
+                      background: colours.badgeBg,
+                      color: colours.badge,
+                    }}
                   >
-                    {config.label}
-                  </Badge>
-                </div>
-
-                {/* Score breakdown */}
-                <div className="flex items-center gap-5 text-[13px] text-muted-foreground">
-                  {topic.examScore !== null && (
-                    <span className="flex items-center gap-1">
-                      <FileText className="h-3 w-3" />
-                      Exam: <strong className="text-foreground">{topic.examScore}%</strong>
-                    </span>
-                  )}
-                  {topic.practiceScore !== null && (
-                    <span className="flex items-center gap-1">
-                      <Zap className="h-3 w-3" />
-                      Practice: <strong className="text-foreground">{topic.practiceScore}%</strong>
-                    </span>
-                  )}
-                  <span>
-                    Combined: <strong className="text-foreground">{topic.unifiedScore}%</strong>
+                    {topic.mastery.charAt(0).toUpperCase() +
+                      topic.mastery.slice(1)}
                   </span>
                 </div>
 
-                {/* Separator */}
-                <div className="border-t border-border/30" />
-
-                {/* Progress bar */}
-                <div className="relative h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                {/* Progress bar — 6px height */}
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={cn(
-                      "absolute left-0 top-0 h-full rounded-full transition-all duration-500",
-                      config.bar
-                    )}
-                    style={{ width: `${topic.unifiedScore}%` }}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${topic.unifiedScore}%`,
+                      background: colours.bar,
+                      transition: "width 0.8s ease",
+                    }}
                   />
                 </div>
 
                 {/* Practice nudge for weak topics */}
                 {topic.mastery === "weak" && (
-                  <div className="flex items-center justify-between pt-1.5">
-                    <span className="text-xs flex items-center gap-1">
-                      {topic.practicedSinceLastExam ? (
-                        <span className="text-emerald-500 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Practised since last exam
-                        </span>
-                      ) : (
-                        <span className="text-amber-500 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Not practised since last exam
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between pt-1">
+                    <span
+                      className="text-[11px] flex items-center gap-1"
+                      style={{
+                        color: topic.practicedSinceLastExam
+                          ? "#22c55e"
+                          : "#f97316",
+                      }}
+                    >
+                      {topic.practicedSinceLastExam
+                        ? "✓ Practised since last exam"
+                        : "⚠ Not practised since last exam"}
                     </span>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 transition-all"
+                      className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
                       onClick={() => handlePracticeWeakTopic(topic)}
                     >
                       Practice now →
@@ -446,12 +459,12 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   </div>
                 )}
 
-                {/* Expand toggle for wrong answers */}
+                {/* Wrong answers expander */}
                 <button
                   onClick={() =>
                     setExpandedTopic(isExpanded ? null : topic.topic)
                   }
-                  className="w-full pt-2 mt-1 border-t border-border/20 text-muted-foreground/70 text-xs text-center hover:text-muted-foreground transition-colors flex items-center justify-center gap-1"
+                  className="w-full pt-2 mt-1 border-t border-border/30 text-muted-foreground text-[11px] text-center hover:text-foreground transition-colors flex items-center justify-center gap-1"
                 >
                   {isExpanded ? (
                     <>
@@ -464,15 +477,11 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   )}
                 </button>
 
-                {/* Wrong answers panel */}
                 {isExpanded && userId && (
-                  <WrongAnswersPanel
-                    topic={topic}
-                    studentId={userId}
-                  />
+                  <WrongAnswersPanel topic={topic} studentId={userId} />
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>

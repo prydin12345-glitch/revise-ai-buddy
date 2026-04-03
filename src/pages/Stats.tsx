@@ -1,33 +1,35 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, AlertCircle } from "lucide-react";
+import { BarChart3, AlertTriangle } from "lucide-react";
 import { TopStatsCards } from "@/components/stats/TopStatsCards";
 import { ExamResultsChart } from "@/components/stats/ExamResultsChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
-import { BestSubjectCard } from "@/components/stats/BestSubjectCard";
+import { ActivityHeatmap } from "@/components/stats/ActivityHeatmap";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
-import { Card, CardContent } from "@/components/ui/card";
-
 import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
 import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 
 const Stats = () => {
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
+  const defaultTab =
+    searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  const { topics, loading: weakTopicsLoading } = useUnifiedTopicPerformance(userId);
+  const { topics, loading: weakTopicsLoading } =
+    useUnifiedTopicPerformance(userId);
   const drilldown = useStatsDrilldown();
   const {
     loading,
@@ -48,17 +50,43 @@ const Stats = () => {
     setPieChartMode,
   } = useExamStats();
 
-  const subjects = subjectPerformanceData.map(s => ({ name: s.name, color: s.color }));
+  const subjects = subjectPerformanceData.map((s) => ({
+    name: s.name,
+    color: s.color,
+  }));
+
+  // Compute avg score from subject performance data
+  const avgScore = useMemo(() => {
+    if (subjectPerformanceData.length === 0) return 0;
+    const total = subjectPerformanceData.reduce(
+      (sum, s) => sum + s.avgScore,
+      0
+    );
+    return Math.round(total / subjectPerformanceData.length);
+  }, [subjectPerformanceData]);
+
+  // Compute total study hours from weekly data
+  const totalStudyHours = useMemo(() => {
+    let total = 0;
+    studyActivityData.forEach((day) => {
+      Object.entries(day).forEach(([key, val]) => {
+        if (key !== "day" && typeof val === "number") total += val;
+      });
+    });
+    return total;
+  }, [studyActivityData]);
+
+  const weakCount = topics.filter((t) => t.mastery === "weak").length;
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-center h-[60vh]">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-muted-foreground">Loading your statistics...</p>
-            </div>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Loading your statistics…
+            </p>
           </div>
         </div>
       </DashboardLayout>
@@ -67,80 +95,93 @@ const Stats = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pb-10 pt-6">
         <Tabs defaultValue={defaultTab} className="w-full">
-          <div className="flex items-center gap-4 mb-8">
-            <TabsList className="inline-flex h-12 items-center justify-start rounded-full bg-muted/50 p-1.5 overflow-x-auto max-w-full scrollbar-hide">
-              <TabsTrigger 
-                value="stats" 
-                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
-              >
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Stats
-              </TabsTrigger>
-              <TabsTrigger 
-                value="weak-topics"
-                className="rounded-full px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all"
-              >
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Weak Topics
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          {/* Tab navigation */}
+          <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 mb-5 h-auto w-auto inline-flex">
+            <TabsTrigger
+              value="stats"
+              className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Stats
+            </TabsTrigger>
+            <TabsTrigger
+              value="weak-topics"
+              className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Weak Topics
+              {weakCount > 0 && (
+                <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
+                  {weakCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-          <TabsContent value="stats" className="space-y-6">
-            {/* Top Stats Cards */}
-            <TopStatsCards 
-              totalExams={totalExams}
-              completedExams={completedExams}
-              inProgressExams={inProgressExams}
-              currentStreak={currentStreak}
-              longestStreak={longestStreak}
-              onCardClick={drilldown.openDrawer}
-            />
+          {/* Stats tab */}
+          <TabsContent value="stats" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Stat chips — full width */}
+              <div className="lg:col-span-12">
+                <TopStatsCards
+                  totalExams={totalExams}
+                  completedExams={completedExams}
+                  inProgressExams={inProgressExams}
+                  currentStreak={currentStreak}
+                  longestStreak={longestStreak}
+                  avgScore={avgScore}
+                  totalStudyHours={totalStudyHours}
+                  bestSubject={bestSubject}
+                  onCardClick={drilldown.openDrawer}
+                />
+              </div>
 
-            {/* Best Subject Highlight */}
-            {bestSubject && (
-              <BestSubjectCard
-                subjectName={bestSubject.name}
-                subjectColor={bestSubject.color}
-                avgScore={bestSubject.avgScore}
-                totalExams={bestSubject.totalExams}
-                trend={bestSubject.trend}
-                trendValue={bestSubject.trendValue}
-              />
-            )}
+              {/* Exam Results chart — 8 cols */}
+              <div className="lg:col-span-8">
+                <ExamResultsChart
+                  data={examResultsData}
+                  subjects={subjects}
+                  timeRange={timeRange}
+                  onTimeRangeChange={setTimeRange}
+                  revisionGoals={revisionGoals}
+                />
+              </div>
 
-            {/* Charts Row */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <ExamResultsChart
-                data={examResultsData}
-                subjects={subjects}
-                timeRange={timeRange}
-                onTimeRangeChange={setTimeRange}
-                revisionGoals={revisionGoals}
-              />
-              <SubjectPerformanceChart
-                data={subjectPerformanceData}
-                viewMode={pieChartMode}
-                onViewModeChange={setPieChartMode}
-              />
+              {/* Subject performance — 4 cols */}
+              <div className="lg:col-span-4">
+                <SubjectPerformanceChart
+                  data={subjectPerformanceData}
+                  viewMode={pieChartMode}
+                  onViewModeChange={setPieChartMode}
+                />
+              </div>
+
+              {/* Weekly activity — 6 cols */}
+              <div className="lg:col-span-6">
+                <WeeklyStudyChart
+                  data={studyActivityData}
+                  subjects={subjects}
+                />
+              </div>
+
+              {/* Activity heatmap — 6 cols */}
+              <div className="lg:col-span-6">
+                <ActivityHeatmap />
+              </div>
+
+              {/* Recent exams — full width */}
+              <div className="lg:col-span-12">
+                <RecentExamsTable exams={recentExams} />
+              </div>
             </div>
-
-            {/* Weekly Study Activity */}
-            <WeeklyStudyChart
-              data={studyActivityData}
-              subjects={subjects}
-            />
-
-            {/* Recent Exams Table */}
-            <RecentExamsTable exams={recentExams} />
           </TabsContent>
 
-          <TabsContent value="weak-topics">
+          {/* Weak topics tab */}
+          <TabsContent value="weak-topics" className="mt-0">
             <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
           </TabsContent>
-
         </Tabs>
 
         {/* Stats Drilldown Drawer */}
