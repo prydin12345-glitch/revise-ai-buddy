@@ -13,8 +13,7 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'tellegen', 'compensation',
 
   // Three-phase theory — too complex for current renderer
-  'three-phase', 'three phase', 'delta-star', 'star-delta',
-  'delta-wye', 'wye-delta', 'delta to star', 'star to star',
+  'three-phase', 'three phase', 'star-delta', 'star to star',
   'unbalanced load', 'unconnected neutral', 'neutral point',
   'sequence component', 'positive sequence', 'negative sequence',
   'zero sequence',
@@ -59,6 +58,8 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
   'series-parallel', 'ladder network', 'bridge circuit',
   'phasor diagram', 'phasor_diagram',
+  'delta vs wye', 'wye vs delta', 'delta/wye comparison',
+  'delta_wye_comparison',
 ];
 
 export const shouldSuppressDiagram = (

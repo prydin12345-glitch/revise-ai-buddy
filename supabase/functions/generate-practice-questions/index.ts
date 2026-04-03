@@ -10,6 +10,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../../../src/utils/questionTextScrubber.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -539,7 +540,7 @@ EXAMPLE QUESTION FORMATS:
     // ── DIAGRAM SUPPRESSION — prevent timeouts on theoretical topics ──
     const SUPPRESS_DIAGRAM_TOPICS = [
       'thevenin', 'norton', 'superposition', 'blondel', 'reciprocity', 'maximum power transfer', 'millman', 'tellegen', 'compensation',
-      'three-phase', 'three phase', 'delta-star', 'star-delta', 'delta-wye', 'wye-delta', 'delta to star', 'star to star',
+      'three-phase', 'three phase', 'star-delta', 'star to star',
       'unbalanced load', 'unconnected neutral', 'neutral point', 'sequence component', 'positive sequence', 'negative sequence', 'zero sequence',
       'phasor analysis', 'phasor theory', 'argand', 'polar form', 'rectangular form', 'complex notation', 'j notation', 'sinusoidal', 'phase angle', 'power factor angle',
       'power factor', 'reactive power', 'apparent power', 'real power', 'active power', 'power triangle', 'power measurement', 'power calculation',
@@ -553,34 +554,40 @@ EXAMPLE QUESTION FORMATS:
       'series circuit', 'parallel circuit', 'potential divider', 'voltage divider', 'wheatstone bridge', 'kirchhoff',
       'current divider', 'rc circuit', 'rl circuit', 'lc circuit', 'series-parallel', 'ladder network', 'bridge circuit',
       'phasor diagram', 'phasor_diagram',
+      'delta vs wye', 'wye vs delta', 'delta/wye comparison', 'delta_wye_comparison',
     ];
     const topicsCombined = ((setData.subtopics || []).join(' ') + ' ' + (setData.notes || '')).toLowerCase();
     const hasDiagramTopic = ALWAYS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
     const hasSuppressedTopic = !hasDiagramTopic && SUPPRESS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
     const hasPhasorTopic = topicsCombined.includes('phasor diagram') || topicsCombined.includes('phasor_diagram');
+    const hasDeltaWyeTopic = /delta.*wye|wye.*delta|delta\/wye|delta_wye|delta-star|star-delta/i.test(topicsCombined);
 
     // Detect electrical engineering subjects for special instructions
     const isElectricalEngineering = /electric|circuit|power system|analog|digital electronics/i.test(setData.subject_id || '');
 
     const diagramSuppressionNotice = hasSuppressedTopic ? `
-## DIAGRAM NOTICE — CRITICAL
-No circuit diagram will be displayed with these questions.
-You MUST NOT write any of the following in question text:
-- "Consider the circuit shown below"
-- "Refer to the circuit diagram"
-- "As shown in Figure X"
-- "From the circuit below"
-- "Using the network shown"
-- Any reference to a figure, diagram, or circuit being visible
+## ABSOLUTE RULE — NO DIAGRAM REFERENCES
+No circuit diagram will be shown. You MUST NOT write:
+- "in the circuit shown below"
+- "consider the circuit below"
+- "refer to the circuit"
+- "as shown in the figure"
+- "from the network below"
+- ANY phrase suggesting a diagram will be visible
 
-Instead describe the circuit fully in the question text itself.
-For nodal analysis questions: describe the circuit topology in words.
-Example WRONG: "Consider the circuit shown below. Find V1."
-Example CORRECT: "A resistive network has three nodes. Node V1 is connected to the 12V source through a 4 ohm resistor, to ground through a 6 ohm resistor, and to node V2 through a 2 ohm resistor. Node V2 is connected to ground through an 8 ohm resistor. Using nodal analysis, find V1."
-For theorem questions: state all component values explicitly in the text.
-Do NOT include diagramConfig in any question.
-Set diagramConfig: null for all questions.
-Questions should be expressed through equations, text descriptions, and mathematical notation only.
+THIS IS NON-NEGOTIABLE. Questions saying "circuit below" with no circuit will be automatically deleted from the exam.
+
+FOR SUPERPOSITION / THEVENIN / NORTON / NODAL / MESH QUESTIONS:
+You MUST describe the complete circuit topology in the question text.
+Include: component values, connection topology, source types and values.
+
+CORRECT example for superposition:
+"A circuit contains a 10 V voltage source, a 2 A current source, and three resistors: R1 = 6Ω connected in series with the voltage source, R2 = 4Ω connected between the junction of R1 and the current source, and R3 = 3Ω connected from that junction to ground. The 2A current source is connected in parallel with R3. Using the Superposition Theorem, determine the current through R2."
+
+WRONG example (will be deleted):
+"Using the Superposition Theorem, determine the current through the 4Ω resistor in the circuit below."
+
+If you cannot describe the circuit topology in text alone for a given theorem question then generate a DIFFERENT question type instead — for example a power calculation or impedance calculation that does not require a circuit diagram.
 ` : '';
 
     const phasorDiagramInstructions = hasPhasorTopic ? `
@@ -620,6 +627,14 @@ The question MUST specify:
 Minimum information required for a solvable nodal analysis question:
 "A circuit has nodes V1 and V2 with ground as reference. Between V1 and ground: 10 ohm resistor. Between V2 and ground: 5 ohm resistor. Between V1 and V2: 4 ohm resistor. A 20V source connects from ground to V1. Using nodal analysis, find V1 and V2."
 Never write a nodal analysis question that only says "use the network shown" — all topology must be in the text.
+` : '';
+
+    const deltaWyeDiagramInstructions = hasDeltaWyeTopic ? `
+## DELTA VS WYE COMPARISON DIAGRAM
+For delta vs wye comparison questions:
+- Set diagramConfig: { "type": "delta_wye_comparison" }
+- No other fields are needed — the diagram is static
+- Use the diagram as a reference comparison, not as something the student must draw
 ` : '';
 
     if (hasSuppressedTopic) {
@@ -1152,6 +1167,7 @@ ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
 ${hardeningRules}
 ${diagramSuppressionNotice}
 ${phasorDiagramInstructions}
+${deltaWyeDiagramInstructions}
 ${nodalAnalysisInstruction}
 Generate ${effectiveQuestionCount} practice questions.
 ${mcqFormatInstruction}
@@ -1980,6 +1996,28 @@ ${notesSection}`;
     }
 
     console.log(`Generated ${questions.length} questions`);
+
+    for (const q of questions) {
+      const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig);
+      if (!hasBrokenRef) continue;
+
+      console.error(
+        `Broken diagram reference detected in Q${q.question_number}: "${String(q.question_text || '').slice(0, 100)}..."`
+      );
+
+      const scrubbed = scrubBrokenDiagramReferences(q.question_text || '');
+      const stillBroken = hasBrokenDiagramReference(scrubbed, null) || scrubbed.length < 30;
+
+      q.question_text = scrubbed;
+      q.needs_review = true;
+      q.extraction_confidence = stillBroken ? 0.1 : Math.min(q.extraction_confidence ?? 1, 0.4);
+      q.rationale = [
+        typeof q.rationale === 'string' ? q.rationale : '',
+        stillBroken
+          ? 'Review required: this question referenced a missing diagram and could not be fully repaired automatically.'
+          : 'Review required: a missing-diagram reference was auto-scrubbed from the question text.',
+      ].filter(Boolean).join('\n\n');
+    }
     
     // =====================================================================
     // PHASE 5.5: NON-MATH GRAPH ENFORCEMENT (Deterministic Post-Processing)

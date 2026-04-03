@@ -107,6 +107,79 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
       );
     }
 
+    if (config.type === 'delta_wye_comparison') {
+      return (
+        <svg viewBox="0 0 400 200" width="100%"
+          style={{ background: COLORS.background, maxWidth: 400, display: 'block', margin: '0 auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+          <text x={80} y={20} textAnchor="middle"
+            fontSize={12} fontWeight="bold" fill="#1a1a1a"
+            fontFamily="serif">
+            Delta (Δ)
+          </text>
+          <polygon
+            points="80,40 30,140 130,140"
+            fill="none" stroke="#1a1a1a" strokeWidth={2}
+          />
+          <text x={42} y={95} fontSize={10} fill="#3b82f6"
+            fontFamily="serif" fontStyle="italic">Z₁</text>
+          <text x={110} y={95} fontSize={10} fill="#3b82f6"
+            fontFamily="serif" fontStyle="italic">Z₂</text>
+          <text x={75} y={152} fontSize={10} fill="#3b82f6"
+            fontFamily="serif" fontStyle="italic">Z₃</text>
+          {[[80, 40], [30, 140], [130, 140]].map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={4}
+              fill="#1a1a1a" />
+          ))}
+          <text x={80} y={35} textAnchor="middle"
+            fontSize={9} fill="#6b7280" fontFamily="serif">A</text>
+          <text x={22} y={145} fontSize={9} fill="#6b7280"
+            fontFamily="serif">B</text>
+          <text x={133} y={145} fontSize={9} fill="#6b7280"
+            fontFamily="serif">C</text>
+
+          <line x1={200} y1={20} x2={200} y2={170}
+            stroke="#e5e7eb" strokeWidth={1}
+            strokeDasharray="4 4" />
+
+          <text x={310} y={20} textAnchor="middle"
+            fontSize={12} fontWeight="bold" fill="#1a1a1a"
+            fontFamily="serif">
+            Wye (Y)
+          </text>
+          <circle cx={310} cy={110} r={4} fill="#1a1a1a" />
+          <text x={318} y={114} fontSize={9} fill="#6b7280"
+            fontFamily="serif">N</text>
+          {[
+            [310, 40, 'A'],
+            [240, 155, 'B'],
+            [380, 155, 'C'],
+          ].map(([x, y, label], i) => (
+            <g key={i}>
+              <line x1={310} y1={110}
+                x2={x as number} y2={y as number}
+                stroke="#1a1a1a" strokeWidth={2} />
+              <circle cx={x as number} cy={y as number}
+                r={4} fill="#1a1a1a" />
+              <text
+                x={(310 + (x as number)) / 2 + (i === 0 ? 8 : i === 1 ? -12 : 8)}
+                y={(110 + (y as number)) / 2}
+                fontSize={10} fill="#3b82f6"
+                fontFamily="serif" fontStyle="italic">
+                {`Z${i + 1}`}
+              </text>
+              <text
+                x={(x as number) + (i === 0 ? 0 : i === 1 ? -14 : 6)}
+                y={(y as number) + (i === 0 ? -8 : 12)}
+                fontSize={9} fill="#6b7280"
+                fontFamily="serif">
+                {label as string}
+              </text>
+            </g>
+          ))}
+        </svg>
+      );
+    }
+
     const renderDiagram = () => {
       switch (config.type) {
         case 'slope':
