@@ -14,10 +14,74 @@ interface SubjectPerformanceChartProps {
   onViewModeChange: (mode: "score" | "count") => void;
 }
 
-const getScoreColour = (score: number): string => {
-  if (score >= 70) return "#22c55e";
-  if (score >= 50) return "#f97316";
-  return "#ef4444";
+/** Semi-circular gauge SVG */
+const SemiGauge = ({
+  score,
+  color,
+  size = 120,
+}: {
+  score: number;
+  color: string;
+  size?: number;
+}) => {
+  const r = (size - 12) / 2;
+  const cx = size / 2;
+  const cy = size / 2 + 6;
+  const circumference = Math.PI * r; // half circle
+  const offset = circumference - (Math.min(score, 100) / 100) * circumference;
+
+  return (
+    <svg width={size} height={size / 2 + 16} viewBox={`0 0 ${size} ${size / 2 + 16}`}>
+      {/* Track */}
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+        fill="none"
+        stroke="hsl(var(--muted))"
+        strokeWidth={8}
+        strokeLinecap="round"
+      />
+      {/* Value */}
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+        fill="none"
+        stroke={color}
+        strokeWidth={8}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className="transition-all duration-700"
+      />
+      {/* Percentage text */}
+      <text
+        x={cx}
+        y={cy - 8}
+        textAnchor="middle"
+        className="text-foreground"
+        style={{ fontSize: size * 0.22, fontWeight: 700, fill: "currentColor" }}
+      >
+        {Math.round(score)}%
+      </text>
+      {/* Labels */}
+      <text
+        x={cx - r + 2}
+        y={cy + 14}
+        textAnchor="start"
+        className="text-muted-foreground"
+        style={{ fontSize: 9, fill: "currentColor" }}
+      >
+        Low
+      </text>
+      <text
+        x={cx + r - 2}
+        y={cy + 14}
+        textAnchor="end"
+        className="text-muted-foreground"
+        style={{ fontSize: 9, fill: "currentColor" }}
+      >
+        High
+      </text>
+    </svg>
+  );
 };
 
 export const SubjectPerformanceChart = ({
@@ -39,7 +103,7 @@ export const SubjectPerformanceChart = ({
       </div>
 
       {/* Content */}
-      <div className="px-5 py-4 flex-1">
+      <div className="px-3 py-4 flex-1">
         {sorted.length === 0 ? (
           <EmptyChartState
             message="No exam data yet"
@@ -51,41 +115,31 @@ export const SubjectPerformanceChart = ({
             height={200}
           />
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {sorted.map((subject) => {
-              const scoreColour = getScoreColour(subject.avgScore);
+              const gaugeColor =
+                subject.avgScore >= 70
+                  ? "hsl(142 71% 45%)"
+                  : subject.avgScore >= 50
+                  ? "hsl(25 95% 53%)"
+                  : "hsl(0 84% 60%)";
+
               return (
-                <div key={subject.name}>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: subject.color }}
-                      />
-                      <span className="text-[13px] font-medium text-foreground">
-                        {subject.name}
-                      </span>
-                    </div>
-                    <span
-                      className="text-[13px] font-bold tabular-nums"
-                      style={{ color: scoreColour }}
-                    >
-                      {Math.round(subject.avgScore)}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(subject.avgScore, 100)}%`,
-                        background: scoreColour,
-                        transition: "width 0.8s ease",
-                      }}
-                    />
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">
+                <div
+                  key={subject.name}
+                  className="flex flex-col items-center gap-1 min-w-[100px]"
+                >
+                  <SemiGauge
+                    score={subject.avgScore}
+                    color={gaugeColor}
+                    size={100}
+                  />
+                  <span className="text-xs font-semibold text-foreground text-center leading-tight">
+                    {subject.name}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
                     {subject.count} exam{subject.count !== 1 ? "s" : ""}
-                  </div>
+                  </span>
                 </div>
               );
             })}

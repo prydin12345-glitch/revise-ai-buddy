@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -40,6 +40,12 @@ interface ExamResultsChartProps {
   }>;
 }
 
+const GRADIENTS = (subjects: Array<{ name: string; color: string }>) =>
+  subjects.map((s) => ({
+    id: `grad-${s.name.replace(/\s/g, "")}`,
+    color: s.color,
+  }));
+
 const ChartContent = ({
   data,
   subjects,
@@ -50,76 +56,89 @@ const ChartContent = ({
   subjects: ExamResultsChartProps["subjects"];
   revisionGoals: ExamResultsChartProps["revisionGoals"];
   height: number;
-}) => (
-  <ResponsiveContainer width="100%" height={height}>
-    <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-      <CartesianGrid
-        strokeDasharray="3 3"
-        stroke="hsl(var(--border))"
-        vertical={false}
-      />
-      <XAxis
-        dataKey="period"
-        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-        axisLine={false}
-        tickLine={false}
-      />
-      <YAxis
-        domain={[0, 100]}
-        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-        axisLine={false}
-        tickLine={false}
-        tickFormatter={(v) => `${v}%`}
-        width={35}
-      />
-      <Tooltip
-        contentStyle={{
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-          borderRadius: 8,
-          fontSize: 12,
-        }}
-        formatter={(value: any, name: string) => [
-          `${Math.round(value)}%`,
-          name,
-        ]}
-        labelStyle={{
-          color: "hsl(var(--foreground))",
-          marginBottom: 4,
-          fontWeight: 600,
-        }}
-      />
-      {subjects.map((subject) => (
-        <Line
-          key={subject.name}
-          type="monotone"
-          dataKey={subject.name}
-          stroke={subject.color}
-          strokeWidth={2.5}
-          dot={{ fill: subject.color, r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: subject.color }}
-          connectNulls
-          name={subject.name}
+}) => {
+  const grads = GRADIENTS(subjects);
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+        <defs>
+          {grads.map((g) => (
+            <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={g.color} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={g.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="hsl(var(--border))"
+          vertical={false}
         />
-      ))}
-      {revisionGoals.map((goal) => (
-        <ReferenceLine
-          key={`goal-${goal.subject}`}
-          y={goal.targetPercentage}
-          stroke={goal.color}
-          strokeDasharray="4 4"
-          strokeWidth={1.5}
-          label={{
-            value: `Goal: ${goal.targetPercentage}%`,
-            position: "right",
-            fontSize: 10,
-            fill: goal.color,
+        <XAxis
+          dataKey="period"
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          domain={[0, 100]}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(v) => `${v}%`}
+          width={35}
+        />
+        <Tooltip
+          contentStyle={{
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 8,
+            fontSize: 12,
+          }}
+          formatter={(value: any, name: string) => [
+            `${Math.round(value)}%`,
+            name,
+          ]}
+          labelStyle={{
+            color: "hsl(var(--foreground))",
+            marginBottom: 4,
+            fontWeight: 600,
           }}
         />
-      ))}
-    </LineChart>
-  </ResponsiveContainer>
-);
+        {subjects.map((subject, i) => (
+          <Area
+            key={subject.name}
+            type="monotone"
+            dataKey={subject.name}
+            stroke={subject.color}
+            strokeWidth={2.5}
+            fill={`url(#${grads[i]?.id})`}
+            dot={{ fill: subject.color, r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: subject.color }}
+            connectNulls
+            name={subject.name}
+          />
+        ))}
+        {revisionGoals.map((goal) => (
+          <ReferenceLine
+            key={`goal-${goal.subject}`}
+            y={goal.targetPercentage}
+            stroke={goal.color}
+            strokeDasharray="4 4"
+            strokeWidth={1.5}
+            label={{
+              value: `Goal: ${goal.targetPercentage}%`,
+              position: "right",
+              fontSize: 10,
+              fill: goal.color,
+            }}
+          />
+        ))}
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+};
 
 export const ExamResultsChart = ({
   data,
@@ -132,9 +151,9 @@ export const ExamResultsChart = ({
   const navigate = useNavigate();
 
   const timeRangeLabels: Record<string, string> = {
-    weekly: "7 days",
-    monthly: "30 days",
-    yearly: "1 year",
+    weekly: "1D",
+    monthly: "1M",
+    yearly: "1Y",
   };
 
   return (
@@ -150,22 +169,26 @@ export const ExamResultsChart = ({
               Score percentage per submission
             </div>
           </div>
-          <div className="flex gap-2 items-center">
-            <Select value={timeRange} onValueChange={onTimeRangeChange}>
-              <SelectTrigger className="h-7 text-[11px] w-[90px] bg-background border-border rounded-md px-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(timeRangeLabels).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex gap-1 items-center">
+            {/* Pill time range selector like the reference image */}
+            <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
+              {Object.entries(timeRangeLabels).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => onTimeRangeChange(val as any)}
+                  className={`px-3 py-1 text-[11px] font-medium rounded-md transition-all ${
+                    timeRange === val
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setExpanded(true)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors ml-1"
               title="Expand chart"
             >
               <Maximize2 size={13} />
@@ -194,16 +217,16 @@ export const ExamResultsChart = ({
           )}
         </div>
 
-        {/* Subject legend */}
+        {/* Subject legend — circular dots like reference */}
         {subjects.length > 0 && data.length > 0 && (
-          <div className="px-5 pb-3 flex flex-wrap gap-3">
+          <div className="px-5 pb-3 flex flex-wrap gap-4 justify-center">
             {subjects.map((s) => (
-              <div key={s.name} className="flex items-center gap-1.5">
+              <div key={s.name} className="flex items-center gap-2">
                 <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: s.color }}
+                  className="w-3 h-3 rounded-full border-2"
+                  style={{ borderColor: s.color, background: `${s.color}30` }}
                 />
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {s.name}
                 </span>
               </div>
@@ -228,14 +251,14 @@ export const ExamResultsChart = ({
               />
             )}
             {subjects.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-3 justify-center">
+              <div className="mt-4 flex flex-wrap gap-4 justify-center">
                 {subjects.map((s) => (
-                  <div key={s.name} className="flex items-center gap-1.5">
+                  <div key={s.name} className="flex items-center gap-2">
                     <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ background: s.color }}
+                      className="w-3 h-3 rounded-full border-2"
+                      style={{ borderColor: s.color, background: `${s.color}30` }}
                     />
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground font-medium">
                       {s.name}
                     </span>
                   </div>

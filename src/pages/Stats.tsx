@@ -55,7 +55,6 @@ const Stats = () => {
     color: s.color,
   }));
 
-  // Compute avg score from subject performance data
   const avgScore = useMemo(() => {
     if (subjectPerformanceData.length === 0) return 0;
     const total = subjectPerformanceData.reduce(
@@ -65,7 +64,6 @@ const Stats = () => {
     return Math.round(total / subjectPerformanceData.length);
   }, [subjectPerformanceData]);
 
-  // Compute total study hours from weekly data
   const totalStudyHours = useMemo(() => {
     let total = 0;
     studyActivityData.forEach((day) => {
@@ -98,7 +96,7 @@ const Stats = () => {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pb-10 pt-6">
         <Tabs defaultValue={defaultTab} className="w-full">
           {/* Tab navigation */}
-          <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 mb-5 h-auto w-auto inline-flex">
+          <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 mb-5 h-auto w-auto inline-flex overflow-x-auto">
             <TabsTrigger
               value="stats"
               className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
@@ -138,8 +136,14 @@ const Stats = () => {
                 />
               </div>
 
-              {/* Exam Results chart — 8 cols */}
-              <div className="lg:col-span-8">
+              {/* Row 1: Weekly Study (left) + Exam Results (right) */}
+              <div className="lg:col-span-5">
+                <WeeklyStudyChart
+                  data={studyActivityData}
+                  subjects={subjects}
+                />
+              </div>
+              <div className="lg:col-span-7">
                 <ExamResultsChart
                   data={examResultsData}
                   subjects={subjects}
@@ -149,29 +153,19 @@ const Stats = () => {
                 />
               </div>
 
-              {/* Subject performance — 4 cols */}
-              <div className="lg:col-span-4">
+              {/* Row 2: Subject Performance gauges + Study Activity trend */}
+              <div className="lg:col-span-7">
                 <SubjectPerformanceChart
                   data={subjectPerformanceData}
                   viewMode={pieChartMode}
                   onViewModeChange={setPieChartMode}
                 />
               </div>
-
-              {/* Weekly activity — 6 cols */}
-              <div className="lg:col-span-6">
-                <WeeklyStudyChart
-                  data={studyActivityData}
-                  subjects={subjects}
-                />
-              </div>
-
-              {/* Activity heatmap — 6 cols */}
-              <div className="lg:col-span-6">
+              <div className="lg:col-span-5">
                 <ActivityHeatmap />
               </div>
 
-              {/* Recent exams — full width */}
+              {/* Row 3: Recent Exams — full width */}
               <div className="lg:col-span-12">
                 <RecentExamsTable exams={recentExams} />
               </div>
