@@ -76,23 +76,29 @@ export const TopStatsCards = ({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2.5 flex-wrap">
         {chips.map((chip) => (
           <Tooltip key={chip.label}>
             <TooltipTrigger asChild>
               <button
                 onClick={() => chip.clickType && onCardClick?.(chip.clickType)}
-                className="flex items-center gap-2 rounded-xl bg-card border border-border px-3.5 py-2.5 transition-all hover:border-primary/30 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
-                style={{ cursor: chip.clickType ? "pointer" : "default" }}
+                className="flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-3.5 transition-all hover:border-primary/30 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
+                style={{
+                  cursor: chip.clickType ? "pointer" : "default",
+                  borderLeft: `3px solid ${chip.colour}`,
+                }}
                 tabIndex={chip.clickType ? 0 : -1}
               >
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0"
                   style={{ background: `${chip.colour}18` }}
                 >
-                  <chip.icon size={16} style={{ color: chip.colour }} strokeWidth={2} />
+                  <chip.icon size={18} style={{ color: chip.colour }} strokeWidth={2} />
                 </div>
-                <span className="text-lg font-bold text-foreground tracking-tight whitespace-nowrap">
+                <span
+                  className="font-extrabold tracking-tight whitespace-nowrap"
+                  style={{ fontSize: 24, lineHeight: 1, color: chip.colour, letterSpacing: "-0.5px" }}
+                >
                   {chip.value}
                 </span>
               </button>

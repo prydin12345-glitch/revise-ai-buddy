@@ -10,13 +10,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -65,8 +58,8 @@ const ChartContent = ({
         <defs>
           {grads.map((g) => (
             <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={g.color} stopOpacity={0.2} />
-              <stop offset="95%" stopColor={g.color} stopOpacity={0} />
+              <stop offset="5%" stopColor={g.color} stopOpacity={0.35} />
+              <stop offset="95%" stopColor={g.color} stopOpacity={0.02} />
             </linearGradient>
           ))}
         </defs>
@@ -114,8 +107,8 @@ const ChartContent = ({
             stroke={subject.color}
             strokeWidth={2.5}
             fill={`url(#${grads[i]?.id})`}
-            dot={{ fill: subject.color, r: 3, strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: subject.color }}
+            dot={false}
+            activeDot={{ r: 5, fill: subject.color, strokeWidth: 0 }}
             connectNulls
             name={subject.name}
           />
@@ -150,37 +143,44 @@ export const ExamResultsChart = ({
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
 
-  const timeRangeLabels: Record<string, string> = {
-    weekly: "1D",
-    monthly: "1M",
-    yearly: "1Y",
-  };
+  const timeRangeOptions: Array<{ key: "weekly" | "monthly" | "yearly"; label: string }> = [
+    { key: "weekly", label: "1W" },
+    { key: "monthly", label: "1M" },
+    { key: "yearly", label: "1Y" },
+  ];
 
   return (
     <>
       <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 flex justify-between items-center border-b border-border">
+        <div className="px-[18px] py-3.5 flex justify-between items-center border-b border-border flex-shrink-0">
           <div>
-            <div className="text-sm font-semibold text-foreground">
+            <div className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
               Exam Results Over Time
             </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
+            <div className="text-[11px] text-muted-foreground mt-px">
               Score percentage per submission
             </div>
           </div>
-          <div className="flex gap-1 items-center">
-            {/* Pill time range selector like the reference image */}
-            <div className="flex bg-muted rounded-lg p-0.5 gap-0.5">
-              {Object.entries(timeRangeLabels).map(([val, label]) => (
+          <div className="flex gap-1.5 items-center">
+            {/* Pill time range selector */}
+            <div className="flex bg-muted rounded-lg p-[3px] gap-[2px]">
+              {timeRangeOptions.map(({ key, label }) => (
                 <button
-                  key={val}
-                  onClick={() => onTimeRangeChange(val as any)}
-                  className={`px-3 py-1 text-[11px] font-medium rounded-md transition-all ${
-                    timeRange === val
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  key={key}
+                  onClick={() => onTimeRangeChange(key)}
+                  className="font-inherit transition-all"
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    border: "none",
+                    background: timeRange === key ? "hsl(var(--card))" : "transparent",
+                    color: timeRange === key ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                    fontSize: 11,
+                    fontWeight: timeRange === key ? 600 : 400,
+                    cursor: "pointer",
+                    boxShadow: timeRange === key ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
+                  }}
                 >
                   {label}
                 </button>
@@ -188,7 +188,7 @@ export const ExamResultsChart = ({
             </div>
             <button
               onClick={() => setExpanded(true)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors ml-1"
+              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               title="Expand chart"
             >
               <Maximize2 size={13} />
@@ -206,27 +206,28 @@ export const ExamResultsChart = ({
                 label: "Take an exam",
                 onClick: () => navigate("/my-exams"),
               }}
+              height={200}
             />
           ) : (
             <ChartContent
               data={data}
               subjects={subjects}
               revisionGoals={revisionGoals}
-              height={280}
+              height={220}
             />
           )}
         </div>
 
-        {/* Subject legend — circular dots like reference */}
+        {/* Subject legend */}
         {subjects.length > 0 && data.length > 0 && (
-          <div className="px-5 pb-3 flex flex-wrap gap-4 justify-center">
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-4 pb-3 pt-1 border-t border-border mt-1">
             {subjects.map((s) => (
-              <div key={s.name} className="flex items-center gap-2">
+              <div key={s.name} className="flex items-center gap-1.5">
                 <div
-                  className="w-3 h-3 rounded-full border-2"
-                  style={{ borderColor: s.color, background: `${s.color}30` }}
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: s.color, border: `2px solid ${s.color}40` }}
                 />
-                <span className="text-xs text-muted-foreground font-medium">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {s.name}
                 </span>
               </div>
@@ -255,8 +256,8 @@ export const ExamResultsChart = ({
                 {subjects.map((s) => (
                   <div key={s.name} className="flex items-center gap-2">
                     <div
-                      className="w-3 h-3 rounded-full border-2"
-                      style={{ borderColor: s.color, background: `${s.color}30` }}
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: s.color, border: `2px solid ${s.color}40` }}
                     />
                     <span className="text-xs text-muted-foreground font-medium">
                       {s.name}

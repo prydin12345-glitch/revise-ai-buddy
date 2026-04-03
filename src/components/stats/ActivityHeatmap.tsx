@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subWeeks, startOfWeek, addDays, subDays, eachDayOfInterval } from "date-fns";
+import { format, subWeeks, subDays, eachDayOfInterval } from "date-fns";
 import {
   AreaChart,
   Area,
@@ -57,7 +57,6 @@ export const ActivityHeatmap = () => {
     fetchData();
   }, []);
 
-  // Build last 7 days chart data for the "returning customer rate" style
   const chartData = useMemo(() => {
     const now = new Date();
     const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
@@ -70,7 +69,6 @@ export const ActivityHeatmap = () => {
     });
   }, [dailyData]);
 
-  // Total and trend
   const totalHours = useMemo(
     () => Object.values(dailyData).reduce((a, b) => a + b, 0),
     [dailyData]
@@ -83,12 +81,12 @@ export const ActivityHeatmap = () => {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border flex justify-between items-center">
+      <div className="px-[18px] py-3.5 border-b border-border flex justify-between items-center flex-shrink-0">
         <div>
-          <div className="text-sm font-semibold text-foreground">
+          <div className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
             Study Activity
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
+          <div className="text-[11px] text-muted-foreground mt-px">
             Hours studied over time
           </div>
         </div>
@@ -98,7 +96,7 @@ export const ActivityHeatmap = () => {
       </div>
 
       {/* Stats */}
-      <div className="px-5 pt-3 flex items-baseline gap-2">
+      <div className="px-[18px] pt-3 flex items-baseline gap-2">
         <span className="text-2xl font-bold text-foreground tracking-tight">
           {totalHours.toFixed(1)}h
         </span>
@@ -111,7 +109,7 @@ export const ActivityHeatmap = () => {
 
       {/* Area chart */}
       <div className="px-2 pb-3 pt-2 flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height={140}>
+        <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
             <defs>
               <linearGradient id="activityGrad" x1="0" y1="0" x2="0" y2="1">

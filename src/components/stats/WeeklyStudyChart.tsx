@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, startOfWeek, addDays, subWeeks, addWeeks, isSameWeek } from "date-fns";
+import { format, startOfWeek, addDays, subWeeks } from "date-fns";
 
 interface WeeklyStudyChartProps {
   data: Array<{
@@ -35,7 +35,6 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
 
   const isCurrentWeek = weekOffset === 0;
 
-  // Compute the week date range label
   const weekLabel = useMemo(() => {
     const now = new Date();
     const target = weekOffset === 0 ? now : subWeeks(now, -weekOffset);
@@ -44,7 +43,6 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
     return `${format(ws, "EEE d")} - ${format(we, "d MMM")}`;
   }, [weekOffset]);
 
-  // Total hours for the week
   const totalHours = useMemo(() => {
     let total = 0;
     data.forEach((day) => {
@@ -124,22 +122,21 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
     <>
       <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex justify-between items-center">
+        <div className="px-[18px] py-3.5 border-b border-border flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Clock className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-foreground">
+              <div className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
                 Weekly Study
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
+              <div className="text-[11px] text-muted-foreground mt-px">
                 Total time per day
               </div>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Week navigation */}
             <button
               onClick={() => setWeekOffset((o) => o - 1)}
               className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
@@ -167,9 +164,16 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
         </div>
 
         {/* Total hours badge */}
-        <div className="px-5 pt-3 flex gap-3">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-foreground tracking-tight">
+        <div className="px-[18px] pt-3">
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full"
+            style={{
+              padding: "4px 12px",
+              background: "hsl(var(--primary) / 0.1)",
+              border: "1px solid hsl(var(--primary) / 0.2)",
+            }}
+          >
+            <span className="text-base font-bold text-primary">
               {totalHours.toFixed(1)}h
             </span>
             <span className="text-[11px] text-muted-foreground">this week</span>
@@ -179,12 +183,12 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
         {/* Chart */}
         <div className="p-4 flex-1 min-h-0">
           {data.length > 0 && subjects.length > 0 ? (
-            <ChartBody height={180} />
+            <ChartBody height={200} />
           ) : (
             <EmptyChartState
               message="Start tracking your study time"
               icon={Clock}
-              height={180}
+              height={200}
             />
           )}
         </div>
