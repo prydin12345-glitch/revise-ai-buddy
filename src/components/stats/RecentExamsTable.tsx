@@ -1,11 +1,19 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BookOpen, ArrowUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { BookOpen, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { EmptyChartState } from "./EmptyChartState";
 
 interface RecentExam {
   id: string;
@@ -23,199 +31,245 @@ interface RecentExamsTableProps {
   exams: RecentExam[];
 }
 
+const PAGE_SIZE = 5;
+
 export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [sortBy, setSortBy] = useState<'date' | 'score'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const sortedExams = [...exams].sort((a, b) => {
-    if (sortBy === 'date') {
-      const dateA = new Date(a.dateTaken).getTime();
-      const dateB = new Date(b.dateTaken).getTime();
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-    } else {
-      return sortOrder === 'asc' ? a.score - b.score : b.score - a.score;
-    }
-  });
+  const filtered = useMemo(() => {
+    if (!search.trim()) return exams;
+    const q = search.toLowerCase();
+    return exams.filter(
+      (e) =>
+        e.examTitle.toLowerCase().includes(q) ||
+        e.subject.toLowerCase().includes(q)
+    );
+  }, [exams, search]);
 
-  const toggleSort = (column: 'date' | 'score') => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-success';
-    if (score >= 60) return 'text-warning';
-    return 'text-destructive';
+    if (score >= 80) return "text-green-500";
+    if (score >= 60) return "text-orange-400";
+    return "text-red-400";
+  };
+
+  const getStatusLabel = (score: number) => {
+    if (score >= 80) return { text: "Excellent", className: "bg-green-500/10 text-green-500 border-green-500/20" };
+    if (score >= 60) return { text: "Good", className: "bg-orange-400/10 text-orange-400 border-orange-400/20" };
+    return { text: "Needs Work", className: "bg-red-400/10 text-red-400 border-red-400/20" };
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-primary" />
-          Recent Exams
-        </CardTitle>
-        <CardDescription>Your latest exam submissions</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {exams.length > 0 ? (
-          <>
-            {/* Desktop Table View */}
-            {!isMobile && (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Exam Title</TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2"
-                          onClick={() => toggleSort('score')}
-                        >
-                          Score
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2"
-                          onClick={() => toggleSort('date')}
-                        >
-                          Date
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedExams.map((exam) => (
-                      <TableRow key={exam.id}>
-                        <TableCell>
-                          <Badge 
-                            variant="outline"
-                            style={{ 
-                              backgroundColor: `${exam.subjectColor}20`,
-                              borderColor: exam.subjectColor,
-                              color: exam.subjectColor
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">
+            Recent Exams
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search exams"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 pl-8 text-xs w-[180px] bg-background"
+            />
+          </div>
+          <button className="h-8 px-3 rounded-md border border-border bg-background text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors">
+            <Filter size={12} />
+            Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {exams.length === 0 ? (
+        <div className="p-6">
+          <EmptyChartState
+            message="No completed exams yet — start one now!"
+            icon={BookOpen}
+            action={{
+              label: "Go to My Exams",
+              onClick: () => navigate("/my-exams"),
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          {!isMobile ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs font-medium text-muted-foreground">
+                    Exam
+                  </TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">
+                    Score
+                  </TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">
+                    Date
+                  </TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground text-right">
+                    Action
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((exam) => {
+                  const status = getStatusLabel(exam.score);
+                  return (
+                    <TableRow key={exam.id} className="group">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                            style={{
+                              background: `${exam.subjectColor}15`,
+                              color: exam.subjectColor,
                             }}
                           >
-                            {exam.subject}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{exam.examTitle}</TableCell>
-                        <TableCell>
-                          <span className={`font-semibold ${getScoreColor(exam.score)}`}>
-                            {Math.round(exam.score)}%
-                          </span>
-                          <span className="text-muted-foreground text-xs ml-1">
-                            ({exam.earnedMarks}/{exam.totalMarks})
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{exam.dateTaken}</TableCell>
-                        <TableCell className="text-muted-foreground">{exam.timeSpent}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => navigate(`/exam/${exam.id}/review`)}
-                          >
-                            Review
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {/* Mobile Card View */}
-            {isMobile && (
-              <div className="space-y-3">
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleSort('score')}
-                    className={sortBy === 'score' ? 'bg-accent' : ''}
-                  >
-                    Sort by Score
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleSort('date')}
-                    className={sortBy === 'date' ? 'bg-accent' : ''}
-                  >
-                    Sort by Date
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </Button>
-                </div>
-                {sortedExams.map((exam) => (
-                  <div 
-                    key={exam.id}
-                    className="p-4 rounded-lg border bg-card space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1 flex-1">
-                        <Badge 
+                            {exam.subject.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {exam.examTitle}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {exam.subject}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
+                          {Math.round(exam.score)}%
+                        </span>
+                        <span className="text-[11px] text-muted-foreground ml-1">
+                          ({exam.earnedMarks}/{exam.totalMarks})
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
                           variant="outline"
-                          style={{ 
-                            backgroundColor: `${exam.subjectColor}20`,
-                            borderColor: exam.subjectColor,
-                            color: exam.subjectColor
-                          }}
+                          className={`text-[10px] font-semibold ${status.className}`}
                         >
-                          {exam.subject}
+                          {status.text}
                         </Badge>
-                        <p className="font-medium">{exam.examTitle}</p>
-                      </div>
-                      <span className={`text-2xl font-bold ${getScoreColor(exam.score)}`}>
-                        {Math.round(exam.score)}%
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      <span>Marks: {exam.earnedMarks}/{exam.totalMarks}</span>
-                      <span>Date: {exam.dateTaken}</span>
-                      <span>Time: {exam.timeSpent}</span>
-                    </div>
-
-                    <Button 
-                      className="w-full"
-                      size="sm"
-                      onClick={() => navigate(`/exam/${exam.id}/review`)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {exam.dateTaken}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => navigate(`/exam/${exam.id}/review`)}
+                        >
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="divide-y divide-border">
+              {paginated.map((exam) => {
+                const status = getStatusLabel(exam.score);
+                return (
+                  <div
+                    key={exam.id}
+                    className="px-5 py-3 flex items-center gap-3"
+                    onClick={() => navigate(`/exam/${exam.id}/review`)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{
+                        background: `${exam.subjectColor}15`,
+                        color: exam.subjectColor,
+                      }}
                     >
-                      Review Exam
-                    </Button>
+                      {exam.subject.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">
+                        {exam.examTitle}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {exam.dateTaken}
+                      </div>
+                    </div>
+                    <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
+                      {Math.round(exam.score)}%
+                    </span>
                   </div>
-                ))}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-5 py-3 border-t border-border flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">
+                Showing {(page - 1) * PAGE_SIZE + 1}-
+                {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
+                {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-7 h-7 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${
+                        p === page
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-7 h-7 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
               </div>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground space-y-4">
-            <p>No completed exams yet — start one now!</p>
-            <Button onClick={() => navigate('/my-exams')}>
-              Go to My Exams
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 };

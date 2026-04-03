@@ -1,28 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subWeeks, startOfWeek, addDays } from "date-fns";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-const WEEKS = 12;
-const DAY_LABELS = ["M", "", "W", "", "F", "", ""];
-
-const getColour = (hours: number): string => {
-  if (hours === 0) return "hsl(var(--muted))";
-  if (hours < 0.5) return "hsl(217 70% 25%)";
-  if (hours < 1) return "hsl(217 70% 40%)";
-  if (hours < 2) return "hsl(217 70% 55%)";
-  return "hsl(217 70% 72%)";
-};
+import { format, subWeeks, startOfWeek, addDays, subDays, eachDayOfInterval } from "date-fns";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { MoreHorizontal } from "lucide-react";
 
 export const ActivityHeatmap = () => {
   const [dailyData, setDailyData] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    const fetchData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
-      const since = subWeeks(new Date(), WEEKS).toISOString();
+      const since = subWeeks(new Date(), 12).toISOString();
 
       const [{ data: submissions }, { data: practice }] = await Promise.all([
         supabase
@@ -55,103 +54,97 @@ export const ActivityHeatmap = () => {
 
       setDailyData(map);
     };
-    fetch();
+    fetchData();
   }, []);
 
-  // Build grid: 12 columns (weeks) × 7 rows (days)
-  const today = new Date();
-  const gridStart = startOfWeek(subWeeks(today, WEEKS - 1), { weekStartsOn: 1 });
+  // Build last 7 days chart data for the "returning customer rate" style
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
+    return days.map((d) => {
+      const key = format(d, "yyyy-MM-dd");
+      return {
+        day: format(d, "EEE"),
+        hours: Math.round((dailyData[key] || 0) * 100) / 100,
+      };
+    });
+  }, [dailyData]);
 
-  const columns: Array<Array<{ date: Date; key: string; hours: number }>> = [];
-  for (let w = 0; w < WEEKS; w++) {
-    const weekStart = addDays(gridStart, w * 7);
-    const week: typeof columns[0] = [];
-    for (let d = 0; d < 7; d++) {
-      const date = addDays(weekStart, d);
-      const key = format(date, "yyyy-MM-dd");
-      week.push({ date, key, hours: dailyData[key] || 0 });
-    }
-    columns.push(week);
-  }
+  // Total and trend
+  const totalHours = useMemo(
+    () => Object.values(dailyData).reduce((a, b) => a + b, 0),
+    [dailyData]
+  );
+
+  const thisWeekHours = useMemo(() => {
+    return chartData.reduce((s, d) => s + d.hours, 0);
+  }, [chartData]);
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden h-full">
+    <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
       {/* Header */}
       <div className="px-5 py-4 border-b border-border flex justify-between items-center">
         <div>
-          <div className="text-sm font-semibold text-foreground">Study Activity</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Last 12 weeks</div>
+          <div className="text-sm font-semibold text-foreground">
+            Study Activity
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Hours studied over time
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground">Less</span>
-          {[0, 0.25, 0.75, 1.5, 2.5].map((h) => (
-            <div
-              key={h}
-              className="w-[10px] h-[10px] rounded-[2px]"
-              style={{ background: getColour(h) }}
-            />
-          ))}
-          <span className="text-[10px] text-muted-foreground">More</span>
-        </div>
+        <button className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+          <MoreHorizontal size={16} />
+        </button>
       </div>
 
-      {/* Grid */}
-      <div className="px-5 py-4">
-        <div className="flex gap-1">
-          {/* Day labels column */}
-          <div className="flex flex-col gap-[3px] mr-1 pt-0">
-            {DAY_LABELS.map((label, i) => (
-              <div
-                key={i}
-                className="text-[9px] text-muted-foreground leading-none flex items-center justify-end"
-                style={{ height: 12, width: 12 }}
-              >
-                {label}
-              </div>
-            ))}
-          </div>
+      {/* Stats */}
+      <div className="px-5 pt-3 flex items-baseline gap-2">
+        <span className="text-2xl font-bold text-foreground tracking-tight">
+          {totalHours.toFixed(1)}h
+        </span>
+        {thisWeekHours > 0 && (
+          <span className="text-[11px] text-primary font-medium">
+            +{thisWeekHours.toFixed(1)}h this week
+          </span>
+        )}
+      </div>
 
-          {/* Week columns */}
-          <TooltipProvider delayDuration={100}>
-            <div className="flex gap-[3px] flex-1">
-              {columns.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-[3px] flex-1">
-                  {week.map((cell) => {
-                    const isFuture = cell.date > today;
-                    return (
-                      <Tooltip key={cell.key}>
-                        <TooltipTrigger asChild>
-                          <div
-                            className="rounded-[2px] transition-opacity hover:opacity-70"
-                            style={{
-                              aspectRatio: "1",
-                              minHeight: 12,
-                              background: isFuture
-                                ? "hsl(var(--muted) / 0.3)"
-                                : getColour(cell.hours),
-                            }}
-                          />
-                        </TooltipTrigger>
-                        {!isFuture && (
-                          <TooltipContent side="top" className="text-xs">
-                            <p className="font-medium">
-                              {format(cell.date, "d MMM yyyy")}
-                            </p>
-                            <p className="text-muted-foreground">
-                              {cell.hours > 0
-                                ? `${cell.hours.toFixed(1)}h studied`
-                                : "No activity"}
-                            </p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </TooltipProvider>
-        </div>
+      {/* Area chart */}
+      <div className="px-2 pb-3 pt-2 flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height={140}>
+          <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+            <defs>
+              <linearGradient id="activityGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="day"
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis hide />
+            <Tooltip
+              contentStyle={{
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(value: any) => [`${Number(value).toFixed(1)}h`, "Study"]}
+            />
+            <Area
+              type="monotone"
+              dataKey="hours"
+              stroke="hsl(var(--primary))"
+              strokeWidth={2}
+              fill="url(#activityGrad)"
+              dot={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
