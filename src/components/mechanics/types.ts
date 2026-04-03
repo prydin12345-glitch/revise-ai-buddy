@@ -130,6 +130,10 @@ export interface PhasorDiagramConfig {
   }>;
 }
 
+export interface DeltaWyeComparisonConfig {
+  type: 'delta_wye_comparison';
+}
+
 export interface DualConfig {
   type: 'dual';
   left: any; // CircuitConfig — imported at component level to avoid circular deps
@@ -147,6 +151,7 @@ export type MechanicsConfig =
   | VerticalMotionConfig
   | VerticalLiftConfig
   | PhasorDiagramConfig
+  | DeltaWyeComparisonConfig
   | DualConfig;
 
 // ── Shared Styling Constants ──

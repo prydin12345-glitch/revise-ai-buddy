@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { shouldSuppressDiagram } from "../../../src/utils/diagramSuppression.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../../../src/utils/questionTextScrubber.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -193,6 +195,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   // Build prompt using simplified buildPrompt
   const topicsList = specTopics.map((s: any) => s.topic_name || s);
+  const topicsString = topicsList.join(' ');
+  const suppressDiagrams = shouldSuppressDiagram(topicsString, '', exam.subject_id ?? '');
+  const isElectricalEngineering = /electric|circuit|power system|analog|digital electronics/i.test(exam.subject_id || '');
+  const hasDeltaWyeTopic = /delta.*wye|wye.*delta|delta\/wye|delta_wye|delta-star|star-delta/i.test(topicsString.toLowerCase());
   const { systemPrompt, userPrompt: extractionPrompt_raw } = buildPrompt({
     subject: exam.subject_id ?? '',
     topics: topicsList,
@@ -216,6 +222,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     includeTables: profileMeta.include_tables ?? null,
     includeDiagrams: profileMeta.include_diagrams ?? null,
     markDistribution: formatData?.mark_distribution ?? null,
+    suppressDiagrams,
+    isElectricalEngineering,
+    hasDeltaWyeTopic,
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -241,6 +250,27 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  questions = questions.map((question: any) => {
+    const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig);
+    if (!hasBrokenRef) {
+      return question;
+    }
+
+    console.error(
+      `Broken diagram reference detected in Q${question.question_number}: "${String(question.question_text || '').slice(0, 100)}..."`
+    );
+
+    const scrubbed = scrubBrokenDiagramReferences(question.question_text || '');
+    const stillBroken = hasBrokenDiagramReference(scrubbed, null) || scrubbed.length < 30;
+
+    return {
+      ...question,
+      question_text: scrubbed,
+      needs_review: true,
+      extraction_confidence: stillBroken ? 0.1 : Math.min(question.extraction_confidence ?? 1, 0.4),
+    };
+  });
 
   // ── POST-GENERATION VALIDATION: Reject maths-contaminated questions for custom subjects ──
   if (isCustomNicheForValidation) {
@@ -394,6 +424,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       extraction_confidence: q.extraction_confidence || 0.9,
       generation_status: 'ai_generated',
       graph_description: q.graph_description || null,
+      is_flagged: q.needs_review || false,
+      flag_reason: q.needs_review ? 'Broken diagram reference auto-scrubbed; review required' : null,
     };
   });
 
@@ -587,6 +619,9 @@ function buildPrompt(params: {
   includeTables?: boolean | null;
   includeDiagrams?: boolean | null;
   markDistribution?: Record<string, number> | null;
+  suppressDiagrams?: boolean;
+  isElectricalEngineering?: boolean;
+  hasDeltaWyeTopic?: boolean;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -611,6 +646,9 @@ function buildPrompt(params: {
     includeTables,
     includeDiagrams,
     markDistribution,
+    suppressDiagrams = false,
+    isElectricalEngineering = false,
+    hasDeltaWyeTopic = false,
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -844,6 +882,46 @@ CRITICAL JSON RULES:
     return dist ? `\n## MARK DISTRIBUTION\nGenerate questions with this exact mark distribution: ${dist}.\nTotal written questions: ${desiredWrittenCount}.` : '';
   })();
 
+  const suppressionNotice = suppressDiagrams ? `
+## ABSOLUTE RULE — NO DIAGRAM REFERENCES
+No circuit diagram will be shown. You MUST NOT write:
+- "in the circuit shown below"
+- "consider the circuit below"
+- "refer to the circuit"
+- "as shown in the figure"
+- "from the network below"
+- ANY phrase suggesting a diagram will be visible
+
+THIS IS NON-NEGOTIABLE. Questions saying "circuit below" with no circuit will be automatically deleted from the exam.
+
+FOR SUPERPOSITION / THEVENIN / NORTON / NODAL / MESH QUESTIONS:
+You MUST describe the complete circuit topology in the question text.
+Include: component values, connection topology, source types and values.
+
+CORRECT example for superposition:
+"A circuit contains a 10 V voltage source, a 2 A current source, and three resistors: R1 = 6Ω connected in series with the voltage source, R2 = 4Ω connected between the junction of R1 and the current source, and R3 = 3Ω connected from that junction to ground. The 2A current source is connected in parallel with R3. Using the Superposition Theorem, determine the current through R2."
+
+WRONG example (will be deleted):
+"Using the Superposition Theorem, determine the current through the 4Ω resistor in the circuit below."
+
+If you cannot describe the circuit topology in text alone for a given theorem question then generate a DIFFERENT question type instead — for example a power calculation or impedance calculation that does not require a circuit diagram.
+` : '';
+
+  const nodalAnalysisInstruction = isElectricalEngineering ? `
+## NODAL/MESH ANALYSIS QUESTIONS
+For nodal or mesh analysis questions without diagrams:
+The question MUST specify:
+1. How many nodes exist and their labels (V1, V2, Va etc)
+2. Which components connect between which nodes
+3. All component values (resistance, impedance, source voltages)
+4. Which node is the reference (ground)
+
+Minimum information required for a solvable nodal analysis question:
+"A circuit has nodes V1 and V2 with ground as reference. Between V1 and ground: 10Ω resistor. Between V2 and ground: 5Ω resistor. Between V1 and V2: 4Ω resistor. A 20V source connects from ground to V1. Using nodal analysis, find V1 and V2."
+
+Never write a nodal analysis question that only says "use the network shown" — all topology must be in the text.
+` : '';
+
   // ── BLOCK 10: CIRCUIT DIAGRAM INSTRUCTIONS ─────────────────────────────────
   const lowerSubject = subject.toLowerCase();
   const circuitTopicHints = ['circuit', 'resistor', 'resistance', 'emf', 'parallel', 'series',
@@ -851,7 +929,7 @@ CRITICAL JSON RULES:
   const needsCircuitInstructions = circuitTopicHints.some(kw =>
     lowerSubject.includes(kw) || topics.some(t => t.toLowerCase().includes(kw)));
 
-  const circuitBlock = needsCircuitInstructions ? `
+  const circuitBlock = needsCircuitInstructions && !suppressDiagrams ? `
 ## CIRCUIT DIAGRAM REQUIREMENTS
 When generating circuit diagram questions, include a diagramConfig field in the question.
 
@@ -929,6 +1007,13 @@ IMPORTANT RULES FOR MULTI-LOOP CIRCUITS:
 - "galvanometer" is a supported component type (renders as circle with G)
 ` : '';
 
+  const deltaWyeBlock = hasDeltaWyeTopic && !suppressDiagrams ? `
+## DELTA VS WYE COMPARISON DIAGRAM
+For delta vs wye comparison questions:
+Set diagramConfig: { "type": "delta_wye_comparison" }
+No other fields needed — the diagram is static.
+` : '';
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
@@ -938,10 +1023,13 @@ IMPORTANT RULES FOR MULTI-LOOP CIRCUITS:
     writtenRulesBlock,
     mediaInstruction,
     markDistributionInstruction,
+    suppressionNotice,
+    nodalAnalysisInstruction,
     sourceBlock,
     topicTagBlock,
     graphBlock,
     circuitBlock,
+    deltaWyeBlock,
     outputBlock,
   ].filter(s => s.trim().length > 0).join('\n\n');
 
