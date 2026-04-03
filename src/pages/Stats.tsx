@@ -120,7 +120,7 @@ const Stats = () => {
 
           {/* Stats tab */}
           <TabsContent value="stats" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
               {/* Stat chips — full width */}
               <div className="lg:col-span-12">
                 <TopStatsCards
@@ -137,13 +137,13 @@ const Stats = () => {
               </div>
 
               {/* Row 1: Weekly Study (left) + Exam Results (right) */}
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-5 flex flex-col">
                 <WeeklyStudyChart
                   data={studyActivityData}
                   subjects={subjects}
                 />
               </div>
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-7 flex flex-col">
                 <ExamResultsChart
                   data={examResultsData}
                   subjects={subjects}
@@ -154,14 +154,14 @@ const Stats = () => {
               </div>
 
               {/* Row 2: Subject Performance gauges + Study Activity trend */}
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-7 flex flex-col">
                 <SubjectPerformanceChart
                   data={subjectPerformanceData}
                   viewMode={pieChartMode}
                   onViewModeChange={setPieChartMode}
                 />
               </div>
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-5 flex flex-col">
                 <ActivityHeatmap />
               </div>
 

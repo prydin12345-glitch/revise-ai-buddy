@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BookOpen, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmptyChartState } from "./EmptyChartState";
@@ -31,7 +31,7 @@ interface RecentExamsTableProps {
   exams: RecentExam[];
 }
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 4;
 
 export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
   const navigate = useNavigate();
@@ -67,12 +67,14 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">
-            Recent Exams
-          </span>
+      <div className="px-[18px] py-3.5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+        <div>
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-primary" />
+            <span className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
+              Recent Exams
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -87,10 +89,6 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
               className="h-8 pl-8 text-xs w-[180px] bg-background"
             />
           </div>
-          <button className="h-8 px-3 rounded-md border border-border bg-background text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors">
-            <Filter size={12} />
-            Filters
-          </button>
         </div>
       </div>
 
@@ -104,6 +102,7 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
               label: "Go to My Exams",
               onClick: () => navigate("/my-exams"),
             }}
+            height={200}
           />
         </div>
       ) : (
@@ -178,7 +177,7 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-xs h-7 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-xs h-7 px-3"
                           onClick={() => navigate(`/exam/${exam.id}/review`)}
                         >
                           Review
@@ -191,39 +190,36 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
             </Table>
           ) : (
             <div className="divide-y divide-border">
-              {paginated.map((exam) => {
-                const status = getStatusLabel(exam.score);
-                return (
+              {paginated.map((exam) => (
+                <div
+                  key={exam.id}
+                  className="px-5 py-3 flex items-center gap-3"
+                  onClick={() => navigate(`/exam/${exam.id}/review`)}
+                  role="button"
+                  tabIndex={0}
+                >
                   <div
-                    key={exam.id}
-                    className="px-5 py-3 flex items-center gap-3"
-                    onClick={() => navigate(`/exam/${exam.id}/review`)}
-                    role="button"
-                    tabIndex={0}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{
+                      background: `${exam.subjectColor}15`,
+                      color: exam.subjectColor,
+                    }}
                   >
-                    <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{
-                        background: `${exam.subjectColor}15`,
-                        color: exam.subjectColor,
-                      }}
-                    >
-                      {exam.subject.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">
-                        {exam.examTitle}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {exam.dateTaken}
-                      </div>
-                    </div>
-                    <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
-                      {Math.round(exam.score)}%
-                    </span>
+                    {exam.subject.charAt(0).toUpperCase()}
                   </div>
-                );
-              })}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      {exam.examTitle}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {exam.dateTaken}
+                    </div>
+                  </div>
+                  <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
+                    {Math.round(exam.score)}%
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 
