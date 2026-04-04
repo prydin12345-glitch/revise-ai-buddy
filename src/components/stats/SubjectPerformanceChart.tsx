@@ -19,30 +19,40 @@ const SemiGauge = ({
   score,
   color,
   size = 260,
+  examCount,
 }: {
   score: number;
   color: string;
   size?: number;
+  examCount: number;
 }) => {
   const strokeWidth = 20;
   const r = (size - strokeWidth * 2) / 2;
   const cx = size / 2;
   const cy = size * 0.55;
   const circumference = Math.PI * r;
-  const offset = circumference - (Math.min(score, 100) / 100) * circumference;
+  const clampedScore = Math.min(Math.max(score, 0), 100);
+  const offset = circumference - (clampedScore / 100) * circumference;
 
-  const angleRad = Math.PI * (1 - Math.min(score, 100) / 100);
-  const dotX = cx + r * Math.cos(Math.PI - angleRad);
-  const dotY = cy - r * Math.sin(Math.PI - angleRad);
+  // Indicator dot position: angle goes from π (left, 0%) to 0 (right, 100%)
+  const angle = Math.PI * (1 - clampedScore / 100);
+  const dotX = cx - r * Math.cos(angle);
+  const dotY = cy - r * Math.sin(angle);
 
-  const gradientId = `gauge-grad-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
-  const trackGradId = `track-grad-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const gradientId = `gauge-grad-${size}`;
+  const trackGradId = `track-grad-${size}`;
+
+  const descriptor = score >= 70 ? "Strong" : score >= 50 ? "Developing" : "Needs Work";
+
+  // Position for the right-side info block (to the right of the arc)
+  const infoX = size - strokeWidth + 16;
+  const infoY = cy - 10;
 
   return (
     <svg
-      width={size}
-      height={size * 0.58}
-      viewBox={`0 0 ${size} ${size * 0.58}`}
+      width={size + 100}
+      height={size * 0.62}
+      viewBox={`0 0 ${size + 100} ${size * 0.62}`}
       className="overflow-visible"
     >
       <defs>
@@ -56,6 +66,7 @@ const SemiGauge = ({
         </linearGradient>
       </defs>
 
+      {/* Outer glow */}
       <path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -65,6 +76,7 @@ const SemiGauge = ({
         opacity={0.06}
       />
 
+      {/* Track arc */}
       <path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -73,6 +85,7 @@ const SemiGauge = ({
         strokeLinecap="round"
       />
 
+      {/* Value arc */}
       <motion.path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -85,12 +98,13 @@ const SemiGauge = ({
         transition={{ duration: 0.9, ease: "easeOut" }}
       />
 
-      {score > 2 && score < 98 && (
+      {/* Indicator dot */}
+      {clampedScore > 3 && clampedScore < 97 && (
         <motion.circle
           cx={dotX}
           cy={dotY}
           r={strokeWidth / 2 + 2}
-          fill="white"
+          fill="hsl(var(--card))"
           stroke={color}
           strokeWidth={3}
           initial={{ opacity: 0 }}
@@ -99,6 +113,7 @@ const SemiGauge = ({
         />
       )}
 
+      {/* Score percentage */}
       <text
         x={cx}
         y={cy - size * 0.04}
@@ -111,9 +126,10 @@ const SemiGauge = ({
         {Math.round(score)}%
       </text>
 
+      {/* Low label */}
       <text
         x={strokeWidth}
-        y={cy + strokeWidth + 10}
+        y={cy + strokeWidth + 14}
         fontSize={size * 0.048}
         fontWeight={500}
         fill="hsl(var(--muted-foreground))"
@@ -122,9 +138,10 @@ const SemiGauge = ({
         Low
       </text>
 
+      {/* High label */}
       <text
         x={size - strokeWidth}
-        y={cy + strokeWidth + 10}
+        y={cy + strokeWidth + 14}
         fontSize={size * 0.048}
         fontWeight={500}
         fill="hsl(var(--muted-foreground))"
@@ -133,16 +150,26 @@ const SemiGauge = ({
         High
       </text>
 
+      {/* Right-side info: descriptor + exam count */}
       <text
-        x={cx}
-        y={cy + size * 0.04}
-        textAnchor="middle"
-        fontSize={size * 0.052}
-        fontWeight={500}
+        x={infoX}
+        y={infoY}
+        fontSize={13}
+        fontWeight={600}
         fill={color}
-        opacity={0.8}
+        textAnchor="start"
       >
-        {score >= 70 ? "Strong" : score >= 50 ? "Developing" : "Needs Work"}
+        {descriptor}
+      </text>
+      <text
+        x={infoX}
+        y={infoY + 18}
+        fontSize={11}
+        fontWeight={400}
+        fill="hsl(var(--muted-foreground))"
+        textAnchor="start"
+      >
+        {examCount} exam{examCount !== 1 ? "s" : ""}
       </text>
     </svg>
   );
@@ -186,8 +213,9 @@ export const SubjectPerformanceChart = ({
       className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col"
     >
       {/* Header */}
-      <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between">
-        <div>
+      <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between gap-3">
+        {/* Left — title */}
+        <div className="flex-shrink-0">
           <div className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
             Subject Performance
           </div>
@@ -196,27 +224,28 @@ export const SubjectPerformanceChart = ({
           </div>
         </div>
 
+        {/* Right — arrows + centred subject name */}
         {sorted.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {sorted.length > 1 && (
               <button
                 onClick={() => goTo((activeIndex - 1 + sorted.length) % sorted.length, -1)}
-                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0"
-                style={{ border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}
+                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
               >
                 <ChevronLeft size={14} />
               </button>
             )}
 
             <div
-              className="text-sm font-semibold text-center"
+              className="text-sm font-semibold text-center min-w-0"
               style={{
-                maxWidth: 160,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 color: gaugeColor,
+                flex: "1 1 auto",
               }}
+              title={sorted[activeIndex]?.name}
             >
               {sorted[activeIndex]?.name}
             </div>
@@ -224,8 +253,7 @@ export const SubjectPerformanceChart = ({
             {sorted.length > 1 && (
               <button
                 onClick={() => goTo((activeIndex + 1) % sorted.length, 1)}
-                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0"
-                style={{ border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}
+                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
               >
                 <ChevronRight size={14} />
               </button>
@@ -251,8 +279,8 @@ export const SubjectPerformanceChart = ({
             </div>
             <button
               onClick={() => navigate("/my-exams")}
-              className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg mt-1"
-              style={{ border: "none", cursor: "pointer", fontFamily: "inherit" }}
+              className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg mt-1 border-0 cursor-pointer"
+              style={{ fontFamily: "inherit" }}
             >
               Create an exam
             </button>
@@ -273,12 +301,8 @@ export const SubjectPerformanceChart = ({
                 score={subject.avgScore}
                 color={gaugeColor}
                 size={260}
+                examCount={subject.count}
               />
-              <div className="text-center mt-1">
-                <span className="text-xs text-muted-foreground">
-                  {subject.count} exam{subject.count !== 1 ? "s" : ""}
-                </span>
-              </div>
             </motion.div>
           </AnimatePresence>
         )}
@@ -308,7 +332,7 @@ export const SubjectPerformanceChart = ({
               <button
                 key={s.name}
                 onClick={() => goTo(i, i > activeIndex ? 1 : -1)}
-                className="flex-shrink-0 text-xs"
+                className="flex-shrink-0 text-xs border-0 cursor-pointer"
                 style={{
                   padding: "4px 12px",
                   borderRadius: 99,
@@ -316,7 +340,6 @@ export const SubjectPerformanceChart = ({
                   background: isActive ? pillColor + "18" : "transparent",
                   color: isActive ? pillColor : "hsl(var(--muted-foreground))",
                   fontWeight: isActive ? 600 : 400,
-                  cursor: "pointer",
                   fontFamily: "inherit",
                   whiteSpace: "nowrap",
                   transition: "all 0.15s",
