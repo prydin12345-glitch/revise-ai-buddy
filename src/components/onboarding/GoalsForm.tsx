@@ -354,7 +354,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
                 : "#ffffff",
             border: "none",
             borderRadius: 8,
-            color: selectedGoalTypes.length > 0 ? "white" : "#e2e8f0",
+            color: selectedGoalTypes.length > 0 ? "white" : "#cbd5e1",
             fontSize: 15,
             fontWeight: 700,
             cursor: selectedGoalTypes.length > 0 ? "pointer" : "not-allowed",
@@ -380,7 +380,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
           transition: "color 0.15s",
         }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#475569")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#e2e8f0")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
       >
         Skip — I'll set goals later
       </button>
