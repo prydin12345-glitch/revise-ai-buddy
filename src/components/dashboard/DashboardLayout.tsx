@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,6 +13,7 @@ import { MobileNavFAB } from "./MobileNavFAB";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
+import { useTheme } from "@/hooks/useTheme";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -27,10 +28,12 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     return stored === 'true';
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { primaryRole } = useUserRole();
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -62,7 +65,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: CheckSquare, label: "Practice Sets", path: "/tutor/practice" },
     { icon: User, label: "Students", path: "/tutor/students" },
     { icon: MessageCircle, label: "Feedback", path: "/tutor/feedback" },
-    
     { icon: BarChart3, label: "Student Progress", path: "/tutor/progress" },
   ];
 
@@ -85,85 +87,92 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     }
   };
 
+  const renderNavItem = (item: typeof navItems[0]) => {
+    const isActive = location.pathname === item.path;
+    return (
+      <Button
+        key={item.path}
+        variant="ghost"
+        className={`w-full transition-all duration-200 rounded-lg ${
+          sidebarCollapsed ? "justify-center px-2" : "justify-start px-3"
+        } ${
+          isActive
+            ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium"
+            : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground"
+        }`}
+        style={{
+          borderLeft: isActive ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+        }}
+        onClick={() => {
+          navigate(item.path);
+          setSidebarOpen(false);
+        }}
+        onMouseEnter={() => prefetchRoute(item.path)}
+        title={sidebarCollapsed ? item.label : undefined}
+      >
+        <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
+        {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+      </Button>
+    );
+  };
+
   return (
     <div className="min-h-screen flex w-full bg-background">
       {/* Sidebar - Hidden on mobile */}
       <aside
-        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-xl ${
+        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
         <div className="flex flex-col h-full">
-          {/* Hamburger Menu */}
-          <div className="h-16 border-b border-border/50 flex items-center px-4">
+          {/* Sidebar Header — Logo + Collapse */}
+          <div className="h-16 border-b border-sidebar-border flex items-center px-3 gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 hover:bg-white/10 transition-colors"
+              className="h-9 w-9 hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
-              <Menu className="w-5 h-5 text-white" />
+              <Menu className="w-5 h-5 text-foreground" />
             </Button>
+            {!sidebarCollapsed && (
+              <div className="flex items-center">
+                <span className="text-lg font-bold text-foreground">Exam</span>
+                <span className="text-lg font-bold text-primary">ly</span>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 p-3 overflow-y-auto">
+            {/* Section label */}
+            {!sidebarCollapsed && (
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
+                Main
+              </p>
+            )}
             <div className="space-y-1">
-              {navItems.slice(0, 4).map((item) => (
-                <Button
-                  key={item.path}
-                  variant="ghost"
-                  className={`w-full transition-all duration-200 hover:bg-white/10 text-gray-300 hover:text-white ${
-                    sidebarCollapsed ? "justify-center px-0" : "justify-start"
-                  } ${
-                    window.location.pathname === item.path ? "bg-primary/20 text-white border-l-2 border-primary" : ""
-                  }`}
-                  onClick={() => {
-                    navigate(item.path);
-                    setSidebarOpen(false);
-                  }}
-                  onMouseEnter={() => prefetchRoute(item.path)}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </Button>
-              ))}
+              {navItems.slice(0, 4).map(renderNavItem)}
             </div>
-            
-            <Separator className="my-3 bg-border/20" />
-            
+
+            <Separator className="my-3 bg-border" />
+
+            {!sidebarCollapsed && (
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
+                Learning
+              </p>
+            )}
             <div className="space-y-1">
-              {navItems.slice(4).map((item) => (
-                <Button
-                  key={item.path}
-                  variant="ghost"
-                  className={`w-full transition-all duration-200 hover:bg-white/10 text-gray-300 hover:text-white ${
-                    sidebarCollapsed ? "justify-center px-0" : "justify-start"
-                  } ${
-                    window.location.pathname === item.path ? "bg-primary/20 text-white border-l-2 border-primary" : ""
-                  }`}
-                  onClick={() => {
-                    navigate(item.path);
-                    setSidebarOpen(false);
-                  }}
-                  onMouseEnter={() => prefetchRoute(item.path)}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </Button>
-              ))}
+              {navItems.slice(4).map(renderNavItem)}
             </div>
-            
-            <Separator className="my-3 bg-border/20" />
           </nav>
 
           {/* Bottom section */}
-          <div className="p-3 border-t border-border/30 space-y-1">
+          <div className="p-3 border-t border-border space-y-1">
+            {/* Settings */}
             <Button
               variant="ghost"
-              className={`w-full transition-all duration-200 hover:bg-white/10 text-gray-300 hover:text-white ${
+              className={`w-full transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground ${
                 sidebarCollapsed ? "justify-center px-0" : "justify-start"
               }`}
               onClick={() => navigate("/settings")}
@@ -173,9 +182,29 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <Settings className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
               {!sidebarCollapsed && <span>Settings</span>}
             </Button>
+
+            {/* Theme Toggle */}
             <Button
               variant="ghost"
-              className={`w-full transition-all duration-200 hover:bg-red-500/20 text-red-400 hover:text-red-300 ${
+              className={`w-full transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground ${
+                sidebarCollapsed ? "justify-center px-0" : "justify-start"
+              }`}
+              onClick={toggleTheme}
+              title={sidebarCollapsed ? (theme === 'light' ? 'Dark mode' : 'Light mode') : undefined}
+            >
+              <div className="relative w-5 h-5 flex-shrink-0">
+                <Sun className={`w-5 h-5 absolute inset-0 transition-all duration-300 ${theme === 'light' ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`} />
+                <Moon className={`w-5 h-5 absolute inset-0 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
+              </div>
+              {!sidebarCollapsed && (
+                <span className="ml-3">{theme === 'light' ? 'Dark mode' : 'Light mode'}</span>
+              )}
+            </Button>
+
+            {/* Logout */}
+            <Button
+              variant="ghost"
+              className={`w-full transition-all duration-200 hover:bg-red-500/10 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 ${
                 sidebarCollapsed ? "justify-center px-0" : "justify-start"
               }`}
               onClick={handleLogout}
@@ -193,14 +222,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
-            ? 'bg-sidebar-background/95 backdrop-blur-md shadow-lg border-sidebar-border'
-            : 'bg-sidebar-background border-transparent shadow-none'
+            ? 'bg-background/95 backdrop-blur-md shadow-lg border-border'
+            : 'bg-background border-transparent shadow-none'
         }`}>
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
             {/* Left: Logo */}
             <div className="flex items-center gap-6 flex-1">
               <div className="flex items-center">
-                <span className="text-xl font-bold text-white">Exam</span>
+                <span className="text-xl font-bold text-foreground">Exam</span>
                 <span className="text-xl font-bold text-primary">ly</span>
               </div>
             </div>
@@ -223,7 +252,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     onOpenChange={setJoinClassModalOpen}
                     onSuccess={() => {
                       setJoinClassModalOpen(false);
-                      // Refresh the page to reflect new class
                       window.location.reload();
                     }}
                   />
@@ -244,7 +272,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-full hover:bg-white/10 transition-colors px-1 gap-2 h-9">
+                  <Button variant="ghost" size="sm" className="rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors px-1 gap-2 h-9">
                     <Avatar className="w-8 h-8 border-2 border-primary/40">
                       <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs">
                         <User className="w-3.5 h-3.5" />
