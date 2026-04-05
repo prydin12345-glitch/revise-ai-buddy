@@ -78,14 +78,14 @@ All colors MUST be HSL.
     --gradient-warning: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(38 92% 50%) 100%);
     --gradient-info: linear-gradient(135deg, hsl(262 83% 63%) 0%, hsl(262 83% 58%) 100%);
 
-    /* Sidebar styles */
-    --sidebar-background: 210 20% 98%;
+    /* Sidebar styles — slightly darker than main bg for distinction */
+    --sidebar-background: 213 27% 94%;
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 210 85% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 85% 95%;
     --sidebar-accent-foreground: 210 85% 35%;
-    --sidebar-border: 214 32% 91%;
+    --sidebar-border: 214 32% 86%;
     --sidebar-ring: 210 85% 60%;
 
     /* Gradients */

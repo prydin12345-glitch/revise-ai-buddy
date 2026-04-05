@@ -64,6 +64,17 @@ const queryClient = new QueryClient();
 const PageLoader = () => <PageSkeleton />;
 
 const App = () => {
+  // Restore theme preference on initial load (before React hydrates)
+  useEffect(() => {
+    const stored = localStorage.getItem('examly-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (stored === 'dark' || (!stored && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
