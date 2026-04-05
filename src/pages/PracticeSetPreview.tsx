@@ -186,7 +186,7 @@ const PracticeSetPreview = () => {
             </span>
             <span
               className="inline-block mx-4"
-              style={{ width: 1, height: 20, background: '#334155' }}
+              style={{ width: 1, height: 20, background: '#e2e8f0' }}
             />
             <span className="text-[16px] font-semibold text-foreground truncate max-w-[200px] lg:max-w-[400px]">
               {practiceSet.set_name}
@@ -293,8 +293,8 @@ const PracticeSetPreview = () => {
                 key={question.id}
                 className="rounded-lg overflow-hidden"
                 style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
                   borderLeft: '3px solid #3b82f6',
                   padding: '16px 20px',
                 }}
