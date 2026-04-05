@@ -777,11 +777,11 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             disabled={isSubmitting}
             style={{
               width: "100%", padding: 8, background: "none", border: "none",
-              color: "#e2e8f0", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+              color: "#94a3b8", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
               marginTop: 8, transition: "color 0.15s",
             }}
             onMouseEnter={e => e.currentTarget.style.color = "#475569"}
-            onMouseLeave={e => e.currentTarget.style.color = "#e2e8f0"}
+            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
           >
             Skip — I'll fill this in later
           </button>
