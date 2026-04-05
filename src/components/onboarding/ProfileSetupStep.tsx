@@ -518,7 +518,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
               background: allFilled ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
               border: "none",
               borderRadius: 8,
-              color: allFilled ? "white" : "#e2e8f0",
+              color: allFilled ? "white" : "#cbd5e1",
               fontSize: 14,
               fontWeight: 600,
               cursor: allFilled ? "pointer" : "not-allowed",

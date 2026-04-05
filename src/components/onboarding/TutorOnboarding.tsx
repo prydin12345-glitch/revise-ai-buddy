@@ -270,7 +270,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 padding: "10px 24px",
                 background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
                 border: "none", borderRadius: 8,
-                color: selectedSubjects.length > 0 ? "white" : "#e2e8f0",
+                color: selectedSubjects.length > 0 ? "white" : "#cbd5e1",
                 fontSize: 14, fontWeight: 600,
                 cursor: selectedSubjects.length > 0 ? "pointer" : "not-allowed",
                 fontFamily: "inherit",
@@ -704,7 +704,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               maxLength={300}
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
             />
-            <div style={{ fontSize: 11, color: "#e2e8f0", textAlign: "right", marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "right", marginTop: 4 }}>
               {bio.length}/300
             </div>
           </div>
@@ -763,7 +763,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 flex: 1, padding: "13px",
                 background: isSubmitting ? "#ffffff" : "linear-gradient(135deg, #3b82f6, #2563eb)",
                 border: "none", borderRadius: 8,
-                color: isSubmitting ? "#e2e8f0" : "white",
+                color: isSubmitting ? "#cbd5e1" : "white",
                 fontSize: 15, fontWeight: 700,
                 cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: "inherit",
               }}
