@@ -271,7 +271,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
               display: "flex",
               justifyContent: "space-between",
               fontSize: 10,
-              color: "#e2e8f0",
+              color: "#94a3b8",
               marginTop: 2,
             }}
           >
@@ -372,7 +372,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
           padding: "8px",
           background: "none",
           border: "none",
-          color: "#e2e8f0",
+          color: "#94a3b8",
           fontSize: 12,
           cursor: "pointer",
           fontFamily: "inherit",
