@@ -64,10 +64,6 @@ const queryClient = new QueryClient();
 const PageLoader = () => <PageSkeleton />;
 
 const App = () => {
-  if (typeof document !== 'undefined') {
-    document.documentElement.classList.add('dark');
-  }
-  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

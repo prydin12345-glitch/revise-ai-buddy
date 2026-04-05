@@ -38,10 +38,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
   borderRadius: 8,
-  color: "#f1f5f9",
+  color: "#0f172a",
   fontSize: 13,
   outline: "none",
   boxSizing: "border-box" as const,
@@ -183,7 +183,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
         >
           Step 2 of 3
         </div>
-        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           Set up your study profile
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -207,10 +207,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
               whileTap={{ scale: 0.97 }}
               style={{
                 padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)",
-                background: region === r.id ? "#1e3a5f" : "#0f172a",
-                border: `1px solid ${region === r.id ? "#3b82f6" : "#334155"}`,
+                background: region === r.id ? "#eff6ff" : "#f8fafc",
+                border: `1px solid ${region === r.id ? "#3b82f6" : "#e2e8f0"}`,
                 borderRadius: 8,
-                color: region === r.id ? "#93c5fd" : "#64748b",
+                color: region === r.id ? "#2563eb" : "#64748b",
                 fontSize: "clamp(12px, 3vw, 13px)",
                 cursor: "pointer",
                 textAlign: "left",
@@ -269,10 +269,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
               style={{
                 width: "100%",
                 padding: "10px 14px",
-                background: board === "none" ? "#1a2e1a" : "#0f172a",
-                border: `1px solid ${board === "none" ? "#22c55e" : "#334155"}`,
+                background: board === "none" ? "#f0fdf4" : "#f8fafc",
+                border: `1px solid ${board === "none" ? "#22c55e" : "#e2e8f0"}`,
                 borderRadius: 8,
-                color: board === "none" ? "#86efac" : "#64748b",
+                color: board === "none" ? "#16a34a" : "#64748b",
                 fontSize: 13,
                 cursor: "pointer",
                 textAlign: "left",
@@ -354,10 +354,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                   whileHover={{ scale: 1.01 }}
                   style={{
                     padding: "10px 14px",
-                    background: level === levelId ? "#1e3a5f" : "#0f172a",
-                    border: `1px solid ${level === levelId ? "#3b82f6" : "#334155"}`,
+                    background: level === levelId ? "#eff6ff" : "#f8fafc",
+                    border: `1px solid ${level === levelId ? "#3b82f6" : "#e2e8f0"}`,
                     borderRadius: 8,
-                    color: level === levelId ? "#93c5fd" : "#64748b",
+                    color: level === levelId ? "#2563eb" : "#64748b",
                     fontSize: 13,
                     cursor: "pointer",
                     textAlign: "left",
@@ -376,7 +376,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                     <div
                       style={{
                         fontSize: 10,
-                        color: "#334155",
+                        color: "#94a3b8",
                         letterSpacing: "0.1em",
                         textTransform: "uppercase",
                         padding: "6px 0 2px",
@@ -392,10 +392,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                       whileHover={{ scale: 1.01 }}
                       style={{
                         padding: "10px 14px",
-                        background: level === opt.id ? "#1e3a5f" : "#0f172a",
-                        border: `1px solid ${level === opt.id ? "#3b82f6" : "#334155"}`,
+                        background: level === opt.id ? "#eff6ff" : "#f8fafc",
+                        border: `1px solid ${level === opt.id ? "#3b82f6" : "#e2e8f0"}`,
                         borderRadius: 8,
-                        color: level === opt.id ? "#93c5fd" : "#64748b",
+                        color: level === opt.id ? "#2563eb" : "#64748b",
                         fontSize: 13,
                         cursor: "pointer",
                         textAlign: "left",
@@ -415,10 +415,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                 whileHover={{ scale: 1.01 }}
                 style={{
                   padding: "10px 14px",
-                  background: level === "other" ? "#1e3a5f" : "#0f172a",
-                  border: `1px solid ${level === "other" ? "#3b82f6" : "#334155"}`,
+                  background: level === "other" ? "#eff6ff" : "#f8fafc",
+                  border: `1px solid ${level === "other" ? "#3b82f6" : "#e2e8f0"}`,
                   borderRadius: 8,
-                  color: level === "other" ? "#93c5fd" : "#64748b",
+                  color: level === "other" ? "#2563eb" : "#64748b",
                   fontSize: 13,
                   cursor: "pointer",
                   textAlign: "left",
@@ -453,7 +453,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
             animate={{ opacity: 1, y: 0 }}
             style={{
               padding: "10px 14px",
-              background: "#0f172a",
+              background: "#f8fafc",
               borderRadius: 8,
               borderLeft: "3px solid #22c55e",
               fontSize: 12,
@@ -463,7 +463,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
           >
             <Check size={12} color="#22c55e" style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
             Questions will be generated in{" "}
-            <strong style={{ color: "#86efac" }}>
+            <strong style={{ color: "#16a34a" }}>
               {board === "none"
                 ? "general academic"
                 : getBoardDisplayName(board === "other" ? customBoardText : board)}{" "}
@@ -484,7 +484,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                 flex: "0 0 auto",
                 padding: "10px 20px",
                 background: "transparent",
-                border: "1px solid #334155",
+                border: "1px solid #e2e8f0",
                 borderRadius: 8,
                 color: "#64748b",
                 fontSize: 14,
@@ -500,7 +500,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
                 e.currentTarget.style.color = "#94a3b8";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#334155";
+                e.currentTarget.style.borderColor = "#e2e8f0";
                 e.currentTarget.style.color = "#64748b";
               }}
             >
@@ -515,10 +515,10 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
             style={{
               flex: 1,
               padding: "12px",
-              background: allFilled ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#1e293b",
+              background: allFilled ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
               border: "none",
               borderRadius: 8,
-              color: allFilled ? "white" : "#334155",
+              color: allFilled ? "white" : "#cbd5e1",
               fontSize: 14,
               fontWeight: 600,
               cursor: allFilled ? "pointer" : "not-allowed",
@@ -536,7 +536,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
             padding: "8px",
             background: "none",
             border: "none",
-            color: "#334155",
+            color: "#94a3b8",
             fontSize: 12,
             cursor: "pointer",
             fontFamily: "inherit",
@@ -544,7 +544,7 @@ const ProfileSetupStep = ({ onComplete, onBack, initialValues }: ProfileSetupSte
             transition: "color 0.15s",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#475569")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#334155")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#e2e8f0")}
         >
           Skip for now — I'll set this up in Settings
         </button>
