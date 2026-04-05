@@ -58,10 +58,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
   borderRadius: 8,
-  color: "#f1f5f9",
+  color: "#0f172a",
   fontSize: 13,
   outline: "none",
   boxSizing: "border-box" as const,
@@ -190,7 +190,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 1 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               What do you teach?
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -218,9 +218,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 onClick={() => setActiveCategory(cat.id)}
                 style={{
                   padding: "5px 12px", borderRadius: 99,
-                  border: `1px solid ${activeCategory === cat.id ? "#3b82f6" : "#334155"}`,
-                  background: activeCategory === cat.id ? "#1e3a5f" : "transparent",
-                  color: activeCategory === cat.id ? "#93c5fd" : "#64748b",
+                  border: `1px solid ${activeCategory === cat.id ? "#3b82f6" : "#e2e8f0"}`,
+                  background: activeCategory === cat.id ? "#eff6ff" : "transparent",
+                  color: activeCategory === cat.id ? "#2563eb" : "#64748b",
                   fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
                 }}
               >
@@ -240,9 +240,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   style={{
-                    padding: "10px 12px", background: isSelected ? "#1e3a5f" : "#0f172a",
-                    border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
-                    borderRadius: 8, color: isSelected ? "#93c5fd" : "#64748b",
+                    padding: "10px 12px", background: isSelected ? "#eff6ff" : "#f8fafc",
+                    border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
+                    borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
                     fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
                     transition: "all 0.15s",
@@ -268,9 +268,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               disabled={selectedSubjects.length === 0}
               style={{
                 padding: "10px 24px",
-                background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#1e293b",
+                background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
                 border: "none", borderRadius: 8,
-                color: selectedSubjects.length > 0 ? "white" : "#334155",
+                color: selectedSubjects.length > 0 ? "white" : "#e2e8f0",
                 fontSize: 14, fontWeight: 600,
                 cursor: selectedSubjects.length > 0 ? "pointer" : "not-allowed",
                 fontFamily: "inherit",
@@ -288,7 +288,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 2 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Your teaching profile
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -307,9 +307,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   style={{
-                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)", background: region === r.id ? "#1e3a5f" : "#0f172a",
-                    border: `1px solid ${region === r.id ? "#3b82f6" : "#334155"}`,
-                    borderRadius: 8, color: region === r.id ? "#93c5fd" : "#64748b",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)", background: region === r.id ? "#eff6ff" : "#f8fafc",
+                    border: `1px solid ${region === r.id ? "#3b82f6" : "#e2e8f0"}`,
+                    borderRadius: 8, color: region === r.id ? "#2563eb" : "#64748b",
                     fontSize: "clamp(12px, 3vw, 13px)", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     transition: "all 0.15s", display: "flex", alignItems: "center", gap: 10,
                   }}
@@ -346,9 +346,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 whileHover={{ scale: 1.01 }}
                 style={{
                   width: "100%", padding: "10px 14px",
-                  background: selectedBoards.includes("none") ? "#1a2e1a" : "#0f172a",
-                  border: `1px solid ${selectedBoards.includes("none") ? "#22c55e" : "#334155"}`,
-                  borderRadius: 8, color: selectedBoards.includes("none") ? "#86efac" : "#64748b",
+                  background: selectedBoards.includes("none") ? "#f0fdf4" : "#f8fafc",
+                  border: `1px solid ${selectedBoards.includes("none") ? "#22c55e" : "#e2e8f0"}`,
+                  borderRadius: 8, color: selectedBoards.includes("none") ? "#16a34a" : "#64748b",
                   fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                   marginBottom: 6, display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s",
                 }}
@@ -361,7 +361,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 </div>
                 <div style={{
                   width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                  border: `2px solid ${selectedBoards.includes("none") ? "#22c55e" : "#334155"}`,
+                  border: `2px solid ${selectedBoards.includes("none") ? "#22c55e" : "#e2e8f0"}`,
                   background: selectedBoards.includes("none") ? "#22c55e" : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                 }}>
@@ -381,9 +381,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                         )}
                         whileHover={{ scale: 1.01 }}
                         style={{
-                          padding: "10px 14px", background: isSelected ? "#1e3a5f" : "#0f172a",
-                          border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
-                          borderRadius: 8, color: isSelected ? "#93c5fd" : "#64748b",
+                          padding: "10px 14px", background: isSelected ? "#eff6ff" : "#f8fafc",
+                          border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
+                          borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
                           fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                           display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                         }}
@@ -391,7 +391,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                         {board.name}
                         <div style={{
                           width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          border: `2px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                          border: `2px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
                           background: isSelected ? "#3b82f6" : "transparent",
                           display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                         }}>
@@ -407,9 +407,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                     )}
                     whileHover={{ scale: 1.01 }}
                     style={{
-                      padding: "10px 14px", background: selectedBoards.includes("other") ? "#1e3a5f" : "#0f172a",
-                      border: `1px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#334155"}`,
-                      borderRadius: 8, color: selectedBoards.includes("other") ? "#93c5fd" : "#64748b",
+                      padding: "10px 14px", background: selectedBoards.includes("other") ? "#eff6ff" : "#f8fafc",
+                      border: `1px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#e2e8f0"}`,
+                      borderRadius: 8, color: selectedBoards.includes("other") ? "#2563eb" : "#64748b",
                       fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                       display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                     }}
@@ -417,7 +417,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                     Other / Not listed
                     <div style={{
                       width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                      border: `2px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#334155"}`,
+                      border: `2px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#e2e8f0"}`,
                       background: selectedBoards.includes("other") ? "#3b82f6" : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                     }}>
@@ -455,9 +455,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                       )}
                       whileHover={{ scale: 1.01 }}
                       style={{
-                        padding: "10px 14px", background: isSelected ? "#1e3a5f" : "#0f172a",
-                        border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
-                        borderRadius: 8, color: isSelected ? "#93c5fd" : "#64748b",
+                        padding: "10px 14px", background: isSelected ? "#eff6ff" : "#f8fafc",
+                        border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
+                        borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
                         fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                         display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                       }}
@@ -465,7 +465,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                       {lvl.label}
                       <div style={{
                         width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                        border: `2px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                        border: `2px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
                         background: isSelected ? "#3b82f6" : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                       }}>
@@ -484,12 +484,12 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #334155", borderRadius: 8, color: "#64748b",
+                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#64748b"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -516,7 +516,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 3 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Set up your classes
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -538,9 +538,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   onClick={() => setTeachingMode(mode.id)}
                   whileHover={{ scale: 1.01 }}
                   style={{
-                    padding: "12px 14px", background: teachingMode === mode.id ? "#1e3a5f" : "#0f172a",
-                    border: `1px solid ${teachingMode === mode.id ? "#3b82f6" : "#334155"}`,
-                    borderRadius: 8, color: teachingMode === mode.id ? "#93c5fd" : "#64748b",
+                    padding: "12px 14px", background: teachingMode === mode.id ? "#eff6ff" : "#f8fafc",
+                    border: `1px solid ${teachingMode === mode.id ? "#3b82f6" : "#e2e8f0"}`,
+                    borderRadius: 8, color: teachingMode === mode.id ? "#2563eb" : "#64748b",
                     fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     display: "flex", alignItems: "center", gap: 12, transition: "all 0.15s",
                   }}
@@ -551,7 +551,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   </div>
                   <div style={{
                     width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${teachingMode === mode.id ? "#3b82f6" : "#334155"}`,
+                    border: `2px solid ${teachingMode === mode.id ? "#3b82f6" : "#e2e8f0"}`,
                     background: teachingMode === mode.id ? "#3b82f6" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                   }}>
@@ -581,8 +581,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
 
               {classes.length === 0 ? (
                 <div style={{
-                  padding: 20, background: "#0f172a", border: "1px dashed #334155",
-                  borderRadius: 8, textAlign: "center", color: "#334155", fontSize: 13,
+                  padding: 20, background: "#f8fafc", border: "1px dashed #e2e8f0",
+                  borderRadius: 8, textAlign: "center", color: "#e2e8f0", fontSize: 13,
                 }}>
                   No classes added yet — click "Add class" above or skip this step
                 </div>
@@ -594,7 +594,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       style={{
-                        padding: "12px 14px", background: "#0f172a", border: "1px solid #334155",
+                        padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0",
                         borderRadius: 8, display: "flex", alignItems: "center", gap: 10,
                       }}
                     >
@@ -604,7 +604,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                         value={cls.name}
                         onChange={e => updateClass(cls.id, "name", e.target.value)}
                         style={{
-                          flex: 1, background: "none", border: "none", color: "#f1f5f9",
+                          flex: 1, background: "none", border: "none", color: "#0f172a",
                           fontSize: 13, outline: "none", fontFamily: "inherit",
                         }}
                       />
@@ -615,19 +615,19 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                         value={cls.studentCount}
                         onChange={e => updateClass(cls.id, "studentCount", e.target.value)}
                         style={{
-                          width: 80, padding: "4px 8px", background: "#1e293b",
-                          border: "1px solid #334155", borderRadius: 6, color: "#94a3b8",
+                          width: 80, padding: "4px 8px", background: "#ffffff",
+                          border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8",
                           fontSize: 12, outline: "none", fontFamily: "inherit", textAlign: "center",
                         }}
                       />
                       <button
                         onClick={() => removeClass(cls.id)}
                         style={{
-                          background: "none", border: "none", color: "#334155",
+                          background: "none", border: "none", color: "#e2e8f0",
                           cursor: "pointer", padding: 0, fontSize: 16, transition: "color 0.15s",
                         }}
                         onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                        onMouseLeave={e => e.currentTarget.style.color = "#334155"}
+                        onMouseLeave={e => e.currentTarget.style.color = "#e2e8f0"}
                       >
                         ×
                       </button>
@@ -638,8 +638,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
 
               {showClassError && (
                 <div style={{
-                  marginTop: 8, padding: "8px 12px", background: "#3f0f0f",
-                  border: "1px solid #7f1d1d", borderRadius: 6, fontSize: 12, color: "#fca5a5",
+                  marginTop: 8, padding: "8px 12px", background: "#fef2f2",
+                  border: "1px solid #fecaca", borderRadius: 6, fontSize: 12, color: "#dc2626",
                 }}>
                   Please enter a name for each class you've added
                 </div>
@@ -653,12 +653,12 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #334155", borderRadius: 8, color: "#64748b",
+                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#64748b"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -685,7 +685,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 4 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Almost done
             </h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -704,7 +704,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               maxLength={300}
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
             />
-            <div style={{ fontSize: 11, color: "#334155", textAlign: "right", marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "#e2e8f0", textAlign: "right", marginTop: 4 }}>
               {bio.length}/300
             </div>
           </div>
@@ -725,9 +725,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.95 }}
                     style={{
-                      padding: "8px 4px", background: isSelected ? "#1e3a5f" : "#0f172a",
-                      border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
-                      borderRadius: 8, color: isSelected ? "#93c5fd" : "#64748b",
+                      padding: "8px 4px", background: isSelected ? "#eff6ff" : "#f8fafc",
+                      border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
+                      borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
                       fontSize: 12, cursor: "pointer", fontFamily: "inherit",
                       textAlign: "center", transition: "all 0.15s",
                     }}
@@ -745,12 +745,12 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #334155", borderRadius: 8, color: "#64748b",
+                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#64748b"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -761,9 +761,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               disabled={isSubmitting}
               style={{
                 flex: 1, padding: "13px",
-                background: isSubmitting ? "#1e293b" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                background: isSubmitting ? "#ffffff" : "linear-gradient(135deg, #3b82f6, #2563eb)",
                 border: "none", borderRadius: 8,
-                color: isSubmitting ? "#334155" : "white",
+                color: isSubmitting ? "#e2e8f0" : "white",
                 fontSize: 15, fontWeight: 700,
                 cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: "inherit",
               }}
@@ -777,11 +777,11 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             disabled={isSubmitting}
             style={{
               width: "100%", padding: 8, background: "none", border: "none",
-              color: "#334155", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+              color: "#e2e8f0", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
               marginTop: 8, transition: "color 0.15s",
             }}
             onMouseEnter={e => e.currentTarget.style.color = "#475569"}
-            onMouseLeave={e => e.currentTarget.style.color = "#334155"}
+            onMouseLeave={e => e.currentTarget.style.color = "#e2e8f0"}
           >
             Skip — I'll fill this in later
           </button>
@@ -801,12 +801,12 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           <motion.div
             initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
             style={{
-              background: "#1e293b", border: "1px solid #334155",
+              background: "#ffffff", border: "1px solid #e2e8f0",
               borderRadius: 16, padding: "clamp(20px, 5vw, 32px) clamp(16px, 4vw, 28px)",
               width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto",
             }}
           >
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", margin: "0 0 6px" }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 6px" }}>
               Your classes are ready
             </h3>
             <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px" }}>
@@ -815,25 +815,25 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
 
             {createdGroups.map((group: any) => (
               <div key={group.id} style={{
-                padding: "12px 14px", background: "#0f172a", border: "1px solid #334155",
+                padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0",
                 borderRadius: 8, marginBottom: 8, display: "flex",
                 justifyContent: "space-between", alignItems: "center",
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{group.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{group.name}</div>
                   <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                    Code: <span style={{ color: "#93c5fd", fontFamily: "monospace" }}>{group.invite_code}</span>
+                    Code: <span style={{ color: "#2563eb", fontFamily: "monospace" }}>{group.invite_code}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(group.invite_code)}
                   style={{
-                    padding: "5px 12px", background: "transparent", border: "1px solid #334155",
+                    padding: "5px 12px", background: "transparent", border: "1px solid #e2e8f0",
                     borderRadius: 6, color: "#64748b", fontSize: 11, cursor: "pointer",
                     fontFamily: "inherit", transition: "all 0.15s",
                   }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#64748b"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
                 >
                   Copy
                 </button>

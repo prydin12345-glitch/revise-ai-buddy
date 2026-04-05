@@ -32,10 +32,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
   borderRadius: 8,
-  color: "#f1f5f9",
+  color: "#0f172a",
   fontSize: 13,
   outline: "none",
   boxSizing: "border-box" as const,
@@ -135,7 +135,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
         >
           Step 1 of 3
         </div>
-        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           What are you studying?
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Select your subjects. You can add more later.</p>
@@ -150,9 +150,9 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
             style={{
               padding: "5px 12px",
               borderRadius: 99,
-              border: `1px solid ${selectedCategory === cat.id ? "#3b82f6" : "#334155"}`,
-              background: selectedCategory === cat.id ? "#1e3a5f" : "transparent",
-              color: selectedCategory === cat.id ? "#93c5fd" : "#64748b",
+              border: `1px solid ${selectedCategory === cat.id ? "#3b82f6" : "#e2e8f0"}`,
+              background: selectedCategory === cat.id ? "#eff6ff" : "transparent",
+              color: selectedCategory === cat.id ? "#2563eb" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
               fontFamily: "inherit",
@@ -202,10 +202,10 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
               whileTap={{ scale: 0.97 }}
               style={{
                 padding: "10px 12px",
-                background: isSelected ? "#1e3a5f" : "#0f172a",
-                border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                background: isSelected ? "#eff6ff" : "#f8fafc",
+                border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
                 borderRadius: 8,
-                color: isSelected ? "#93c5fd" : "#64748b",
+                color: isSelected ? "#2563eb" : "#64748b",
                 fontSize: 13,
                 cursor: "pointer",
                 textAlign: "left",
@@ -233,7 +233,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
           width: "100%",
           padding: "10px",
           background: "transparent",
-          border: "1px dashed #334155",
+          border: "1px dashed #e2e8f0",
           borderRadius: 8,
           color: "#475569",
           fontSize: 13,
@@ -251,7 +251,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
           e.currentTarget.style.color = "#3b82f6";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = "#334155";
+          e.currentTarget.style.borderColor = "#e2e8f0";
           e.currentTarget.style.color = "#475569";
         }}
       >
@@ -271,10 +271,10 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
                 gap: 6,
                 padding: "4px 10px",
                 borderRadius: 99,
-                background: "#1e3a5f",
+                background: "#eff6ff",
                 border: "1px solid rgba(59,130,246,0.3)",
                 fontSize: 12,
-                color: "#93c5fd",
+                color: "#2563eb",
               }}
             >
               {s.custom_name || s.subject_name}
@@ -298,10 +298,10 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
           disabled={selectedSubjects.length === 0}
           style={{
             padding: "10px 24px",
-            background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#1e293b",
+            background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
             border: "none",
             borderRadius: 8,
-            color: selectedSubjects.length > 0 ? "white" : "#334155",
+            color: selectedSubjects.length > 0 ? "white" : "#e2e8f0",
             fontSize: 14,
             fontWeight: 600,
             cursor: selectedSubjects.length > 0 ? "pointer" : "not-allowed",
@@ -337,15 +337,15 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
               animate={{ scale: 1, y: 0 }}
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: "#1e293b",
-                border: "1px solid #334155",
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: "clamp(20px, 5vw, 28px) clamp(16px, 4vw, 24px)",
                 width: "100%",
                 maxWidth: 400,
               }}
             >
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#f1f5f9", margin: "0 0 20px" }}>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 20px" }}>
                 Add custom subject
               </h3>
 
@@ -384,7 +384,7 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
                     flex: 1,
                     padding: "10px",
                     background: "transparent",
-                    border: "1px solid #334155",
+                    border: "1px solid #e2e8f0",
                     borderRadius: 8,
                     color: "#64748b",
                     fontSize: 13,
@@ -404,10 +404,10 @@ const SubjectsSelection = ({ subjects, onComplete }: SubjectsSelectionProps) => 
                     padding: "10px",
                     background: customSubjectName.trim()
                       ? "linear-gradient(135deg, #3b82f6, #2563eb)"
-                      : "#1e293b",
+                      : "#ffffff",
                     border: "none",
                     borderRadius: 8,
-                    color: customSubjectName.trim() ? "white" : "#334155",
+                    color: customSubjectName.trim() ? "white" : "#e2e8f0",
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: customSubjectName.trim() ? "pointer" : "not-allowed",

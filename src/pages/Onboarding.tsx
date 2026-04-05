@@ -52,8 +52,8 @@ const StepProgress = ({
               <motion.div
                 onClick={isComplete && onStepClick ? () => onStepClick(stepNum) : undefined}
                 animate={{
-                  background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#1e293b",
-                  borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#334155",
+                  background: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#ffffff",
+                  borderColor: isComplete ? "#22c55e" : isActive ? "#3b82f6" : "#e2e8f0",
                 }}
                 transition={{ duration: 0.3 }}
                 style={{
@@ -88,7 +88,7 @@ const StepProgress = ({
 
             {i < totalSteps - 1 && (
               <motion.div
-                animate={{ background: isComplete ? "#22c55e" : "#334155" }}
+                animate={{ background: isComplete ? "#22c55e" : "#e2e8f0" }}
                 transition={{ duration: 0.4 }}
                 style={{
                   height: 2,
@@ -307,7 +307,7 @@ const Onboarding = () => {
       <div
         style={{
           minHeight: "100vh",
-          background: "#0f172a",
+          background: "#f8fafc",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -331,7 +331,7 @@ const Onboarding = () => {
     <div
       style={{
         minHeight: "100vh",
-        background: "#0f172a",
+        background: "#f8fafc",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -377,7 +377,7 @@ const Onboarding = () => {
           left: 32,
           fontSize: 20,
           fontWeight: 800,
-          color: "#f1f5f9",
+          color: "#0f172a",
           zIndex: 10,
         }}
       >
@@ -412,8 +412,8 @@ const Onboarding = () => {
           style={{
             width: "100%",
             maxWidth: 580,
-            background: "#1e293b",
-            border: "1px solid #334155",
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
             borderRadius: 16,
             padding: "clamp(20px, 5vw, 36px) clamp(16px, 4vw, 32px)",
             marginTop: 24,

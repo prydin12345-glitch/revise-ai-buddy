@@ -54,10 +54,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
   borderRadius: 8,
-  color: "#f1f5f9",
+  color: "#0f172a",
   fontSize: 13,
   outline: "none",
   boxSizing: "border-box" as const,
@@ -139,7 +139,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
         >
           Step 3 of 3
         </div>
-        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#f1f5f9", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+        <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
           Set your goals
         </h1>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
@@ -190,10 +190,10 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
                 whileTap={{ scale: 0.97 }}
                 style={{
                   padding: "clamp(8px, 2vw, 12px) clamp(10px, 2.5vw, 14px)",
-                  background: isSelected ? "#1e3a5f" : "#0f172a",
-                  border: `1px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                  background: isSelected ? "#eff6ff" : "#f8fafc",
+                  border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
                   borderRadius: 8,
-                  color: isSelected ? "#93c5fd" : "#64748b",
+                  color: isSelected ? "#2563eb" : "#64748b",
                   fontSize: "clamp(11px, 2.5vw, 12px)",
                   cursor: "pointer",
                   textAlign: "left",
@@ -214,7 +214,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
                     width: 16,
                     height: 16,
                     borderRadius: 4,
-                    border: `2px solid ${isSelected ? "#3b82f6" : "#334155"}`,
+                    border: `2px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
                     background: isSelected ? "#3b82f6" : "transparent",
                     display: "flex",
                     alignItems: "center",
@@ -271,7 +271,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
               display: "flex",
               justifyContent: "space-between",
               fontSize: 10,
-              color: "#334155",
+              color: "#e2e8f0",
               marginTop: 2,
             }}
           >
@@ -304,7 +304,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
           type="date"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
-          style={{ ...inputStyle, colorScheme: "dark" }}
+          style={{ ...inputStyle, colorScheme: "light" }}
         />
       </div>
 
@@ -317,7 +317,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
               flex: "0 0 auto",
               padding: "10px 20px",
               background: "transparent",
-              border: "1px solid #334155",
+              border: "1px solid #e2e8f0",
               borderRadius: 8,
               color: "#64748b",
               fontSize: 14,
@@ -333,7 +333,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
               e.currentTarget.style.color = "#94a3b8";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#334155";
+              e.currentTarget.style.borderColor = "#e2e8f0";
               e.currentTarget.style.color = "#64748b";
             }}
           >
@@ -351,10 +351,10 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
             background:
               selectedGoalTypes.length > 0
                 ? "linear-gradient(135deg, #3b82f6, #2563eb)"
-                : "#1e293b",
+                : "#ffffff",
             border: "none",
             borderRadius: 8,
-            color: selectedGoalTypes.length > 0 ? "white" : "#334155",
+            color: selectedGoalTypes.length > 0 ? "white" : "#e2e8f0",
             fontSize: 15,
             fontWeight: 700,
             cursor: selectedGoalTypes.length > 0 ? "pointer" : "not-allowed",
@@ -372,7 +372,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
           padding: "8px",
           background: "none",
           border: "none",
-          color: "#334155",
+          color: "#e2e8f0",
           fontSize: 12,
           cursor: "pointer",
           fontFamily: "inherit",
@@ -380,7 +380,7 @@ const GoalsForm = ({ subjects, onComplete, onBack, initialValues }: GoalsFormPro
           transition: "color 0.15s",
         }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#475569")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#334155")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#e2e8f0")}
       >
         Skip — I'll set goals later
       </button>
