@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -34,9 +34,9 @@ const SemiGauge = ({
   const clampedScore = Math.min(Math.max(score, 0), 100);
   const offset = circumference - (clampedScore / 100) * circumference;
 
-  // Indicator dot position: angle goes from π (left, 0%) to 0 (right, 100%)
+  // Indicator dot: angle from π (left=0%) to 0 (right=100%)
   const angle = Math.PI * (1 - clampedScore / 100);
-  const dotX = cx - r * Math.cos(angle);
+  const dotX = cx + r * Math.cos(angle);
   const dotY = cy - r * Math.sin(angle);
 
   const gradientId = `gauge-grad-${size}`;
@@ -44,15 +44,15 @@ const SemiGauge = ({
 
   const descriptor = score >= 70 ? "Strong" : score >= 50 ? "Developing" : "Needs Work";
 
-  // Position for the right-side info block (to the right of the arc)
-  const infoX = size - strokeWidth + 16;
+  // Right-side info — pushed further right for breathing room
+  const infoX = size - strokeWidth + 30;
   const infoY = cy - 10;
 
   return (
     <svg
-      width={size + 100}
+      width={size + 120}
       height={size * 0.62}
-      viewBox={`0 0 ${size + 100} ${size * 0.62}`}
+      viewBox={`0 0 ${size + 120} ${size * 0.62}`}
       className="overflow-visible"
     >
       <defs>
@@ -212,9 +212,8 @@ export const SubjectPerformanceChart = ({
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col"
     >
-      {/* Header */}
+      {/* Header — title left, subject name right (no arrows) */}
       <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between gap-3">
-        {/* Left — title */}
         <div className="flex-shrink-0">
           <div className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
             Subject Performance
@@ -224,46 +223,26 @@ export const SubjectPerformanceChart = ({
           </div>
         </div>
 
-        {/* Right — arrows + centred subject name */}
         {sorted.length > 0 && (
-          <div className="flex items-center gap-2 min-w-0">
-            {sorted.length > 1 && (
-              <button
-                onClick={() => goTo((activeIndex - 1 + sorted.length) % sorted.length, -1)}
-                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
-              >
-                <ChevronLeft size={14} />
-              </button>
-            )}
-
-            <div
-              className="text-sm font-semibold text-center min-w-0"
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: gaugeColor,
-                flex: "1 1 auto",
-              }}
-              title={sorted[activeIndex]?.name}
-            >
-              {sorted[activeIndex]?.name}
-            </div>
-
-            {sorted.length > 1 && (
-              <button
-                onClick={() => goTo((activeIndex + 1) % sorted.length, 1)}
-                className="w-7 h-7 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
-              >
-                <ChevronRight size={14} />
-              </button>
-            )}
+          <div
+            className="text-sm font-semibold min-w-0"
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: gaugeColor,
+              maxWidth: 180,
+              textAlign: "right",
+            }}
+            title={sorted[activeIndex]?.name}
+          >
+            {sorted[activeIndex]?.name}
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 flex items-center justify-center relative px-4 py-6">
+      {/* Content — arrows flanking the gauge */}
+      <div className="flex-1 min-h-0 flex items-center justify-center relative px-2 py-6">
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 px-5 gap-3">
             <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
@@ -286,69 +265,56 @@ export const SubjectPerformanceChart = ({
             </button>
           </div>
         ) : (
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={activeIndex}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="flex flex-col items-center"
-            >
-              <SemiGauge
-                score={subject.avgScore}
-                color={gaugeColor}
-                size={260}
-                examCount={subject.count}
-              />
-            </motion.div>
-          </AnimatePresence>
+          <div className="flex items-center gap-1 w-full justify-center">
+            {/* Left arrow */}
+            {sorted.length > 1 && (
+              <button
+                onClick={() => goTo((activeIndex - 1 + sorted.length) % sorted.length, -1)}
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            )}
+
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={activeIndex}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex flex-col items-center"
+              >
+                <SemiGauge
+                  score={subject.avgScore}
+                  color={gaugeColor}
+                  size={260}
+                  examCount={subject.count}
+                />
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Right arrow */}
+            {sorted.length > 1 && (
+              <button
+                onClick={() => goTo((activeIndex + 1) % sorted.length, 1)}
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
+              >
+                <ChevronRight size={18} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Footer — subject pills */}
-      {sorted.length > 1 && (
-        <div
-          className="px-3.5 pb-3.5 pt-2.5 border-t border-border flex gap-1.5 flex-shrink-0"
-          style={{
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-        >
-          {sorted.map((s, i) => {
-            const isActive = i === activeIndex;
-            const pillColor =
-              s.avgScore >= 70
-                ? "hsl(142 71% 45%)"
-                : s.avgScore >= 50
-                ? "hsl(25 95% 53%)"
-                : "hsl(0 84% 60%)";
-
-            return (
-              <button
-                key={s.name}
-                onClick={() => goTo(i, i > activeIndex ? 1 : -1)}
-                className="flex-shrink-0 text-xs border-0 cursor-pointer"
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: 99,
-                  border: `1px solid ${isActive ? pillColor : "hsl(var(--border))"}`,
-                  background: isActive ? pillColor + "18" : "transparent",
-                  color: isActive ? pillColor : "hsl(var(--muted-foreground))",
-                  fontWeight: isActive ? 600 : 400,
-                  fontFamily: "inherit",
-                  whiteSpace: "nowrap",
-                  transition: "all 0.15s",
-                }}
-              >
-                {s.name}
-              </button>
-            );
-          })}
+      {/* Footer — Combined Performance label */}
+      {sorted.length > 0 && (
+        <div className="px-3.5 pb-3.5 pt-2.5 border-t border-border flex-shrink-0">
+          <div className="text-xs text-muted-foreground text-center">
+            Combined Performance · All exam profiles
+          </div>
         </div>
       )}
     </motion.div>
