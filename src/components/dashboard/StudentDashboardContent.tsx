@@ -790,36 +790,52 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       {/* ========== DESKTOP LAYOUT (xl and above) ========== */}
       <div className="hidden xl:block space-y-3 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        {/* Welcome Banner */}
-        <div className="px-1 py-1">
-          <h1 className="text-xl font-bold text-foreground">
-            Welcome back, {userName}!
-          </h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
-            {greeting} — here's your study overview.
-          </p>
-        </div>
-
-        {/* FIX 1: Quick-Start CTAs — icons only with tooltips */}
-        <TooltipProvider delayDuration={150}>
-          <div className="flex gap-2 px-1">
-            {quickActions.map(action => (
-              <Tooltip key={action.label}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={action.onClick}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border transition-all duration-150 cursor-pointer hover:bg-muted hover:border-primary/30"
-                  >
-                    <action.icon size={18} style={{ color: action.colour }} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-medium">
-                  {action.label}
-                </TooltipContent>
-              </Tooltip>
-            ))}
+        {/* Welcome Banner + Quick Actions */}
+        <div className="px-1 py-1 flex items-start justify-between" style={{ marginBottom: 4 }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', margin: 0 }} className="text-foreground">
+              Welcome back, {userName}!
+            </h1>
+            <p className="text-[13px] text-muted-foreground" style={{ margin: '3px 0 0' }}>
+              {greeting} — here's your study overview.
+            </p>
           </div>
-        </TooltipProvider>
+          <div className="flex gap-2 items-center shrink-0">
+            <TooltipProvider delayDuration={200}>
+              {quickActions.map(action => (
+                <Tooltip key={action.label}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={action.onClick}
+                      className="flex items-center justify-center cursor-pointer transition-all duration-150"
+                      style={{
+                        width: 36, height: 36,
+                        borderRadius: 9,
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--card))',
+                        color: action.colour,
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'hsl(var(--muted))';
+                        e.currentTarget.style.borderColor = action.colour;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'hsl(var(--card))';
+                        e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                      }}
+                    >
+                      <action.icon size={16} strokeWidth={1.8} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs font-medium">
+                    {action.label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+        </div>
 
         {/* 3-Column Dashboard Grid */}
         <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
