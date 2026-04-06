@@ -294,12 +294,38 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       setAllExams(sortedExams);
       setExams(sortedExams.slice(0, 3));
 
+      // Batch fetch answer counts and question counts for progress calculation
+      const examIds = sortedExams.map(e => e.id);
+      if (examIds.length > 0) {
+        const { data: allAnswers } = await supabase
+          .from('student_answers')
+          .select('exam_id')
+          .eq('student_id', user.id)
+          .in('exam_id', examIds);
+
+        const { data: questionsData } = await supabase
+          .from('exam_questions')
+          .select('exam_id')
+          .in('exam_id', examIds);
+
+        const answerMap = new Map<string, number>();
+        allAnswers?.forEach(a => {
+          answerMap.set(a.exam_id, (answerMap.get(a.exam_id) || 0) + 1);
+        });
+        const questionMap = new Map<string, number>();
+        questionsData?.forEach(q => {
+          questionMap.set(q.exam_id, (questionMap.get(q.exam_id) || 0) + 1);
+        });
+        setExamAnswerCounts(answerMap);
+        setExamQuestionCounts(questionMap);
+      }
+
       const { data: sets } = await supabase
         .from("practice_question_sets")
         .select("id, set_name, subject_id, question_count, status")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (sets && sets.length > 0) {
         const setsWithProgress = await Promise.all(
