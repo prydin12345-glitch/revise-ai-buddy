@@ -416,7 +416,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   };
 
   const getSubjectName = (subjectId: string) => {
-    return subjects.find(s => s.id === subjectId)?.name ?? subjectId;
+    return subjects.find(s => s.id === subjectId)?.subject_name ?? subjectId;
   };
 
   const completedPracticeSets = useMemo(() => {
