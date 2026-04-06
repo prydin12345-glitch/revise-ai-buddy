@@ -405,7 +405,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   const getExamProgress = (exam: ExamWithSubmission) => {
     if (exam.submission?.status === 'graded' || exam.submission?.status === 'completed' || exam.submission?.status === 'submitted') return 100;
-    if (exam.submission?.status === 'in_progress') return 50;
+    if (exam.submission?.status === 'in_progress') return 0; // unknown actual progress — show 0 not fake 50
     return 0;
   };
 
@@ -414,6 +414,14 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     if (set.progress?.questions_attempted && set.progress.questions_attempted > 0) return 'in_progress';
     return 'not_started';
   };
+
+  const getSubjectName = (subjectId: string) => {
+    return subjects.find(s => s.id === subjectId)?.name ?? subjectId;
+  };
+
+  const completedPracticeSets = useMemo(() => {
+    return practiceSets.filter(s => s.progress?.completed_at).slice(0, 2);
+  }, [practiceSets]);
 
   // Mobile swipeable screens state
   const [activeScreen, setActiveScreen] = useState(0);
