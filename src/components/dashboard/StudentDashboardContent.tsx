@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, ChevronRight, Plus, Users, Megaphone, TrendingUp, AlertTriangle, CheckCircle2, Zap, BarChart2, ChevronLeft } from "lucide-react";
+import { Upload, FileText, ChevronRight, Plus, Users, Megaphone, TrendingUp, AlertTriangle, CheckCircle2, Zap, BarChart2, ChevronLeft, Clock, Flame, Trophy, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +82,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showAllExamsModal, setShowAllExamsModal] = useState(false);
   const [showJoinClassModal, setShowJoinClassModal] = useState(false);
+  const [showAllExams, setShowAllExams] = useState(false);
+  const [showAllQuizzes, setShowAllQuizzes] = useState(false);
+  const [examPanelTab, setExamPanelTab] = useState<'In Progress' | 'Completed'>('In Progress');
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -87,7 +92,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       setUserId(uid ?? null);
       if (!uid) return;
 
-      // Fetch profile for first/last name
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('first_name, last_name, display_name')
@@ -109,7 +113,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           : fullName.slice(0, 2).toUpperCase()
       );
 
-      // Fetch curriculum region + derive educational level label
       const { data: prefs } = await supabase
         .from('user_preferences')
         .select('curriculum_region')
@@ -118,7 +121,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       if (prefs?.curriculum_region) {
         const regionKey = detectRegionKey(prefs.curriculum_region);
-        // Try to find an educational_tier from user's practice sets or exams
         const { data: setTiers } = await supabase
           .from('practice_question_sets')
           .select('educational_tier')
@@ -173,14 +175,13 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return allExams.filter(e => e.submission?.status === 'in_progress' || (!e.submission && e.status === 'published'));
   }, [allExams]);
 
-  const recentCompletedExams = useMemo(() => {
+  const completedExamsList = useMemo(() => {
     return allExams
       .filter(e => 
         e.submission?.status === 'graded' || 
         e.submission?.status === 'submitted' || 
         e.submission?.status === 'completed'
       )
-      .slice(0, 2)
       .map(e => ({
         ...e,
         score: e.submission && e.submission.total_marks > 0
@@ -188,6 +189,10 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           : null,
       }));
   }, [allExams]);
+
+  const recentCompletedExams = useMemo(() => {
+    return completedExamsList.slice(0, 2);
+  }, [completedExamsList]);
 
   const streakDisplay = currentStreak > 0 ? currentStreak.toString() : '—';
 
@@ -238,7 +243,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           setCurrentStreak(hoursSince <= 48 ? streakData.current_streak : 0);
         }
       } catch {
-        // user_streaks table may not exist — default to 0
         setCurrentStreak(0);
       }
 
@@ -411,7 +415,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return 'not_started';
   };
 
-  // Mobile swipeable screens state (hooks must be before early returns)
+  // Mobile swipeable screens state
   const [activeScreen, setActiveScreen] = useState(0);
   const SCREENS = ['Overview', 'My Work', 'Progress'];
   const swipeStartX = useRef(0);
@@ -446,6 +450,21 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       </div>
     );
   }
+
+  // Desktop stats with icons instead of emoji
+  const desktopStats = [
+    { label: "Exams Completed", value: completedExamsCount.toString(), icon: FileText, colour: "hsl(var(--primary))", drilldown: 'exams' as DrilldownType },
+    { label: "Average Score", value: averageScore !== null ? `${averageScore}%` : "—", icon: Trophy, colour: "hsl(38 92% 50%)", drilldown: 'scores' as DrilldownType },
+    { label: "Total Study Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}h` : "0h", icon: Clock, colour: "hsl(263 70% 50%)", drilldown: 'study-hours' as DrilldownType },
+    { label: "Day Streak", value: loading ? "..." : streakDisplay, icon: Flame, colour: "hsl(0 84% 60%)", drilldown: 'streak' as DrilldownType },
+  ];
+
+  // Quick action definitions for desktop
+  const quickActions = [
+    { icon: FileText, label: 'Create New Exam', onClick: () => navigate('/upload'), colour: 'hsl(var(--primary))' },
+    { icon: Zap, label: 'Create New Practice Quiz', onClick: () => navigate('/create-practice-questions'), colour: 'hsl(38 92% 50%)' },
+    { icon: TrendingUp, label: 'View My Progress', onClick: () => navigate('/stats'), colour: 'hsl(142 71% 45%)' },
+  ];
 
   // Shared modals
   const modals = (
@@ -623,7 +642,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 )}
               </div>
 
-              {/* Practice quizzes */}
+              {/* Practice quizzes — FIX 2: correct route */}
               <div className="rounded-xl bg-card border border-border/50 overflow-hidden">
                 <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/50">
                   <span className="text-sm font-semibold text-foreground">Practice Quizzes</span>
@@ -639,7 +658,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                     return (
                       <div
                         key={set.id}
-                        onClick={() => navigate(`/practice-set/${set.id}/preview`)}
+                        onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
                         className="px-3.5 py-3 border-b border-border/30 last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-center justify-between mb-1.5">
@@ -738,32 +757,31 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           </p>
         </div>
 
-        {/* Quick-Start CTAs */}
-        <div className="flex gap-2 flex-wrap px-1">
-          {[
-            { label: 'New Exam', icon: Plus, onClick: () => navigate('/upload'), primary: true },
-            { label: 'Practice Quiz', icon: Zap, onClick: () => navigate('/create-practice-questions'), primary: false },
-            { label: 'My Progress', icon: BarChart2, onClick: () => navigate('/stats'), primary: false },
-          ].map(action => (
-            <button
-              key={action.label}
-              onClick={action.onClick}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                action.primary
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
-              }`}
-            >
-              <action.icon size={13} />
-              {action.label}
-            </button>
-          ))}
-        </div>
+        {/* FIX 1: Quick-Start CTAs — icons only with tooltips */}
+        <TooltipProvider delayDuration={150}>
+          <div className="flex gap-2 px-1">
+            {quickActions.map(action => (
+              <Tooltip key={action.label}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={action.onClick}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border transition-all duration-150 cursor-pointer hover:bg-muted hover:border-primary/30"
+                  >
+                    <action.icon size={18} style={{ color: action.colour }} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs font-medium">
+                  {action.label}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
 
         {/* 3-Column Dashboard Grid */}
         <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
           
-          {/* Column 1: Mock Exams */}
+          {/* Column 1: Mock Exams — FIX 4: removed + button, View All opens sheet */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle
@@ -772,12 +790,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               >
                 Mock Exams
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => navigate("/my-exams")}>View all</Button>
-                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-dashed" onClick={() => navigate("/upload")}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllExams(true)}>View all</Button>
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
               {inProgressExams.length === 0 ? (
@@ -807,6 +820,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   );
                 })
               )}
+              {/* FIX 5: Recently completed — ensure title and score are separate */}
               {recentCompletedExams.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold">Recently completed</p>
@@ -814,7 +828,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                     <div key={exam.id} onClick={() => navigate(`/exam/${exam.id}/review`)} className="flex justify-between items-center py-1.5 cursor-pointer hover:text-foreground transition-colors">
                       <span className="text-xs text-muted-foreground truncate flex-1 mr-2">{exam.title}</span>
                       {exam.score !== null && (
-                        <span className={`text-[11px] font-semibold ${exam.score >= 70 ? 'text-success' : exam.score >= 50 ? 'text-warning' : 'text-destructive'}`}>{exam.score}%</span>
+                        <span className={`text-[11px] font-semibold shrink-0 ${exam.score >= 70 ? 'text-success' : exam.score >= 50 ? 'text-warning' : 'text-destructive'}`}>
+                          {exam.score}%
+                        </span>
                       )}
                     </div>
                   ))}
@@ -823,16 +839,11 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </CardContent>
           </Card>
 
-          {/* Column 2: Practice Quizzes */}
+          {/* Column 2: Practice Quizzes — FIX 2 & 4: correct route, removed + button */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold cursor-pointer hover:text-primary transition-colors" onClick={() => navigate("/quizzes")}>Practice Quizzes</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => navigate("/quizzes")}>View all</Button>
-                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-dashed" onClick={() => navigate("/create-practice-questions")}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllQuizzes(true)}>View all</Button>
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
               {practiceSets.length === 0 ? (
@@ -849,7 +860,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   const color = getSubjectColor(set.subject_id);
                   return (
                     <div key={set.id} className="p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer bg-card/50 hover:bg-card"
-                      onClick={() => navigate(`/practice-set/${set.id}/preview`)}>
+                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm truncate">{set.set_name}</p>
@@ -880,7 +891,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </CardContent>
           </Card>
 
-          {/* Column 3: Unified Right Sidebar */}
+          {/* Column 3: Unified Right Sidebar — FIX 3: icons + numbers only with tooltips */}
           <div className="row-span-2 flex">
             <Card className="rounded-2xl border-border/50 overflow-hidden flex flex-col w-full">
               <div className="p-5 border-b border-border/50 text-center">
@@ -890,15 +901,26 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 </div>
                 <p className="font-semibold text-sm">{userName}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{userLevelLabel || 'Set your curriculum in Settings'}</p>
-                <div className="grid grid-cols-4 gap-1.5 mt-4">
-                  {stats.map((stat, i) => (
-                    <button key={i} className="flex flex-col items-center p-2 rounded-lg bg-background/50 hover:bg-muted/50 transition-colors border-none cursor-pointer" onClick={() => drilldown.openDrawer(stat.drilldown)}>
-                      <span className="text-base">{stat.emoji}</span>
-                      <span className="text-sm font-bold mt-0.5">{stat.value}</span>
-                      <span className="text-[9px] text-muted-foreground mt-0.5">{stat.label}</span>
-                    </button>
-                  ))}
-                </div>
+                <TooltipProvider delayDuration={150}>
+                  <div className="grid grid-cols-4 gap-1.5 mt-4">
+                    {desktopStats.map((stat, i) => (
+                      <Tooltip key={i}>
+                        <TooltipTrigger asChild>
+                          <button
+                            className="flex flex-col items-center p-2 rounded-lg bg-background/50 hover:bg-muted/50 transition-colors border-none cursor-pointer"
+                            onClick={() => drilldown.openDrawer(stat.drilldown)}
+                          >
+                            <stat.icon size={16} style={{ color: stat.colour }} />
+                            <span className="text-sm font-bold mt-1">{stat.value}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs font-medium">
+                          {stat.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
               </div>
               <div className="p-4 border-b border-border/50">
                 <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">My Classes</p>
@@ -944,6 +966,151 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             <ProgressCarousel weakTopics={weakTopics} subjects={subjects} getSubjectColor={getSubjectColor} studyActivityData={studyActivityData} scoreHistory={scoreHistory} />
           </div>
         </div>
+
+        {/* FIX 4: Slide-over panels using Sheet */}
+        {/* All Exams Sheet */}
+        <Sheet open={showAllExams} onOpenChange={setShowAllExams}>
+          <SheetContent side="right" className="w-[440px] sm:max-w-[440px] p-0 flex flex-col">
+            <SheetHeader className="p-5 pb-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <SheetTitle className="text-lg font-bold">All Exams</SheetTitle>
+                  <SheetDescription className="text-xs text-muted-foreground">{allExams.length} total</SheetDescription>
+                </div>
+                <Button size="sm" onClick={() => { navigate('/upload'); setShowAllExams(false); }} className="text-xs">
+                  <Plus className="w-3 h-3 mr-1" /> New Exam
+                </Button>
+              </div>
+            </SheetHeader>
+
+            {/* Tabs */}
+            <div className="flex border-b border-border mt-4">
+              {(['In Progress', 'Completed'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setExamPanelTab(tab)}
+                  className={`flex-1 py-3 text-[13px] font-medium border-b-2 transition-all bg-transparent cursor-pointer ${
+                    examPanelTab === tab
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto">
+              {(examPanelTab === 'In Progress' ? inProgressExams : completedExamsList).map(exam => {
+                const score = 'score' in exam ? (exam as any).score : null;
+                return (
+                  <div
+                    key={exam.id}
+                    onClick={() => {
+                      navigate(examPanelTab === 'In Progress'
+                        ? `/exam/${exam.id}/in-progress`
+                        : `/exam/${exam.id}/review`
+                      );
+                      setShowAllExams(false);
+                    }}
+                    className="px-5 py-3.5 border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground truncate flex-1 mr-2">{exam.title}</span>
+                      {examPanelTab === 'Completed' && score !== null && (
+                        <span className={`text-xs font-semibold shrink-0 ${score >= 70 ? 'text-success' : score >= 50 ? 'text-warning' : 'text-destructive'}`}>
+                          {score}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{exam.subject_id} · {getTimeAgo(exam.created_at)}</p>
+                    {examPanelTab === 'In Progress' && (
+                      <Progress value={getExamProgress(exam)} className="h-1 mt-2" />
+                    )}
+                  </div>
+                );
+              })}
+              {(examPanelTab === 'In Progress' ? inProgressExams : completedExamsList).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-10">
+                  {examPanelTab === 'In Progress' ? 'No exams in progress' : 'No completed exams yet'}
+                </p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-border">
+              <Button
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => { navigate('/my-exams'); setShowAllExams(false); }}
+              >
+                Open full Exams page →
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* All Practice Quizzes Sheet */}
+        <Sheet open={showAllQuizzes} onOpenChange={setShowAllQuizzes}>
+          <SheetContent side="right" className="w-[440px] sm:max-w-[440px] p-0 flex flex-col">
+            <SheetHeader className="p-5 pb-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <SheetTitle className="text-lg font-bold">All Practice Quizzes</SheetTitle>
+                  <SheetDescription className="text-xs text-muted-foreground">{practiceSets.length} total</SheetDescription>
+                </div>
+                <Button size="sm" onClick={() => { navigate('/create-practice-questions'); setShowAllQuizzes(false); }} className="text-xs">
+                  <Plus className="w-3 h-3 mr-1" /> New Quiz
+                </Button>
+              </div>
+            </SheetHeader>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto mt-4">
+              {practiceSets.map(set => {
+                const status = getPracticeStatus(set);
+                const attempted = set.progress?.questions_attempted || 0;
+                const progress = set.question_count > 0 ? Math.round((attempted / set.question_count) * 100) : 0;
+                return (
+                  <div
+                    key={set.id}
+                    onClick={() => {
+                      navigate(`/practice-questions/${set.id}/preview`);
+                      setShowAllQuizzes(false);
+                    }}
+                    className="px-5 py-3.5 border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground truncate flex-1 mr-2">{set.set_name}</span>
+                      <span className="text-[11px] text-muted-foreground shrink-0">
+                        {attempted}/{set.question_count} questions
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{set.subject_id}</p>
+                    <div className="mt-2">
+                      <Progress value={status === 'complete' ? 100 : progress} className="h-1" />
+                    </div>
+                  </div>
+                );
+              })}
+              {practiceSets.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-10">No practice quizzes yet</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-border">
+              <Button
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => { navigate('/quizzes'); setShowAllQuizzes(false); }}
+              >
+                Open full Practice page →
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {modals}
       </div>
