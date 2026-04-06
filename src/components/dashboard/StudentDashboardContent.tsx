@@ -433,13 +433,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   const getExamProgress = (exam: ExamWithSubmission) => {
     if (exam.submission?.status === 'graded' || exam.submission?.status === 'completed' || exam.submission?.status === 'submitted') return 100;
-    if (exam.submission?.status === 'in_progress') return 0; // unknown actual progress — show 0 not fake 50
+    const totalQuestions = examQuestionCounts.get(exam.id) || 0;
+    const answeredQuestions = examAnswerCounts.get(exam.id) || 0;
+    if (totalQuestions > 0 && answeredQuestions > 0) {
+      return Math.round((answeredQuestions / totalQuestions) * 100);
+    }
     return 0;
   };
 
   const getPracticeStatus = (set: PracticeSetWithProgress) => {
     if (set.progress?.completed_at) return 'complete';
-    if (set.progress?.questions_attempted && set.progress.questions_attempted > 0) return 'in_progress';
+    const attempted = set.progress?.questions_attempted ?? 0;
+    const total = set.question_count ?? 0;
+    if (total > 0 && attempted >= total) return 'complete';
+    if (attempted > 0) return 'in_progress';
     return 'not_started';
   };
 
