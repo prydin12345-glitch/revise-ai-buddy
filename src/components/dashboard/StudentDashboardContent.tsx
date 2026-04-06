@@ -76,6 +76,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSetWithProgress[]>([]);
+  const [examAnswerCounts, setExamAnswerCounts] = useState<Map<string, number>>(new Map());
+  const [examQuestionCounts, setExamQuestionCounts] = useState<Map<string, number>>(new Map());
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementInfo[]>([]);
   const [loading, setLoading] = useState(true);
