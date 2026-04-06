@@ -76,6 +76,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [exams, setExams] = useState<ExamWithSubmission[]>([]);
   const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSetWithProgress[]>([]);
+  const [examAnswerCounts, setExamAnswerCounts] = useState<Map<string, number>>(new Map());
+  const [examQuestionCounts, setExamQuestionCounts] = useState<Map<string, number>>(new Map());
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,12 +294,38 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       setAllExams(sortedExams);
       setExams(sortedExams.slice(0, 3));
 
+      // Batch fetch answer counts and question counts for progress calculation
+      const examIds = sortedExams.map(e => e.id);
+      if (examIds.length > 0) {
+        const { data: allAnswers } = await supabase
+          .from('student_answers')
+          .select('exam_id')
+          .eq('student_id', user.id)
+          .in('exam_id', examIds);
+
+        const { data: questionsData } = await supabase
+          .from('exam_questions')
+          .select('exam_id')
+          .in('exam_id', examIds);
+
+        const answerMap = new Map<string, number>();
+        allAnswers?.forEach(a => {
+          answerMap.set(a.exam_id, (answerMap.get(a.exam_id) || 0) + 1);
+        });
+        const questionMap = new Map<string, number>();
+        questionsData?.forEach(q => {
+          questionMap.set(q.exam_id, (questionMap.get(q.exam_id) || 0) + 1);
+        });
+        setExamAnswerCounts(answerMap);
+        setExamQuestionCounts(questionMap);
+      }
+
       const { data: sets } = await supabase
         .from("practice_question_sets")
         .select("id, set_name, subject_id, question_count, status")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (sets && sets.length > 0) {
         const setsWithProgress = await Promise.all(
@@ -405,13 +433,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   const getExamProgress = (exam: ExamWithSubmission) => {
     if (exam.submission?.status === 'graded' || exam.submission?.status === 'completed' || exam.submission?.status === 'submitted') return 100;
-    if (exam.submission?.status === 'in_progress') return 0; // unknown actual progress — show 0 not fake 50
+    const totalQuestions = examQuestionCounts.get(exam.id) || 0;
+    const answeredQuestions = examAnswerCounts.get(exam.id) || 0;
+    if (totalQuestions > 0 && answeredQuestions > 0) {
+      return Math.round((answeredQuestions / totalQuestions) * 100);
+    }
     return 0;
   };
 
   const getPracticeStatus = (set: PracticeSetWithProgress) => {
     if (set.progress?.completed_at) return 'complete';
-    if (set.progress?.questions_attempted && set.progress.questions_attempted > 0) return 'in_progress';
+    const attempted = set.progress?.questions_attempted ?? 0;
+    const total = set.question_count ?? 0;
+    if (total > 0 && attempted >= total) return 'complete';
+    if (attempted > 0) return 'in_progress';
     return 'not_started';
   };
 
@@ -755,36 +790,52 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
       {/* ========== DESKTOP LAYOUT (xl and above) ========== */}
       <div className="hidden xl:block space-y-3 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        {/* Welcome Banner */}
-        <div className="px-1 py-1">
-          <h1 className="text-xl font-bold text-foreground">
-            Welcome back, {userName}!
-          </h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
-            {greeting} — here's your study overview.
-          </p>
-        </div>
-
-        {/* FIX 1: Quick-Start CTAs — icons only with tooltips */}
-        <TooltipProvider delayDuration={150}>
-          <div className="flex gap-2 px-1">
-            {quickActions.map(action => (
-              <Tooltip key={action.label}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={action.onClick}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border transition-all duration-150 cursor-pointer hover:bg-muted hover:border-primary/30"
-                  >
-                    <action.icon size={18} style={{ color: action.colour }} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-medium">
-                  {action.label}
-                </TooltipContent>
-              </Tooltip>
-            ))}
+        {/* Welcome Banner + Quick Actions */}
+        <div className="px-1 py-1 flex items-start justify-between" style={{ marginBottom: 4 }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', margin: 0 }} className="text-foreground">
+              Welcome back, {userName}!
+            </h1>
+            <p className="text-[13px] text-muted-foreground" style={{ margin: '3px 0 0' }}>
+              {greeting} — here's your study overview.
+            </p>
           </div>
-        </TooltipProvider>
+          <div className="flex gap-2 items-center shrink-0">
+            <TooltipProvider delayDuration={200}>
+              {quickActions.map(action => (
+                <Tooltip key={action.label}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={action.onClick}
+                      className="flex items-center justify-center cursor-pointer transition-all duration-150"
+                      style={{
+                        width: 36, height: 36,
+                        borderRadius: 9,
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--card))',
+                        color: action.colour,
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'hsl(var(--muted))';
+                        e.currentTarget.style.borderColor = action.colour;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'hsl(var(--card))';
+                        e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                      }}
+                    >
+                      <action.icon size={16} strokeWidth={1.8} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs font-medium">
+                    {action.label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+        </div>
 
         {/* 3-Column Dashboard Grid */}
         <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
