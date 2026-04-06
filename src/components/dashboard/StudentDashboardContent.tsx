@@ -405,7 +405,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   const getExamProgress = (exam: ExamWithSubmission) => {
     if (exam.submission?.status === 'graded' || exam.submission?.status === 'completed' || exam.submission?.status === 'submitted') return 100;
-    if (exam.submission?.status === 'in_progress') return 50;
+    if (exam.submission?.status === 'in_progress') return 0; // unknown actual progress — show 0 not fake 50
     return 0;
   };
 
@@ -414,6 +414,14 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     if (set.progress?.questions_attempted && set.progress.questions_attempted > 0) return 'in_progress';
     return 'not_started';
   };
+
+  const getSubjectName = (subjectId: string) => {
+    return subjects.find(s => s.id === subjectId)?.subject_name ?? subjectId;
+  };
+
+  const completedPracticeSets = useMemo(() => {
+    return practiceSets.filter(s => s.progress?.completed_at).slice(0, 2);
+  }, [practiceSets]);
 
   // Mobile swipeable screens state
   const [activeScreen, setActiveScreen] = useState(0);
@@ -781,18 +789,13 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         {/* 3-Column Dashboard Grid */}
         <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
           
-          {/* Column 1: Mock Exams — FIX 4: removed + button, View All opens sheet */}
+          {/* Column 1: Mock Exams */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle
-                className="text-lg font-bold cursor-pointer hover:text-primary transition-colors"
-                onClick={() => navigate("/my-exams")}
-              >
-                Mock Exams
-              </CardTitle>
+              <CardTitle className="text-base font-semibold">Mock Exams</CardTitle>
               <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllExams(true)}>View all</Button>
             </CardHeader>
-            <CardContent className="space-y-3 pt-0">
+            <CardContent className="pt-0">
               {inProgressExams.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
@@ -800,35 +803,51 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   <Button variant="link" size="sm" onClick={() => navigate("/upload")} className="mt-1 text-primary">Create one →</Button>
                 </div>
               ) : (
-                inProgressExams.slice(0, 3).map(exam => {
+                inProgressExams.slice(0, 3).map((exam, idx) => {
                   const progress = getExamProgress(exam);
                   const color = getSubjectColor(exam.subject_id);
                   return (
-                    <div key={exam.id} className="p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer bg-card/50 hover:bg-card"
-                      onClick={() => navigate(exam.submission?.id ? `/exam/${exam.id}/in-progress` : `/exam/${exam.id}/preview`)}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm truncate">{exam.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{exam.subject_id} · Started {getTimeAgo(exam.created_at)}</p>
+                    <div
+                      key={exam.id}
+                      onClick={() => navigate(exam.submission?.id ? `/exam/${exam.id}/in-progress` : `/exam/${exam.id}/preview`)}
+                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
+                      style={{
+                        padding: '11px 24px',
+                        margin: '0 -24px',
+                        borderBottom: idx < Math.min(inProgressExams.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
+                      }}
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{exam.title}</p>
+                        <div className="h-[3px] rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: color }} />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Progress value={progress} className="h-1.5 flex-1" style={{ ['--progress-color' as any]: color }} />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{progress}% done</span>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[13px] font-bold" style={{ color: progress === 100 ? 'hsl(142 71% 45%)' : 'hsl(var(--foreground))' }}>{progress}%</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{getTimeAgo(exam.created_at)}</p>
                       </div>
                     </div>
                   );
                 })
               )}
-              {/* FIX 5: Recently completed — ensure title and score are separate */}
+              {/* Recently completed */}
               {recentCompletedExams.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold">Recently completed</p>
+                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
                   {recentCompletedExams.map(exam => (
-                    <div key={exam.id} onClick={() => navigate(`/exam/${exam.id}/review`)} className="flex justify-between items-center py-1.5 cursor-pointer hover:text-foreground transition-colors">
-                      <span className="text-xs text-muted-foreground truncate flex-1 mr-2">{exam.title}</span>
+                    <div
+                      key={exam.id}
+                      onClick={() => navigate(`/exam/${exam.id}/review`)}
+                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
+                      style={{ padding: '7px 0' }}
+                    >
+                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{exam.title}</span>
                       {exam.score !== null && (
-                        <span className={`text-[11px] font-semibold shrink-0 ${exam.score >= 70 ? 'text-success' : exam.score >= 50 ? 'text-warning' : 'text-destructive'}`}>
+                        <span className="text-xs font-bold shrink-0" style={{
+                          color: exam.score >= 70 ? 'hsl(142 71% 45%)' : exam.score >= 50 ? 'hsl(25 95% 53%)' : 'hsl(0 84% 60%)',
+                        }}>
                           {exam.score}%
                         </span>
                       )}
@@ -839,13 +858,13 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </CardContent>
           </Card>
 
-          {/* Column 2: Practice Quizzes — FIX 2 & 4: correct route, removed + button */}
+          {/* Column 2: Practice Quizzes */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-bold cursor-pointer hover:text-primary transition-colors" onClick={() => navigate("/quizzes")}>Practice Quizzes</CardTitle>
+              <CardTitle className="text-base font-semibold">Practice Quizzes</CardTitle>
               <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllQuizzes(true)}>View all</Button>
             </CardHeader>
-            <CardContent className="space-y-3 pt-0">
+            <CardContent className="pt-0">
               {practiceSets.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
@@ -853,40 +872,77 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   <Button variant="link" size="sm" onClick={() => navigate("/create-practice-questions")} className="mt-1 text-primary">Create one →</Button>
                 </div>
               ) : (
-                practiceSets.slice(0, 3).map(set => {
+                practiceSets.slice(0, 3).map((set, idx) => {
                   const status = getPracticeStatus(set);
                   const attempted = set.progress?.questions_attempted || 0;
                   const progress = set.question_count > 0 ? Math.round((attempted / set.question_count) * 100) : 0;
                   const color = getSubjectColor(set.subject_id);
                   return (
-                    <div key={set.id} className="p-3 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer bg-card/50 hover:bg-card"
-                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm truncate">{set.set_name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{set.question_count} questions · {set.subject_id}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        {status === 'complete' ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge className="bg-success/20 text-success border-success/30 text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Complete</Badge>
-                            {set.progress?.questions_correct !== null && (
-                              <span className="text-xs text-muted-foreground">✓ {set.progress?.questions_correct}/{set.question_count}</span>
-                            )}
-                          </div>
-                        ) : status === 'in_progress' ? (
-                          <div className="flex items-center gap-3 w-full">
-                            <Progress value={progress} className="h-1.5 flex-1" />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">{progress}% done</span>
-                          </div>
+                    <div
+                      key={set.id}
+                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
+                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
+                      style={{
+                        padding: '11px 24px',
+                        margin: '0 -24px',
+                        borderBottom: idx < Math.min(practiceSets.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
+                      }}
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{set.set_name}</p>
+                        {status === 'not_started' ? (
+                          <div className="h-[3px] rounded-full bg-muted" />
                         ) : (
-                          <Badge variant="secondary" className="text-xs">Not started</Badge>
+                          <div className="h-[3px] rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500" style={{
+                              width: `${status === 'complete' ? 100 : progress}%`,
+                              background: status === 'complete' ? 'hsl(142 71% 45%)' : color,
+                            }} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {status === 'complete' ? (
+                          <>
+                            <p className="text-[13px] font-bold" style={{ color: 'hsl(142 71% 45%)' }}>Done</p>
+                            {set.progress?.questions_correct !== null && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{set.progress?.questions_correct}/{set.question_count} ✓</p>
+                            )}
+                          </>
+                        ) : status === 'not_started' ? (
+                          <p className="text-xs text-muted-foreground">{set.question_count}q</p>
+                        ) : (
+                          <>
+                            <p className="text-[13px] font-bold text-foreground">{progress}%</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{attempted}/{set.question_count}</p>
+                          </>
                         )}
                       </div>
                     </div>
                   );
                 })
+              )}
+              {/* Recently completed practice sets */}
+              {completedPracticeSets.length > 0 && (
+                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
+                  {completedPracticeSets.map(set => (
+                    <div
+                      key={set.id}
+                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
+                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
+                      style={{ padding: '7px 0' }}
+                    >
+                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{set.set_name}</span>
+                      {set.progress?.questions_correct !== null && set.question_count > 0 && (
+                        <span className="text-xs font-bold shrink-0" style={{ color: 'hsl(142 71% 45%)' }}>
+                          {Math.round(((set.progress?.questions_correct ?? 0) / set.question_count) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
