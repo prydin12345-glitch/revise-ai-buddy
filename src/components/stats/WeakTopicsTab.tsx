@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { BookOpen, FileText, Zap, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, FileText, Zap, ChevronDown, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   UnifiedTopicScore,
   UnifiedMastery,
@@ -9,46 +9,51 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseTopicTags } from "@/lib/normalise-topic";
-import { cn } from "@/lib/utils";
 import { MathRenderer } from "@/components/MathRenderer";
-import { EmptyChartState } from "./EmptyChartState";
 
 interface WeakTopicsTabProps {
   topics: UnifiedTopicScore[];
   loading: boolean;
 }
 
-const MASTERY_COLOURS: Record<
-  UnifiedMastery,
-  { bar: string; badge: string; badgeBg: string; border: string; filterBg: string }
+const MASTERY_CONFIG: Record<
+  string,
+  {
+    label: string;
+    colour: string;
+    bg: string;
+    border: string;
+    activeBg: string;
+    activeBorder: string;
+    description: string;
+  }
 > = {
   weak: {
-    bar: "#ef4444",
-    badge: "#fca5a5",
-    badgeBg: "#450a0a",
-    border: "#ef4444",
-    filterBg: "#450a0a",
+    label: "Weak",
+    colour: "hsl(0 84% 60%)",
+    bg: "hsl(0 84% 60% / 0.08)",
+    border: "hsl(0 84% 60% / 0.3)",
+    activeBg: "hsl(0 84% 60% / 0.12)",
+    activeBorder: "hsl(0 84% 60%)",
+    description: "Need attention",
   },
   developing: {
-    bar: "#f97316",
-    badge: "#fdba74",
-    badgeBg: "#431407",
-    border: "#f97316",
-    filterBg: "#431407",
+    label: "Developing",
+    colour: "hsl(25 95% 53%)",
+    bg: "hsl(25 95% 53% / 0.08)",
+    border: "hsl(25 95% 53% / 0.3)",
+    activeBg: "hsl(25 95% 53% / 0.12)",
+    activeBorder: "hsl(25 95% 53%)",
+    description: "Making progress",
   },
   strong: {
-    bar: "#22c55e",
-    badge: "#86efac",
-    badgeBg: "#14532d",
-    border: "#22c55e",
-    filterBg: "#14532d",
-  },
-  untested: {
-    bar: "hsl(var(--muted-foreground))",
-    badge: "hsl(var(--muted-foreground))",
-    badgeBg: "hsl(var(--muted))",
-    border: "hsl(var(--border))",
-    filterBg: "hsl(var(--muted))",
+    label: "Strong",
+    colour: "hsl(142 71% 45%)",
+    bg: "hsl(142 71% 45% / 0.08)",
+    border: "hsl(142 71% 45% / 0.3)",
+    activeBg: "hsl(142 71% 45% / 0.12)",
+    activeBorder: "hsl(142 71% 45%)",
+    description: "Well covered",
   },
 };
 
@@ -86,7 +91,7 @@ const WrongAnswersPanel = ({
   topic,
   studentId,
 }: {
-  topic: UnifiedTopicScore;
+  topic: string;
   studentId: string;
 }) => {
   const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>([]);
@@ -136,7 +141,7 @@ const WrongAnswersPanel = ({
         const q = qMap.get(ans.question_id);
         if (!q || !q.topic_tag) continue;
         const canonical = normMap[q.topic_tag] ?? q.topic_tag;
-        if (canonical !== topic.topic) continue;
+        if (canonical !== topic) continue;
         const score = Number(ans.score) || 0;
         if (score >= q.marks) continue;
         wrong.push({
@@ -160,85 +165,165 @@ const WrongAnswersPanel = ({
     return () => {
       cancelled = true;
     };
-  }, [topic.topic, studentId]);
+  }, [topic, studentId]);
 
   if (loading)
     return (
-      <div className="py-3 text-xs text-muted-foreground animate-pulse">
-        Loading wrong answers…
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              background: "hsl(var(--muted))",
+              borderRadius: 8,
+              height: 80,
+              opacity: 0.6,
+            }}
+            className="animate-pulse"
+          />
+        ))}
       </div>
     );
 
   if (wrongAnswers.length === 0)
     return (
-      <div className="py-3 text-xs text-muted-foreground">
-        No recent wrong answers found for this topic.
+      <div
+        style={{
+          textAlign: "center",
+          padding: 20,
+          color: "hsl(var(--muted-foreground))",
+          fontSize: 13,
+        }}
+      >
+        No wrong answers recorded for this topic yet
       </div>
     );
 
   return (
-    <div className="mt-3 space-y-2">
-      {wrongAnswers.map((answer, i) => (
-        <div
-          key={i}
-          className="rounded-lg border border-border/40 bg-background/50 p-3"
-        >
-          <div className="text-[13px] leading-relaxed text-foreground/80 mb-2 line-clamp-3">
-            <span className="text-muted-foreground mr-1">
-              Q{answer.questionNumber}:
-            </span>
-            <MathRenderer
-              content={answer.questionText}
-              hasMath={/\$[^$]+\$/.test(answer.questionText)}
-              inline
-            />
-          </div>
-          <div className="flex items-center gap-2 mb-2.5">
-            <span className="text-xs text-muted-foreground">Score:</span>
-            <span
-              className={cn(
-                "text-[13px] font-bold",
-                (answer.score ?? 0) >= answer.marks
-                  ? "text-emerald-400"
-                  : "text-destructive"
-              )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {wrongAnswers.map((answer, i) => {
+        const isFullMarks = (answer.score ?? 0) >= answer.marks;
+        return (
+          <div
+            key={i}
+            style={{
+              background: "hsl(var(--background))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                color: "hsl(var(--foreground))",
+                lineHeight: 1.6,
+                marginBottom: 8,
+              }}
+              className="line-clamp-3"
             >
-              {answer.score}/{answer.marks}
-            </span>
-          </div>
-          {answer.correctAnswer && (
-            <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 p-2.5">
-              <div className="text-[11px] text-emerald-400 tracking-widest uppercase mb-1.5">
-                Model Answer
-              </div>
-              <div className="text-[13px] text-emerald-300 leading-relaxed space-y-1">
-                {splitAnswerSteps(answer.correctAnswer).map((step, si, arr) => (
-                  <div key={si} className="flex gap-2">
-                    {arr.length > 1 && (
-                      <span className="text-emerald-500 flex-shrink-0 mt-0.5">
-                        ›
-                      </span>
-                    )}
-                    <MathRenderer
-                      content={step}
-                      hasMath={/\$[^$]+\$/.test(step)}
-                      inline
-                      className="text-emerald-300"
-                    />
-                  </div>
-                ))}
-              </div>
+              <span
+                style={{
+                  color: "hsl(var(--muted-foreground))",
+                  marginRight: 4,
+                }}
+              >
+                Q{answer.questionNumber}:
+              </span>
+              <MathRenderer
+                content={answer.questionText}
+                hasMath={/\$[^$]+\$/.test(answer.questionText)}
+                inline
+              />
             </div>
-          )}
-          <p className="text-[10px] text-muted-foreground/50 mt-1.5">
-            {new Date(answer.submitted_at).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-      ))}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: isFullMarks
+                  ? "hsl(142 71% 45%)"
+                  : "hsl(0 84% 60%)",
+                marginBottom: 6,
+              }}
+            >
+              Score: {answer.score}/{answer.marks}
+            </div>
+            {answer.correctAnswer && (
+              <div
+                style={{
+                  background: "hsl(142 71% 45% / 0.06)",
+                  border: "1px solid hsl(142 71% 45% / 0.2)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "hsl(142 71% 45%)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: 6,
+                  }}
+                >
+                  Model Answer
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "hsl(var(--foreground))",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {splitAnswerSteps(answer.correctAnswer).map(
+                    (step, si, arr) => (
+                      <div
+                        key={si}
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          marginBottom: si < arr.length - 1 ? 4 : 0,
+                        }}
+                      >
+                        {arr.length > 1 && (
+                          <span
+                            style={{
+                              color: "hsl(142 71% 45%)",
+                              flexShrink: 0,
+                              marginTop: 1,
+                            }}
+                          >
+                            ›
+                          </span>
+                        )}
+                        <MathRenderer
+                          content={step}
+                          hasMath={/\$[^$]+\$/.test(step)}
+                          inline
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+            <div
+              style={{
+                fontSize: 11,
+                color: "hsl(var(--muted-foreground))",
+                marginTop: 4,
+              }}
+            >
+              {new Date(answer.submitted_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -252,21 +337,15 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
   const [activeFilter, setActiveFilter] = useState<UnifiedMastery | null>(null);
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const INITIAL_SHOW = 10;
 
   useEffect(() => {
     supabase.auth
       .getUser()
       .then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
-
-  const handlePracticeWeakTopic = (topic: UnifiedTopicScore) => {
-    const params = new URLSearchParams({
-      subtopic: topic.topic,
-      source: "weak_topics",
-    });
-    if (topic.subjectId) params.set("subject", topic.subjectId);
-    navigate(`/create-practice-questions?${params.toString()}`);
-  };
 
   if (loading) {
     return (
@@ -278,75 +357,173 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
     );
   }
 
-  if (topics.length === 0) {
-    return (
-      <div className="bg-card border border-border rounded-xl p-8">
-        <EmptyChartState
-          message="Complete exams or practice quizzes to see your topic-level performance breakdown."
-          icon={BookOpen}
-          action={{
-            label: "Start Practicing",
-            onClick: () => navigate("/create-practice-questions"),
-          }}
-          height={200}
-        />
-      </div>
-    );
-  }
-
+  const testedTopics = topics.filter((t) => t.mastery !== "untested");
   const weakCount = topics.filter((t) => t.mastery === "weak").length;
-  const developingCount = topics.filter(
-    (t) => t.mastery === "developing"
-  ).length;
+  const developingCount = topics.filter((t) => t.mastery === "developing").length;
   const strongCount = topics.filter((t) => t.mastery === "strong").length;
 
-  const testedTopics = topics.filter((t) => t.mastery !== "untested");
   const filteredTopics = activeFilter
     ? testedTopics.filter((t) => t.mastery === activeFilter)
     : testedTopics;
 
+  const visibleTopics = showAll
+    ? filteredTopics
+    : filteredTopics.slice(0, INITIAL_SHOW);
+
+  // Show empty state when no topics at all
+  if (topics.length === 0 || testedTopics.length === 0) {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px 24px",
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--border))",
+          borderRadius: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: "hsl(var(--muted))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 14px",
+          }}
+        >
+          <BookOpen
+            size={22}
+            color="hsl(var(--muted-foreground))"
+            strokeWidth={1.5}
+          />
+        </div>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: "hsl(var(--foreground))",
+            marginBottom: 6,
+          }}
+        >
+          No topic data yet
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            color: "hsl(var(--muted-foreground))",
+            marginBottom: 16,
+            lineHeight: 1.5,
+          }}
+        >
+          Complete some exams or practice quizzes to see your topic performance
+          here
+        </div>
+        <button
+          onClick={() => navigate("/create-practice-questions")}
+          style={{
+            padding: "8px 20px",
+            background: "hsl(var(--primary))",
+            border: "none",
+            borderRadius: 8,
+            color: "hsl(var(--primary-foreground))",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Start Practising
+        </button>
+      </div>
+    );
+  }
+
   const summaryCards: {
-    mastery: UnifiedMastery;
+    mastery: "weak" | "developing" | "strong";
     count: number;
-    label: string;
   }[] = [
-    { mastery: "weak", count: weakCount, label: "WEAK" },
-    { mastery: "developing", count: developingCount, label: "DEVELOPING" },
-    { mastery: "strong", count: strongCount, label: "STRONG" },
+    { mastery: "weak", count: weakCount },
+    { mastery: "developing", count: developingCount },
+    { mastery: "strong", count: strongCount },
   ];
 
   return (
-    <div className="space-y-5">
+    <div>
       {/* Summary filter cards */}
-      <div className="grid grid-cols-3 gap-3">
-        {summaryCards.map(({ mastery, count, label }) => {
-          const colours = MASTERY_COLOURS[mastery];
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        {summaryCards.map(({ mastery, count }) => {
+          const config = MASTERY_CONFIG[mastery];
           const isActive = activeFilter === mastery;
-          const isDimmed = activeFilter !== null && !isActive;
+          const isDisabled = activeFilter !== null && activeFilter !== mastery;
 
           return (
             <button
               key={mastery}
               onClick={() => setActiveFilter(isActive ? null : mastery)}
-              className={cn(
-                "rounded-[10px] p-4 text-left transition-all border font-inherit",
-                isDimmed && "opacity-40"
-              )}
               style={{
-                background: isActive ? colours.filterBg : "hsl(var(--card))",
-                borderColor: isActive
-                  ? colours.border
-                  : "hsl(var(--border))",
+                padding: 16,
+                background: isActive ? config.activeBg : "hsl(var(--card))",
+                border: `1px solid ${isActive ? config.activeBorder : "hsl(var(--border))"}`,
+                borderTop: `3px solid ${isActive ? config.colour : "hsl(var(--border))"}`,
+                borderRadius: 10,
+                cursor: "pointer",
+                textAlign: "left",
+                opacity: isDisabled ? 0.4 : 1,
+                transition: "all 0.2s",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => {
+                if (!isDisabled) {
+                  e.currentTarget.style.borderColor = config.colour;
+                  e.currentTarget.style.borderTopColor = config.colour;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.borderColor = "hsl(var(--border))";
+                  e.currentTarget.style.borderTopColor = "hsl(var(--border))";
+                }
               }}
             >
               <div
-                className="text-[28px] font-extrabold leading-none tracking-tighter"
-                style={{ color: colours.bar }}
+                style={{
+                  fontSize: 32,
+                  fontWeight: 800,
+                  color: config.colour,
+                  letterSpacing: "-1.5px",
+                  lineHeight: 1,
+                  marginBottom: 4,
+                }}
               >
                 {count}
               </div>
-              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-widest">
-                {label}
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "hsl(var(--foreground))",
+                  marginBottom: 2,
+                }}
+              >
+                {config.label}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                }}
+              >
+                {config.description}
               </div>
             </button>
           );
@@ -357,134 +534,431 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
       {activeFilter && (
         <button
           onClick={() => setActiveFilter(null)}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "5px 12px",
+            background: "hsl(var(--muted))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 99,
+            fontSize: 12,
+            color: "hsl(var(--foreground))",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            marginBottom: 16,
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = "hsl(var(--muted)/0.7)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "hsl(var(--muted))")
+          }
         >
-          ✕ Clear filter
+          <X size={12} />
+          Clear filter
         </button>
       )}
 
+      {/* Filtered empty state */}
+      {filteredTopics.length === 0 && activeFilter && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "48px 24px",
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: "hsl(var(--muted))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+            }}
+          >
+            <BookOpen
+              size={22}
+              color="hsl(var(--muted-foreground))"
+              strokeWidth={1.5}
+            />
+          </div>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "hsl(var(--foreground))",
+              marginBottom: 6,
+            }}
+          >
+            No {activeFilter} topics
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: "hsl(var(--muted-foreground))",
+              lineHeight: 1.5,
+            }}
+          >
+            You have no topics at {activeFilter} mastery level
+          </div>
+        </div>
+      )}
+
       {/* Topic cards */}
-      <div className="space-y-2.5">
-        {filteredTopics.map((topic) => {
-          const colours = MASTERY_COLOURS[topic.mastery];
+      <div>
+        {visibleTopics.map((topic, index) => {
+          const config =
+            MASTERY_CONFIG[topic.mastery] ?? MASTERY_CONFIG.developing;
           const isExpanded = expandedTopic === topic.topic;
 
           return (
-            <div
+            <motion.div
               key={topic.topic}
-              className="bg-card border border-border rounded-[10px] transition-colors"
-              style={{ borderLeftWidth: 3, borderLeftColor: colours.border }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04, duration: 0.3 }}
+              style={{
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderLeft: `3px solid ${config.colour}`,
+                borderRadius: 10,
+                marginBottom: 10,
+                overflow: "hidden",
+                transition: "box-shadow 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = `0 0 0 1px ${config.colour}30`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "none";
+              }}
             >
-              <div className="p-4 space-y-3">
-                {/* Header row */}
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0">
-                    <div className="text-[15px] font-semibold text-foreground truncate">
+              {/* Card body */}
+              <div style={{ padding: "14px 16px" }}>
+                {/* Top row — topic name + mastery badge */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 10,
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "hsl(var(--foreground))",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        marginBottom: 3,
+                      }}
+                    >
                       {topic.topic}
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1.5">
-                      {topic.examScore !== null && (
-                        <span className="flex items-center gap-1">
-                          <FileText className="h-3 w-3" />
-                          Exam:{" "}
-                          <strong className="text-foreground">
-                            {topic.examScore}%
-                          </strong>
-                        </span>
-                      )}
-                      {topic.practiceScore !== null && (
-                        <span className="flex items-center gap-1">
-                          <Zap className="h-3 w-3" />
-                          Practice:{" "}
-                          <strong className="text-foreground">
-                            {topic.practiceScore}%
-                          </strong>
-                        </span>
-                      )}
-                      <span>
-                        Combined:{" "}
-                        <strong className="text-foreground">
-                          {topic.unifiedScore}%
-                        </strong>
+                    {/* Score breakdown — Combined most prominent */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: config.colour,
+                          letterSpacing: "-0.5px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {topic.unifiedScore}%
                       </span>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "center",
+                        }}
+                      >
+                        {topic.examScore !== null && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: "hsl(var(--muted-foreground))",
+                            }}
+                          >
+                            Exam{" "}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: "hsl(var(--foreground))",
+                              }}
+                            >
+                              {topic.examScore}%
+                            </span>
+                          </span>
+                        )}
+                        {topic.practiceScore !== null && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: "hsl(var(--muted-foreground))",
+                            }}
+                          >
+                            Practice{" "}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: "hsl(var(--foreground))",
+                              }}
+                            >
+                              {topic.practiceScore}%
+                            </span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <span
-                    className="text-[11px] font-semibold rounded-full px-2.5 py-0.5 shrink-0 whitespace-nowrap"
+
+                  {/* Right side — badge + practice button */}
+                  <div
                     style={{
-                      background: colours.badgeBg,
-                      color: colours.badge,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 6,
+                      flexShrink: 0,
                     }}
                   >
-                    {topic.mastery.charAt(0).toUpperCase() +
-                      topic.mastery.slice(1)}
-                  </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "3px 10px",
+                        borderRadius: 99,
+                        background: config.bg,
+                        color: config.colour,
+                        border: `1px solid ${config.border}`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {config.label}
+                    </span>
+
+                    {topic.mastery === "weak" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const params = new URLSearchParams({
+                            subtopic: topic.topic,
+                            source: "weak_topics",
+                          });
+                          if (topic.subjectId)
+                            params.set("subject", topic.subjectId);
+                          navigate(
+                            `/create-practice-questions?${params.toString()}`
+                          );
+                        }}
+                        style={{
+                          padding: "4px 12px",
+                          background: "hsl(0 84% 60%)",
+                          border: "none",
+                          borderRadius: 6,
+                          color: "white",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          whiteSpace: "nowrap",
+                          transition: "opacity 0.15s",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.opacity = "0.85")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.opacity = "1")
+                        }
+                      >
+                        Practice →
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Progress bar — 6px height */}
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                {/* Progress bar */}
+                <div
+                  style={{
+                    height: 6,
+                    background: "hsl(var(--muted))",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    marginBottom: topic.mastery === "weak" ? 10 : 0,
+                  }}
+                >
                   <div
-                    className="h-full rounded-full"
                     style={{
+                      height: "100%",
                       width: `${topic.unifiedScore}%`,
-                      background: colours.bar,
-                      transition: "width 0.8s ease",
+                      background: config.colour,
+                      borderRadius: 3,
+                      transition: "width 0.9s ease",
                     }}
                   />
                 </div>
 
-                {/* Practice nudge for weak topics */}
+                {/* Practised since last exam indicator — weak only */}
                 {topic.mastery === "weak" && (
-                  <div className="flex items-center justify-between pt-1">
-                    <span
-                      className="text-[11px] flex items-center gap-1"
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 11,
+                      color: topic.practicedSinceLastExam
+                        ? "hsl(142 71% 45%)"
+                        : "hsl(25 95% 53%)",
+                    }}
+                  >
+                    <div
                       style={{
-                        color: topic.practicedSinceLastExam
-                          ? "#22c55e"
-                          : "#f97316",
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: topic.practicedSinceLastExam
+                          ? "hsl(142 71% 45%)"
+                          : "hsl(25 95% 53%)",
+                        flexShrink: 0,
                       }}
-                    >
-                      {topic.practicedSinceLastExam
-                        ? "✓ Practised since last exam"
-                        : "⚠ Not practised since last exam"}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
-                      onClick={() => handlePracticeWeakTopic(topic)}
-                    >
-                      Practice now →
-                    </Button>
+                    />
+                    {topic.practicedSinceLastExam
+                      ? "Practised since last exam"
+                      : "Not practised since last exam"}
                   </div>
                 )}
-
-                {/* Wrong answers expander */}
-                <button
-                  onClick={() =>
-                    setExpandedTopic(isExpanded ? null : topic.topic)
-                  }
-                  className="w-full pt-2 mt-1 border-t border-border/30 text-muted-foreground text-[11px] text-center hover:text-foreground transition-colors flex items-center justify-center gap-1"
-                >
-                  {isExpanded ? (
-                    <>
-                      <ChevronUp className="h-3 w-3" /> Hide wrong answers
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3" /> See wrong answers
-                    </>
-                  )}
-                </button>
-
-                {isExpanded && userId && (
-                  <WrongAnswersPanel topic={topic} studentId={userId} />
-                )}
               </div>
-            </div>
+
+              {/* Wrong answers expander */}
+              <button
+                onClick={() =>
+                  setExpandedTopic(isExpanded ? null : topic.topic)
+                }
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  background: isExpanded
+                    ? "hsl(var(--muted)/0.5)"
+                    : "transparent",
+                  border: "none",
+                  borderTop: "1px solid hsl(var(--border)/0.5)",
+                  color: "hsl(var(--muted-foreground))",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  fontFamily: "inherit",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "hsl(var(--muted)/0.5)";
+                  e.currentTarget.style.color = "hsl(var(--foreground))";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isExpanded) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color =
+                      "hsl(var(--muted-foreground))";
+                  }
+                }}
+              >
+                <ChevronDown
+                  size={12}
+                  style={{
+                    transform: isExpanded
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }}
+                />
+                {isExpanded ? "Hide wrong answers" : "See wrong answers"}
+              </button>
+
+              {/* Wrong answers panel — animated */}
+              <AnimatePresence>
+                {isExpanded && userId && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    style={{ overflow: "hidden" }}
+                  >
+                    <div
+                      style={{
+                        padding: "12px 16px 16px",
+                        background: "hsl(var(--muted)/0.3)",
+                        borderTop: "1px solid hsl(var(--border)/0.5)",
+                      }}
+                    >
+                      <WrongAnswersPanel
+                        topic={topic.topic}
+                        studentId={userId}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           );
         })}
       </div>
+
+      {/* Show more / less */}
+      {filteredTopics.length > INITIAL_SHOW && (
+        <button
+          onClick={() => setShowAll((prev) => !prev)}
+          style={{
+            width: "100%",
+            padding: 10,
+            background: "transparent",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 8,
+            color: "hsl(var(--muted-foreground))",
+            fontSize: 13,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            marginTop: 4,
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "hsl(var(--primary))";
+            e.currentTarget.style.color = "hsl(var(--primary))";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "hsl(var(--border))";
+            e.currentTarget.style.color = "hsl(var(--muted-foreground))";
+          }}
+        >
+          {showAll
+            ? "Show less"
+            : `Show ${filteredTopics.length - INITIAL_SHOW} more topics`}
+        </button>
+      )}
     </div>
   );
 };
