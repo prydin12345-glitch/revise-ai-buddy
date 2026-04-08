@@ -260,7 +260,7 @@ const TopicCard = ({
               {topic.topic}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "clamp(6px, 2vw, 12px)", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: config.colour, letterSpacing: "-0.5px", lineHeight: 1 }}>
+              <span style={{ fontSize: "clamp(17px, 4.5vw, 20px)", fontWeight: 800, color: config.colour, letterSpacing: "-0.5px", lineHeight: 1 }}>
                 {topic.unifiedScore}%
               </span>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
