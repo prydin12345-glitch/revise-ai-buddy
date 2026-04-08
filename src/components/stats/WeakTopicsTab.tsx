@@ -253,7 +253,7 @@ const TopicCard = ({
       onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${config.colour}30`; }}
       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
     >
-      <div style={{ padding: "14px 16px" }}>
+      <div style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 10 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
