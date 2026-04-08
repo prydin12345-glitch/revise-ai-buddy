@@ -556,10 +556,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   >
                     {/* Subject colour avatar */}
                     <div style={{
-                      width: 42, height: 42, borderRadius: 10,
+                      width: "clamp(34px, 8vw, 42px)", height: "clamp(34px, 8vw, 42px)", borderRadius: 10,
                       background: group.color + "18", border: `1px solid ${group.color}30`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, fontSize: 16, fontWeight: 700, color: group.color,
+                      flexShrink: 0, fontSize: "clamp(13px, 3.5vw, 16px)", fontWeight: 700, color: group.color,
                     }}>
                       {group.subjectName.charAt(0).toUpperCase()}
                     </div>
