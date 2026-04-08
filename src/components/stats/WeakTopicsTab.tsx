@@ -547,9 +547,9 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                       width: "100%", background: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
                       borderLeft: `3px solid ${group.color}`,
-                      borderRadius: 10, padding: "16px 18px",
+                      borderRadius: 10, padding: "clamp(12px, 3vw, 16px) clamp(14px, 3.5vw, 18px)",
                       cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                      transition: "all 0.15s", display: "flex", alignItems: "center", gap: 14,
+                      transition: "all 0.15s", display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 14px)",
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${group.color}40`; e.currentTarget.style.background = "hsl(var(--muted)/0.3)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "hsl(var(--card))"; }}
