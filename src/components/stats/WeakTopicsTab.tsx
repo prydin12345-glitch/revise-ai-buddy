@@ -246,21 +246,21 @@ const TopicCard = ({
         border: "1px solid hsl(var(--border))",
         borderLeft: `3px solid ${config.colour}`,
         borderRadius: 10,
-        marginBottom: 10,
+        marginBottom: "clamp(6px, 2vw, 10px)",
         overflow: "hidden",
         transition: "box-shadow 0.15s, border-color 0.15s",
       }}
       onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${config.colour}30`; }}
       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
     >
-      <div style={{ padding: "14px 16px" }}>
+      <div style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 10 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
               {topic.topic}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: config.colour, letterSpacing: "-0.5px", lineHeight: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "clamp(6px, 2vw, 12px)", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "clamp(17px, 4.5vw, 20px)", fontWeight: 800, color: config.colour, letterSpacing: "-0.5px", lineHeight: 1 }}>
                 {topic.unifiedScore}%
               </span>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -311,7 +311,7 @@ const TopicCard = ({
       <button
         onClick={() => setExpandedTopic(isExpanded ? null : topic.topic)}
         style={{
-          width: "100%", padding: "8px 16px",
+          width: "100%", padding: "7px clamp(12px, 3vw, 16px)",
           background: isExpanded ? "hsl(var(--muted)/0.5)" : "transparent",
           border: "none", borderTop: "1px solid hsl(var(--border)/0.5)",
           color: "hsl(var(--muted-foreground))", fontSize: 11, cursor: "pointer",
@@ -333,7 +333,7 @@ const TopicCard = ({
             transition={{ duration: 0.25, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div style={{ padding: "12px 16px 16px", background: "hsl(var(--muted)/0.3)", borderTop: "1px solid hsl(var(--border)/0.5)" }}>
+            <div style={{ padding: "clamp(10px, 3vw, 12px) clamp(12px, 3vw, 16px) clamp(12px, 3vw, 16px)", background: "hsl(var(--muted)/0.3)", borderTop: "1px solid hsl(var(--border)/0.5)" }}>
               <WrongAnswersPanel topic={topic.topic} studentId={userId} />
             </div>
           </motion.div>
@@ -485,7 +485,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
   ];
 
   return (
-    <div>
+    <div style={{ overflowX: "hidden" }}>
       {/* Summary filter cards — shown in both views */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
         {summaryCards.map(({ mastery, count }) => {
@@ -497,7 +497,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
               key={mastery}
               onClick={() => setActiveFilter(isActive ? null : mastery)}
               style={{
-                padding: 16, background: isActive ? config.activeBg : "hsl(var(--card))",
+                padding: "clamp(10px, 3vw, 16px)", background: isActive ? config.activeBg : "hsl(var(--card))",
                 border: `1px solid ${isActive ? config.activeBorder : "hsl(var(--border))"}`,
                 borderTop: `3px solid ${isActive ? config.colour : "hsl(var(--border))"}`,
                 borderRadius: 10, cursor: "pointer", textAlign: "left",
@@ -506,9 +506,9 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
               onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.borderColor = config.colour; e.currentTarget.style.borderTopColor = config.colour; } }}
               onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = "hsl(var(--border))"; e.currentTarget.style.borderTopColor = "hsl(var(--border))"; } }}
             >
-              <div style={{ fontSize: 32, fontWeight: 800, color: config.colour, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 4 }}>{count}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }}>{config.label}</div>
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{config.description}</div>
+              <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 800, color: config.colour, letterSpacing: "-1px", lineHeight: 1, marginBottom: 3 }}>{count}</div>
+              <div style={{ fontSize: "clamp(11px, 3vw, 13px)", fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }}>{config.label}</div>
+              <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "hsl(var(--muted-foreground))" }}>{config.description}</div>
             </button>
           );
         })}
@@ -547,19 +547,19 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                       width: "100%", background: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
                       borderLeft: `3px solid ${group.color}`,
-                      borderRadius: 10, padding: "16px 18px",
+                      borderRadius: 10, padding: "clamp(12px, 3vw, 16px) clamp(14px, 3.5vw, 18px)",
                       cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                      transition: "all 0.15s", display: "flex", alignItems: "center", gap: 14,
+                      transition: "all 0.15s", display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 14px)",
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${group.color}40`; e.currentTarget.style.background = "hsl(var(--muted)/0.3)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "hsl(var(--card))"; }}
                   >
                     {/* Subject colour avatar */}
                     <div style={{
-                      width: 42, height: 42, borderRadius: 10,
+                      width: "clamp(34px, 8vw, 42px)", height: "clamp(34px, 8vw, 42px)", borderRadius: 10,
                       background: group.color + "18", border: `1px solid ${group.color}30`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, fontSize: 16, fontWeight: 700, color: group.color,
+                      flexShrink: 0, fontSize: "clamp(13px, 3.5vw, 16px)", fontWeight: 700, color: group.color,
                     }}>
                       {group.subjectName.charAt(0).toUpperCase()}
                     </div>
@@ -584,7 +584,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
 
                     {/* Right side */}
                     <div style={{ flexShrink: 0, textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px", lineHeight: 1 }}>
+                      <div style={{ fontSize: "clamp(17px, 4.5vw, 22px)", fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px", lineHeight: 1 }}>
                         {group.overallScore}%
                       </div>
                       <div style={{ width: 60, height: 3, background: "hsl(var(--muted))", borderRadius: 99, overflow: "hidden" }}>
@@ -620,7 +620,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   {/* Back header — only if multi-subject */}
                   {!singleSubject && (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid hsl(var(--border))", flexWrap: "wrap", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1, minWidth: 0 }}>
                         <button
                           onClick={() => { setSelectedSubject(null); setActiveFilter(null); setShowAll(false); }}
                           style={{
@@ -628,6 +628,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                             background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
                             borderRadius: 8, color: "hsl(var(--foreground))", fontSize: 13,
                             cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s",
+                            flexShrink: 0,
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "hsl(var(--muted)/0.7)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "hsl(var(--muted))")}
@@ -635,10 +636,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                           <ChevronLeft size={14} />
                           Back
                         </button>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                           <div style={{ width: 10, height: 10, borderRadius: "50%", background: group.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>{group.subjectName}</span>
-                          <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{group.topics.length} topics</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{group.subjectName}</span>
+                          <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", flexShrink: 0, whiteSpace: "nowrap" }}>{group.topics.length} topics</span>
                         </div>
                       </div>
                       <div style={{ fontSize: 20, fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px" }}>
