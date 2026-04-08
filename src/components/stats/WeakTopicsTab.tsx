@@ -584,7 +584,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
 
                     {/* Right side */}
                     <div style={{ flexShrink: 0, textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px", lineHeight: 1 }}>
+                      <div style={{ fontSize: "clamp(17px, 4.5vw, 22px)", fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px", lineHeight: 1 }}>
                         {group.overallScore}%
                       </div>
                       <div style={{ width: 60, height: 3, background: "hsl(var(--muted))", borderRadius: 99, overflow: "hidden" }}>
