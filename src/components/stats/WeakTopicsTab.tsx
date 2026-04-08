@@ -259,7 +259,7 @@ const TopicCard = ({
             <div style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
               {topic.topic}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "clamp(6px, 2vw, 12px)", flexWrap: "wrap" }}>
               <span style={{ fontSize: 20, fontWeight: 800, color: config.colour, letterSpacing: "-0.5px", lineHeight: 1 }}>
                 {topic.unifiedScore}%
               </span>
