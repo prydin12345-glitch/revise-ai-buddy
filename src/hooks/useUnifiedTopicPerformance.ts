@@ -261,6 +261,6 @@ export const useUnifiedTopicPerformance = (
   return {
     topics,
     loading,
-    weakTopics: topics.filter((t) => t.mastery === "weak"),
+    weakTopics: topics.filter((t) => t.mastery === "weak" && (t.examScore !== null || t.practiceScore !== null)),
   };
 };

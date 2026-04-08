@@ -426,8 +426,12 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
     });
 
     Object.values(groups).forEach((g) => {
-      const scores = g.topics.map((t) => t.unifiedScore).filter((s) => s != null);
+      const scores = g.topics
+        .filter((t) => t.examScore !== null || t.practiceScore !== null)
+        .map((t) => t.unifiedScore)
+        .filter((s) => s != null && s > 0);
       g.overallScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      g.weakCount = g.topics.filter((t) => t.mastery === "weak" && (t.examScore !== null || t.practiceScore !== null)).length;
     });
 
     return Object.values(groups).sort((a, b) => b.weakCount - a.weakCount);
