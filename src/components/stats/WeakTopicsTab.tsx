@@ -506,9 +506,9 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
               onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.borderColor = config.colour; e.currentTarget.style.borderTopColor = config.colour; } }}
               onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = "hsl(var(--border))"; e.currentTarget.style.borderTopColor = "hsl(var(--border))"; } }}
             >
-              <div style={{ fontSize: 32, fontWeight: 800, color: config.colour, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 4 }}>{count}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }}>{config.label}</div>
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{config.description}</div>
+              <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 800, color: config.colour, letterSpacing: "-1px", lineHeight: 1, marginBottom: 3 }}>{count}</div>
+              <div style={{ fontSize: "clamp(11px, 3vw, 13px)", fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }}>{config.label}</div>
+              <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "hsl(var(--muted-foreground))" }}>{config.description}</div>
             </button>
           );
         })}
