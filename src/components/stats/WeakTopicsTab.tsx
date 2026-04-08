@@ -311,7 +311,7 @@ const TopicCard = ({
       <button
         onClick={() => setExpandedTopic(isExpanded ? null : topic.topic)}
         style={{
-          width: "100%", padding: "8px 16px",
+          width: "100%", padding: "7px clamp(12px, 3vw, 16px)",
           background: isExpanded ? "hsl(var(--muted)/0.5)" : "transparent",
           border: "none", borderTop: "1px solid hsl(var(--border)/0.5)",
           color: "hsl(var(--muted-foreground))", fontSize: 11, cursor: "pointer",
