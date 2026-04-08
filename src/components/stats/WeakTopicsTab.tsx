@@ -497,7 +497,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
               key={mastery}
               onClick={() => setActiveFilter(isActive ? null : mastery)}
               style={{
-                padding: 16, background: isActive ? config.activeBg : "hsl(var(--card))",
+                padding: "clamp(10px, 3vw, 16px)", background: isActive ? config.activeBg : "hsl(var(--card))",
                 border: `1px solid ${isActive ? config.activeBorder : "hsl(var(--border))"}`,
                 borderTop: `3px solid ${isActive ? config.colour : "hsl(var(--border))"}`,
                 borderRadius: 10, cursor: "pointer", textAlign: "left",
