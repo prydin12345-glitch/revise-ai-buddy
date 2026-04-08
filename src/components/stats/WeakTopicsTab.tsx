@@ -620,7 +620,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                   {/* Back header — only if multi-subject */}
                   {!singleSubject && (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid hsl(var(--border))", flexWrap: "wrap", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1, minWidth: 0 }}>
                         <button
                           onClick={() => { setSelectedSubject(null); setActiveFilter(null); setShowAll(false); }}
                           style={{
@@ -628,6 +628,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                             background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
                             borderRadius: 8, color: "hsl(var(--foreground))", fontSize: 13,
                             cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s",
+                            flexShrink: 0,
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "hsl(var(--muted)/0.7)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "hsl(var(--muted))")}
@@ -635,10 +636,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                           <ChevronLeft size={14} />
                           Back
                         </button>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                           <div style={{ width: 10, height: 10, borderRadius: "50%", background: group.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>{group.subjectName}</span>
-                          <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{group.topics.length} topics</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{group.subjectName}</span>
+                          <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", flexShrink: 0, whiteSpace: "nowrap" }}>{group.topics.length} topics</span>
                         </div>
                       </div>
                       <div style={{ fontSize: 20, fontWeight: 800, color: getScoreColour(group.overallScore), letterSpacing: "-0.5px" }}>
