@@ -333,7 +333,7 @@ const TopicCard = ({
             transition={{ duration: 0.25, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div style={{ padding: "12px 16px 16px", background: "hsl(var(--muted)/0.3)", borderTop: "1px solid hsl(var(--border)/0.5)" }}>
+            <div style={{ padding: "clamp(10px, 3vw, 12px) clamp(12px, 3vw, 16px) clamp(12px, 3vw, 16px)", background: "hsl(var(--muted)/0.3)", borderTop: "1px solid hsl(var(--border)/0.5)" }}>
               <WrongAnswersPanel topic={topic.topic} studentId={userId} />
             </div>
           </motion.div>
