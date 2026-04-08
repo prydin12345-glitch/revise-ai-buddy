@@ -439,9 +439,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
 
   // Counts adapt to view
   const summaryTopics = selectedSubjectGroup?.topics ?? topics;
-  const weakCount = summaryTopics.filter((t) => t.mastery === "weak").length;
-  const developingCount = summaryTopics.filter((t) => t.mastery === "developing").length;
-  const strongCount = summaryTopics.filter((t) => t.mastery === "strong").length;
+  const testedSummary = summaryTopics.filter((t) => t.examScore !== null || t.practiceScore !== null);
+  const weakCount = testedSummary.filter((t) => t.mastery === "weak").length;
+  const developingCount = testedSummary.filter((t) => t.mastery === "developing").length;
+  const strongCount = testedSummary.filter((t) => t.mastery === "strong").length;
 
   // Detail view topics
   const detailTopics = useMemo(() => {
