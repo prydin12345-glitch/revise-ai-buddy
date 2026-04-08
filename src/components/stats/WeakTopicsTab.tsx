@@ -246,7 +246,7 @@ const TopicCard = ({
         border: "1px solid hsl(var(--border))",
         borderLeft: `3px solid ${config.colour}`,
         borderRadius: 10,
-        marginBottom: 10,
+        marginBottom: "clamp(6px, 2vw, 10px)",
         overflow: "hidden",
         transition: "box-shadow 0.15s, border-color 0.15s",
       }}
