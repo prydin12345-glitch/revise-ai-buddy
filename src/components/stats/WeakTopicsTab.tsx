@@ -485,7 +485,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
   ];
 
   return (
-    <div>
+    <div style={{ overflowX: "hidden" }}>
       {/* Summary filter cards — shown in both views */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
         {summaryCards.map(({ mastery, count }) => {
