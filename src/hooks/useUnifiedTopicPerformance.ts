@@ -243,7 +243,10 @@ export const useUnifiedTopicPerformance = (
       };
       unified.sort((a, b) => masteryOrder[a.mastery] - masteryOrder[b.mastery]);
 
-      setTopics(unified);
+      // Remove untested topics — only return topics with real attempt data
+      const tested = unified.filter((t) => t.mastery !== "untested");
+
+      setTopics(tested);
     } catch (err) {
       console.error("Error fetching unified topic performance:", err);
     } finally {
