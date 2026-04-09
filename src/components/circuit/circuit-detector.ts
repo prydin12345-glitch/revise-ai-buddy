@@ -1,5 +1,5 @@
 import type { CircuitConfig, CircuitComponentType } from './types';
-import { shouldSuppressDiagram } from '@/utils/diagramSuppression';
+import { shouldSuppressDiagram, isConceptOnlyQuestion } from '@/utils/diagramSuppression';
 
 /**
  * Strip LaTeX markup so regex can match plain values.
@@ -82,9 +82,27 @@ function extractBatteryLabel(cleaned: string): string {
 /**
  * Detects a circuit diagram config from question text.
  */
-export function detectCircuitConfig(questionText: string, topicTag?: string, subjectName?: string): CircuitConfig | null {
+export function detectCircuitConfig(questionText: string, topicTag?: string, subjectName?: string, parentQuestionText?: string): CircuitConfig | null {
+  // Combine with parent text for multi-part question context
+  const fullText = parentQuestionText
+    ? `${parentQuestionText} ${questionText}`
+    : questionText;
+
   // Early exit — suppress diagram for theoretical topics
-  if (shouldSuppressDiagram(topicTag ?? '', questionText, subjectName ?? '')) {
+  if (shouldSuppressDiagram(topicTag ?? '', fullText, subjectName ?? '')) {
+    return null;
+  }
+
+  // Early exit — concept-only questions don't need a circuit
+  if (isConceptOnlyQuestion(fullText)) {
+    return null;
+  }
+
+  // Early exit — must mention actual circuit components to proceed
+  const hasCircuitComponent =
+    /\b(battery|cell|resistor|lamp|bulb|ammeter|voltmeter|thermistor|ldr|diode|capacitor|inductor|motor|switch|power supply|emf|e\.m\.f)\b/i
+      .test(fullText);
+  if (!hasCircuitComponent) {
     return null;
   }
 
