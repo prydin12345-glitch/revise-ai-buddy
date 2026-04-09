@@ -40,13 +40,13 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'node voltage', 'determinant', 'matrix method',
   'cramer', 'gaussian', 'simultaneous equation',
 
-  // Impedance/reactance theory
-  'reactance', 'impedance triangle', 'admittance',
+  // Impedance/reactance theory — only suppress pure theory, not circuit problems
+  'impedance triangle', 'admittance',
   'susceptance', 'conductance', 'complex impedance',
   'r + jx', 'z = ', 'rlc theory',
 
-  // Frequency domain
-  'angular frequency', 'resonant frequency', 'resonance',
+  // Frequency domain — pure theory
+  'angular frequency', 'resonant frequency',
   'bandwidth', 'quality factor', 'q factor',
   'frequency response', 'bode',
 ];
@@ -56,6 +56,8 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'series circuit', 'parallel circuit', 'potential divider',
   'voltage divider', 'wheatstone bridge', 'kirchhoff',
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
+  'rlc circuit', 'ac circuit',
+  'capacitor circuit', 'inductor circuit',
   'series-parallel', 'ladder network', 'bridge circuit',
   'phasor diagram', 'phasor_diagram',
   'delta vs wye', 'wye vs delta', 'delta/wye comparison',
