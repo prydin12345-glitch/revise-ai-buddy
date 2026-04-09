@@ -3887,6 +3887,7 @@ ${notesSection}`;
         correct_answer: correctAnswer,
         options: options,
         rationale: q.rationale || null,
+        diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
       };
     });
     

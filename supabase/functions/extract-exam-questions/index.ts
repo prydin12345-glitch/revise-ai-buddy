@@ -426,6 +426,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       graph_description: q.graph_description || null,
       is_flagged: q.needs_review || false,
       flag_reason: q.needs_review ? 'Broken diagram reference auto-scrubbed; review required' : null,
+      diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
+      circuit_type: q.circuit_type ?? null,
+      circuit_description: q.circuit_description ?? null,
     };
   });
 
