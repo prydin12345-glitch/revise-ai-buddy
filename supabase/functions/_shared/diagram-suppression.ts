@@ -31,6 +31,11 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'angular frequency', 'resonant frequency',
   'bandwidth', 'quality factor', 'q factor',
   'frequency response', 'bode',
+  'resistivity',
+  'cross-sectional area',
+  'drift velocity',
+  'charge carriers per',
+  'mean free path',
 ];
 
 const ALWAYS_DIAGRAM_TOPICS = [

@@ -49,6 +49,13 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'angular frequency', 'resonant frequency',
   'bandwidth', 'quality factor', 'q factor',
   'frequency response', 'bode',
+
+  // Material property calculations — formula questions, not circuit diagrams
+  'resistivity',
+  'cross-sectional area',
+  'drift velocity',
+  'charge carriers per',
+  'mean free path',
 ];
 
 // Topics that always benefit from a circuit diagram

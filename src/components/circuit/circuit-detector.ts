@@ -22,6 +22,63 @@ function stripLatex(raw: string): string {
   return s;
 }
 
+// ── Robust label extractors ──
+
+interface ExtractedResistor {
+  symbol: string;
+  value: string;
+  label: string;
+  ohms: number;
+}
+
+function extractResistorLabels(cleaned: string): ExtractedResistor[] {
+  const results: ExtractedResistor[] = [];
+
+  // Pattern 1: R₁ = 600 Ω  /  R₁ = 2.2 kΩ  /  R_F = 1.0 kΩ  /  Rₜ = 500 Ω
+  const namedPattern = /\b(R[₁₂₃₄₅_F]|Rₜ)\s*=\s*([\d.]+)\s*([kK]?)\s*[ΩΩ]/g;
+  let match;
+  while ((match = namedPattern.exec(cleaned)) !== null) {
+    const symbol = match[1];
+    const rawVal = match[2];
+    const isK = match[3].toLowerCase() === 'k';
+    const ohms = parseFloat(rawVal) * (isK ? 1000 : 1);
+    const displayValue = isK ? `${rawVal} kΩ` : `${rawVal} Ω`;
+    results.push({ symbol, value: displayValue, label: `${symbol} = ${displayValue}`, ohms });
+  }
+
+  // Pattern 2: "resistance 600 Ω" / "resistor of 600 Ω" / "600 Ω resistor"
+  const genericPattern = /(?:resistor|resistance)\s*(?:of\s*)?([\d.]+)\s*([kK]?)\s*[ΩΩ]|([\d.]+)\s*([kK]?)\s*[ΩΩ]\s*resistor/gi;
+  while ((match = genericPattern.exec(cleaned)) !== null) {
+    const rawVal = match[1] ?? match[3];
+    const rawK = match[2] ?? match[4] ?? '';
+    if (!rawVal) continue;
+    const isK = rawK.toLowerCase() === 'k';
+    const ohms = parseFloat(rawVal) * (isK ? 1000 : 1);
+    if (results.some(r => r.ohms === ohms)) continue;
+    const idx = results.length;
+    const symbol = `R${SUBSCRIPTS[idx] || ''}`;
+    const displayValue = isK ? `${rawVal} kΩ` : `${rawVal} Ω`;
+    results.push({ symbol, value: displayValue, label: `${symbol} = ${displayValue}`, ohms });
+  }
+
+  return results;
+}
+
+function extractBatteryLabel(cleaned: string): string {
+  const patterns = [
+    /(?:battery|cell|emf|e\.m\.f\.?)\s*(?:of\s*)?(?:=\s*)?([\d.]+)\s*V/i,
+    /electromotive\s+force[^.]*?([\d.]+)\s*V/i,
+    /power\s+supply[^.]*?([\d.]+)\s*V/i,
+    /supply[^.]*?([\d.]+)\s*V/i,
+    /([\d.]+)\s*V\s*(?:battery|cell|supply|source)/i,
+  ];
+  for (const p of patterns) {
+    const m = cleaned.match(p);
+    if (m) return `ε = ${m[1]}V`;
+  }
+  return 'ε';
+}
+
 /**
  * Detects a circuit diagram config from question text.
  */
@@ -34,25 +91,47 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   const cleaned = stripLatex(questionText);
   const text = cleaned.toLowerCase();
 
-  // AC circuit keywords
+  // ── AC vs DC classification ──
+
+  // Strong AC keywords — each alone is enough to trigger AC path
   const acKeywords = [
-    'alternating current', 'ac circuit', 'ac source',
-    'impedance', 'reactance', 'inductance', 'capacitance',
-    'inductor', 'capacitor', 'phasor',
-    'angular frequency', 'omega', 'ω',
+    'alternating current', 'ac circuit', 'ac source', 'ac supply', 'ac voltage',
+    'impedance', 'reactance', 'inductive reactance', 'capacitive reactance',
+    'inductor', 'phasor', 'angular frequency',
     'complex impedance', 'r + jx', 'r + jω',
     'admittance', 'susceptance',
-    'rlc', 'rc circuit', 'rl circuit', 'lc circuit',
-    'resonant frequency', 'resonance',
+    'rlc circuit', 'rc circuit', 'rl circuit', 'lc circuit',
+    'resonant frequency',
   ];
-  const isAcCircuit = acKeywords.some(kw => text.includes(kw));
 
+  // Weak AC keywords — need 2+ present to trigger AC (without a strong keyword)
+  const weakAcKeywords = [
+    'capacitance', 'inductance', 'capacitor', 'frequency', 'omega', 'ω',
+  ];
+
+  // DC override — if any of these are present, this is definitely NOT an AC question
+  const dcOverrideKeywords = [
+    'resistivity', 'potential divider', 'wheatstone', 'emf', 'e.m.f',
+    'internal resistance', 'kirchhoff', "ohm's law", 'ohms law',
+    'series resistor', 'parallel resistor', 'current divider', 'voltage divider',
+    'cross-sectional area', 'wire of length', 'drift velocity', 'charge carriers',
+    'thermistor', 'ldr', 'light dependent resistor', 'filament lamp',
+  ];
+
+  const isDcQuestion = dcOverrideKeywords.some(kw => text.includes(kw));
+
+  const hasStrongAcKeyword = acKeywords.some(kw => text.includes(kw));
+  const weakAcCount = weakAcKeywords.filter(kw => text.includes(kw)).length;
+
+  const isAcCircuit = !isDcQuestion && (hasStrongAcKeyword || weakAcCount >= 2);
+
+  // ── General circuit keyword check ──
   const circuitKeywords = [
     'circuit', 'resistor', 'resistance', 'voltmeter', 'ammeter',
     'battery', 'cell', 'lamp', 'bulb', 'switch', 'diode',
     'emf', 'e.m.f', 'potential difference', 'internal resistance',
     'series', 'parallel', 'connected in', 'thermistor', 'potential divider',
-    'ldr', 'light dependent resistor'
+    'ldr', 'light dependent resistor',
   ];
   if (!isAcCircuit && !circuitKeywords.some(kw => text.includes(kw))) return null;
 
@@ -70,12 +149,9 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
     return buildAcCircuitConfig(cleaned, text);
   }
 
-  // ── Extract values ──
-
-  const emfMatch = cleaned.match(/(?:battery|cell|emf|e\.m\.f\.?)\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*V/i)
-    || cleaned.match(/electromotive\s+force[^.]*?(\d+\.?\d*)\s*V/i)
-    || cleaned.match(/supply[^.]*?(\d+\.?\d*)\s*V/i);
-  const emfLabel = emfMatch ? `ε = ${emfMatch[1]}V` : 'ε';
+  // ── Extract values using robust extractors ──
+  const resistorLabels = extractResistorLabels(cleaned);
+  const emfLabel = extractBatteryLabel(cleaned);
 
   const intResMatch = cleaned.match(/internal\s+resistance\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*Ω/i);
   const hasInternalRes = !!intResMatch;
@@ -94,40 +170,8 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   // Potential divider
   const isPotentialDivider = /potential\s+divider/.test(text);
 
-  // Resistors
-  const resistors: { label: string; value: string }[] = [];
-
-  const r1m = cleaned.match(/R₁[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*(?:kΩ|Ω)/i)
-    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*(?:kΩ|Ω)[^.]*R₁/i);
-  if (r1m) {
-    const unit = cleaned.match(/R₁[^.]*?(\d+\.?\d*)\s*(kΩ)/i) ? 'kΩ' : 'Ω';
-    resistors.push({ label: `R₁ = ${r1m[1]}${unit}`, value: r1m[1] });
-  }
-
-  const r2m = cleaned.match(/R₂[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*(?:kΩ|Ω)/i)
-    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*(?:kΩ|Ω)[^.]*R₂/i);
-  if (r2m) {
-    const unit = cleaned.match(/R₂[^.]*?(\d+\.?\d*)\s*(kΩ)/i) ? 'kΩ' : 'Ω';
-    resistors.push({ label: `R₂ = ${r2m[1]}${unit}`, value: r2m[1] });
-  }
-
-  const r3m = cleaned.match(/R₃[^=]*?=?\s*(?:of\s+)?(?:resistance\s+)?(?:of\s+)?(\d+\.?\d*)\s*(?:kΩ|Ω)/i)
-    || cleaned.match(/resistance\s+(\d+\.?\d*)\s*(?:kΩ|Ω)[^.]*R₃/i);
-  if (r3m) {
-    const unit = cleaned.match(/R₃[^.]*?(\d+\.?\d*)\s*(kΩ)/i) ? 'kΩ' : 'Ω';
-    resistors.push({ label: `R₃ = ${r3m[1]}${unit}`, value: r3m[1] });
-  }
-
-  // Fallback: generic "resistor of X Ω"
-  if (resistors.length === 0 && !hasThermistor && !hasLDR) {
-    const genericMatches = cleaned.matchAll(/(?:resistor|resistance)\s*(?:of\s*)?(\d+\.?\d*)\s*(?:kΩ|Ω)/gi);
-    let idx = 0;
-    for (const m of genericMatches) {
-      const unit = m[0].includes('kΩ') ? 'kΩ' : 'Ω';
-      resistors.push({ label: `R${SUBSCRIPTS[idx] || ''} = ${m[1]}${unit}`, value: m[1] });
-      idx++;
-    }
-  }
+  // Build legacy resistors array from extracted labels for backward compat
+  const resistors = resistorLabels.map(r => ({ label: r.label, value: r.value }));
 
   // Fixed resistor in potential divider context
   const fixedResMatch = cleaned.match(/(?:fixed\s+)?resistor[^.]*?(\d+\.?\d*)\s*(kΩ|Ω)/i);
@@ -208,7 +252,6 @@ const SUBSCRIPTS = ['₁', '₂', '₃', '₄', '₅'];
 /**
  * Potential divider / thermistor circuit:
  * Battery on left, two components in series on bottom, optional voltmeter across one.
- * Always at least 5 nodes and 5 wires.
  */
 function buildPotentialDividerCircuit(
   resistors: { label: string }[],
@@ -231,12 +274,10 @@ function buildPotentialDividerCircuit(
   const comp1Type: CircuitComponentType = hasThermistor ? 'thermistor' : (hasLDR ? 'variable_resistor' : 'resistor');
   const comp1Label = hasThermistor ? thermistorLabel : (hasLDR ? 'LDR' : (resistors[0]?.label || 'R₁'));
 
-  let comp2Label = resistors.length > 0 ? resistors[0].label : 'R';
+  let comp2Label = resistors.length > 1 ? resistors[1].label : (resistors[0]?.label || 'R₂');
   if (fixedResMatch && (hasThermistor || hasLDR)) {
     const unit = fixedResMatch[2] || 'Ω';
     comp2Label = `R = ${fixedResMatch[1]}${unit}`;
-  } else if (resistors.length > 1) {
-    comp2Label = resistors[1].label;
   }
 
   const wires: CircuitConfig['wires'] = [
@@ -385,7 +426,6 @@ function buildSeriesCircuit(
     componentList.push({ type: 'lamp', label: lampCount > 1 ? `L${SUBSCRIPTS[i] || i + 1}` : '' });
   }
 
-  // Ensure at least one component placeholder for series
   if (componentList.length === 0) {
     componentList.push({ type: 'resistor', label: 'R' });
   }
@@ -393,7 +433,6 @@ function buildSeriesCircuit(
   const bottomSlots = componentList.length;
   const cols = Math.max(3, bottomSlots + 1);
 
-  // Top row
   nodes.push({ id: 'TL', col: 0, row: 0 });
 
   if (hasInternalRes) {
@@ -407,7 +446,6 @@ function buildSeriesCircuit(
     wires.push({ from: 'TL', to: 'TR', component: 'battery', label: emfLabel });
   }
 
-  // Right side
   nodes.push({ id: 'BR', col: cols, row: 2 });
   if (hasSwitch) {
     wires.push({ from: 'TR', to: 'BR', component: 'switch_open', label: 'S' });
@@ -415,7 +453,6 @@ function buildSeriesCircuit(
     wires.push({ from: 'TR', to: 'BR', component: 'wire' });
   }
 
-  // Bottom row: place components from right to left
   let prevNode = 'BR';
   const step = cols / (componentList.length + 1);
   componentList.forEach((comp, i) => {
@@ -426,13 +463,11 @@ function buildSeriesCircuit(
     prevNode = nodeId;
   });
 
-  // Bottom-left corner
   nodes.push({ id: 'BL', col: 0, row: 2 });
   if (prevNode !== 'BL') {
     wires.push({ from: prevNode, to: 'BL', component: 'wire' });
   }
 
-  // Left side wire up (with optional ammeter)
   if (hasAmmeter) {
     nodes.push({ id: 'AL', col: 0, row: 1 });
     wires.push({ from: 'BL', to: 'AL', component: 'ammeter', label: 'A' });
@@ -441,7 +476,6 @@ function buildSeriesCircuit(
     wires.push({ from: 'BL', to: 'TL', component: 'wire' });
   }
 
-  // Optional voltmeter
   if (hasVoltmeter && componentList.length >= 1) {
     const vFromId = 'BR';
     const vToId = nodes.find(n => n.id === 'B0')?.id || 'BL';
@@ -476,7 +510,6 @@ function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
   const L = inductanceMatch ? `${inductanceMatch[1]}H` : 'L';
   const C = capacitanceMatch ? `${capacitanceMatch[1]}F` : 'C';
 
-  // Determine series components
   const seriesComponents: Array<{ type: CircuitComponentType; label: string }> = [];
 
   if (hasImpedance && !hasInductor && !hasCapacitor) {
@@ -494,7 +527,6 @@ function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
     }
   }
 
-  // Fallback: at least one component
   if (seriesComponents.length === 0) {
     seriesComponents.push({ type: 'impedance', label: 'Z' });
   }
@@ -523,7 +555,6 @@ function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
     },
   ];
 
-  // Top wire with components
   if (seriesComponents.length === 1) {
     wires.push({
       from: 'TL', to: 'TR',
@@ -545,7 +576,7 @@ function buildAcCircuitConfig(cleaned: string, text: string): CircuitConfig {
   return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [], showLabels: true };
 }
 
-// ── New multi-loop topology builders ──
+// ── Multi-loop topology builders ──
 
 function buildSeriesParallelCircuit(
   seriesComponents: Array<{ type: string; label: string }>,
