@@ -322,6 +322,7 @@ export type Database = {
           correct_answer: string | null
           created_at: string | null
           data_type: string | null
+          diagram_config: Json | null
           diagram_type: string | null
           difficulty_level: string | null
           equation_complexity: string | null
@@ -361,6 +362,7 @@ export type Database = {
           correct_answer?: string | null
           created_at?: string | null
           data_type?: string | null
+          diagram_config?: Json | null
           diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
@@ -400,6 +402,7 @@ export type Database = {
           correct_answer?: string | null
           created_at?: string | null
           data_type?: string | null
+          diagram_config?: Json | null
           diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
@@ -450,6 +453,7 @@ export type Database = {
           correct_answer: string | null
           created_at: string
           data_type: string | null
+          diagram_config: Json | null
           diagram_type: string | null
           difficulty_level: string | null
           equation_complexity: string | null
@@ -486,6 +490,7 @@ export type Database = {
           correct_answer?: string | null
           created_at?: string
           data_type?: string | null
+          diagram_config?: Json | null
           diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
@@ -522,6 +527,7 @@ export type Database = {
           correct_answer?: string | null
           created_at?: string
           data_type?: string | null
+          diagram_config?: Json | null
           diagram_type?: string | null
           difficulty_level?: string | null
           equation_complexity?: string | null
@@ -1219,6 +1225,7 @@ export type Database = {
         Row: {
           correct_answer: string | null
           created_at: string | null
+          diagram_config: Json | null
           difficulty_level: string | null
           equation_complexity: string | null
           has_math: boolean | null
@@ -1240,6 +1247,7 @@ export type Database = {
         Insert: {
           correct_answer?: string | null
           created_at?: string | null
+          diagram_config?: Json | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           has_math?: boolean | null
@@ -1261,6 +1269,7 @@ export type Database = {
         Update: {
           correct_answer?: string | null
           created_at?: string | null
+          diagram_config?: Json | null
           difficulty_level?: string | null
           equation_complexity?: string | null
           has_math?: boolean | null
