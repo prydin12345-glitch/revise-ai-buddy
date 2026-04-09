@@ -15,7 +15,7 @@ import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
-import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
+import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 
 interface Question {
   id: string;
@@ -185,7 +185,7 @@ const ExamPreview = () => {
 
                     {/* Circuit diagram panel */}
                     {(() => {
-                      const circuitConfig = detectCircuitConfig(q.question_text);
+                      const circuitConfig = getCircuitConfig(q);
                       if (!circuitConfig) return null;
                       return <CircuitFigurePanel config={circuitConfig} />;
                     })()}

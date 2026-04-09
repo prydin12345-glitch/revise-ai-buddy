@@ -11,7 +11,7 @@ interface CircuitFigurePanelProps {
 }
 
 const CircuitFigurePanel: React.FC<CircuitFigurePanelProps> = ({ config, figureNumber = 1 }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [enlarged, setEnlarged] = useState(false);
   const isMobile = useIsMobile();
 

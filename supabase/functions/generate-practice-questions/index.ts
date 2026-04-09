@@ -10,7 +10,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
-import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../../../src/utils/questionTextScrubber.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
@@ -547,12 +547,15 @@ EXAMPLE QUESTION FORMATS:
       'kvar', 'kva ', 'power correction', 'pfc capacitor', 'blondel theorem',
       'transformer', 'nameplate', 'turns ratio', 'voltage ratio', 'tap changer', 'tap-changer', 'cooling method', 'impedance voltage', 'transformer impedance',
       'mesh analysis', 'nodal analysis', 'mesh current', 'node voltage', 'determinant', 'matrix method', 'cramer', 'gaussian', 'simultaneous equation',
-      'reactance', 'impedance triangle', 'admittance', 'susceptance', 'conductance', 'complex impedance', 'r + jx', 'z = ', 'rlc theory',
-      'angular frequency', 'resonant frequency', 'resonance', 'bandwidth', 'quality factor', 'q factor', 'frequency response', 'bode',
+      'impedance triangle', 'admittance', 'susceptance', 'conductance', 'complex impedance', 'r + jx', 'z = ', 'rlc theory',
+      'angular frequency', 'resonant frequency',
+      'bandwidth', 'quality factor', 'q factor', 'frequency response', 'bode',
     ];
     const ALWAYS_DIAGRAM_TOPICS = [
       'series circuit', 'parallel circuit', 'potential divider', 'voltage divider', 'wheatstone bridge', 'kirchhoff',
-      'current divider', 'rc circuit', 'rl circuit', 'lc circuit', 'series-parallel', 'ladder network', 'bridge circuit',
+      'current divider', 'rc circuit', 'rl circuit', 'lc circuit', 'rlc circuit', 'ac circuit',
+      'capacitor circuit', 'inductor circuit',
+      'series-parallel', 'ladder network', 'bridge circuit',
       'phasor diagram', 'phasor_diagram',
       'delta vs wye', 'wye vs delta', 'delta/wye comparison', 'delta_wye_comparison',
     ];
@@ -3887,6 +3890,7 @@ ${notesSection}`;
         correct_answer: correctAnswer,
         options: options,
         rationale: q.rationale || null,
+        diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
       };
     });
     

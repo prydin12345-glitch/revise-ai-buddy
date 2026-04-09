@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
-import { shouldSuppressDiagram } from "../../../src/utils/diagramSuppression.ts";
-import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../../../src/utils/questionTextScrubber.ts";
+import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -426,6 +426,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       graph_description: q.graph_description || null,
       is_flagged: q.needs_review || false,
       flag_reason: q.needs_review ? 'Broken diagram reference auto-scrubbed; review required' : null,
+      diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
+      circuit_type: q.circuit_type ?? null,
+      circuit_description: q.circuit_description ?? null,
     };
   });
 

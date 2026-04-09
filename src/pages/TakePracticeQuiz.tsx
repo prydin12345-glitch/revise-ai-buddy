@@ -81,7 +81,7 @@ import type { ResourcePack, ResourceItem } from "@/components/practice/ResourceP
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
-import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
+import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1637,7 +1637,7 @@ const TakePracticeQuiz = () => {
 
                   {/* Circuit figure panel */}
                   {(() => {
-                    const circuitConfig = detectCircuitConfig(currentQuestion.question_text);
+                    const circuitConfig = getCircuitConfig(currentQuestion);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
