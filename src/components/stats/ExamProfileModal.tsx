@@ -473,7 +473,25 @@ export const ExamProfileModal = ({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command shouldFilter={false}>
+                <Command shouldFilter={false}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && topicSearch.trim()) {
+                      e.preventDefault();
+                      // If there's an exact match in filtered, select it; otherwise add as custom
+                      const exactMatch = filteredTopics.find(
+                        (t) => t.toLowerCase() === topicSearch.trim().toLowerCase()
+                      );
+                      if (exactMatch) {
+                        toggleTopic(exactMatch);
+                      } else if (isCustom) {
+                        toggleTopic(topicSearch.trim());
+                      } else if (filteredTopics.length > 0) {
+                        toggleTopic(filteredTopics[0]);
+                      }
+                      setTopicSearch("");
+                    }
+                  }}
+                >
                   <CommandInput
                     placeholder="Type to search..."
                     value={topicSearch}
