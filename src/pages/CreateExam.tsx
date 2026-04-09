@@ -98,7 +98,7 @@ const getRandomColor = () => {
 
 export default function CreateExam() {
   const navigate = useNavigate();
-  const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getSubjectColor, saveOrUpdateSubject, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
   const { preferences, loading: prefsLoading } = useUserPreferences();
   
@@ -258,6 +258,12 @@ export default function CreateExam() {
       setSubjectColor(randomColor);
     } else {
       setSubjectColor(existingColor);
+    }
+
+    // Pull subject-level exam board if set
+    const subjectBoard = getSubjectExamBoard(newSubject);
+    if (subjectBoard) {
+      setExamBoard(subjectBoard);
     }
 
     // Smart prompt: check if user has topics/profiles for this subject
