@@ -36,6 +36,14 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'drift velocity',
   'charge carriers per',
   'mean free path',
+  'current-voltage characteristic',
+  'i-v characteristic',
+  'iv characteristic',
+  'does not obey ohm',
+  'non-ohmic',
+  'filament lamp characteristic',
+  'describe the resistance',
+  'explain the resistance of',
 ];
 
 const ALWAYS_DIAGRAM_TOPICS = [
@@ -49,6 +57,41 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'delta vs wye', 'wye vs delta', 'delta/wye comparison',
   'delta_wye_comparison',
 ];
+
+const CONCEPT_ONLY_PATTERNS = [
+  /describe the (current[- ]voltage|i[- ]v|voltage[- ]current) characteristic/i,
+  /sketch (a |the )?(current[- ]voltage|i[- ]v) (graph|characteristic|curve)/i,
+  /explain (the shape of |why )?the (i[- ]v|current[- ]voltage) (graph|curve|characteristic)/i,
+  /explain why .{0,60} (does not|doesn'?t) obey ohm'?s law/i,
+  /explain why .{0,60} is (not |non-?)ohmic/i,
+  /state ohm'?s law/i,
+  /define (resistance|resistivity|conductance|conductivity)\b/i,
+  /^(state|define|what is meant by|explain what is meant by) (resistance|resistivity|conductance|current|voltage|potential difference|electromotive force|emf|internal resistance)\b/i,
+  /explain why (the |a )?(resistance|resistivity) (of |changes|increases|decreases)/i,
+  /explain (how|why) (temperature|light|resistance) affects/i,
+  /explain why (a |the )?(filament lamp|light bulb|lamp) (does not|doesn'?t)/i,
+  /describe (how |why )?(the )?(resistance of (a |the )?filament)/i,
+  /^an? (electrical |)heater (is rated|rated at|operating)/i,
+  /calculate the (current drawn|power|resistance) (of|by|when) (the |an? )?(heater|element|lamp|bulb)/i,
+];
+
+const CIRCUIT_CONTEXT_PHRASES = [
+  'circuit contains', 'circuit consists', 'connected in series',
+  'connected in parallel', 'the circuit shown', 'the circuit below',
+  'potential divider', 'voltage divider', 'connected to a',
+  'in the circuit', 'the following circuit', 'figure shows',
+  'as shown', 'connected between', 'across the',
+];
+
+export const isConceptOnlyQuestion = (questionText: string): boolean => {
+  const text = questionText.trim();
+  const lower = text.toLowerCase();
+  const hasCircuitContext = CIRCUIT_CONTEXT_PHRASES.some(phrase =>
+    lower.includes(phrase.toLowerCase())
+  );
+  if (hasCircuitContext) return false;
+  return CONCEPT_ONLY_PATTERNS.some(pattern => pattern.test(text));
+};
 
 export const shouldSuppressDiagram = (
   topicName: string,
