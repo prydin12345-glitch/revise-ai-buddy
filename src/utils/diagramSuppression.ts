@@ -56,6 +56,16 @@ const SUPPRESS_DIAGRAM_TOPICS = [
   'drift velocity',
   'charge carriers per',
   'mean free path',
+
+  // Concept/characteristic questions — no specific circuit topology needed
+  'current-voltage characteristic',
+  'i-v characteristic',
+  'iv characteristic',
+  'does not obey ohm',
+  'non-ohmic',
+  'filament lamp characteristic',
+  'describe the resistance',
+  'explain the resistance of',
 ];
 
 // Topics that always benefit from a circuit diagram
@@ -70,6 +80,76 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'delta vs wye', 'wye vs delta', 'delta/wye comparison',
   'delta_wye_comparison',
 ];
+
+// ── Concept-only question detection ──
+
+// Questions about general component behaviour that don't need
+// a circuit diagram — the behaviour is the same regardless of topology
+const CONCEPT_ONLY_PATTERNS = [
+  // Characteristic curve questions
+  /describe the (current[- ]voltage|i[- ]v|voltage[- ]current) characteristic/i,
+  /sketch (a |the )?(current[- ]voltage|i[- ]v) (graph|characteristic|curve)/i,
+  /explain (the shape of |why )?the (i[- ]v|current[- ]voltage) (graph|curve|characteristic)/i,
+
+  // Ohm's law conceptual questions
+  /explain why .{0,60} (does not|doesn'?t) obey ohm'?s law/i,
+  /explain why .{0,60} is (not |non-?)ohmic/i,
+  /state ohm'?s law/i,
+  /define (resistance|resistivity|conductance|conductivity)\b/i,
+
+  // Pure definition or description questions with no circuit context
+  /^(state|define|what is meant by|explain what is meant by) (resistance|resistivity|conductance|current|voltage|potential difference|electromotive force|emf|internal resistance)\b/i,
+
+  // Explanation of why resistance changes — no specific circuit needed
+  /explain why (the |a )?(resistance|resistivity) (of |changes|increases|decreases)/i,
+  /explain (how|why) (temperature|light|resistance) affects/i,
+
+  // Filament lamp explain questions
+  /explain why (a |the )?(filament lamp|light bulb|lamp) (does not|doesn'?t)/i,
+  /describe (how |why )?(the )?(resistance of (a |the )?filament)/i,
+
+  // Heater/power questions that are pure calculation
+  /^an? (electrical |)heater (is rated|rated at|operating)/i,
+  /calculate the (current drawn|power|resistance) (of|by|when) (the |an? )?(heater|element|lamp|bulb)/i,
+];
+
+// Phrases that confirm a specific circuit arrangement is described —
+// if present, the question is NOT concept-only even if it matches a pattern above
+const CIRCUIT_CONTEXT_PHRASES = [
+  'circuit contains',
+  'circuit consists',
+  'connected in series',
+  'connected in parallel',
+  'the circuit shown',
+  'the circuit below',
+  'potential divider',
+  'voltage divider',
+  'connected to a',
+  'in the circuit',
+  'the following circuit',
+  'figure shows',
+  'as shown',
+  'connected between',
+  'across the',
+];
+
+/**
+ * Detects whether a question is purely conceptual and does not need
+ * a circuit diagram, even if it mentions electrical components.
+ */
+export const isConceptOnlyQuestion = (questionText: string): boolean => {
+  const text = questionText.trim();
+  const lower = text.toLowerCase();
+
+  // If the question describes a specific circuit arrangement — never suppress
+  const hasCircuitContext = CIRCUIT_CONTEXT_PHRASES.some(phrase =>
+    lower.includes(phrase.toLowerCase())
+  );
+  if (hasCircuitContext) return false;
+
+  // Check if it matches a concept-only pattern
+  return CONCEPT_ONLY_PATTERNS.some(pattern => pattern.test(text));
+};
 
 export const shouldSuppressDiagram = (
   topicName: string,
