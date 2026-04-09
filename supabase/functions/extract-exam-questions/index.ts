@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
-import { shouldSuppressDiagram } from "../../../src/utils/diagramSuppression.ts";
-import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../../../src/utils/questionTextScrubber.ts";
+import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
