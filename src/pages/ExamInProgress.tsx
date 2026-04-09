@@ -45,7 +45,7 @@ import {
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
-import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
+import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -1556,7 +1556,7 @@ const ExamInProgress = () => {
 
                   {/* Circuit diagram panel */}
                   {(() => {
-                    const circuitConfig = detectCircuitConfig(question.question_text);
+                    const circuitConfig = getCircuitConfig(question);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}

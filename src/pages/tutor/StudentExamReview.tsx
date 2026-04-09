@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { MathRenderer } from "@/components/MathRenderer";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
-import { detectCircuitConfig } from "@/components/circuit/circuit-detector";
+import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 
 interface Question {
   id: string;
@@ -279,7 +279,7 @@ const StudentExamReview = () => {
 
                   {/* Circuit figure panel */}
                   {(() => {
-                    const circuitConfig = detectCircuitConfig(question.questionText);
+                    const circuitConfig = getCircuitConfig(question);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
