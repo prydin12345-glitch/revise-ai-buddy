@@ -98,7 +98,7 @@ const getRandomColor = () => {
 
 export default function CreateExam() {
   const navigate = useNavigate();
-  const { getSubjectColor, saveOrUpdateSubject } = useUserSubjects();
+  const { getSubjectColor, saveOrUpdateSubject, getSubjectExamBoard } = useUserSubjects();
   const { getProfilesForSubject, getTopicsForSubject } = useSubjectProfiles();
   const { preferences, loading: prefsLoading } = useUserPreferences();
   
