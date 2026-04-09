@@ -260,6 +260,12 @@ export default function CreateExam() {
       setSubjectColor(existingColor);
     }
 
+    // Pull subject-level exam board if set
+    const subjectBoard = getSubjectExamBoard(newSubject);
+    if (subjectBoard) {
+      setExamBoard(subjectBoard);
+    }
+
     // Smart prompt: check if user has topics/profiles for this subject
     const topics = getTopicsForSubject(newSubject);
     if (topics.length > 1) {
