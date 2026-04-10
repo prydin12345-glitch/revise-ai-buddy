@@ -1955,6 +1955,33 @@ export type Database = {
           },
         ]
       }
+      student_cache_slots: {
+        Row: {
+          base_cache_key: string
+          id: string
+          last_slot_used: number | null
+          slots_exhausted: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          base_cache_key: string
+          id?: string
+          last_slot_used?: number | null
+          slots_exhausted?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          base_cache_key?: string
+          id?: string
+          last_slot_used?: number | null
+          slots_exhausted?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       student_groups: {
         Row: {
           capacity: number | null
