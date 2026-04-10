@@ -24,6 +24,8 @@ function stripLatex(raw: string): string {
 
 // ── Robust label extractors ──
 
+const SUBSCRIPTS = ['₁', '₂', '₃', '₄', '₅'];
+
 interface ExtractedResistor {
   symbol: string;
   value: string;
@@ -34,14 +36,16 @@ interface ExtractedResistor {
 function extractResistorLabels(cleaned: string): ExtractedResistor[] {
   const results: ExtractedResistor[] = [];
 
-  // Pattern 1: R₁ = 600 Ω  /  R₁ = 2.2 kΩ  /  R_F = 1.0 kΩ  /  Rₜ = 500 Ω
-  const namedPattern = /\b(R[₁₂₃₄₅_F]|Rₜ)\s*=\s*([\d.]+)\s*([kK]?)\s*[ΩΩ]/g;
+  // Pattern 1: R₁ = 600 Ω / R = 10 Ω / R_F = 1.0 kΩ / Rₜ = 500 Ω
+  // Subscript is now fully optional — captures plain "R = 10Ω"
+  const namedPattern = /\b(R[₁₂₃₄₅_FftT]?|Rₜ)\s*=\s*([\d.]+)\s*([kK]?)\s*[ΩΩ]/g;
   let match;
   while ((match = namedPattern.exec(cleaned)) !== null) {
     const symbol = match[1];
     const rawVal = match[2];
     const isK = match[3].toLowerCase() === 'k';
     const ohms = parseFloat(rawVal) * (isK ? 1000 : 1);
+    if (results.some(r => Math.abs(r.ohms - ohms) < 0.01)) continue;
     const displayValue = isK ? `${rawVal} kΩ` : `${rawVal} Ω`;
     results.push({ symbol, value: displayValue, label: `${symbol} = ${displayValue}`, ohms });
   }
@@ -54,11 +58,22 @@ function extractResistorLabels(cleaned: string): ExtractedResistor[] {
     if (!rawVal) continue;
     const isK = rawK.toLowerCase() === 'k';
     const ohms = parseFloat(rawVal) * (isK ? 1000 : 1);
-    if (results.some(r => r.ohms === ohms)) continue;
+    if (results.some(r => Math.abs(r.ohms - ohms) < 0.01)) continue;
     const idx = results.length;
     const symbol = `R${SUBSCRIPTS[idx] || ''}`;
     const displayValue = isK ? `${rawVal} kΩ` : `${rawVal} Ω`;
     results.push({ symbol, value: displayValue, label: `${symbol} = ${displayValue}`, ohms });
+  }
+
+  // Pattern 3: internal resistance r = XΩ (lowercase r)
+  const internalPattern = /\b(r)\s*=\s*([\d.]+)\s*([kK]?)\s*[ΩΩ]/g;
+  while ((match = internalPattern.exec(cleaned)) !== null) {
+    const rawVal = match[2];
+    const isK = match[3].toLowerCase() === 'k';
+    const ohms = parseFloat(rawVal) * (isK ? 1000 : 1);
+    if (results.some(r => Math.abs(r.ohms - ohms) < 0.01)) continue;
+    const displayValue = isK ? `${rawVal} kΩ` : `${rawVal} Ω`;
+    results.push({ symbol: 'r', value: displayValue, label: `r = ${displayValue}`, ohms });
   }
 
   return results;
@@ -77,6 +92,101 @@ function extractBatteryLabel(cleaned: string): string {
     if (m) return `ε = ${m[1]}V`;
   }
   return 'ε';
+}
+
+// ── Capacitor label extractor (BUG 8 fix) ──
+
+function extractCapacitorLabels(cleaned: string): string[] {
+  const results: string[] = [];
+  // C₁ = 4μF, C1 = 470μF, C = 100μF
+  const namedPattern = /\b(C[₁₂₃₄₅_]?)\s*=\s*([\d.]+)\s*(μ|u|n|m)?F\b/gi;
+  let match;
+  while ((match = namedPattern.exec(cleaned)) !== null) {
+    const symbol = match[1];
+    const value = match[2];
+    const unit = (match[3] ?? 'μ') + 'F';
+    results.push(`${symbol} = ${value}${unit}`);
+  }
+  // Plain value: 470μF capacitor / capacitor of 100μF
+  const valuePattern = /\b([\d.]+)\s*(μ|u|n|m)?F\b/gi;
+  while ((match = valuePattern.exec(cleaned)) !== null) {
+    const value = match[1];
+    const unit = (match[2] ?? 'μ') + 'F';
+    const label = `${value}${unit}`;
+    if (!results.some(r => r.includes(value))) {
+      results.push(label);
+    }
+  }
+  return results;
+}
+
+// ── Lamp-resistor deduplication (BUG 1 fix) ──
+
+function deduplicateLampResistors(
+  resistors: ExtractedResistor[],
+  text: string,
+): ExtractedResistor[] {
+  // If a resistance value appears in the same clause as "lamp",
+  // it belongs to the lamp not a separate resistor
+  const lampResistancePattern = /\blamp[^.]*?(\d+[\d.]*)\s*[ΩΩ]/gi;
+  const lampResistanceValues = new Set<number>();
+  let match;
+  while ((match = lampResistancePattern.exec(text)) !== null) {
+    lampResistanceValues.add(parseFloat(match[1]));
+  }
+  // Also check reverse: "resistance 18Ω" followed by "lamp" in same sentence
+  const reversePattern = /resistance\s+(?:of\s+)?([\d.]+)\s*[ΩΩ][^.]*\blamp/gi;
+  while ((match = reversePattern.exec(text)) !== null) {
+    lampResistanceValues.add(parseFloat(match[1]));
+  }
+  return resistors.filter(r => !lampResistanceValues.has(r.ohms));
+}
+
+// ── Wheatstone bridge label extractor (BUG 7 fix) ──
+
+function extractWheatstoneBridgeLabels(text: string): {
+  p: string; q: string; r: string; s: string;
+} | null {
+  if (!/wheatstone|bridge circuit/i.test(text)) return null;
+
+  const extractValue = (symbol: string): string => {
+    const pattern = new RegExp(
+      `\\b${symbol}\\s*=\\s*([\\d.]+)\\s*([kK]?)\\s*[ΩΩ]`,
+      'i'
+    );
+    const match = text.match(pattern);
+    if (match) {
+      const val = match[1];
+      const k = match[2].toLowerCase() === 'k' ? ' kΩ' : ' Ω';
+      return `${symbol} = ${val}${k}`;
+    }
+    return symbol;
+  };
+
+  return {
+    p: extractValue('P'),
+    q: extractValue('Q'),
+    r: extractValue('R'),
+    s: text.toLowerCase().includes('unknown') || /S\s*=\s*\?/.test(text)
+      ? 'S = ?'
+      : extractValue('S'),
+  };
+}
+
+// ── Lamp count extraction (BUG 2 fix) ──
+
+function extractLampCount(text: string): number {
+  const numberWordMap: Record<string, number> = {
+    two: 2, three: 3, four: 4, five: 5, six: 6,
+    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+  };
+  const countMatch = text.match(
+    /\b(two|three|four|five|six|2|3|4|5|6)\s+(?:identical\s+)?(?:lamps?|bulbs?)\b/i
+  );
+  if (countMatch) {
+    return numberWordMap[countMatch[1].toLowerCase()] ?? 1;
+  }
+  return (text.match(/\blamp|bulb\b/gi) || []).length;
 }
 
 /**
@@ -111,7 +221,6 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
 
   // ── AC vs DC classification ──
 
-  // Strong AC keywords — each alone is enough to trigger AC path
   const acKeywords = [
     'alternating current', 'ac circuit', 'ac source', 'ac supply', 'ac voltage',
     'impedance', 'reactance', 'inductive reactance', 'capacitive reactance',
@@ -122,12 +231,10 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
     'resonant frequency',
   ];
 
-  // Weak AC keywords — need 2+ present to trigger AC (without a strong keyword)
   const weakAcKeywords = [
     'capacitance', 'inductance', 'capacitor', 'frequency', 'omega', 'ω',
   ];
 
-  // DC override — if any of these are present, this is definitely NOT an AC question
   const dcOverrideKeywords = [
     'resistivity', 'potential divider', 'wheatstone', 'emf', 'e.m.f',
     'internal resistance', 'kirchhoff', "ohm's law", 'ohms law',
@@ -162,14 +269,26 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   const isDual = /motor/i.test(text) && /lift|raise|pump|height|distance/i.test(text) && /\d+\s*kg/i.test(text);
   if (isDual) return null;
 
+  // ── Extract values using robust extractors ──
+  const rawResistorLabels = extractResistorLabels(cleaned);
+  const emfLabel = extractBatteryLabel(cleaned);
+  const capacitorLabels = extractCapacitorLabels(cleaned);
+
+  // ── DC capacitor circuit (BUG 8 fix) — check BEFORE AC path ──
+  const hasDcCapacitor = capacitorLabels.length > 0 && !isAcCircuit;
+  if (hasDcCapacitor) {
+    const resistorLabel = rawResistorLabels[0]?.label ?? null;
+    const hasSwitch = /\bswitch\b/i.test(text);
+    return buildDcCapacitorCircuit(capacitorLabels, resistorLabel, emfLabel, hasSwitch);
+  }
+
   // ── AC circuit path ──
   if (isAcCircuit) {
     return buildAcCircuitConfig(cleaned, text);
   }
 
-  // ── Extract values using robust extractors ──
-  const resistorLabels = extractResistorLabels(cleaned);
-  const emfLabel = extractBatteryLabel(cleaned);
+  // ── Lamp-resistor deduplication (BUG 1 fix) ──
+  const resistorLabels = deduplicateLampResistors(rawResistorLabels, cleaned);
 
   const intResMatch = cleaned.match(/internal\s+resistance\s*(?:of\s*)?(?:=\s*)?(\d+\.?\d*)\s*Ω/i);
   const hasInternalRes = !!intResMatch;
@@ -198,8 +317,26 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   const hasVoltmeter = /voltmeter/.test(text);
   const hasAmmeter = /ammeter/.test(text);
   const hasSwitch = /switch/.test(text);
-  const lampCount = (text.match(/\blamp|bulb\b/gi) || []).length;
+  const lampCount = extractLampCount(text); // BUG 2 fix
+
   const isParallel = /parallel/.test(text);
+
+  // ── KCL/KVL without component values — suppress (BUG 5/6 fix) ──
+  const isKclKvlConceptual =
+    /kirchhoff/i.test(text) &&
+    resistorLabels.length === 0 &&
+    capacitorLabels.length === 0;
+  if (isKclKvlConceptual) {
+    return null;
+  }
+
+  // ── Multi-source circuits — suppress for now (BUG 6 fix) ──
+  // TODO: implement multi-source topology builder
+  const sourceCount = (text.match(/\b(v₁|v₂|v₃)\b/gi) ?? []).length;
+  const hasMultipleSources = sourceCount >= 2;
+  if (hasMultipleSources && /kirchhoff|loop|mesh|node/i.test(text)) {
+    return null;
+  }
 
   // ── Build circuit layout ──
 
@@ -211,14 +348,17 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
     );
   }
 
-  // ── Wheatstone bridge ──
+  // ── Wheatstone bridge (BUG 7 fix) ──
   const isWheatstoneBridge =
     /wheatstone|bridge circuit|balanced.*bridge/i.test(text) ||
     (resistors.length === 4 && /galvanometer/i.test(text));
   if (isWheatstoneBridge) {
+    const bridgeLabels = extractWheatstoneBridgeLabels(cleaned);
     return buildWheatstoneBridge(
-      resistors[0]?.label ?? 'R₁', resistors[1]?.label ?? 'R₂',
-      resistors[2]?.label ?? 'R₃', resistors[3]?.label ?? 'R₄',
+      bridgeLabels?.p ?? resistors[0]?.label ?? 'P',
+      bridgeLabels?.q ?? resistors[1]?.label ?? 'Q',
+      bridgeLabels?.r ?? resistors[2]?.label ?? 'R',
+      bridgeLabels?.s ?? resistors[3]?.label ?? 'S',
       'G', emfLabel,
     );
   }
@@ -265,8 +405,6 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   return buildSeriesCircuit(resistors, lampCount, emfLabel, hasInternalRes, intResLabel, hasAmmeter, hasVoltmeter, hasSwitch);
 }
 
-const SUBSCRIPTS = ['₁', '₂', '₃', '₄', '₅'];
-
 /**
  * Potential divider / thermistor circuit:
  * Battery on left, two components in series on bottom, optional voltmeter across one.
@@ -306,7 +444,6 @@ function buildPotentialDividerCircuit(
     { from: 'BL', to: 'TL', component: 'battery', label: emfLabel },
   ];
 
-  // Optional voltmeter across the thermistor/LDR
   if (hasVoltmeter) {
     nodes.push({ id: 'VT', col: 3, row: 3 });
     nodes.push({ id: 'VB', col: 1.5, row: 3 });
@@ -384,42 +521,93 @@ function buildSimpleParallelCircuit(
   intResLabel: string,
   _hasAmmeter: boolean,
 ): CircuitConfig {
+  // BUG 2 fix: support 3+ parallel branches for multiple lamps
+  const branchCount = Math.max(2, lampCount, resistors.length + lampCount);
+  const rowSpacing = 2;
+  
   const nodes: CircuitConfig['nodes'] = [
     { id: 'TL', col: 0, row: 0 },
     { id: 'TR', col: 4, row: 0 },
-    { id: 'ML', col: 0, row: 2 },
-    { id: 'MR', col: 4, row: 2 },
-    { id: 'BL', col: 0, row: 4 },
-    { id: 'BR', col: 4, row: 4 },
   ];
-
   const wires: CircuitConfig['wires'] = [
     { from: 'TL', to: 'TR', component: 'battery', label: emfLabel },
-    { from: 'TR', to: 'MR', component: 'wire' },
-    { from: 'MR', to: 'BR', component: 'wire' },
-    { from: 'TL', to: 'ML', component: 'wire' },
-    { from: 'ML', to: 'BL', component: 'wire' },
   ];
+  const junctions: CircuitConfig['junctions'] = [];
 
-  const junctions: CircuitConfig['junctions'] = [
-    { at: 'MR' },
-    { at: 'ML' },
-  ];
+  // Create parallel branches
+  for (let i = 0; i < branchCount; i++) {
+    const row = (i + 1) * rowSpacing;
+    const leftId = `ML${i}`;
+    const rightId = `MR${i}`;
+    nodes.push({ id: leftId, col: 0, row });
+    nodes.push({ id: rightId, col: 4, row });
 
-  if (lampCount > 0) {
-    wires.push({ from: 'ML', to: 'MR', component: 'lamp', label: lampCount > 1 ? 'L₁' : '' });
-  } else if (resistors.length > 0) {
-    wires.push({ from: 'ML', to: 'MR', component: 'resistor', label: resistors[0].label });
+    if (i < lampCount) {
+      const lampLabel = lampCount > 1 ? `L${SUBSCRIPTS[i] || i + 1}` : '';
+      wires.push({ from: leftId, to: rightId, component: 'lamp', label: lampLabel });
+    } else {
+      const rIdx = i - lampCount;
+      wires.push({ from: leftId, to: rightId, component: 'resistor', label: resistors[rIdx]?.label || 'R' });
+    }
   }
 
-  if (resistors.length > (lampCount > 0 ? 0 : 1)) {
-    const rIdx = lampCount > 0 ? 0 : 1;
-    wires.push({ from: 'BL', to: 'BR', component: 'resistor', label: resistors[rIdx]?.label || 'R' });
-  } else if (lampCount > 1) {
-    wires.push({ from: 'BL', to: 'BR', component: 'lamp', label: 'L₂' });
+  // Connect vertical chains
+  const leftChain = ['TL', ...Array.from({ length: branchCount }, (_, i) => `ML${i}`)];
+  const rightChain = ['TR', ...Array.from({ length: branchCount }, (_, i) => `MR${i}`)];
+
+  for (let i = 0; i < branchCount; i++) {
+    wires.push({ from: leftChain[i], to: leftChain[i + 1], component: 'wire' });
+    wires.push({ from: rightChain[i], to: rightChain[i + 1], component: 'wire' });
+    if (i > 0) {
+      junctions.push({ at: leftChain[i] }, { at: rightChain[i] });
+    }
   }
 
   return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions, showLabels: true };
+}
+
+/**
+ * DC capacitor circuit builder (BUG 8 fix).
+ */
+function buildDcCapacitorCircuit(
+  capacitorLabels: string[],
+  resistorLabel: string | null,
+  batteryLabel: string,
+  hasSwitch: boolean,
+): CircuitConfig {
+  const nodes: CircuitConfig['nodes'] = [
+    { id: 'TL', col: 0, row: 0 },
+    { id: 'TR', col: 4, row: 0 },
+    { id: 'BR', col: 4, row: 2 },
+    { id: 'BL', col: 0, row: 2 },
+  ];
+  const wires: CircuitConfig['wires'] = [
+    { from: 'BL', to: 'TL', component: 'battery', label: batteryLabel },
+    { from: 'BR', to: 'BL', component: 'wire' },
+    { from: 'TR', to: 'BR', component: 'wire' },
+  ];
+
+  if (hasSwitch && resistorLabel && capacitorLabels.length > 0) {
+    nodes.push({ id: 'TM1', col: 1, row: 0 });
+    nodes.push({ id: 'TM2', col: 2, row: 0 });
+    nodes.push({ id: 'TM3', col: 3, row: 0 });
+    wires.push({ from: 'TL', to: 'TM1', component: 'switch_open', label: 'S' });
+    wires.push({ from: 'TM1', to: 'TM2', component: 'resistor', label: resistorLabel });
+    wires.push({ from: 'TM2', to: 'TM3', component: 'capacitor', label: capacitorLabels[0] });
+    wires.push({ from: 'TM3', to: 'TR', component: 'wire' });
+  } else if (resistorLabel && capacitorLabels.length > 0) {
+    nodes.push({ id: 'TM', col: 2, row: 0 });
+    wires.push({ from: 'TL', to: 'TM', component: 'resistor', label: resistorLabel });
+    wires.push({ from: 'TM', to: 'TR', component: 'capacitor', label: capacitorLabels[0] });
+  } else if (capacitorLabels.length >= 2) {
+    nodes.push({ id: 'TM', col: 2, row: 0 });
+    wires.push({ from: 'TL', to: 'TM', component: 'capacitor', label: capacitorLabels[0] });
+    wires.push({ from: 'TM', to: 'TR', component: 'capacitor', label: capacitorLabels[1] });
+  } else {
+    wires.push({ from: 'TL', to: 'TR', component: 'capacitor', label: capacitorLabels[0] ?? 'C' });
+  }
+
+  return { type: 'circuit', gridSpacing: 80, nodes, wires, junctions: [], showLabels: true };
 }
 
 /**
