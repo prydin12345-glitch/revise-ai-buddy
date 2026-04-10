@@ -94,6 +94,7 @@ const CreatePracticeQuestions = () => {
 
   // Generation states
   const [generating, setGenerating] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(false);
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
   const [generatedSetId, setGeneratedSetId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
@@ -407,7 +408,7 @@ const CreatePracticeQuestions = () => {
       const { error: genError } = await supabase.functions.invoke(
         "generate-practice-questions",
         {
-          body: { setId: setData.id },
+          body: { setId: setData.id, forceRefresh },
         }
       );
 
@@ -592,16 +593,31 @@ const CreatePracticeQuestions = () => {
               Generate targeted practice questions for specific subtopics
             </p>
           </div>
-          <Button 
-            onClick={handleGenerate} 
-            disabled={generating || nameValidator.isDuplicate} 
-            size="lg"
-            style={{ backgroundColor: subjectColor }}
-            className="hover:opacity-90"
-          >
-            <Sparkles className="h-5 w-5 mr-2" />
-            Generate
-          </Button>
+          <div className="flex flex-col items-end gap-1.5">
+            <Button 
+              onClick={handleGenerate} 
+              disabled={generating || nameValidator.isDuplicate} 
+              size="lg"
+              style={{ backgroundColor: subjectColor }}
+              className="hover:opacity-90"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              Generate
+            </Button>
+            <label
+              htmlFor="forceRefresh"
+              className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <input
+                type="checkbox"
+                id="forceRefresh"
+                checked={forceRefresh}
+                onChange={e => setForceRefresh(e.target.checked)}
+                className="h-3 w-3 rounded border-muted-foreground/40"
+              />
+              Fresh questions (uses more AI credits)
+            </label>
+          </div>
         </div>
 
         {/* Main Form */}
