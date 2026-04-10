@@ -4061,6 +4061,7 @@ serve(async (req) => {
     // Parse request body
     const body = await req.json();
     const setId = body.setId;
+    const forceRefresh = body.forceRefresh === true;
 
     if (!setId) {
       return new Response(
@@ -4109,10 +4110,13 @@ serve(async (req) => {
       .update({ extraction_status: 'extracting' })
       .eq('id', setId);
 
+    // Inject forceRefresh flag into setData for background function
+    const setDataWithFlags = { ...setData, __force_refresh: forceRefresh };
+
     // Start background generation using EdgeRuntime.waitUntil
     // This ensures the work completes even after the response is sent
     (globalThis as any).EdgeRuntime?.waitUntil(
-      generateQuestionsInBackground(setId, userId, setData)
+      generateQuestionsInBackground(setId, userId, setDataWithFlags)
     );
 
     // Return immediate response - client will poll for status
