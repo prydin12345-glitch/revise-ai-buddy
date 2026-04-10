@@ -71,7 +71,7 @@ const SUPPRESS_DIAGRAM_TOPICS = [
 // Topics that always benefit from a circuit diagram
 const ALWAYS_DIAGRAM_TOPICS = [
   'series circuit', 'parallel circuit', 'potential divider',
-  'voltage divider', 'wheatstone bridge', 'kirchhoff',
+  'voltage divider', 'wheatstone bridge',
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
   'rlc circuit', 'ac circuit',
   'capacitor circuit', 'inductor circuit',
@@ -79,6 +79,8 @@ const ALWAYS_DIAGRAM_TOPICS = [
   'phasor diagram', 'phasor_diagram',
   'delta vs wye', 'wye vs delta', 'delta/wye comparison',
   'delta_wye_comparison',
+  // NOTE: 'kirchhoff' removed — Kirchhoff questions only need a circuit
+  // when actual component values are provided, handled by detector logic
 ];
 
 // ── Concept-only question detection ──
@@ -111,6 +113,26 @@ const CONCEPT_ONLY_PATTERNS = [
   // Heater/power questions that are pure calculation
   /^an? (electrical |)heater (is rated|rated at|operating)/i,
   /calculate the (current drawn|power|resistance) (of|by|when) (the |an? )?(heater|element|lamp|bulb)/i,
+
+  // Terminal PD explanation — conceptual, no circuit needed
+  /explain why (the )?terminal (potential difference|p\.?d\.?|voltage) (of |from )?(a |the )?(battery|cell|source)? ?(decreases|increases|drops|falls)/i,
+
+  // AC conceptual explanations
+  /explain why current (leads|lags) (the )?voltage/i,
+  /explain why (the )?voltage (leads|lags) (the )?current/i,
+  /state (the )?conditions? for resonance/i,
+  /explain (what (is meant by|happens at) )?resonance (in|of) (a |an )?series/i,
+
+  // Kirchhoff's law statements — stating the law is conceptual
+  /^state (kirchhoff'?s? ?(current|voltage|first|second) law)/i,
+  /^state (both |the two )?kirchhoff'?s? laws/i,
+
+  // Power factor and impedance definitions
+  /define (the term )?(power factor|impedance|admittance|reactance)/i,
+  /what is meant by (power factor|impedance|admittance)/i,
+
+  // General law/definition questions
+  /^(state|define|give|write down|what is) (the )?(law of|equation for|formula for)/i,
 ];
 
 // Phrases that confirm a specific circuit arrangement is described —
@@ -131,6 +153,15 @@ const CIRCUIT_CONTEXT_PHRASES = [
   'as shown',
   'connected between',
   'across the',
+  // Explicit requests to draw or sketch a circuit override suppression
+  'sketch the circuit',
+  'draw the circuit',
+  'draw a circuit',
+  'sketch a circuit',
+  'circuit diagram for',
+  'circuit you would use',
+  'set up a circuit',
+  'design a circuit',
 ];
 
 /**
@@ -140,6 +171,11 @@ const CIRCUIT_CONTEXT_PHRASES = [
 export const isConceptOnlyQuestion = (questionText: string): boolean => {
   const text = questionText.trim();
   const lower = text.toLowerCase();
+
+  // If the question explicitly asks to sketch or draw a circuit — never suppress
+  if (/\b(sketch|draw|construct|set up|design)\b.{0,40}\bcircuit\b/i.test(text)) {
+    return false;
+  }
 
   // If the question describes a specific circuit arrangement — never suppress
   const hasCircuitContext = CIRCUIT_CONTEXT_PHRASES.some(phrase =>

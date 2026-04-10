@@ -48,7 +48,7 @@ const SUPPRESS_DIAGRAM_TOPICS = [
 
 const ALWAYS_DIAGRAM_TOPICS = [
   'series circuit', 'parallel circuit', 'potential divider',
-  'voltage divider', 'wheatstone bridge', 'kirchhoff',
+  'voltage divider', 'wheatstone bridge',
   'current divider', 'rc circuit', 'rl circuit', 'lc circuit',
   'rlc circuit', 'ac circuit',
   'capacitor circuit', 'inductor circuit',
@@ -73,6 +73,16 @@ const CONCEPT_ONLY_PATTERNS = [
   /describe (how |why )?(the )?(resistance of (a |the )?filament)/i,
   /^an? (electrical |)heater (is rated|rated at|operating)/i,
   /calculate the (current drawn|power|resistance) (of|by|when) (the |an? )?(heater|element|lamp|bulb)/i,
+  /explain why (the )?terminal (potential difference|p\.?d\.?|voltage) (of |from )?(a |the )?(battery|cell|source)? ?(decreases|increases|drops|falls)/i,
+  /explain why current (leads|lags) (the )?voltage/i,
+  /explain why (the )?voltage (leads|lags) (the )?current/i,
+  /state (the )?conditions? for resonance/i,
+  /explain (what (is meant by|happens at) )?resonance (in|of) (a |an )?series/i,
+  /^state (kirchhoff'?s? ?(current|voltage|first|second) law)/i,
+  /^state (both |the two )?kirchhoff'?s? laws/i,
+  /define (the term )?(power factor|impedance|admittance|reactance)/i,
+  /what is meant by (power factor|impedance|admittance)/i,
+  /^(state|define|give|write down|what is) (the )?(law of|equation for|formula for)/i,
 ];
 
 const CIRCUIT_CONTEXT_PHRASES = [
@@ -81,11 +91,17 @@ const CIRCUIT_CONTEXT_PHRASES = [
   'potential divider', 'voltage divider', 'connected to a',
   'in the circuit', 'the following circuit', 'figure shows',
   'as shown', 'connected between', 'across the',
+  'sketch the circuit', 'draw the circuit', 'draw a circuit',
+  'sketch a circuit', 'circuit diagram for', 'circuit you would use',
+  'set up a circuit', 'design a circuit',
 ];
 
 export const isConceptOnlyQuestion = (questionText: string): boolean => {
   const text = questionText.trim();
   const lower = text.toLowerCase();
+  if (/\b(sketch|draw|construct|set up|design)\b.{0,40}\bcircuit\b/i.test(text)) {
+    return false;
+  }
   const hasCircuitContext = CIRCUIT_CONTEXT_PHRASES.some(phrase =>
     lower.includes(phrase.toLowerCase())
   );
