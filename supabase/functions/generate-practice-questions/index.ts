@@ -8,7 +8,7 @@ import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardening
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle } from "../_shared/prompt-templates.ts";
-import { buildCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
+import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
 import {
@@ -96,7 +96,7 @@ async function generateQuestionsInBackground(
     const knownAcademicForCache = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
     const isCustomNicheForCache = !knownAcademicForCache.some(s => (setData.subject_id || '').toLowerCase().includes(s));
 
-    const cacheKey = buildCacheKey({
+    const cacheParams = {
       subject: setData.subject_id ?? '',
       examBoard: setData.exam_board ?? '',
       educationalLevel: setData.educational_tier ?? '',
@@ -104,10 +104,58 @@ async function generateQuestionsInBackground(
       difficulty: setData.difficulty_level ?? 'mixed',
       questionFormat: setData.question_format ?? 'written_only',
       questionCount: setData.question_count ?? 20,
+    };
+
+    // Determine variation slot for this student
+    const MAX_VARIATION_SLOTS = 5;
+    let variationSlot = 0;
+    const baseCacheKey = (!isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
+      ? buildBaseCacheKey(cacheParams)
+      : null;
+
+    const forceRefresh = (setData as any).__force_refresh === true;
+
+    if (baseCacheKey && !forceRefresh) {
+      // Get or create student's slot tracking record (use service role — RLS bypass)
+      const { data: slotRecord } = await supabaseClient
+        .from('student_cache_slots')
+        .select('last_slot_used')
+        .eq('user_id', userId)
+        .eq('base_cache_key', baseCacheKey)
+        .single();
+
+      if (!slotRecord) {
+        // First time — slot 0
+        await supabaseClient
+          .from('student_cache_slots')
+          .insert({
+            user_id: userId,
+            base_cache_key: baseCacheKey,
+            last_slot_used: 0,
+          });
+        variationSlot = 0;
+      } else {
+        // Advance to next slot
+        variationSlot = (slotRecord.last_slot_used + 1) % MAX_VARIATION_SLOTS;
+        await supabaseClient
+          .from('student_cache_slots')
+          .update({
+            last_slot_used: variationSlot,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+          .eq('base_cache_key', baseCacheKey);
+      }
+      console.log(`Variation slot ${variationSlot} for user ${userId}, base key ${baseCacheKey}`);
+    }
+
+    const cacheKey = buildCacheKey({
+      ...cacheParams,
       isCustomNiche: isCustomNicheForCache,
+      variationSlot,
     });
 
-    if (cacheKey) {
+    if (cacheKey && !forceRefresh) {
       const { data: cached } = await supabaseClient
         .from('question_generation_cache')
         .select('questions, hit_count')
@@ -116,14 +164,21 @@ async function generateQuestionsInBackground(
         .single();
 
       if (cached) {
-        console.log(`Cache HIT for key ${cacheKey} — skipping AI call`);
+        console.log(`Cache HIT slot ${variationSlot} for key ${cacheKey} — skipping AI call`);
         await supabaseClient.from('question_generation_cache')
           .update({ hit_count: (cached.hit_count || 0) + 1 })
           .eq('cache_key', cacheKey);
 
         const shuffled = shuffleArray(cached.questions as any[]);
+        // Also shuffle MCQ options within each question
+        const shuffledWithOptions = shuffled.map((q: any) => {
+          if (q.question_type === 'mcq' && Array.isArray(q.options)) {
+            return { ...q, options: shuffleArray(q.options) };
+          }
+          return q;
+        });
         // Assign new IDs and set_id
-        const questionsToInsert = shuffled.map((q: any, i: number) => ({
+        const questionsToInsert = shuffledWithOptions.map((q: any, i: number) => ({
           ...q,
           set_id: setId,
         }));
@@ -146,10 +201,12 @@ async function generateQuestionsInBackground(
           subject: setData.subject_id,
         });
 
-        console.log(`Served ${questionsToInsert.length} cached questions for set ${setId}`);
+        console.log(`Served ${questionsToInsert.length} cached questions (slot ${variationSlot}) for set ${setId}`);
         return;
       }
-      console.log(`Cache MISS for key ${cacheKey} — proceeding with AI generation`);
+      console.log(`Cache MISS slot ${variationSlot} for key ${cacheKey} — proceeding with AI generation`);
+    } else if (forceRefresh) {
+      console.log('Force refresh requested — skipping cache check');
     }
 
     // Make retries idempotent: clear any previously inserted questions + reset status/error.
