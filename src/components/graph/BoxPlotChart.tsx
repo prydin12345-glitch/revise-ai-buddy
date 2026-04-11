@@ -39,6 +39,11 @@ interface HoverInfo {
 }
 
 export const BoxPlotChart: React.FC<BoxPlotChartProps> = ({ chartData, className = '' }) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [mouseX, setMouseX] = useState<number | null>(null);
+  const [tooltip, setTooltip] = useState<HoverInfo | null>(null);
+
   // Handle comparison mode — render stacked single box plots
   if (chartData.type === 'boxplot_comparison') {
     const compData = chartData as BoxPlotComparisonData;
@@ -64,10 +69,6 @@ export const BoxPlotChart: React.FC<BoxPlotChartProps> = ({ chartData, className
   }
 
   const { data, outliers = [], xLabel, domainX } = chartData as BoxPlotData;
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [mouseX, setMouseX] = useState<number | null>(null);
-  const [tooltip, setTooltip] = useState<HoverInfo | null>(null);
 
   // Compute drawing domain
   const allValues = [data.min, data.q1, data.med, data.q3, data.max, ...outliers];
