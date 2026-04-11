@@ -3991,6 +3991,33 @@ ${notesSection}`;
       // the graph data is stored in correct_answer but the frontend reads from options.
       // Copy graph data to options field for these question types.
       let options = q.options || null;
+      
+      // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+      const chartData = q.chart_data ?? q.chartData ?? null;
+      if (chartData && typeof chartData === 'object') {
+        // Validate box plot data
+        if (chartData.type === 'boxplot') {
+          const { min, q1, med, q3, max } = chartData.data ?? {};
+          if (typeof min === 'number' && typeof q1 === 'number' && typeof med === 'number' &&
+              typeof q3 === 'number' && typeof max === 'number' &&
+              min < q1 && q1 < med && med < q3 && q3 < max) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Valid box plot chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid box plot data — stripped`);
+          }
+        } else if (chartData.type === 'boxplot_comparison' && Array.isArray(chartData.datasets)) {
+          options = chartData;
+          console.log(`Q${q.question_number}: Comparison box plot chart_data stored in options`);
+        } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
+          options = chartData;
+          console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
+        } else {
+          console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
+          options = chartData;
+        }
+      }
+      
       if ((q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation') && 
           typeof q.correct_answer === 'object' && q.correct_answer !== null) {
         // The correct_answer contains the graphConfig and plottingAnswer - copy to options
