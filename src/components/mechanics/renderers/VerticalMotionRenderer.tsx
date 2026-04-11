@@ -10,6 +10,7 @@ const VerticalMotionRenderer: React.FC<Props> = ({ config }) => {
   const { initialSpeed, direction, unknowns, showLabels } = config;
 
   const isUnknown = (field: string) => unknowns.includes(field);
+  const isSpeedUnknown = isUnknown('speed') || isUnknown('velocity') || isUnknown('initialSpeed');
 
   const groundY = 270;
   const axisX = 120;
@@ -30,10 +31,12 @@ const VerticalMotionRenderer: React.FC<Props> = ({ config }) => {
       <circle cx={axisX} cy={launchY} r={6} fill={COLORS.structural} />
       <text x={axisX - 18} y={launchY + 4} fontFamily={FONT.family} fontStyle={FONT.style} fontSize={FONT.size} fill={COLORS.label}>A</text>
 
-      {/* Trajectory arc (dashed parabolic curve) */}
-      <path
-        d={`M ${axisX} ${launchY} Q ${axisX + 50} ${peakY - 20}, ${axisX} ${peakY} Q ${axisX - 50} ${peakY - 20}, ${axisX} ${launchY}`}
-        fill="none"
+      {/* Trajectory — vertical dashed line from launch to peak */}
+      <line
+        x1={axisX}
+        y1={launchY}
+        x2={axisX}
+        y2={peakY}
         stroke={COLORS.angle}
         strokeWidth={1.5}
         strokeDasharray="6 4"
@@ -72,7 +75,7 @@ const VerticalMotionRenderer: React.FC<Props> = ({ config }) => {
             fontSize={FONT.size - 1}
             fill={COLORS.velocity}
           >
-            u = {initialSpeed} ms⁻¹
+            {isSpeedUnknown ? 'u = ?' : `u = ${initialSpeed} ms⁻¹`}
           </text>
         </g>
       ) : (
@@ -94,7 +97,7 @@ const VerticalMotionRenderer: React.FC<Props> = ({ config }) => {
             fontSize={FONT.size - 1}
             fill={COLORS.velocity}
           >
-            u = {initialSpeed} ms⁻¹
+            {isSpeedUnknown ? 'u = ?' : `u = ${initialSpeed} ms⁻¹`}
           </text>
         </g>
       )}

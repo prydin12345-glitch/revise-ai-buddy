@@ -387,17 +387,60 @@ function detectUnknowns(text: string): string[] {
   const unknowns: string[] = [];
   const lower = text.toLowerCase();
 
-  if (/find\s+(the\s+)?acceleration/i.test(lower)) unknowns.push('acceleration');
-  if (/find\s+(the\s+)?tension/i.test(lower)) unknowns.push('tension');
-  if (/find\s+(the\s+)?angle/i.test(lower) || /calculate\s+(the\s+)?angle/i.test(lower)) unknowns.push('angle');
-  if (/find\s+(the\s+)?speed/i.test(lower) || /find\s+(the\s+)?velocity/i.test(lower)) unknowns.push('speed');
-  if (/find\s+(the\s+)?time/i.test(lower) || /calculate\s+(the\s+)?time/i.test(lower)) unknowns.push('time');
-  if (/find\s+(the\s+)?(greatest|max|maximum)\s*height/i.test(lower)) unknowns.push('maxHeight');
-  if (/find\s+(the\s+)?normal/i.test(lower) || /find\s+(the\s+)?reaction/i.test(lower)) unknowns.push('normal');
-  if (/find\s+(the\s+)?weight/i.test(lower)) unknowns.push('weight');
-  if (/find\s+(the\s+)?friction/i.test(lower) || /find\s+(the\s+)?frictional/i.test(lower)) unknowns.push('friction');
+  const checks: Array<{ patterns: RegExp[]; keys: string[] }> = [
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:speed|velocity|v\b|u\b)/i, /what\s+is\s+(?:the\s+)?(?:speed|velocity)/i],
+      keys: ['speed', 'velocity', 'initialSpeed'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?angle/i, /(?:find|calculate)\s+(?:the\s+)?(?:value\s+of\s+)?[θα]/i],
+      keys: ['angle'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:horizontal\s+)?(?:range|distance)/i],
+      keys: ['range', 'landingX'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:total\s+)?time/i, /(?:find|calculate)\s+(?:the\s+)?time\s+(?:of\s+flight|to\s+reach|taken|for)/i],
+      keys: ['time', 'timeToMax'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:greatest|max|maximum)\s*height/i],
+      keys: ['maxHeight'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:tension|thrust)/i],
+      keys: ['tension'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:normal|reaction)/i],
+      keys: ['normal'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?weight/i],
+      keys: ['weight'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:friction|frictional)/i],
+      keys: ['friction'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?(?:acceleration|deceleration)/i],
+      keys: ['acceleration'],
+    },
+    {
+      patterns: [/(?:find|calculate|determine)\s+(?:the\s+)?mass/i],
+      keys: ['mass'],
+    },
+  ];
 
-  return unknowns;
+  for (const check of checks) {
+    if (check.patterns.some(p => p.test(lower))) {
+      unknowns.push(...check.keys);
+    }
+  }
+
+  return [...new Set(unknowns)];
 }
 
 function extractNumber(text: string, pattern: RegExp): number | null {

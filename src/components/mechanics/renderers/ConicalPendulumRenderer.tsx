@@ -130,29 +130,39 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
         </g>
       )}
 
-      {/* Centripetal force arrow (horizontal toward centre) */}
-      <line
-        x1={px + 10}
-        y1={py}
-        x2={px + 10 + arrowLen * 0.7}
-        y2={py}
-        stroke={COLORS.velocity}
-        strokeWidth={1.5}
-        strokeDasharray="5 3"
-        markerEnd={`url(#${MARKER_IDS.green})`}
-        transform={`rotate(180, ${px + 10 + arrowLen * 0.35}, ${py})`}
-      />
-      <text
-        x={px - arrowLen * 0.7 - 8}
-        y={py - 8}
-        textAnchor="end"
-        fontFamily={FONT.family}
-        fontStyle={FONT.style}
-        fontSize={FONT.size - 2}
-        fill={COLORS.velocity}
-      >
-        F
-      </text>
+      {/* Centripetal force arrow (horizontal toward vertical axis) */}
+      {(() => {
+        const centripetalLen = arrowLen * 0.7;
+        // Direction from particle toward the vertical axis (ox)
+        const dirX = ox - px; // always negative when particle is right of axis
+        const mag = Math.abs(dirX);
+        const ux = dirX / mag;
+        return (
+          <g>
+            <line
+              x1={px}
+              y1={py}
+              x2={px + ux * centripetalLen}
+              y2={py}
+              stroke={COLORS.velocity}
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+              markerEnd={`url(#${MARKER_IDS.green})`}
+            />
+            <text
+              x={px + ux * centripetalLen + (ux < 0 ? -8 : 8)}
+              y={py - 8}
+              textAnchor={ux < 0 ? 'end' : 'start'}
+              fontFamily={FONT.family}
+              fontStyle={FONT.style}
+              fontSize={FONT.size - 2}
+              fill={COLORS.velocity}
+            >
+              F
+            </text>
+          </g>
+        );
+      })()}
     </g>
   );
 };
