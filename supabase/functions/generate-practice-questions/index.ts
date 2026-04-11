@@ -1716,6 +1716,7 @@ ${notesSection}`;
       worked_solution: z.string().optional().nullable(),
       rationale: z.string().optional().nullable(),
       table_data: z.unknown().optional().nullable(),
+      chart_data: z.unknown().optional().nullable(),
     }).passthrough();
 
     const GeneratePracticeQuestionsSchema = z.object({
