@@ -210,11 +210,15 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
       return <MissingDiagram type={config.type} />;
     }
 
+    const isProjectile = config.type === 'projectile';
+    const vb = isProjectile ? '0 0 560 420' : '0 0 480 380';
+    const mw = isProjectile ? 520 : width;
+
     return (
       <svg
-        viewBox="0 0 480 380"
+        viewBox={vb}
         width="100%"
-        style={{ maxWidth: width, display: 'block', margin: '0 auto', background: COLORS.background, border: '1px solid #e5e7eb', borderRadius: 6 }}
+        style={{ maxWidth: mw, display: 'block', margin: '0 auto', background: COLORS.background, border: '1px solid #e5e7eb', borderRadius: 6 }}
       >
         <g transform="translate(40, 40)">
           <ArrowMarkerDefs />
