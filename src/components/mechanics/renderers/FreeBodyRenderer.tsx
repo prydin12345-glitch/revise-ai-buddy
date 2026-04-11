@@ -1,5 +1,5 @@
 import React from 'react';
-import { FreeBodyConfig, COLORS, MARKER_IDS } from '../types';
+import { FreeBodyConfig, COLORS, MARKER_IDS, FONT } from '../types';
 import { HatchedGround, ForceLabel } from '../svg-helpers';
 
 interface Props {
