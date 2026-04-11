@@ -1017,6 +1017,46 @@ Set diagramConfig: { "type": "delta_wye_comparison" }
 No other fields needed — the diagram is static.
 ` : '';
 
+  // ── BLOCK 11: BOX PLOT / HISTOGRAM CHART DATA ─────────────────────────────
+  const isStatisticsSubject = /statistics|maths|mathematics|data handling/i.test(subject) ||
+    topics.some(t => /box.?plot|quartile|median|interquartile|statistical diagram|data handling|averages|spread|distribution|histogram/i.test(t));
+
+  const chartDataBlock = isStatisticsSubject ? `
+## BOX PLOT AND HISTOGRAM CHART DATA
+
+For questions involving box plots, five-number summaries, quartiles, or IQR, include a chart_data field:
+{
+  "type": "boxplot",
+  "data": { "min": number, "q1": number, "med": number, "q3": number, "max": number },
+  "outliers": [],
+  "xLabel": "string",
+  "domainX": [min_with_padding, max_with_padding]
+}
+Rules: min < q1 < med < q3 < max always. IQR must be > 0.
+Question text must say "The box plot shows..." so the student knows a diagram is displayed.
+
+For comparison questions with two box plots:
+{
+  "type": "boxplot_comparison",
+  "datasets": [
+    { "label": "Class A", "data": { "min": 42, "q1": 55, "med": 67, "q3": 78, "max": 95 }, "outliers": [] },
+    { "label": "Class B", "data": { "min": 38, "q1": 50, "med": 71, "q3": 82, "max": 98 }, "outliers": [] }
+  ],
+  "xLabel": "Test scores",
+  "domainX": [20, 110]
+}
+
+For histogram questions:
+{
+  "type": "histogram",
+  "bins": [{ "lower": 0, "upper": 10, "frequency": 5 }, { "lower": 10, "upper": 20, "frequency": 12 }],
+  "xLabel": "Height (cm)",
+  "yLabel": "Frequency density"
+}
+
+Do NOT include chart_data for concept-only questions like "Explain what the median represents".
+` : '';
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
@@ -1033,6 +1073,7 @@ No other fields needed — the diagram is static.
     graphBlock,
     circuitBlock,
     deltaWyeBlock,
+    chartDataBlock,
     outputBlock,
   ].filter(s => s.trim().length > 0).join('\n\n');
 
