@@ -82,6 +82,8 @@ import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBo
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
+import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
+import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>

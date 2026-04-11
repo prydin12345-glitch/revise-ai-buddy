@@ -133,6 +133,11 @@ const CONCEPT_ONLY_PATTERNS = [
 
   // General law/definition questions
   /^(state|define|give|write down|what is) (the )?(law of|equation for|formula for)/i,
+
+  // Box plot / statistics concept-only questions
+  /^(explain|state|define|describe) (what (is meant by|a)|the (purpose|advantage|disadvantage) of) (a |the )?box.?plot/i,
+  /^(state one (advantage|disadvantage)|compare).{0,30}(box.?plot|histogram)/i,
+  /^explain (what|why) the (median|iqr|interquartile range|quartile) (represents|shows|tells)/i,
 ];
 
 // Phrases that confirm a specific circuit arrangement is described —
