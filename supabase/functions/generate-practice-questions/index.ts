@@ -1558,6 +1558,71 @@ Table_grid questions (interactive tables):
   - prefilled: optional array for given values, each item: { rowId, colIndex, value, locked }
 - correct_answer for table_grid MUST be an object with correctAnswers keyed by row id.
 
+## BOX PLOT CHART DATA — FOR STATISTICS QUESTIONS
+
+For any question that involves a box plot, five-number summary, quartiles,
+or interquartile range, you MUST include a chart_data field in the question JSON.
+
+The chart_data field must follow this EXACT structure:
+{
+  "type": "boxplot",
+  "data": {
+    "min": number,
+    "q1": number,
+    "med": number,
+    "q3": number,
+    "max": number
+  },
+  "outliers": [],
+  "xLabel": "string",
+  "domainX": [min_with_padding, max_with_padding]
+}
+
+Rules:
+- min < q1 < med < q3 < max always
+- q1 and q3 must be different (IQR must be > 0)
+- outliers are values more than 1.5 * IQR below q1 or above q3
+- If outliers exist include them in the outliers array AND adjust min/max to the nearest non-outlier value
+- xLabel should describe what the data represents
+- domainX should give 10-15% padding either side
+- The question text must say "The box plot shows..." or "The box plot below shows..."
+
+Example:
+{
+  "type": "boxplot",
+  "data": { "min": 42, "q1": 55, "med": 67, "q3": 78, "max": 95 },
+  "outliers": [],
+  "xLabel": "Test scores",
+  "domainX": [30, 110]
+}
+
+For COMPARISON questions with two box plots, use:
+{
+  "type": "boxplot_comparison",
+  "datasets": [
+    { "label": "Class A", "data": { "min": 42, "q1": 55, "med": 67, "q3": 78, "max": 95 }, "outliers": [] },
+    { "label": "Class B", "data": { "min": 38, "q1": 50, "med": 71, "q3": 82, "max": 98 }, "outliers": [] }
+  ],
+  "xLabel": "Test scores",
+  "domainX": [20, 110]
+}
+
+Types that MUST include chart_data: box plot distribution questions, IQR calculations, outlier identification, comparison questions.
+Types that must NOT include chart_data: "Explain what the median represents", "State one advantage of using a box plot".
+
+## HISTOGRAM CHART DATA
+
+For histogram questions with frequency density, include chart_data:
+{
+  "type": "histogram",
+  "bins": [
+    { "lower": 0, "upper": 10, "frequency": 5 },
+    { "lower": 10, "upper": 20, "frequency": 12 }
+  ],
+  "xLabel": "Height (cm)",
+  "yLabel": "Frequency density"
+}
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
@@ -1651,6 +1716,7 @@ ${notesSection}`;
       worked_solution: z.string().optional().nullable(),
       rationale: z.string().optional().nullable(),
       table_data: z.unknown().optional().nullable(),
+      chart_data: z.unknown().optional().nullable(),
     }).passthrough();
 
     const GeneratePracticeQuestionsSchema = z.object({
@@ -3925,6 +3991,33 @@ ${notesSection}`;
       // the graph data is stored in correct_answer but the frontend reads from options.
       // Copy graph data to options field for these question types.
       let options = q.options || null;
+      
+      // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+      const chartData = q.chart_data ?? q.chartData ?? null;
+      if (chartData && typeof chartData === 'object') {
+        // Validate box plot data
+        if (chartData.type === 'boxplot') {
+          const { min, q1, med, q3, max } = chartData.data ?? {};
+          if (typeof min === 'number' && typeof q1 === 'number' && typeof med === 'number' &&
+              typeof q3 === 'number' && typeof max === 'number' &&
+              min < q1 && q1 < med && med < q3 && q3 < max) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Valid box plot chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid box plot data — stripped`);
+          }
+        } else if (chartData.type === 'boxplot_comparison' && Array.isArray(chartData.datasets)) {
+          options = chartData;
+          console.log(`Q${q.question_number}: Comparison box plot chart_data stored in options`);
+        } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
+          options = chartData;
+          console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
+        } else {
+          console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
+          options = chartData;
+        }
+      }
+      
       if ((q.question_type === 'graph_plotting' || q.question_type === 'graph_interpretation') && 
           typeof q.correct_answer === 'object' && q.correct_answer !== null) {
         // The correct_answer contains the graphConfig and plottingAnswer - copy to options

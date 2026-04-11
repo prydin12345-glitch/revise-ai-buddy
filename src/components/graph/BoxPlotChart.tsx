@@ -15,8 +15,19 @@ export interface BoxPlotData {
   domainX?: [number, number];
 }
 
+export interface BoxPlotComparisonData {
+  type: 'boxplot_comparison';
+  datasets: Array<{
+    label: string;
+    data: BoxPlotData['data'];
+    outliers?: number[];
+  }>;
+  xLabel?: string;
+  domainX?: [number, number];
+}
+
 interface BoxPlotChartProps {
-  chartData: BoxPlotData;
+  chartData: BoxPlotData | BoxPlotComparisonData;
   className?: string;
 }
 
@@ -28,11 +39,36 @@ interface HoverInfo {
 }
 
 export const BoxPlotChart: React.FC<BoxPlotChartProps> = ({ chartData, className = '' }) => {
-  const { data, outliers = [], xLabel, domainX } = chartData;
   const svgRef = useRef<SVGSVGElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<HoverInfo | null>(null);
+
+  // Handle comparison mode — render stacked single box plots
+  if (chartData.type === 'boxplot_comparison') {
+    const compData = chartData as BoxPlotComparisonData;
+    return (
+      <div className={`bg-card border rounded-lg p-4 space-y-3 ${className}`}>
+        {compData.datasets.map((dataset, i) => (
+          <div key={i}>
+            <p className="text-xs font-medium text-muted-foreground mb-1">{dataset.label}</p>
+            <BoxPlotChart
+              chartData={{
+                type: 'boxplot' as const,
+                data: dataset.data,
+                outliers: dataset.outliers,
+                xLabel: i === compData.datasets.length - 1 ? compData.xLabel : undefined,
+                domainX: compData.domainX,
+              }}
+              className=""
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const { data, outliers = [], xLabel, domainX } = chartData as BoxPlotData;
 
   // Compute drawing domain
   const allValues = [data.min, data.q1, data.med, data.q3, data.max, ...outliers];
