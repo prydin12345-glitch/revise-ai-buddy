@@ -57,13 +57,15 @@ const ProjectileRenderer: React.FC<Props> = ({ config }) => {
 
   const arrowLen = 55;
 
-  // Range label
-  const rangeLabel = landingX !== undefined
+  // Range label — suppress when range is the unknown
+  const isRangeUnknown = unknowns.includes('range') || unknowns.includes('landingX');
+  const rangeLabel = (landingX !== undefined && !isRangeUnknown)
     ? (typeof landingX === 'number' ? `${landingX} m` : String(landingX))
     : null;
 
-  // Time-to-max label
-  const timeLabel = timeToMax !== undefined
+  // Time-to-max label — suppress when time is the unknown
+  const isTimeUnknown = unknowns.includes('time') || unknowns.includes('timeToMax');
+  const timeLabel = (timeToMax !== undefined && !isTimeUnknown)
     ? (typeof timeToMax === 'number' ? `t = ${timeToMax} s` : String(timeToMax))
     : null;
 

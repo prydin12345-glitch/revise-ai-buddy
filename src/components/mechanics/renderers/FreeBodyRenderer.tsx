@@ -71,25 +71,58 @@ const FreeBodyRenderer: React.FC<Props> = ({ config }) => {
         color={COLORS.normal}
       />
 
-      {/* Applied force (rightward) */}
+      {/* Applied force */}
       {appliedForce && (
         <g>
-          <line
-            x1={cx + blockW / 2}
-            y1={cy}
-            x2={cx + blockW / 2 + arrowLen}
-            y2={cy}
-            stroke={COLORS.velocity}
-            strokeWidth={2}
-            markerEnd={`url(#${MARKER_IDS.green})`}
-          />
-          <ForceLabel
-            x={cx + blockW / 2 + arrowLen + 16}
-            y={cy}
-            text={isUnknown('appliedForce') ? 'P' : `${appliedForce} N`}
-            show={showLabels}
-            color={COLORS.velocity}
-          />
+          {(() => {
+            const forceDir = config.appliedForceDir;
+            const slopeAngle = (config as any).slopeAngle;
+            if (forceDir === 'up-slope' && slopeAngle) {
+              const rad = (slopeAngle * Math.PI) / 180;
+              const dx = Math.cos(rad) * arrowLen;
+              const dy = -Math.sin(rad) * arrowLen;
+              return (
+                <>
+                  <line
+                    x1={cx + blockW / 2}
+                    y1={cy}
+                    x2={cx + blockW / 2 + dx}
+                    y2={cy + dy}
+                    stroke={COLORS.velocity}
+                    strokeWidth={2}
+                    markerEnd={`url(#${MARKER_IDS.green})`}
+                  />
+                  <ForceLabel
+                    x={cx + blockW / 2 + dx + 16}
+                    y={cy + dy}
+                    text={isUnknown('appliedForce') ? 'P' : `${appliedForce} N`}
+                    show={showLabels}
+                    color={COLORS.velocity}
+                  />
+                </>
+              );
+            }
+            return (
+              <>
+                <line
+                  x1={cx + blockW / 2}
+                  y1={cy}
+                  x2={cx + blockW / 2 + arrowLen}
+                  y2={cy}
+                  stroke={COLORS.velocity}
+                  strokeWidth={2}
+                  markerEnd={`url(#${MARKER_IDS.green})`}
+                />
+                <ForceLabel
+                  x={cx + blockW / 2 + arrowLen + 16}
+                  y={cy}
+                  text={isUnknown('appliedForce') ? 'P' : `${appliedForce} N`}
+                  show={showLabels}
+                  color={COLORS.velocity}
+                />
+              </>
+            );
+          })()}
         </g>
       )}
 
