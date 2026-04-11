@@ -15,8 +15,19 @@ export interface BoxPlotData {
   domainX?: [number, number];
 }
 
+export interface BoxPlotComparisonData {
+  type: 'boxplot_comparison';
+  datasets: Array<{
+    label: string;
+    data: BoxPlotData['data'];
+    outliers?: number[];
+  }>;
+  xLabel?: string;
+  domainX?: [number, number];
+}
+
 interface BoxPlotChartProps {
-  chartData: BoxPlotData;
+  chartData: BoxPlotData | BoxPlotComparisonData;
   className?: string;
 }
 
