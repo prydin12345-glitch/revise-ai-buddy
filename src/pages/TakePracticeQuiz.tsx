@@ -1643,6 +1643,17 @@ const TakePracticeQuiz = () => {
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
+
+                  {/* Box plot chart */}
+                  {isBoxPlotQuestion((currentQuestion as any).options) && (
+                    <BoxPlotChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+
+                  {/* Histogram chart */}
+                  {isHistogramQuestion((currentQuestion as any).options) && (
+                    <HistogramChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+
                   {/* Answer input section - conditionally render based on question type */}
                   {(() => {
                     // Check if this is a table_grid question (explicit type or detected from content)
