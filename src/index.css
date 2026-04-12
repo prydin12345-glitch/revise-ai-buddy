@@ -385,3 +385,20 @@ math-field::part(selection) {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Diagram zoom hint — visible on hover */
+.diagram-zoomable:hover .zoom-hint {
+  opacity: 1 !important;
+}
+
+/* Mobile: always show zoom hint + enlarge modal */
+@media (max-width: 768px) {
+  .diagram-zoomable .zoom-hint {
+    opacity: 0.7 !important;
+  }
+  .diagram-modal-panel {
+    width: 96vw !important;
+    max-height: 92vh !important;
+    border-radius: 10px !important;
+  }
+}
