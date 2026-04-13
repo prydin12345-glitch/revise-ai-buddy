@@ -1886,7 +1886,7 @@ const ExamInProgress = () => {
                           }
                           await handleSaveAnswer(question.id);
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, true)} resize-y text-base font-mono transition-all text-foreground`}
+                        className={`${getAnswerBoxHeight(question.marks, true, isMobileLayout)} resize-y text-base font-mono transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
@@ -1999,7 +1999,7 @@ const ExamInProgress = () => {
                             await handleSaveAnswer(question.id);
                           }
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, false)} resize-y text-base transition-all text-foreground`}
+                        className={`${getAnswerBoxHeight(question.marks, false, isMobileLayout)} resize-y text-base transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
