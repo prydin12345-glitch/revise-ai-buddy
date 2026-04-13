@@ -2080,32 +2080,35 @@ const ExamInProgress = () => {
           </div>
 
           {/* Bottom Navigation */}
-          <div className="border-t bg-muted/30 px-6 py-4 flex items-center justify-between">
+          <div className="border-t bg-muted/30 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
             <Button
               variant="outline"
+              className="px-3 sm:px-6 min-h-[44px]"
               onClick={async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
               }}
               disabled={!hasPrevPage}
             >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous Section
+              <ChevronLeft className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline ml-1">Previous Section</span>
             </Button>
             
             {hasNextPage ? (
               <Button
+                className="px-3 sm:px-6 min-h-[44px]"
                 onClick={async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
                 }}
               >
-                Next Section
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <span className="hidden sm:inline mr-1">Next Section</span>
+                <ChevronRight className="h-4 w-4 shrink-0" />
               </Button>
             ) : !isReadOnly && (
               <Button
                 variant="default"
+                className="px-4 sm:px-8 min-h-[44px]"
                 onClick={() => setShowSubmitDialog(true)}
                 disabled={isSubmitting}
               >
