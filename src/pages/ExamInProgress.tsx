@@ -57,7 +57,13 @@ const addOpacity = (hex: string, opacity: number): string => {
 };
 
 // Marks-adaptive answer box sizing
-function getAnswerBoxHeight(marks: number, isMath: boolean): string {
+function getAnswerBoxHeight(marks: number, isMath: boolean, mobile = false): string {
+  if (mobile) {
+    if (marks <= 2) return isMath ? 'min-h-[100px]' : 'min-h-[90px]';
+    if (marks <= 4) return isMath ? 'min-h-[150px]' : 'min-h-[130px]';
+    if (marks <= 7) return isMath ? 'min-h-[200px]' : 'min-h-[180px]';
+    return 'min-h-[240px]';
+  }
   if (marks <= 2) return isMath ? 'min-h-[150px]' : 'min-h-[120px]';
   if (marks <= 4) return isMath ? 'min-h-[220px]' : 'min-h-[200px]';
   if (marks <= 7) return 'min-h-[300px]';
@@ -143,7 +149,12 @@ const ExamInProgress = () => {
   const [isAutoSubmit, setIsAutoSubmit] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [isMobileLayout, setIsMobileLayout] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
   const [currentPage, setCurrentPage] = useState(0);
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
   const [hideNavigation, setHideNavigation] = useState(false);
@@ -288,8 +299,19 @@ const ExamInProgress = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examId, timeRemaining, timerEnabled]);
 
+  // Track mobile layout
   useEffect(() => {
-    setCurrentPage(0); // Always start at first question when exam loads
+    const handler = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobileLayout(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(0);
     loadQuestions();
   }, [examId]);
 
