@@ -1460,7 +1460,7 @@ const ExamInProgress = () => {
 
           {/* Questions Container */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
-            <div className="container max-w-7xl py-8 px-4 sm:px-8 space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
+            <div className="container max-w-7xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
                 const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
@@ -1477,24 +1477,24 @@ const ExamInProgress = () => {
                   <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
                     {/* Parent question header for first sub-part */}
                     {showParentHeader && (
-                      <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                      <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 mt-2">Question {parentNum}</h2>
                     )}
                     
                     <Card 
                       ref={(el) => questionRefs.current[question.id] = el}
-                      className={`p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
+                      className={`p-4 sm:p-6 lg:p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
                       style={isSubPart ? { borderLeftColor: subjectColor + '40' } : undefined}
                     >
-                      <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-start justify-between mb-3 sm:mb-4 lg:mb-6">
                         <div className="flex items-center gap-3">
                           {isSubPart ? (
-                            <span className="text-lg font-semibold text-foreground">
+                            <span className="text-base lg:text-lg font-semibold text-foreground">
                               ({subPart})
                             </span>
                           ) : (
                             <Badge 
                               variant="secondary" 
-                              className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
+                              className="text-base lg:text-lg px-3 lg:px-4 py-1 lg:py-1.5 font-bold border-2 transition-all"
                               style={{ 
                                 backgroundColor: subjectColor,
                                 borderColor: subjectColor,
@@ -1506,7 +1506,7 @@ const ExamInProgress = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-sm font-medium text-muted-foreground">
+                          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
                             ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
                           </span>
                         </div>
