@@ -57,7 +57,13 @@ const addOpacity = (hex: string, opacity: number): string => {
 };
 
 // Marks-adaptive answer box sizing
-function getAnswerBoxHeight(marks: number, isMath: boolean): string {
+function getAnswerBoxHeight(marks: number, isMath: boolean, mobile = false): string {
+  if (mobile) {
+    if (marks <= 2) return isMath ? 'min-h-[100px]' : 'min-h-[90px]';
+    if (marks <= 4) return isMath ? 'min-h-[150px]' : 'min-h-[130px]';
+    if (marks <= 7) return isMath ? 'min-h-[200px]' : 'min-h-[180px]';
+    return 'min-h-[240px]';
+  }
   if (marks <= 2) return isMath ? 'min-h-[150px]' : 'min-h-[120px]';
   if (marks <= 4) return isMath ? 'min-h-[220px]' : 'min-h-[200px]';
   if (marks <= 7) return 'min-h-[300px]';
@@ -143,7 +149,12 @@ const ExamInProgress = () => {
   const [isAutoSubmit, setIsAutoSubmit] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [isMobileLayout, setIsMobileLayout] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
   const [currentPage, setCurrentPage] = useState(0);
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
   const [hideNavigation, setHideNavigation] = useState(false);
@@ -288,8 +299,19 @@ const ExamInProgress = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examId, timeRemaining, timerEnabled]);
 
+  // Track mobile layout
   useEffect(() => {
-    setCurrentPage(0); // Always start at first question when exam loads
+    const handler = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobileLayout(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(0);
     loadQuestions();
   }, [examId]);
 
@@ -1077,22 +1099,22 @@ const ExamInProgress = () => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container grid grid-cols-3 items-center h-16 px-6 max-w-none gap-4">
+        <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 lg:h-16 gap-2 lg:grid lg:grid-cols-3 max-w-none">
           {/* Left: Menu and Title */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 min-w-0 flex-1 lg:flex-none">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
+              className="lg:hidden flex-shrink-0"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">{examName || 'Exam in Progress'}</h1>
+            <h1 className="text-sm sm:text-base lg:text-xl font-bold truncate">{examName || 'Exam in Progress'}</h1>
           </div>
           
           {/* Center: Timer */}
-          <div className="flex justify-center">
+          <div className="flex justify-center flex-shrink-0">
             {timerEnabled && (
               <div 
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -1123,7 +1145,7 @@ const ExamInProgress = () => {
           </div>
           
           {/* Right: Autosave & Menu */}
-          <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center justify-end gap-2 lg:gap-4 flex-shrink-0">
             
             {/* Auto-save status indicator - hidden visually but accessible to screen readers */}
             {!isReadOnly && (
@@ -1192,10 +1214,40 @@ const ExamInProgress = () => {
         </div>
       </div>
 
+      {/* Mobile progress bar */}
+      {isMobileLayout && (
+        <div className="h-1 bg-muted lg:hidden sticky top-14 z-40">
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${(answeredCount / Math.max(questions.length, 1)) * 100}%`,
+              background: 'hsl(var(--primary))',
+            }}
+          />
+        </div>
+      )}
+
       <div className="flex flex-1">
-        {/* Left Sidebar - Collapsible */}
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide`}>
-          <div className="p-6 flex flex-col gap-6 h-full">
+        {/* Mobile overlay backdrop */}
+        {isMobileLayout && sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Left Sidebar - Overlay on mobile, flex column on desktop */}
+        <div className={`
+          ${isMobileLayout
+            ? `fixed top-0 left-0 h-full z-50 transition-transform duration-300 w-[280px]
+               ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : `relative transition-all duration-300
+               ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`
+          }
+          border-r bg-card overflow-y-auto scrollbar-hide
+          ${!isMobileLayout ? 'sticky top-16 h-[calc(100vh-4rem)]' : ''}
+        `}>
+          <div className="p-4 lg:p-6 flex flex-col gap-4 lg:gap-6 h-full">
             <div>
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
               {/* Tree-style navigation: group by root question number */}
@@ -1408,7 +1460,7 @@ const ExamInProgress = () => {
 
           {/* Questions Container */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
-            <div className="container max-w-7xl py-8 px-4 sm:px-8 space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
+            <div className="container max-w-7xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
                 const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
@@ -1425,24 +1477,24 @@ const ExamInProgress = () => {
                   <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
                     {/* Parent question header for first sub-part */}
                     {showParentHeader && (
-                      <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                      <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 mt-2">Question {parentNum}</h2>
                     )}
                     
                     <Card 
                       ref={(el) => questionRefs.current[question.id] = el}
-                      className={`p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
+                      className={`p-4 sm:p-6 lg:p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
                       style={isSubPart ? { borderLeftColor: subjectColor + '40' } : undefined}
                     >
-                      <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-start justify-between mb-3 sm:mb-4 lg:mb-6">
                         <div className="flex items-center gap-3">
                           {isSubPart ? (
-                            <span className="text-lg font-semibold text-foreground">
+                            <span className="text-base lg:text-lg font-semibold text-foreground">
                               ({subPart})
                             </span>
                           ) : (
                             <Badge 
                               variant="secondary" 
-                              className="text-lg px-4 py-1.5 font-bold border-2 transition-all"
+                              className="text-base lg:text-lg px-3 lg:px-4 py-1 lg:py-1.5 font-bold border-2 transition-all"
                               style={{ 
                                 backgroundColor: subjectColor,
                                 borderColor: subjectColor,
@@ -1454,7 +1506,7 @@ const ExamInProgress = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-sm font-medium text-muted-foreground">
+                          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
                             ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
                           </span>
                         </div>
@@ -1468,7 +1520,7 @@ const ExamInProgress = () => {
                         content={extractTextBeforeTable(question.question_text)}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
-                        className="mb-4 text-lg"
+                        className="mb-4 text-base sm:text-lg"
                       />
                       {(() => {
                         const tableData = parseMarkdownToTableGrid(question.question_text);
@@ -1500,7 +1552,7 @@ const ExamInProgress = () => {
                         content={stripInlineMCQOptions(removeTableFromContent(question.question_text), question.question_type)}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
-                        className="mb-4 text-lg"
+                        className="mb-4 text-base sm:text-lg"
                       />
                       <InteractiveExamTable
                         tableHtml={extractTableHtml(question.question_text) || ''}
@@ -1543,7 +1595,7 @@ const ExamInProgress = () => {
                       content={stripInlineMCQOptions(question.question_text, question.question_type)}
                       latex={(question as any).question_latex}
                       hasMath={(question as any).has_math}
-                      className="mb-6 text-lg"
+                      className="mb-4 sm:mb-6 text-base sm:text-lg"
                     />
                   )}
 
@@ -1767,7 +1819,7 @@ const ExamInProgress = () => {
                             return (
                             <div 
                                 key={idx} 
-                                className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                                className={`flex items-center space-x-3 px-3 py-2.5 sm:p-4 rounded-lg border-2 transition-all cursor-pointer min-h-[44px] ${
                                   isSelected ? '' : 'border-border hover:bg-accent'
                                 }`}
                                 style={isSelected ? {
@@ -1776,7 +1828,7 @@ const ExamInProgress = () => {
                                 } : undefined}
                               >
                                 <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
-                                <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
+                                <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base sm:text-lg">
                                   <span className="font-medium mr-2">{optionLetter})</span>
                                   <MathRenderer 
                                     content={option.replace(/^[A-Da-d][.)]\s*/, '')} 
@@ -1834,7 +1886,7 @@ const ExamInProgress = () => {
                           }
                           await handleSaveAnswer(question.id);
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, true)} resize-y text-base font-mono transition-all text-foreground`}
+                        className={`${getAnswerBoxHeight(question.marks, true, isMobileLayout)} resize-y text-base font-mono transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
@@ -1947,7 +1999,7 @@ const ExamInProgress = () => {
                             await handleSaveAnswer(question.id);
                           }
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, false)} resize-y text-base transition-all text-foreground`}
+                        className={`${getAnswerBoxHeight(question.marks, false, isMobileLayout)} resize-y text-base transition-all text-foreground`}
                         disabled={isReadOnly}
                       />
                       {/* Docked Math Insert Keypad */}
@@ -2028,32 +2080,35 @@ const ExamInProgress = () => {
           </div>
 
           {/* Bottom Navigation */}
-          <div className="border-t bg-muted/30 px-6 py-4 flex items-center justify-between">
+          <div className="border-t bg-muted/30 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
             <Button
               variant="outline"
+              className="px-3 sm:px-6 min-h-[44px]"
               onClick={async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
               }}
               disabled={!hasPrevPage}
             >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous Section
+              <ChevronLeft className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline ml-1">Previous Section</span>
             </Button>
             
             {hasNextPage ? (
               <Button
+                className="px-3 sm:px-6 min-h-[44px]"
                 onClick={async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
                 }}
               >
-                Next Section
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <span className="hidden sm:inline mr-1">Next Section</span>
+                <ChevronRight className="h-4 w-4 shrink-0" />
               </Button>
             ) : !isReadOnly && (
               <Button
                 variant="default"
+                className="px-4 sm:px-8 min-h-[44px]"
                 onClick={() => setShowSubmitDialog(true)}
                 disabled={isSubmitting}
               >
@@ -2149,8 +2204,8 @@ const ExamInProgress = () => {
       />
 
       {/* Content Disclaimer Footer */}
-      <div className="border-t border-border bg-muted/30 py-3 px-6 text-center">
-        <p className="text-xs text-muted-foreground">
+      <div className="border-t border-border bg-muted/30 py-2 sm:py-3 px-3 sm:px-6 text-center">
+        <p className="text-[10px] sm:text-xs text-muted-foreground">
           Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.
         </p>
       </div>
