@@ -2204,8 +2204,8 @@ const ExamInProgress = () => {
       />
 
       {/* Content Disclaimer Footer */}
-      <div className="border-t border-border bg-muted/30 py-3 px-6 text-center">
-        <p className="text-xs text-muted-foreground">
+      <div className="border-t border-border bg-muted/30 py-2 sm:py-3 px-3 sm:px-6 text-center">
+        <p className="text-[10px] sm:text-xs text-muted-foreground">
           Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.
         </p>
       </div>
