@@ -1099,22 +1099,22 @@ const ExamInProgress = () => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container grid grid-cols-3 items-center h-16 px-6 max-w-none gap-4">
+        <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 lg:h-16 gap-2 lg:grid lg:grid-cols-3 max-w-none">
           {/* Left: Menu and Title */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 min-w-0 flex-1 lg:flex-none">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
+              className="lg:hidden flex-shrink-0"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">{examName || 'Exam in Progress'}</h1>
+            <h1 className="text-sm sm:text-base lg:text-xl font-bold truncate">{examName || 'Exam in Progress'}</h1>
           </div>
           
           {/* Center: Timer */}
-          <div className="flex justify-center">
+          <div className="flex justify-center flex-shrink-0">
             {timerEnabled && (
               <div 
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -1145,7 +1145,7 @@ const ExamInProgress = () => {
           </div>
           
           {/* Right: Autosave & Menu */}
-          <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center justify-end gap-2 lg:gap-4 flex-shrink-0">
             
             {/* Auto-save status indicator - hidden visually but accessible to screen readers */}
             {!isReadOnly && (
