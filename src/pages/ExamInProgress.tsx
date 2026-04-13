@@ -1520,7 +1520,7 @@ const ExamInProgress = () => {
                         content={extractTextBeforeTable(question.question_text)}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
-                        className="mb-4 text-lg"
+                        className="mb-4 text-base sm:text-lg"
                       />
                       {(() => {
                         const tableData = parseMarkdownToTableGrid(question.question_text);
@@ -1552,7 +1552,7 @@ const ExamInProgress = () => {
                         content={stripInlineMCQOptions(removeTableFromContent(question.question_text), question.question_type)}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
-                        className="mb-4 text-lg"
+                        className="mb-4 text-base sm:text-lg"
                       />
                       <InteractiveExamTable
                         tableHtml={extractTableHtml(question.question_text) || ''}
@@ -1595,7 +1595,7 @@ const ExamInProgress = () => {
                       content={stripInlineMCQOptions(question.question_text, question.question_type)}
                       latex={(question as any).question_latex}
                       hasMath={(question as any).has_math}
-                      className="mb-6 text-lg"
+                      className="mb-4 sm:mb-6 text-base sm:text-lg"
                     />
                   )}
 
