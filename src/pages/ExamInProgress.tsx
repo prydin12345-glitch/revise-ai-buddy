@@ -1819,7 +1819,7 @@ const ExamInProgress = () => {
                             return (
                             <div 
                                 key={idx} 
-                                className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                                className={`flex items-center space-x-3 px-3 py-2.5 sm:p-4 rounded-lg border-2 transition-all cursor-pointer min-h-[44px] ${
                                   isSelected ? '' : 'border-border hover:bg-accent'
                                 }`}
                                 style={isSelected ? {
@@ -1828,7 +1828,7 @@ const ExamInProgress = () => {
                                 } : undefined}
                               >
                                 <RadioGroupItem value={optionLetter} id={`${question.id}-${idx}`} />
-                                <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-lg">
+                                <Label htmlFor={`${question.id}-${idx}`} className="flex-1 cursor-pointer text-base sm:text-lg">
                                   <span className="font-medium mr-2">{optionLetter})</span>
                                   <MathRenderer 
                                     content={option.replace(/^[A-Da-d][.)]\s*/, '')} 
