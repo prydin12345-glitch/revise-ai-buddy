@@ -1214,10 +1214,40 @@ const ExamInProgress = () => {
         </div>
       </div>
 
+      {/* Mobile progress bar */}
+      {isMobileLayout && (
+        <div className="h-1 bg-muted lg:hidden sticky top-14 z-40">
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${(answeredCount / Math.max(questions.length, 1)) * 100}%`,
+              background: 'hsl(var(--primary))',
+            }}
+          />
+        </div>
+      )}
+
       <div className="flex flex-1">
-        {/* Left Sidebar - Collapsible */}
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r bg-card/30 overflow-hidden sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide`}>
-          <div className="p-6 flex flex-col gap-6 h-full">
+        {/* Mobile overlay backdrop */}
+        {isMobileLayout && sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Left Sidebar - Overlay on mobile, flex column on desktop */}
+        <div className={`
+          ${isMobileLayout
+            ? `fixed top-0 left-0 h-full z-50 transition-transform duration-300 w-[280px]
+               ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : `relative transition-all duration-300
+               ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`
+          }
+          border-r bg-card overflow-y-auto scrollbar-hide
+          ${!isMobileLayout ? 'sticky top-16 h-[calc(100vh-4rem)]' : ''}
+        `}>
+          <div className="p-4 lg:p-6 flex flex-col gap-4 lg:gap-6 h-full">
             <div>
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">QUESTIONS</h2>
               {/* Tree-style navigation: group by root question number */}
