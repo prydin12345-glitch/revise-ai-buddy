@@ -170,10 +170,10 @@ const ExamPreview = () => {
                     />
 
                     {isBoxPlotQuestion(q.options) && (
-                      <BoxPlotChart chartData={q.options} className="mb-4" />
+                      <BoxPlotChart chartData={q.options as any} className="mb-4" />
                     )}
                     {isHistogramQuestion(q.options) && (
-                      <HistogramChart chartData={q.options} className="mb-4" />
+                      <HistogramChart chartData={q.options as any} className="mb-4" />
                     )}
 
                     {/* Mechanics diagram panel */}
