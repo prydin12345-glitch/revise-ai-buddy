@@ -48,7 +48,7 @@ const ALL_LEVELS = [
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
-  color: "#475569",
+  color: "hsl(var(--muted-foreground))",
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   display: "block",
@@ -58,10 +58,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#f8fafc",
-  border: "1px solid #e2e8f0",
+  background: "hsl(var(--background))",
+  border: "1px solid hsl(var(--border))",
   borderRadius: 8,
-  color: "#0f172a",
+  color: "hsl(var(--foreground))",
   fontSize: 13,
   outline: "none",
   boxSizing: "border-box" as const,
@@ -73,6 +73,10 @@ interface ClassEntry {
   id: string;
   name: string;
   studentCount: string;
+  subjectId: string;
+  subjectName: string;
+  educationalLevel: string;
+  examBoard: string;
 }
 
 const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: TutorOnboardingProps) => {
@@ -112,8 +116,26 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
   };
 
   const addClass = () => {
-    setClasses(prev => [...prev, { id: Math.random().toString(36).slice(2), name: "", studentCount: "" }]);
+    const singleSubject = selectedSubjects.length === 1 ? selectedSubjects[0] : '';
+    const singleSubjectName = singleSubject
+      ? subjects.find(s => s.id === singleSubject)?.name ?? ''
+      : '';
+    const singleLevel = selectedLevels.length === 1 ? selectedLevels[0] : '';
+    const singleBoard = selectedBoards.length === 1 && !selectedBoards.includes("none")
+      ? selectedBoards[0]
+      : '';
+
+    setClasses(prev => [...prev, {
+      id: Math.random().toString(36).slice(2),
+      name: '',
+      studentCount: '',
+      subjectId: singleSubject,
+      subjectName: singleSubjectName,
+      educationalLevel: singleLevel,
+      examBoard: singleBoard,
+    }]);
   };
+
   const updateClass = (id: string, field: string, value: string) => {
     setClasses(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
@@ -130,6 +152,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
   const regionBoards = region
     ? getRegionBoards(region === "Other" ? "international" : region)
     : [];
+
+  const activeBoardsForClasses = selectedBoards.filter(b => b !== "none" && b !== "other");
 
   const handleComplete = async () => {
     const availabilityMap: Record<string, string[]> = {};
@@ -151,7 +175,6 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
       bio: bio.trim() || undefined,
     };
 
-    // Pass extra data for named classes and profile fields
     const result = await completeTutorOnboarding({
       ...profile,
       teaching_region: region === "Other" ? customRegionText : region,
@@ -161,6 +184,10 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
       classes: classes.filter(c => c.name.trim()).map(c => ({
         name: c.name.trim(),
         studentCount: parseInt(c.studentCount) || null,
+        subjectId: c.subjectId,
+        subjectName: c.subjectName,
+        educationalLevel: c.educationalLevel,
+        examBoard: c.examBoard,
       })),
     } as any);
 
@@ -182,25 +209,40 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
     onStepChange(4);
   };
 
+  // Helper for selected/unselected button styles
+  const selectableStyle = (isSelected: boolean): React.CSSProperties => ({
+    background: isSelected ? 'hsl(var(--primary)/0.1)' : 'hsl(var(--card))',
+    border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+    color: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+  });
+
+  const checkboxStyle = (isSelected: boolean): React.CSSProperties => ({
+    width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+    border: `2px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+    background: isSelected ? 'hsl(var(--primary))' : 'transparent',
+    display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+  });
+
   return (
     <>
+      {/* ─── STEP 1: SUBJECTS ─── */}
       {currentStep === 1 && (
         <div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "hsl(var(--primary))", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 1 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "hsl(var(--foreground))", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               What do you teach?
             </h1>
-            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>
               Select all subjects you teach. You can add custom subjects too.
             </p>
           </div>
 
           {/* Search */}
           <div style={{ position: "relative", marginBottom: 12 }}>
-            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
+            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "hsl(var(--muted-foreground))" }} />
             <input
               type="text"
               placeholder="Search subjects..."
@@ -218,9 +260,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 onClick={() => setActiveCategory(cat.id)}
                 style={{
                   padding: "5px 12px", borderRadius: 99,
-                  border: `1px solid ${activeCategory === cat.id ? "#3b82f6" : "#e2e8f0"}`,
-                  background: activeCategory === cat.id ? "#eff6ff" : "transparent",
-                  color: activeCategory === cat.id ? "#2563eb" : "#64748b",
+                  ...selectableStyle(activeCategory === cat.id),
                   fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
                 }}
               >
@@ -240,23 +280,23 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   style={{
-                    padding: "10px 12px", background: isSelected ? "#eff6ff" : "#f8fafc",
-                    border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                    borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
+                    padding: "10px 12px",
+                    ...selectableStyle(isSelected),
+                    borderRadius: 8,
                     fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
                     transition: "all 0.15s",
                   }}
                 >
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subject.name}</span>
-                  {isSelected && <Check size={12} color="#3b82f6" strokeWidth={2.5} />}
+                  {isSelected && <Check size={12} style={{ color: 'hsl(var(--primary))' }} strokeWidth={2.5} />}
                 </motion.button>
               );
             })}
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: "#475569" }}>
+            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
               {selectedSubjects.length > 0
                 ? `${selectedSubjects.length} subject${selectedSubjects.length > 1 ? "s" : ""} selected`
                 : "Select at least one subject"}
@@ -268,9 +308,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               disabled={selectedSubjects.length === 0}
               style={{
                 padding: "10px 24px",
-                background: selectedSubjects.length > 0 ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "#ffffff",
+                background: selectedSubjects.length > 0 ? "hsl(var(--primary))" : "hsl(var(--card))",
                 border: "none", borderRadius: 8,
-                color: selectedSubjects.length > 0 ? "white" : "#cbd5e1",
+                color: selectedSubjects.length > 0 ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
                 fontSize: 14, fontWeight: 600,
                 cursor: selectedSubjects.length > 0 ? "pointer" : "not-allowed",
                 fontFamily: "inherit",
@@ -282,16 +322,17 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
         </div>
       )}
 
+      {/* ─── STEP 2: PROFILE (REGION / BOARDS / LEVELS) ─── */}
       {currentStep === 2 && (
         <div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "hsl(var(--primary))", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 2 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "hsl(var(--foreground))", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Your teaching profile
             </h1>
-            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>
               Tell us where and what level you teach. This helps generate the right style of questions for your students.
             </p>
           </div>
@@ -307,16 +348,16 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   style={{
-                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)", background: region === r.id ? "#eff6ff" : "#f8fafc",
-                    border: `1px solid ${region === r.id ? "#3b82f6" : "#e2e8f0"}`,
-                    borderRadius: 8, color: region === r.id ? "#2563eb" : "#64748b",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)",
+                    ...selectableStyle(region === r.id),
+                    borderRadius: 8,
                     fontSize: "clamp(12px, 3vw, 13px)", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     transition: "all 0.15s", display: "flex", alignItems: "center", gap: 10,
                   }}
                 >
                   <span style={{ fontSize: 18, lineHeight: 1 }}>{r.flag}</span>
                   <span>{r.label}</span>
-                  {region === r.id && <Check size={12} color="#3b82f6" strokeWidth={2.5} style={{ marginLeft: "auto" }} />}
+                  {region === r.id && <Check size={12} style={{ color: 'hsl(var(--primary))' }} strokeWidth={2.5} className="ml-auto" />}
                 </motion.button>
               ))}
             </div>
@@ -334,7 +375,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           {region && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 20 }}>
               <label style={labelStyle}>EXAM BOARDS YOU TEACH</label>
-              <p style={{ fontSize: 11, color: "#475569", margin: "0 0 10px" }}>
+              <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", margin: "0 0 10px" }}>
                 Select all that apply — you can teach across multiple boards
               </p>
 
@@ -346,9 +387,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 whileHover={{ scale: 1.01 }}
                 style={{
                   width: "100%", padding: "10px 14px",
-                  background: selectedBoards.includes("none") ? "#f0fdf4" : "#f8fafc",
-                  border: `1px solid ${selectedBoards.includes("none") ? "#22c55e" : "#e2e8f0"}`,
-                  borderRadius: 8, color: selectedBoards.includes("none") ? "#16a34a" : "#64748b",
+                  background: selectedBoards.includes("none") ? 'hsl(142 76% 36% / 0.1)' : 'hsl(var(--card))',
+                  border: `1px solid ${selectedBoards.includes("none") ? 'hsl(142 76% 36%)' : 'hsl(var(--border))'}`,
+                  borderRadius: 8, color: selectedBoards.includes("none") ? 'hsl(142 76% 36%)' : 'hsl(var(--muted-foreground))',
                   fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                   marginBottom: 6, display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s",
                 }}
@@ -360,10 +401,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   </div>
                 </div>
                 <div style={{
-                  width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                  border: `2px solid ${selectedBoards.includes("none") ? "#22c55e" : "#e2e8f0"}`,
-                  background: selectedBoards.includes("none") ? "#22c55e" : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+                  ...checkboxStyle(selectedBoards.includes("none")),
+                  borderColor: selectedBoards.includes("none") ? 'hsl(142 76% 36%)' : 'hsl(var(--border))',
+                  background: selectedBoards.includes("none") ? 'hsl(142 76% 36%)' : 'transparent',
                 }}>
                   {selectedBoards.includes("none") && <Check size={10} color="white" strokeWidth={3} />}
                 </div>
@@ -381,20 +421,15 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                         )}
                         whileHover={{ scale: 1.01 }}
                         style={{
-                          padding: "10px 14px", background: isSelected ? "#eff6ff" : "#f8fafc",
-                          border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                          borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
+                          padding: "10px 14px",
+                          ...selectableStyle(isSelected),
+                          borderRadius: 8,
                           fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                           display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                         }}
                       >
                         {board.name}
-                        <div style={{
-                          width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          border: `2px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                          background: isSelected ? "#3b82f6" : "transparent",
-                          display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-                        }}>
+                        <div style={checkboxStyle(isSelected)}>
                           {isSelected && <Check size={10} color="white" strokeWidth={3} />}
                         </div>
                       </motion.button>
@@ -407,20 +442,15 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                     )}
                     whileHover={{ scale: 1.01 }}
                     style={{
-                      padding: "10px 14px", background: selectedBoards.includes("other") ? "#eff6ff" : "#f8fafc",
-                      border: `1px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#e2e8f0"}`,
-                      borderRadius: 8, color: selectedBoards.includes("other") ? "#2563eb" : "#64748b",
+                      padding: "10px 14px",
+                      ...selectableStyle(selectedBoards.includes("other")),
+                      borderRadius: 8,
                       fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                       display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                     }}
                   >
                     Other / Not listed
-                    <div style={{
-                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                      border: `2px solid ${selectedBoards.includes("other") ? "#3b82f6" : "#e2e8f0"}`,
-                      background: selectedBoards.includes("other") ? "#3b82f6" : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-                    }}>
+                    <div style={checkboxStyle(selectedBoards.includes("other"))}>
                       {selectedBoards.includes("other") && <Check size={10} color="white" strokeWidth={3} />}
                     </div>
                   </motion.button>
@@ -441,7 +471,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           {region && selectedBoards.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 20 }}>
               <label style={labelStyle}>LEVELS YOU TEACH</label>
-              <p style={{ fontSize: 11, color: "#475569", margin: "0 0 10px" }}>
+              <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", margin: "0 0 10px" }}>
                 Select all levels — you can teach across multiple year groups
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -455,20 +485,15 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                       )}
                       whileHover={{ scale: 1.01 }}
                       style={{
-                        padding: "10px 14px", background: isSelected ? "#eff6ff" : "#f8fafc",
-                        border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                        borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
+                        padding: "10px 14px",
+                        ...selectableStyle(isSelected),
+                        borderRadius: 8,
                         fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                         display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s",
                       }}
                     >
                       {lvl.label}
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                        border: `2px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                        background: isSelected ? "#3b82f6" : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-                      }}>
+                      <div style={checkboxStyle(isSelected)}>
                         {isSelected && <Check size={10} color="white" strokeWidth={3} />}
                       </div>
                     </motion.button>
@@ -484,12 +509,10 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
+                border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--muted-foreground))",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -499,8 +522,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={() => onStepChange(3)}
               style={{
                 flex: 1, padding: "10px 24px",
-                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                border: "none", borderRadius: 8, color: "white",
+                background: "hsl(var(--primary))",
+                border: "none", borderRadius: 8, color: "hsl(var(--primary-foreground))",
                 fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               }}
             >
@@ -510,16 +533,17 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
         </div>
       )}
 
+      {/* ─── STEP 3: CLASSES ─── */}
       {currentStep === 3 && (
         <div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "hsl(var(--primary))", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 3 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "hsl(var(--foreground))", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Set up your classes
             </h1>
-            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>
               Add your classes now or skip and create them from your dashboard later.
             </p>
           </div>
@@ -538,9 +562,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   onClick={() => setTeachingMode(mode.id)}
                   whileHover={{ scale: 1.01 }}
                   style={{
-                    padding: "12px 14px", background: teachingMode === mode.id ? "#eff6ff" : "#f8fafc",
-                    border: `1px solid ${teachingMode === mode.id ? "#3b82f6" : "#e2e8f0"}`,
-                    borderRadius: 8, color: teachingMode === mode.id ? "#2563eb" : "#64748b",
+                    padding: "12px 14px",
+                    ...selectableStyle(teachingMode === mode.id),
+                    borderRadius: 8,
                     fontSize: 13, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                     display: "flex", alignItems: "center", gap: 12, transition: "all 0.15s",
                   }}
@@ -551,8 +575,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                   </div>
                   <div style={{
                     width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${teachingMode === mode.id ? "#3b82f6" : "#e2e8f0"}`,
-                    background: teachingMode === mode.id ? "#3b82f6" : "transparent",
+                    border: `2px solid ${teachingMode === mode.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                    background: teachingMode === mode.id ? 'hsl(var(--primary))' : 'transparent',
                     display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                   }}>
                     {teachingMode === mode.id && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "white" }} />}
@@ -570,7 +594,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                 <button
                   onClick={addClass}
                   style={{
-                    background: "none", border: "none", color: "#3b82f6",
+                    background: "none", border: "none", color: "hsl(var(--primary))",
                     fontSize: 12, cursor: "pointer", fontFamily: "inherit",
                     display: "flex", alignItems: "center", gap: 4,
                   }}
@@ -581,56 +605,178 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
 
               {classes.length === 0 ? (
                 <div style={{
-                  padding: 20, background: "#f8fafc", border: "1px dashed #e2e8f0",
-                  borderRadius: 8, textAlign: "center", color: "#e2e8f0", fontSize: 13,
+                  padding: 20, background: "hsl(var(--card))", border: "1px dashed hsl(var(--border))",
+                  borderRadius: 8, textAlign: "center", color: "hsl(var(--muted-foreground))", fontSize: 13,
                 }}>
                   No classes added yet — click "Add class" above or skip this step
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {classes.map(cls => (
                     <motion.div
                       key={cls.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       style={{
-                        padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0",
-                        borderRadius: 8, display: "flex", alignItems: "center", gap: 10,
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 10,
+                        padding: "14px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
                       }}
                     >
-                      <input
-                        type="text"
-                        placeholder="e.g. Year 11 Maths, Biology Set 1..."
-                        value={cls.name}
-                        onChange={e => updateClass(cls.id, "name", e.target.value)}
-                        style={{
-                          flex: 1, background: "none", border: "none", color: "#0f172a",
-                          fontSize: 13, outline: "none", fontFamily: "inherit",
-                        }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Students"
-                        min={1}
-                        value={cls.studentCount}
-                        onChange={e => updateClass(cls.id, "studentCount", e.target.value)}
-                        style={{
-                          width: 80, padding: "4px 8px", background: "#ffffff",
-                          border: "1px solid #e2e8f0", borderRadius: 6, color: "#94a3b8",
-                          fontSize: 12, outline: "none", fontFamily: "inherit", textAlign: "center",
-                        }}
-                      />
-                      <button
-                        onClick={() => removeClass(cls.id)}
-                        style={{
-                          background: "none", border: "none", color: "#e2e8f0",
-                          cursor: "pointer", padding: 0, fontSize: 16, transition: "color 0.15s",
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                        onMouseLeave={e => e.currentTarget.style.color = "#e2e8f0"}
-                      >
-                        ×
-                      </button>
+                      {/* Row 1: Class name + student count + remove */}
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <input
+                          type="text"
+                          placeholder="Class name e.g. Year 11 Maths..."
+                          value={cls.name}
+                          onChange={e => updateClass(cls.id, "name", e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: "9px 12px",
+                            background: "hsl(var(--background))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: 8,
+                            color: "hsl(var(--foreground))",
+                            fontSize: 13,
+                            outline: "none",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Students"
+                          min={1}
+                          value={cls.studentCount}
+                          onChange={e => updateClass(cls.id, "studentCount", e.target.value)}
+                          style={{
+                            width: 80,
+                            padding: "9px 8px",
+                            background: "hsl(var(--background))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: 8,
+                            color: "hsl(var(--foreground))",
+                            fontSize: 13,
+                            outline: "none",
+                            fontFamily: "inherit",
+                            textAlign: "center",
+                          }}
+                        />
+                        <button
+                          onClick={() => removeClass(cls.id)}
+                          style={{
+                            background: "none", border: "none",
+                            color: "hsl(var(--muted-foreground))",
+                            cursor: "pointer", padding: 4,
+                            fontSize: 18, flexShrink: 0,
+                            transition: "color 0.15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'hsl(var(--destructive))'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'hsl(var(--muted-foreground))'}
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      {/* Row 2: Subject + Level selectors */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
+                            Subject
+                          </div>
+                          <select
+                            value={cls.subjectId}
+                            onChange={e => {
+                              const selected = subjects.find(s => s.id === e.target.value);
+                              updateClass(cls.id, "subjectId", e.target.value);
+                              updateClass(cls.id, "subjectName", selected?.name ?? '');
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              background: "hsl(var(--background))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 8,
+                              color: cls.subjectId ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                              fontSize: 12,
+                              outline: "none",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">Select subject...</option>
+                            {selectedSubjects.map(subjectId => {
+                              const subject = subjects.find(s => s.id === subjectId);
+                              return subject ? (
+                                <option key={subject.id} value={subject.id}>{subject.name}</option>
+                              ) : null;
+                            })}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
+                            Level
+                          </div>
+                          <select
+                            value={cls.educationalLevel}
+                            onChange={e => updateClass(cls.id, "educationalLevel", e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              background: "hsl(var(--background))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 8,
+                              color: cls.educationalLevel ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                              fontSize: 12,
+                              outline: "none",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">Select level...</option>
+                            {selectedLevels.map(levelId => {
+                              const level = ALL_LEVELS.find(l => l.id === levelId);
+                              return level ? (
+                                <option key={level.id} value={level.id}>{level.label}</option>
+                              ) : null;
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Row 3: Exam board pills (only if multiple boards selected) */}
+                      {activeBoardsForClasses.length > 1 && (
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
+                            Exam Board
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {activeBoardsForClasses.map(boardId => {
+                              const board = regionBoards.find(b => b.id === boardId);
+                              return (
+                                <button
+                                  key={boardId}
+                                  onClick={() => updateClass(cls.id, "examBoard", boardId)}
+                                  style={{
+                                    padding: "4px 10px",
+                                    borderRadius: 99,
+                                    border: `1px solid ${cls.examBoard === boardId ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                                    background: cls.examBoard === boardId ? 'hsl(var(--primary)/0.1)' : 'transparent',
+                                    color: cls.examBoard === boardId ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                                    fontSize: 11,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    transition: "all 0.15s",
+                                  }}
+                                >
+                                  {board?.name ?? boardId}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -638,8 +784,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
 
               {showClassError && (
                 <div style={{
-                  marginTop: 8, padding: "8px 12px", background: "#fef2f2",
-                  border: "1px solid #fecaca", borderRadius: 6, fontSize: 12, color: "#dc2626",
+                  marginTop: 8, padding: "8px 12px", background: "hsl(var(--destructive)/0.1)",
+                  border: "1px solid hsl(var(--destructive)/0.3)", borderRadius: 6, fontSize: 12, color: "hsl(var(--destructive))",
                 }}>
                   Please enter a name for each class you've added
                 </div>
@@ -653,12 +799,10 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
+                border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--muted-foreground))",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -668,8 +812,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleStep3Continue}
               style={{
                 flex: 1, padding: "10px 24px",
-                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                border: "none", borderRadius: 8, color: "white",
+                background: "hsl(var(--primary))",
+                border: "none", borderRadius: 8, color: "hsl(var(--primary-foreground))",
                 fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               }}
             >
@@ -679,16 +823,17 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
         </div>
       )}
 
+      {/* ─── STEP 4: BIO & AVAILABILITY ─── */}
       {currentStep === 4 && (
         <div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#3b82f6", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "hsl(var(--primary))", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
               Step 4 of 4
             </div>
-            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: "clamp(20px, 5vw, 24px)", fontWeight: 800, color: "hsl(var(--foreground))", margin: "0 0 6px", letterSpacing: "-0.5px" }}>
               Almost done
             </h1>
-            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>
               Add a short bio so students know who you are. This is optional.
             </p>
           </div>
@@ -704,7 +849,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               maxLength={300}
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
             />
-            <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "right", marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", textAlign: "right", marginTop: 4 }}>
               {bio.length}/300
             </div>
           </div>
@@ -712,7 +857,7 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           {/* Availability */}
           <div style={{ marginBottom: 24 }}>
             <label style={labelStyle}>AVAILABILITY (OPTIONAL)</label>
-            <p style={{ fontSize: 11, color: "#475569", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", margin: "0 0 10px" }}>
               Let students know when you're generally available
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(56px, 1fr))", gap: 6 }}>
@@ -725,9 +870,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.95 }}
                     style={{
-                      padding: "8px 4px", background: isSelected ? "#eff6ff" : "#f8fafc",
-                      border: `1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}`,
-                      borderRadius: 8, color: isSelected ? "#2563eb" : "#64748b",
+                      padding: "8px 4px",
+                      ...selectableStyle(isSelected),
+                      borderRadius: 8,
                       fontSize: 12, cursor: "pointer", fontFamily: "inherit",
                       textAlign: "center", transition: "all 0.15s",
                     }}
@@ -745,12 +890,10 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={handleBack}
               style={{
                 flex: "0 0 auto", padding: "10px 20px", background: "transparent",
-                border: "1px solid #e2e8f0", borderRadius: 8, color: "#64748b",
+                border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--muted-foreground))",
                 fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
             >
               ← Back
             </button>
@@ -761,9 +904,9 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               disabled={isSubmitting}
               style={{
                 flex: 1, padding: "13px",
-                background: isSubmitting ? "#ffffff" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                background: isSubmitting ? "hsl(var(--card))" : "hsl(var(--primary))",
                 border: "none", borderRadius: 8,
-                color: isSubmitting ? "#cbd5e1" : "white",
+                color: isSubmitting ? "hsl(var(--muted-foreground))" : "hsl(var(--primary-foreground))",
                 fontSize: 15, fontWeight: 700,
                 cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: "inherit",
               }}
@@ -777,18 +920,16 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
             disabled={isSubmitting}
             style={{
               width: "100%", padding: 8, background: "none", border: "none",
-              color: "#94a3b8", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+              color: "hsl(var(--muted-foreground))", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
               marginTop: 8, transition: "color 0.15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.color = "#475569"}
-            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}
           >
             Skip — I'll fill this in later
           </button>
         </div>
       )}
 
-      {/* Groups modal */}
+      {/* ─── GROUPS MODAL ─── */}
       {showGroupsModal && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -801,39 +942,56 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
           <motion.div
             initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
             style={{
-              background: "#ffffff", border: "1px solid #e2e8f0",
+              background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
               borderRadius: 16, padding: "clamp(20px, 5vw, 32px) clamp(16px, 4vw, 28px)",
               width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto",
             }}
           >
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 6px" }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "hsl(var(--foreground))", margin: "0 0 6px" }}>
               Your classes are ready
             </h3>
-            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px" }}>
+            <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: "0 0 20px" }}>
               Share these invite codes with your students so they can join your classes.
             </p>
 
             {createdGroups.map((group: any) => (
               <div key={group.id} style={{
-                padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0",
+                padding: "12px 14px", background: "hsl(var(--background))", border: "1px solid hsl(var(--border))",
                 borderRadius: 8, marginBottom: 8, display: "flex",
-                justifyContent: "space-between", alignItems: "center",
+                justifyContent: "space-between", alignItems: "flex-start",
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{group.name}</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                    Code: <span style={{ color: "#2563eb", fontFamily: "monospace" }}>{group.invite_code}</span>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{group.name}</div>
+                  {/* Show subject and level if saved in settings */}
+                  {group.settings?.subject_name && (
+                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                      {group.settings.subject_name}
+                      {group.settings.educational_level && (() => {
+                        const level = ALL_LEVELS.find(l => l.id === group.settings.educational_level);
+                        return ` · ${level?.label ?? group.settings.educational_level}`;
+                      })()}
+                      {group.settings.exam_board && (() => {
+                        const board = regionBoards.find(b => b.id === group.settings.exam_board);
+                        return ` · ${board?.name ?? group.settings.exam_board}`;
+                      })()}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                    Code:{' '}
+                    <span style={{ color: "hsl(var(--primary))", fontFamily: "monospace", fontWeight: 600 }}>
+                      {group.invite_code}
+                    </span>
                   </div>
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(group.invite_code)}
                   style={{
-                    padding: "5px 12px", background: "transparent", border: "1px solid #e2e8f0",
-                    borderRadius: 6, color: "#64748b", fontSize: 11, cursor: "pointer",
-                    fontFamily: "inherit", transition: "all 0.15s",
+                    padding: "5px 12px", background: "transparent", border: "1px solid hsl(var(--border))",
+                    borderRadius: 6, color: "hsl(var(--muted-foreground))", fontSize: 11, cursor: "pointer",
+                    fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0, marginLeft: 12,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'hsl(var(--primary))'; e.currentTarget.style.color = 'hsl(var(--primary))'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'hsl(var(--border))'; e.currentTarget.style.color = 'hsl(var(--muted-foreground))'; }}
                 >
                   Copy
                 </button>
@@ -845,8 +1003,8 @@ const TutorOnboarding = ({ subjects, onComplete, currentStep, onStepChange }: Tu
               onClick={() => { setShowGroupsModal(false); onComplete(); }}
               style={{
                 width: "100%", marginTop: 16, padding: 12,
-                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                border: "none", borderRadius: 8, color: "white",
+                background: "hsl(var(--primary))",
+                border: "none", borderRadius: 8, color: "hsl(var(--primary-foreground))",
                 fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               }}
             >
