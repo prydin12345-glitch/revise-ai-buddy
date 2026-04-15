@@ -682,80 +682,60 @@ export const ClassDetailPanel = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent 
-          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[88px_56px_1fr]"
+          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[auto_auto_1fr]"
           style={{ 
-            width: 'min(980px, 100vw)', 
-            height: 'min(720px, 86vh)',
-            maxWidth: '100vw',
-            maxHeight: 'none'
+            width: 'min(980px, 96vw)', 
+            height: 'min(720px, 92vh)',
+            maxWidth: '96vw',
+            maxHeight: '92vh',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
           hideCloseButton
         >
-          {/* Fixed Header - 88px */}
-          <div className="flex items-center justify-between px-6 border-b border-border/50 bg-card h-full">
-            <div className="space-y-1.5">
-              <DialogTitle className="text-xl font-semibold tracking-tight">{groupName}</DialogTitle>
-              <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-normal">{subjectDisplay}</Badge>
+          {/* Fixed Header - responsive */}
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border/50 bg-card">
+            <div className="space-y-1 min-w-0 flex-1 mr-3">
+              <DialogTitle className="text-base sm:text-xl font-semibold tracking-tight truncate">{groupName}</DialogTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <Badge variant="secondary" className="font-normal text-xs">{subjectDisplay}</Badge>
                 {levelDisplay && (
-                  <Badge variant="outline" className="font-normal text-xs">{levelDisplay}</Badge>
+                  <Badge variant="outline" className="font-normal text-xs hidden sm:inline-flex">{levelDisplay}</Badge>
                 )}
                 <span className="text-muted-foreground/60">•</span>
                 <span>{members.length} student{members.length !== 1 ? "s" : ""}</span>
-                <span className="text-muted-foreground/60">•</span>
-                <span>{activeAssignmentsCount} active assignment{activeAssignmentsCount !== 1 ? "s" : ""}</span>
               </p>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => onOpenChange(false)}
-              className="rounded-full hover:bg-muted/50"
+              className="rounded-full hover:bg-muted/50 shrink-0 h-8 w-8 sm:h-9 sm:w-9"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
 
           {/* Fixed Tabs Bar - 56px */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
-            <div className="relative border-b border-border/30 bg-card/50 h-full">
-              <div className="px-6 flex items-end h-full overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-nowrap whitespace-nowrap">
-                  <TabsTrigger 
-                    value="students" 
-                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
-                  >
-                    <Users className="w-4 h-4" />
-                    Students
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="assignments" 
-                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
-                  >
-                    <ClipboardList className="w-4 h-4" />
-                    Tasks
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="subtopics" 
-                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    Sub-topics
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="announcements" 
-                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
-                  >
-                    <Megaphone className="w-4 h-4" />
-                    News
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="settings" 
-                    className="gap-2 px-4 py-2.5 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </TabsTrigger>
+            <div className="relative border-b border-border/30 bg-card/50">
+              <div className="px-3 sm:px-6 flex items-end overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <TabsList className="bg-transparent p-0 h-auto gap-0 sm:gap-1 flex-nowrap whitespace-nowrap">
+                  {[
+                    { value: "students", icon: Users, label: "Students" },
+                    { value: "assignments", icon: ClipboardList, label: "Tasks" },
+                    { value: "subtopics", icon: BookOpen, label: "Topics" },
+                    { value: "announcements", icon: Megaphone, label: "News" },
+                    { value: "settings", icon: Settings, label: "Settings" },
+                  ].map(tab => (
+                    <TabsTrigger 
+                      key={tab.value}
+                      value={tab.value} 
+                      className="gap-1.5 px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary shrink-0"
+                    >
+                      <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
               </div>
               {/* Fade indicator for mobile scroll */}
@@ -854,7 +834,7 @@ export const ClassDetailPanel = ({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
@@ -867,7 +847,7 @@ export const ClassDetailPanel = ({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => { setMemberToRemove(member); setRemoveDialogOpen(true); }}
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                               >
                                 <UserMinus className="w-4 h-4" />
                               </Button>
@@ -1272,18 +1252,17 @@ export const ClassDetailPanel = ({
                 <Separator className="bg-border/30" />
 
                 {/* Danger Zone - High contrast styling for readability */}
-                <div className="p-4 rounded-xl border-2 border-[hsl(0_65%_55%)] bg-[hsl(0_50%_15%)] space-y-3">
+                <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-3">
                   <div className="flex items-center gap-2">
-                    <Archive className="w-4 h-4 text-[hsl(0_75%_70%)]" />
-                    <span className="text-sm font-semibold text-[hsl(0_70%_80%)]">Danger Zone</span>
+                    <Archive className="w-4 h-4 text-destructive" />
+                    <span className="text-sm font-semibold text-destructive">Danger Zone</span>
                   </div>
-                  <p className="text-sm text-[hsl(0_15%_80%)]">
+                  <p className="text-sm text-muted-foreground">
                     Archiving hides this class. Members lose access but data is preserved.
                   </p>
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="bg-[hsl(0_75%_55%)] hover:bg-[hsl(0_70%_48%)] text-white border border-[hsl(0_70%_50%)] shadow-[0_0_8px_hsl(0_75%_55%/0.4)]"
                     onClick={() => setArchiveModalOpen(true)}
                   >
                     Archive Class

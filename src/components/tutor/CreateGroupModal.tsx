@@ -130,10 +130,6 @@ export const CreateGroupModal = ({ open, onOpenChange, onSuccess }: CreateGroupM
     return null;
   };
 
-  const getLevelLabel = () => {
-    const level = EDUCATIONAL_LEVELS.find(l => l.value === educationalLevel);
-    return level ? `[${level.label.split(" / ")[0]}]` : "";
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,7 +222,7 @@ export const CreateGroupModal = ({ open, onOpenChange, onSuccess }: CreateGroupM
             {subjectName && !showCustomInput ? (
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="py-2 px-4 text-sm gap-2">
-                  {subjectName} {getLevelLabel()}
+                  {subjectName}
                   <button type="button" onClick={handleClearSubject} className="hover:text-destructive">
                     <X className="w-3.5 h-3.5" />
                   </button>
