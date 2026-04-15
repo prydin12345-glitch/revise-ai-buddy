@@ -694,7 +694,7 @@ export const ClassDetailPanel = ({
 
   // Calculate stats for header
   const activeAssignmentsCount = assignments.filter(a => a.is_active).length;
-  const subjectDisplay = subjectsTaught.length > 0 ? subjectsTaught[0] : "General";
+  const subjectDisplay = subjectsTaught.length > 0 ? resolveSubjectName(subjectsTaught[0]) : "General";
   const levelLabels: Record<string, string> = {
     secondary: "Level 1 — High School",
     sixth_form: "Level 2 — College",
@@ -742,7 +742,7 @@ export const ClassDetailPanel = ({
           {/* Fixed Tabs Bar - 56px */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
             <div className="relative border-b border-border/30 bg-card/50">
-              <div className="px-3 sm:px-6 flex items-end overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="px-3 sm:px-6 pr-8 sm:pr-6 flex items-end overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <TabsList className="bg-transparent p-0 h-auto gap-0 sm:gap-1 flex-nowrap whitespace-nowrap">
                   {[
                     { value: "students", icon: Users, label: "Students" },
