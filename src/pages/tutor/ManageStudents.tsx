@@ -172,15 +172,16 @@ export default function ManageStudents() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-12 text-center">
-          <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Classes Yet</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Create your first class to start managing students, assignments, and announcements
+        <div className="rounded-xl border border-dashed border-border/60 bg-card p-12 text-center">
+          <div className="w-[52px] h-[52px] rounded-[14px] bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Users className="w-6 h-6 text-primary" strokeWidth={1.5} />
+          </div>
+          <h3 className="text-base font-bold text-foreground mb-1.5">No classes yet</h3>
+          <p className="text-sm text-muted-foreground mb-5 max-w-[280px] mx-auto leading-relaxed">
+            Create your first class and share the invite code with your students
           </p>
-          <Button onClick={() => setCreateModalOpen(true)} size="lg">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First Class
+          <Button onClick={() => setCreateModalOpen(true)} size="sm">
+            Create your first class
           </Button>
         </div>
       ) : (
