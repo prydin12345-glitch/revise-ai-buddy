@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X, Users, ClipboardList, Megaphone, Settings, Search, Download, UserMinus, Trash2, ExternalLink, RefreshCw, Copy, Calendar, Clock, Eye, CalendarX, MoreHorizontal, Archive, ArrowUpDown, CheckCircle2, BookOpen, ChevronDown, GraduationCap, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +96,29 @@ export const ClassDetailPanel = ({
 }: ClassDetailPanelProps) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("students");
+
+  // Fetch all subjects for UUID resolution
+  const { data: allSubjects } = useQuery({
+    queryKey: ['subjects-lookup'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .eq('is_active', true);
+      return data ?? [];
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const resolveSubjectName = useCallback((subjectIdOrName: string): string => {
+    if (!subjectIdOrName) return '';
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subjectIdOrName);
+    if (isUuid) {
+      const found = allSubjects?.find(s => s.id === subjectIdOrName);
+      return found?.name ?? 'Unknown subject';
+    }
+    return subjectIdOrName;
+  }, [allSubjects]);
   
   // Students state
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -670,7 +694,7 @@ export const ClassDetailPanel = ({
 
   // Calculate stats for header
   const activeAssignmentsCount = assignments.filter(a => a.is_active).length;
-  const subjectDisplay = subjectsTaught.length > 0 ? subjectsTaught[0] : "General";
+  const subjectDisplay = subjectsTaught.length > 0 ? resolveSubjectName(subjectsTaught[0]) : "General";
   const levelLabels: Record<string, string> = {
     secondary: "Level 1 — High School",
     sixth_form: "Level 2 — College",
@@ -706,19 +730,20 @@ export const ClassDetailPanel = ({
               </p>
             </div>
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="icon" 
               onClick={() => onOpenChange(false)}
-              className="rounded-full hover:bg-muted/50 shrink-0 h-8 w-8 sm:h-9 sm:w-9"
+              className="shrink-0 h-8 w-8 sm:h-9 sm:w-9 rounded-lg border-border"
+              aria-label="Close"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-4 h-4" />
             </Button>
           </div>
 
           {/* Fixed Tabs Bar - 56px */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="contents">
             <div className="relative border-b border-border/30 bg-card/50">
-              <div className="px-3 sm:px-6 flex items-end overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="px-3 sm:px-6 pr-8 sm:pr-6 flex items-end overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <TabsList className="bg-transparent p-0 h-auto gap-0 sm:gap-1 flex-nowrap whitespace-nowrap">
                   {[
                     { value: "students", icon: Users, label: "Students" },
