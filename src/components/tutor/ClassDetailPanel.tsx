@@ -730,12 +730,13 @@ export const ClassDetailPanel = ({
               </p>
             </div>
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="icon" 
               onClick={() => onOpenChange(false)}
-              className="rounded-full hover:bg-muted/50 shrink-0 h-8 w-8 sm:h-9 sm:w-9"
+              className="shrink-0 h-8 w-8 sm:h-9 sm:w-9 rounded-lg border-border"
+              aria-label="Close"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-4 h-4" />
             </Button>
           </div>
 
