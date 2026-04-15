@@ -96,6 +96,29 @@ export const ClassDetailPanel = ({
 }: ClassDetailPanelProps) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("students");
+
+  // Fetch all subjects for UUID resolution
+  const { data: allSubjects } = useQuery({
+    queryKey: ['subjects-lookup'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .eq('is_active', true);
+      return data ?? [];
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const resolveSubjectName = useCallback((subjectIdOrName: string): string => {
+    if (!subjectIdOrName) return '';
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subjectIdOrName);
+    if (isUuid) {
+      const found = allSubjects?.find(s => s.id === subjectIdOrName);
+      return found?.name ?? 'Unknown subject';
+    }
+    return subjectIdOrName;
+  }, [allSubjects]);
   
   // Students state
   const [members, setMembers] = useState<GroupMember[]>([]);
