@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Users, Plus, Download, GraduationCap, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { CreateGroupModal } from "@/components/tutor/CreateGroupModal";
 import { ClassCard } from "@/components/tutor/ClassCard";
 import { ClassDetailPanel } from "@/components/tutor/ClassDetailPanel";
