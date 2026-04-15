@@ -219,7 +219,7 @@ export default function ManageStudents() {
               key={group.id}
               id={group.id}
               name={group.name}
-              subjects={group.subjects_covered}
+              subjects={resolveSubjects(group)}
               studentCount={group.member_count}
               assignmentCount={group.assignment_count}
               inviteCode={group.invite_code}
