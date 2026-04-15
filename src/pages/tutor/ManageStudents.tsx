@@ -18,6 +18,32 @@ import {
 export default function ManageStudents() {
   const { toast } = useToast();
   const { groups, loading, deleteGroup, refetch } = useManageGroups();
+
+  // Fetch subjects for UUID resolution
+  const { data: allSubjects } = useQuery({
+    queryKey: ['subjects-lookup'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .eq('is_active', true);
+      return data ?? [];
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const resolveSubjects = (group: typeof groups[0]): string[] => {
+    // Try settings.subject_name first
+    if (group.settings?.subject_name) return [group.settings.subject_name];
+    
+    return group.subjects_covered.map(s => {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}/.test(s);
+      if (isUuid) {
+        return allSubjects?.find(sub => sub.id === s)?.name ?? s;
+      }
+      return s;
+    });
+  };
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
