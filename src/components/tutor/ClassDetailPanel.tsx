@@ -706,14 +706,8 @@ export const ClassDetailPanel = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent 
-          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[auto_auto_1fr]"
-          style={{ 
-            width: 'min(980px, 96vw)', 
-            height: 'min(720px, 92vh)',
-            maxWidth: '96vw',
-            maxHeight: '92vh',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          }}
+          className="p-0 gap-0 overflow-hidden border-border/60 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[auto_auto_1fr] !left-0 !top-0 !translate-x-0 !translate-y-0 !rounded-none w-screen h-[100dvh] max-w-none sm:!left-[50%] sm:!top-[50%] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-2xl sm:w-[min(980px,96vw)] sm:h-[min(720px,92vh)] sm:max-w-[96vw] sm:max-h-[92vh]"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           hideCloseButton
         >
           {/* Fixed Header - responsive */}
@@ -772,8 +766,8 @@ export const ClassDetailPanel = ({
               {/* STUDENTS TAB */}
               <TabsContent value="students" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Controls Row */}
-                <div className="flex gap-2 flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-none">
-                  <div className="relative flex-1 min-w-[180px]">
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1 min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search students..."
@@ -783,9 +777,9 @@ export const ClassDetailPanel = ({
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                    <SelectTrigger className="w-[140px] bg-muted/30 border-border/50">
-                      <ArrowUpDown className="w-3.5 h-3.5 mr-2 opacity-50" />
-                      <SelectValue />
+                    <SelectTrigger className="w-auto sm:w-[140px] bg-muted/30 border-border/50 shrink-0 px-2 sm:px-3" aria-label="Sort">
+                      <ArrowUpDown className="w-3.5 h-3.5 sm:mr-2 opacity-50" />
+                      <SelectValue className="hidden sm:inline" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="name-asc">Name A–Z</SelectItem>
@@ -796,7 +790,7 @@ export const ClassDetailPanel = ({
                   {members.length > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={handleExportMembers} className="border-border/50">
+                        <Button variant="outline" size="icon" onClick={handleExportMembers} className="border-border/50 shrink-0">
                           <Download className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -819,11 +813,11 @@ export const ClassDetailPanel = ({
                     ))}
                   </div>
                 ) : filteredMembers.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground px-4">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">{searchQuery ? "No students match your search" : "No students yet"}</p>
                     {!searchQuery && inviteCode && (
-                      <p className="text-sm mt-1">Share your invite code <span className="font-mono text-primary">{inviteCode}</span> to add students</p>
+                      <p className="text-sm mt-1 break-words">Share your invite code <span className="font-mono text-primary break-all">{inviteCode}</span> to add students</p>
                     )}
                   </div>
                 ) : (
