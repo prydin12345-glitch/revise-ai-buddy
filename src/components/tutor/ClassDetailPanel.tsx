@@ -813,11 +813,11 @@ export const ClassDetailPanel = ({
                     ))}
                   </div>
                 ) : filteredMembers.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground px-4">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">{searchQuery ? "No students match your search" : "No students yet"}</p>
                     {!searchQuery && inviteCode && (
-                      <p className="text-sm mt-1">Share your invite code <span className="font-mono text-primary">{inviteCode}</span> to add students</p>
+                      <p className="text-sm mt-1 break-words">Share your invite code <span className="font-mono text-primary break-all">{inviteCode}</span> to add students</p>
                     )}
                   </div>
                 ) : (
