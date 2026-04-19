@@ -706,14 +706,8 @@ export const ClassDetailPanel = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent 
-          className="p-0 gap-0 overflow-hidden rounded-2xl border-white/10 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[auto_auto_1fr]"
-          style={{ 
-            width: 'min(980px, 96vw)', 
-            height: 'min(720px, 92vh)',
-            maxWidth: '96vw',
-            maxHeight: '92vh',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          }}
+          className="p-0 gap-0 overflow-hidden border-border/60 bg-card shadow-2xl backdrop-blur-sm grid grid-rows-[auto_auto_1fr] !left-0 !top-0 !translate-x-0 !translate-y-0 !rounded-none w-screen h-[100dvh] max-w-none sm:!left-[50%] sm:!top-[50%] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-2xl sm:w-[min(980px,96vw)] sm:h-[min(720px,92vh)] sm:max-w-[96vw] sm:max-h-[92vh]"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           hideCloseButton
         >
           {/* Fixed Header - responsive */}
