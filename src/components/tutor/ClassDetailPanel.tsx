@@ -766,8 +766,8 @@ export const ClassDetailPanel = ({
               {/* STUDENTS TAB */}
               <TabsContent value="students" className="m-0 p-5 space-y-4 data-[state=inactive]:hidden">
                 {/* Controls Row */}
-                <div className="flex gap-2 flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-none">
-                  <div className="relative flex-1 min-w-[180px]">
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1 min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search students..."
@@ -777,9 +777,9 @@ export const ClassDetailPanel = ({
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                    <SelectTrigger className="w-[140px] bg-muted/30 border-border/50">
-                      <ArrowUpDown className="w-3.5 h-3.5 mr-2 opacity-50" />
-                      <SelectValue />
+                    <SelectTrigger className="w-auto sm:w-[140px] bg-muted/30 border-border/50 shrink-0 px-2 sm:px-3" aria-label="Sort">
+                      <ArrowUpDown className="w-3.5 h-3.5 sm:mr-2 opacity-50" />
+                      <SelectValue className="hidden sm:inline" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="name-asc">Name A–Z</SelectItem>
@@ -790,7 +790,7 @@ export const ClassDetailPanel = ({
                   {members.length > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={handleExportMembers} className="border-border/50">
+                        <Button variant="outline" size="icon" onClick={handleExportMembers} className="border-border/50 shrink-0">
                           <Download className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
