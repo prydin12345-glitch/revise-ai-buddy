@@ -741,7 +741,7 @@ export const ClassDetailPanel = ({
               </div>
 
               <div className="px-2 pb-2 sm:px-6 sm:pb-0">
-                <TabsList className="!grid !h-auto !w-full grid-cols-3 gap-1 rounded-xl bg-muted/40 p-1 sm:!flex sm:!w-auto sm:rounded-none sm:bg-transparent sm:p-0">
+                <TabsList className="!grid !h-auto !w-full grid-cols-5 gap-0.5 rounded-xl bg-muted/40 p-1 sm:!flex sm:!w-auto sm:rounded-none sm:bg-transparent sm:p-0 sm:gap-0">
                   {[
                     { value: "students", icon: Users, label: "Students" },
                     { value: "assignments", icon: ClipboardList, label: "Tasks" },
@@ -752,10 +752,10 @@ export const ClassDetailPanel = ({
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className="min-h-[52px] w-full flex-col gap-1 px-2 py-2 text-[11px] leading-tight data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-0 sm:w-auto sm:flex-row sm:gap-1.5 sm:rounded-t-lg sm:rounded-b-none sm:border-b-2 sm:border-transparent sm:px-4 sm:py-2.5 sm:text-sm sm:data-[state=active]:border-primary sm:data-[state=active]:bg-muted/50 sm:data-[state=active]:shadow-none"
+                      className="min-h-[56px] w-full min-w-0 flex-col gap-1 px-1 py-2 text-[10px] leading-tight data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-0 sm:w-auto sm:flex-row sm:gap-1.5 sm:rounded-t-lg sm:rounded-b-none sm:border-b-2 sm:border-transparent sm:px-4 sm:py-2.5 sm:text-sm sm:data-[state=active]:border-primary sm:data-[state=active]:bg-muted/50 sm:data-[state=active]:shadow-none"
                     >
-                      <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span className="text-center">{tab.label}</span>
+                      <tab.icon className="h-4 w-4 shrink-0 sm:h-4 sm:w-4" />
+                      <span className="w-full truncate text-center">{tab.label}</span>
                     </TabsTrigger>
                   ))}
                 </TabsList>
