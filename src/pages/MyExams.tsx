@@ -317,15 +317,7 @@ const MyExams = () => {
         setExamProgress(progressMap);
       }
 
-      // Fetch favourite exams
-      const { data: favourites, error: favouritesError } = await supabase
-        .from('favourite_exams')
-        .select('exam_id')
-        .eq('user_id', user.id);
-
-      if (!favouritesError) {
-        setFavouriteExamIds(favourites?.map(f => f.exam_id) || []);
-      }
+      // Favourites already fetched in parallel above (Step 1)
     } catch (error: any) {
       toast({ title: "Load Failed", description: error.message, variant: "destructive" });
     } finally {
