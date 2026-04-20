@@ -135,14 +135,31 @@ const MyExams = () => {
 
   useEffect(() => {
     restoreGlobalPointerEvents();
-    loadExams();
+    let userIdForChannel: string | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const channel = supabase
-      .channel('exams-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, () => loadExams())
-      .subscribe();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      userIdForChannel = user?.id ?? null;
+      loadExams();
 
-    return () => { supabase.removeChannel(channel); };
+      // Scope realtime subscription to current user only — avoids reloading
+      // on unrelated changes elsewhere in the table.
+      if (userIdForChannel) {
+        channel = supabase
+          .channel(`exams-changes-${userIdForChannel}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'exams', filter: `user_id=eq.${userIdForChannel}` },
+            () => loadExams()
+          )
+          .subscribe();
+      }
+    })();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadExams = async () => {
@@ -150,24 +167,58 @@ const MyExams = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('exams')
-        .select('*, exam_topics(topic_name)')
-        .order('created_at', { ascending: false });
+      // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
+      const [
+        { data, error },
+        { data: favourites, error: favouritesError },
+      ] = await Promise.all([
+        supabase
+          .from('exams')
+          .select('*, exam_topics(topic_name)')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('favourite_exams')
+          .select('exam_id')
+          .eq('user_id', user.id),
+      ]);
 
       if (error) throw error;
       setExams(data || []);
+
+      if (!favouritesError) {
+        setFavouriteExamIds(favourites?.map(f => f.exam_id) || []);
+      }
 
       // Batch fetch exam states and progress for all exams
       if (data && data.length > 0) {
         const examIds = data.map(exam => exam.id);
 
-        // Fetch all submissions at once with last_accessed_at
-        const { data: allSubmissions } = await supabase
-          .from('exam_submissions')
-          .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
-          .eq('student_id', user.id)
-          .in('exam_id', examIds);
+        // Step 2: Run ALL remaining queries in parallel — they're all independent.
+        const [
+          { data: allSubmissions },
+          { data: allAnswers },
+          { data: questionsData },
+          { data: timerData },
+        ] = await Promise.all([
+          supabase
+            .from('exam_submissions')
+            .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
+            .eq('student_id', user.id)
+            .in('exam_id', examIds),
+          supabase
+            .from('student_answers')
+            .select('exam_id')
+            .eq('student_id', user.id)
+            .in('exam_id', examIds),
+          supabase
+            .from('exam_questions')
+            .select('exam_id')
+            .in('exam_id', examIds),
+          supabase
+            .from('exam_timer')
+            .select('exam_id, enabled, duration_minutes')
+            .in('exam_id', examIds),
+        ]);
 
         // Separate completed vs in-progress
         const submittedExamIds = new Set(
@@ -179,26 +230,7 @@ const MyExams = () => {
 
         setCompletedExamIds(Array.from(submittedExamIds));
 
-        // Fetch all student answers at once with counts
-        const { data: allAnswers } = await supabase
-          .from('student_answers')
-          .select('exam_id')
-          .eq('student_id', user.id)
-          .in('exam_id', examIds);
-
         const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
-
-        // Fetch questions count for all exams
-        const { data: questionsData } = await supabase
-          .from('exam_questions')
-          .select('exam_id')
-          .in('exam_id', examIds);
-
-        // Fetch timer settings for all exams
-        const { data: timerData } = await supabase
-          .from('exam_timer')
-          .select('exam_id, enabled, duration_minutes')
-          .in('exam_id', examIds);
 
         // Create lookup maps
         const submissionsMap = new Map(allSubmissions?.map(s => [s.exam_id, s]) || []);
@@ -285,15 +317,7 @@ const MyExams = () => {
         setExamProgress(progressMap);
       }
 
-      // Fetch favourite exams
-      const { data: favourites, error: favouritesError } = await supabase
-        .from('favourite_exams')
-        .select('exam_id')
-        .eq('user_id', user.id);
-
-      if (!favouritesError) {
-        setFavouriteExamIds(favourites?.map(f => f.exam_id) || []);
-      }
+      // Favourites already fetched in parallel above (Step 1)
     } catch (error: any) {
       toast({ title: "Load Failed", description: error.message, variant: "destructive" });
     } finally {
