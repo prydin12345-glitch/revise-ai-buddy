@@ -223,6 +223,8 @@ export default function ManageStudents() {
               studentCount={group.member_count}
               assignmentCount={group.assignment_count}
               inviteCode={group.invite_code}
+              settings={group.settings as any}
+              description={group.description}
               onViewClass={() => handleViewClass(group.id)}
               onCopyInvite={() => handleCopyInviteCode(group.invite_code)}
               onAnnounce={() => handlePostAnnouncement(group.id)}
