@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +14,23 @@ interface SubjectPerformanceChartProps {
   viewMode: "score" | "count";
   onViewModeChange: (mode: "score" | "count") => void;
 }
+
+const useGaugeSize = () => {
+  const [size, setSize] = useState(260);
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w < 480) setSize(160);
+      else if (w < 640) setSize(190);
+      else if (w < 1024) setSize(220);
+      else setSize(260);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return size;
+};
 
 const SemiGauge = ({
   score,
