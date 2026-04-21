@@ -122,28 +122,28 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
     <>
       <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-[18px] py-3.5 border-b border-border flex justify-between items-center flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Clock className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <div className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-foreground truncate" style={{ letterSpacing: "-0.2px" }}>
                 Weekly Study
               </div>
-              <div className="text-[11px] text-muted-foreground mt-px">
+              <div className="text-[11px] text-muted-foreground mt-px truncate">
                 Total time per day
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-end">
             <button
               onClick={() => setWeekOffset((o) => o - 1)}
               className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronLeft size={14} />
             </button>
-            <span className="text-[11px] text-muted-foreground font-medium min-w-[110px] text-center">
+            <span className="text-[11px] text-muted-foreground font-medium min-w-[100px] text-center">
               {weekLabel}
             </span>
             <button
