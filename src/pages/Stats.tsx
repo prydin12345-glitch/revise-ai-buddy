@@ -6,7 +6,7 @@ import { ExamResultsChart } from "@/components/stats/ExamResultsChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
-import { ActivityHeatmap } from "@/components/stats/ActivityHeatmap";
+import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
@@ -120,9 +120,9 @@ const Stats = () => {
 
           {/* Stats tab */}
           <TabsContent value="stats" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
               {/* Stat chips — full width */}
-              <div className="lg:col-span-12">
+              <div className="md:col-span-2 lg:col-span-12">
                 <TopStatsCards
                   totalExams={totalExams}
                   completedExams={completedExams}
@@ -137,13 +137,13 @@ const Stats = () => {
               </div>
 
               {/* Row 1: Weekly Study (left) + Exam Results (right) */}
-              <div className="lg:col-span-5 flex flex-col">
+              <div className="md:col-span-1 lg:col-span-5 flex flex-col">
                 <WeeklyStudyChart
                   data={studyActivityData}
                   subjects={subjects}
                 />
               </div>
-              <div className="lg:col-span-7 flex flex-col">
+              <div className="md:col-span-1 lg:col-span-7 flex flex-col">
                 <ExamResultsChart
                   data={examResultsData}
                   subjects={subjects}
@@ -153,20 +153,20 @@ const Stats = () => {
                 />
               </div>
 
-              {/* Row 2: Subject Performance gauges + Study Activity trend */}
-              <div className="lg:col-span-7 flex flex-col">
+              {/* Row 2: Subject Performance gauges + Accuracy Trend */}
+              <div className="md:col-span-1 lg:col-span-7 flex flex-col">
                 <SubjectPerformanceChart
                   data={subjectPerformanceData}
                   viewMode={pieChartMode}
                   onViewModeChange={setPieChartMode}
                 />
               </div>
-              <div className="lg:col-span-5 flex flex-col">
-                <ActivityHeatmap />
+              <div className="md:col-span-1 lg:col-span-5 flex flex-col">
+                <AccuracyTrendChart />
               </div>
 
               {/* Row 3: Recent Exams — full width */}
-              <div className="lg:col-span-12">
+              <div className="md:col-span-2 lg:col-span-12">
                 <RecentExamsTable exams={recentExams} />
               </div>
             </div>
