@@ -194,6 +194,8 @@ export const SubjectPerformanceChart = ({
   const sorted = [...data].sort((a, b) => b.avgScore - a.avgScore);
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const gaugeSize = useGaugeSize();
+  const showSideInfo = gaugeSize >= 220;
 
   const goTo = (newIndex: number, dir: number) => {
     if (sorted.length === 0) return;
@@ -217,6 +219,14 @@ export const SubjectPerformanceChart = ({
     exit: (d: number) => ({ x: d > 0 ? -80 : 80, opacity: 0 }),
   };
 
+  const descriptor = subject
+    ? subject.avgScore >= 70
+      ? "Strong"
+      : subject.avgScore >= 50
+      ? "Developing"
+      : "Needs Work"
+    : "";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -224,37 +234,46 @@ export const SubjectPerformanceChart = ({
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col"
     >
-      {/* Header — title left, subject name right (no arrows) */}
-      <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between gap-3">
-        <div className="flex-shrink-0">
-          <div className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
+      {/* Header with title + nav chevrons */}
+      <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-foreground truncate" style={{ letterSpacing: "-0.2px" }}>
             Subject Performance
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            Average score per subject
+          <div
+            className="text-xs mt-0.5 truncate font-medium"
+            style={{ color: sorted.length > 0 ? gaugeColor : "hsl(var(--muted-foreground))" }}
+            title={sorted[activeIndex]?.name}
+          >
+            {sorted[activeIndex]?.name ?? "Average score per subject"}
           </div>
         </div>
 
-        {sorted.length > 0 && (
-          <div
-            className="text-sm font-semibold min-w-0"
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              color: gaugeColor,
-              maxWidth: 180,
-              textAlign: "right",
-            }}
-            title={sorted[activeIndex]?.name}
-          >
-            {sorted[activeIndex]?.name}
+        {sorted.length > 1 && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => goTo((activeIndex - 1 + sorted.length) % sorted.length, -1)}
+              className="w-7 h-7 rounded-md border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Previous subject"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-[11px] text-muted-foreground font-medium tabular-nums px-1">
+              {activeIndex + 1}/{sorted.length}
+            </span>
+            <button
+              onClick={() => goTo((activeIndex + 1) % sorted.length, 1)}
+              className="w-7 h-7 rounded-md border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Next subject"
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
         )}
       </div>
 
-      {/* Content — arrows flanking the gauge */}
-      <div className="flex-1 min-h-0 flex items-center justify-center relative px-2 py-6">
+      {/* Content */}
+      <div className="flex-1 min-h-0 flex items-center justify-center relative px-2 py-4 sm:py-6 overflow-hidden">
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 px-5 gap-3">
             <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
@@ -277,17 +296,7 @@ export const SubjectPerformanceChart = ({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1 w-full justify-center">
-            {/* Left arrow */}
-            {sorted.length > 1 && (
-              <button
-                onClick={() => goTo((activeIndex - 1 + sorted.length) % sorted.length, -1)}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
-              >
-                <ChevronLeft size={18} />
-              </button>
-            )}
-
+          <div className="w-full flex flex-col items-center justify-center gap-2">
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
                 key={activeIndex}
@@ -297,31 +306,32 @@ export const SubjectPerformanceChart = ({
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="flex flex-col items-center"
+                className="flex flex-col items-center w-full"
               >
                 <SemiGauge
                   score={subject.avgScore}
                   color={gaugeColor}
-                  size={260}
+                  size={gaugeSize}
                   examCount={subject.count}
+                  showSideInfo={showSideInfo}
                 />
+                {/* Mobile: show descriptor + exam count below the gauge */}
+                {!showSideInfo && (
+                  <div className="flex items-center gap-2 mt-1 text-xs">
+                    <span style={{ color: gaugeColor, fontWeight: 600 }}>{descriptor}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground">
+                      {subject.count} exam{subject.count !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
-
-            {/* Right arrow */}
-            {sorted.length > 1 && (
-              <button
-                onClick={() => goTo((activeIndex + 1) % sorted.length, 1)}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-muted hover:bg-muted/70 transition-colors flex-shrink-0 border-0 cursor-pointer text-muted-foreground"
-              >
-                <ChevronRight size={18} />
-              </button>
-            )}
           </div>
         )}
       </div>
 
-      {/* Footer — Combined Performance label */}
+      {/* Footer */}
       {sorted.length > 0 && (
         <div className="px-3.5 pb-3.5 pt-2.5 border-t border-border flex-shrink-0">
           <div className="text-xs text-muted-foreground text-center">
