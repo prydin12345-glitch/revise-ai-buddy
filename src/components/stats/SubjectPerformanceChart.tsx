@@ -37,13 +37,15 @@ const SemiGauge = ({
   color,
   size = 260,
   examCount,
+  showSideInfo = true,
 }: {
   score: number;
   color: string;
   size?: number;
   examCount: number;
+  showSideInfo?: boolean;
 }) => {
-  const strokeWidth = 20;
+  const strokeWidth = Math.max(12, Math.round(size * 0.077));
   const r = (size - strokeWidth * 2) / 2;
   const cx = size / 2;
   const cy = size * 0.55;
@@ -51,26 +53,25 @@ const SemiGauge = ({
   const clampedScore = Math.min(Math.max(score, 0), 100);
   const offset = circumference - (clampedScore / 100) * circumference;
 
-  // Indicator dot: angle from π (left=0%) to 0 (right=100%)
   const angle = Math.PI * (1 - clampedScore / 100);
   const dotX = cx + r * Math.cos(angle);
   const dotY = cy - r * Math.sin(angle);
 
   const gradientId = `gauge-grad-${size}`;
   const trackGradId = `track-grad-${size}`;
-
   const descriptor = score >= 70 ? "Strong" : score >= 50 ? "Developing" : "Needs Work";
 
-  // Right-side info — pushed further right for breathing room
+  const sideWidth = showSideInfo ? 120 : 0;
   const infoX = size - strokeWidth + 30;
   const infoY = cy - 10;
 
   return (
     <svg
-      width={size + 120}
+      width={size + sideWidth}
       height={size * 0.62}
-      viewBox={`0 0 ${size + 120} ${size * 0.62}`}
+      viewBox={`0 0 ${size + sideWidth} ${size * 0.62}`}
       className="overflow-visible"
+      style={{ maxWidth: "100%" }}
     >
       <defs>
         <linearGradient id={trackGradId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -83,7 +84,6 @@ const SemiGauge = ({
         </linearGradient>
       </defs>
 
-      {/* Outer glow */}
       <path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -92,8 +92,6 @@ const SemiGauge = ({
         strokeLinecap="round"
         opacity={0.06}
       />
-
-      {/* Track arc */}
       <path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -101,8 +99,6 @@ const SemiGauge = ({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
       />
-
-      {/* Value arc */}
       <motion.path
         d={`M ${strokeWidth} ${cy} A ${r} ${r} 0 0 1 ${size - strokeWidth} ${cy}`}
         fill="none"
@@ -115,7 +111,6 @@ const SemiGauge = ({
         transition={{ duration: 0.9, ease: "easeOut" }}
       />
 
-      {/* Indicator dot */}
       {clampedScore > 3 && clampedScore < 97 && (
         <motion.circle
           cx={dotX}
@@ -130,7 +125,6 @@ const SemiGauge = ({
         />
       )}
 
-      {/* Score percentage */}
       <text
         x={cx}
         y={cy - size * 0.04}
@@ -143,7 +137,6 @@ const SemiGauge = ({
         {Math.round(score)}%
       </text>
 
-      {/* Low label */}
       <text
         x={strokeWidth}
         y={cy + strokeWidth + 14}
@@ -155,7 +148,6 @@ const SemiGauge = ({
         Low
       </text>
 
-      {/* High label */}
       <text
         x={size - strokeWidth}
         y={cy + strokeWidth + 14}
@@ -167,27 +159,30 @@ const SemiGauge = ({
         High
       </text>
 
-      {/* Right-side info: descriptor + exam count */}
-      <text
-        x={infoX}
-        y={infoY}
-        fontSize={13}
-        fontWeight={600}
-        fill={color}
-        textAnchor="start"
-      >
-        {descriptor}
-      </text>
-      <text
-        x={infoX}
-        y={infoY + 18}
-        fontSize={11}
-        fontWeight={400}
-        fill="hsl(var(--muted-foreground))"
-        textAnchor="start"
-      >
-        {examCount} exam{examCount !== 1 ? "s" : ""}
-      </text>
+      {showSideInfo && (
+        <>
+          <text
+            x={infoX}
+            y={infoY}
+            fontSize={13}
+            fontWeight={600}
+            fill={color}
+            textAnchor="start"
+          >
+            {descriptor}
+          </text>
+          <text
+            x={infoX}
+            y={infoY + 18}
+            fontSize={11}
+            fontWeight={400}
+            fill="hsl(var(--muted-foreground))"
+            textAnchor="start"
+          >
+            {examCount} exam{examCount !== 1 ? "s" : ""}
+          </text>
+        </>
+      )}
     </svg>
   );
 };
