@@ -153,16 +153,25 @@ export const ExamResultsChart = ({
     <>
       <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-[18px] py-3.5 flex justify-between items-center border-b border-border flex-shrink-0">
-          <div>
-            <div className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
-              Exam Results Over Time
+        <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <div className="flex justify-between items-start sm:items-center gap-2">
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-foreground truncate" style={{ letterSpacing: "-0.2px" }}>
+                Exam Results Over Time
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-px truncate">
+                Score percentage per submission
+              </div>
             </div>
-            <div className="text-[11px] text-muted-foreground mt-px">
-              Score percentage per submission
-            </div>
+            <button
+              onClick={() => setExpanded(true)}
+              className="sm:hidden w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              title="Expand chart"
+            >
+              <Maximize2 size={13} />
+            </button>
           </div>
-          <div className="flex gap-1.5 items-center">
+          <div className="flex gap-1.5 items-center justify-end">
             {/* Pill time range selector */}
             <div className="flex bg-muted rounded-lg p-[3px] gap-[2px]">
               {timeRangeOptions.map(({ key, label }) => (
@@ -188,7 +197,7 @@ export const ExamResultsChart = ({
             </div>
             <button
               onClick={() => setExpanded(true)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="hidden sm:flex w-7 h-7 rounded-md bg-background border border-border items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               title="Expand chart"
             >
               <Maximize2 size={13} />
