@@ -278,18 +278,18 @@ export const PersonalizationSection = () => {
 
           <div className="space-y-2">
             <Label htmlFor="accent">Accent Color</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <input
                 type="color"
                 id="accent"
                 value={preferences?.accent_color}
                 onChange={(e) => updatePreference({ accent_color: e.target.value })}
-                className="h-10 w-20 rounded border border-border cursor-pointer"
+                className="h-10 w-14 sm:w-20 rounded border border-border cursor-pointer shrink-0 bg-transparent"
               />
               <Input
                 value={preferences?.accent_color}
                 onChange={(e) => updatePreference({ accent_color: e.target.value })}
-                className="flex-1"
+                className="flex-1 font-mono text-sm"
               />
             </div>
           </div>
@@ -302,8 +302,8 @@ export const PersonalizationSection = () => {
           <CardDescription>Manage how you receive notifications</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <Label htmlFor="email-notif">Email Notifications</Label>
               <p className="text-sm text-muted-foreground">Receive updates via email</p>
             </div>
@@ -314,8 +314,8 @@ export const PersonalizationSection = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <Label htmlFor="push-notif">Push Notifications</Label>
               <p className="text-sm text-muted-foreground">Receive push notifications</p>
             </div>
@@ -326,8 +326,8 @@ export const PersonalizationSection = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <Label htmlFor="inapp-notif">In-App Notifications</Label>
               <p className="text-sm text-muted-foreground">Show notifications within the app</p>
             </div>

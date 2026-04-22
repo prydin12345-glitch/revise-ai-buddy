@@ -345,7 +345,7 @@ export const AccountSection = () => {
           <CardDescription>Manage your account password</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handlePasswordReset} disabled={saving} variant="outline">
+          <Button onClick={handlePasswordReset} disabled={saving} variant="outline" className="w-full sm:w-auto">
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Send Password Reset Email
           </Button>
@@ -359,12 +359,12 @@ export const AccountSection = () => {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
                 <p className="font-semibold">Free Plan</p>
                 <p className="text-sm text-muted-foreground">Currently active</p>
               </div>
-              <Button variant="default">Upgrade</Button>
+              <Button variant="default" className="w-full sm:w-auto">Upgrade</Button>
             </div>
           </div>
         </CardContent>
