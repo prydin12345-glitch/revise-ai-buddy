@@ -26,59 +26,62 @@ const Settings = () => {
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-          <div className="container max-w-7xl mx-auto px-4 py-6">
-            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          </div>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {/* Header + Tabs (single sticky block) */}
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+            <div className="container max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-0">
+              <div className="flex flex-col gap-1 mb-4 sm:mb-5">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                  Settings
+                </h1>
+                <p className="hidden sm:block text-sm text-muted-foreground">
+                  Manage your account, preferences, and integrations
+                </p>
+              </div>
 
-        {/* Horizontal Tabs Navigation */}
-        <div className="sticky top-[73px] z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-          <div className="container max-w-7xl mx-auto px-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full justify-start h-auto bg-transparent border-0 p-0 flex-wrap">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="hidden sm:inline">{tab.label}</span>
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-            </Tabs>
+              {/* Horizontally scrollable tab strip on mobile */}
+              <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-none">
+                <TabsList className="w-max sm:w-full justify-start h-auto bg-transparent border-0 p-0 px-4 sm:px-0 gap-1 flex-nowrap">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="shrink-0 gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-none border-b-2 border-transparent text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span>{tab.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="container max-w-7xl mx-auto px-4 py-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value="account" className="mt-0">
+          {/* Content */}
+          <div className="container max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <TabsContent value="account" className="mt-0 focus-visible:outline-none">
               <AccountSection />
             </TabsContent>
-            <TabsContent value="personalization" className="mt-0">
+            <TabsContent value="personalization" className="mt-0 focus-visible:outline-none">
               <PersonalizationSection />
             </TabsContent>
-            <TabsContent value="privacy" className="mt-0">
+            <TabsContent value="privacy" className="mt-0 focus-visible:outline-none">
               <PrivacySection />
             </TabsContent>
-            <TabsContent value="ai" className="mt-0">
+            <TabsContent value="ai" className="mt-0 focus-visible:outline-none">
               <AIUsageSection />
             </TabsContent>
-            <TabsContent value="integrations" className="mt-0">
+            <TabsContent value="integrations" className="mt-0 focus-visible:outline-none">
               <IntegrationsSection />
             </TabsContent>
-            <TabsContent value="advanced" className="mt-0">
+            <TabsContent value="advanced" className="mt-0 focus-visible:outline-none">
               <AdvancedSection />
             </TabsContent>
-          </Tabs>
-        </div>
+          </div>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
