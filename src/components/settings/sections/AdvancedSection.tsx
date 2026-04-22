@@ -25,8 +25,8 @@ export const AdvancedSection = () => {
           <CardDescription>Try experimental features before official release</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <Label htmlFor="beta-features">Enable Beta Features</Label>
               <p className="text-sm text-muted-foreground">Access new features early (may be unstable)</p>
             </div>
@@ -62,8 +62,8 @@ export const AdvancedSection = () => {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between pt-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4">
+            <div className="flex-1 min-w-0">
               <Label htmlFor="high-contrast">High Contrast Mode</Label>
               <p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
             </div>

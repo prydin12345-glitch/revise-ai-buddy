@@ -74,29 +74,29 @@ export const AIUsageSection = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
                 <div className="rounded-lg border border-border p-4 bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-primary" />
-                    <p className="text-sm font-medium">Total Credits</p>
+                    <Brain className="w-5 h-5 text-primary shrink-0" />
+                    <p className="text-sm font-medium truncate">Total Credits</p>
                   </div>
-                  <p className="text-2xl font-bold mt-2">{totalCredits.toFixed(2)}</p>
+                  <p className="text-2xl font-bold mt-2 tabular-nums">{totalCredits.toFixed(2)}</p>
                 </div>
 
                 <div className="rounded-lg border border-border p-4 bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-primary" />
-                    <p className="text-sm font-medium">Total Tokens</p>
+                    <Zap className="w-5 h-5 text-primary shrink-0" />
+                    <p className="text-sm font-medium truncate">Total Tokens</p>
                   </div>
-                  <p className="text-2xl font-bold mt-2">{totalTokens.toLocaleString()}</p>
+                  <p className="text-2xl font-bold mt-2 tabular-nums">{totalTokens.toLocaleString()}</p>
                 </div>
 
                 <div className="rounded-lg border border-border p-4 bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    <p className="text-sm font-medium">Features Used</p>
+                    <TrendingUp className="w-5 h-5 text-primary shrink-0" />
+                    <p className="text-sm font-medium truncate">Features Used</p>
                   </div>
-                  <p className="text-2xl font-bold mt-2">{stats.length}</p>
+                  <p className="text-2xl font-bold mt-2 tabular-nums">{stats.length}</p>
                 </div>
               </div>
 

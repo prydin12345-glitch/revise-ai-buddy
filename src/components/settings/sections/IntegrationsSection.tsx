@@ -17,30 +17,30 @@ export const IntegrationsSection = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">Google Calendar</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Calendar className="w-8 h-8 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-medium truncate">Google Calendar</p>
                   <p className="text-sm text-muted-foreground">Not connected</p>
                 </div>
               </div>
-              <Button variant="outline" disabled>
+              <Button variant="outline" disabled className="w-full sm:w-auto">
                 Coming Soon
               </Button>
             </div>
           </div>
 
           <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">iCal / Apple Calendar</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Calendar className="w-8 h-8 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-medium truncate">iCal / Apple Calendar</p>
                   <p className="text-sm text-muted-foreground">Not connected</p>
                 </div>
               </div>
-              <Button variant="outline" disabled>
+              <Button variant="outline" disabled className="w-full sm:w-auto">
                 Coming Soon
               </Button>
             </div>
@@ -54,15 +54,15 @@ export const IntegrationsSection = () => {
           <CardDescription>Download your revision plan and study data</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Download className="w-8 h-8 text-primary" />
-              <div>
-                <p className="font-medium">Export Revision Plan</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Download className="w-8 h-8 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium truncate">Export Revision Plan</p>
                 <p className="text-sm text-muted-foreground">Download as ICS calendar file</p>
               </div>
             </div>
-            <Button onClick={handleExportRevisionPlan} variant="outline">
+            <Button onClick={handleExportRevisionPlan} variant="outline" className="w-full sm:w-auto">
               Export
             </Button>
           </div>
@@ -76,15 +76,15 @@ export const IntegrationsSection = () => {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">School Account</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Users className="w-8 h-8 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-medium truncate">School Account</p>
                   <p className="text-sm text-muted-foreground">Not connected</p>
                 </div>
               </div>
-              <Button variant="outline" disabled>
+              <Button variant="outline" disabled className="w-full sm:w-auto">
                 Coming Soon
               </Button>
             </div>
