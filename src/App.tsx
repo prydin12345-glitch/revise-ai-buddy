@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 
 // Everything else is lazy loaded
 const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const MyExams = lazy(() => import("./pages/MyExams"));
@@ -85,6 +86,7 @@ const App = () => {
               {/* Public routes — no guard */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
               {/* Dev/demo pages — no guard */}

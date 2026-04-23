@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { GraduationCap, Users, BookOpen, Mail } from "lucide-react";
+import { GraduationCap, Users, BookOpen, Mail, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { motion } from "framer-motion";
 
 const Auth = () => {
@@ -22,6 +23,17 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState("");
+
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  // Resend verification cooldown
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -36,6 +48,55 @@ const Auth = () => {
       if (session) navigate("/dashboard");
     });
   }, [navigate]);
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) {
+      sonnerToast.error("Please enter your email address");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        forgotEmail.trim().toLowerCase(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
+      if (error) {
+        sonnerToast.error(error.message);
+        return;
+      }
+      setForgotSent(true);
+    } catch {
+      sonnerToast.error("Something went wrong. Please try again.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0 || !confirmedEmail) return;
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: confirmedEmail,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) {
+        sonnerToast.error(error.message);
+      } else {
+        sonnerToast.success("Verification email resent");
+        setResendCooldown(60);
+        const interval = setInterval(() => {
+          setResendCooldown(prev => {
+            if (prev <= 1) { clearInterval(interval); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +203,79 @@ const Auth = () => {
 
       {/* ── Right panel (form) ── */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-16 relative z-10">
-        {showEmailConfirmation ? (
+        {showForgotPassword ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md"
+          >
+            <div className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 md:p-8">
+              {!forgotSent ? (
+                <>
+                  <button
+                    onClick={() => { setShowForgotPassword(false); setForgotEmail(""); }}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0 mb-4 font-[inherit]"
+                  >
+                    <ChevronLeft size={16} />
+                    Back to login
+                  </button>
+                  <h2 className="text-xl font-bold mb-2">Reset your password</h2>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Enter the email address you used to sign up and we'll send you a link to reset your password.
+                  </p>
+
+                  <div className="space-y-2 mb-5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Email address
+                    </Label>
+                    <Input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleForgotPassword()}
+                      placeholder="your@email.com"
+                      autoFocus
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <Button className="w-full" onClick={handleForgotPassword} disabled={forgotLoading}>
+                    {forgotLoading ? "Sending..." : "Send reset link"}
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
+                    <Mail size={24} className="text-primary" strokeWidth={1.8} />
+                  </div>
+                  <h2 className="text-xl font-bold mb-2">Check your email</h2>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    We sent a password reset link to
+                  </p>
+                  <div className="text-sm font-semibold text-primary mb-5">
+                    {forgotEmail}
+                  </div>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed mb-6">
+                    The link expires in 1 hour. If you do not see the email check your spam folder.
+                  </p>
+                  <button
+                    onClick={() => { setForgotSent(false); handleForgotPassword(); }}
+                    className="text-sm text-primary hover:underline bg-transparent border-none cursor-pointer p-0 mb-4 font-[inherit]"
+                  >
+                    Resend email
+                  </button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail(""); }}
+                  >
+                    Back to login
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : showEmailConfirmation ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -165,12 +298,14 @@ const Auth = () => {
               <Button
                 variant="outline"
                 className="w-full mb-3"
-                onClick={async () => {
-                  await supabase.auth.resend({ type: "signup", email: confirmedEmail });
-                  toast({ title: "Email resent", description: "Check your inbox for the confirmation link." });
-                }}
+                onClick={handleResendVerification}
+                disabled={resendCooldown > 0 || resendLoading}
               >
-                Resend confirmation email
+                {resendCooldown > 0
+                  ? `Resend in ${resendCooldown}s`
+                  : resendLoading
+                  ? "Sending..."
+                  : "Resend confirmation email"}
               </Button>
               <button
                 onClick={() => { setShowEmailConfirmation(false); setMode("login"); }}
@@ -260,7 +395,18 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</Label>
+                    {mode === "login" && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowForgotPassword(true); setForgotEmail(email); }}
+                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors bg-transparent border-none cursor-pointer p-0 font-[inherit]"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className={inputClass} />
                 </div>
 
