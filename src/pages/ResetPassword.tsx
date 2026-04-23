@@ -194,30 +194,81 @@ const ResetPassword = () => {
                 </div>
               </div>
 
-              {/* Requirements */}
+              {/* Strength meter + Requirements */}
               {password.length > 0 && (
-                <div className="mb-4 space-y-1.5">
-                  {[
-                    { key: "length", label: "At least 8 characters" },
-                    { key: "uppercase", label: "At least one uppercase letter" },
-                    { key: "number", label: "At least one number" },
-                  ].map(req => {
-                    const passed = checks[req.key as keyof typeof checks];
-                    return (
-                      <div key={req.key} className="flex items-center gap-2 text-xs">
+                <div className="mb-4 space-y-3">
+                  {/* Strength bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Password strength</span>
+                      <span className={`text-xs font-semibold ${strength.textColor}`}>
+                        {strength.label}
+                      </span>
+                    </div>
+                    <div
+                      className="flex gap-1"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={5}
+                      aria-valuenow={strength.level}
+                      aria-label={`Password strength: ${strength.label || "none"}`}
+                    >
+                      {[1, 2, 3, 4, 5].map(i => (
                         <div
-                          className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
-                            passed ? "bg-primary/20" : "bg-muted"
-                          }`}
-                        >
-                          {passed && <CheckCircle size={10} className="text-primary" />}
+                          key={i}
+                          className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                          style={{
+                            backgroundColor: i <= strength.level ? strength.color : "hsl(var(--muted))",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Requirements list */}
+                  <div className="space-y-1.5">
+                    {[
+                      { key: "length", label: "At least 8 characters", required: true },
+                      { key: "uppercase", label: "One uppercase letter", required: true },
+                      { key: "number", label: "One number", required: true },
+                      { key: "lowercase", label: "One lowercase letter (recommended)", required: false },
+                      { key: "symbol", label: "One symbol (recommended)", required: false },
+                      { key: "longer", label: "12+ characters (stronger)", required: false },
+                    ].map(req => {
+                      const passed = checks[req.key as keyof typeof checks];
+                      return (
+                        <div key={req.key} className="flex items-center gap-2 text-xs">
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full flex items-center justify-center transition-colors ${
+                              passed
+                                ? req.required
+                                  ? "bg-primary/20"
+                                  : "bg-[hsl(142_71%_45%)]/20"
+                                : "bg-muted"
+                            }`}
+                          >
+                            {passed && (
+                              <CheckCircle
+                                size={10}
+                                className={req.required ? "text-primary" : "text-[hsl(142_71%_40%)]"}
+                              />
+                            )}
+                          </div>
+                          <span
+                            className={
+                              passed
+                                ? "text-foreground"
+                                : req.required
+                                  ? "text-muted-foreground"
+                                  : "text-muted-foreground/70"
+                            }
+                          >
+                            {req.label}
+                          </span>
                         </div>
-                        <span className={passed ? "text-foreground" : "text-muted-foreground"}>
-                          {req.label}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
