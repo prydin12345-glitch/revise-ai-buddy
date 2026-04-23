@@ -51,12 +51,35 @@ const ResetPassword = () => {
   const validatePassword = (pw: string) => ({
     length: pw.length >= 8,
     uppercase: /[A-Z]/.test(pw),
+    lowercase: /[a-z]/.test(pw),
     number: /[0-9]/.test(pw),
+    symbol: /[^A-Za-z0-9]/.test(pw),
+    longer: pw.length >= 12,
   });
 
   const checks = validatePassword(password);
-  const allChecksPassed = Object.values(checks).every(Boolean);
+  // Required checks (must pass to submit)
+  const requiredChecks = {
+    length: checks.length,
+    uppercase: checks.uppercase,
+    number: checks.number,
+  };
+  const allChecksPassed = Object.values(requiredChecks).every(Boolean);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+
+  // Strength score (0-5) based on all signals
+  const strengthScore = password.length === 0
+    ? 0
+    : Object.values(checks).filter(Boolean).length;
+
+  const strength = (() => {
+    if (password.length === 0) return { label: "", level: 0, color: "transparent", textColor: "text-muted-foreground" };
+    if (strengthScore <= 2) return { label: "Weak", level: 1, color: "hsl(var(--destructive))", textColor: "text-destructive" };
+    if (strengthScore === 3) return { label: "Fair", level: 2, color: "hsl(38 92% 50%)", textColor: "text-[hsl(38_92%_45%)]" };
+    if (strengthScore === 4) return { label: "Good", level: 3, color: "hsl(142 71% 45%)", textColor: "text-[hsl(142_71%_40%)]" };
+    if (strengthScore === 5) return { label: "Strong", level: 4, color: "hsl(142 76% 36%)", textColor: "text-[hsl(142_76%_32%)]" };
+    return { label: "Very strong", level: 5, color: "hsl(160 84% 30%)", textColor: "text-[hsl(160_84%_28%)]" };
+  })();
 
   const handleResetPassword = async () => {
     if (!allChecksPassed) {
