@@ -308,6 +308,98 @@ export const PrivacySection = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Danger zone — Delete Account */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="w-5 h-5" />
+            Delete Account
+          </CardTitle>
+          <CardDescription>
+            Permanently delete your Examly account and all associated data.
+            This includes your exam history, practice results, progress data
+            and profile. If you are a tutor your classes will be deactivated.
+            This action cannot be undone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!showDeleteConfirm ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete my account
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-foreground">
+                  This will permanently delete your account, exam results,
+                  practice history, progress data and profile information.{" "}
+                  <span className="font-semibold">This cannot be undone.</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-confirm" className="text-sm">
+                  Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span> to confirm:
+                </Label>
+                <Input
+                  id="delete-confirm"
+                  value={deleteInput}
+                  onChange={(e) => setDeleteInput(e.target.value)}
+                  placeholder={CONFIRM_PHRASE}
+                  autoFocus
+                  className={
+                    deleteInput.trim().toLowerCase() === CONFIRM_PHRASE
+                      ? "border-destructive"
+                      : ""
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteInput("");
+                  }}
+                  disabled={deleteLoading}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteAccount}
+                  disabled={
+                    deleteLoading ||
+                    deleteInput.trim().toLowerCase() !== CONFIRM_PHRASE
+                  }
+                  className="flex-1 gap-2"
+                >
+                  {deleteLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    "Permanently delete"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
