@@ -230,7 +230,7 @@ export const PrivacySection = () => {
             >
               {exportDone ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-500" />
+                  <Check className="w-4 h-4 text-primary shrink-0" />
                   Downloaded
                 </>
               ) : exportLoading ? (
@@ -257,7 +257,7 @@ export const PrivacySection = () => {
                 "Right to rectification — update your profile and subjects in Settings",
               ].map((right) => (
                 <li key={right} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <span>{right}</span>
                 </li>
               ))}
@@ -266,6 +266,9 @@ export const PrivacySection = () => {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
           <CardDescription>Enhance your account security</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
