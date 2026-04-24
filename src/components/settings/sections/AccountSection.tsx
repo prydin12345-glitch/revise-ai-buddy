@@ -268,7 +268,11 @@ export const AccountSection = () => {
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              Email cannot be changed directly. Contact support if needed.
+              Email changes are not currently supported. To change your email
+              address, delete your account from the <span className="font-medium text-foreground">Privacy &amp; Security</span> tab
+              and create a new account with your new email. Use{" "}
+              <span className="font-medium text-foreground">Export data</span> first to
+              preserve your history.
             </p>
           </div>
 
