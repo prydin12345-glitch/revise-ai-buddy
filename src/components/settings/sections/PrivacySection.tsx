@@ -16,6 +16,9 @@ import {
   Trash2,
   AlertTriangle,
   ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  LogOut,
 } from "lucide-react";
 import {
   AlertDialog,
