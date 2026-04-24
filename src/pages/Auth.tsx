@@ -438,6 +438,20 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
                 </Button>
+
+                {mode === "signup" && (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground/70 text-center">
+                    By creating an account you agree to our{" "}
+                    <a href="/terms" target="_blank" className="text-muted-foreground hover:text-foreground underline underline-offset-2">
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a href="/privacy" target="_blank" className="text-muted-foreground hover:text-foreground underline underline-offset-2">
+                      Privacy Policy
+                    </a>
+                    . You can export your data or delete your account at any time from Settings.
+                  </p>
+                )}
               </form>
             </div>
 
