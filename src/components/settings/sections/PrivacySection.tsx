@@ -1,9 +1,22 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  ExternalLink,
+  Loader2,
+  Download,
+  Check,
+  Trash2,
+  AlertTriangle,
+  ShieldCheck,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +29,101 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const CONFIRM_PHRASE = "delete my account";
+
 export const PrivacySection = () => {
   const { preferences, loading, updatePreference } = useUserPreferences();
+  const navigate = useNavigate();
+
+  // Data export
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+
+  // Account deletion
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleExportData = async () => {
+    setExportLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to export your data");
+        return;
+      }
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-user-data`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+        },
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.error ?? "Export failed");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `examly-data-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportDone(true);
+      toast.success("Your data has been downloaded");
+      setTimeout(() => setExportDone(false), 5000);
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteInput.trim().toLowerCase() !== CONFIRM_PHRASE) {
+      toast.error(`Please type "${CONFIRM_PHRASE}" to confirm`);
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in");
+        return;
+      }
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+        },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        toast.error(result.error ?? "Deletion failed. Please contact support.");
+        return;
+      }
+      await supabase.auth.signOut();
+      toast.success("Your account has been deleted");
+      navigate("/auth");
+    } catch {
+      toast.error("Something went wrong. Please contact support.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   if (loading) {
     return (
