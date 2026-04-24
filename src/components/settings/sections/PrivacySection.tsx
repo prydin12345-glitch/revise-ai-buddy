@@ -47,6 +47,15 @@ export const PrivacySection = () => {
   const [deleteInput, setDeleteInput] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Post-deletion status screen
+  type DeletionStatus = {
+    phase: "deleting" | "signing-out" | "redirecting" | "success" | "error";
+    message?: string;
+    failures?: { table: string; error: string }[];
+    countdown?: number;
+  };
+  const [deletionStatus, setDeletionStatus] = useState<DeletionStatus | null>(null);
+
   const handleExportData = async () => {
     setExportLoading(true);
     try {
