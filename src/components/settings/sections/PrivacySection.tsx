@@ -200,9 +200,72 @@ export const PrivacySection = () => {
         </CardContent>
       </Card>
 
+      {/* Your Data — UK GDPR */}
       <Card>
         <CardHeader>
-          <CardTitle>Security</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            Your Data
+          </CardTitle>
+          <CardDescription>
+            Manage your personal data in accordance with UK GDPR
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label>Download your data</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Export a copy of all personal data Examly holds about your
+                account — profile, exam results, practice history and subjects —
+                as a JSON file. This is your right under UK GDPR Article 20.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportData}
+              disabled={exportLoading}
+              className="gap-2 shrink-0 w-full sm:w-auto"
+            >
+              {exportDone ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-500" />
+                  Downloaded
+                </>
+              ) : exportLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Preparing…
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export data
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+            <p className="text-sm font-medium">Your rights under UK GDPR</p>
+            <ul className="space-y-1.5">
+              {[
+                "Right to access — download all your data at any time",
+                "Right to erasure — delete your account and all associated data",
+                "Right to portability — your data is exported in a machine-readable format",
+                "Right to rectification — update your profile and subjects in Settings",
+              ].map((right) => (
+                <li key={right} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>{right}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
           <CardDescription>Enhance your account security</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
