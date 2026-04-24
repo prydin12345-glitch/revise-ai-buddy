@@ -183,6 +183,13 @@ export const PrivacySection = () => {
 
   return (
     <div className="space-y-6">
+      {deletionStatus && (
+        <DeletionStatusOverlay
+          status={deletionStatus}
+          onClose={() => setDeletionStatus(null)}
+          onGoToLogin={() => navigate("/auth")}
+        />
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Privacy Controls</CardTitle>
