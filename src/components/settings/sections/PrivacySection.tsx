@@ -105,10 +105,14 @@ export const PrivacySection = () => {
       return;
     }
     setDeleteLoading(true);
+    setDeletionStatus({ phase: "deleting" });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error("You must be logged in");
+        setDeletionStatus({
+          phase: "error",
+          message: "You must be logged in to delete your account.",
+        });
         return;
       }
       const response = await fetch(
@@ -123,15 +127,47 @@ export const PrivacySection = () => {
         },
       );
       const result = await response.json().catch(() => ({}));
+
+      // Collect any per-table failures returned by the edge function
+      const failures: { table: string; error: string }[] = Array.isArray(result?.results)
+        ? result.results
+            .filter((r: { ok: boolean }) => !r.ok)
+            .map((r: { table: string; error?: string }) => ({
+              table: r.table,
+              error: r.error ?? "Unknown error",
+            }))
+        : [];
+
       if (!response.ok || !result.success) {
-        toast.error(result.error ?? "Deletion failed. Please contact support.");
+        setDeletionStatus({
+          phase: "error",
+          message: result.error ?? "Deletion failed. Your account may not have been fully removed.",
+          failures,
+        });
         return;
       }
+
+      // Sign out
+      setDeletionStatus({ phase: "signing-out", failures });
       await supabase.auth.signOut();
-      toast.success("Your account has been deleted");
-      navigate("/auth");
+
+      // Show success with countdown, then redirect
+      setDeletionStatus({ phase: "success", failures, countdown: 5 });
+      let remaining = 5;
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          navigate("/auth");
+        } else {
+          setDeletionStatus((s) => (s ? { ...s, countdown: remaining } : s));
+        }
+      }, 1000);
     } catch {
-      toast.error("Something went wrong. Please contact support.");
+      setDeletionStatus({
+        phase: "error",
+        message: "Something went wrong. Please contact support.",
+      });
     } finally {
       setDeleteLoading(false);
     }
