@@ -29,7 +29,7 @@ Technical data — your IP address, browser type, device type, and approximate l
 
 Communications — any messages you send through feedback forms or support requests.
 
-Payment data — if you subscribe to a paid plan, payment is processed by Stripe. We do not store your card details. We receive a transaction ID and subscription status from Stripe.
+Payment data — ${companyName} does not currently offer paid subscriptions and does not collect payment information. If we introduce paid plans in the future we will update this policy and notify you before any payment data is collected.
 
 Children's data — if you are under 18, we collect the same categories of data described above. We apply additional protections to data relating to users under 18 as described in Section 9 of this policy.`,
   },
@@ -53,13 +53,13 @@ We do not use your data for automated decision-making that produces legal or sim
   },
   {
     title: "4. AI-generated content and your data",
-    content: `${companyName} uses AI models (currently Google Gemini) to generate practice questions based on your selected subjects, topics, and educational level.
+    content: `${companyName} uses third-party AI models — currently Google Gemini and OpenAI GPT models, accessed through a managed AI gateway — to generate practice questions and explanations based on your selected subjects, topics, and educational level.
 
-When generating questions we send the following information to the AI provider: your selected subject, topic, educational level, exam board, and question format preferences. We do not send your name, email address, or any personally identifying information to AI providers.
+When generating questions we send the following information to the AI provider: your selected subject, topic, educational level, exam board, and question format preferences. We do not send your name, email address, or any directly identifying account information to AI providers.
 
-Question generation requests are processed by Google's AI infrastructure. Google's privacy policy applies to this processing. We have a data processing agreement in place with Google.
+AI requests are processed by the relevant model provider's infrastructure (Google or OpenAI). Each provider's privacy policy governs that processing. We use providers that contractually agree not to use prompts or outputs to train their public models.
 
-Your answers to practice questions and exam submissions are stored in our own database. They are not sent to any AI provider.
+Your answers to practice questions and exam submissions are stored in our own database and are only sent to an AI provider when you explicitly request features that need them — for example, on-demand answer explanations or question grading. They are never used to train AI models.
 
 We cache generated questions to reduce costs and improve response times. Cached questions are stored in our database and are not shared between users in a way that identifies you.`,
   },
@@ -67,13 +67,13 @@ We cache generated questions to reduce costs and improve response times. Cached 
     title: "5. Who we share your data with",
     content: `We share your data with the following categories of third parties:
 
-Infrastructure providers — Supabase (database and authentication, hosted in the EU), Vercel or equivalent (web hosting).
+Cloud infrastructure providers — we host the platform, database, authentication, file storage, and serverless functions on managed cloud infrastructure provided by reputable EU-based providers. Your data is stored in encrypted databases inside the EU.
 
-AI providers — Google (Gemini AI for question generation) as described in Section 4.
+AI providers — Google (Gemini) and OpenAI (GPT models) for question generation, explanations, and grading, as described in Section 4. Requests are routed through a managed AI gateway and contain no directly identifying account information.
 
-Payment processors — Stripe (payment processing for paid subscriptions). Stripe is PCI DSS compliant.
+Payment processors — none at present. ${companyName} does not currently process payments. If we introduce paid plans we will use a PCI DSS compliant payment processor and update this policy before any payment data is collected.
 
-Tutors — if you join a tutor's class your tutor can see your name, exam results for assigned exams, and progress within their class. They cannot see your practice quiz results, your account email, or your activity outside their class.
+Tutors — if you join a tutor's class, your tutor can see your name, exam results for assigned exams, and progress within their class. They cannot see your practice quiz results, your account email, or your activity outside their class.
 
 We do not sell your personal data to any third party. We do not share your data with advertisers.
 
@@ -86,8 +86,6 @@ We may disclose your data if required to do so by law or in response to valid le
 Account data — for as long as your account is active. If you delete your account we delete your personal data within 30 days, except where we are required to retain it by law.
 
 Exam and practice results — retained for as long as your account is active. You can export this data at any time from Settings → Privacy & Data.
-
-Payment records — retained for 7 years as required by UK tax law, even after account deletion.
 
 Anonymised usage data — we may retain anonymised and aggregated data indefinitely for research and service improvement purposes. This data cannot be used to identify you.
 
@@ -159,7 +157,7 @@ Encryption — all data is encrypted in transit using TLS 1.2 or higher. Passwor
 
 Access controls — access to personal data is restricted to personnel who need it to provide the service. All access is logged and audited.
 
-Infrastructure security — we use Supabase which implements row-level security ensuring users can only access their own data.
+Infrastructure security — our database enforces row-level security so users can only access their own data. Authentication uses industry-standard JWT session tokens.
 
 Vulnerability management — we keep all software dependencies up to date and monitor for security vulnerabilities.
 
