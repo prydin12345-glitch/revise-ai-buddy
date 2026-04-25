@@ -96,8 +96,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const statsRef = useRef(null);
   const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
+  // Privacy/Terms now live at /privacy and /terms — modals removed.
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Close mobile menu on scroll or outside click
@@ -453,13 +452,24 @@ const LandingPage = () => {
               <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Legal</h4>
               <ul className="space-y-2">
                 <li>
-                  <button onClick={() => setShowPrivacyModal(true)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                  <button onClick={() => navigate("/privacy")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
                     Privacy Policy
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => setShowTermsModal(true)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                  <button onClick={() => navigate("/terms")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
                     Terms of Service
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("examly_cookie_consent");
+                      window.location.reload();
+                    }}
+                    className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left"
+                  >
+                    Cookie settings
                   </button>
                 </li>
                 <li>
@@ -479,39 +489,6 @@ const LandingPage = () => {
         </div>
       </footer>
 
-      {/* ── Privacy Modal ── */}
-      {showPrivacyModal && (
-        <div onClick={() => setShowPrivacyModal(false)} className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]">
-          <div onClick={e => e.stopPropagation()} className="bg-card border border-border rounded-xl p-8 max-w-lg w-[90%] max-h-[70vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-bold">Privacy Policy</h2>
-              <button onClick={() => setShowPrivacyModal(false)} className="text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Examly collects only the information necessary to provide the service — your name, email address, and the study content you generate. We do not sell your data to third parties. All data is stored securely. This policy will be updated with full detail before public launch.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Terms Modal ── */}
-      {showTermsModal && (
-        <div onClick={() => setShowTermsModal(false)} className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]">
-          <div onClick={e => e.stopPropagation()} className="bg-card border border-border rounded-xl p-8 max-w-lg w-[90%] max-h-[70vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-bold">Terms of Service</h2>
-              <button onClick={() => setShowTermsModal(false)} className="text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              By using Examly you agree to use the platform for educational purposes only. AI-generated content is provided as practice material and should not be considered official exam papers. We reserve the right to update these terms. Full terms will be published before public launch.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
