@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Cookie, X, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -9,32 +9,74 @@ export type CookiePreferences = {
 };
 
 const COOKIE_KEY = "examly_cookie_consent";
+const OPEN_EVENT = "examly:open-cookie-settings";
+
+const defaultPrefs: CookiePreferences = {
+  necessary: true,
+  analytics: false,
+  preferences: false,
+};
+
+const readSaved = (): CookiePreferences => {
+  if (typeof window === "undefined") return defaultPrefs;
+  const saved = localStorage.getItem(COOKIE_KEY);
+  if (!saved) return defaultPrefs;
+  try {
+    const parsed = JSON.parse(saved);
+    return {
+      necessary: true,
+      analytics: !!parsed.analytics,
+      preferences: !!parsed.preferences,
+    };
+  } catch {
+    return defaultPrefs;
+  }
+};
+
+/** Opens the cookie preferences modal from anywhere in the app. */
+export const openCookieSettings = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(OPEN_EVENT));
+};
 
 export const CookieConsent = () => {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [preferences, setPreferences] = useState<CookiePreferences>({
-    necessary: true,
-    analytics: false,
-    preferences: false,
-  });
+  const [hasSaved, setHasSaved] = useState(false);
+  const [preferences, setPreferences] = useState<CookiePreferences>(defaultPrefs);
 
+  // First-visit auto-show
   useEffect(() => {
     const saved = localStorage.getItem(COOKIE_KEY);
     if (!saved) {
       const timer = setTimeout(() => setVisible(true), 1000);
       return () => clearTimeout(timer);
     }
+    setHasSaved(true);
+    setPreferences(readSaved());
   }, []);
 
-  const savePreferences = (prefs: CookiePreferences) => {
+  // Listen for global "open settings" requests
+  useEffect(() => {
+    const handler = () => {
+      setPreferences(readSaved());
+      setHasSaved(!!localStorage.getItem(COOKIE_KEY));
+      setShowDetails(true);
+      setVisible(true);
+    };
+    window.addEventListener(OPEN_EVENT, handler);
+    return () => window.removeEventListener(OPEN_EVENT, handler);
+  }, []);
+
+  const savePreferences = useCallback((prefs: CookiePreferences) => {
     localStorage.setItem(
       COOKIE_KEY,
       JSON.stringify({ ...prefs, savedAt: new Date().toISOString() })
     );
+    setHasSaved(true);
     setVisible(false);
     setShowDetails(false);
-  };
+  }, []);
 
   const acceptAll = () =>
     savePreferences({ necessary: true, analytics: true, preferences: true });
@@ -136,7 +178,10 @@ export const CookieConsent = () => {
                   Cookie preferences
                 </h3>
                 <button
-                  onClick={() => setShowDetails(false)}
+                  onClick={() => {
+                    setShowDetails(false);
+                    if (hasSaved) setVisible(false);
+                  }}
                   className="text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-1"
                   aria-label="Close"
                 >
@@ -213,15 +258,7 @@ export const CookieConsent = () => {
   );
 };
 
-export const useCookieConsent = (): CookiePreferences => {
-  const saved = typeof window !== "undefined" ? localStorage.getItem(COOKIE_KEY) : null;
-  if (!saved) return { necessary: true, analytics: false, preferences: false };
-  try {
-    return JSON.parse(saved) as CookiePreferences;
-  } catch {
-    return { necessary: true, analytics: false, preferences: false };
-  }
-};
+export const useCookieConsent = (): CookiePreferences => readSaved();
 
 export const resetCookieConsent = () => {
   localStorage.removeItem(COOKIE_KEY);

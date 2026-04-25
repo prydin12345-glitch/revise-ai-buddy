@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   XCircle,
   LogOut,
+  Cookie,
 } from "lucide-react";
+import { openCookieSettings } from "@/components/CookieConsent";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -244,7 +246,25 @@ export const PrivacySection = () => {
             </AlertDialog>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border/60">
+            <div className="flex-1 min-w-0">
+              <Label>Cookie preferences</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Review or change which cookies Examly may store on this device.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openCookieSettings()}
+              className="gap-2 shrink-0 w-full sm:w-auto"
+            >
+              <Cookie className="w-4 h-4" />
+              Manage cookies
+            </Button>
+          </div>
+
+          <div className="pt-2">
             <Button variant="ghost" size="sm" className="gap-2" asChild>
               <a href="/privacy" target="_blank">
                 Privacy Policy

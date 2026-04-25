@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X, Menu } from "lu
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
+import { openCookieSettings } from "@/components/CookieConsent";
 
 /* ──────────────────────────── helpers ──────────────────────────── */
 
@@ -463,10 +464,7 @@ const LandingPage = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => {
-                      localStorage.removeItem("examly_cookie_consent");
-                      window.location.reload();
-                    }}
+                    onClick={() => openCookieSettings()}
                     className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left"
                   >
                     Cookie settings
