@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { CookieConsent } from "@/components/CookieConsent";
 
 // Only eagerly load the landing page + auth (first paint)
 import Index from "./pages/Index";
@@ -38,6 +39,8 @@ const MyClasses = lazy(() => import("./pages/MyClasses"));
 const UploadExam = lazy(() => import("./pages/UploadExam"));
 const PreviewExam = lazy(() => import("./pages/PreviewExam"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 // Tutor pages
 const ManageExams = lazy(() => import("./pages/tutor/ManageExams"));
@@ -89,6 +92,8 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
               {/* Dev/demo pages — no guard */}
@@ -137,6 +142,7 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
