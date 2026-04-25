@@ -463,10 +463,7 @@ const LandingPage = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => {
-                      localStorage.removeItem("examly_cookie_consent");
-                      window.location.reload();
-                    }}
+                    onClick={() => openCookieSettings()}
                     className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left"
                   >
                     Cookie settings
