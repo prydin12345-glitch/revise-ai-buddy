@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X, Menu } from "lu
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
+import { openCookieSettings } from "@/components/CookieConsent";
 
 /* ──────────────────────────── helpers ──────────────────────────── */
 
