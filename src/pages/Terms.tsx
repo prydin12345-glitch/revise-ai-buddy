@@ -83,17 +83,17 @@ You will comply with your professional duties and safeguarding obligations in yo
   },
   {
     title: "7. Payments and subscriptions",
-    content: `${companyName} currently offers a free tier. Paid subscription tiers will be introduced in the future. When paid tiers are available the following terms will apply:
+    content: `${companyName} is currently free to use and we do not collect any payment information. If we introduce paid subscription tiers in the future the following terms will apply, and we will update this page and notify users in the application before any charges are made:
 
-Subscriptions are billed in advance on a monthly or annual basis. Prices are displayed on our pricing page and are inclusive of applicable taxes.
+Subscriptions will be billed in advance on a monthly or annual basis. Prices will be displayed on our pricing page and are inclusive of applicable taxes.
 
-You have the right to cancel your subscription at any time. For digital services under UK Consumer Contracts Regulations you have a 14-day cooling off period from the date of purchase unless you have already accessed the paid features, in which case you expressly waive this right by accessing the service.
+You will have the right to cancel your subscription at any time. For digital services under UK Consumer Contracts Regulations you have a 14-day cooling off period from the date of purchase unless you have already accessed the paid features, in which case you would expressly waive this right by accessing the service.
 
 We will provide reasonable notice of any price changes before they take effect.
 
-Refunds for partial subscription periods are not provided except where required by law.
+Refunds for partial subscription periods will not be provided except where required by law.
 
-Payment processing is handled by Stripe. By subscribing you agree to Stripe's terms of service in addition to these terms.`,
+Payment processing will be handled by a PCI DSS compliant third-party payment processor. We will name that processor in this policy before any paid plan launches.`,
   },
   {
     title: "8. Intellectual property",
