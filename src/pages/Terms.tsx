@@ -115,7 +115,7 @@ We do not warrant that the service will be uninterrupted, error-free, or that de
 
 We shall not be liable for any indirect, incidental, special, consequential, or punitive damages including loss of profits, data, or goodwill arising from your use of or inability to use the service.
 
-Our total liability to you for any claims arising from your use of the service shall not exceed the amount you paid to us in the 12 months preceding the claim, or £50 if you are on the free tier.
+Our total liability to you for any claims arising from your use of the service shall not exceed the greater of (a) the amount you paid to us in the 12 months preceding the claim, or (b) £50.
 
 Nothing in these terms excludes or limits our liability for death or personal injury caused by negligence, fraud, or any other liability that cannot be excluded by law.
 
