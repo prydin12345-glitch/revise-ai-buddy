@@ -37,6 +37,7 @@ const AdminVerifications = lazy(() => import("./pages/AdminVerifications"));
 const MyClasses = lazy(() => import("./pages/MyClasses"));
 const UploadExam = lazy(() => import("./pages/UploadExam"));
 const PreviewExam = lazy(() => import("./pages/PreviewExam"));
+const Pricing = lazy(() => import("./pages/Pricing"));
 
 // Tutor pages
 const ManageExams = lazy(() => import("./pages/tutor/ManageExams"));
