@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ type UserProfile = {
 };
 
 export const AccountSection = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -368,7 +370,7 @@ export const AccountSection = () => {
                 <p className="font-semibold">Free Plan</p>
                 <p className="text-sm text-muted-foreground">Currently active</p>
               </div>
-              <Button variant="default" className="w-full sm:w-auto">Upgrade</Button>
+              <Button variant="default" className="w-full sm:w-auto" onClick={() => navigate("/pricing")}>Upgrade</Button>
             </div>
           </div>
         </CardContent>

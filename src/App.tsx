@@ -37,6 +37,7 @@ const AdminVerifications = lazy(() => import("./pages/AdminVerifications"));
 const MyClasses = lazy(() => import("./pages/MyClasses"));
 const UploadExam = lazy(() => import("./pages/UploadExam"));
 const PreviewExam = lazy(() => import("./pages/PreviewExam"));
+const Pricing = lazy(() => import("./pages/Pricing"));
 
 // Tutor pages
 const ManageExams = lazy(() => import("./pages/tutor/ManageExams"));
@@ -87,6 +88,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
               {/* Dev/demo pages — no guard */}
