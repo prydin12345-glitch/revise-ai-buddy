@@ -20,6 +20,7 @@ type UserProfile = {
 };
 
 export const AccountSection = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
