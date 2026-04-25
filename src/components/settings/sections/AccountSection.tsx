@@ -370,7 +370,7 @@ export const AccountSection = () => {
                 <p className="font-semibold">Free Plan</p>
                 <p className="text-sm text-muted-foreground">Currently active</p>
               </div>
-              <Button variant="default" className="w-full sm:w-auto">Upgrade</Button>
+              <Button variant="default" className="w-full sm:w-auto" onClick={() => navigate("/pricing")}>Upgrade</Button>
             </div>
           </div>
         </CardContent>
