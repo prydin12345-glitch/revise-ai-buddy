@@ -213,6 +213,27 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <LogOut className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
               {!sidebarCollapsed && <span>Log Out</span>}
             </Button>
+
+            {/* Legal footer links */}
+            {!sidebarCollapsed && (
+              <div className="pt-3 mt-1 border-t border-border/60 flex flex-wrap items-center gap-x-3 gap-y-1 px-3">
+                <button
+                  onClick={() => navigate("/privacy")}
+                  className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                >
+                  Privacy
+                </button>
+                <button
+                  onClick={() => navigate("/terms")}
+                  className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                >
+                  Terms
+                </button>
+                <span className="text-[11px] text-muted-foreground/50 ml-auto">
+                  © {new Date().getFullYear()} Examly
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </aside>
