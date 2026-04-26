@@ -272,7 +272,7 @@ export const AccountSection = () => {
             <p className="text-xs text-muted-foreground leading-relaxed">
               Email address changes are not currently supported in-app. To change your email,
               export your data from the{" "}
-              <a href="/settings?tab=privacy" className="text-primary underline">
+              <a href="/settings?tab=privacy" className="text-primary underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 Privacy &amp; Data
               </a>
               {" "}tab, delete your account, and create a new one with your new email address.
