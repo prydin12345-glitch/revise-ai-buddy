@@ -477,19 +477,19 @@ const LandingPage = () => {
             <div className="flex flex-wrap items-center gap-4">
               <button
                 onClick={() => navigate("/privacy")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Privacy Policy
               </button>
               <button
                 onClick={() => navigate("/terms")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Terms of Service
               </button>
               <button
                 onClick={() => openCookieSettings()}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Cookie settings
               </button>
