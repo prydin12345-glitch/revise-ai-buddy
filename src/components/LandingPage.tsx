@@ -448,31 +448,18 @@ const LandingPage = () => {
                 ))}
               </ul>
             </div>
-            {/* Legal */}
+            {/* Company */}
             <div>
-              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Legal</h4>
+              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Company</h4>
               <ul className="space-y-2">
                 <li>
-                  <button onClick={() => navigate("/privacy")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
-                    Privacy Policy
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => navigate("/terms")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
-                    Terms of Service
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => openCookieSettings()}
-                    className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left"
-                  >
-                    Cookie settings
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => scrollToSection("how-it-works")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
+                  <button onClick={() => scrollToSection("how-it-works")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     About
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => navigate("/pricing")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    Pricing
                   </button>
                 </li>
               </ul>
@@ -490,19 +477,19 @@ const LandingPage = () => {
             <div className="flex flex-wrap items-center gap-4">
               <button
                 onClick={() => navigate("/privacy")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Privacy Policy
               </button>
               <button
                 onClick={() => navigate("/terms")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Terms of Service
               </button>
               <button
                 onClick={() => openCookieSettings()}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Cookie settings
               </button>
