@@ -269,12 +269,13 @@ export const AccountSection = () => {
               disabled
               className="bg-muted"
             />
-            <p className="text-xs text-muted-foreground">
-              Email changes are not currently supported. To change your email
-              address, delete your account from the <span className="font-medium text-foreground">Privacy &amp; Security</span> tab
-              and create a new account with your new email. Use{" "}
-              <span className="font-medium text-foreground">Export data</span> first to
-              preserve your history.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Email address changes are not currently supported in-app. To change your email,
+              export your data from the{" "}
+              <a href="/settings?tab=privacy" className="text-primary underline">
+                Privacy &amp; Data
+              </a>
+              {" "}tab, delete your account, and create a new one with your new email address.
             </p>
           </div>
 

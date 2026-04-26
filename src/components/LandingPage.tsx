@@ -478,11 +478,35 @@ const LandingPage = () => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-border/20 pt-8 text-center space-y-2">
-            <p className="text-sm text-muted-foreground/60">© {new Date().getFullYear()} Examly. All rights reserved.</p>
-            <p className="text-[11px] text-muted-foreground/40 max-w-2xl mx-auto leading-relaxed">
+          <div className="border-t border-border/20 pt-6 mb-4">
+            <p className="text-[11px] text-muted-foreground/40 max-w-2xl mx-auto leading-relaxed text-center">
               Examly is an independent practice platform. Not affiliated with AQA, OCR, Pearson Edexcel, Cambridge Assessment, the College Board, or the IBO.
             </p>
+          </div>
+          <div className="border-t border-border/30 pt-4 flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              © {new Date().getFullYear()} Examly. All rights reserved.
+            </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => navigate("/privacy")}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => navigate("/terms")}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+              >
+                Terms of Service
+              </button>
+              <button
+                onClick={() => openCookieSettings()}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap"
+              >
+                Cookie settings
+              </button>
+            </div>
           </div>
         </div>
       </footer>
