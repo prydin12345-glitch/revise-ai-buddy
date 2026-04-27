@@ -7,6 +7,8 @@ import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceCh
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
+import { MobileStatsHero } from "@/components/stats/MobileStatsHero";
+import { MobileChartSwitcher } from "@/components/stats/MobileChartSwitcher";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
@@ -15,8 +17,10 @@ import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Stats = () => {
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const defaultTab =
     searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
@@ -93,36 +97,52 @@ const Stats = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pb-10 pt-6">
+      <div className="max-w-[1200px] mx-auto px-3 sm:px-6 pb-10 pt-4 sm:pt-6">
         <Tabs defaultValue={defaultTab} className="w-full">
-          {/* Tab navigation */}
-          <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 mb-5 h-auto w-auto inline-flex overflow-x-auto">
-            <TabsTrigger
-              value="stats"
-              className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+          {/* Tab navigation — sticky equal-width segmented on mobile, inline pills on desktop */}
+          <div
+            className={
+              isMobile
+                ? "sticky top-0 z-20 -mx-3 px-3 py-2 mb-3 bg-background/85 backdrop-blur border-b border-border"
+                : "mb-5"
+            }
+          >
+            <TabsList
+              className={
+                isMobile
+                  ? "bg-card border border-border rounded-[10px] p-1 gap-1 grid grid-cols-2 w-full h-auto"
+                  : "bg-card border border-border rounded-[10px] p-1 gap-1 h-auto w-auto inline-flex overflow-x-auto"
+              }
             >
-              <BarChart3 className="w-3.5 h-3.5" />
-              Stats
-            </TabsTrigger>
-            <TabsTrigger
-              value="weak-topics"
-              className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Weak Topics
-              {weakCount > 0 && (
-                <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
-                  {weakCount}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger
+                value="stats"
+                className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Stats
+              </TabsTrigger>
+              <TabsTrigger
+                value="weak-topics"
+                className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Weak Topics
+                {weakCount > 0 && (
+                  <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
+                    {weakCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Stats tab */}
           <TabsContent value="stats" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
-              {/* Stat chips — full width */}
-              <div className="md:col-span-2 lg:col-span-12">
+            {isMobile ? (
+              // ────────── MOBILE LAYOUT ──────────
+              <div className="space-y-3">
+                <MobileStatsHero avgScore={avgScore} />
+
                 <TopStatsCards
                   totalExams={totalExams}
                   completedExams={completedExams}
@@ -133,43 +153,69 @@ const Stats = () => {
                   totalStudyHours={totalStudyHours}
                   bestSubject={bestSubject}
                   onCardClick={drilldown.openDrawer}
+                  variant="grid-no-score"
                 />
-              </div>
 
-              {/* Row 1: Weekly Study (left) + Exam Results (right) */}
-              <div className="md:col-span-1 lg:col-span-5 flex flex-col">
-                <WeeklyStudyChart
-                  data={studyActivityData}
+                <MobileChartSwitcher
+                  studyActivityData={studyActivityData}
                   subjects={subjects}
-                />
-              </div>
-              <div className="md:col-span-1 lg:col-span-7 flex flex-col">
-                <ExamResultsChart
-                  data={examResultsData}
-                  subjects={subjects}
+                  examResultsData={examResultsData}
+                  subjectPerformanceData={subjectPerformanceData}
                   timeRange={timeRange}
-                  onTimeRangeChange={setTimeRange}
+                  setTimeRange={setTimeRange}
+                  pieChartMode={pieChartMode}
+                  setPieChartMode={setPieChartMode}
                   revisionGoals={revisionGoals}
                 />
-              </div>
 
-              {/* Row 2: Subject Performance gauges + Accuracy Trend */}
-              <div className="md:col-span-1 lg:col-span-7 flex flex-col">
-                <SubjectPerformanceChart
-                  data={subjectPerformanceData}
-                  viewMode={pieChartMode}
-                  onViewModeChange={setPieChartMode}
-                />
-              </div>
-              <div className="md:col-span-1 lg:col-span-5 flex flex-col">
-                <AccuracyTrendChart />
-              </div>
-
-              {/* Row 3: Recent Exams — full width */}
-              <div className="md:col-span-2 lg:col-span-12">
                 <RecentExamsTable exams={recentExams} />
               </div>
-            </div>
+            ) : (
+              // ────────── DESKTOP LAYOUT (unchanged) ──────────
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
+                <div className="md:col-span-2 lg:col-span-12">
+                  <TopStatsCards
+                    totalExams={totalExams}
+                    completedExams={completedExams}
+                    inProgressExams={inProgressExams}
+                    currentStreak={currentStreak}
+                    longestStreak={longestStreak}
+                    avgScore={avgScore}
+                    totalStudyHours={totalStudyHours}
+                    bestSubject={bestSubject}
+                    onCardClick={drilldown.openDrawer}
+                  />
+                </div>
+
+                <div className="md:col-span-1 lg:col-span-5 flex flex-col">
+                  <WeeklyStudyChart data={studyActivityData} subjects={subjects} />
+                </div>
+                <div className="md:col-span-1 lg:col-span-7 flex flex-col">
+                  <ExamResultsChart
+                    data={examResultsData}
+                    subjects={subjects}
+                    timeRange={timeRange}
+                    onTimeRangeChange={setTimeRange}
+                    revisionGoals={revisionGoals}
+                  />
+                </div>
+
+                <div className="md:col-span-1 lg:col-span-7 flex flex-col">
+                  <SubjectPerformanceChart
+                    data={subjectPerformanceData}
+                    viewMode={pieChartMode}
+                    onViewModeChange={setPieChartMode}
+                  />
+                </div>
+                <div className="md:col-span-1 lg:col-span-5 flex flex-col">
+                  <AccuracyTrendChart />
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-12">
+                  <RecentExamsTable exams={recentExams} />
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Weak topics tab */}

@@ -1,118 +1,75 @@
+## Goal
+Transform the mobile `/stats` page from a long, uneven scroll of differently-sized containers into a polished, app-like dashboard that feels intentional and professional on small screens — without changing the desktop layout.
 
+## Current problems (mobile, <768px)
+- `TopStatsCards` is a `flex-wrap` of variable-width chips → ragged rows.
+- All chart cards stack full-width in one column with wildly different heights (WeeklyStudy ≠ ExamResults ≠ SubjectPerformance ≠ AccuracyTrend ≠ RecentExams) → endless scroll.
+- Tabs (`Stats` / `Weak Topics`) scroll off the top, so users lose context.
+- `RecentExamsTable` likely renders a wide table that overflows or shrinks awkwardly.
+- No visual hierarchy: every card has equal weight, so the eye has nothing to anchor on.
 
-# Plan: Manual Exam Creator for Tutors
+## Proposed mobile redesign
 
-## Overview
-Build a dedicated "Manual Question Builder" page where tutors hand-craft exam questions with mark schemes, then assemble them into exams with AI-assisted or manual marking. This is a large feature spanning a new page, new components, a new database table, and an edge function.
+### 1. Sticky compact header
+- On mobile only, wrap the Tabs + page title in a `sticky top-0 z-20` bar with `bg-background/85 backdrop-blur` and a 1px bottom border.
+- Tabs become equal-width segmented control (`grid-cols-2`, full width) instead of inline pills.
 
-## Database Changes
+### 2. KPI grid (replaces wrapping chip row)
+- Mobile: `grid grid-cols-2 gap-2` of 5 KPIs → 3 rows (last cell can span 2 or be the "Best Subject" hero).
+- Each cell: fixed height (~84px), large value top-left, label bottom, accent left border kept.
+- Removes the ragged wrap and gives a clean "scoreboard" feel.
 
-**New table: `tutor_question_bank`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL) — references auth.users
-- `question_text` (text, NOT NULL)
-- `question_type` (text, default 'short_answer') — short_answer, mcq, long_form
-- `expected_answer` (text) — mark scheme / model answer
-- `max_marks` (integer, NOT NULL)
-- `topic_tag` (text) — linked to class sub-topics
-- `subject_name` (text, NOT NULL)
-- `options` (jsonb) — for MCQ
-- `marking_preference` (text, default 'ai_assisted') — ai_assisted, manual, self_marking
-- `estimated_minutes` (integer) — AI-suggested time
-- `metadata` (jsonb, default '{}')
-- `created_at`, `updated_at` (timestamptz)
+### 3. Featured hero card: Average Score + sparkline
+- Promote the most important metric (Avg Score) into a single full-width hero card above the KPI grid.
+- Big number + 7-day mini sparkline pulled from `AccuracyTrendChart` data.
+- Anchors the eye and sets professional tone.
 
-RLS: tutor can CRUD own rows (`tutor_id = auth.uid()`).
+### 4. Segmented chart switcher (collapses 4 charts into 1 viewport)
+- On mobile, render `WeeklyStudyChart`, `ExamResultsChart`, `SubjectPerformanceChart`, `AccuracyTrendChart` inside one card with a segmented tab control at the top: `Activity · Results · Subjects · Accuracy`.
+- One chart visible at a time, all at the same fixed height (~260px) → consistent, no layout jitter.
+- Desktop is untouched — still a 12-col grid.
 
-**New table: `tutor_manual_exams`**
-- `id` (uuid, PK)
-- `tutor_id` (uuid, NOT NULL)
-- `title` (text, NOT NULL)
-- `subject_name` (text, NOT NULL)
-- `subject_color` (text, default '#3B82F6')
-- `marking_preference` (text, default 'ai_assisted')
-- `educational_tier` (text)
-- `question_ids` (uuid[], NOT NULL) — ordered list of question_bank IDs
-- `total_marks` (integer, default 0)
-- `estimated_minutes` (integer)
-- `status` (text, default 'draft') — draft, published
-- `created_at`, `updated_at` (timestamptz)
+### 5. Recent Exams: card list, not table
+- On mobile, render `RecentExamsTable` as a vertical list of compact rows (subject dot, exam name, score badge right-aligned, date below) instead of a horizontally-scrolling table.
+- Show first 5, "View all" link to expand.
 
-RLS: tutor can CRUD own rows.
+### 6. Consistent spacing & corners
+- All mobile cards: `rounded-2xl`, `p-4`, `gap-3` between sections (currently `gap-4`).
+- Reduce horizontal page padding from `px-4` to `px-3` on mobile to give charts more room.
 
-## New Route
-- `/tutor/exams/create-manual` → `ManualExamCreator` page (wrapped in TutorLayout)
+## Layout (mobile)
 
-## New Components
+```text
+┌─────────────────────────────┐
+│ Sticky: [Stats] [Weak (n)] │  ← segmented, full width
+├─────────────────────────────┤
+│  Avg Score   72%   ▁▃▅▆█▆▇  │  ← hero card
+├──────────────┬──────────────┤
+│ Exams   12   │ Hours  4.5h  │  ← KPI grid 2-col
+├──────────────┼──────────────┤
+│ Streak  6d   │ Best  Phys   │
+├──────────────┴──────────────┤
+│ [Activity|Results|Subj|Acc] │  ← segmented chart switcher
+│                             │
+│      (one chart, 260px)     │
+│                             │
+├─────────────────────────────┤
+│ Recent Exams                │
+│ • Maths Paper 1     78% ▸  │
+│ • Physics Mock      65% ▸  │
+│ ...                         │
+└─────────────────────────────┘
+```
 
-### 1. `src/pages/tutor/ManualExamCreator.tsx` — Main Page
-Split-view layout:
-- **Left panel**: Question editor form (question text via textarea with LaTeX auto-convert, expected answer, max marks, topic tag dropdown, marking preference toggle)
-- **Right panel**: Live preview rendering the question as students would see it (using `MathRenderer`)
-- **Bottom/sidebar**: Exam stats sidebar showing total marks, topic distribution pie chart, estimated time
+## Files to change
 
-Key behaviors:
-- "Add Question" appends to a sortable list (drag-and-drop reorder via `@dnd-kit`)
-- Inline editing: click question number to rename, click mark bubble to change
-- Focus mode: when editing a question, dim others with opacity
-- Auto-save indicator in header
-- Empty state illustration when no questions exist
+- `src/pages/Stats.tsx` — add mobile branch using `useIsMobile`; wrap tabs in sticky header on mobile; render new mobile composition.
+- `src/components/stats/TopStatsCards.tsx` — accept a `variant?: "wrap" | "grid"` prop; render `grid grid-cols-2` when `grid`.
+- New `src/components/stats/MobileStatsHero.tsx` — hero avg-score card with sparkline (reuse data from `AccuracyTrendChart` hook).
+- New `src/components/stats/MobileChartSwitcher.tsx` — segmented control wrapping the four chart components, fixed 260px chart area.
+- `src/components/stats/RecentExamsTable.tsx` — add mobile card-list rendering branch (keep desktop table intact).
 
-### 2. `src/components/tutor/ManualQuestionEditor.tsx`
-- Rich text fields for question and mark scheme
-- LaTeX detection: if tutor types `1/2` or `sqrt`, offer to convert to `$\frac{1}{2}$` or `$\sqrt{}$`
-- Topic tag dropdown pulling from class sub-topics (`subject_master_topics`)
-- Max marks input (1-10)
-- "Polish with AI" button
-
-### 3. `src/components/tutor/ManualQuestionPreview.tsx`
-- Renders the question exactly as students see it using `MathRenderer`
-- Shows mark allocation badge, topic tag
-
-### 4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-- Segmented card with 3 options: AI-Assisted (Sparkles icon), Manual (User icon), Self-Marking (CheckCircle icon)
-- Each option has description text
-
-### 5. `src/components/tutor/ExamCompositionSidebar.tsx`
-- Sticky sidebar showing:
-  - Total marks counter
-  - Topic distribution (mini pie chart via recharts)
-  - Estimated completion time (marks × 1.5 min ratio)
-  - Question count
-
-## Edge Function: `polish-question`
-- Takes raw question text + subject + educational tier
-- Uses Lovable AI (gemini-2.5-flash) to rephrase into formal exam-board style
-- Returns polished text preserving mathematical requirements
-
-## Integration Points
-
-1. **Saving to Question Bank**: Each question is saved to `tutor_question_bank` independently, enabling reuse across exams.
-
-2. **Publishing as Exam**: When the tutor clicks "Publish", create an entry in the `exams` table (type = 'manual') and copy questions to `exam_questions`. This integrates with existing assignment/grading flows.
-
-3. **AI Marking**: When `marking_preference = 'ai_assisted'`, the existing `submit-exam` edge function will compare student answers against `expected_answer` from the question bank, awarding partial credit based on mark scheme steps.
-
-4. **Class Stats Integration**: Manual exam results flow through existing `exam_submissions` and `student_answers` tables, so the Class Performance Dashboard and weak-topic detection work automatically.
-
-5. **Tutor's "Create Exam" page**: Add a toggle/tab at the top of `CreateTutorExam.tsx` — "Upload & Generate" vs "Build Manually" — routing to the new page.
-
-## UI Details
-- Subject-themed accent colors on save buttons, active borders, progress bars
-- Glassmorphism floating toolbar (`backdrop-blur-md bg-white/5 border border-white/10`)
-- Dark-themed empty state with illustration text: "Your masterpiece starts here"
-- Auto-save with subtle "All changes saved ✓" indicator that pulses
-
-## Files to Create
-1. `src/pages/tutor/ManualExamCreator.tsx`
-2. `src/components/tutor/ManualQuestionEditor.tsx`
-3. `src/components/tutor/ManualQuestionPreview.tsx`
-4. `src/components/tutor/MarkingPreferenceSelector.tsx`
-5. `src/components/tutor/ExamCompositionSidebar.tsx`
-6. `supabase/functions/polish-question/index.ts`
-
-## Files to Edit
-1. `src/App.tsx` — add route `/tutor/exams/create-manual`
-2. `src/pages/tutor/CreateTutorExam.tsx` — add "Build Manually" button/link
-3. `src/pages/tutor/ManageExams.tsx` — add manual exams in listing
-
+## Out of scope
+- Desktop layout (unchanged).
+- Weak Topics tab (already has its own structure; only the sticky tab header benefits it).
+- Data/hook changes — purely presentational.
