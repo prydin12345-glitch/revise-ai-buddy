@@ -7,6 +7,8 @@ import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceCh
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
+import { MobileStatsHero } from "@/components/stats/MobileStatsHero";
+import { MobileChartSwitcher } from "@/components/stats/MobileChartSwitcher";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
@@ -15,6 +17,7 @@ import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Stats = () => {
   const [searchParams] = useSearchParams();
