@@ -81,10 +81,56 @@ export const TopStatsCards = ({
     },
   ];
 
+  // Visible chips depending on variant
+  const visibleChips =
+    variant === "grid-no-score"
+      ? chips.filter((c) => c.clickType !== "scores")
+      : chips;
+
+  // Mobile grid: 2-col scoreboard with consistent cell heights
+  if (variant === "grid" || variant === "grid-no-score") {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {visibleChips.map((chip) => (
+          <button
+            key={chip.label}
+            onClick={() => chip.clickType && onCardClick?.(chip.clickType)}
+            className="flex flex-col items-start justify-between gap-1.5 rounded-xl bg-card border border-border p-3 text-left transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{
+              cursor: chip.clickType ? "pointer" : "default",
+              borderLeft: `3px solid ${chip.colour}`,
+              minHeight: 84,
+            }}
+            tabIndex={chip.clickType ? 0 : -1}
+          >
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: `${chip.colour}18` }}
+            >
+              <chip.icon size={15} style={{ color: chip.colour }} strokeWidth={2} />
+            </div>
+            <div className="w-full">
+              <div
+                className="font-extrabold tracking-tight"
+                style={{ fontSize: 22, lineHeight: 1, color: chip.colour, letterSpacing: "-0.5px" }}
+              >
+                {chip.value}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                {chip.label}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop wrap variant (unchanged)
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex gap-2.5 flex-wrap">
-        {chips.map((chip) => (
+        {visibleChips.map((chip) => (
           <Tooltip key={chip.label}>
             <TooltipTrigger asChild>
               <button
