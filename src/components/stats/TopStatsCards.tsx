@@ -16,6 +16,12 @@ interface TopStatsCardsProps {
   totalStudyHours?: number;
   bestSubject?: { name: string; avgScore: number; color: string } | null;
   onCardClick?: (type: "exams" | "scores" | "study-hours" | "streak") => void;
+  /**
+   * `wrap` (default) — desktop chip row, flex-wrap.
+   * `grid` — mobile 2-column scoreboard grid with consistent cell heights.
+   * `grid-no-score` — same as `grid` but excludes "Average Score" (used when a hero card already shows it).
+   */
+  variant?: "wrap" | "grid" | "grid-no-score";
 }
 
 interface ChipDef {
@@ -33,6 +39,7 @@ export const TopStatsCards = ({
   currentStreak,
   bestSubject,
   onCardClick,
+  variant = "wrap",
 }: TopStatsCardsProps) => {
   const scoreColour =
     avgScore >= 70 ? "hsl(142 71% 45%)" : avgScore >= 50 ? "hsl(25 95% 53%)" : "hsl(0 84% 60%)";
