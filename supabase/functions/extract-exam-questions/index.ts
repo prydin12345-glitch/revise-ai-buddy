@@ -1068,6 +1068,19 @@ For histogram questions:
   "yLabel": "Frequency density"
 }
 
+For ANY question providing tabular data for the student to read from (statistics,
+survey results, experimental data, economic/geographical/biological data), include:
+{
+  "type": "data_table",
+  "headers": ["Country", "GDP per capita"],
+  "units": ["", "$"],
+  "rows": [["Germany", 48200], ["France", 43500], ["Poland", 18400], ["Spain", 32100]],
+  "caption": "Table 1: GDP per capita, 2023",
+  "footnote": "Source: World Bank, 2023"
+}
+Rules: headers length must equal each row length. First column is usually a text label.
+4–10 rows. Do NOT write "the table below shows" — write "Calculate the mean from the data".
+
 Do NOT include chart_data for concept-only questions like "Explain what the median represents".
 ` : '';
 
