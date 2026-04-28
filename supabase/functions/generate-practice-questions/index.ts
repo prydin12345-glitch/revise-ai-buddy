@@ -1623,6 +1623,52 @@ For histogram questions with frequency density, include chart_data:
   "yLabel": "Frequency density"
 }
 
+## DATA TABLE — REQUIRED FOR DATA-BASED QUESTIONS
+
+For ANY question that provides tabular data for a student to read from — including
+statistics tables, survey results, experimental results, economic data (GDP,
+inflation, unemployment), geographical data (population, climate, development
+indicators), biological data (enzyme rates, growth rates), or any tabular data
+the student must analyse — you MUST include a chart_data field of type "data_table".
+
+The chart_data field must follow this EXACT structure:
+{
+  "type": "data_table",
+  "headers": ["Country", "GDP per capita"],
+  "units": ["", "$"],
+  "rows": [
+    ["Germany", 48200],
+    ["France", 43500],
+    ["Poland", 18400],
+    ["Spain", 32100],
+    ["Netherlands", 57800],
+    ["Romania", 14200]
+  ],
+  "caption": "Table 1: GDP per capita by country, 2023",
+  "footnote": "Source: World Bank, 2023"
+}
+
+Rules:
+- headers length MUST equal the number of values in every row
+- First column is typically the label/category (text); other columns are data
+- caption briefly describes what the table shows (optional but recommended)
+- units array is optional — prefer it over repeating units inside headers
+- footnote is optional — include data source if relevant
+- rows should have between 4 and 10 entries
+- Do NOT write "the table below shows" in question_text — the table renders automatically.
+  Write the question as "Calculate the mean GDP per capita from the data" instead.
+
+Question types that MUST include data_table chart_data:
+- "Calculate the mean / median / mode / range from the data"
+- "Identify the outlier from the following data"
+- "Compare the values for X and Y"
+- "Which country / year / category had the highest / lowest value"
+- Any question providing experimental results, survey data, or statistics for analysis
+
+Question types that must NOT include chart_data:
+- "Explain what is meant by GDP per capita" (conceptual — no data needed)
+- "State two advantages of using GDP as a measure" (no data needed)
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
@@ -2124,7 +2170,7 @@ ${notesSection}`;
     console.log(`Generated ${questions.length} questions`);
 
     for (const q of questions) {
-      const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig);
+      const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
       if (!hasBrokenRef) continue;
 
       console.error(
@@ -4012,6 +4058,18 @@ ${notesSection}`;
         } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
           options = chartData;
           console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
+        } else if (chartData.type === 'data_table') {
+          if (
+            Array.isArray(chartData.headers) &&
+            chartData.headers.length > 0 &&
+            Array.isArray(chartData.rows) &&
+            chartData.rows.length > 0
+          ) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Data table chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
+          }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
           options = chartData;

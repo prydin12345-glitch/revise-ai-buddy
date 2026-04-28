@@ -35,6 +35,10 @@ import {
   serializeBearingsResponse,
   BoxPlotChart,
   isBoxPlotQuestion,
+  HistogramChart,
+  isHistogramQuestion,
+  DataTableChart,
+  isDataTableQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -1616,6 +1620,16 @@ const ExamInProgress = () => {
                   {/* Box Plot Chart rendering */}
                   {isBoxPlotQuestion((question as any).options) && (
                     <BoxPlotChart chartData={(question as any).options} className="mb-6" />
+                  )}
+
+                  {/* Histogram chart */}
+                  {isHistogramQuestion((question as any).options) && (
+                    <HistogramChart chartData={(question as any).options} className="mb-6" />
+                  )}
+
+                  {/* Data table */}
+                  {isDataTableQuestion((question as any).options) && (
+                    <DataTableChart chartData={(question as any).options} className="mb-6" />
                   )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
