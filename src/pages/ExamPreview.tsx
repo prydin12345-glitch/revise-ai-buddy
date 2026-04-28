@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
+import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -174,6 +175,9 @@ const ExamPreview = () => {
                     )}
                     {isHistogramQuestion(q.options) && (
                       <HistogramChart chartData={q.options as any} className="mb-4" />
+                    )}
+                    {isDataTableQuestion(q.options) && (
+                      <DataTableChart chartData={q.options as any} className="mb-4" />
                     )}
 
                     {/* Mechanics diagram panel */}
