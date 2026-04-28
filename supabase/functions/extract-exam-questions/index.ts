@@ -252,7 +252,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   );
 
   questions = questions.map((question: any) => {
-    const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig);
+    const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig, question.chart_data ?? question.options);
     if (!hasBrokenRef) {
       return question;
     }
@@ -399,10 +399,24 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
 
-    // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+    // Handle chart_data (box plots, histograms, data tables) — store in options for frontend rendering
     if (q.chart_data && typeof q.chart_data === 'object') {
-      options = q.chart_data;
-      console.log(`Q${q.question_number}: Chart data detected (${q.chart_data.type}), stored in options`);
+      if (q.chart_data.type === 'data_table') {
+        if (
+          Array.isArray(q.chart_data.headers) &&
+          q.chart_data.headers.length > 0 &&
+          Array.isArray(q.chart_data.rows) &&
+          q.chart_data.rows.length > 0
+        ) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Data table chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
+        }
+      } else {
+        options = q.chart_data;
+        console.log(`Q${q.question_number}: Chart data detected (${q.chart_data.type}), stored in options`);
+      }
     }
 
     return {

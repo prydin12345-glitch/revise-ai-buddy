@@ -2124,7 +2124,7 @@ ${notesSection}`;
     console.log(`Generated ${questions.length} questions`);
 
     for (const q of questions) {
-      const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig);
+      const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
       if (!hasBrokenRef) continue;
 
       console.error(
@@ -4012,6 +4012,18 @@ ${notesSection}`;
         } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
           options = chartData;
           console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
+        } else if (chartData.type === 'data_table') {
+          if (
+            Array.isArray(chartData.headers) &&
+            chartData.headers.length > 0 &&
+            Array.isArray(chartData.rows) &&
+            chartData.rows.length > 0
+          ) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Data table chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
+          }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
           options = chartData;
