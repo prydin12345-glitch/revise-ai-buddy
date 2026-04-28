@@ -13,3 +13,4 @@ export * from './GraphCanvas';
 export * from './GraphCanvasPlot';
 export * from './BoxPlotChart';
 export * from './HistogramChart';
+export * from './DataTableChart';
