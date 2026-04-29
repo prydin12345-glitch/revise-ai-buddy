@@ -1669,6 +1669,51 @@ Question types that must NOT include chart_data:
 - "Explain what is meant by GDP per capita" (conceptual — no data needed)
 - "State two advantages of using GDP as a measure" (no data needed)
 
+BAR CHART — for comparing categorical values (survey responses, GDP by country,
+revenue by year, enzyme activity, etc.). Include chart_data of type "bar_chart":
+{
+  "type": "bar_chart",
+  "caption": "Figure 1: Brief description",
+  "xLabel": "Category axis label",
+  "yLabel": "Value axis label",
+  "orientation": "vertical",
+  "bars": [
+    { "label": "Category A", "value": 45 },
+    { "label": "Category B", "value": 72 },
+    { "label": "Category C", "value": 31 }
+  ],
+  "footnote": "Source: organisation, year (optional)"
+}
+For grouped bars (comparing two datasets across categories) use "grouped" instead of "bars":
+{
+  "type": "bar_chart",
+  "grouped": [
+    { "groupLabel": "2020", "bars": [
+      { "label": "Dataset A", "value": 45 },
+      { "label": "Dataset B", "value": 72 }
+    ]}
+  ]
+}
+Rules: 3–10 bars; positive values; orientation "horizontal" only when labels are long.
+Do NOT write "the bar chart below" — write "Using the data, calculate...".
+
+PIE CHART — for proportions, percentages, market share, composition data.
+Include chart_data of type "pie_chart":
+{
+  "type": "pie_chart",
+  "caption": "Figure 1: Brief description",
+  "showPercentages": true,
+  "segments": [
+    { "label": "Category A", "value": 45 },
+    { "label": "Category B", "value": 30 },
+    { "label": "Category C", "value": 25 }
+  ],
+  "footnote": "Source: organisation, year (optional)"
+}
+Rules: 3–8 segments; values can be raw numbers or percentages (percentages auto-calculated);
+isDoughnut: true only when emphasising total. Do NOT write "the pie chart below" —
+write "Calculate what percentage...".
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number

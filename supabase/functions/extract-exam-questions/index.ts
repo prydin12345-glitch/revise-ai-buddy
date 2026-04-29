@@ -1121,6 +1121,33 @@ survey results, experimental data, economic/geographical/biological data), inclu
 Rules: headers length must equal each row length. First column is usually a text label.
 4–10 rows. Do NOT write "the table below shows" — write "Calculate the mean from the data".
 
+For bar chart questions (comparing categorical values):
+{
+  "type": "bar_chart",
+  "caption": "Figure 1: Brief description",
+  "xLabel": "Category", "yLabel": "Value",
+  "orientation": "vertical",
+  "bars": [
+    { "label": "A", "value": 45 },
+    { "label": "B", "value": 72 }
+  ]
+}
+For grouped bars use "grouped": [{ "groupLabel": "2020", "bars": [...] }] instead.
+3–10 bars; positive values. Do NOT write "the bar chart below".
+
+For pie chart questions (proportions, percentages, market share):
+{
+  "type": "pie_chart",
+  "caption": "Figure 1: Brief description",
+  "showPercentages": true,
+  "segments": [
+    { "label": "A", "value": 45 },
+    { "label": "B", "value": 30 },
+    { "label": "C", "value": 25 }
+  ]
+}
+3–8 segments; values can be raw or percentages. Do NOT write "the pie chart below".
+
 Do NOT include chart_data for concept-only questions like "Explain what the median represents".
 ` : '';
 
