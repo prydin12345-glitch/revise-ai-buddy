@@ -96,13 +96,22 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
   const PADDING = { top: 20, right: 16, bottom: 56, left: 56 };
 
   const renderVertical = (svgHeight: number) => {
-    const plotW = SVG_WIDTH - PADDING.left - PADDING.right;
-    const plotH = svgHeight - PADDING.top - PADDING.bottom;
-    const toY = (v: number) => PADDING.top + plotH - (v / niceMax) * plotH;
-
     const items: BarChartGroup[] = isGrouped
       ? grouped!
       : (bars ?? []).map(b => ({ groupLabel: b.label, bars: [b] }));
+
+    // Decide whether to rotate x labels: crowded or long labels.
+    const maxLabelLen = items.reduce(
+      (m, it) => Math.max(m, it.groupLabel.length),
+      0
+    );
+    const rotateLabels = items.length > 6 || maxLabelLen > 8;
+    const bottomPad = rotateLabels ? 78 : 56;
+    const dynPadding = { ...PADDING, bottom: bottomPad };
+
+    const plotW = SVG_WIDTH - dynPadding.left - dynPadding.right;
+    const plotH = svgHeight - dynPadding.top - dynPadding.bottom;
+    const toY = (v: number) => dynPadding.top + plotH - (v / niceMax) * plotH;
 
     const groupW = plotW / Math.max(items.length, 1);
     const barsPerGroup = isGrouped ? (items[0]?.bars.length ?? 1) : 1;
@@ -110,6 +119,14 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
       ? (groupW * 0.78) / barsPerGroup
       : groupW * 0.6;
     const groupInnerPad = (groupW - barW * barsPerGroup) / 2;
+
+    // Truncation length scales with available group width.
+    const maxChars = rotateLabels
+      ? Math.max(8, Math.floor(groupW / 5))
+      : Math.max(6, Math.floor(groupW / 7));
+
+    const truncate = (s: string) =>
+      s.length > maxChars ? s.slice(0, maxChars - 1) + '…' : s;
 
     return (
       <svg
@@ -124,8 +141,8 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
         {ticks.map((t, i) => (
           <g key={`yt-${i}`}>
             <line
-              x1={PADDING.left}
-              x2={SVG_WIDTH - PADDING.right}
+              x1={dynPadding.left}
+              x2={SVG_WIDTH - dynPadding.right}
               y1={toY(t)}
               y2={toY(t)}
               stroke="hsl(var(--border))"
@@ -133,7 +150,7 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
               strokeDasharray={i === 0 ? '0' : '2 3'}
             />
             <text
-              x={PADDING.left - 6}
+              x={dynPadding.left - 6}
               y={toY(t) + 4}
               textAnchor="end"
               fontSize={10}
@@ -147,9 +164,9 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
         {/* Y axis label */}
         {yLabel && (
           <text
-            transform={`rotate(-90 14 ${PADDING.top + plotH / 2})`}
+            transform={`rotate(-90 14 ${dynPadding.top + plotH / 2})`}
             x={14}
-            y={PADDING.top + plotH / 2}
+            y={dynPadding.top + plotH / 2}
             textAnchor="middle"
             fontSize={11}
             fill="hsl(var(--muted-foreground))"
@@ -160,7 +177,9 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
 
         {/* Bars */}
         {items.map((item, gi) => {
-          const groupX = PADDING.left + gi * groupW + groupInnerPad;
+          const groupX = dynPadding.left + gi * groupW + groupInnerPad;
+          const labelCenterX = dynPadding.left + gi * groupW + groupW / 2;
+          const labelY = dynPadding.top + plotH + (rotateLabels ? 14 : 16);
           return (
             <g key={`g-${gi}`}>
               {item.bars.map((bar, bi) => {
@@ -185,7 +204,9 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                       onMouseEnter={() => setHoveredKey(key)}
                       onMouseLeave={() => setHoveredKey(null)}
                       style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
-                    />
+                    >
+                      <title>{`${bar.label}: ${fmt(bar.value)}`}</title>
+                    </rect>
                     {barH > 18 && (
                       <text
                         x={x + barW / 2}
@@ -201,17 +222,21 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                   </g>
                 );
               })}
-              {/* X axis label */}
+              {/* X axis label (rotated when crowded) */}
               <text
-                x={PADDING.left + gi * groupW + groupW / 2}
-                y={PADDING.top + plotH + 16}
-                textAnchor="middle"
+                x={labelCenterX}
+                y={labelY}
+                textAnchor={rotateLabels ? 'end' : 'middle'}
                 fontSize={10}
                 fill="hsl(var(--muted-foreground))"
+                transform={
+                  rotateLabels
+                    ? `rotate(-35 ${labelCenterX} ${labelY})`
+                    : undefined
+                }
               >
-                {item.groupLabel.length > 14
-                  ? item.groupLabel.slice(0, 13) + '…'
-                  : item.groupLabel}
+                {truncate(item.groupLabel)}
+                <title>{item.groupLabel}</title>
               </text>
             </g>
           );
@@ -219,10 +244,10 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
 
         {/* X axis line */}
         <line
-          x1={PADDING.left}
-          x2={SVG_WIDTH - PADDING.right}
-          y1={PADDING.top + plotH}
-          y2={PADDING.top + plotH}
+          x1={dynPadding.left}
+          x2={SVG_WIDTH - dynPadding.right}
+          y1={dynPadding.top + plotH}
+          y2={dynPadding.top + plotH}
           stroke="hsl(var(--border))"
           strokeWidth={1.5}
         />
@@ -272,6 +297,7 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                 fill="hsl(var(--foreground))"
               >
                 {bar.label.length > 16 ? bar.label.slice(0, 15) + '…' : bar.label}
+                <title>{bar.label}</title>
               </text>
               <rect
                 x={plotX}
@@ -293,7 +319,9 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                 onMouseEnter={() => setHoveredKey(key)}
                 onMouseLeave={() => setHoveredKey(null)}
                 style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
-              />
+              >
+                <title>{`${bar.label}: ${fmt(bar.value)}`}</title>
+              </rect>
               <text
                 x={plotX + barW + 4}
                 y={y + rowH / 2 + 3}
