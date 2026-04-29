@@ -39,6 +39,10 @@ import {
   isHistogramQuestion,
   DataTableChart,
   isDataTableQuestion,
+  BarChart,
+  isBarChartQuestion,
+  PieChart,
+  isPieChartQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -1630,6 +1634,12 @@ const ExamInProgress = () => {
                   {/* Data table */}
                   {isDataTableQuestion((question as any).options) && (
                     <DataTableChart chartData={(question as any).options} className="mb-6" />
+                  )}
+                  {isBarChartQuestion((question as any).options) && (
+                    <BarChart chartData={(question as any).options} className="mb-6" />
+                  )}
+                  {isPieChartQuestion((question as any).options) && (
+                    <PieChart chartData={(question as any).options} className="mb-6" />
                   )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
