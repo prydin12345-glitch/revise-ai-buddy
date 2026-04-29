@@ -399,7 +399,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
 
-    // Handle chart_data (box plots, histograms, data tables) — store in options for frontend rendering
+    // Handle chart_data (box plots, histograms, data tables, bar/pie charts) — store in options
     if (q.chart_data && typeof q.chart_data === 'object') {
       if (q.chart_data.type === 'data_table') {
         if (
@@ -412,6 +412,46 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           console.log(`Q${q.question_number}: Data table chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
+        }
+      } else if (q.chart_data.type === 'bar_chart') {
+        const validBars =
+          Array.isArray(q.chart_data.bars) &&
+          q.chart_data.bars.length > 0 &&
+          q.chart_data.bars.every((b: any) =>
+            typeof b?.label === 'string' && typeof b?.value === 'number'
+          );
+        const validGrouped =
+          Array.isArray(q.chart_data.grouped) &&
+          q.chart_data.grouped.length > 0 &&
+          q.chart_data.grouped.every((g: any) =>
+            typeof g?.groupLabel === 'string' &&
+            Array.isArray(g?.bars) &&
+            g.bars.length > 0 &&
+            g.bars.every((b: any) =>
+              typeof b?.label === 'string' && typeof b?.value === 'number'
+            )
+          );
+        if (validBars || validGrouped) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
+        }
+      } else if (q.chart_data.type === 'pie_chart') {
+        const validSegs =
+          Array.isArray(q.chart_data.segments) &&
+          q.chart_data.segments.length > 0 &&
+          q.chart_data.segments.every((s: any) =>
+            typeof s?.label === 'string' && typeof s?.value === 'number' && s.value >= 0
+          );
+        const segTotal = validSegs
+          ? q.chart_data.segments.reduce((sum: number, s: any) => sum + s.value, 0)
+          : 0;
+        if (validSegs && segTotal > 0) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
         }
       } else {
         options = q.chart_data;

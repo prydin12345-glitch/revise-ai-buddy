@@ -4070,6 +4070,46 @@ ${notesSection}`;
           } else {
             console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
           }
+        } else if (chartData.type === 'bar_chart') {
+          const validBars =
+            Array.isArray(chartData.bars) &&
+            chartData.bars.length > 0 &&
+            chartData.bars.every((b: any) =>
+              typeof b?.label === 'string' && typeof b?.value === 'number'
+            );
+          const validGrouped =
+            Array.isArray(chartData.grouped) &&
+            chartData.grouped.length > 0 &&
+            chartData.grouped.every((g: any) =>
+              typeof g?.groupLabel === 'string' &&
+              Array.isArray(g?.bars) &&
+              g.bars.length > 0 &&
+              g.bars.every((b: any) =>
+                typeof b?.label === 'string' && typeof b?.value === 'number'
+              )
+            );
+          if (validBars || validGrouped) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
+          }
+        } else if (chartData.type === 'pie_chart') {
+          const validSegs =
+            Array.isArray(chartData.segments) &&
+            chartData.segments.length > 0 &&
+            chartData.segments.every((s: any) =>
+              typeof s?.label === 'string' && typeof s?.value === 'number' && s.value >= 0
+            );
+          const segTotal = validSegs
+            ? chartData.segments.reduce((sum: number, s: any) => sum + s.value, 0)
+            : 0;
+          if (validSegs && segTotal > 0) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
+          }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
           options = chartData;
