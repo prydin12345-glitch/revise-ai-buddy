@@ -85,6 +85,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
+import { BarChart, isBarChartQuestion, PieChart, isPieChartQuestion } from "@/components/graph";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1658,6 +1659,12 @@ const TakePracticeQuiz = () => {
                   {/* Data table */}
                   {isDataTableQuestion((currentQuestion as any).options) && (
                     <DataTableChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+                  {isBarChartQuestion((currentQuestion as any).options) && (
+                    <BarChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+                  {isPieChartQuestion((currentQuestion as any).options) && (
+                    <PieChart chartData={(currentQuestion as any).options} className="mb-4" />
                   )}
 
                   {/* Answer input section - conditionally render based on question type */}

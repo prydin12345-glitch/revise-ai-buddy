@@ -12,6 +12,7 @@ import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
+import { BarChart, isBarChartQuestion, PieChart, isPieChartQuestion } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -546,6 +547,12 @@ const ExamReview = () => {
                    )}
                    {isDataTableQuestion((question as any).options) && (
                      <DataTableChart chartData={(question as any).options} className="mb-4" />
+                   )}
+                   {isBarChartQuestion((question as any).options) && (
+                     <BarChart chartData={(question as any).options} className="mb-4" />
+                   )}
+                   {isPieChartQuestion((question as any).options) && (
+                     <PieChart chartData={(question as any).options} className="mb-4" />
                    )}
 
                    {/* Mechanics diagram panel */}
