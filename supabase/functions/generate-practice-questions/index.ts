@@ -1669,6 +1669,51 @@ Question types that must NOT include chart_data:
 - "Explain what is meant by GDP per capita" (conceptual — no data needed)
 - "State two advantages of using GDP as a measure" (no data needed)
 
+BAR CHART — for comparing categorical values (survey responses, GDP by country,
+revenue by year, enzyme activity, etc.). Include chart_data of type "bar_chart":
+{
+  "type": "bar_chart",
+  "caption": "Figure 1: Brief description",
+  "xLabel": "Category axis label",
+  "yLabel": "Value axis label",
+  "orientation": "vertical",
+  "bars": [
+    { "label": "Category A", "value": 45 },
+    { "label": "Category B", "value": 72 },
+    { "label": "Category C", "value": 31 }
+  ],
+  "footnote": "Source: organisation, year (optional)"
+}
+For grouped bars (comparing two datasets across categories) use "grouped" instead of "bars":
+{
+  "type": "bar_chart",
+  "grouped": [
+    { "groupLabel": "2020", "bars": [
+      { "label": "Dataset A", "value": 45 },
+      { "label": "Dataset B", "value": 72 }
+    ]}
+  ]
+}
+Rules: 3–10 bars; positive values; orientation "horizontal" only when labels are long.
+Do NOT write "the bar chart below" — write "Using the data, calculate...".
+
+PIE CHART — for proportions, percentages, market share, composition data.
+Include chart_data of type "pie_chart":
+{
+  "type": "pie_chart",
+  "caption": "Figure 1: Brief description",
+  "showPercentages": true,
+  "segments": [
+    { "label": "Category A", "value": 45 },
+    { "label": "Category B", "value": 30 },
+    { "label": "Category C", "value": 25 }
+  ],
+  "footnote": "Source: organisation, year (optional)"
+}
+Rules: 3–8 segments; values can be raw numbers or percentages (percentages auto-calculated);
+isDoughnut: true only when emphasising total. Do NOT write "the pie chart below" —
+write "Calculate what percentage...".
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
@@ -4069,6 +4114,46 @@ ${notesSection}`;
             console.log(`Q${q.question_number}: Data table chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
+          }
+        } else if (chartData.type === 'bar_chart') {
+          const validBars =
+            Array.isArray(chartData.bars) &&
+            chartData.bars.length > 0 &&
+            chartData.bars.every((b: any) =>
+              typeof b?.label === 'string' && typeof b?.value === 'number'
+            );
+          const validGrouped =
+            Array.isArray(chartData.grouped) &&
+            chartData.grouped.length > 0 &&
+            chartData.grouped.every((g: any) =>
+              typeof g?.groupLabel === 'string' &&
+              Array.isArray(g?.bars) &&
+              g.bars.length > 0 &&
+              g.bars.every((b: any) =>
+                typeof b?.label === 'string' && typeof b?.value === 'number'
+              )
+            );
+          if (validBars || validGrouped) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
+          }
+        } else if (chartData.type === 'pie_chart') {
+          const validSegs =
+            Array.isArray(chartData.segments) &&
+            chartData.segments.length > 0 &&
+            chartData.segments.every((s: any) =>
+              typeof s?.label === 'string' && typeof s?.value === 'number' && s.value >= 0
+            );
+          const segTotal = validSegs
+            ? chartData.segments.reduce((sum: number, s: any) => sum + s.value, 0)
+            : 0;
+          if (validSegs && segTotal > 0) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
           }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
