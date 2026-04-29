@@ -148,7 +148,9 @@ export const PieChart = ({ chartData, className = '', size = 220 }: PieChartProp
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 style={{ cursor: 'pointer', transition: 'opacity 0.15s, d 0.15s' }}
-              />
+              >
+                <title>{`${slice.label}: ${fmt(slice.value)} (${slice.percentage}%)`}</title>
+              </path>
               {showPercentages && slice.percentage >= 8 && (
                 <text
                   x={lp.x + offX}

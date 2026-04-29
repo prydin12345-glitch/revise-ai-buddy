@@ -297,6 +297,7 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                 fill="hsl(var(--foreground))"
               >
                 {bar.label.length > 16 ? bar.label.slice(0, 15) + '…' : bar.label}
+                <title>{bar.label}</title>
               </text>
               <rect
                 x={plotX}
@@ -318,7 +319,9 @@ export const BarChart = ({ chartData, className = '', height = 240 }: BarChartPr
                 onMouseEnter={() => setHoveredKey(key)}
                 onMouseLeave={() => setHoveredKey(null)}
                 style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
-              />
+              >
+                <title>{`${bar.label}: ${fmt(bar.value)}`}</title>
+              </rect>
               <text
                 x={plotX + barW + 4}
                 y={y + rowH / 2 + 3}
