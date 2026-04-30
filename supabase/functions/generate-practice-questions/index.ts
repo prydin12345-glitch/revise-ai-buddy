@@ -1781,6 +1781,36 @@ Rules: months MUST contain exactly 12 entries Jan–Dec; temperature line render
 precipitation bars render blue; location should be "City, Country". Do NOT write
 "from the climate graph" — write "Identify the wettest month".
 
+SPECIFIC CHART QUESTION PATTERNS — follow these exactly:
+
+Pattern 1 — "The bar chart shows X. What/How many/Which...":
+These are bar chart READING questions. You MUST include chart_data of type bar_chart
+with realistic data values that make the question answerable.
+
+Pattern 2 — "The pie chart shows X. What fraction... / Calculate the angle...":
+These are pie chart READING questions. You MUST include chart_data of type pie_chart
+with segment values that match the question (e.g. if Blue is 90° out of 360°
+then Blue segment value = 25 out of 100).
+
+Pattern 3 — "Complete the table and draw an accurate pie/bar chart":
+These are CONSTRUCTION questions. Include table_grid for the table part
+and correct_chart_data for the chart the student should draw.
+Do NOT include chart_data (no chart shows during the exam).
+
+Pattern 4 — "The dual bar chart shows X and Y from Jan to Jun":
+Use chart_data of type bar_chart with the grouped structure.
+Include realistic data for both groups across all time periods.
+
+Pattern 5 — Survey/experiment results shown in a chart:
+Always include the actual data values in chart_data.
+The student must be able to read specific values from the chart.
+
+DRAW/CONSTRUCT chart questions ("draw a pie chart", "construct a bar chart"):
+- The student cannot draw on screen — set chart_data to null
+- Include correct_chart_data with the completed chart for the review page
+- Example: { "correct_chart_data": { "type": "pie_chart", "segments": [...] } }
+
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
@@ -2002,7 +2032,10 @@ ${notesSection}`;
       'You are an expert practice question generator. ' +
       'You MUST call the function generate_practice_questions. ' +
       'Do not output any other text. ' +
-      'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}.' +
+      'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}. ' +
+      'IMPORTANT FORMATTING RULES: Do NOT use Markdown in question_text. No **bold**, no *italic*, no __underline__. ' +
+      'For emphasis use plain text only — write "Total" not "**Total**". ' +
+      'Do not use | to draw Markdown tables in question_text — use chart_data of type "data_table" instead.' +
       nonMathGraphWarning;
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
@@ -4149,8 +4182,10 @@ ${notesSection}`;
       // the graph data is stored in correct_answer but the frontend reads from options.
       // Copy graph data to options field for these question types.
       let options = q.options || null;
-      
-      // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+      // Chart payload goes into diagram_config (NOT options) so MCQ choices and
+      // chart data can coexist on the same question.
+      let chartPayload: any = null;
+
       const chartData = q.chart_data ?? q.chartData ?? null;
       if (chartData && typeof chartData === 'object') {
         // Validate box plot data
@@ -4159,16 +4194,16 @@ ${notesSection}`;
           if (typeof min === 'number' && typeof q1 === 'number' && typeof med === 'number' &&
               typeof q3 === 'number' && typeof max === 'number' &&
               min < q1 && q1 < med && med < q3 && q3 < max) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Valid box plot chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid box plot data — stripped`);
           }
         } else if (chartData.type === 'boxplot_comparison' && Array.isArray(chartData.datasets)) {
-          options = chartData;
+          chartPayload = chartData;
           console.log(`Q${q.question_number}: Comparison box plot chart_data stored in options`);
         } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
-          options = chartData;
+          chartPayload = chartData;
           console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
         } else if (chartData.type === 'data_table') {
           if (
@@ -4177,7 +4212,7 @@ ${notesSection}`;
             Array.isArray(chartData.rows) &&
             chartData.rows.length > 0
           ) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Data table chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
@@ -4201,7 +4236,7 @@ ${notesSection}`;
               )
             );
           if (validBars || validGrouped) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
@@ -4217,7 +4252,7 @@ ${notesSection}`;
             ? chartData.segments.reduce((sum: number, s: any) => sum + s.value, 0)
             : 0;
           if (validSegs && segTotal > 0) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
@@ -4236,7 +4271,7 @@ ${notesSection}`;
               i === 0 || p.cumulativeFrequency >= chartData.points[i - 1].cumulativeFrequency
           );
           if (validPoints && isNonDecreasing) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Cumulative frequency chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid cumulative_frequency — points missing or non-monotonic`);
@@ -4260,7 +4295,7 @@ ${notesSection}`;
               Array.isArray(d?.classes) && d.classes.length >= 2
             );
           if (validClasses || validDatasets) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Frequency polygon chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid frequency_polygon — needs classes or datasets`);
@@ -4277,14 +4312,14 @@ ${notesSection}`;
             ) &&
             typeof chartData.location === 'string';
           if (validClimate) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Climate chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid climate_chart — needs exactly 12 months and location`);
           }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
-          options = chartData;
+          chartPayload = chartData;
         }
       }
       
@@ -4310,7 +4345,21 @@ ${notesSection}`;
         correct_answer: correctAnswer,
         options: options,
         rationale: q.rationale || null,
-        diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
+        diagram_config: (() => {
+          const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
+          const correctChart = q.correct_chart_data ?? null;
+          if (chartPayload) {
+            return correctChart
+              ? { ...chartPayload, correct_chart_data: correctChart }
+              : chartPayload;
+          }
+          if (correctChart) {
+            return baseDiagram && typeof baseDiagram === 'object'
+              ? { ...baseDiagram, correct_chart_data: correctChart }
+              : { correct_chart_data: correctChart };
+          }
+          return baseDiagram;
+        })(),
       };
     });
     

@@ -92,6 +92,7 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
+import { getChartData } from "@/utils/chartData";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1652,35 +1653,40 @@ const TakePracticeQuiz = () => {
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
 
-                  {/* Box plot chart */}
-                  {isBoxPlotQuestion((currentQuestion as any).options) && (
-                    <BoxPlotChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
+                  {/* Chart rendering — diagram_config first, options fallback */}
+                  {(() => {
+                    const chartData = getChartData(currentQuestion);
+                    if (!chartData) return null;
+                    return (
+                      <>
+                        {isBoxPlotQuestion(chartData) && (
+                          <BoxPlotChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isHistogramQuestion(chartData) && (
+                          <HistogramChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isDataTableQuestion(chartData) && (
+                          <DataTableChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isBarChartQuestion(chartData) && (
+                          <BarChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isPieChartQuestion(chartData) && (
+                          <PieChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isCumulativeFrequencyQuestion(chartData) && (
+                          <CumulativeFrequencyChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isFrequencyPolygonQuestion(chartData) && (
+                          <FrequencyPolygonChart chartData={chartData} className="mb-4" />
+                        )}
+                        {isClimateChartQuestion(chartData) && (
+                          <ClimateChart chartData={chartData} className="mb-4" />
+                        )}
+                      </>
+                    );
+                  })()}
 
-                  {/* Histogram chart */}
-                  {isHistogramQuestion((currentQuestion as any).options) && (
-                    <HistogramChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-
-                  {/* Data table */}
-                  {isDataTableQuestion((currentQuestion as any).options) && (
-                    <DataTableChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-                  {isBarChartQuestion((currentQuestion as any).options) && (
-                    <BarChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-                  {isPieChartQuestion((currentQuestion as any).options) && (
-                    <PieChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-                  {isCumulativeFrequencyQuestion((currentQuestion as any).options) && (
-                    <CumulativeFrequencyChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-                  {isFrequencyPolygonQuestion((currentQuestion as any).options) && (
-                    <FrequencyPolygonChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
-                  {isClimateChartQuestion((currentQuestion as any).options) && (
-                    <ClimateChart chartData={(currentQuestion as any).options} className="mb-4" />
-                  )}
 
                   {/* Answer input section - conditionally render based on question type */}
                   {(() => {

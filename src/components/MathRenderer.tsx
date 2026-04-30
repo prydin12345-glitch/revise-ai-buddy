@@ -192,6 +192,20 @@ const normalizeBlankFormat = (content: string): string => {
   return normalized;
 };
 
+// Strip Markdown bold/italic emphasis the AI sometimes emits in question_text.
+// MathRenderer only handles LaTeX (not Markdown), so **bold**, *italic*, __u__, _i_
+// would otherwise render as literal asterisks/underscores.
+const stripMarkdownEmphasis = (content: string): string => {
+  if (!content) return '';
+  return content
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1$2')
+    .replace(/__([^_\n]+)__/g, '$1')
+    .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1$2')
+    .replace(/\|\s*([^|\n]+?)\s*\|/g, (m, inner) => `| ${inner.replace(/\*\*/g, '')} |`)
+    .replace(/  +/g, ' ');
+};
+
 // Style [ BLANK ] placeholders for display
 const styleBlankPlaceholders = (content: string): string => {
   // Replace [ BLANK ] with styled span for display
@@ -212,9 +226,15 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   
   // Then convert any markdown tables to HTML tables
   const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);
-  
+
+  // Strip Markdown bold/italic emphasis (renders as literal asterisks otherwise).
+  // Skip stripping inside HTML tables — those are already converted markup.
+  const contentWithoutMd = /<table[^>]*class="exam-table"[^>]*>/i.test(contentWithHtmlTables)
+    ? contentWithHtmlTables
+    : stripMarkdownEmphasis(contentWithHtmlTables);
+
   // Clean the content if it has letter prefix (for MCQ options)
-  const cleanedContent = cleanOptionText(contentWithHtmlTables);
+  const cleanedContent = cleanOptionText(contentWithoutMd);
   
   // Check if content contains HTML tables
   const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(cleanedContent);
