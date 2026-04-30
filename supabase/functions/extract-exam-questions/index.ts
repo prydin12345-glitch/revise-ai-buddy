@@ -542,7 +542,23 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       graph_description: q.graph_description || null,
       is_flagged: q.needs_review || false,
       flag_reason: q.needs_review ? 'Broken diagram reference auto-scrubbed; review required' : null,
-      diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
+      diagram_config: (() => {
+        // Merge chart payload + correct_chart_data into diagram_config so MCQ
+        // choices in `options` no longer collide with chart data.
+        const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
+        const correctChart = q.correct_chart_data ?? null;
+        if (chartPayload) {
+          return correctChart
+            ? { ...chartPayload, correct_chart_data: correctChart }
+            : chartPayload;
+        }
+        if (correctChart) {
+          return baseDiagram && typeof baseDiagram === 'object'
+            ? { ...baseDiagram, correct_chart_data: correctChart }
+            : { correct_chart_data: correctChart };
+        }
+        return baseDiagram;
+      })(),
       circuit_type: q.circuit_type ?? null,
       circuit_description: q.circuit_description ?? null,
     };
