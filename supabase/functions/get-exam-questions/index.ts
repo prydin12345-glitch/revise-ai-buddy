@@ -170,9 +170,20 @@ serve(async (req) => {
           question_text: q.question_text,
           marks: q.marks,
           options: q.options,
+          diagram_config: q.diagram_config,
           figure_urls: q.figure_urls,
           has_figures: q.has_figures,
           has_tables: q.has_tables,
+          data_type: q.data_type,
+          graph_description: q.graph_description,
+          table_data: q.table_data,
+          generated_diagram_url: q.generated_diagram_url,
+          diagram_type: q.diagram_type,
+          circuit_type: q.circuit_type,
+          circuit_description: q.circuit_description,
+          needs_diagram: q.needs_diagram,
+          question_latex: q.question_latex,
+          has_math: q.has_math,
         }));
 
     return new Response(JSON.stringify({ 
