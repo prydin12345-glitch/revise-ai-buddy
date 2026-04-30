@@ -169,8 +169,9 @@ const MyExams = () => {
 
       // Safety net: recover any of this user's exams that finished generating
       // but were never explicitly published (e.g. user closed the completion
-      // modal without clicking Begin / Save). If questions exist for the exam,
-      // promote it to 'published' so it appears in the list.
+      // modal without clicking Begin / Save). For each one, invoke publish-exam
+      // so the question drafts become real exam_questions and the exam appears
+      // in this list.
       try {
         const { data: lostExams } = await supabase
           .from('exams')
@@ -180,18 +181,11 @@ const MyExams = () => {
           .eq('extraction_status', 'completed');
 
         if (lostExams && lostExams.length > 0) {
-          const ids = lostExams.map(e => e.id);
-          const { data: hasQuestions } = await supabase
-            .from('exam_questions')
-            .select('exam_id')
-            .in('exam_id', ids);
-          const recoverable = Array.from(new Set((hasQuestions || []).map(q => q.exam_id)));
-          if (recoverable.length > 0) {
-            await supabase
-              .from('exams')
-              .update({ status: 'published' })
-              .in('id', recoverable);
-          }
+          await Promise.allSettled(
+            lostExams.map(e =>
+              supabase.functions.invoke('publish-exam', { body: { draftId: e.id } })
+            )
+          );
         }
       } catch (recoverErr) {
         console.warn('Exam recovery check failed:', recoverErr);
