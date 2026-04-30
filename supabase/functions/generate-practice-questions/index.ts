@@ -2002,7 +2002,10 @@ ${notesSection}`;
       'You are an expert practice question generator. ' +
       'You MUST call the function generate_practice_questions. ' +
       'Do not output any other text. ' +
-      'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}.' +
+      'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}. ' +
+      'IMPORTANT FORMATTING RULES: Do NOT use Markdown in question_text. No **bold**, no *italic*, no __underline__. ' +
+      'For emphasis use plain text only — write "Total" not "**Total**". ' +
+      'Do not use | to draw Markdown tables in question_text — use chart_data of type "data_table" instead.' +
       nonMathGraphWarning;
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
