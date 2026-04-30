@@ -4192,16 +4192,16 @@ ${notesSection}`;
           if (typeof min === 'number' && typeof q1 === 'number' && typeof med === 'number' &&
               typeof q3 === 'number' && typeof max === 'number' &&
               min < q1 && q1 < med && med < q3 && q3 < max) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Valid box plot chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid box plot data — stripped`);
           }
         } else if (chartData.type === 'boxplot_comparison' && Array.isArray(chartData.datasets)) {
-          options = chartData;
+          chartPayload = chartData;
           console.log(`Q${q.question_number}: Comparison box plot chart_data stored in options`);
         } else if (chartData.type === 'histogram' && Array.isArray(chartData.bins)) {
-          options = chartData;
+          chartPayload = chartData;
           console.log(`Q${q.question_number}: Histogram chart_data stored in options`);
         } else if (chartData.type === 'data_table') {
           if (
@@ -4210,7 +4210,7 @@ ${notesSection}`;
             Array.isArray(chartData.rows) &&
             chartData.rows.length > 0
           ) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Data table chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
@@ -4234,7 +4234,7 @@ ${notesSection}`;
               )
             );
           if (validBars || validGrouped) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
@@ -4250,7 +4250,7 @@ ${notesSection}`;
             ? chartData.segments.reduce((sum: number, s: any) => sum + s.value, 0)
             : 0;
           if (validSegs && segTotal > 0) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
@@ -4269,7 +4269,7 @@ ${notesSection}`;
               i === 0 || p.cumulativeFrequency >= chartData.points[i - 1].cumulativeFrequency
           );
           if (validPoints && isNonDecreasing) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Cumulative frequency chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid cumulative_frequency — points missing or non-monotonic`);
@@ -4293,7 +4293,7 @@ ${notesSection}`;
               Array.isArray(d?.classes) && d.classes.length >= 2
             );
           if (validClasses || validDatasets) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Frequency polygon chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid frequency_polygon — needs classes or datasets`);
@@ -4310,14 +4310,14 @@ ${notesSection}`;
             ) &&
             typeof chartData.location === 'string';
           if (validClimate) {
-            options = chartData;
+            chartPayload = chartData;
             console.log(`Q${q.question_number}: Climate chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid climate_chart — needs exactly 12 months and location`);
           }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);
-          options = chartData;
+          chartPayload = chartData;
         }
       }
       
