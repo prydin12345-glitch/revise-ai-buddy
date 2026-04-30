@@ -4182,8 +4182,10 @@ ${notesSection}`;
       // the graph data is stored in correct_answer but the frontend reads from options.
       // Copy graph data to options field for these question types.
       let options = q.options || null;
-      
-      // Handle chart_data (box plots, histograms) — store in options for frontend rendering
+      // Chart payload goes into diagram_config (NOT options) so MCQ choices and
+      // chart data can coexist on the same question.
+      let chartPayload: any = null;
+
       const chartData = q.chart_data ?? q.chartData ?? null;
       if (chartData && typeof chartData === 'object') {
         // Validate box plot data
