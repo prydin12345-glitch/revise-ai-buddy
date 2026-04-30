@@ -544,6 +544,15 @@ export default function CreateExam() {
             return true;
           }
 
+          // Auto-publish so the exam is durable even if the user closes the modal
+          // without clicking any of the action buttons. The modal becomes pure
+          // navigation choices (review / begin / save & go to My Exams).
+          try {
+            await supabase.functions.invoke('publish-exam', { body: { draftId } });
+          } catch (autoPublishErr) {
+            console.warn('Auto-publish failed (will rely on modal action):', autoPublishErr);
+          }
+
           // Show completion modal
           setGeneratedDraftId(draftId);
           setTotalQuestionsGenerated(exam.total_questions_extracted || 0);
