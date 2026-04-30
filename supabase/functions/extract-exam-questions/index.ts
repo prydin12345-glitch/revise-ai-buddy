@@ -402,6 +402,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     // Handle chart_data — written into diagram_config (NOT options) so MCQ choices
     // and chart payloads can coexist on the same question.
     let chartPayload: any = null;
+    // Diagnostic: log whether AI returned chart_data so we can detect prompt failures
+    const refsChartLikely = /\b(bar chart|pie chart|table|graph|chart|histogram|frequency polygon|cumulative frequency|climate graph|box plot)\b/i.test(q.question_text || '');
+    if (refsChartLikely && !q.chart_data) {
+      console.warn(`Q${q.question_number}: REFERENCES_CHART_BUT_AI_RETURNED_NO_CHART_DATA — text: "${(q.question_text || '').slice(0, 120)}"`);
+    }
     if (q.chart_data && typeof q.chart_data === 'object') {
       if (q.chart_data.type === 'data_table') {
         if (
