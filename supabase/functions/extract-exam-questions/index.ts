@@ -1169,6 +1169,29 @@ No other fields needed — the diagram is static.
   const alwaysIncludeCharts = `
 ## DATA TABLE, BAR CHART, AND PIE CHART — APPLY TO EVERY SUBJECT
 
+🚨 CRITICAL — CHART/TABLE RECONSTRUCTION FOR EXTRACTED QUESTIONS 🚨
+You are extracting questions from a source PDF. The source PDF may contain charts
+and tables as IMAGES that the student app CANNOT display. The student will see ONLY
+the JSON you produce — there is NO fallback to the original PDF chart image.
+
+Therefore, whenever a question references a chart, table, graph, diagram or figure
+(phrases like "the bar chart shows", "from the table", "the pie chart displays",
+"using the graph", "complete the table"), you MUST reconstruct that chart/table
+as a chart_data JSON object. If the source values are unreadable, INVENT plausible
+values that make the question mathematically answerable and consistent with the
+correct_answer. Never emit a question that depends on a chart without including
+chart_data — that question becomes unanswerable for the student.
+
+Required chart_data type by reference:
+- "bar chart" / "column chart" / "dual bar chart" → type: "bar_chart"
+- "pie chart" → type: "pie_chart"
+- "table" (rows of data, frequency table, results table) → type: "data_table"
+- "histogram" → type: "histogram"  (only if stats subject; else use bar_chart)
+- "cumulative frequency" → type: "cumulative_frequency"
+- "frequency polygon" → type: "frequency_polygon"
+- "climate graph" → type: "climate_chart"
+- "box plot" → type: "boxplot"
+
 For ANY question providing tabular data for the student to read from (statistics,
 survey results, experimental data, economic/geographical/biological/sociological data), include:
 {
