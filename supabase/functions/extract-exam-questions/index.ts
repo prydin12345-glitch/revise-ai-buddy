@@ -453,6 +453,66 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         } else {
           console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
         }
+      } else if (q.chart_data.type === 'cumulative_frequency') {
+        const validPoints =
+          Array.isArray(q.chart_data.points) &&
+          q.chart_data.points.length >= 2 &&
+          q.chart_data.points.every((p: any) =>
+            typeof p?.upperBoundary === 'number' &&
+            typeof p?.cumulativeFrequency === 'number' &&
+            p.cumulativeFrequency >= 0
+          );
+        const isNonDecreasing = validPoints && q.chart_data.points.every(
+          (p: any, i: number) =>
+            i === 0 || p.cumulativeFrequency >= q.chart_data.points[i - 1].cumulativeFrequency
+        );
+        if (validPoints && isNonDecreasing) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Cumulative frequency chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid cumulative_frequency — points missing or non-monotonic`);
+        }
+      } else if (q.chart_data.type === 'frequency_polygon') {
+        const validClasses =
+          Array.isArray(q.chart_data.classes) &&
+          q.chart_data.classes.length >= 2 &&
+          q.chart_data.classes.every((c: any) =>
+            typeof c?.lowerBoundary === 'number' &&
+            typeof c?.upperBoundary === 'number' &&
+            typeof c?.frequency === 'number' &&
+            c.upperBoundary > c.lowerBoundary &&
+            c.frequency >= 0
+          );
+        const validDatasets =
+          Array.isArray(q.chart_data.datasets) &&
+          q.chart_data.datasets.length >= 1 &&
+          q.chart_data.datasets.every((d: any) =>
+            typeof d?.label === 'string' &&
+            Array.isArray(d?.classes) && d.classes.length >= 2
+          );
+        if (validClasses || validDatasets) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Frequency polygon chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid frequency_polygon — needs classes or datasets`);
+        }
+      } else if (q.chart_data.type === 'climate_chart') {
+        const validClimate =
+          Array.isArray(q.chart_data.months) &&
+          q.chart_data.months.length === 12 &&
+          q.chart_data.months.every((m: any) =>
+            typeof m?.month === 'string' &&
+            typeof m?.temperature === 'number' &&
+            typeof m?.precipitation === 'number' &&
+            m.precipitation >= 0
+          ) &&
+          typeof q.chart_data.location === 'string';
+        if (validClimate) {
+          options = q.chart_data;
+          console.log(`Q${q.question_number}: Climate chart chart_data stored in options`);
+        } else {
+          console.warn(`Q${q.question_number}: Invalid climate_chart — needs exactly 12 months and location`);
+        }
       } else {
         options = q.chart_data;
         console.log(`Q${q.question_number}: Chart data detected (${q.chart_data.type}), stored in options`);
