@@ -58,6 +58,7 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { getChartData } from "@/utils/chartData";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 
@@ -1627,35 +1628,40 @@ const ExamInProgress = () => {
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
 
-                  {/* Box Plot Chart rendering */}
-                  {isBoxPlotQuestion((question as any).options) && (
-                    <BoxPlotChart chartData={(question as any).options} className="mb-6" />
-                  )}
+                  {/* Chart rendering — reads from diagram_config first, falls back to options */}
+                  {(() => {
+                    const chartData = getChartData(question);
+                    if (!chartData) return null;
+                    return (
+                      <>
+                        {isBoxPlotQuestion(chartData) && (
+                          <BoxPlotChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isHistogramQuestion(chartData) && (
+                          <HistogramChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isDataTableQuestion(chartData) && (
+                          <DataTableChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isBarChartQuestion(chartData) && (
+                          <BarChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isPieChartQuestion(chartData) && (
+                          <PieChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isCumulativeFrequencyQuestion(chartData) && (
+                          <CumulativeFrequencyChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isFrequencyPolygonQuestion(chartData) && (
+                          <FrequencyPolygonChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isClimateChartQuestion(chartData) && (
+                          <ClimateChart chartData={chartData} className="mb-6" />
+                        )}
+                      </>
+                    );
+                  })()}
 
-                  {/* Histogram chart */}
-                  {isHistogramQuestion((question as any).options) && (
-                    <HistogramChart chartData={(question as any).options} className="mb-6" />
-                  )}
-
-                  {/* Data table */}
-                  {isDataTableQuestion((question as any).options) && (
-                    <DataTableChart chartData={(question as any).options} className="mb-6" />
-                  )}
-                  {isBarChartQuestion((question as any).options) && (
-                    <BarChart chartData={(question as any).options} className="mb-6" />
-                  )}
-                  {isPieChartQuestion((question as any).options) && (
-                    <PieChart chartData={(question as any).options} className="mb-6" />
-                  )}
-                  {isCumulativeFrequencyQuestion((question as any).options) && (
-                    <CumulativeFrequencyChart chartData={(question as any).options} className="mb-6" />
-                  )}
-                  {isFrequencyPolygonQuestion((question as any).options) && (
-                    <FrequencyPolygonChart chartData={(question as any).options} className="mb-6" />
-                  )}
-                  {isClimateChartQuestion((question as any).options) && (
-                    <ClimateChart chartData={(question as any).options} className="mb-6" />
-                  )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-6">
