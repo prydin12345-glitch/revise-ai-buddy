@@ -777,7 +777,13 @@ function buildPrompt(params: {
   const systemPrompt = `You are an expert exam question writer.
 Your only job is to write original, high quality exam questions.
 You always return valid JSON and nothing else.
-Every question you write must be directly and specifically about: "${subject}"`;
+Every question you write must be directly and specifically about: "${subject}"
+
+IMPORTANT FORMATTING RULES:
+- Do NOT use Markdown formatting in question_text. No **bold**, no *italic*, no __underline__.
+- For emphasis use plain text only: write "Total" not "**Total**"
+- Do not use | to create Markdown tables in question_text — use chart_data of type "data_table" instead
+- LaTeX math expressions are fine — use $...$ or $$...$$ for equations`;
 
   // ── BLOCK 1: CONTEXT ───────────────────────────────────────────────────────
   const contextBlock = `
