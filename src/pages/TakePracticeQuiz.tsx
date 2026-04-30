@@ -85,7 +85,13 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
-import { BarChart, isBarChartQuestion, PieChart, isPieChartQuestion } from "@/components/graph";
+import {
+  BarChart, isBarChartQuestion,
+  PieChart, isPieChartQuestion,
+  CumulativeFrequencyChart, isCumulativeFrequencyQuestion,
+  FrequencyPolygonChart, isFrequencyPolygonQuestion,
+  ClimateChart, isClimateChartQuestion,
+} from "@/components/graph";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1665,6 +1671,15 @@ const TakePracticeQuiz = () => {
                   )}
                   {isPieChartQuestion((currentQuestion as any).options) && (
                     <PieChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+                  {isCumulativeFrequencyQuestion((currentQuestion as any).options) && (
+                    <CumulativeFrequencyChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+                  {isFrequencyPolygonQuestion((currentQuestion as any).options) && (
+                    <FrequencyPolygonChart chartData={(currentQuestion as any).options} className="mb-4" />
+                  )}
+                  {isClimateChartQuestion((currentQuestion as any).options) && (
+                    <ClimateChart chartData={(currentQuestion as any).options} className="mb-4" />
                   )}
 
                   {/* Answer input section - conditionally render based on question type */}

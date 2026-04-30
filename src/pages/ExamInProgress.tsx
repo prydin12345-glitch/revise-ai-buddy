@@ -43,6 +43,12 @@ import {
   isBarChartQuestion,
   PieChart,
   isPieChartQuestion,
+  CumulativeFrequencyChart,
+  isCumulativeFrequencyQuestion,
+  FrequencyPolygonChart,
+  isFrequencyPolygonQuestion,
+  ClimateChart,
+  isClimateChartQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -1640,6 +1646,15 @@ const ExamInProgress = () => {
                   )}
                   {isPieChartQuestion((question as any).options) && (
                     <PieChart chartData={(question as any).options} className="mb-6" />
+                  )}
+                  {isCumulativeFrequencyQuestion((question as any).options) && (
+                    <CumulativeFrequencyChart chartData={(question as any).options} className="mb-6" />
+                  )}
+                  {isFrequencyPolygonQuestion((question as any).options) && (
+                    <FrequencyPolygonChart chartData={(question as any).options} className="mb-6" />
+                  )}
+                  {isClimateChartQuestion((question as any).options) && (
+                    <ClimateChart chartData={(question as any).options} className="mb-6" />
                   )}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (

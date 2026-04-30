@@ -14,7 +14,13 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
-import { BarChart, isBarChartQuestion, PieChart, isPieChartQuestion } from "@/components/graph";
+import {
+  BarChart, isBarChartQuestion,
+  PieChart, isPieChartQuestion,
+  CumulativeFrequencyChart, isCumulativeFrequencyQuestion,
+  FrequencyPolygonChart, isFrequencyPolygonQuestion,
+  ClimateChart, isClimateChartQuestion,
+} from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -185,6 +191,15 @@ const ExamPreview = () => {
                     )}
                     {isPieChartQuestion(q.options) && (
                       <PieChart chartData={q.options as any} className="mb-4" />
+                    )}
+                    {isCumulativeFrequencyQuestion(q.options) && (
+                      <CumulativeFrequencyChart chartData={q.options as any} className="mb-4" />
+                    )}
+                    {isFrequencyPolygonQuestion(q.options) && (
+                      <FrequencyPolygonChart chartData={q.options as any} className="mb-4" />
+                    )}
+                    {isClimateChartQuestion(q.options) && (
+                      <ClimateChart chartData={q.options as any} className="mb-4" />
                     )}
 
                     {/* Mechanics diagram panel */}

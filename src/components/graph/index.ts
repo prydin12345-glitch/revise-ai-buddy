@@ -16,3 +16,6 @@ export * from './HistogramChart';
 export * from './DataTableChart';
 export * from './BarChart';
 export * from './PieChart';
+export * from './CumulativeFrequencyChart';
+export * from './FrequencyPolygonChart';
+export * from './ClimateChart';

@@ -1714,6 +1714,73 @@ Rules: 3–8 segments; values can be raw numbers or percentages (percentages aut
 isDoughnut: true only when emphasising total. Do NOT write "the pie chart below" —
 write "Calculate what percentage...".
 
+CUMULATIVE FREQUENCY CURVE — for GCSE/A-Level statistics questions involving
+estimating median, quartiles, IQR, or percentiles from grouped data. Include
+chart_data of type "cumulative_frequency":
+{
+  "type": "cumulative_frequency",
+  "caption": "Figure 1: Cumulative frequency curve for exam scores",
+  "xLabel": "Score", "yLabel": "Cumulative Frequency",
+  "totalFrequency": 80,
+  "showMedianLine": true,
+  "showQuartileLines": true,
+  "points": [
+    { "upperBoundary": 20, "cumulativeFrequency": 5 },
+    { "upperBoundary": 40, "cumulativeFrequency": 18 },
+    { "upperBoundary": 60, "cumulativeFrequency": 42 },
+    { "upperBoundary": 80, "cumulativeFrequency": 65 },
+    { "upperBoundary": 100, "cumulativeFrequency": 80 }
+  ]
+}
+Rules: points in ascending upperBoundary; cumulativeFrequency must be non-decreasing;
+totalFrequency should equal the last cumulativeFrequency. Do NOT write "from the curve" —
+write "Estimate the median". Q1/Median/Q3 lines render automatically.
+
+FREQUENCY POLYGON — for distribution comparisons and grouped frequency data.
+Include chart_data of type "frequency_polygon":
+{
+  "type": "frequency_polygon",
+  "caption": "Figure 1: Distribution of heights",
+  "xLabel": "Height (cm)", "yLabel": "Frequency",
+  "showHistogramBars": false,
+  "classes": [
+    { "lowerBoundary": 140, "upperBoundary": 150, "frequency": 8 },
+    { "lowerBoundary": 150, "upperBoundary": 160, "frequency": 15 },
+    { "lowerBoundary": 160, "upperBoundary": 170, "frequency": 22 },
+    { "lowerBoundary": 170, "upperBoundary": 180, "frequency": 12 }
+  ]
+}
+For comparing two groups use "datasets" instead of "classes":
+"datasets": [{ "label": "Group A", "classes": [...] }, { "label": "Group B", "classes": [...] }]
+Rules: each class lowerBoundary < upperBoundary; equal class widths; points plotted at midpoints
+automatically. Do NOT write "from the frequency polygon" — write "Estimate the modal class".
+
+CLIMATE GRAPH — for Geography climate, biome, and weather questions.
+Include chart_data of type "climate_chart":
+{
+  "type": "climate_chart",
+  "location": "Lagos, Nigeria",
+  "caption": "Figure 1: Climate graph for Lagos",
+  "tempUnit": "°C", "precipUnit": "mm",
+  "months": [
+    { "month": "Jan", "temperature": 27, "precipitation": 28 },
+    { "month": "Feb", "temperature": 28, "precipitation": 46 },
+    { "month": "Mar", "temperature": 29, "precipitation": 102 },
+    { "month": "Apr", "temperature": 29, "precipitation": 150 },
+    { "month": "May", "temperature": 28, "precipitation": 269 },
+    { "month": "Jun", "temperature": 26, "precipitation": 460 },
+    { "month": "Jul", "temperature": 25, "precipitation": 279 },
+    { "month": "Aug", "temperature": 25, "precipitation": 64 },
+    { "month": "Sep", "temperature": 26, "precipitation": 140 },
+    { "month": "Oct", "temperature": 27, "precipitation": 206 },
+    { "month": "Nov", "temperature": 28, "precipitation": 69 },
+    { "month": "Dec", "temperature": 27, "precipitation": 25 }
+  ]
+}
+Rules: months MUST contain exactly 12 entries Jan–Dec; temperature line renders red,
+precipitation bars render blue; location should be "City, Country". Do NOT write
+"from the climate graph" — write "Identify the wettest month".
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
@@ -4154,6 +4221,66 @@ ${notesSection}`;
             console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
           } else {
             console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
+          }
+        } else if (chartData.type === 'cumulative_frequency') {
+          const validPoints =
+            Array.isArray(chartData.points) &&
+            chartData.points.length >= 2 &&
+            chartData.points.every((p: any) =>
+              typeof p?.upperBoundary === 'number' &&
+              typeof p?.cumulativeFrequency === 'number' &&
+              p.cumulativeFrequency >= 0
+            );
+          const isNonDecreasing = validPoints && chartData.points.every(
+            (p: any, i: number) =>
+              i === 0 || p.cumulativeFrequency >= chartData.points[i - 1].cumulativeFrequency
+          );
+          if (validPoints && isNonDecreasing) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Cumulative frequency chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid cumulative_frequency — points missing or non-monotonic`);
+          }
+        } else if (chartData.type === 'frequency_polygon') {
+          const validClasses =
+            Array.isArray(chartData.classes) &&
+            chartData.classes.length >= 2 &&
+            chartData.classes.every((c: any) =>
+              typeof c?.lowerBoundary === 'number' &&
+              typeof c?.upperBoundary === 'number' &&
+              typeof c?.frequency === 'number' &&
+              c.upperBoundary > c.lowerBoundary &&
+              c.frequency >= 0
+            );
+          const validDatasets =
+            Array.isArray(chartData.datasets) &&
+            chartData.datasets.length >= 1 &&
+            chartData.datasets.every((d: any) =>
+              typeof d?.label === 'string' &&
+              Array.isArray(d?.classes) && d.classes.length >= 2
+            );
+          if (validClasses || validDatasets) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Frequency polygon chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid frequency_polygon — needs classes or datasets`);
+          }
+        } else if (chartData.type === 'climate_chart') {
+          const validClimate =
+            Array.isArray(chartData.months) &&
+            chartData.months.length === 12 &&
+            chartData.months.every((m: any) =>
+              typeof m?.month === 'string' &&
+              typeof m?.temperature === 'number' &&
+              typeof m?.precipitation === 'number' &&
+              m.precipitation >= 0
+            ) &&
+            typeof chartData.location === 'string';
+          if (validClimate) {
+            options = chartData;
+            console.log(`Q${q.question_number}: Climate chart chart_data stored in options`);
+          } else {
+            console.warn(`Q${q.question_number}: Invalid climate_chart — needs exactly 12 months and location`);
           }
         } else {
           console.log(`Q${q.question_number}: Unknown chart_data type "${chartData.type}" — stored as-is`);

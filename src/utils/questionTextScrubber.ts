@@ -62,8 +62,21 @@ const BROKEN_TABLE_CHART_PHRASES = [
 
   // Climate / population pyramid
   /the climate (graph|chart) (below|above|shown)/i,
+  /from the climate (graph|chart)/i,
+  /using the climate (graph|chart)/i,
+  /the climatograph (below|above|shown)/i,
   /the population pyramid (below|above|shown)/i,
   /the (graph|diagram) (below|above|shown|opposite) shows?/i,
+
+  // Cumulative frequency
+  /the cumulative frequency (curve|graph|diagram) (below|above|shown)/i,
+  /from the cumulative frequency (curve|graph)/i,
+  /using the cumulative frequency (curve|graph)/i,
+
+  // Frequency polygon
+  /the frequency polygon (below|above|shown)/i,
+  /from the frequency polygon/i,
+  /using the frequency polygon/i,
 ];
 
 const testPattern = (pattern: RegExp, value: string): boolean => {
@@ -152,9 +165,22 @@ export const scrubBrokenDiagramReferences = (questionText: string): string => {
     .replace(/refer(?:ring)? to the map\.?\s*/gi, 'Using the geographic data provided, ')
 
     // Climate / population pyramid / generic graph
-    .replace(/the climate (graph|chart) (below|above|shown) shows?\s*/gi, 'The climate data shows ')
+    .replace(/the climate (graph|chart|diagram) (below|above|shown) shows?\s*/gi, 'The climate data shows ')
+    .replace(/from the climate (graph|chart)\.?\s*/gi, 'From the climate data, ')
+    .replace(/using the climate (graph|chart)\.?\s*/gi, 'Using the climate data, ')
+    .replace(/the climatograph (below|above|shown) shows?\s*/gi, 'The climate data shows ')
     .replace(/the population pyramid (below|above|shown) shows?\s*/gi, 'The population data shows ')
     .replace(/the (graph|diagram) (below|above|shown|opposite) shows?\s*/gi, 'The data shows ')
+
+    // Cumulative frequency
+    .replace(/the cumulative frequency (curve|graph|diagram) (below|above|shown) shows?\s*/gi, 'The cumulative frequency data shows ')
+    .replace(/from the cumulative frequency (curve|graph)\.?\s*/gi, 'From the cumulative frequency data, ')
+    .replace(/using the cumulative frequency (curve|graph)\.?\s*/gi, 'Using the cumulative frequency data, ')
+
+    // Frequency polygon
+    .replace(/the frequency polygon (below|above|shown) shows?\s*/gi, 'The frequency data shows ')
+    .replace(/from the frequency polygon\.?\s*/gi, 'From the frequency data, ')
+    .replace(/using the frequency polygon\.?\s*/gi, 'Using the frequency data, ')
 
     .replace(/\s{2,}/g, ' ')
     .trim();
