@@ -544,6 +544,15 @@ export default function CreateExam() {
             return true;
           }
 
+          // Auto-publish so the exam is durable even if the user closes the modal
+          // without clicking any of the action buttons. The modal becomes pure
+          // navigation choices (review / begin / save & go to My Exams).
+          try {
+            await supabase.functions.invoke('publish-exam', { body: { draftId } });
+          } catch (autoPublishErr) {
+            console.warn('Auto-publish failed (will rely on modal action):', autoPublishErr);
+          }
+
           // Show completion modal
           setGeneratedDraftId(draftId);
           setTotalQuestionsGenerated(exam.total_questions_extracted || 0);
@@ -609,16 +618,19 @@ export default function CreateExam() {
 
   const publishExamAndNavigate = async (draftId: string, action: 'begin' | 'save') => {
     try {
-      const { data, error } = await supabase.functions.invoke('publish-exam', {
-        body: { draftId }
-      });
+      // Check if already published (auto-publish runs after extraction)
+      const { data: existing } = await supabase
+        .from('exams')
+        .select('status')
+        .eq('id', draftId)
+        .single();
 
-      if (error) throw error;
-
-      toast({
-        title: "Exam Published",
-        description: "Your exam is ready!",
-      });
+      if (!existing || existing.status !== 'published') {
+        const { error } = await supabase.functions.invoke('publish-exam', {
+          body: { draftId }
+        });
+        if (error) throw error;
+      }
 
       if (action === 'save') {
         toast({
@@ -627,7 +639,7 @@ export default function CreateExam() {
         });
         navigate('/my-exams');
       } else if (action === 'begin') {
-        navigate(`/exam/${data.examId}/live?mode=student`);
+        navigate(`/exam/${draftId}/live?mode=student`);
       }
     } catch (error: any) {
       toast({

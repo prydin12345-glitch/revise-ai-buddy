@@ -167,6 +167,33 @@ const MyExams = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Safety net: recover any of this user's exams that finished generating
+      // but were never explicitly published (e.g. user closed the completion
+      // modal without clicking Begin / Save). For each one, invoke publish-exam
+      // so the question drafts become real exam_questions and the exam appears
+      // in this list.
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: lostExams } = await supabase
+          .from('exams')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'draft')
+          .eq('extraction_status', 'completed')
+          .gte('created_at', sevenDaysAgo);
+
+        if (lostExams && lostExams.length > 0) {
+          await Promise.allSettled(
+            lostExams.map(e =>
+              supabase.functions.invoke('publish-exam', { body: { draftId: e.id } })
+            )
+          );
+        }
+      } catch (recoverErr) {
+        console.warn('Exam recovery check failed:', recoverErr);
+      }
+
+
       // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
       const [
         { data, error },
