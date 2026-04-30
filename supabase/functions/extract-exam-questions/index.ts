@@ -1208,6 +1208,46 @@ For pie chart questions (proportions, percentages, market share):
 }
 3–8 segments; values can be raw or percentages. Do NOT write "the pie chart below".
 
+For cumulative frequency questions (estimating median/quartiles from grouped data):
+{
+  "type": "cumulative_frequency",
+  "caption": "Figure 1: Brief description",
+  "xLabel": "Value", "yLabel": "Cumulative Frequency",
+  "totalFrequency": 80,
+  "showMedianLine": true, "showQuartileLines": true,
+  "points": [
+    { "upperBoundary": 20, "cumulativeFrequency": 5 },
+    { "upperBoundary": 40, "cumulativeFrequency": 18 },
+    { "upperBoundary": 60, "cumulativeFrequency": 42 },
+    { "upperBoundary": 100, "cumulativeFrequency": 80 }
+  ]
+}
+points must be ascending; cumulativeFrequency non-decreasing. Do NOT write "from the curve".
+
+For frequency polygon questions (distribution comparisons):
+{
+  "type": "frequency_polygon",
+  "xLabel": "Value", "yLabel": "Frequency",
+  "classes": [
+    { "lowerBoundary": 140, "upperBoundary": 150, "frequency": 8 },
+    { "lowerBoundary": 150, "upperBoundary": 160, "frequency": 15 }
+  ]
+}
+For two groups use "datasets": [{ "label": "A", "classes": [...] }, ...].
+Equal class widths. Do NOT write "from the frequency polygon".
+
+For climate graph questions (Geography climate / biomes):
+{
+  "type": "climate_chart",
+  "location": "Lagos, Nigeria",
+  "tempUnit": "°C", "precipUnit": "mm",
+  "months": [
+    { "month": "Jan", "temperature": 27, "precipitation": 28 },
+    ...exactly 12 entries Jan–Dec...
+  ]
+}
+months MUST contain exactly 12 entries. Do NOT write "from the climate graph".
+
 Do NOT include chart_data for concept-only questions like "Explain what the median represents".
 ` : '';
 
