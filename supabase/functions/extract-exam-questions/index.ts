@@ -399,7 +399,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
 
-    // Handle chart_data (box plots, histograms, data tables, bar/pie charts) — store in options
+    // Handle chart_data — written into diagram_config (NOT options) so MCQ choices
+    // and chart payloads can coexist on the same question.
+    let chartPayload: any = null;
     if (q.chart_data && typeof q.chart_data === 'object') {
       if (q.chart_data.type === 'data_table') {
         if (
