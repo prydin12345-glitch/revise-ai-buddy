@@ -408,7 +408,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           Array.isArray(q.chart_data.rows) &&
           q.chart_data.rows.length > 0
         ) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Data table chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid data_table chart_data — missing headers or rows`);
@@ -432,7 +432,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             )
           );
         if (validBars || validGrouped) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Bar chart chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid bar_chart — missing bars or grouped`);
@@ -448,7 +448,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           ? q.chart_data.segments.reduce((sum: number, s: any) => sum + s.value, 0)
           : 0;
         if (validSegs && segTotal > 0) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Pie chart chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid pie_chart — segments missing or sum to zero`);
@@ -467,7 +467,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             i === 0 || p.cumulativeFrequency >= q.chart_data.points[i - 1].cumulativeFrequency
         );
         if (validPoints && isNonDecreasing) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Cumulative frequency chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid cumulative_frequency — points missing or non-monotonic`);
@@ -491,7 +491,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             Array.isArray(d?.classes) && d.classes.length >= 2
           );
         if (validClasses || validDatasets) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Frequency polygon chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid frequency_polygon — needs classes or datasets`);
@@ -508,13 +508,13 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           ) &&
           typeof q.chart_data.location === 'string';
         if (validClimate) {
-          options = q.chart_data;
+          chartPayload = q.chart_data;
           console.log(`Q${q.question_number}: Climate chart chart_data stored in options`);
         } else {
           console.warn(`Q${q.question_number}: Invalid climate_chart — needs exactly 12 months and location`);
         }
       } else {
-        options = q.chart_data;
+        chartPayload = q.chart_data;
         console.log(`Q${q.question_number}: Chart data detected (${q.chart_data.type}), stored in options`);
       }
     }
