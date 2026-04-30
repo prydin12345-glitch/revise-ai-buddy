@@ -173,12 +173,14 @@ const MyExams = () => {
       // so the question drafts become real exam_questions and the exam appears
       // in this list.
       try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: lostExams } = await supabase
           .from('exams')
           .select('id')
           .eq('user_id', user.id)
           .eq('status', 'draft')
-          .eq('extraction_status', 'completed');
+          .eq('extraction_status', 'completed')
+          .gte('created_at', sevenDaysAgo);
 
         if (lostExams && lostExams.length > 0) {
           await Promise.allSettled(
