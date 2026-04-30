@@ -167,6 +167,37 @@ const MyExams = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Safety net: recover any of this user's exams that finished generating
+      // but were never explicitly published (e.g. user closed the completion
+      // modal without clicking Begin / Save). If questions exist for the exam,
+      // promote it to 'published' so it appears in the list.
+      try {
+        const { data: lostExams } = await supabase
+          .from('exams')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'draft')
+          .eq('extraction_status', 'completed');
+
+        if (lostExams && lostExams.length > 0) {
+          const ids = lostExams.map(e => e.id);
+          const { data: hasQuestions } = await supabase
+            .from('exam_questions')
+            .select('exam_id')
+            .in('exam_id', ids);
+          const recoverable = Array.from(new Set((hasQuestions || []).map(q => q.exam_id)));
+          if (recoverable.length > 0) {
+            await supabase
+              .from('exams')
+              .update({ status: 'published' })
+              .in('id', recoverable);
+          }
+        }
+      } catch (recoverErr) {
+        console.warn('Exam recovery check failed:', recoverErr);
+      }
+
+
       // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
       const [
         { data, error },
