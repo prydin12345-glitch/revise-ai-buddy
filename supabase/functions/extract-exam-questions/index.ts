@@ -1131,12 +1131,116 @@ Set diagramConfig: { "type": "delta_wye_comparison" }
 No other fields needed — the diagram is static.
 ` : '';
 
-  // ── BLOCK 11: BOX PLOT / HISTOGRAM CHART DATA ─────────────────────────────
-  const isStatisticsSubject = /statistics|maths|mathematics|data handling/i.test(subject) ||
-    topics.some(t => /box.?plot|quartile|median|interquartile|statistical diagram|data handling|averages|spread|distribution|histogram/i.test(t));
+  // ── BLOCK 11: CHART DATA INSTRUCTIONS ─────────────────────────────────────
+  // Bar chart, pie chart, and data table appear across EVERY subject (Geography,
+  // Economics, Biology, Sociology, Business, Psychology, Maths, etc.) so they are
+  // ALWAYS included regardless of subject. Climate is gated to Geography. Box plot,
+  // histogram, cumulative frequency, and frequency polygon are gated to maths/stats.
+  const isGeographySubject = /geography|environmental|earth|climate/i.test(subject) ||
+    topics.some(t => /climate|weather|population|development|migration|ecosystem|biome/i.test(t));
+  const isStatisticsSubject = /statistics|maths|mathematics|data handling|data science/i.test(subject) ||
+    topics.some(t => /cumulative|frequency|quartile|box.?plot|median|interquartile|statistical diagram|data handling|averages|spread|distribution|histogram/i.test(t));
 
-  const chartDataBlock = isStatisticsSubject ? `
-## BOX PLOT AND HISTOGRAM CHART DATA
+  // ── ALWAYS INCLUDED: bar chart, pie chart, data table ─────────────────────
+  const alwaysIncludeCharts = `
+## DATA TABLE, BAR CHART, AND PIE CHART — APPLY TO EVERY SUBJECT
+
+For ANY question providing tabular data for the student to read from (statistics,
+survey results, experimental data, economic/geographical/biological/sociological data), include:
+{
+  "type": "data_table",
+  "headers": ["Country", "GDP per capita"],
+  "units": ["", "$"],
+  "rows": [["Germany", 48200], ["France", 43500], ["Poland", 18400], ["Spain", 32100]],
+  "caption": "Table 1: GDP per capita, 2023",
+  "footnote": "Source: World Bank, 2023"
+}
+Rules: headers length must equal each row length. First column is usually a text label.
+4–10 rows. Do NOT write "the table below shows" — write "Calculate the mean from the data".
+
+For bar chart questions (comparing categorical values):
+{
+  "type": "bar_chart",
+  "caption": "Figure 1: Brief description",
+  "xLabel": "Category", "yLabel": "Value",
+  "orientation": "vertical",
+  "bars": [
+    { "label": "A", "value": 45 },
+    { "label": "B", "value": 72 }
+  ]
+}
+For grouped bars use "grouped": [{ "groupLabel": "2020", "bars": [...] }] instead.
+3–10 bars; positive values. Do NOT write "the bar chart below".
+
+For pie chart questions (proportions, percentages, market share):
+{
+  "type": "pie_chart",
+  "caption": "Figure 1: Brief description",
+  "showPercentages": true,
+  "segments": [
+    { "label": "A", "value": 45 },
+    { "label": "B", "value": 30 },
+    { "label": "C", "value": 25 }
+  ]
+}
+3–8 segments; values can be raw or percentages. Do NOT write "the pie chart below".
+
+SPECIFIC CHART QUESTION PATTERNS — follow these exactly:
+
+Pattern 1 — "The bar chart shows X. What/How many/Which...":
+These are bar chart READING questions. You MUST include chart_data of type bar_chart
+with realistic data values that make the question answerable.
+Example: "On which day were the least books sold?" requires bar_chart data
+with 5 bars (Mon-Fri) and different values so one day is clearly least.
+
+Pattern 2 — "The pie chart shows X. (a) What fraction... (b) Calculate the angle...":
+These are pie chart READING questions. You MUST include chart_data of type pie_chart
+with segment values that match the question (e.g. if Blue is 90° out of 360°
+then Blue segment value = 25 out of 100, or 30 out of 120).
+
+Pattern 3 — "Complete the table and draw an accurate pie/bar chart":
+These are CONSTRUCTION questions. Include table_grid for the table part
+and correct_chart_data for the chart the student should draw.
+Do NOT include chart_data (no chart shows during the exam).
+
+Pattern 4 — "The dual bar chart shows X and Y from Jan to Jun":
+These are grouped bar chart questions. Use chart_data of type bar_chart
+with the grouped structure (not the simple bars structure).
+Include realistic data for both groups across all time periods.
+
+Pattern 5 — Survey/experiment results shown in a chart:
+Always include the actual data values in chart_data.
+The student must be able to read specific values from the chart to answer.
+Do not use placeholder values — use values that make the question answerable.
+
+For DRAW/CONSTRUCT chart questions ("draw a pie chart", "construct a bar chart"):
+- The student cannot draw on screen — set chart_data to null
+- Include correct_chart_data with the completed chart for the review page
+- Example: { "correct_chart_data": { "type": "pie_chart", "segments": [...] } }
+
+Do NOT include chart_data for concept-only questions like "Explain what the median represents".
+`;
+
+  // ── GEOGRAPHY-ONLY: climate chart ─────────────────────────────────────────
+  const geographyCharts = isGeographySubject ? `
+## CLIMATE GRAPH — GEOGRAPHY ONLY
+
+For climate graph questions (Geography climate / biomes):
+{
+  "type": "climate_chart",
+  "location": "Lagos, Nigeria",
+  "tempUnit": "°C", "precipUnit": "mm",
+  "months": [
+    { "month": "Jan", "temperature": 27, "precipitation": 28 },
+    ...exactly 12 entries Jan–Dec...
+  ]
+}
+months MUST contain exactly 12 entries. Do NOT write "from the climate graph".
+` : '';
+
+  // ── MATHS / STATS-ONLY: box plot, histogram, cumulative frequency, polygon ─
+  const statsCharts = isStatisticsSubject ? `
+## BOX PLOT, HISTOGRAM, CUMULATIVE FREQUENCY, FREQUENCY POLYGON — MATHS/STATS
 
 For questions involving box plots, five-number summaries, quartiles, or IQR, include a chart_data field:
 {
