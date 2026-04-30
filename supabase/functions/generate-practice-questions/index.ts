@@ -4345,7 +4345,21 @@ ${notesSection}`;
         correct_answer: correctAnswer,
         options: options,
         rationale: q.rationale || null,
-        diagram_config: q.diagramConfig ?? q.diagram_config ?? null,
+        diagram_config: (() => {
+          const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
+          const correctChart = q.correct_chart_data ?? null;
+          if (chartPayload) {
+            return correctChart
+              ? { ...chartPayload, correct_chart_data: correctChart }
+              : chartPayload;
+          }
+          if (correctChart) {
+            return baseDiagram && typeof baseDiagram === 'object'
+              ? { ...baseDiagram, correct_chart_data: correctChart }
+              : { correct_chart_data: correctChart };
+          }
+          return baseDiagram;
+        })(),
       };
     });
     
