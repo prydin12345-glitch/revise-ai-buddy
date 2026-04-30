@@ -1781,6 +1781,36 @@ Rules: months MUST contain exactly 12 entries Jan–Dec; temperature line render
 precipitation bars render blue; location should be "City, Country". Do NOT write
 "from the climate graph" — write "Identify the wettest month".
 
+SPECIFIC CHART QUESTION PATTERNS — follow these exactly:
+
+Pattern 1 — "The bar chart shows X. What/How many/Which...":
+These are bar chart READING questions. You MUST include chart_data of type bar_chart
+with realistic data values that make the question answerable.
+
+Pattern 2 — "The pie chart shows X. What fraction... / Calculate the angle...":
+These are pie chart READING questions. You MUST include chart_data of type pie_chart
+with segment values that match the question (e.g. if Blue is 90° out of 360°
+then Blue segment value = 25 out of 100).
+
+Pattern 3 — "Complete the table and draw an accurate pie/bar chart":
+These are CONSTRUCTION questions. Include table_grid for the table part
+and correct_chart_data for the chart the student should draw.
+Do NOT include chart_data (no chart shows during the exam).
+
+Pattern 4 — "The dual bar chart shows X and Y from Jan to Jun":
+Use chart_data of type bar_chart with the grouped structure.
+Include realistic data for both groups across all time periods.
+
+Pattern 5 — Survey/experiment results shown in a chart:
+Always include the actual data values in chart_data.
+The student must be able to read specific values from the chart.
+
+DRAW/CONSTRUCT chart questions ("draw a pie chart", "construct a bar chart"):
+- The student cannot draw on screen — set chart_data to null
+- Include correct_chart_data with the completed chart for the review page
+- Example: { "correct_chart_data": { "type": "pie_chart", "segments": [...] } }
+
+
 QUESTION NUMBERING (EXAM-STYLE MULTI-PART FORMAT):
 - You SHOULD use sub-part notation like "1a", "1b", "1c", "2a", "2b" etc.
 - Multi-part questions (a, b, c, d...) that share context SHOULD be grouped under the same number
