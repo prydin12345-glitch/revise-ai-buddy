@@ -764,9 +764,30 @@ const ExamReview = () => {
                             <span className="text-muted-foreground italic">Not provided</span>
                           );
                         })()}
-                      </div>
-                    </div>
-                  )}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Correct chart for "draw a chart" questions — visible only after marking */}
+                   {!scoresHidden && (() => {
+                     const correctChart = getCorrectChartData(question);
+                     if (!correctChart) return null;
+                     return (
+                       <div className="mt-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                         <div className="text-[11px] font-bold uppercase tracking-wider text-green-600 mb-2">
+                           Correct chart
+                         </div>
+                         {isPieChartQuestion(correctChart) && <PieChart chartData={correctChart} />}
+                         {isBarChartQuestion(correctChart) && <BarChart chartData={correctChart} />}
+                         {isDataTableQuestion(correctChart) && <DataTableChart chartData={correctChart} />}
+                         {isHistogramQuestion(correctChart) && <HistogramChart chartData={correctChart} />}
+                         {isCumulativeFrequencyQuestion(correctChart) && <CumulativeFrequencyChart chartData={correctChart} />}
+                         {isFrequencyPolygonQuestion(correctChart) && <FrequencyPolygonChart chartData={correctChart} />}
+                         {isClimateChartQuestion(correctChart) && <ClimateChart chartData={correctChart} />}
+                         {isBoxPlotQuestion(correctChart) && <BoxPlotChart chartData={correctChart} />}
+                       </div>
+                     );
+                   })()}
 
                     {!scoresHidden && answer?.feedback && (
                       <div>
