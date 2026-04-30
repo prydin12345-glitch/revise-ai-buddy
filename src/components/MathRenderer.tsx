@@ -226,9 +226,15 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   
   // Then convert any markdown tables to HTML tables
   const contentWithHtmlTables = convertMarkdownTableToHtml(contentWithNormalizedBlanks);
-  
+
+  // Strip Markdown bold/italic emphasis (renders as literal asterisks otherwise).
+  // Skip stripping inside HTML tables — those are already converted markup.
+  const contentWithoutMd = /<table[^>]*class="exam-table"[^>]*>/i.test(contentWithHtmlTables)
+    ? contentWithHtmlTables
+    : stripMarkdownEmphasis(contentWithHtmlTables);
+
   // Clean the content if it has letter prefix (for MCQ options)
-  const cleanedContent = cleanOptionText(contentWithHtmlTables);
+  const cleanedContent = cleanOptionText(contentWithoutMd);
   
   // Check if content contains HTML tables
   const hasHtmlTable = /<table[^>]*class="exam-table"[^>]*>/i.test(cleanedContent);
