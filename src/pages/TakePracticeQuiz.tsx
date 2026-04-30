@@ -92,6 +92,8 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
+import { getChartData } from "@/utils/chartData";
+} from "@/components/graph";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
