@@ -19,6 +19,7 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
+import { getChartData, getCorrectChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -544,31 +545,40 @@ const ExamReview = () => {
                     className="mb-4"
                   />
 
-                   {/* Box Plot Chart */}
-                   {!isMcq && isBoxPlotQuestion((question as any).options) && (
-                     <BoxPlotChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {!isMcq && isHistogramQuestion((question as any).options) && (
-                     <HistogramChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isDataTableQuestion((question as any).options) && (
-                     <DataTableChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isBarChartQuestion((question as any).options) && (
-                     <BarChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isPieChartQuestion((question as any).options) && (
-                     <PieChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isCumulativeFrequencyQuestion((question as any).options) && (
-                     <CumulativeFrequencyChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isFrequencyPolygonQuestion((question as any).options) && (
-                     <FrequencyPolygonChart chartData={(question as any).options} className="mb-4" />
-                   )}
-                   {isClimateChartQuestion((question as any).options) && (
-                     <ClimateChart chartData={(question as any).options} className="mb-4" />
-                   )}
+                   {/* Chart rendering — diagram_config first, options fallback */}
+                   {(() => {
+                     const chartData = getChartData(question);
+                     if (!chartData) return null;
+                     return (
+                       <>
+                         {!isMcq && isBoxPlotQuestion(chartData) && (
+                           <BoxPlotChart chartData={chartData} className="mb-4" />
+                         )}
+                         {!isMcq && isHistogramQuestion(chartData) && (
+                           <HistogramChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isDataTableQuestion(chartData) && (
+                           <DataTableChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isBarChartQuestion(chartData) && (
+                           <BarChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isPieChartQuestion(chartData) && (
+                           <PieChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isCumulativeFrequencyQuestion(chartData) && (
+                           <CumulativeFrequencyChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isFrequencyPolygonQuestion(chartData) && (
+                           <FrequencyPolygonChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isClimateChartQuestion(chartData) && (
+                           <ClimateChart chartData={chartData} className="mb-4" />
+                         )}
+                       </>
+                     );
+                   })()}
+
 
                    {/* Mechanics diagram panel */}
                    {(() => {
