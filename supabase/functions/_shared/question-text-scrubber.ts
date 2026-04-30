@@ -149,8 +149,3 @@ export const scrubBrokenDiagramReferences = (questionText: string): string => {
 
   return cleaned;
 };
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  return cleaned;
-};
