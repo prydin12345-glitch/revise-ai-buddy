@@ -338,6 +338,10 @@ export function generateCurveFromFormula(
   const branches: GraphSeries[] = [];
   let currentBranch: GraphPoint[] = [];
   
+  // Detect formulas that contain tan(...) — these have asymptotes at π/2 + nπ
+  // and need a tighter discontinuity threshold to prevent vertical spikes.
+  const containsTan = /\btan\s*\(/i.test(formula);
+  
   // Extend domain by 30% on each side to prevent edge truncation
   const domainRange = domain[1] - domain[0];
   const extendedDomain: [number, number] = [
@@ -356,13 +360,15 @@ export function generateCurveFromFormula(
     const x = i === 0 ? extendedDomain[0] : i === totalPoints ? extendedDomain[1] : extendedDomain[0] + i * step;
     const y = evaluateFormula(formula, x);
     
-    // CRITICAL FIX: Greatly increased Y-threshold to prevent premature cutoff
-    // Y values up to 1000 are allowed - let the canvas clipping handle overflow
-    // Only true discontinuities (asymptotes, NaN) should trigger branch splits
+    // For tan(x), use a much tighter threshold so we cut the line cleanly
+    // BEFORE it spikes vertically toward the asymptote.
+    const yMagThreshold = containsTan ? 20 : 1000;
+    const jumpThreshold = containsTan ? 5 : 100;
+    
     const isDiscontinuity = y === null || 
       !Number.isFinite(y) || 
-      Math.abs(y) > 1000 || // INCREASED from 200 to 1000 to prevent truncation
-      (prevY !== null && Math.abs(y - prevY) > 100); // INCREASED from 30 to 100 for smooth cubics
+      Math.abs(y) > yMagThreshold ||
+      (prevY !== null && Math.abs(y - prevY) > jumpThreshold);
     
     if (isDiscontinuity) {
       // Save current branch if it has enough points
@@ -372,7 +378,7 @@ export function generateCurveFromFormula(
           label: branches.length === 0 ? 'Correct Answer' : '',
           data: [...currentBranch],
           showLine: true,
-          lineStyle: 'solid', // FIXED: Answer lines should be SOLID, not dashed
+          lineStyle: 'solid',
           color: 'hsl(var(--success))',
         });
       }
@@ -380,7 +386,7 @@ export function generateCurveFromFormula(
       prevY = null;
     } else {
       currentBranch.push({
-        x: Math.round(x * 1000) / 1000, // 3 decimal places for smoother curves
+        x: Math.round(x * 1000) / 1000,
         y: Math.round(y * 1000) / 1000,
       });
       prevY = y;

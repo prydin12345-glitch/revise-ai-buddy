@@ -16,6 +16,52 @@ import { cn } from '@/lib/utils';
 import { generateCurveFromFormula } from '@/lib/formula-evaluator';
 
 /**
+ * Reusable X marker — UK exam boards (AQA, Edexcel, OCR) require plotted points
+ * to be marked with a cross/X rather than a filled dot.
+ */
+interface XMarkerProps {
+  cx: number;
+  cy: number;
+  size?: number;
+  color: string;
+  strokeWidth?: number;
+  opacity?: number;
+}
+
+const XMarker: React.FC<XMarkerProps> = ({
+  cx,
+  cy,
+  size = 8,
+  color,
+  strokeWidth = 2.5,
+  opacity = 1,
+}) => {
+  const arm = size;
+  return (
+    <g opacity={opacity} pointerEvents="none">
+      <line
+        x1={cx - arm}
+        y1={cy - arm}
+        x2={cx + arm}
+        y2={cy + arm}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <line
+        x1={cx + arm}
+        y1={cy - arm}
+        x2={cx - arm}
+        y2={cy + arm}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+    </g>
+  );
+};
+
+/**
  * Catmull-Rom spline interpolation for smooth curves through points.
  */
 function catmullRomSpline(points: GraphPoint[], tension: number = 0.5, numSegments: number = 20): GraphPoint[] {
@@ -967,14 +1013,13 @@ export function GraphCanvasPlot({
           const coordLabel = `(${point.x}, ${point.y})`;
           return (
             <g key={`missed-${idx}`}>
-              {/* RED filled dot — missed expected point */}
-              <circle
+              {/* RED X — missed expected point (where the student should have plotted) */}
+              <XMarker
                 cx={screen.x}
                 cy={screen.y}
-                r={7}
-                fill="#ef4444"
-                stroke="white"
-                strokeWidth={2}
+                size={8}
+                color="#ef4444"
+                strokeWidth={2.5}
                 opacity={0.9}
               />
               {/* Coordinate label */}
@@ -1102,14 +1147,13 @@ export function GraphCanvasPlot({
                   />
                 )}
                 
-                {/* Point */}
-                <circle
+                {/* Point — rendered as an X marker (UK exam-board convention) */}
+                <XMarker
                   cx={screenPos.x}
                   cy={screenPos.y}
-                  r={visualRadius}
-                  fill={fillColor}
-                  stroke="white"
-                  strokeWidth={1.5}
+                  size={visualRadius}
+                  color={fillColor}
+                  strokeWidth={isSelected || isDragging || isInDragMode ? 3 : 2.5}
                 />
               </g>
             );
