@@ -513,6 +513,56 @@ export function GraphCanvas({
         yAxisLabel={axisLabels?.y}
       />
       
+      {/* Scale indicator — "1 square = N units" — mirrors GCSE/A-Level grid-paper convention */}
+      {(() => {
+        const niceStep = (range: number): number => {
+          const target = 8;
+          const raw = range / target;
+          const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+          const norm = raw / mag;
+          let n: number;
+          if (norm <= 1.5) n = 1;
+          else if (norm <= 3) n = 2;
+          else if (norm <= 7) n = 5;
+          else n = 10;
+          return n * mag;
+        };
+        const stepX = niceStep(visibleDomain.domainX[1] - visibleDomain.domainX[0]);
+        const stepY = niceStep(visibleDomain.domainY[1] - visibleDomain.domainY[0]);
+        const fmt = (n: number) => Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(3)).toString();
+        const label = stepX === stepY
+          ? `1 sq = ${fmt(stepX)}`
+          : `x: 1 sq = ${fmt(stepX)}, y: ${fmt(stepY)}`;
+        const padding = 6;
+        const textWidth = label.length * 6.2 + padding * 2;
+        const boxX = width - textWidth - 8;
+        const boxY = height - 22;
+        return (
+          <g pointerEvents="none">
+            <rect
+              x={boxX}
+              y={boxY}
+              width={textWidth}
+              height={16}
+              rx={3}
+              fill="hsl(var(--background))"
+              fillOpacity={0.85}
+              stroke="hsl(var(--border))"
+              strokeWidth={0.5}
+            />
+            <text
+              x={boxX + padding}
+              y={boxY + 11}
+              fontSize={10}
+              fill="hsl(var(--muted-foreground))"
+              fontFamily="ui-monospace, SFMono-Regular, monospace"
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })()}
+
       {/* Custom content (curves, points, segments, etc.) */}
       {children}
     </svg>
