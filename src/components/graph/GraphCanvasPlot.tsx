@@ -16,6 +16,52 @@ import { cn } from '@/lib/utils';
 import { generateCurveFromFormula } from '@/lib/formula-evaluator';
 
 /**
+ * Reusable X marker — UK exam boards (AQA, Edexcel, OCR) require plotted points
+ * to be marked with a cross/X rather than a filled dot.
+ */
+interface XMarkerProps {
+  cx: number;
+  cy: number;
+  size?: number;
+  color: string;
+  strokeWidth?: number;
+  opacity?: number;
+}
+
+const XMarker: React.FC<XMarkerProps> = ({
+  cx,
+  cy,
+  size = 8,
+  color,
+  strokeWidth = 2.5,
+  opacity = 1,
+}) => {
+  const arm = size;
+  return (
+    <g opacity={opacity} pointerEvents="none">
+      <line
+        x1={cx - arm}
+        y1={cy - arm}
+        x2={cx + arm}
+        y2={cy + arm}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <line
+        x1={cx + arm}
+        y1={cy - arm}
+        x2={cx - arm}
+        y2={cy + arm}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+    </g>
+  );
+};
+
+/**
  * Catmull-Rom spline interpolation for smooth curves through points.
  */
 function catmullRomSpline(points: GraphPoint[], tension: number = 0.5, numSegments: number = 20): GraphPoint[] {
