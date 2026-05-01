@@ -2033,9 +2033,16 @@ ${notesSection}`;
       'You MUST call the function generate_practice_questions. ' +
       'Do not output any other text. ' +
       'Wrap all math in $...$ or $$...$$ LaTeX delimiters. Use proper LaTeX commands like \\frac, \\sqrt, x^{2}. ' +
-      'IMPORTANT FORMATTING RULES: Do NOT use Markdown in question_text. No **bold**, no *italic*, no __underline__. ' +
-      'For emphasis use plain text only — write "Total" not "**Total**". ' +
-      'Do not use | to draw Markdown tables in question_text — use chart_data of type "data_table" instead.' +
+      'CRITICAL FORMATTING RULES: ' +
+      'Do NOT use **double asterisks** for bold, *single asterisks* for italic, ' +
+      '__double underscores__ or _single underscores_ anywhere in question_text. ' +
+      'Plain text only — write "Total" not "**Total**". ' +
+      'Do NOT use Markdown table syntax (pipes | and dashes ---) in question_text — ' +
+      'use chart_data of type "data_table" instead. ' +
+      'CHART REFERENCE RULES: do NOT write "the bar chart below shows", "the pie chart displays", ' +
+      '"the table illustrates", or any phrase referencing a chart unless chart_data is included. ' +
+      'The chart renders automatically from chart_data. Write "Using the data, calculate..." instead of ' +
+      '"The chart below shows... calculate...". These rules apply to question_text, correct_answer, and rationale.' +
       nonMathGraphWarning;
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
@@ -4187,6 +4194,7 @@ ${notesSection}`;
       let chartPayload: any = null;
 
       const chartData = q.chart_data ?? q.chartData ?? null;
+      console.log(`[CHART DEBUG] Q${q.question_number}: text="${(q.question_text || '').slice(0, 60)}" chart_data_present=${!!chartData} type=${chartData?.type ?? 'none'}`);
       if (chartData && typeof chartData === 'object') {
         // Validate box plot data
         if (chartData.type === 'boxplot') {

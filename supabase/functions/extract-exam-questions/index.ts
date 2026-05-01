@@ -802,11 +802,28 @@ Your only job is to write original, high quality exam questions.
 You always return valid JSON and nothing else.
 Every question you write must be directly and specifically about: "${subject}"
 
-IMPORTANT FORMATTING RULES:
-- Do NOT use Markdown formatting in question_text. No **bold**, no *italic*, no __underline__.
-- For emphasis use plain text only: write "Total" not "**Total**"
-- Do not use | to create Markdown tables in question_text — use chart_data of type "data_table" instead
-- LaTeX math expressions are fine — use $...$ or $$...$$ for equations`;
+CRITICAL FORMATTING RULES — follow these exactly:
+- Do NOT use **double asterisks** for bold text anywhere in question_text
+- Do NOT use *single asterisks* for italic text in question_text
+- Do NOT use __double underscores__ for bold in question_text
+- Do NOT use _single underscores_ for italic in question_text
+- Do NOT use Markdown table syntax (pipes | and dashes ---) in question_text
+- For tabular data ALWAYS use chart_data with type "data_table" instead
+- Plain text only in question_text — write "Total" not "**Total**"
+- LaTeX maths expressions using $...$ or $$...$$ are fine and encouraged
+- These rules apply to question_text, correct_answer, and mark_scheme fields
+
+CHART REFERENCE RULES:
+- Do NOT write "The bar chart below shows..." or "The bar chart displays..."
+- Do NOT write "The pie chart illustrates..." or "The table below presents..."
+- Do NOT write ANY phrase that references a chart the student must look at
+  unless chart_data is included — the chart renders automatically from chart_data
+- Instead write the question directly:
+  BAD: "The bar chart below shows book sales. Which day had the most sales?"
+  GOOD: "Using the book sales data, which day had the most sales?"
+  BAD: "The table displays the following results. Calculate the mean."
+  GOOD: "Calculate the mean of the following data."
+- The chart_data field causes the chart to appear automatically above the question`;
 
   // ── BLOCK 1: CONTEXT ───────────────────────────────────────────────────────
   const contextBlock = `
@@ -1165,10 +1182,22 @@ No other fields needed — the diagram is static.
   // Economics, Biology, Sociology, Business, Psychology, Maths, etc.) so they are
   // ALWAYS included regardless of subject. Climate is gated to Geography. Box plot,
   // histogram, cumulative frequency, and frequency polygon are gated to maths/stats.
-  const isGeographySubject = /geography|environmental|earth|climate/i.test(subject) ||
-    topics.some(t => /climate|weather|population|development|migration|ecosystem|biome/i.test(t));
-  const isStatisticsSubject = /statistics|maths|mathematics|data handling|data science/i.test(subject) ||
-    topics.some(t => /cumulative|frequency|quartile|box.?plot|median|interquartile|statistical diagram|data handling|averages|spread|distribution|histogram/i.test(t));
+  const isGeographySubject =
+    /geography|environmental|earth|climate|ecology|sustainability|urban|rural|geopolitics|international.?relations|development.?studies|tourism|planning/i.test(subject) ||
+    topics.some(t =>
+      /climate|weather|population|development|migration|ecosystem|biome|tectonic|river|coastal|rainfall|temperature|humidity|birth.?rate|death.?rate|gdp|hdi|urbanisation|demographic|land.?use|agriculture/i.test(t)
+    );
+  const isStatisticsSubject =
+    /statistics|maths|mathematics|data.?handling|data.?science|data.?analysis|quantitative|analytics|biostatistics|research.?methods|econometrics|biometrics|actuarial|probability|machine.?learning|business.?intelligence|clinical.?trials|epidemiology|psychometrics|sports.?science|nursing|health.?science|social.?science|sociology|psychology|economics|biology|physics|chemistry|engineering|computer.?science/i.test(subject) ||
+    topics.some(t =>
+      /cumulative|frequency|quartile|box.?plot|median|interquartile|statistical|data.?handling|averages|spread|distribution|histogram|standard.?deviation|variance|correlation|regression|hypothesis|normal.?distribution|sampling|significance|confidence.?interval|survey|experiment|trial|measurement|dataset/i.test(t)
+    );
+  // Topic-level fallback: if any selected topic suggests stats charts, unlock them
+  // even when the subject name does not match (e.g. "Business Analytics" → topics include "regression").
+  const topicSuggestsStats = topics.some(t =>
+    /histogram|box.?plot|quartile|cumulative|frequency.?polygon|normal.?distribution|standard.?deviation|regression|correlation|significance|confidence|variance|dispersion|skew|spread|outlier|percentile/i.test(t)
+  );
+  const shouldIncludeStatsCharts = isStatisticsSubject || topicSuggestsStats;
 
   // ── ALWAYS INCLUDED: bar chart, pie chart, data table ─────────────────────
   const alwaysIncludeCharts = `
@@ -1291,7 +1320,7 @@ months MUST contain exactly 12 entries. Do NOT write "from the climate graph".
 ` : '';
 
   // ── MATHS / STATS-ONLY: box plot, histogram, cumulative frequency, polygon ─
-  const statsCharts = isStatisticsSubject ? `
+  const statsCharts = shouldIncludeStatsCharts ? `
 ## BOX PLOT, HISTOGRAM, CUMULATIVE FREQUENCY, FREQUENCY POLYGON — MATHS/STATS
 
 For questions involving box plots, five-number summaries, quartiles, or IQR, include a chart_data field:
