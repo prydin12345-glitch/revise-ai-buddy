@@ -1165,10 +1165,22 @@ No other fields needed — the diagram is static.
   // Economics, Biology, Sociology, Business, Psychology, Maths, etc.) so they are
   // ALWAYS included regardless of subject. Climate is gated to Geography. Box plot,
   // histogram, cumulative frequency, and frequency polygon are gated to maths/stats.
-  const isGeographySubject = /geography|environmental|earth|climate/i.test(subject) ||
-    topics.some(t => /climate|weather|population|development|migration|ecosystem|biome/i.test(t));
-  const isStatisticsSubject = /statistics|maths|mathematics|data handling|data science/i.test(subject) ||
-    topics.some(t => /cumulative|frequency|quartile|box.?plot|median|interquartile|statistical diagram|data handling|averages|spread|distribution|histogram/i.test(t));
+  const isGeographySubject =
+    /geography|environmental|earth|climate|ecology|sustainability|urban|rural|geopolitics|international.?relations|development.?studies|tourism|planning/i.test(subject) ||
+    topics.some(t =>
+      /climate|weather|population|development|migration|ecosystem|biome|tectonic|river|coastal|rainfall|temperature|humidity|birth.?rate|death.?rate|gdp|hdi|urbanisation|demographic|land.?use|agriculture/i.test(t)
+    );
+  const isStatisticsSubject =
+    /statistics|maths|mathematics|data.?handling|data.?science|data.?analysis|quantitative|analytics|biostatistics|research.?methods|econometrics|biometrics|actuarial|probability|machine.?learning|business.?intelligence|clinical.?trials|epidemiology|psychometrics|sports.?science|nursing|health.?science|social.?science|sociology|psychology|economics|biology|physics|chemistry|engineering|computer.?science/i.test(subject) ||
+    topics.some(t =>
+      /cumulative|frequency|quartile|box.?plot|median|interquartile|statistical|data.?handling|averages|spread|distribution|histogram|standard.?deviation|variance|correlation|regression|hypothesis|normal.?distribution|sampling|significance|confidence.?interval|survey|experiment|trial|measurement|dataset/i.test(t)
+    );
+  // Topic-level fallback: if any selected topic suggests stats charts, unlock them
+  // even when the subject name does not match (e.g. "Business Analytics" → topics include "regression").
+  const topicSuggestsStats = topics.some(t =>
+    /histogram|box.?plot|quartile|cumulative|frequency.?polygon|normal.?distribution|standard.?deviation|regression|correlation|significance|confidence|variance|dispersion|skew|spread|outlier|percentile/i.test(t)
+  );
+  const shouldIncludeStatsCharts = isStatisticsSubject || topicSuggestsStats;
 
   // ── ALWAYS INCLUDED: bar chart, pie chart, data table ─────────────────────
   const alwaysIncludeCharts = `
