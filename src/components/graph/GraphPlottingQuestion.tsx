@@ -2158,10 +2158,28 @@ export function GraphPlottingQuestion({
             ) : (
               'Creating segment...'
             )
+          ) : isBestFitMode ? (
+            bestFitStart
+              ? 'Click a second point to complete the line of best fit.'
+              : bestFitLine
+              ? 'Tap two new points to redraw your line of best fit, or clear it below.'
+              : 'Click the first point on your line of best fit.'
           ) : (
             'Tap to plot points. Hold a point to drag it.'
           )}
         </p>
+      )}
+
+      {/* Best fit clear button */}
+      {isBestFitMode && bestFitLine && !readOnly && (
+        <button
+          type="button"
+          onClick={() => { setBestFitLine(null); setBestFitStart(null); }}
+          className="text-xs text-muted-foreground underline self-start"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          Clear line of best fit
+        </button>
       )}
 
       {/* Camera-based graph renderer with pan/zoom support */}
