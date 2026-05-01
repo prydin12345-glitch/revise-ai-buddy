@@ -41,7 +41,7 @@ export interface UserAnswer {
   };
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
-  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
   graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved'; controlPoint?: GraphPoint }>;
   graphDrawnPaths?: Array<{ id: string; dataPoints: Array<{ x: number; y: number }>; points?: Array<{ pixelX: number; pixelY: number }> }>;
   graphMarkingData?: {

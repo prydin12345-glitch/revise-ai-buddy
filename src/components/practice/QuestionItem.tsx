@@ -68,7 +68,7 @@ interface UserAnswer {
   markingData?: any;
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
-  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
   graphSegments?: LineSegment[];
   graphDrawnPaths?: DrawingPath[];
   graphMarkingData?: any;

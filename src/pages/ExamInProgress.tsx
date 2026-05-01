@@ -140,7 +140,7 @@ const ExamInProgress = () => {
   const [graphAnswers, setGraphAnswers] = useState<Record<string, {
     graphInterpretationAnswers?: Record<string, string | number | boolean>;
     graphPlottedPoints?: GraphPoint[];
-    graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+    graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
     graphSegments?: LineSegment[];
     graphDrawnPaths?: DrawingPath[];
     bearingsAnswer?: string;
@@ -569,7 +569,7 @@ const ExamInProgress = () => {
       const graphAnswersMap: Record<string, {
         graphInterpretationAnswers?: Record<string, string | number | boolean>;
         graphPlottedPoints?: GraphPoint[];
-        graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+        graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
         graphSegments?: LineSegment[];
         graphDrawnPaths?: DrawingPath[];
         bearingsAnswer?: string;

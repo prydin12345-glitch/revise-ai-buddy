@@ -126,7 +126,7 @@ interface GraphCanvasPlotProps {
   /** Drawn paths (freeform) */
   drawnPaths: DrawingPath[];
   /** Current join mode */
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
   /** Reference series to display */
   referenceSeries?: GraphSeries[];
   /** Expected curve in review mode */

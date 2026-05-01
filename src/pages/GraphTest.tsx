@@ -29,7 +29,7 @@ export default function GraphTest() {
   const [angleMeasurements, setAngleMeasurements] = useState<AngleMeasurement[]>([]);
   
   // Tool state
-  const [joinMode, setJoinMode] = useState<'straight' | 'curved' | 'freeform' | 'angle' | null>(null);
+  const [joinMode, setJoinMode] = useState<'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null>(null);
   const [eraseMode, setEraseMode] = useState(false);
   const [selectedJoinPoints, setSelectedJoinPoints] = useState<GraphPoint[]>([]);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
@@ -252,7 +252,7 @@ export default function GraphTest() {
     if (tool === 'erase') {
       setJoinMode(null);
     } else {
-      setJoinMode(tool as 'straight' | 'curved' | 'freeform' | 'angle' | null);
+      setJoinMode(tool as 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null);
     }
     setSelectedJoinPoints([]);
     setSelectedSegmentIds([]);

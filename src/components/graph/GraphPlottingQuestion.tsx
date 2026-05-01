@@ -40,8 +40,8 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
-  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | null) => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null) => void;
   segments: LineSegment[];
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
