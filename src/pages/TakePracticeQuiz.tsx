@@ -153,7 +153,7 @@ interface UserAnswer {
   // Graph question answers
   graphInterpretationAnswers?: Record<string, string | number | boolean>;
   graphPlottedPoints?: GraphPoint[];
-  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null; // Join mode for plotting questions (angle is for measurement only)
+  graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null; // Join mode for plotting questions (angle is for measurement only)
   graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved'; controlPoint?: GraphPoint }>; // Persisted line segments with optional control point
   graphDrawnPaths?: Array<{ id: string; dataPoints: Array<{ x: number; y: number }>; points?: Array<{ pixelX: number; pixelY: number }> }>; // Freeform drawn paths (dataPoints is canonical, points is legacy)
   graphMarkingData?: {
@@ -555,7 +555,7 @@ const TakePracticeQuiz = () => {
           }
           
           // Declare variables for graphJoinMode and graphSegments before the block
-          let graphJoinMode: 'straight' | 'curved' | 'freeform' | undefined;
+          let graphJoinMode: 'straight' | 'curved' | 'freeform' | 'best_fit' | undefined;
           let graphSegments: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }> | undefined;
           
           // Rehydrate joinMode and segments from submitted answer
