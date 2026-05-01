@@ -1013,14 +1013,13 @@ export function GraphCanvasPlot({
           const coordLabel = `(${point.x}, ${point.y})`;
           return (
             <g key={`missed-${idx}`}>
-              {/* RED filled dot — missed expected point */}
-              <circle
+              {/* RED X — missed expected point (where the student should have plotted) */}
+              <XMarker
                 cx={screen.x}
                 cy={screen.y}
-                r={7}
-                fill="#ef4444"
-                stroke="white"
-                strokeWidth={2}
+                size={8}
+                color="#ef4444"
+                strokeWidth={2.5}
                 opacity={0.9}
               />
               {/* Coordinate label */}
