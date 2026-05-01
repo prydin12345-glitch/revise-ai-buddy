@@ -802,11 +802,28 @@ Your only job is to write original, high quality exam questions.
 You always return valid JSON and nothing else.
 Every question you write must be directly and specifically about: "${subject}"
 
-IMPORTANT FORMATTING RULES:
-- Do NOT use Markdown formatting in question_text. No **bold**, no *italic*, no __underline__.
-- For emphasis use plain text only: write "Total" not "**Total**"
-- Do not use | to create Markdown tables in question_text — use chart_data of type "data_table" instead
-- LaTeX math expressions are fine — use $...$ or $$...$$ for equations`;
+CRITICAL FORMATTING RULES — follow these exactly:
+- Do NOT use **double asterisks** for bold text anywhere in question_text
+- Do NOT use *single asterisks* for italic text in question_text
+- Do NOT use __double underscores__ for bold in question_text
+- Do NOT use _single underscores_ for italic in question_text
+- Do NOT use Markdown table syntax (pipes | and dashes ---) in question_text
+- For tabular data ALWAYS use chart_data with type "data_table" instead
+- Plain text only in question_text — write "Total" not "**Total**"
+- LaTeX maths expressions using $...$ or $$...$$ are fine and encouraged
+- These rules apply to question_text, correct_answer, and mark_scheme fields
+
+CHART REFERENCE RULES:
+- Do NOT write "The bar chart below shows..." or "The bar chart displays..."
+- Do NOT write "The pie chart illustrates..." or "The table below presents..."
+- Do NOT write ANY phrase that references a chart the student must look at
+  unless chart_data is included — the chart renders automatically from chart_data
+- Instead write the question directly:
+  BAD: "The bar chart below shows book sales. Which day had the most sales?"
+  GOOD: "Using the book sales data, which day had the most sales?"
+  BAD: "The table displays the following results. Calculate the mean."
+  GOOD: "Calculate the mean of the following data."
+- The chart_data field causes the chart to appear automatically above the question`;
 
   // ── BLOCK 1: CONTEXT ───────────────────────────────────────────────────────
   const contextBlock = `
