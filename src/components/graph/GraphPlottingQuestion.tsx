@@ -1472,8 +1472,12 @@ export function GraphPlottingQuestion({
     const dataX = domainX[0] + ((clickX - chartMargins.left) / plotWidth) * (domainX[1] - domainX[0]);
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
+    if (isBestFitMode) {
+      handleBestFitClick(dataX, dataY);
+      return;
+    }
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS, isBestFitMode, handleBestFitClick]);
 
   /**
    * Handle segment click in erase mode
@@ -1762,14 +1766,18 @@ export function GraphPlottingQuestion({
     if (!wasCleanTap) return; // Pointer moved too far - this was a drag, not a tap
     
     const graphCoords = screenToGraph(clickX, clickY);
-    
+
+    if (isBestFitMode) {
+      handleBestFitClick(graphCoords.x, graphCoords.y);
+      return;
+    }
     addPoint(graphCoords.x, graphCoords.y);
   }, [
     readOnly, selectedJoinPoints, domainX, domainY, addPoint, isJoinModeActive, 
     findNearestPointCamera, isPointSelected, segments, currentJoinMode, onSegmentsChange, 
     activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, 
     saveToHistory, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS,
-    DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE
+    DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, isBestFitMode, handleBestFitClick
   ]);
 
   /**
