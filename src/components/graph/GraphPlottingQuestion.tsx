@@ -12,7 +12,8 @@ import {
   GraphPlottingAnswer,
   GraphPlottingMarkingResult,
   LineSegment,
-  DrawingPath
+  DrawingPath,
+  BestFitLine
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
@@ -66,6 +67,10 @@ interface GraphPlottingQuestionProps {
   expectedCurveSeries?: GraphSeries[];
   /** Question text to display in expanded graph modal */
   questionText?: string;
+  /** Student's drawn line of best fit (controlled, persists across navigation). */
+  bestFitLine?: BestFitLine | null;
+  /** Callback when student-drawn best-fit line changes. */
+  onBestFitLineChange?: (line: BestFitLine | null) => void;
 }
 
 // History state for undo/redo
@@ -120,6 +125,8 @@ export function GraphPlottingQuestion({
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
+  bestFitLine: bestFitLineProp = null,
+  onBestFitLineChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
