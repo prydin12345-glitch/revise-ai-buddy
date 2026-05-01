@@ -2016,7 +2016,7 @@ export function GraphPlottingQuestion({
                   if (onSelectedSegmentIdsChange) {
                     onSelectedSegmentIdsChange([]);
                   }
-                } else if (value === 'straight' || value === 'curved' || value === 'freeform' || value === 'angle') {
+                } else if (value === 'straight' || value === 'curved' || value === 'freeform' || value === 'angle' || value === 'best_fit') {
                   onJoinModeChange(value);
                   setSelectedJoinPoints([]);
                   // Clear segment selection when switching modes
@@ -2046,6 +2046,47 @@ export function GraphPlottingQuestion({
                 Angle
               </ToggleGroupItem>
             </ToggleGroup>
+          )}
+
+          {/* Line of best fit tool — shown whenever the question allows it */}
+          {allowBestFit && onJoinModeChange && !readOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isBestFitMode) {
+                  onJoinModeChange(null);
+                  setBestFitStart(null);
+                } else {
+                  onJoinModeChange('best_fit');
+                  setSelectedJoinPoints([]);
+                  setEraseMode(false);
+                  setActiveDragPointId(null);
+                }
+              }}
+              style={{
+                padding: '6px 12px',
+                background: isBestFitMode ? 'hsl(var(--primary))' : 'transparent',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 6,
+                color: isBestFitMode ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s',
+                marginLeft: 4,
+              }}
+              title="Draw a line of best fit"
+            >
+              <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
+                <line x1={1} y1={13} x2={13} y2={1}
+                  stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+              </svg>
+              Line of best fit
+            </button>
           )}
           
           {/* Auto/Manual curve mode switch toggle - centered above Curved tool */}
