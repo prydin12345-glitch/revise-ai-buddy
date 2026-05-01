@@ -231,6 +231,47 @@ export function GraphPlottingQuestion({
   
   // Curve mode: 'auto' uses Catmull-Rom spline, 'manual' shows Bézier handles
   const [curveMode, setCurveMode] = useState<'auto' | 'manual'>('auto');
+
+  // Line of best fit support
+  const allowBestFit = expectedAnswer?.allowBestFit === true;
+  const isBestFitMode = joinMode === 'best_fit';
+  // Internal fallback if parent doesn't control bestFitLine
+  const [bestFitLineInternal, setBestFitLineInternal] = useState<BestFitLine | null>(null);
+  const bestFitLine = onBestFitLineChange ? bestFitLineProp : bestFitLineInternal;
+  const setBestFitLine = useCallback((line: BestFitLine | null) => {
+    if (onBestFitLineChange) onBestFitLineChange(line);
+    else setBestFitLineInternal(line);
+  }, [onBestFitLineChange]);
+  // First clicked point while building the line (transient, internal only)
+  const [bestFitStart, setBestFitStart] = useState<{ x: number; y: number } | null>(null);
+
+  /**
+   * Handle a tap when the best-fit tool is active.
+   * First click stores the start point; second click computes the line spanning the visible domain.
+   */
+  const handleBestFitClick = useCallback((graphX: number, graphY: number) => {
+    if (!bestFitStart) {
+      setBestFitStart({ x: graphX, y: graphY });
+      return;
+    }
+    const dx = graphX - bestFitStart.x;
+    if (Math.abs(dx) < 0.001) {
+      // Vertical or duplicate click - ignore and reset
+      setBestFitStart(null);
+      return;
+    }
+    const m = (graphY - bestFitStart.y) / dx;
+    const c = bestFitStart.y - m * bestFitStart.x;
+    const [domainXMin, domainXMax] = config.domainX ?? [-10, 10];
+    setBestFitLine({
+      x1: domainXMin,
+      y1: m * domainXMin + c,
+      x2: domainXMax,
+      y2: m * domainXMax + c,
+    });
+    setBestFitStart(null);
+  }, [bestFitStart, config.domainX, setBestFitLine]);
+
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
     if (!id) return undefined;
