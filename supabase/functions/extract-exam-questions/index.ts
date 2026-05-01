@@ -1303,7 +1303,7 @@ months MUST contain exactly 12 entries. Do NOT write "from the climate graph".
 ` : '';
 
   // ── MATHS / STATS-ONLY: box plot, histogram, cumulative frequency, polygon ─
-  const statsCharts = isStatisticsSubject ? `
+  const statsCharts = shouldIncludeStatsCharts ? `
 ## BOX PLOT, HISTOGRAM, CUMULATIVE FREQUENCY, FREQUENCY POLYGON — MATHS/STATS
 
 For questions involving box plots, five-number summaries, quartiles, or IQR, include a chart_data field:
