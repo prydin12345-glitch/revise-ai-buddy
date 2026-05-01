@@ -151,6 +151,22 @@ export interface GraphInterpretationField {
   acceptedFormats?: string[];
 }
 
+// Line of best fit (student-drawn line over a scatter plot)
+export interface BestFitLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+// Expected best-fit answer (least-squares regression line)
+export interface BestFitAnswer {
+  gradient: number;
+  yIntercept: number;
+  toleranceGradient?: number;
+  toleranceIntercept?: number;
+}
+
 // Expected points for plotting questions
 export interface GraphPlottingAnswer {
   expectedPoints: GraphPoint[];
@@ -163,6 +179,9 @@ export interface GraphPlottingAnswer {
   expectedPath?: GraphPoint[];
   // Optional: Labels bound to specific path vertices
   pathAnnotations?: Array<{ pointIndex: number; label: string }>;
+  // Line-of-best-fit support (scatter graphs)
+  allowBestFit?: boolean;
+  bestFitAnswer?: BestFitAnswer | null;
 }
 
 // Student response for interpretation
@@ -309,11 +328,13 @@ export interface GraphPlottingResponse {
    * - 'curved': Smooth spline through all points (3+ required, sorted by x)
    * - 'freeform': Freehand drawing (uses drawnPaths array)
    */
-  joinMode?: 'straight' | 'curved' | 'freeform';
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'best_fit';
   /** Line segments for straight mode. Ignored in curved/freeform mode. */
   segments?: LineSegment[];
   /** Freeform drawn paths. Used only in freeform mode. */
   drawnPaths?: DrawingPath[];
+  /** Student-drawn line of best fit (two endpoints in graph coords). */
+  bestFitLine?: BestFitLine | null;
 }
 
 // Marking result for interpretation fields
@@ -524,9 +545,10 @@ export function serializeGraphInterpretationResponse(
 // Helper to serialize graph plotting response
 export function serializeGraphPlottingResponse(
   points: GraphPoint[],
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null,
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null,
   segments?: LineSegment[],
-  drawnPaths?: DrawingPath[]
+  drawnPaths?: DrawingPath[],
+  bestFitLine?: BestFitLine | null
 ): string {
   // Filter out 'angle' mode for serialization (it's UI-only, not a drawing mode)
   const serializableMode = joinMode === 'angle' ? undefined : joinMode ?? undefined;
@@ -534,9 +556,10 @@ export function serializeGraphPlottingResponse(
     _type: 'graph_plotting',
     version: 1,
     points,
-    joinMode: serializableMode,
+    joinMode: serializableMode as any,
     segments,
-    drawnPaths
+    drawnPaths,
+    bestFitLine: bestFitLine ?? null,
   };
   return JSON.stringify(response);
 }

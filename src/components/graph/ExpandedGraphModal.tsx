@@ -27,8 +27,8 @@ interface ExpandedGraphModalProps {
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
   onDrawnPathsChange?: (paths: DrawingPath[]) => void;
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
-  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | null) => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null) => void;
   
   // Domain/scale (locked between views)
   domainX: [number, number];

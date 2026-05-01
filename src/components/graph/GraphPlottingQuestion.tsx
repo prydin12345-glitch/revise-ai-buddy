@@ -12,7 +12,8 @@ import {
   GraphPlottingAnswer,
   GraphPlottingMarkingResult,
   LineSegment,
-  DrawingPath
+  DrawingPath,
+  BestFitLine
 } from './types';
 import { GraphSegmentsLayer } from './GraphSegmentsLayer';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
@@ -40,8 +41,8 @@ interface GraphPlottingQuestionProps {
   showCorrectAnswers?: boolean;
   markingData?: GraphPlottingMarkingResult;
   subjectColor?: string;
-  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | null;
-  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | null) => void;
+  joinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
+  onJoinModeChange?: (mode: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null) => void;
   segments: LineSegment[];
   onSegmentsChange: (segments: LineSegment[]) => void;
   drawnPaths?: DrawingPath[];
@@ -66,6 +67,10 @@ interface GraphPlottingQuestionProps {
   expectedCurveSeries?: GraphSeries[];
   /** Question text to display in expanded graph modal */
   questionText?: string;
+  /** Student's drawn line of best fit (controlled, persists across navigation). */
+  bestFitLine?: BestFitLine | null;
+  /** Callback when student-drawn best-fit line changes. */
+  onBestFitLineChange?: (line: BestFitLine | null) => void;
 }
 
 // History state for undo/redo
@@ -120,6 +125,8 @@ export function GraphPlottingQuestion({
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
+  bestFitLine: bestFitLineProp = null,
+  onBestFitLineChange,
 }: GraphPlottingQuestionProps) {
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -224,6 +231,47 @@ export function GraphPlottingQuestion({
   
   // Curve mode: 'auto' uses Catmull-Rom spline, 'manual' shows Bézier handles
   const [curveMode, setCurveMode] = useState<'auto' | 'manual'>('auto');
+
+  // Line of best fit support
+  const allowBestFit = expectedAnswer?.allowBestFit === true;
+  const isBestFitMode = joinMode === 'best_fit';
+  // Internal fallback if parent doesn't control bestFitLine
+  const [bestFitLineInternal, setBestFitLineInternal] = useState<BestFitLine | null>(null);
+  const bestFitLine = onBestFitLineChange ? bestFitLineProp : bestFitLineInternal;
+  const setBestFitLine = useCallback((line: BestFitLine | null) => {
+    if (onBestFitLineChange) onBestFitLineChange(line);
+    else setBestFitLineInternal(line);
+  }, [onBestFitLineChange]);
+  // First clicked point while building the line (transient, internal only)
+  const [bestFitStart, setBestFitStart] = useState<{ x: number; y: number } | null>(null);
+
+  /**
+   * Handle a tap when the best-fit tool is active.
+   * First click stores the start point; second click computes the line spanning the visible domain.
+   */
+  const handleBestFitClick = useCallback((graphX: number, graphY: number) => {
+    if (!bestFitStart) {
+      setBestFitStart({ x: graphX, y: graphY });
+      return;
+    }
+    const dx = graphX - bestFitStart.x;
+    if (Math.abs(dx) < 0.001) {
+      // Vertical or duplicate click - ignore and reset
+      setBestFitStart(null);
+      return;
+    }
+    const m = (graphY - bestFitStart.y) / dx;
+    const c = bestFitStart.y - m * bestFitStart.x;
+    const [domainXMin, domainXMax] = config.domainX ?? [-10, 10];
+    setBestFitLine({
+      x1: domainXMin,
+      y1: m * domainXMin + c,
+      x2: domainXMax,
+      y2: m * domainXMax + c,
+    });
+    setBestFitStart(null);
+  }, [bestFitStart, config.domainX, setBestFitLine]);
+
   // Helper: find point by ID
   const findPointById = useCallback((id: string | null): GraphPoint | undefined => {
     if (!id) return undefined;
@@ -1424,8 +1472,12 @@ export function GraphPlottingQuestion({
     const dataX = domainX[0] + ((clickX - chartMargins.left) / plotWidth) * (domainX[1] - domainX[0]);
     const dataY = domainY[0] + ((1 - (clickY - chartMargins.top) / plotHeight)) * (domainY[1] - domainY[0]);
 
+    if (isBestFitMode) {
+      handleBestFitClick(dataX, dataY);
+      return;
+    }
     addPoint(dataX, dataY);
-  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS]);
+  }, [readOnly, selectedJoinPoints, chartContainerSize, chartMargins, domainX, domainY, addPoint, isJoinModeActive, findNearestPoint, isPointSelected, segments, currentJoinMode, onSegmentsChange, activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, saveToHistory, angleMeasurements, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS, isBestFitMode, handleBestFitClick]);
 
   /**
    * Handle segment click in erase mode
@@ -1714,14 +1766,18 @@ export function GraphPlottingQuestion({
     if (!wasCleanTap) return; // Pointer moved too far - this was a drag, not a tap
     
     const graphCoords = screenToGraph(clickX, clickY);
-    
+
+    if (isBestFitMode) {
+      handleBestFitClick(graphCoords.x, graphCoords.y);
+      return;
+    }
     addPoint(graphCoords.x, graphCoords.y);
   }, [
     readOnly, selectedJoinPoints, domainX, domainY, addPoint, isJoinModeActive, 
     findNearestPointCamera, isPointSelected, segments, currentJoinMode, onSegmentsChange, 
     activeDragPointId, eraseMode, isAngleMode, selectedSegmentIds, onSelectedSegmentIdsChange, 
     saveToHistory, findPointById, handlePointPointerUp, handlePointClick, POINT_HIT_RADIUS,
-    DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE
+    DOUBLE_TAP_THRESHOLD, DOUBLE_TAP_DISTANCE, isBestFitMode, handleBestFitClick
   ]);
 
   /**
@@ -1960,7 +2016,7 @@ export function GraphPlottingQuestion({
                   if (onSelectedSegmentIdsChange) {
                     onSelectedSegmentIdsChange([]);
                   }
-                } else if (value === 'straight' || value === 'curved' || value === 'freeform' || value === 'angle') {
+                } else if (value === 'straight' || value === 'curved' || value === 'freeform' || value === 'angle' || value === 'best_fit') {
                   onJoinModeChange(value);
                   setSelectedJoinPoints([]);
                   // Clear segment selection when switching modes
@@ -1990,6 +2046,47 @@ export function GraphPlottingQuestion({
                 Angle
               </ToggleGroupItem>
             </ToggleGroup>
+          )}
+
+          {/* Line of best fit tool — shown whenever the question allows it */}
+          {allowBestFit && onJoinModeChange && !readOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isBestFitMode) {
+                  onJoinModeChange(null);
+                  setBestFitStart(null);
+                } else {
+                  onJoinModeChange('best_fit');
+                  setSelectedJoinPoints([]);
+                  setEraseMode(false);
+                  setActiveDragPointId(null);
+                }
+              }}
+              style={{
+                padding: '6px 12px',
+                background: isBestFitMode ? 'hsl(var(--primary))' : 'transparent',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 6,
+                color: isBestFitMode ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s',
+                marginLeft: 4,
+              }}
+              title="Draw a line of best fit"
+            >
+              <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
+                <line x1={1} y1={13} x2={13} y2={1}
+                  stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+              </svg>
+              Line of best fit
+            </button>
           )}
           
           {/* Auto/Manual curve mode switch toggle - centered above Curved tool */}
@@ -2061,10 +2158,28 @@ export function GraphPlottingQuestion({
             ) : (
               'Creating segment...'
             )
+          ) : isBestFitMode ? (
+            bestFitStart
+              ? 'Click a second point to complete the line of best fit.'
+              : bestFitLine
+              ? 'Tap two new points to redraw your line of best fit, or clear it below.'
+              : 'Click the first point on your line of best fit.'
           ) : (
             'Tap to plot points. Hold a point to drag it.'
           )}
         </p>
+      )}
+
+      {/* Best fit clear button */}
+      {isBestFitMode && bestFitLine && !readOnly && (
+        <button
+          type="button"
+          onClick={() => { setBestFitLine(null); setBestFitStart(null); }}
+          className="text-xs text-muted-foreground underline self-start"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          Clear line of best fit
+        </button>
       )}
 
       {/* Camera-based graph renderer with pan/zoom support */}
