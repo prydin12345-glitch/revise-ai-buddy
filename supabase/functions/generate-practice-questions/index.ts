@@ -4194,6 +4194,7 @@ ${notesSection}`;
       let chartPayload: any = null;
 
       const chartData = q.chart_data ?? q.chartData ?? null;
+      console.log(`[CHART DEBUG] Q${q.question_number}: text="${(q.question_text || '').slice(0, 60)}" chart_data_present=${!!chartData} type=${chartData?.type ?? 'none'}`);
       if (chartData && typeof chartData === 'object') {
         // Validate box plot data
         if (chartData.type === 'boxplot') {
