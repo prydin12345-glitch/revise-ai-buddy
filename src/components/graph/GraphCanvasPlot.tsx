@@ -1147,14 +1147,13 @@ export function GraphCanvasPlot({
                   />
                 )}
                 
-                {/* Point */}
-                <circle
+                {/* Point — rendered as an X marker (UK exam-board convention) */}
+                <XMarker
                   cx={screenPos.x}
                   cy={screenPos.y}
-                  r={visualRadius}
-                  fill={fillColor}
-                  stroke="white"
-                  strokeWidth={1.5}
+                  size={visualRadius}
+                  color={fillColor}
+                  strokeWidth={isSelected || isDragging || isInDragMode ? 3 : 2.5}
                 />
               </g>
             );
