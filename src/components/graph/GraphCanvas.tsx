@@ -188,14 +188,27 @@ function AxisLayer({ width, height, graphToScreen, visibleDomain, scale, xAxisLa
     return value.toFixed(1).replace(/\.0$/, '');
   };
   
-  // Generate X axis ticks
+  // Minimum pixel spacing between adjacent labels — prevents overlap on small/dense grids.
+  const MIN_LABEL_SPACING_PX = 40;
+
+  // Generate X axis ticks (with adaptive label thinning)
   const xTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
     const startX = Math.floor(domainX[0] / tickSpacingX) * tickSpacingX;
-    
+
+    // How many pixels does one tickSpacing occupy on screen?
+    const tickPixelWidth = Math.abs(
+      graphToScreen(startX + tickSpacingX, 0).x - graphToScreen(startX, 0).x
+    );
+    const labelEvery = tickPixelWidth > 0
+      ? Math.max(1, Math.ceil(MIN_LABEL_SPACING_PX / tickPixelWidth))
+      : 1;
+
+    let tickIndex = 0;
     for (let x = startX; x <= domainX[1]; x += tickSpacingX) {
       const screenX = graphToScreen(x, 0).x;
       if (screenX >= 30 && screenX <= width - 10) {
+        const showLabel = tickIndex % labelEvery === 0;
         ticks.push(
           <g key={`x-tick-${x.toFixed(6)}`}>
             <line
@@ -206,32 +219,44 @@ function AxisLayer({ width, height, graphToScreen, visibleDomain, scale, xAxisLa
               stroke="hsl(var(--foreground))"
               strokeWidth={1}
             />
-            <text
-              x={screenX}
-              y={xAxisY + 16}
-              textAnchor="middle"
-              fontSize={11}
-              fill="hsl(var(--foreground))"
-              fontFamily="system-ui, sans-serif"
-            >
-              {formatTick(x)}
-            </text>
+            {showLabel && (
+              <text
+                x={screenX}
+                y={xAxisY + 16}
+                textAnchor="middle"
+                fontSize={11}
+                fill="hsl(var(--foreground))"
+                fontFamily="system-ui, sans-serif"
+              >
+                {formatTick(x)}
+              </text>
+            )}
           </g>
         );
       }
+      tickIndex++;
     }
-    
+
     return ticks;
   }, [domainX, tickSpacingX, graphToScreen, width, xAxisY]);
-  
-  // Generate Y axis ticks
+
+  // Generate Y axis ticks (with adaptive label thinning)
   const yTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
     const startY = Math.floor(domainY[0] / tickSpacingY) * tickSpacingY;
-    
+
+    const tickPixelHeight = Math.abs(
+      graphToScreen(0, startY + tickSpacingY).y - graphToScreen(0, startY).y
+    );
+    const labelEvery = tickPixelHeight > 0
+      ? Math.max(1, Math.ceil(MIN_LABEL_SPACING_PX / tickPixelHeight))
+      : 1;
+
+    let tickIndex = 0;
     for (let y = startY; y <= domainY[1]; y += tickSpacingY) {
       const screenY = graphToScreen(0, y).y;
       if (screenY >= 10 && screenY <= height - 20) {
+        const showLabel = tickIndex % labelEvery === 0;
         ticks.push(
           <g key={`y-tick-${y.toFixed(6)}`}>
             <line
@@ -242,21 +267,24 @@ function AxisLayer({ width, height, graphToScreen, visibleDomain, scale, xAxisLa
               stroke="hsl(var(--foreground))"
               strokeWidth={1}
             />
-            <text
-              x={yAxisX - 8}
-              y={screenY + 4}
-              textAnchor="end"
-              fontSize={11}
-              fill="hsl(var(--foreground))"
-              fontFamily="system-ui, sans-serif"
-            >
-              {formatTick(y)}
-            </text>
+            {showLabel && (
+              <text
+                x={yAxisX - 8}
+                y={screenY + 4}
+                textAnchor="end"
+                fontSize={11}
+                fill="hsl(var(--foreground))"
+                fontFamily="system-ui, sans-serif"
+              >
+                {formatTick(y)}
+              </text>
+            )}
           </g>
         );
       }
+      tickIndex++;
     }
-    
+
     return ticks;
   }, [domainY, tickSpacingY, graphToScreen, height, yAxisX]);
   
