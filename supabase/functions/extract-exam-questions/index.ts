@@ -387,17 +387,66 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
     let correctAnswer = q.correct_answer;
     let options = q.options || null;
-    
-    // For graph questions, correct_answer is a JSON object — stringify for storage and copy to options
-    if ((qType === 'graph_plotting' || qType === 'graph_interpretation') && typeof correctAnswer === 'object' && correctAnswer !== null) {
-      options = correctAnswer;
-      correctAnswer = JSON.stringify(correctAnswer);
-      console.log(`Q${q.question_number}: Graph question detected, synced to options`);
+    let graphWrapper: any = null;
+
+    // Build a canonical graph wrapper { graphType, graphConfig, plottingAnswer }
+    // from whatever fields the AI emitted (top-level, plottingAnswer, graphConfig,
+    // or even directly inside correct_answer). This is what the frontend expects
+    // in correct_answer for graph_plotting / graph_interpretation questions.
+    if (qType === 'graph_plotting' || qType === 'graph_interpretation') {
+      // Already canonical inside correct_answer
+      if (typeof correctAnswer === 'object' && correctAnswer !== null && (correctAnswer as any).graphType) {
+        graphWrapper = correctAnswer;
+      } else if (typeof correctAnswer === 'string') {
+        try {
+          const parsed = JSON.parse(correctAnswer);
+          if (parsed?.graphType) graphWrapper = parsed;
+        } catch { /* not JSON */ }
+      }
+
+      if (!graphWrapper) {
+        const pa = q.plottingAnswer ?? q.plotting_answer ?? (typeof correctAnswer === 'object' ? (correctAnswer as any)?.plottingAnswer : null) ?? null;
+        const gc = q.graphConfig ?? q.graph_config ?? (typeof correctAnswer === 'object' ? (correctAnswer as any)?.graphConfig : null) ?? null;
+        const interp = q.interpretationFields ?? q.interpretation_fields ?? null;
+        if (pa || gc || interp) {
+          const derivedConfig = gc ?? {
+            chartType: 'line',
+            xLabel: pa?.xLabel ?? 'x',
+            yLabel: pa?.yLabel ?? 'y',
+            domainX: pa?.domainX ?? [-5, 5],
+            domainY: pa?.domainY ?? [-10, 10],
+            grid: { show: true, stepX: pa?.stepX ?? 1, stepY: pa?.stepY ?? 1 },
+            series: pa?.series ?? [],
+          };
+          if (qType === 'graph_interpretation' || interp) {
+            graphWrapper = {
+              graphType: 'interpretation',
+              graphConfig: derivedConfig,
+              interpretationFields: interp ?? [],
+            };
+          } else {
+            graphWrapper = {
+              graphType: 'plotting',
+              graphConfig: derivedConfig,
+              plottingAnswer: pa ?? {},
+            };
+          }
+        }
+      }
+
+      if (graphWrapper) {
+        // Persist the wrapper as a JSON string in correct_answer (frontend reads this)
+        // and ALSO mirror to options + diagram_config for backward compat.
+        correctAnswer = JSON.stringify(graphWrapper);
+        options = graphWrapper;
+        console.log(`Q${q.question_number}: Built canonical graph wrapper for ${qType}`);
+      } else {
+        console.warn(`Q${q.question_number}: ${qType} question has no graphConfig or plottingAnswer — frontend will render blank canvas`);
+      }
     } else if (qType === 'mcq') {
       // Validate MCQ correct_answer — do NOT silently default to 'A'
       if (!correctAnswer) {
         console.error(`Missing correct_answer for MCQ Q${q.question_number}: "${(q.question_text || '').slice(0, 80)}"`);
-        // Leave as null — do not guess
       } else if (options && Array.isArray(options)) {
         const answerLower = String(correctAnswer).toLowerCase().trim();
         const matchesOption = options.some(
@@ -561,7 +610,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       diagram_config: (() => {
         // Merge chart payload + correct_chart_data into diagram_config so MCQ
         // choices in `options` no longer collide with chart data.
-        const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
+        const baseDiagram = graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null;
         const correctChart = q.correct_chart_data ?? null;
         if (chartPayload) {
           return correctChart

@@ -203,7 +203,11 @@ export function QuestionItem({
     }
     
     // Check for graph questions
-    const graphData = parseGraphQuestionData(question.correct_answer);
+    const graphData = parseGraphQuestionData(
+      question.correct_answer,
+      (question as any).diagram_config ?? null,
+      question.question_type ?? null,
+    );
     const isGraphInterpretation = question.question_type === 'graph_interpretation' || 
       (question.question_type !== 'short_answer' && question.question_type !== 'extended' && graphData?.graphType === 'interpretation');
     const isGraphPlotting = question.question_type === 'graph_plotting' || 
