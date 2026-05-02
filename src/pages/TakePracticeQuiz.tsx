@@ -558,6 +558,7 @@ const TakePracticeQuiz = () => {
           // Declare variables for graphJoinMode and graphSegments before the block
           let graphJoinMode: 'straight' | 'curved' | 'freeform' | 'best_fit' | undefined;
           let graphSegments: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved' }> | undefined;
+          let graphBestFitLine: { x1: number; y1: number; x2: number; y2: number } | null | undefined;
           
           // Rehydrate joinMode and segments from submitted answer
           if (ans.answer_text) {
@@ -565,6 +566,7 @@ const TakePracticeQuiz = () => {
             if (graphResponse2 && graphResponse2._type === 'graph_plotting') {
               graphJoinMode = graphResponse2.joinMode;
               graphSegments = graphResponse2.segments;
+              graphBestFitLine = graphResponse2.bestFitLine ?? null;
             }
           }
           
