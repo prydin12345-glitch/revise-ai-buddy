@@ -87,6 +87,18 @@ serve(async (req) => {
       if (!type) return (marks && marks >= 6) ? 'long_form' : 'short_answer';
       const normalized = String(type).trim().toLowerCase();
 
+      // Normalise AI variants of the plotting type so they remain interactive
+      // graph questions instead of being demoted to text-only short_answer.
+      if (
+        normalized === 'graph_sketch' ||
+        normalized === 'graph-sketch' ||
+        normalized === 'sketch_graph' ||
+        normalized === 'graph_drawing' ||
+        normalized === 'curve_sketch'
+      ) {
+        return 'graph_plotting';
+      }
+
       if (validQuestionTypes.includes(normalized)) return normalized;
 
       // Map common alternative types to DB-accepted values
