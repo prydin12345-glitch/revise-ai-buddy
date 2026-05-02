@@ -11,6 +11,8 @@ import {
   LineSegment,
   DrawingPath,
   GraphSeries,
+  BestFitLine,
+  BestFitAnswer,
 } from './types';
 import { GraphCanvasPlot } from './GraphCanvasPlot';
 import { AngleMeasurement } from './GraphPlottingQuestion';
