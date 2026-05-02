@@ -609,6 +609,7 @@ const TakePracticeQuiz = () => {
             graphMarkingData,
             graphJoinMode,
             graphSegments,
+            graphBestFitLine,
             bearingsAnswer,
             bearingsMarkingData,
           };
