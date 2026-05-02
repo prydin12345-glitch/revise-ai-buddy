@@ -176,9 +176,17 @@ const looksLikeGraphJson = (value?: string | null) => {
   return trimmed.startsWith('{') && trimmed.includes('"graphType"');
 };
 
-const shouldParseGraphData = (questionType?: string, correctAnswer?: string | null) => {
+const shouldParseGraphData = (
+  questionType?: string,
+  correctAnswer?: string | null,
+  diagramConfig?: any | null,
+) => {
   if (questionType && GRAPH_QUESTION_TYPES.has(questionType)) return true;
-  return looksLikeGraphJson(correctAnswer);
+  if (looksLikeGraphJson(correctAnswer)) return true;
+  if (diagramConfig && typeof diagramConfig === 'object') {
+    if (diagramConfig.graphType || diagramConfig.plottingAnswer || diagramConfig.interpretationFields) return true;
+  }
+  return false;
 };
 
 const TakePracticeQuiz = () => {
