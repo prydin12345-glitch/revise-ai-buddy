@@ -573,6 +573,7 @@ const ExamInProgress = () => {
         graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
         graphSegments?: LineSegment[];
         graphDrawnPaths?: DrawingPath[];
+        graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
         bearingsAnswer?: string;
         angleMeasurements?: AngleMeasurement[];
       }> = {};
