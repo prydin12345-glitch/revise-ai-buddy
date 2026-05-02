@@ -232,6 +232,9 @@ export function GraphCanvasPlot({
   onDrawnPathsChange,
   onSegmentClick,
   cursor,
+  bestFitLine = null,
+  bestFitStart = null,
+  expectedBestFit = null,
 }: GraphCanvasPlotProps) {
   
   // Track tap detection (to distinguish taps from pans)
