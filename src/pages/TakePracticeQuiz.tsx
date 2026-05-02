@@ -749,8 +749,12 @@ const TakePracticeQuiz = () => {
       Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0));
     
     // Check for graph interpretation answers
-    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
-      ? parseGraphQuestionData(currentQuestion.correct_answer || null)
+    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer, (currentQuestion as any).diagram_config)
+      ? parseGraphQuestionData(
+          currentQuestion.correct_answer || null,
+          (currentQuestion as any).diagram_config ?? null,
+          currentQuestion.question_type ?? null,
+        )
       : null;
     const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
     const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
@@ -1321,7 +1325,12 @@ const TakePracticeQuiz = () => {
     if (!mentionsDiagram) return null;
     
     // First check the current question's own graphConfig for series
-    const currentGraphData = parseGraphQuestionData(questions.find(q => q.id === questionId)?.correct_answer || null);
+    const __currentQ = questions.find(q => q.id === questionId);
+    const currentGraphData = parseGraphQuestionData(
+      __currentQ?.correct_answer || null,
+      (__currentQ as any)?.diagram_config ?? null,
+      __currentQ?.question_type ?? null,
+    );
     if (currentGraphData?.graphConfig && 'series' in currentGraphData.graphConfig) {
       const config = currentGraphData.graphConfig as GraphInterpretationConfig;
       if (config.series && config.series.length > 0) {
@@ -1349,7 +1358,11 @@ const TakePracticeQuiz = () => {
     
     // Check siblings for graphConfig with series
     for (const sibling of siblingQuestions) {
-      const graphData = parseGraphQuestionData(sibling.correct_answer);
+      const graphData = parseGraphQuestionData(
+        sibling.correct_answer,
+        (sibling as any).diagram_config ?? null,
+        sibling.question_type ?? null,
+      );
       if (graphData?.graphConfig && 'series' in graphData.graphConfig) {
         const config = graphData.graphConfig as GraphInterpretationConfig;
         if (config.series && config.series.length > 0) {
@@ -1618,8 +1631,12 @@ const TakePracticeQuiz = () => {
                   {/* Reference diagram for "shown in the diagram" questions - SKIP for graph_plotting as it has its own curve rendering */}
                   {(() => {
                     // Parse graph data to check if this is a graph_plotting question
-                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
-                      ? parseGraphQuestionData(currentQuestion.correct_answer || null)
+                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer, (currentQuestion as any).diagram_config)
+                      ? parseGraphQuestionData(
+                          currentQuestion.correct_answer || null,
+                          (currentQuestion as any).diagram_config ?? null,
+                          currentQuestion.question_type ?? null,
+                        )
                       : null;
                     const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || 
                       (graphData?.graphConfig && graphData?.plottingAnswer);
@@ -1779,8 +1796,12 @@ const TakePracticeQuiz = () => {
                     // Check if this is a graph or bearings question
                     // CRITICAL: question_type is the authoritative source - only use graphData parsing as fallback
                     // This prevents short_answer questions with old cached graphData from rendering as graph questions
-                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer)
-                      ? parseGraphQuestionData(currentQuestion.correct_answer)
+                    const graphData = shouldParseGraphData(currentQuestion.question_type, currentQuestion.correct_answer, (currentQuestion as any).diagram_config)
+                      ? parseGraphQuestionData(
+                          currentQuestion.correct_answer,
+                          (currentQuestion as any).diagram_config ?? null,
+                          currentQuestion.question_type ?? null,
+                        )
                       : null;
                     
                     // Only treat as graph question if question_type explicitly says so
@@ -1889,7 +1910,11 @@ const TakePracticeQuiz = () => {
                           q.question_number.endsWith('a') // Usually part (a) has the original curve
                         );
                         if (parentQuestion) {
-                          const parentGraphData = parseGraphQuestionData(parentQuestion.correct_answer || null);
+                          const parentGraphData = parseGraphQuestionData(
+                            parentQuestion.correct_answer || null,
+                            (parentQuestion as any).diagram_config ?? null,
+                            parentQuestion.question_type ?? null,
+                          );
                           if (parentGraphData?.graphConfig && 'series' in parentGraphData.graphConfig) {
                             rawRefSeries = (parentGraphData.graphConfig as any).series || [];
                           }
@@ -1997,7 +2022,11 @@ const TakePracticeQuiz = () => {
                             );
                             
                             if (parentQ) {
-                              const parentGraphData = parseGraphQuestionData(parentQ.correct_answer || null);
+                              const parentGraphData = parseGraphQuestionData(
+                                parentQ.correct_answer || null,
+                                (parentQ as any).diagram_config ?? null,
+                                parentQ.question_type ?? null,
+                              );
                               const parentFormula = (parentGraphData?.plottingAnswer as any)?.markingFormula;
                               
                               if (parentFormula && typeof parentFormula === 'string' && parentFormula.trim() !== '') {

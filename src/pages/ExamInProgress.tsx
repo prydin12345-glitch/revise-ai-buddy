@@ -1677,7 +1677,11 @@ const ExamInProgress = () => {
 
                   {/* Graph question rendering - same components as practice mode for feature parity */}
                   {(() => {
-                    const graphData = parseGraphQuestionData(question.correct_answer || null);
+                    const graphData = parseGraphQuestionData(
+                      question.correct_answer || null,
+                      (question as any).diagram_config ?? null,
+                      question.question_type ?? null,
+                    );
                     const isGraphInterpretation = question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
                     const isGraphPlotting = question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
                     const isBearings = question.question_type === 'bearings' || graphData?.graphType === 'bearings';
@@ -1862,7 +1866,11 @@ const ExamInProgress = () => {
 
                   {/* Standard answer inputs for non-graph questions */}
                   {!(() => {
-                    const graphData = parseGraphQuestionData(question.correct_answer || null);
+                    const graphData = parseGraphQuestionData(
+                      question.correct_answer || null,
+                      (question as any).diagram_config ?? null,
+                      question.question_type ?? null,
+                    );
                     return question.question_type === 'graph_interpretation' || 
                            question.question_type === 'graph_plotting' || 
                            question.question_type === 'bearings' ||
