@@ -303,6 +303,7 @@ export function GraphPlottingQuestion({
     setUndoStack([]);
     setRedoStack([]);
     clearLongPress();
+    setBestFitStart(null);
   }, [questionId]);
 
   // Cleanup long-press timer on unmount
