@@ -66,6 +66,10 @@ interface ExpandedGraphModalProps {
   
   // Question text to display in focus mode
   questionText?: string;
+
+  // Line of best fit
+  bestFitLine?: BestFitLine | null;
+  expectedBestFit?: BestFitAnswer | null;
 }
 
 /**
