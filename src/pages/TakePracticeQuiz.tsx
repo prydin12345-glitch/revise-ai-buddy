@@ -156,6 +156,7 @@ interface UserAnswer {
   graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null; // Join mode for plotting questions (angle is for measurement only)
   graphSegments?: Array<{ id: string; from: GraphPoint; to: GraphPoint; mode: 'straight' | 'curved'; controlPoint?: GraphPoint }>; // Persisted line segments with optional control point
   graphDrawnPaths?: Array<{ id: string; dataPoints: Array<{ x: number; y: number }>; points?: Array<{ pixelX: number; pixelY: number }> }>; // Freeform drawn paths (dataPoints is canonical, points is legacy)
+  graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null; // Student-drawn line of best fit
   graphMarkingData?: {
     perFieldResults?: Record<string, { correct: boolean; earned: number; max: number; studentAnswer: any; correctAnswer: any; status: 'correct' | 'incorrect' | 'missed' }>;
     perPointResults?: Array<{ studentPoint?: GraphPoint; expectedPoint: GraphPoint; matched: boolean; distance?: number; status: 'correct' | 'incorrect' | 'missed' }>;
