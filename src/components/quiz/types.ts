@@ -76,9 +76,19 @@ export const looksLikeGraphJson = (value?: string | null) => {
   return trimmed.startsWith('{') && trimmed.includes('"graphType"');
 };
 
-export const shouldParseGraphData = (questionType?: string, correctAnswer?: string | null) => {
+export const shouldParseGraphData = (
+  questionType?: string,
+  correctAnswer?: string | null,
+  diagramConfig?: any | null,
+) => {
   if (questionType && GRAPH_QUESTION_TYPES.has(questionType)) return true;
-  return looksLikeGraphJson(correctAnswer);
+  if (looksLikeGraphJson(correctAnswer)) return true;
+  // diagram_config-based detection so AI payloads stored only in diagram_config
+  // (without a graphType wrapper in correct_answer) still render a canvas.
+  if (diagramConfig && typeof diagramConfig === 'object') {
+    if (diagramConfig.graphType || diagramConfig.plottingAnswer || diagramConfig.interpretationFields) return true;
+  }
+  return false;
 };
 
 /** Convert toggle answers from number[] to Record<number, boolean> format */
