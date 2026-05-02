@@ -798,7 +798,8 @@ const ExamInProgress = () => {
             questionGraphAnswers.graphPlottedPoints,
             questionGraphAnswers.graphJoinMode,
             questionGraphAnswers.graphSegments,
-            questionGraphAnswers.graphDrawnPaths
+            questionGraphAnswers.graphDrawnPaths,
+            (questionGraphAnswers as any).graphBestFitLine ?? null
           );
         } else if (questionGraphAnswers.bearingsAnswer) {
           finalAnswerText = serializeBearingsResponse(questionGraphAnswers.bearingsAnswer);
