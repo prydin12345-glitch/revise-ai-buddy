@@ -5,6 +5,7 @@ import type {
   GraphPoint,
   GraphSeries,
   BearingsMarkingResult,
+  BestFitLine,
 } from "@/components/graph";
 
 export interface PracticeQuestion {
