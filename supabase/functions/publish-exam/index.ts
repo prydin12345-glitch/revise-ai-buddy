@@ -133,33 +133,75 @@ serve(async (req) => {
       console.warn(`Found ${mcqsWithoutAnswer.length} MCQs without correct_answer - setting defaults`);
     }
 
+    // Build a canonical graph wrapper { graphType, graphConfig, plottingAnswer }
+    // from whatever the AI emitted. Reads correct_answer JSON first, then falls
+    // back to diagram_config (current AI output), so the frontend always sees
+    // a JSON wrapper in correct_answer for graph questions.
+    const buildGraphWrapper = (draft: any, mappedType: string): any | null => {
+      const isInterp = mappedType === 'graph_interpretation';
+      // 1) correct_answer already in canonical JSON form?
+      if (draft.correct_answer && typeof draft.correct_answer === 'string') {
+        try {
+          const parsed = JSON.parse(draft.correct_answer);
+          if (parsed?.graphType && (parsed.graphConfig || parsed.plottingAnswer || parsed.interpretationFields)) {
+            return parsed;
+          }
+        } catch { /* fall through */ }
+      }
+      // 2) derive from diagram_config
+      let dc: any = draft.diagram_config;
+      if (typeof dc === 'string') { try { dc = JSON.parse(dc); } catch { dc = null; } }
+      if (dc && typeof dc === 'object' && (dc.plottingAnswer || dc.graphConfig || dc.interpretationFields || dc.graphType)) {
+        if (dc.graphType) return dc; // already wrapped
+        const pa = dc.plottingAnswer ?? null;
+        const derivedConfig = dc.graphConfig ?? {
+          chartType: 'line',
+          xLabel: pa?.xLabel ?? 'x',
+          yLabel: pa?.yLabel ?? 'y',
+          domainX: pa?.domainX ?? [-5, 5],
+          domainY: pa?.domainY ?? [-10, 10],
+          grid: { show: true, stepX: pa?.stepX ?? 1, stepY: pa?.stepY ?? 1 },
+          series: pa?.series ?? [],
+        };
+        if (isInterp || dc.interpretationFields) {
+          return {
+            graphType: 'interpretation',
+            graphConfig: derivedConfig,
+            interpretationFields: dc.interpretationFields ?? [],
+          };
+        }
+        return {
+          graphType: 'plotting',
+          graphConfig: derivedConfig,
+          plottingAnswer: pa ?? {},
+        };
+      }
+      return null;
+    };
+
     // Insert questions from drafts into exam_questions table
     const questionInserts = drafts.map((draft: any) => {
       const mappedType = mapQuestionType(draft.question_type, draft.marks);
-      const correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
+      let correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
         ? 'A' // Default to A if missing for MCQs
         : draft.correct_answer;
-      
-      // For graph questions, correct_answer contains graphConfig — also copy to options for frontend
+
+      // For graph questions, ensure correct_answer is the canonical JSON wrapper
+      // so the frontend's parser can render the canvas. Also mirror to options.
       let options = draft.options;
-      if ((mappedType === 'graph_plotting' || mappedType === 'graph_interpretation') && correctAnswer) {
-        try {
-          const graphData = typeof correctAnswer === 'string' ? JSON.parse(correctAnswer) : correctAnswer;
-          if (graphData?.graphConfig) {
-            options = graphData;
-            console.log(`Question ${draft.question_number}: Copied graph data to options field`);
-          }
-        } catch { /* not JSON, keep original options */ }
+      let diagramConfigOut = draft.diagram_config;
+      if (mappedType === 'graph_plotting' || mappedType === 'graph_interpretation') {
+        const wrapper = buildGraphWrapper(draft, mappedType);
+        if (wrapper) {
+          options = wrapper;
+          diagramConfigOut = wrapper;
+          correctAnswer = JSON.stringify(wrapper);
+          console.log(`Question ${draft.question_number}: Built canonical graph wrapper for ${mappedType}`);
+        } else {
+          console.warn(`Question ${draft.question_number}: ${mappedType} has no graphConfig/plottingAnswer — frontend will render blank canvas`);
+        }
       }
 
-      return {
-        exam_id: draft.exam_id,
-        question_number: draft.question_number,
-        question_type: mappedType,
-        question_text: draft.question_text,
-        marks: draft.marks,
-        options,
-        correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
         original_page_number: draft.original_page_number,
         has_figures: draft.has_figures,
         has_tables: draft.has_tables,
