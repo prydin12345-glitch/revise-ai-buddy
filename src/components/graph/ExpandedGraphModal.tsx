@@ -486,6 +486,8 @@ export function ExpandedGraphModal({
                 onAddPoint={!readOnly && !eraseMode && !isAngleMode && !isJoinModeActive ? addPoint : undefined}
                 onDrawnPathsChange={onDrawnPathsChange}
                 onSegmentClick={handleSegmentClick}
+                bestFitLine={bestFitLine}
+                expectedBestFit={expectedBestFit}
               />
             )}
           </div>
