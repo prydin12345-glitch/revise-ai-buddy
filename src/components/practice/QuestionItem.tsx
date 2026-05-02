@@ -71,6 +71,7 @@ interface UserAnswer {
   graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
   graphSegments?: LineSegment[];
   graphDrawnPaths?: DrawingPath[];
+  graphBestFitLine?: import('@/components/graph').BestFitLine | null;
   graphMarkingData?: any;
   bearingsAnswer?: string;
   bearingsMarkingData?: BearingsMarkingResult;
