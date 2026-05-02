@@ -202,6 +202,14 @@ serve(async (req) => {
         }
       }
 
+      return {
+        exam_id: draft.exam_id,
+        question_number: draft.question_number,
+        question_type: mappedType,
+        question_text: draft.question_text,
+        marks: draft.marks,
+        options,
+        correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
         original_page_number: draft.original_page_number,
         has_figures: draft.has_figures,
         has_tables: draft.has_tables,
@@ -209,7 +217,7 @@ serve(async (req) => {
         topic_tag: draft.topic_tag,
         difficulty_level: draft.difficulty_level,
         extraction_confidence: draft.extraction_confidence,
-        diagram_config: draft.diagram_config,
+        diagram_config: diagramConfigOut,
         data_type: draft.data_type,
         graph_description: draft.graph_description,
         table_data: draft.table_data,
