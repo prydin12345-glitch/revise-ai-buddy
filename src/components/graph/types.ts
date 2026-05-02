@@ -512,22 +512,139 @@ function normalizeGraphConfig(config: any): any {
   return normalized;
 }
 
-// Helper to parse graph question from correct_answer JSON
-export function parseGraphQuestionData(correctAnswer: string | null): GraphQuestionData | null {
-  if (!correctAnswer) return null;
-  try {
-    const parsed = JSON.parse(correctAnswer);
-    if (parsed.graphType === 'interpretation' || parsed.graphType === 'plotting' || parsed.graphType === 'transformation') {
-      // Normalize the graphConfig to handle field name variations
-      if (parsed.graphConfig) {
-        parsed.graphConfig = normalizeGraphConfig(parsed.graphConfig);
+// Helper to parse graph question — reads correct_answer first, falls back to
+// diagram_config (where the AI now stores plottingAnswer/graphConfig), and
+// finally synthesises a blank canvas if question_type signals a graph but no
+// data was emitted. This bridge keeps existing exams renderable while the AI
+// prompts are migrated to the canonical wrapper format.
+export function parseGraphQuestionData(
+  correctAnswer: string | null,
+  diagramConfig?: any | null,
+  questionType?: string | null,
+): GraphQuestionData | null {
+  // Priority 1 — try correct_answer as JSON wrapper (canonical format).
+  if (correctAnswer) {
+    try {
+      const parsed = JSON.parse(correctAnswer);
+      if (
+        parsed?.graphType === 'interpretation' ||
+        parsed?.graphType === 'plotting' ||
+        parsed?.graphType === 'transformation' ||
+        parsed?.graphType === 'bearings'
+      ) {
+        if (parsed.graphConfig) {
+          parsed.graphConfig = normalizeGraphConfig(parsed.graphConfig);
+        }
+        return parsed as GraphQuestionData;
       }
-      return parsed as GraphQuestionData;
+    } catch {
+      // correct_answer is plain text — fall through to diagram_config.
     }
-    return null;
-  } catch {
-    return null;
   }
+
+  // Priority 2 — derive from diagram_config (where AI commonly stores graph data).
+  if (diagramConfig) {
+    let dc: any = diagramConfig;
+    if (typeof dc === 'string') {
+      try { dc = JSON.parse(dc); } catch { dc = null; }
+    }
+    if (dc && typeof dc === 'object') {
+      // Already-wrapped payload accidentally stored in diagram_config.
+      if (
+        dc.graphType === 'interpretation' ||
+        dc.graphType === 'plotting' ||
+        dc.graphType === 'transformation' ||
+        dc.graphType === 'bearings'
+      ) {
+        const out: any = { ...dc };
+        if (out.graphConfig) out.graphConfig = normalizeGraphConfig(out.graphConfig);
+        return out as GraphQuestionData;
+      }
+
+      const plottingAnswer = dc.plottingAnswer ?? null;
+      const interpretationFields = dc.interpretationFields ?? null;
+      const explicitGraphConfig = dc.graphConfig ?? null;
+
+      if (plottingAnswer || explicitGraphConfig || interpretationFields) {
+        const derivedConfig = explicitGraphConfig ?? {
+          chartType: 'line',
+          xLabel: plottingAnswer?.xLabel ?? 'x',
+          yLabel: plottingAnswer?.yLabel ?? 'y',
+          domainX: plottingAnswer?.domainX ?? [-5, 5],
+          domainY: plottingAnswer?.domainY ?? [-10, 10],
+          grid: {
+            show: true,
+            stepX: plottingAnswer?.stepX ?? 1,
+            stepY: plottingAnswer?.stepY ?? 1,
+          },
+          series: plottingAnswer?.series ?? [],
+        };
+
+        const isInterpretation =
+          questionType === 'graph_interpretation' || !!interpretationFields;
+
+        if (isInterpretation) {
+          return {
+            graphType: 'interpretation',
+            graphConfig: normalizeGraphConfig(derivedConfig),
+            interpretationFields: interpretationFields ?? [],
+          } as GraphQuestionData;
+        }
+
+        return {
+          graphType: 'plotting',
+          graphConfig: normalizeGraphConfig(derivedConfig),
+          plottingAnswer: {
+            expectedPoints: plottingAnswer?.expectedPoints ?? [],
+            toleranceUnits: plottingAnswer?.toleranceUnits ?? 0.5,
+            markingFormula: plottingAnswer?.markingFormula ?? '',
+            keyPoints: plottingAnswer?.keyPoints ?? [],
+            curveShapeRules: plottingAnswer?.curveShapeRules ?? [],
+            totalMarks: plottingAnswer?.totalMarks,
+            marksPerPoint: plottingAnswer?.marksPerPoint,
+            allowBestFit: plottingAnswer?.allowBestFit ?? false,
+            bestFitAnswer: plottingAnswer?.bestFitAnswer ?? null,
+            expectedPath: plottingAnswer?.expectedPath ?? null,
+            pathAnnotations: plottingAnswer?.pathAnnotations,
+          } as any,
+        } as GraphQuestionData;
+      }
+    }
+  }
+
+  // Priority 3 — question_type indicates a graph but no data found: render a
+  // blank canvas so the student sees a grid rather than silently falling
+  // through to a textarea.
+  if (questionType === 'graph_plotting' || questionType === 'graph_interpretation') {
+    const blankConfig = normalizeGraphConfig({
+      chartType: 'line',
+      xLabel: 'x',
+      yLabel: 'y',
+      domainX: [-5, 5],
+      domainY: [-10, 10],
+      grid: { show: true, stepX: 1, stepY: 1 },
+      series: [],
+    });
+    if (questionType === 'graph_interpretation') {
+      return {
+        graphType: 'interpretation',
+        graphConfig: blankConfig,
+        interpretationFields: [],
+      } as GraphQuestionData;
+    }
+    return {
+      graphType: 'plotting',
+      graphConfig: blankConfig,
+      plottingAnswer: {
+        expectedPoints: [],
+        toleranceUnits: 0.5,
+        markingFormula: '',
+        keyPoints: [],
+      } as any,
+    } as GraphQuestionData;
+  }
+
+  return null;
 }
 
 // Helper to serialize graph interpretation response
