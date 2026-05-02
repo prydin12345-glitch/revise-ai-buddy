@@ -373,7 +373,18 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   await supabase.from('exam_question_drafts').delete().eq('exam_id', draftId);
   
   const drafts = questions.map((q: any, i: number) => {
-    const qType = q.question_type || 'short_answer';
+    // Normalise alternative graph type names emitted by the AI so they are
+    // preserved as interactive graph questions instead of being demoted to
+    // plain text long_form/short_answer in the publish step.
+    let qType = q.question_type || 'short_answer';
+    if (typeof qType === 'string') {
+      const lower = qType.trim().toLowerCase();
+      if (lower === 'graph_sketch' || lower === 'graph-sketch' || lower === 'sketch_graph' || lower === 'graph_drawing' || lower === 'curve_sketch') {
+        qType = 'graph_plotting';
+        q.question_type = 'graph_plotting';
+        console.log(`Q${q.question_number}: Normalised question_type "${lower}" -> "graph_plotting"`);
+      }
+    }
     let correctAnswer = q.correct_answer;
     let options = q.options || null;
     
