@@ -2443,6 +2443,8 @@ export function GraphPlottingQuestion({
         canRedo={redoStack.length > 0}
         canClear={studentPoints.length > 0 || segments.length > 0 || drawnPaths.length > 0}
         questionText={questionText}
+        bestFitLine={bestFitLine}
+        expectedBestFit={showCorrectAnswers ? (expectedAnswer?.bestFitAnswer ?? null) : null}
       />
     </div>
   );
