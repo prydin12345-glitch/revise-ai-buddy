@@ -2231,6 +2231,9 @@ export function GraphPlottingQuestion({
             onDrawnPathsChange={onDrawnPathsChange}
             onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
             cursor={readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair'}
+            bestFitLine={bestFitLine}
+            bestFitStart={bestFitStart}
+            expectedBestFit={showCorrectAnswers ? (expectedAnswer?.bestFitAnswer ?? null) : null}
           />
         )}
       </div>
