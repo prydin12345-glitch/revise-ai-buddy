@@ -607,8 +607,9 @@ const ExamInProgress = () => {
                   graphPlottedPoints: graphResponse.points,
                   graphJoinMode: graphResponse.joinMode,
                   graphSegments: graphResponse.segments,
-                  graphDrawnPaths: graphResponse.drawnPaths
-                };
+                  graphDrawnPaths: graphResponse.drawnPaths,
+                  graphBestFitLine: graphResponse.bestFitLine ?? null,
+                } as any;
               } else if (graphResponse._type === 'bearings') {
                 graphAnswersMap[ans.question_id] = {
                   bearingsAnswer: String(graphResponse.bearing)
