@@ -8,7 +8,9 @@ import {
   LineSegment, 
   DrawingPath,
   GraphPlottingConfig,
-  GraphPlottingMarkingResult 
+  GraphPlottingMarkingResult,
+  BestFitLine,
+  BestFitAnswer,
 } from './types';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { AngleMeasurement } from './GraphPlottingQuestion';
