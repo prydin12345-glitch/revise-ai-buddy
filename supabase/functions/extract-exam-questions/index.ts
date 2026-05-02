@@ -610,7 +610,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       diagram_config: (() => {
         // Merge chart payload + correct_chart_data into diagram_config so MCQ
         // choices in `options` no longer collide with chart data.
-        const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
+        const baseDiagram = graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null;
         const correctChart = q.correct_chart_data ?? null;
         if (chartPayload) {
           return correctChart
