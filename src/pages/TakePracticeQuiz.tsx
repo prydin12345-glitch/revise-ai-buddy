@@ -2195,7 +2195,8 @@ const TakePracticeQuiz = () => {
                                   points,
                                   existing.graphJoinMode,
                                   existing.graphSegments,
-                                  existing.graphDrawnPaths
+                                  existing.graphDrawnPaths,
+                                  existing.graphBestFitLine
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -2219,7 +2220,8 @@ const TakePracticeQuiz = () => {
                                   points,
                                   mode,
                                   existing.graphSegments,
-                                  existing.graphDrawnPaths
+                                  existing.graphDrawnPaths,
+                                  existing.graphBestFitLine
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -2242,7 +2244,8 @@ const TakePracticeQuiz = () => {
                                   existing.graphPlottedPoints || [],
                                   existing.graphJoinMode,
                                   segments,
-                                  existing.graphDrawnPaths
+                                  existing.graphDrawnPaths,
+                                  existing.graphBestFitLine
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -2265,7 +2268,8 @@ const TakePracticeQuiz = () => {
                                   existing.graphPlottedPoints || [],
                                   existing.graphJoinMode,
                                   existing.graphSegments,
-                                  paths
+                                  paths,
+                                  existing.graphBestFitLine
                                 );
                                 serializedToSave = serialized;
                                 return {
@@ -2274,6 +2278,30 @@ const TakePracticeQuiz = () => {
                                     ...existing,
                                     answer: serialized,
                                     graphDrawnPaths: paths,
+                                  },
+                                };
+                              });
+                              debouncedSave(currentQuestion.id, { answer: serializedToSave });
+                            }}
+                            bestFitLine={currentAnswer.graphBestFitLine ?? null}
+                            onBestFitLineChange={(line) => {
+                              let serializedToSave = '';
+                              setUserAnswers((prev) => {
+                                const existing = prev[currentQuestion.id] ?? currentAnswer;
+                                const serialized = serializeGraphPlottingResponse(
+                                  existing.graphPlottedPoints || [],
+                                  existing.graphJoinMode,
+                                  existing.graphSegments,
+                                  existing.graphDrawnPaths,
+                                  line
+                                );
+                                serializedToSave = serialized;
+                                return {
+                                  ...prev,
+                                  [currentQuestion.id]: {
+                                    ...existing,
+                                    answer: serialized,
+                                    graphBestFitLine: line,
                                   },
                                 };
                               });
