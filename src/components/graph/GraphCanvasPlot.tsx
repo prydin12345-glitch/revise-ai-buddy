@@ -180,6 +180,12 @@ interface GraphCanvasPlotProps {
   onSegmentClick?: (segmentId: string) => void;
   /** Custom cursor */
   cursor?: string;
+  /** Student's drawn line of best fit (rendered as a dashed line). */
+  bestFitLine?: BestFitLine | null;
+  /** First clicked point while building the best-fit line (transient marker). */
+  bestFitStart?: { x: number; y: number } | null;
+  /** Expected best-fit answer (shown only in review mode as a green dashed line). */
+  expectedBestFit?: BestFitAnswer | null;
 }
 
 /**
