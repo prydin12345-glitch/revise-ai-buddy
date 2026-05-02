@@ -119,6 +119,8 @@ export function ExpandedGraphModal({
   canRedo,
   canClear,
   questionText,
+  bestFitLine = null,
+  expectedBestFit = null,
 }: ExpandedGraphModalProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
