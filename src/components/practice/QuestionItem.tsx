@@ -336,7 +336,8 @@ export function QuestionItem({
               points,
               answer.graphJoinMode,
               answer.graphSegments,
-              answer.graphDrawnPaths
+              answer.graphDrawnPaths,
+              answer.graphBestFitLine
             );
             onAnswerChange(question.id, {
               ...answer,
@@ -350,7 +351,8 @@ export function QuestionItem({
               answer.graphPlottedPoints || [],
               mode,
               answer.graphSegments,
-              answer.graphDrawnPaths
+              answer.graphDrawnPaths,
+              answer.graphBestFitLine
             );
             onAnswerChange(question.id, {
               ...answer,
@@ -364,7 +366,8 @@ export function QuestionItem({
               answer.graphPlottedPoints || [],
               answer.graphJoinMode,
               segments,
-              answer.graphDrawnPaths
+              answer.graphDrawnPaths,
+              answer.graphBestFitLine
             );
             onAnswerChange(question.id, {
               ...answer,
@@ -378,12 +381,28 @@ export function QuestionItem({
               answer.graphPlottedPoints || [],
               answer.graphJoinMode,
               answer.graphSegments,
-              paths
+              paths,
+              answer.graphBestFitLine
             );
             onAnswerChange(question.id, {
               ...answer,
               answer: serialized,
               graphDrawnPaths: paths,
+            });
+          }}
+          bestFitLine={answer.graphBestFitLine ?? null}
+          onBestFitLineChange={(line) => {
+            const serialized = serializeGraphPlottingResponse(
+              answer.graphPlottedPoints || [],
+              answer.graphJoinMode,
+              answer.graphSegments,
+              answer.graphDrawnPaths,
+              line
+            );
+            onAnswerChange(question.id, {
+              ...answer,
+              answer: serialized,
+              graphBestFitLine: line,
             });
           }}
           readOnly={answer.submitted}
