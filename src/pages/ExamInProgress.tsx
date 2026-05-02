@@ -143,6 +143,7 @@ const ExamInProgress = () => {
     graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
     graphSegments?: LineSegment[];
     graphDrawnPaths?: DrawingPath[];
+    graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
     bearingsAnswer?: string;
     angleMeasurements?: AngleMeasurement[];
   }>>({});
@@ -572,6 +573,7 @@ const ExamInProgress = () => {
         graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
         graphSegments?: LineSegment[];
         graphDrawnPaths?: DrawingPath[];
+        graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
         bearingsAnswer?: string;
         angleMeasurements?: AngleMeasurement[];
       }> = {};
@@ -607,8 +609,9 @@ const ExamInProgress = () => {
                   graphPlottedPoints: graphResponse.points,
                   graphJoinMode: graphResponse.joinMode,
                   graphSegments: graphResponse.segments,
-                  graphDrawnPaths: graphResponse.drawnPaths
-                };
+                  graphDrawnPaths: graphResponse.drawnPaths,
+                  graphBestFitLine: graphResponse.bestFitLine ?? null,
+                } as any;
               } else if (graphResponse._type === 'bearings') {
                 graphAnswersMap[ans.question_id] = {
                   bearingsAnswer: String(graphResponse.bearing)
@@ -795,7 +798,8 @@ const ExamInProgress = () => {
             questionGraphAnswers.graphPlottedPoints,
             questionGraphAnswers.graphJoinMode,
             questionGraphAnswers.graphSegments,
-            questionGraphAnswers.graphDrawnPaths
+            questionGraphAnswers.graphDrawnPaths,
+            (questionGraphAnswers as any).graphBestFitLine ?? null
           );
         } else if (questionGraphAnswers.bearingsAnswer) {
           finalAnswerText = serializeBearingsResponse(questionGraphAnswers.bearingsAnswer);
@@ -1809,6 +1813,22 @@ const ExamInProgress = () => {
                                 return {
                                   ...prev,
                                   [question.id]: { ...existing, graphDrawnPaths: paths }
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            bestFitLine={(currentGraphAnswer as any).graphBestFitLine ?? null}
+                            onBestFitLineChange={(line) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphBestFitLine: line } as any
                                 };
                               });
                               if (saveTimeouts.current[question.id]) {

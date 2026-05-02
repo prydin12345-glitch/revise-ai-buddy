@@ -303,6 +303,7 @@ export function GraphPlottingQuestion({
     setUndoStack([]);
     setRedoStack([]);
     clearLongPress();
+    setBestFitStart(null);
   }, [questionId]);
 
   // Cleanup long-press timer on unmount
@@ -2231,6 +2232,9 @@ export function GraphPlottingQuestion({
             onDrawnPathsChange={onDrawnPathsChange}
             onSegmentClick={eraseMode ? handleSegmentErase : isAngleMode ? handleAngleSegmentSelect : undefined}
             cursor={readOnly ? 'default' : eraseMode ? 'pointer' : 'crosshair'}
+            bestFitLine={bestFitLine}
+            bestFitStart={bestFitStart}
+            expectedBestFit={showCorrectAnswers ? (expectedAnswer?.bestFitAnswer ?? null) : null}
           />
         )}
       </div>
@@ -2439,6 +2443,8 @@ export function GraphPlottingQuestion({
         canRedo={redoStack.length > 0}
         canClear={studentPoints.length > 0 || segments.length > 0 || drawnPaths.length > 0}
         questionText={questionText}
+        bestFitLine={bestFitLine}
+        expectedBestFit={showCorrectAnswers ? (expectedAnswer?.bestFitAnswer ?? null) : null}
       />
     </div>
   );

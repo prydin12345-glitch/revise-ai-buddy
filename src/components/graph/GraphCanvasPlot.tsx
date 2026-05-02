@@ -8,7 +8,9 @@ import {
   LineSegment, 
   DrawingPath,
   GraphPlottingConfig,
-  GraphPlottingMarkingResult 
+  GraphPlottingMarkingResult,
+  BestFitLine,
+  BestFitAnswer,
 } from './types';
 import { GraphDrawingCanvas } from './GraphDrawingCanvas';
 import { AngleMeasurement } from './GraphPlottingQuestion';
@@ -178,6 +180,12 @@ interface GraphCanvasPlotProps {
   onSegmentClick?: (segmentId: string) => void;
   /** Custom cursor */
   cursor?: string;
+  /** Student's drawn line of best fit (rendered as a dashed line). */
+  bestFitLine?: BestFitLine | null;
+  /** First clicked point while building the best-fit line (transient marker). */
+  bestFitStart?: { x: number; y: number } | null;
+  /** Expected best-fit answer (shown only in review mode as a green dashed line). */
+  expectedBestFit?: BestFitAnswer | null;
 }
 
 /**
@@ -224,6 +232,9 @@ export function GraphCanvasPlot({
   onDrawnPathsChange,
   onSegmentClick,
   cursor,
+  bestFitLine = null,
+  bestFitStart = null,
+  expectedBestFit = null,
 }: GraphCanvasPlotProps) {
   
   // Track tap detection (to distinguish taps from pans)
@@ -1214,6 +1225,67 @@ export function GraphCanvasPlot({
             </g>
           );
         })}
+
+        {/* Line of best fit overlay */}
+        {(() => {
+          // Expected best-fit (review mode) — green dashed line spanning visible domain
+          const visX = visibleDomain.domainX;
+          const elements: React.ReactNode[] = [];
+          if (showCorrectAnswers && expectedBestFit && Number.isFinite(expectedBestFit.gradient) && Number.isFinite(expectedBestFit.yIntercept)) {
+            const ex1 = visX[0];
+            const ex2 = visX[1];
+            const ey1 = expectedBestFit.gradient * ex1 + expectedBestFit.yIntercept;
+            const ey2 = expectedBestFit.gradient * ex2 + expectedBestFit.yIntercept;
+            const a = graphToScreen(ex1, ey1);
+            const b = graphToScreen(ex2, ey2);
+            if (Number.isFinite(a.x) && Number.isFinite(a.y) && Number.isFinite(b.x) && Number.isFinite(b.y)) {
+              elements.push(
+                <g key="expected-best-fit" pointerEvents="none">
+                  <line
+                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    stroke="hsl(142 76% 36%)"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    opacity={0.85}
+                  />
+                  <text x={b.x - 4} y={b.y - 6} fontSize={11} fill="hsl(142 76% 36%)" textAnchor="end">
+                    Expected best fit
+                  </text>
+                </g>
+              );
+            }
+          }
+          // Student best-fit line
+          if (bestFitLine) {
+            const a = graphToScreen(bestFitLine.x1, bestFitLine.y1);
+            const b = graphToScreen(bestFitLine.x2, bestFitLine.y2);
+            if (Number.isFinite(a.x) && Number.isFinite(a.y) && Number.isFinite(b.x) && Number.isFinite(b.y)) {
+              elements.push(
+                <g key="student-best-fit" pointerEvents="none">
+                  <line
+                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    stroke={subjectColor}
+                    strokeWidth={2.5}
+                    strokeDasharray="8 4"
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            }
+          }
+          // First-click marker while building the line
+          if (bestFitStart) {
+            const s = graphToScreen(bestFitStart.x, bestFitStart.y);
+            if (Number.isFinite(s.x) && Number.isFinite(s.y)) {
+              elements.push(
+                <g key="best-fit-start" pointerEvents="none">
+                  <circle cx={s.x} cy={s.y} r={5} fill="none" stroke={subjectColor} strokeWidth={2} strokeDasharray="3 2" />
+                </g>
+              );
+            }
+          }
+          return elements.length > 0 ? <>{elements}</> : null;
+        })()}
       </GraphCanvas>
       
       {/* Freeform drawing overlay - ALWAYS render saved paths, only active for drawing in freeform mode */}

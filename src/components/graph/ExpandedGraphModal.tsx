@@ -11,6 +11,8 @@ import {
   LineSegment,
   DrawingPath,
   GraphSeries,
+  BestFitLine,
+  BestFitAnswer,
 } from './types';
 import { GraphCanvasPlot } from './GraphCanvasPlot';
 import { AngleMeasurement } from './GraphPlottingQuestion';
@@ -64,6 +66,10 @@ interface ExpandedGraphModalProps {
   
   // Question text to display in focus mode
   questionText?: string;
+
+  // Line of best fit
+  bestFitLine?: BestFitLine | null;
+  expectedBestFit?: BestFitAnswer | null;
 }
 
 /**
@@ -113,6 +119,8 @@ export function ExpandedGraphModal({
   canRedo,
   canClear,
   questionText,
+  bestFitLine = null,
+  expectedBestFit = null,
 }: ExpandedGraphModalProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
@@ -478,6 +486,8 @@ export function ExpandedGraphModal({
                 onAddPoint={!readOnly && !eraseMode && !isAngleMode && !isJoinModeActive ? addPoint : undefined}
                 onDrawnPathsChange={onDrawnPathsChange}
                 onSegmentClick={handleSegmentClick}
+                bestFitLine={bestFitLine}
+                expectedBestFit={expectedBestFit}
               />
             )}
           </div>

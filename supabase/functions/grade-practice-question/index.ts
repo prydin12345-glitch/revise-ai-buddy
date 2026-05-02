@@ -291,6 +291,59 @@ serve(async (req) => {
           const plottingAnswer = questionData.plottingAnswer || {};
           
           // ============================================================
+          // LINE OF BEST FIT MARKING
+          // Runs first when the question allows best-fit AND the student drew one.
+          // ============================================================
+          const bestFitExpected = plottingAnswer.bestFitAnswer;
+          const allowBestFit = plottingAnswer.allowBestFit === true || !!bestFitExpected;
+          const studentBestFit = parsed.bestFitLine;
+          if (allowBestFit && studentBestFit && bestFitExpected &&
+              Number.isFinite(bestFitExpected.gradient) && Number.isFinite(bestFitExpected.yIntercept)) {
+            console.log('[graph-grading] Using BEST-FIT marking');
+            const dx = studentBestFit.x2 - studentBestFit.x1;
+            const studentGradient = Math.abs(dx) > 1e-9 ? (studentBestFit.y2 - studentBestFit.y1) / dx : Infinity;
+            const studentIntercept = Number.isFinite(studentGradient)
+              ? studentBestFit.y1 - studentGradient * studentBestFit.x1
+              : NaN;
+
+            const domainY = questionData.graphConfig?.domainY || [-10, 10];
+            const yRange = Math.abs(domainY[1] - domainY[0]) || 10;
+            const tolGradient = bestFitExpected.toleranceGradient ?? Math.max(Math.abs(bestFitExpected.gradient) * 0.2, 0.2);
+            const tolIntercept = bestFitExpected.toleranceIntercept ?? Math.max(yRange * 0.1, 0.5);
+
+            const gradientDiff = Math.abs(studentGradient - bestFitExpected.gradient);
+            const interceptDiff = Math.abs(studentIntercept - bestFitExpected.yIntercept);
+            const gradientOk = Number.isFinite(studentGradient) && gradientDiff <= tolGradient;
+            const interceptOk = Number.isFinite(studentIntercept) && interceptDiff <= tolIntercept;
+
+            const totalMarks = question.marks;
+            let earned = 0;
+            if (gradientOk) earned += Math.ceil(totalMarks / 2);
+            if (interceptOk) earned += Math.floor(totalMarks / 2);
+            earned = Math.min(earned, totalMarks);
+
+            graphResult = {
+              score: earned,
+              feedback: gradientOk && interceptOk
+                ? 'Line of best fit matches expected gradient and intercept.'
+                : `Gradient ${gradientOk ? '✓' : `off by ${gradientDiff.toFixed(2)} (tol ${tolGradient})`}, intercept ${interceptOk ? '✓' : `off by ${interceptDiff.toFixed(2)} (tol ${tolIntercept})`}.`,
+              isCorrect: gradientOk && interceptOk,
+              markingData: {
+                markingType: 'best-fit',
+                studentGradient: Number.isFinite(studentGradient) ? Math.round(studentGradient * 1000) / 1000 : null,
+                studentIntercept: Number.isFinite(studentIntercept) ? Math.round(studentIntercept * 1000) / 1000 : null,
+                expectedGradient: bestFitExpected.gradient,
+                expectedIntercept: bestFitExpected.yIntercept,
+                gradientTolerance: tolGradient,
+                interceptTolerance: tolIntercept,
+                gradientCorrect: gradientOk,
+                interceptCorrect: interceptOk,
+                totalScore: earned,
+                totalMarks,
+              }
+            };
+          } else {
+          // ============================================================
           // V2 KEY-POINT + CURVE SHAPE MARKING
           // If plottingAnswer has keyPoints array, use new marking system
           // ============================================================
@@ -733,6 +786,7 @@ serve(async (req) => {
             };
           }
           } // close V2 else block
+          } // close best-fit else block
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
