@@ -1822,6 +1822,22 @@ const ExamInProgress = () => {
                                 handleSaveAnswer(question.id);
                               }, 1000);
                             }}
+                            bestFitLine={(currentGraphAnswer as any).graphBestFitLine ?? null}
+                            onBestFitLineChange={(line) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                return {
+                                  ...prev,
+                                  [question.id]: { ...existing, graphBestFitLine: line } as any
+                                };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
                             readOnly={isReadOnly}
                             showCorrectAnswers={false}
                             subjectColor={subjectColor}
