@@ -1260,6 +1260,7 @@ If the example or resource material contains a case study, source text, passage,
 5. NEVER reproduce verbatim passages from the source document.
 ${transformationInstructions}
 ${subjectGraphInstructions}
+${MULTI_PART_GRAPH_INSTRUCTIONS}
 ${(() => {
   // Inject circuit label consistency rules for physics/electronics subjects
   const lowerSubject = subjectName.toLowerCase();
