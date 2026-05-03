@@ -55,6 +55,7 @@ import {
 import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  GraphTransformationQuestion,
   BearingsQuestion,
   ReferenceDiagram,
   extractFunctionFromText,
@@ -63,6 +64,7 @@ import {
   parseGraphResponse,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeGraphTransformationResponse,
   serializeBearingsResponse,
   type GraphQuestionData,
   type GraphPoint,
