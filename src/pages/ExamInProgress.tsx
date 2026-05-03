@@ -794,7 +794,9 @@ const ExamInProgress = () => {
       // Check for graph answers
       const questionGraphAnswers = graphAnswers[questionId];
       if (questionGraphAnswers) {
-        if (questionGraphAnswers.graphInterpretationAnswers) {
+        if (questionGraphAnswers.transformationAnswers) {
+          finalAnswerText = serializeGraphTransformationResponse(questionGraphAnswers.transformationAnswers as any);
+        } else if (questionGraphAnswers.graphInterpretationAnswers) {
           finalAnswerText = serializeGraphInterpretationResponse(questionGraphAnswers.graphInterpretationAnswers);
         } else if (questionGraphAnswers.graphPlottedPoints) {
           finalAnswerText = serializeGraphPlottingResponse(
