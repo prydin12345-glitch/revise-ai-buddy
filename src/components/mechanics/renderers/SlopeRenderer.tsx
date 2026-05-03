@@ -37,7 +37,7 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
   registry.reserve({ x: blockCx - 28, y: blockCy - 40, width: 56, height: 40 });
   registry.reserve({ x: 30, y: baseY - 6, width: 340, height: 12 });
 
-  const weightPos = registry.place(blockCx + 18, blockCy + arrowLen + 14, isUnknown('weight') ? 'W' : `${mass}g`, 13, 'start');
+  const weightPos = registry.place(blockCx + 18, blockCy + arrowLen + 14, `${mass}g`, 13, 'start');
   const normalPos = registry.place(
     blockCx + nx * (arrowLen + 14),
     blockCy - ny * (arrowLen + 14) - 10,
@@ -54,8 +54,6 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
     baseY - Math.sin(angleBis) * 50,
     `${angle}°`, 11, 'middle',
   );
-
-  const isUnknown = (field: string) => unknowns?.includes(field);
 
   return (
     <g>
