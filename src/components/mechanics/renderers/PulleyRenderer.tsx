@@ -17,6 +17,10 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
   const pulleyCx = tableRight;
   const pulleyCy = tableY - pulleyR - 2;
   const blockSize = 36;
+  const hangLabel = `${masses.hanging} kg`;
+  const surfLabel = `${masses.onSurface} kg`;
+  const hangBlockW = Math.max(blockSize, hangLabel.length * 8 + 10);
+  const surfBlockW = Math.max(blockSize, surfLabel.length * 8 + 10);
 
   // Surface block position
   const surfBlockX = 160;
