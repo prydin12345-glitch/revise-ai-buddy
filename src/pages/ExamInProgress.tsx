@@ -1905,9 +1905,11 @@ const ExamInProgress = () => {
                     );
                     return question.question_type === 'graph_interpretation' || 
                            question.question_type === 'graph_plotting' || 
+                           question.question_type === 'graph_transformation' ||
                            question.question_type === 'bearings' ||
                            graphData?.graphType === 'interpretation' ||
                            graphData?.graphType === 'plotting' ||
+                           graphData?.graphType === 'transformation' ||
                            graphData?.graphType === 'bearings';
                   })() && (
                     <>
