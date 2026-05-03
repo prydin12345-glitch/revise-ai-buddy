@@ -112,7 +112,7 @@ const BeamRenderer: React.FC<Props> = ({ config }) => {
         );
       })}
 
-      {/* Distributed mass (rod's own weight — downward red arrow at centre) */}
+      {/* Distributed mass — placed above beam centre to avoid load arrows */}
       {distributedMass && (
         <g>
           <line
@@ -124,34 +124,45 @@ const BeamRenderer: React.FC<Props> = ({ config }) => {
             strokeWidth={2}
             markerEnd={`url(#${MARKER_IDS.red})`}
           />
-          <ForceLabel
-            x={posToX(distributedMass.position) + 18}
-            y={beamY + arrowLen / 2}
-            text={distributedMass.label}
-            show={showLabels}
-            color={COLORS.weight}
-          />
+          {showLabels && (
+            <text
+              x={posToX(distributedMass.position)}
+              y={beamY - 55}
+              textAnchor="middle"
+              fontFamily={FONT.family}
+              fontStyle={FONT.style}
+              fontSize={FONT.size}
+              fill={COLORS.weight}
+            >
+              {distributedMass.label}
+            </text>
+          )}
         </g>
       )}
 
-      {/* Point loads (downward red arrows) */}
-      {loads.map((load, i) => {
-        const lx = posToX(load.position);
-        return (
-          <g key={`load-${i}`}>
-            <line
-              x1={lx}
-              y1={beamY}
-              x2={lx}
-              y2={beamY + arrowLen}
-              stroke={COLORS.weight}
-              strokeWidth={2}
-              markerEnd={`url(#${MARKER_IDS.red})`}
-            />
-            <ForceLabel x={lx + 18} y={beamY + arrowLen / 2} text={load.label} show={showLabels} color={COLORS.weight} />
-          </g>
-        );
-      })}
+      {/* Point loads — alternate label position above/below to avoid horizontal collisions */}
+      {[...loads]
+        .map((l, origIdx) => ({ load: l, origIdx }))
+        .sort((a, b) => a.load.position - b.load.position)
+        .map(({ load, origIdx }, i) => {
+          const lx = posToX(load.position);
+          const isAbove = i % 2 === 0;
+          const labelY = isAbove ? beamY + arrowLen / 2 - 8 : beamY + arrowLen / 2 + 14;
+          return (
+            <g key={`load-${origIdx}`}>
+              <line
+                x1={lx}
+                y1={beamY}
+                x2={lx}
+                y2={beamY + arrowLen}
+                stroke={COLORS.weight}
+                strokeWidth={2}
+                markerEnd={`url(#${MARKER_IDS.red})`}
+              />
+              <ForceLabel x={lx + 18} y={labelY} text={load.label} show={showLabels} color={COLORS.weight} />
+            </g>
+          );
+        })}
 
       {/* Reactions (upward blue arrows) + wire hatching */}
       {reactions.map((r, i) => {
