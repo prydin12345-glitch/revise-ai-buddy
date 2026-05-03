@@ -113,7 +113,13 @@ const RodRenderer: React.FC<Props> = ({ config }) => {
                 strokeWidth={2}
                 markerEnd={`url(#${MARKER_IDS.orange})`}
               />
-              <ForceLabel x={bottomX - arrowLen * 0.4} y={bottomY - 14} text="F" show={showLabels} color={COLORS.friction} />
+              <ForceLabel
+                x={angle > 65 ? bottomX - arrowLen * 0.7 - 12 : bottomX - arrowLen * 0.4}
+                y={bottomY - 14}
+                text="F"
+                show={showLabels}
+                color={COLORS.friction}
+              />
             </g>
           )}
 
@@ -129,7 +135,13 @@ const RodRenderer: React.FC<Props> = ({ config }) => {
                 strokeWidth={2}
                 markerEnd={`url(#${MARKER_IDS.orange})`}
               />
-              <ForceLabel x={topX - 16} y={topY + arrowLen * 0.3} text="F'" show={showLabels} color={COLORS.friction} />
+              <ForceLabel
+                x={topX - 16}
+                y={angle > 65 ? topY - 20 : topY + arrowLen * 0.3}
+                text="F'"
+                show={showLabels}
+                color={COLORS.friction}
+              />
             </g>
           )}
         </g>
