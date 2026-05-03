@@ -203,6 +203,12 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
           return <VerticalMotionRenderer config={config} />;
         case 'vertical_lift':
           return <VerticalLiftRenderer config={config as any} />;
+        case 'connected_particles':
+          return <ConnectedParticlesRenderer config={config} />;
+        case 'spring_mass':
+          return <SpringMassRenderer config={config} />;
+        case 'collision':
+          return <CollisionRenderer config={config} />;
         default:
           return null;
       }
