@@ -134,6 +134,34 @@ export interface DeltaWyeComparisonConfig {
   type: 'delta_wye_comparison';
 }
 
+export interface ConnectedParticlesConfig {
+  type: 'connected_particles';
+  massA: number;
+  massB: number;
+  angle: number;
+  surface: 'rough' | 'smooth';
+}
+
+export interface SpringMassConfig {
+  type: 'spring_mass';
+  mass: number;
+  extension: number;
+  naturalLength?: number;
+  springConstant?: number | null;
+  orientation?: 'vertical' | 'horizontal';
+}
+
+export interface CollisionConfig {
+  type: 'collision';
+  massA: number;
+  massB: number;
+  uA: number;
+  uB: number;
+  vA: number | null;
+  vB: number | null;
+  collisionType: 'elastic' | 'perfectly inelastic' | 'explosion' | 'collision';
+}
+
 export interface DualConfig {
   type: 'dual';
   left: any; // CircuitConfig — imported at component level to avoid circular deps
@@ -152,6 +180,9 @@ export type MechanicsConfig =
   | VerticalLiftConfig
   | PhasorDiagramConfig
   | DeltaWyeComparisonConfig
+  | ConnectedParticlesConfig
+  | SpringMassConfig
+  | CollisionConfig
   | DualConfig;
 
 // ── Shared Styling Constants ──
