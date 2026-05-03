@@ -80,7 +80,7 @@ serve(async (req) => {
 
     // Valid question types for exam_questions table
     // (Enforced by DB check constraint: exam_questions_question_type_check)
-    const validQuestionTypes = ['mcq', 'short_answer', 'long_form', 'graph_plotting', 'graph_interpretation', 'bearings', 'table_grid'];
+    const validQuestionTypes = ['mcq', 'short_answer', 'long_form', 'graph_plotting', 'graph_interpretation', 'graph_transformation', 'bearings', 'table_grid'];
     
     // Map invalid types to valid ones
     const mapQuestionType = (type: string, marks?: number): string => {
