@@ -11,6 +11,9 @@ import ConicalPendulumRenderer from './renderers/ConicalPendulumRenderer';
 import VerticalMotionRenderer from './renderers/VerticalMotionRenderer';
 import VerticalLiftRenderer from './renderers/VerticalLiftRenderer';
 import DualRenderer from './renderers/DualRenderer';
+import ConnectedParticlesRenderer from './renderers/ConnectedParticlesRenderer';
+import SpringMassRenderer from './renderers/SpringMassRenderer';
+import CollisionRenderer from './renderers/CollisionRenderer';
 
 export interface MechanicsDrawProps {
   config: MechanicsConfig;
