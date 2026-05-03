@@ -80,15 +80,17 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
 
       {/* Hanging block */}
       <rect
-        x={hangX - blockSize / 2}
+        x={hangX - hangBlockW / 2}
         y={hangTopY}
-        width={blockSize}
+        width={hangBlockW}
         height={blockSize}
         fill="white"
         stroke={COLORS.structural}
         strokeWidth={2}
       />
-      <ForceLabel x={hangX} y={hangTopY + blockSize / 2} text={`${masses.hanging} kg`} show={showLabels} />
+      {showLabels && (
+        <text x={hangX} y={hangTopY + blockSize / 2} textAnchor="middle" dominantBaseline="central" fontFamily={FONT.family} fontSize={Math.min(13, 11 + (blockSize / hangBlockW) * 2)} fill={COLORS.label}>{hangLabel}</text>
+      )}
 
       {/* Force arrows */}
       {showForces && (
