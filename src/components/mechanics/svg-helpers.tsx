@@ -1,6 +1,88 @@
 import React from 'react';
 import { COLORS, MARKER_IDS, FONT } from './types';
 
+// ── Label placement registry — collision-aware label positioning ──
+
+export interface LabelRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export class LabelPlacementRegistry {
+  private occupied: LabelRect[] = [];
+  private readonly charWidth = 7.5;
+  private readonly lineHeight = 16;
+  private readonly padding = 4;
+
+  estimateSize(text: string, fontSize = 13): { w: number; h: number } {
+    const chars = text.length;
+    const scale = fontSize / 13;
+    return {
+      w: chars * this.charWidth * scale + this.padding * 2,
+      h: this.lineHeight * scale,
+    };
+  }
+
+  overlaps(rect: LabelRect, margin = 3): boolean {
+    return this.occupied.some(occ =>
+      rect.x - margin < occ.x + occ.width &&
+      rect.x + rect.width + margin > occ.x &&
+      rect.y - margin < occ.y + occ.height &&
+      rect.y + rect.height + margin > occ.y
+    );
+  }
+
+  reserve(rect: LabelRect) {
+    this.occupied.push(rect);
+  }
+
+  place(
+    preferredX: number,
+    preferredY: number,
+    text: string,
+    fontSize = 13,
+    anchor: 'start' | 'middle' | 'end' = 'start',
+  ): { x: number; y: number } {
+    const { w, h } = this.estimateSize(text, fontSize);
+    const anchorOffsetX = anchor === 'middle' ? -w / 2 : anchor === 'end' ? -w : 0;
+
+    const candidates = [
+      { dx: 0, dy: 0 },
+      { dx: 0, dy: -18 }, { dx: 0, dy: 18 },
+      { dx: 18, dy: 0 }, { dx: -18, dy: 0 },
+      { dx: 18, dy: -18 }, { dx: -18, dy: -18 },
+      { dx: 18, dy: 18 }, { dx: -18, dy: 18 },
+      { dx: 0, dy: -36 }, { dx: 36, dy: 0 },
+    ];
+
+    for (const { dx, dy } of candidates) {
+      const cx = preferredX + dx;
+      const cy = preferredY + dy;
+      const rect: LabelRect = {
+        x: cx + anchorOffsetX,
+        y: cy - h,
+        width: w,
+        height: h,
+      };
+      if (!this.overlaps(rect)) {
+        this.occupied.push(rect);
+        return { x: cx, y: cy };
+      }
+    }
+
+    const fallback: LabelRect = {
+      x: preferredX + anchorOffsetX,
+      y: preferredY - h,
+      width: w,
+      height: h,
+    };
+    this.occupied.push(fallback);
+    return { x: preferredX, y: preferredY };
+  }
+}
+
 /** All arrow marker definitions — include once in every MechanicsDraw SVG */
 export const ArrowMarkerDefs: React.FC = () => (
   <defs>
