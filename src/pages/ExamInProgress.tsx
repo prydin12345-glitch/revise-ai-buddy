@@ -600,7 +600,7 @@ const ExamInProgress = () => {
           }
           
           // Check if this is a graph answer
-          if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings') {
+          if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings' || parsed._type === 'graph_transformation') {
             const graphResponse = parseGraphResponse(answerText);
             if (graphResponse) {
               if (graphResponse._type === 'graph_interpretation') {
@@ -618,6 +618,10 @@ const ExamInProgress = () => {
               } else if (graphResponse._type === 'bearings') {
                 graphAnswersMap[ans.question_id] = {
                   bearingsAnswer: String(graphResponse.bearing)
+                };
+              } else if (graphResponse._type === 'graph_transformation') {
+                graphAnswersMap[ans.question_id] = {
+                  transformationAnswers: (graphResponse as any).partAnswers || {}
                 };
               }
               savedSet.add(ans.question_id);
