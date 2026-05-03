@@ -159,20 +159,28 @@ const RodRenderer: React.FC<Props> = ({ config }) => {
         </g>
       )}
 
-      {/* Length label along rod */}
-      {showLabels && (
-        <text
-          x={midX + 8}
-          y={midY - 10}
-          fontFamily="serif"
-          fontStyle="italic"
-          fontSize={13}
-          fill={COLORS.label}
-          transform={`rotate(${-angle}, ${midX + 8}, ${midY - 10})`}
-        >
-          {String(length)}
-        </text>
-      )}
+      {/* Length label — perpendicular to rod, horizontal text */}
+      {showLabels && (() => {
+        const rodAngleRad = (angle * Math.PI) / 180;
+        // Perpendicular outward (away from the corner) — rod goes from bottom-right to top-left
+        const perpX = -Math.sin(rodAngleRad);
+        const perpY = -Math.cos(rodAngleRad);
+        const lx = midX + perpX * 22;
+        const ly = midY + perpY * 22;
+        return (
+          <text
+            x={lx}
+            y={ly}
+            textAnchor="middle"
+            fontFamily="serif"
+            fontStyle="italic"
+            fontSize={12}
+            fill={COLORS.label}
+          >
+            {String(length)}
+          </text>
+        );
+      })()}
     </g>
   );
 };
