@@ -56,7 +56,7 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
           <line x1={bx} y1={by} x2={px} y2={py} stroke={COLORS.angle} strokeWidth={1} strokeDasharray="5 4" />
           <text
             x={(bx + px) / 2}
-            y={by - 8}
+            y={by + 16}
             textAnchor="middle"
             fontFamily={FONT.family}
             fontStyle={FONT.style}
