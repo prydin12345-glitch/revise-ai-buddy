@@ -479,6 +479,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       } else {
         console.warn(`Q${q.question_number}: graph_transformation has no parts[]`);
       }
+    } else if (qType === 'mcq') {
       // Validate MCQ correct_answer — do NOT silently default to 'A'
       if (!correctAnswer) {
         console.error(`Missing correct_answer for MCQ Q${q.question_number}: "${(q.question_text || '').slice(0, 80)}"`);
