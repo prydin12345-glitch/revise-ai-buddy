@@ -19,6 +19,7 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
+import { parseGraphQuestionData } from "@/components/graph/types";
 import { getChartData, getCorrectChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
@@ -768,6 +769,112 @@ const ExamReview = () => {
                        </div>
                      </div>
                    )}
+
+                   {/* Per-part review for graph_transformation */}
+                   {(() => {
+                     const isTransformation =
+                       question.question_type === 'graph_transformation';
+                     if (!isTransformation) return null;
+                     const graphData = parseGraphQuestionData(
+                       question.correct_answer ?? null,
+                       (question as any).diagram_config ?? null,
+                       question.question_type,
+                     );
+                     // Pull perPartResults from answer.markingData or feedback marker
+                     let perPartResults: any[] = answer?.markingData?.perPartResults || [];
+                     if (perPartResults.length === 0 && answer?.feedback) {
+                       const m = answer.feedback.match(/<!--MARKING_DATA:(.*?)-->/);
+                       if (m) {
+                         try {
+                           const md = JSON.parse(m[1]);
+                           if (Array.isArray(md.perPartResults)) perPartResults = md.perPartResults;
+                         } catch {}
+                       }
+                     }
+                     const parts = graphData?.transformationConfig?.parts || [];
+                     if (perPartResults.length === 0 && parts.length === 0) return null;
+                     return (
+                       <div className="mt-4 space-y-2">
+                         {perPartResults.length > 0 && (
+                           <>
+                             <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                               Part results
+                             </div>
+                             {perPartResults.map((part: any) => {
+                               const earned = part.earned ?? part.marks ?? 0;
+                               const max = part.max ?? part.maxMarks ?? 0;
+                               const status = part.correct
+                                 ? 'correct'
+                                 : earned > 0
+                                 ? 'partial'
+                                 : 'incorrect';
+                               const colour =
+                                 status === 'correct'
+                                   ? 'border-green-500/30 bg-green-500/10'
+                                   : status === 'partial'
+                                   ? 'border-orange-500/30 bg-orange-500/10'
+                                   : 'border-destructive/30 bg-destructive/10';
+                               return (
+                                 <div
+                                   key={part.partId}
+                                   className={`rounded-lg border px-3 py-2 ${colour}`}
+                                 >
+                                   <div className="flex items-center justify-between">
+                                     <span className="text-sm font-bold">
+                                       Part ({part.partId})
+                                     </span>
+                                     <Badge variant="outline" className="text-xs">
+                                       {earned}/{max} marks
+                                     </Badge>
+                                   </div>
+                                   {part.feedback && (
+                                     <div className="mt-1 text-xs text-muted-foreground">
+                                       {part.feedback}
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                           </>
+                         )}
+                         {!scoresHidden && parts.length > 0 && (
+                           <div className="space-y-2">
+                             {parts.map((part: any) => {
+                               if (part.questionType !== 'sketch') return null;
+                               const correctPoints =
+                                 part.correctAnswer?.transformedPoints ?? [];
+                               if (correctPoints.length === 0) return null;
+                               return (
+                                 <div
+                                   key={part.id}
+                                   className="rounded-lg border bg-muted/30 px-3 py-2"
+                                 >
+                                   <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                     Part ({part.id}) — key points to hit
+                                   </div>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {correctPoints.map((pt: any, i: number) => (
+                                       <span
+                                         key={i}
+                                         className="rounded border bg-card px-2 py-0.5 font-mono text-xs"
+                                       >
+                                         ({pt.x}, {pt.y})
+                                       </span>
+                                     ))}
+                                   </div>
+                                   {part.correctAnswer?.markingFormula && (
+                                     <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                                       Formula: y = {part.correctAnswer.markingFormula}
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                           </div>
+                         )}
+                       </div>
+                     );
+                   })()}
 
                    {/* Correct chart for "draw a chart" questions — visible only after marking */}
                    {!scoresHidden && (() => {
