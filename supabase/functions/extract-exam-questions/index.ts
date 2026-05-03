@@ -384,6 +384,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         q.question_type = 'graph_plotting';
         console.log(`Q${q.question_number}: Normalised question_type "${lower}" -> "graph_plotting"`);
       }
+      if (lower === 'graph_transformation' || lower === 'transformation_sketch' || lower === 'multi_graph' || lower === 'graph-transformation') {
+        qType = 'graph_transformation';
+        q.question_type = 'graph_transformation';
+      }
+      // Auto-upgrade single-canvas plotting to transformation when AI emits parts[]
+      const ca = q.correct_answer;
+      const caObj = typeof ca === 'object' ? ca : (typeof ca === 'string' ? (() => { try { return JSON.parse(ca); } catch { return null; } })() : null);
+      const hasMultipleParts = caObj && Array.isArray(caObj.parts) && caObj.parts.length > 1;
+      if (qType === 'graph_plotting' && hasMultipleParts) {
+        qType = 'graph_transformation';
+        q.question_type = 'graph_transformation';
+        console.log(`Q${q.question_number}: Auto-upgraded to graph_transformation (${caObj.parts.length} parts)`);
+      }
     }
     let correctAnswer = q.correct_answer;
     let options = q.options || null;
@@ -442,6 +455,29 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         console.log(`Q${q.question_number}: Built canonical graph wrapper for ${qType}`);
       } else {
         console.warn(`Q${q.question_number}: ${qType} question has no graphConfig or plottingAnswer — frontend will render blank canvas`);
+      }
+    } else if (qType === 'graph_transformation') {
+      // Build a canonical transformation wrapper preserving parts[]
+      let wrapper: any = null;
+      if (typeof correctAnswer === 'object' && correctAnswer !== null && ((correctAnswer as any).graphType === 'transformation' || Array.isArray((correctAnswer as any).parts))) {
+        wrapper = (correctAnswer as any).graphType ? correctAnswer : { graphType: 'transformation', ...(correctAnswer as any) };
+      } else if (typeof correctAnswer === 'string') {
+        try {
+          const parsed = JSON.parse(correctAnswer);
+          if (parsed && (parsed.graphType === 'transformation' || Array.isArray(parsed.parts))) {
+            wrapper = parsed.graphType ? parsed : { graphType: 'transformation', ...parsed };
+          }
+        } catch { /* not JSON */ }
+      }
+      if (!wrapper && q.transformationConfig) {
+        wrapper = { graphType: 'transformation', ...q.transformationConfig };
+      }
+      if (wrapper) {
+        correctAnswer = JSON.stringify(wrapper);
+        options = wrapper;
+        console.log(`Q${q.question_number}: Built canonical graph_transformation wrapper (${wrapper.parts?.length ?? 0} parts)`);
+      } else {
+        console.warn(`Q${q.question_number}: graph_transformation has no parts[]`);
       }
     } else if (qType === 'mcq') {
       // Validate MCQ correct_answer — do NOT silently default to 'A'

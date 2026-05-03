@@ -51,6 +51,7 @@ serve(async (req) => {
     const isTableGrid = question.question_type === 'table_grid';
     const isGraphInterpretation = question.question_type === 'graph_interpretation';
     const isGraphPlotting = question.question_type === 'graph_plotting';
+    const isGraphTransformation = question.question_type === 'graph_transformation';
     const isBearings = question.question_type === 'bearings';
     let tableGridResult: any = null;
     let graphResult: any = null;
@@ -279,6 +280,121 @@ serve(async (req) => {
         }
       } catch (e) {
         console.log('[graph-grading] Parse error:', e);
+      }
+    }
+
+    // Handle graph_transformation deterministic per-part marking
+    if (isGraphTransformation && answerText) {
+      try {
+        const parsed = JSON.parse(answerText);
+        if (parsed && (parsed._type === 'graph_transformation' || parsed.partAnswers)) {
+          const questionData = JSON.parse(question.correct_answer || '{}');
+          const config = questionData.transformationConfig ?? questionData;
+          const parts: any[] = Array.isArray(config?.parts) ? config.parts : [];
+          const partAnswers: Record<string, any> = parsed.partAnswers || {};
+
+          if (parts.length > 0) {
+            const perPartResults: any[] = [];
+            let totalScore = 0;
+            let totalMarks = 0;
+            const domainY: [number, number] = config?.domainY || config?.graphConfig?.domainY || [-10, 10];
+            const yRange = Math.abs(domainY[1] - domainY[0]) || 10;
+
+            for (const part of parts) {
+              const partId = part.id;
+              const partMarks = part.marks ?? 1;
+              totalMarks += partMarks;
+              const ans = partAnswers[partId] || {};
+              const correct = part.correctAnswer || {};
+              let earned = 0;
+              let feedback = '';
+
+              if (part.questionType === 'sketch') {
+                const studentPoints: GraphPoint[] = ans.sketchPoints || [];
+                const expected: Array<{ x: number; y: number }> = correct.transformedPoints || [];
+                const tolerance = part.tolerance ?? Math.max(yRange * 0.08, 0.4);
+                if (studentPoints.length === 0) {
+                  feedback = `Part (${partId}): no sketch submitted`;
+                } else {
+                  const used = new Set<number>();
+                  let matched = 0;
+                  for (const ep of expected) {
+                    let bestIdx = -1;
+                    let bestDist = Infinity;
+                    for (let i = 0; i < studentPoints.length; i++) {
+                      if (used.has(i)) continue;
+                      const dx = studentPoints[i].x - ep.x;
+                      const dy = studentPoints[i].y - ep.y;
+                      const d = Math.sqrt(dx * dx + dy * dy);
+                      if (d < bestDist) { bestDist = d; bestIdx = i; }
+                    }
+                    if (bestIdx >= 0 && bestDist <= tolerance) { used.add(bestIdx); matched++; }
+                  }
+
+                  let formulaScore = 0;
+                  const markingFormula = correct.markingFormula;
+                  if (markingFormula && studentPoints.length > 0) {
+                    let ok = 0;
+                    const fTol = yRange * 0.08;
+                    for (const sp of studentPoints) {
+                      try {
+                        const ey = evaluateFormulaAtX(markingFormula, sp.x);
+                        if (ey !== null && Math.abs(sp.y - ey) <= fTol) ok++;
+                      } catch { /* ignore */ }
+                    }
+                    formulaScore = studentPoints.length > 0 ? ok / studentPoints.length : 0;
+                  }
+
+                  const keyPointScore = expected.length > 0 ? matched / expected.length : 0;
+                  const combined = markingFormula ? (keyPointScore * 0.4 + formulaScore * 0.6) : keyPointScore;
+                  earned = Math.round(combined * partMarks);
+                  feedback = `Part (${partId}): ${matched}/${expected.length} key points`;
+                }
+              } else if (part.questionType === 'coordinates') {
+                const sa = ans.coordinateAnswer || {};
+                const ca = correct.coordinateAnswer || {};
+                const tol = part.tolerance ?? 0.1;
+                const ok = Number.isFinite(sa.x) && Number.isFinite(sa.y) &&
+                  Math.abs(sa.x - ca.x) <= tol && Math.abs(sa.y - ca.y) <= tol;
+                earned = ok ? partMarks : 0;
+                feedback = `Part (${partId}): ${ok ? 'correct' : `expected (${ca.x}, ${ca.y})`}`;
+              } else if (part.questionType === 'value') {
+                const sv = Number(ans.numericAnswer);
+                const cv = Number(correct.numericAnswer);
+                const tol = part.tolerance ?? 0.1;
+                const ok = Number.isFinite(sv) && Number.isFinite(cv) && Math.abs(sv - cv) <= tol;
+                earned = ok ? partMarks : 0;
+                feedback = `Part (${partId}): ${ok ? 'correct' : `expected ${cv}`}`;
+              } else {
+                const st = String(ans.textAnswer ?? '').toLowerCase().trim();
+                const ct = String(correct.textAnswer ?? correct.setAnswer ?? '').toLowerCase().trim();
+                const alts: string[] = (correct.alternatives || []).map((a: string) => String(a).toLowerCase().trim());
+                const ok = !!st && (st === ct || alts.includes(st));
+                earned = ok ? partMarks : 0;
+                feedback = `Part (${partId}): ${ok ? 'correct' : `expected ${ct}`}`;
+              }
+
+              totalScore += earned;
+              perPartResults.push({
+                partId,
+                earned,
+                max: partMarks,
+                correct: earned >= partMarks * 0.7,
+                status: earned === partMarks ? 'correct' : (earned > 0 ? 'partial' : 'incorrect'),
+                feedback,
+              });
+            }
+
+            graphResult = {
+              score: totalScore,
+              feedback: `${totalScore}/${totalMarks} marks across ${parts.length} parts`,
+              isCorrect: totalScore >= totalMarks,
+              markingData: { perPartResults, totalScore, totalMarks },
+            };
+          }
+        }
+      } catch (e) {
+        console.log('[graph-grading] transformation parse error:', e);
       }
     }
 

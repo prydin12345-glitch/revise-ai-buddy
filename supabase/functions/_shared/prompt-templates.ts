@@ -75,6 +75,37 @@ VISUAL QUESTION GUIDELINES:
 - Never use "extended" type for questions that require visual/graphical answers`;
 }
 
+/** Multi-part sketch detection rule appended to all graph generation prompts */
+export const MULTI_PART_GRAPH_INSTRUCTIONS = `
+MULTI-PART GRAPH QUESTIONS — CRITICAL:
+When a question asks for TWO OR MORE separate sketches or diagrams (e.g. "(a) Sketch y=f(x) ... (b) On a separate diagram sketch y=f(-x)") you MUST use question_type: "graph_transformation" with graphType: "transformation".
+Do NOT use graph_plotting for multi-part sketch questions — it only renders one canvas.
+
+correct_answer JSON schema for graph_transformation:
+{
+  "graphType": "transformation",
+  "graphConfig": { "chartType":"line", "xLabel":"x", "yLabel":"y", "domainX":[-5,5], "domainY":[-10,10], "grid":{"show":true,"stepX":1,"stepY":1} },
+  "originalFunction": {
+    "description": "f(x) = (x+2)(x-1)(x-3)",
+    "displayEquation": "y = f(x)",
+    "keyPoints": [ {"id":"p1","type":"x-intercept","coordinates":{"x":-2,"y":0},"label":"A"} ],
+    "referenceCurve": { "id":"ref","label":"y=f(x)","data":[{"x":-3,"y":-24},{"x":-2,"y":0}], "showLine":true }
+  },
+  "parts": [
+    { "id":"a", "transformation":"y = f(x)", "questionType":"sketch", "prompt":"Sketch y=f(x).", "marks":3,
+      "correctAnswer": { "markingFormula":"(x+2)*(x-1)*(x-3)", "transformedPoints":[{"x":-2,"y":0},{"x":1,"y":0},{"x":3,"y":0},{"x":0,"y":6}] }, "tolerance":0.4 },
+    { "id":"b", "transformation":"y = f(-x)", "questionType":"sketch", "prompt":"On a separate diagram, sketch y=f(-x).", "marks":3,
+      "correctAnswer": { "markingFormula":"(-x+2)*(-x-1)*(-x-3)", "transformedPoints":[{"x":2,"y":0},{"x":-1,"y":0},{"x":-3,"y":0},{"x":0,"y":6}] }, "tolerance":0.4 }
+  ]
+}
+
+Rules:
+- Each part renders its own canvas; marks across parts must sum to the question total.
+- questionType per part: "sketch" | "coordinates" | "equation" | "value" | "set" | "text".
+- Trigger phrases that REQUIRE graph_transformation: "on a separate diagram", "on another grid", "sketch both curves", "(a) sketch ... (b) sketch ...", "draw the graph of ... and on a separate diagram draw ...".
+- Single-sketch questions stay graph_plotting.
+`;
+
 /** Build complexity instructions based on educational tier */
 export function buildComplexityInstructions(tier: string, examPatterns: string): string {
   const tierLower = tier.toLowerCase();
