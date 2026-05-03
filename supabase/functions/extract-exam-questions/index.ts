@@ -456,7 +456,29 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       } else {
         console.warn(`Q${q.question_number}: ${qType} question has no graphConfig or plottingAnswer — frontend will render blank canvas`);
       }
-    } else if (qType === 'mcq') {
+    } else if (qType === 'graph_transformation') {
+      // Build a canonical transformation wrapper preserving parts[]
+      let wrapper: any = null;
+      if (typeof correctAnswer === 'object' && correctAnswer !== null && ((correctAnswer as any).graphType === 'transformation' || Array.isArray((correctAnswer as any).parts))) {
+        wrapper = (correctAnswer as any).graphType ? correctAnswer : { graphType: 'transformation', ...(correctAnswer as any) };
+      } else if (typeof correctAnswer === 'string') {
+        try {
+          const parsed = JSON.parse(correctAnswer);
+          if (parsed && (parsed.graphType === 'transformation' || Array.isArray(parsed.parts))) {
+            wrapper = parsed.graphType ? parsed : { graphType: 'transformation', ...parsed };
+          }
+        } catch { /* not JSON */ }
+      }
+      if (!wrapper && q.transformationConfig) {
+        wrapper = { graphType: 'transformation', ...q.transformationConfig };
+      }
+      if (wrapper) {
+        correctAnswer = JSON.stringify(wrapper);
+        options = wrapper;
+        console.log(`Q${q.question_number}: Built canonical graph_transformation wrapper (${wrapper.parts?.length ?? 0} parts)`);
+      } else {
+        console.warn(`Q${q.question_number}: graph_transformation has no parts[]`);
+      }
       // Validate MCQ correct_answer — do NOT silently default to 'A'
       if (!correctAnswer) {
         console.error(`Missing correct_answer for MCQ Q${q.question_number}: "${(q.question_text || '').slice(0, 80)}"`);
