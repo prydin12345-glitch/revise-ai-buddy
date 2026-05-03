@@ -535,7 +535,36 @@ export function parseGraphQuestionData(
         if (parsed.graphConfig) {
           parsed.graphConfig = normalizeGraphConfig(parsed.graphConfig);
         }
+        // Transformation: bring parts/originalFunction into graphConfig + transformationConfig
+        if (parsed.graphType === 'transformation') {
+          const tConfig: any = {
+            ...(parsed.graphConfig || {}),
+            originalFunction: parsed.originalFunction || parsed.graphConfig?.originalFunction || { description: '', keyPoints: [] },
+            parts: parsed.parts || parsed.graphConfig?.parts || [],
+            sketchGridStep: parsed.sketchGridStep ?? parsed.graphConfig?.sketchGridStep,
+          };
+          parsed.transformationConfig = tConfig;
+          parsed.graphConfig = tConfig;
+        }
         return parsed as GraphQuestionData;
+      }
+      // Bare parts[] array — auto-detect transformation
+      if (Array.isArray(parsed?.parts) && parsed.parts.length > 0) {
+        const tConfig: any = {
+          chartType: 'line',
+          xLabel: 'x',
+          yLabel: 'y',
+          domainX: parsed.domainX ?? [-5, 5],
+          domainY: parsed.domainY ?? [-10, 10],
+          gridEnabled: true,
+          originalFunction: parsed.originalFunction || { description: '', keyPoints: [] },
+          parts: parsed.parts,
+        };
+        return {
+          graphType: 'transformation',
+          graphConfig: tConfig,
+          transformationConfig: tConfig,
+        } as GraphQuestionData;
       }
     } catch {
       // correct_answer is plain text — fall through to diagram_config.
