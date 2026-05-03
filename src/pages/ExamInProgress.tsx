@@ -1690,7 +1690,34 @@ const ExamInProgress = () => {
                     const isGraphInterpretation = question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
                     const isGraphPlotting = question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
                     const isBearings = question.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    const isGraphTransformation = question.question_type === 'graph_transformation' || graphData?.graphType === 'transformation';
                     const currentGraphAnswer = graphAnswers[question.id] || {};
+                    
+                    if (isGraphTransformation && graphData?.transformationConfig) {
+                      return (
+                        <div className="space-y-4">
+                          <GraphTransformationQuestion
+                            config={graphData.transformationConfig as any}
+                            answers={currentGraphAnswer.transformationAnswers || {}}
+                            onAnswerChange={(partId, partAnswer) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                const merged = { ...(existing.transformationAnswers || {}), [partId]: partAnswer };
+                                return { ...prev, [question.id]: { ...existing, transformationAnswers: merged } };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
+                    }
                     
                     if (isBearings && graphData?.bearingsConfig) {
                       const config = graphData.bearingsConfig as BearingsQuestionConfig;
