@@ -104,6 +104,43 @@ Rules:
 - questionType per part: "sketch" | "coordinates" | "equation" | "value" | "set" | "text".
 - Trigger phrases that REQUIRE graph_transformation: "on a separate diagram", "on another grid", "sketch both curves", "(a) sketch ... (b) sketch ...", "draw the graph of ... and on a separate diagram draw ...".
 - Single-sketch questions stay graph_plotting.
+
+LINE OF BEST FIT — TRIGGER PHRASES AND SCHEMA:
+When a question uses any of these phrases you MUST set allowBestFit: true in plottingAnswer
+AND include bestFitAnswer with correct gradient and intercept:
+  - "draw a line of best fit"
+  - "draw the line of best fit"
+  - "add a line of best fit"
+  - "draw a suitable straight line"
+  - "use your line to estimate"
+  - "estimate from the graph using a line"
+  - "draw a line of best fit and use it to"
+
+When triggered use this structure in plottingAnswer:
+{
+  "expectedPoints": [],
+  "toleranceUnits": 0.5,
+  "allowBestFit": true,
+  "bestFitAnswer": {
+    "gradient": 2.5,
+    "yIntercept": 10.0,
+    "toleranceGradient": 0.5,
+    "toleranceIntercept": 5.0
+  }
+}
+- Calculate gradient and yIntercept as the correct least-squares values for the scatter data you provide.
+- toleranceGradient ≈ 20% of |gradient|. toleranceIntercept ≈ 10% of the y-axis range.
+- Leave expectedPoints as an empty array — students draw the line, not points.
+- Set chartType to "scatter" in graphConfig so data points render as scatter, not a connected line.
+
+GRAPH QUESTION FORMATTING RULES — MANDATORY:
+- Do NOT use **double asterisks** for bold anywhere in question_text.
+- Do NOT use *single asterisks* for italic anywhere in question_text.
+- Do NOT use __underscores__ for emphasis in question_text.
+- Do NOT use Markdown table syntax with | pipes in question_text.
+- Write plain text only — "Minimum point" not "**Minimum point**".
+- LaTeX maths using $...$ or $$...$$ is correct and encouraged, e.g. "Sketch the curve $y = x^2 - 4$".
+- These rules apply to question_text, correct_answer prose, and mark scheme fields.
 `;
 
 /** Build complexity instructions based on educational tier */

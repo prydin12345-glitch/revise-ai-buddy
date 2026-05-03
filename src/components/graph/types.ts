@@ -668,7 +668,41 @@ export function parseGraphQuestionData(
     }
   }
 
-  // Priority 3 — question_type indicates a graph but no data found: render a
+  // Priority 3 — blank transformation canvas for graph_transformation
+  // with no data (prevents null return causing a blank screen).
+  if (questionType === 'graph_transformation') {
+    const blankConfig = normalizeGraphConfig({
+      chartType: 'line',
+      xLabel: 'x',
+      yLabel: 'y',
+      domainX: [-5, 5],
+      domainY: [-10, 10],
+      grid: { show: true, stepX: 1, stepY: 1 },
+      series: [],
+    });
+    const transformationConfig: any = {
+      ...blankConfig,
+      originalFunction: { description: 'f(x)', keyPoints: [] },
+      parts: [
+        {
+          id: 'a',
+          transformation: 'y = f(x)',
+          questionType: 'sketch',
+          prompt: 'Sketch the curve',
+          marks: 1,
+          correctAnswer: { transformedPoints: [] },
+          tolerance: 0.5,
+        },
+      ],
+    };
+    return {
+      graphType: 'transformation',
+      graphConfig: transformationConfig,
+      transformationConfig,
+    } as GraphQuestionData;
+  }
+
+  // Priority 4 — question_type indicates a graph but no data found: render a
   // blank canvas so the student sees a grid rather than silently falling
   // through to a textarea.
   if (questionType === 'graph_plotting' || questionType === 'graph_interpretation') {
