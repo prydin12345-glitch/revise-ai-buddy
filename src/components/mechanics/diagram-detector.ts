@@ -80,6 +80,65 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
     } satisfies RodConfig;
   }
 
+  // ── Connected particles on slope (string over pulley/peg) ──
+  if (
+    (text.includes('connected') || text.includes('string over')) &&
+    (text.includes('slope') || text.includes('incline') || text.includes('inclined')) &&
+    (text.includes('pulley') || text.includes('peg'))
+  ) {
+    const masses = [...text.matchAll(/(\d+(?:\.\d+)?)\s*kg/g)].map(m => parseFloat(m[1]));
+    const angleMatch = text.match(/(\d+)\s*°/);
+    return {
+      type: 'connected_particles',
+      massA: masses[0] ?? 3,
+      massB: masses[1] ?? 5,
+      angle: angleMatch ? parseInt(angleMatch[1], 10) : 30,
+      surface: text.includes('rough') ? 'rough' : 'smooth',
+    };
+  }
+
+  // ── Spring-mass system ──
+  if (
+    text.includes('spring') &&
+    (text.includes('mass') || text.includes('particle') || text.includes('attached')) &&
+    (text.includes('extension') || text.includes('compress') || text.includes('natural length') || text.includes('elastic'))
+  ) {
+    const massMatch = text.match(/(\d+(?:\.\d+)?)\s*kg/);
+    const extMatch = text.match(/extension[^0-9]*(\d+(?:\.\d+)?)/);
+    const natMatch = text.match(/natural length[^0-9]*(\d+(?:\.\d+)?)/);
+    const kMatch = text.match(/k\s*=\s*(\d+(?:\.\d+)?)/) || text.match(/spring constant[^0-9]*(\d+(?:\.\d+)?)/);
+    return {
+      type: 'spring_mass',
+      mass: massMatch ? parseFloat(massMatch[1]) : 2,
+      extension: extMatch ? parseFloat(extMatch[1]) : 0.3,
+      naturalLength: natMatch ? parseFloat(natMatch[1]) : 0.5,
+      springConstant: kMatch ? parseFloat(kMatch[1]) : null,
+    };
+  }
+
+  // ── Collision / momentum ──
+  if (
+    (text.includes('collision') || text.includes('collide') || text.includes('momentum') || text.includes('coalesce') || text.includes('explosion') || text.includes('explode')) &&
+    (text.includes('before') || text.includes('after') || text.includes('velocity') || text.includes('speed') || text.includes('moving'))
+  ) {
+    const masses = [...text.matchAll(/(\d+(?:\.\d+)?)\s*kg/g)].map(m => parseFloat(m[1]));
+    const speeds = [...text.matchAll(/(\d+(?:\.\d+)?)\s*m\s*\/?\s*s/g)].map(m => parseFloat(m[1]));
+    const isExplosion = text.includes('explosion') || text.includes('explode');
+    return {
+      type: 'collision',
+      massA: masses[0] ?? 3,
+      massB: masses[1] ?? 2,
+      uA: isExplosion ? 0 : (speeds[0] ?? 6),
+      uB: isExplosion ? 0 : (speeds[1] ?? 0),
+      vA: null,
+      vB: null,
+      collisionType: isExplosion ? 'explosion'
+        : text.includes('perfectly elastic') ? 'elastic'
+        : text.includes('coalesce') ? 'perfectly inelastic'
+        : 'collision',
+    };
+  }
+
   // ── Pulley / connected particles ──
   if (text.includes('pulley') || (text.includes('connected') && text.includes('string'))) {
     const masses = extractTwoMasses(text);
@@ -296,12 +355,21 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
       const isRough = text.includes('rough');
       const unknowns = detectUnknowns(text);
       const forceMatch = text.match(/force\s*(?:of\s*)?(\d+\.?\d*)\s*n/i);
+      const hasUpSlope =
+        text.includes('up the slope') ||
+        text.includes('up the incline') ||
+        text.includes('pushed up') ||
+        text.includes('pulled up the') ||
+        text.includes('force up');
+      const slopeAngleMatch = text.match(/(\d+)\s*°/);
+      const slopeAngle = slopeAngleMatch ? parseInt(slopeAngleMatch[1], 10) : null;
       return {
         type: 'free_body',
         angle: 0,
         mass: extractMassLabel(text),
         appliedForce: forceMatch ? forceMatch[1] : undefined,
-        appliedForceDir: 'horizontal',
+        appliedForceDir: hasUpSlope ? 'up-slope' : 'horizontal',
+        ...(hasUpSlope && slopeAngle ? { slopeAngle } as any : {}),
         surface: isRough ? 'rough' : 'smooth',
         unknowns,
         showLabels: true,

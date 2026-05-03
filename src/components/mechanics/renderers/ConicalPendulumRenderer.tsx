@@ -56,7 +56,7 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
           <line x1={bx} y1={by} x2={px} y2={py} stroke={COLORS.angle} strokeWidth={1} strokeDasharray="5 4" />
           <text
             x={(bx + px) / 2}
-            y={by - 8}
+            y={by + 16}
             textAnchor="middle"
             fontFamily={FONT.family}
             fontStyle={FONT.style}
@@ -106,6 +106,14 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
             const startY = py + uy * 10;
             const endX = px + ux * (10 + arrowLen);
             const endY = py + uy * (10 + arrowLen);
+            // Perpendicular offset for label so it sits clear of the string
+            const sdx = endX - startX;
+            const sdy = endY - startY;
+            const slen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
+            const nxp = -sdy / slen;
+            const nyp = sdx / slen;
+            const tlx = (startX + endX) / 2 + nxp * 22;
+            const tly = (startY + endY) / 2 + nyp * 22;
             return (
               <>
                 <line
@@ -118,8 +126,8 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
                   markerEnd={`url(#${MARKER_IDS.blue})`}
                 />
                 <ForceLabel
-                  x={endX - 18}
-                  y={endY - 8}
+                  x={tlx}
+                  y={tly}
                   text={isUnknown('tension') ? 'T' : 'T'}
                   show={showLabels}
                   color={COLORS.normal}
@@ -130,12 +138,12 @@ const ConicalPendulumRenderer: React.FC<Props> = ({ config }) => {
         </g>
       )}
 
-      {/* Centripetal force arrow (horizontal toward vertical axis) */}
+      {/* Centripetal force arrow (horizontal toward vertical axis) — guarded against angle=0 */}
       {(() => {
         const centripetalLen = arrowLen * 0.7;
-        // Direction from particle toward the vertical axis (ox)
-        const dirX = ox - px; // always negative when particle is right of axis
+        const dirX = ox - px;
         const mag = Math.abs(dirX);
+        if (mag < 0.001) return null;
         const ux = dirX / mag;
         return (
           <g>

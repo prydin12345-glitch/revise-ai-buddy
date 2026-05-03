@@ -11,6 +11,9 @@ import ConicalPendulumRenderer from './renderers/ConicalPendulumRenderer';
 import VerticalMotionRenderer from './renderers/VerticalMotionRenderer';
 import VerticalLiftRenderer from './renderers/VerticalLiftRenderer';
 import DualRenderer from './renderers/DualRenderer';
+import ConnectedParticlesRenderer from './renderers/ConnectedParticlesRenderer';
+import SpringMassRenderer from './renderers/SpringMassRenderer';
+import CollisionRenderer from './renderers/CollisionRenderer';
 
 export interface MechanicsDrawProps {
   config: MechanicsConfig;
@@ -200,6 +203,12 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
           return <VerticalMotionRenderer config={config} />;
         case 'vertical_lift':
           return <VerticalLiftRenderer config={config as any} />;
+        case 'connected_particles':
+          return <ConnectedParticlesRenderer config={config} />;
+        case 'spring_mass':
+          return <SpringMassRenderer config={config} />;
+        case 'collision':
+          return <CollisionRenderer config={config} />;
         default:
           return null;
       }
@@ -210,9 +219,17 @@ const MechanicsDraw: React.FC<MechanicsDrawProps> = ({ config, width = 400, heig
       return <MissingDiagram type={config.type} />;
     }
 
-    const isProjectile = config.type === 'projectile';
-    const vb = isProjectile ? '0 0 560 420' : '0 0 480 380';
-    const mw = isProjectile ? 520 : width;
+    const viewBoxForType = (t: string): { vb: string; mw: number } => {
+      if (t === 'projectile') return { vb: '0 0 560 420', mw: 520 };
+      if (t === 'slope') return { vb: '0 0 520 400', mw: 500 };
+      if (t === 'beam') return { vb: '0 0 560 420', mw: 520 };
+      if (t === 'rod') return { vb: '0 0 480 420', mw: width };
+      if (t === 'collision') return { vb: '0 0 480 420', mw: 460 };
+      if (t === 'spring_mass') return { vb: '0 0 440 400', mw: 420 };
+      if (t === 'connected_particles') return { vb: '0 0 520 420', mw: 500 };
+      return { vb: '0 0 480 380', mw: width };
+    };
+    const { vb, mw } = viewBoxForType(config.type);
 
     return (
       <svg
