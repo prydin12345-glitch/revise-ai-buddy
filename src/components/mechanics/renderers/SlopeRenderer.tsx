@@ -29,9 +29,33 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
   // Along-slope unit vectors (up-slope)
   const ux = Math.cos(rad);
   const uy = -Math.sin(rad);
-  // Normal unit vector (perpendicular, away from slope)
   const nx = Math.sin(rad);
   const ny = Math.cos(rad);
+
+  // Label placement registry — reserve occupied regions
+  const registry = new LabelPlacementRegistry();
+  registry.reserve({ x: blockCx - 28, y: blockCy - 40, width: 56, height: 40 });
+  registry.reserve({ x: 30, y: baseY - 6, width: 340, height: 12 });
+
+  const weightPos = registry.place(blockCx + 18, blockCy + arrowLen + 14, isUnknown('weight') ? 'W' : `${mass}g`, 13, 'start');
+  const normalPos = registry.place(
+    blockCx + nx * (arrowLen + 14),
+    blockCy - ny * (arrowLen + 14) - 10,
+    'R', 13, 'start',
+  );
+  const frictionPos = registry.place(
+    blockCx + ux * arrowLen * 0.7 + 10,
+    blockCy + uy * arrowLen * 0.7 - 10,
+    'F', 13, 'start',
+  );
+  const angleBis = rad / 2;
+  const anglePos = registry.place(
+    baseX + Math.cos(angleBis) * 50,
+    baseY - Math.sin(angleBis) * 50,
+    `${angle}°`, 11, 'middle',
+  );
+
+  const isUnknown = (field: string) => unknowns?.includes(field);
 
   return (
     <g>
