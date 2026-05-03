@@ -48,19 +48,21 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
 
       {/* Surface block */}
       <rect
-        x={surfBlockX - blockSize / 2}
+        x={surfBlockX - surfBlockW / 2}
         y={surfBlockY}
-        width={blockSize}
+        width={surfBlockW}
         height={blockSize}
         fill="white"
         stroke={COLORS.structural}
         strokeWidth={2}
       />
-      <ForceLabel x={surfBlockX} y={surfBlockY + blockSize / 2} text={`${masses.onSurface} kg`} show={showLabels} />
+      {showLabels && (
+        <text x={surfBlockX} y={surfBlockY + blockSize / 2} textAnchor="middle" dominantBaseline="central" fontFamily={FONT.family} fontSize={Math.min(13, 11 + (blockSize / surfBlockW) * 2)} fill={COLORS.label}>{surfLabel}</text>
+      )}
 
       {/* String: surface block → pulley top → hanging block */}
       <line
-        x1={surfBlockX + blockSize / 2}
+        x1={surfBlockX + surfBlockW / 2}
         y1={surfBlockY + blockSize / 2}
         x2={pulleyCx - pulleyR}
         y2={pulleyCy}
