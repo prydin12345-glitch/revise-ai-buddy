@@ -180,9 +180,11 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
       )}
 
       {/* Surface label */}
+      {/* Surface label — moved below table edge */}
       {showLabels && (
-        <text x={tableLeft + 10} y={tableY + 20} fontFamily="serif" fontSize={11} fill={COLORS.angle}>
+        <text x={tableLeft + 10} y={tableY + 28} fontFamily="serif" fontSize={11} fill={COLORS.angle}>
           {surface}
+        </text>
         </text>
       )}
     </g>
