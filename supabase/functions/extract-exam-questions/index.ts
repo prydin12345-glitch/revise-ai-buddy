@@ -384,6 +384,19 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         q.question_type = 'graph_plotting';
         console.log(`Q${q.question_number}: Normalised question_type "${lower}" -> "graph_plotting"`);
       }
+      if (lower === 'graph_transformation' || lower === 'transformation_sketch' || lower === 'multi_graph' || lower === 'graph-transformation') {
+        qType = 'graph_transformation';
+        q.question_type = 'graph_transformation';
+      }
+      // Auto-upgrade single-canvas plotting to transformation when AI emits parts[]
+      const ca = q.correct_answer;
+      const caObj = typeof ca === 'object' ? ca : (typeof ca === 'string' ? (() => { try { return JSON.parse(ca); } catch { return null; } })() : null);
+      const hasMultipleParts = caObj && Array.isArray(caObj.parts) && caObj.parts.length > 1;
+      if (qType === 'graph_plotting' && hasMultipleParts) {
+        qType = 'graph_transformation';
+        q.question_type = 'graph_transformation';
+        console.log(`Q${q.question_number}: Auto-upgraded to graph_transformation (${caObj.parts.length} parts)`);
+      }
     }
     let correctAnswer = q.correct_answer;
     let options = q.options || null;
