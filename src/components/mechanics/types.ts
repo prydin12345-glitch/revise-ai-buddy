@@ -18,6 +18,7 @@ export interface FreeBodyConfig {
   mass: string | number;
   appliedForce?: string | number;
   appliedForceDir?: 'horizontal' | 'up-slope';
+  slopeAngle?: number;
   surface: 'rough' | 'smooth';
   unknowns: string[];
   showLabels: boolean;
