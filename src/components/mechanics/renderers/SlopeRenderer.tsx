@@ -72,8 +72,11 @@ const SlopeRenderer: React.FC<Props> = ({ config }) => {
       {/* Vertical edge */}
       <line x1={topX} y1={topY} x2={topX} y2={baseY} stroke={COLORS.structural} strokeWidth={1.5} strokeDasharray="4 3" />
 
-      {/* Angle arc */}
-      <AngleArc cx={baseX} cy={baseY} startAngleDeg={0} endAngleDeg={angle} label={`${angle}°`} showLabel={showLabels} />
+      {/* Angle arc — uses placement-aware label position */}
+      <AngleArc cx={baseX} cy={baseY} startAngleDeg={0} endAngleDeg={angle} showLabel={false} />
+      {showLabels && (
+        <text x={anglePos.x} y={anglePos.y} textAnchor="middle" dominantBaseline="central" fontFamily={FONT.family} fontStyle={FONT.style} fontSize={11} fill={COLORS.label}>{`${angle}°`}</text>
+      )}
 
       {/* Mass block — drawn aligned to slope via rotation */}
       <g transform={`translate(${blockCx}, ${blockCy}) rotate(${-angle})`}>
