@@ -1,6 +1,6 @@
 import React from 'react';
-import { SlopeConfig, COLORS, MARKER_IDS } from '../types';
-import { HatchedGround, AngleArc, ForceLabel } from '../svg-helpers';
+import { SlopeConfig, COLORS, MARKER_IDS, FONT } from '../types';
+import { HatchedGround, AngleArc, ForceLabel, LabelPlacementRegistry } from '../svg-helpers';
 
 interface Props {
   config: SlopeConfig;
