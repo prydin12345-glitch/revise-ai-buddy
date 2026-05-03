@@ -579,6 +579,7 @@ const ExamInProgress = () => {
         graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
         bearingsAnswer?: string;
         angleMeasurements?: AngleMeasurement[];
+        transformationAnswers?: Record<string, any>;
       }> = {};
       const savedSet = new Set<string>();
       
