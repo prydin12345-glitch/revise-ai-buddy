@@ -55,6 +55,7 @@ interface Answer {
   feedback: string;
   is_correct: boolean;
   table_answers?: Record<string, any>;
+  markingData?: any;
 }
 
 interface Submission {
