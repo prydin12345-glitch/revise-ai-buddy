@@ -117,7 +117,7 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
             strokeWidth={2}
             markerEnd={`url(#${MARKER_IDS.black})`}
           />
-          <ForceLabel x={hangX - 18} y={hangTopY - arrowLen * 0.4} text="T" show={showLabels} />
+          <ForceLabel x={hangX - 32} y={hangTopY - 8} text="T" show={showLabels} />
 
           {/* Weight on surface block */}
           <line
