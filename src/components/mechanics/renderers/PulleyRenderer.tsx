@@ -145,15 +145,15 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
 
           {/* Tension on surface block (toward pulley) */}
           <line
-            x1={surfBlockX + blockSize / 2}
+            x1={surfBlockX + surfBlockW / 2}
             y1={surfBlockY + blockSize / 2}
-            x2={surfBlockX + blockSize / 2 + arrowLen}
+            x2={surfBlockX + surfBlockW / 2 + arrowLen}
             y2={surfBlockY + blockSize / 2}
             stroke={COLORS.structural}
             strokeWidth={2}
             markerEnd={`url(#${MARKER_IDS.black})`}
           />
-          <ForceLabel x={surfBlockX + blockSize / 2 + arrowLen / 2} y={surfBlockY + blockSize / 2 - 14} text="T" show={showLabels} />
+          <ForceLabel x={surfBlockX + surfBlockW / 2 + arrowLen + 14} y={surfBlockY - 10 + blockSize / 2 - 8} text="T" show={showLabels} />
 
           {/* Friction on surface block */}
           {friction && surface === 'rough' && (
