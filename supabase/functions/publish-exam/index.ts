@@ -198,15 +198,43 @@ serve(async (req) => {
       // so the frontend's parser can render the canvas. Also mirror to options.
       let options = draft.options;
       let diagramConfigOut = draft.diagram_config;
-      if (mappedType === 'graph_plotting' || mappedType === 'graph_interpretation') {
-        const wrapper = buildGraphWrapper(draft, mappedType);
-        if (wrapper) {
-          options = wrapper;
-          diagramConfigOut = wrapper;
-          correctAnswer = JSON.stringify(wrapper);
-          console.log(`Question ${draft.question_number}: Built canonical graph wrapper for ${mappedType}`);
+      if (mappedType === 'graph_plotting' || mappedType === 'graph_interpretation' || mappedType === 'graph_transformation') {
+        // For transformation, prefer existing JSON in correct_answer / diagram_config (already has parts[]).
+        if (mappedType === 'graph_transformation') {
+          let wrapper: any = null;
+          if (draft.correct_answer && typeof draft.correct_answer === 'string') {
+            try {
+              const parsed = JSON.parse(draft.correct_answer);
+              if (parsed && (parsed.graphType === 'transformation' || Array.isArray(parsed.parts) || parsed.transformationConfig)) {
+                wrapper = parsed.graphType ? parsed : { graphType: 'transformation', transformationConfig: parsed, ...parsed };
+              }
+            } catch { /* fall through */ }
+          }
+          if (!wrapper) {
+            let dc: any = draft.diagram_config;
+            if (typeof dc === 'string') { try { dc = JSON.parse(dc); } catch { dc = null; } }
+            if (dc && typeof dc === 'object' && (dc.parts || dc.transformationConfig || dc.graphType === 'transformation')) {
+              wrapper = dc.graphType === 'transformation' ? dc : { graphType: 'transformation', transformationConfig: dc, ...dc };
+            }
+          }
+          if (wrapper) {
+            options = wrapper;
+            diagramConfigOut = wrapper;
+            correctAnswer = JSON.stringify(wrapper);
+            console.log(`Question ${draft.question_number}: Built canonical graph_transformation wrapper`);
+          } else {
+            console.warn(`Question ${draft.question_number}: graph_transformation has no parts[] - falling back to plotting`);
+          }
         } else {
-          console.warn(`Question ${draft.question_number}: ${mappedType} has no graphConfig/plottingAnswer — frontend will render blank canvas`);
+          const wrapper = buildGraphWrapper(draft, mappedType);
+          if (wrapper) {
+            options = wrapper;
+            diagramConfigOut = wrapper;
+            correctAnswer = JSON.stringify(wrapper);
+            console.log(`Question ${draft.question_number}: Built canonical graph wrapper for ${mappedType}`);
+          } else {
+            console.warn(`Question ${draft.question_number}: ${mappedType} has no graphConfig/plottingAnswer — frontend will render blank canvas`);
+          }
         }
       }
 
