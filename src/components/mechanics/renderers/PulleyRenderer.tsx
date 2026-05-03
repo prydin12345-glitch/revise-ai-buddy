@@ -168,7 +168,7 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
                 markerEnd={`url(#${MARKER_IDS.orange})`}
               />
               <ForceLabel
-                x={surfBlockX - blockSize / 2 - arrowLen * 0.3}
+                x={surfBlockX - surfBlockW / 2 - arrowLen * 0.3}
                 y={surfBlockY + blockSize / 2 - 14}
                 text="F"
                 show={showLabels}
