@@ -78,6 +78,7 @@ interface UserAnswer {
   bearingsAnswer?: string;
   bearingsMarkingData?: BearingsMarkingResult;
   protractorState?: { x: number; y: number; rotationDeg: number; visible: boolean };
+  transformationAnswers?: Record<string, any>;
 }
 
 interface QuestionItemProps {
