@@ -51,6 +51,7 @@ serve(async (req) => {
     const isTableGrid = question.question_type === 'table_grid';
     const isGraphInterpretation = question.question_type === 'graph_interpretation';
     const isGraphPlotting = question.question_type === 'graph_plotting';
+    const isGraphTransformation = question.question_type === 'graph_transformation';
     const isBearings = question.question_type === 'bearings';
     let tableGridResult: any = null;
     let graphResult: any = null;
