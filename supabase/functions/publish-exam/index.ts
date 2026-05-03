@@ -99,6 +99,14 @@ serve(async (req) => {
         return 'graph_plotting';
       }
 
+      if (
+        normalized === 'transformation_sketch' ||
+        normalized === 'multi_graph' ||
+        normalized === 'graph-transformation'
+      ) {
+        return 'graph_transformation';
+      }
+
       if (validQuestionTypes.includes(normalized)) return normalized;
 
       // Map common alternative types to DB-accepted values
