@@ -27,11 +27,13 @@ import { TableGridQuestion, isTickXTable, parseMarkdownToTableGrid, extractTextB
 import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  GraphTransformationQuestion,
   BearingsQuestion,
   parseGraphQuestionData,
   parseGraphResponse,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeGraphTransformationResponse,
   serializeBearingsResponse,
   BoxPlotChart,
   isBoxPlotQuestion,
@@ -146,6 +148,7 @@ const ExamInProgress = () => {
     graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
     bearingsAnswer?: string;
     angleMeasurements?: AngleMeasurement[];
+    transformationAnswers?: Record<string, any>;
   }>>({});
   const [showProtractor, setShowProtractor] = useState(false);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
