@@ -14,10 +14,12 @@ import {
   ReferenceDiagram,
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  GraphTransformationQuestion,
   BearingsQuestion,
   parseGraphQuestionData,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeGraphTransformationResponse,
   serializeBearingsResponse,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -76,6 +78,7 @@ interface UserAnswer {
   bearingsAnswer?: string;
   bearingsMarkingData?: BearingsMarkingResult;
   protractorState?: { x: number; y: number; rotationDeg: number; visible: boolean };
+  transformationAnswers?: Record<string, any>;
 }
 
 interface QuestionItemProps {
@@ -214,6 +217,30 @@ export function QuestionItem({
       (question.question_type !== 'short_answer' && question.question_type !== 'extended' && graphData?.graphType === 'plotting');
     const isBearings = question.question_type === 'bearings' || 
       (question.question_type !== 'short_answer' && question.question_type !== 'extended' && graphData?.graphType === 'bearings');
+    const isGraphTransformation = question.question_type === 'graph_transformation' || 
+      (question.question_type !== 'short_answer' && question.question_type !== 'extended' && graphData?.graphType === 'transformation');
+    
+    // Graph transformation (multi-part sketch)
+    if (isGraphTransformation && graphData?.transformationConfig) {
+      return (
+        <GraphTransformationQuestion
+          config={graphData.transformationConfig as any}
+          answers={answer.transformationAnswers || {}}
+          onAnswerChange={(partId, partAnswer) => {
+            const merged = { ...(answer.transformationAnswers || {}), [partId]: partAnswer };
+            const serialized = serializeGraphTransformationResponse(merged as any);
+            onAnswerChange(question.id, {
+              ...answer,
+              answer: serialized,
+              transformationAnswers: merged,
+            });
+          }}
+          readOnly={answer.submitted}
+          showCorrectAnswers={answer.submitted && !!answer.feedback}
+          subjectColor={subjectColor}
+        />
+      );
+    }
     
     // Bearings question
     if (isBearings && graphData?.bearingsConfig) {

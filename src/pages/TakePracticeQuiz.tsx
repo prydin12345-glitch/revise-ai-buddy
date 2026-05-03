@@ -55,6 +55,7 @@ import {
 import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  GraphTransformationQuestion,
   BearingsQuestion,
   ReferenceDiagram,
   extractFunctionFromText,
@@ -63,6 +64,7 @@ import {
   parseGraphResponse,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeGraphTransformationResponse,
   serializeBearingsResponse,
   type GraphQuestionData,
   type GraphPoint,
@@ -1820,6 +1822,34 @@ const TakePracticeQuiz = () => {
                       (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'plotting');
                     const isBearings = currentQuestion.question_type === 'bearings' || 
                       (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'bearings');
+                    const isGraphTransformation = currentQuestion.question_type === 'graph_transformation' || 
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'transformation');
+                    
+                    // Render graph transformation (multi-part sketch)
+                    if (isGraphTransformation && graphData?.transformationConfig) {
+                      return (
+                        <div className="space-y-4">
+                          <GraphTransformationQuestion
+                            config={graphData.transformationConfig as any}
+                            answers={(currentAnswer as any).transformationAnswers || {}}
+                            onAnswerChange={(partId, partAnswer) => {
+                              const merged = { ...((currentAnswer as any).transformationAnswers || {}), [partId]: partAnswer };
+                              const serialized = serializeGraphTransformationResponse(merged as any);
+                              const newAnswer = {
+                                ...currentAnswer,
+                                answer: serialized,
+                                transformationAnswers: merged,
+                              } as any;
+                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                              debouncedSave(currentQuestion.id, { answer: serialized });
+                            }}
+                            readOnly={currentAnswer.submitted}
+                            showCorrectAnswers={currentAnswer.submitted && !!currentAnswer.feedback}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
+                    }
                     
                     // Render bearings question
                     if (isBearings && graphData?.bearingsConfig) {

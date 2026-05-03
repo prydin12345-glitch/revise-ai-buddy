@@ -27,11 +27,13 @@ import { TableGridQuestion, isTickXTable, parseMarkdownToTableGrid, extractTextB
 import {
   GraphInterpretationQuestion,
   GraphPlottingQuestion,
+  GraphTransformationQuestion,
   BearingsQuestion,
   parseGraphQuestionData,
   parseGraphResponse,
   serializeGraphInterpretationResponse,
   serializeGraphPlottingResponse,
+  serializeGraphTransformationResponse,
   serializeBearingsResponse,
   BoxPlotChart,
   isBoxPlotQuestion,
@@ -146,6 +148,7 @@ const ExamInProgress = () => {
     graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
     bearingsAnswer?: string;
     angleMeasurements?: AngleMeasurement[];
+    transformationAnswers?: Record<string, any>;
   }>>({});
   const [showProtractor, setShowProtractor] = useState(false);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
@@ -576,6 +579,7 @@ const ExamInProgress = () => {
         graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
         bearingsAnswer?: string;
         angleMeasurements?: AngleMeasurement[];
+        transformationAnswers?: Record<string, any>;
       }> = {};
       const savedSet = new Set<string>();
       
@@ -597,7 +601,7 @@ const ExamInProgress = () => {
           }
           
           // Check if this is a graph answer
-          if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings') {
+          if (parsed._type === 'graph_interpretation' || parsed._type === 'graph_plotting' || parsed._type === 'bearings' || parsed._type === 'graph_transformation') {
             const graphResponse = parseGraphResponse(answerText);
             if (graphResponse) {
               if (graphResponse._type === 'graph_interpretation') {
@@ -615,6 +619,10 @@ const ExamInProgress = () => {
               } else if (graphResponse._type === 'bearings') {
                 graphAnswersMap[ans.question_id] = {
                   bearingsAnswer: String(graphResponse.bearing)
+                };
+              } else if (graphResponse._type === 'graph_transformation') {
+                graphAnswersMap[ans.question_id] = {
+                  transformationAnswers: (graphResponse as any).partAnswers || {}
                 };
               }
               savedSet.add(ans.question_id);
@@ -791,7 +799,9 @@ const ExamInProgress = () => {
       // Check for graph answers
       const questionGraphAnswers = graphAnswers[questionId];
       if (questionGraphAnswers) {
-        if (questionGraphAnswers.graphInterpretationAnswers) {
+        if (questionGraphAnswers.transformationAnswers) {
+          finalAnswerText = serializeGraphTransformationResponse(questionGraphAnswers.transformationAnswers as any);
+        } else if (questionGraphAnswers.graphInterpretationAnswers) {
           finalAnswerText = serializeGraphInterpretationResponse(questionGraphAnswers.graphInterpretationAnswers);
         } else if (questionGraphAnswers.graphPlottedPoints) {
           finalAnswerText = serializeGraphPlottingResponse(
@@ -1685,7 +1695,34 @@ const ExamInProgress = () => {
                     const isGraphInterpretation = question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
                     const isGraphPlotting = question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
                     const isBearings = question.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    const isGraphTransformation = question.question_type === 'graph_transformation' || graphData?.graphType === 'transformation';
                     const currentGraphAnswer = graphAnswers[question.id] || {};
+                    
+                    if (isGraphTransformation && graphData?.transformationConfig) {
+                      return (
+                        <div className="space-y-4">
+                          <GraphTransformationQuestion
+                            config={graphData.transformationConfig as any}
+                            answers={currentGraphAnswer.transformationAnswers || {}}
+                            onAnswerChange={(partId, partAnswer) => {
+                              setGraphAnswers(prev => {
+                                const existing = prev[question.id] || {};
+                                const merged = { ...(existing.transformationAnswers || {}), [partId]: partAnswer };
+                                return { ...prev, [question.id]: { ...existing, transformationAnswers: merged } };
+                              });
+                              if (saveTimeouts.current[question.id]) {
+                                clearTimeout(saveTimeouts.current[question.id]);
+                              }
+                              saveTimeouts.current[question.id] = setTimeout(() => {
+                                handleSaveAnswer(question.id);
+                              }, 1000);
+                            }}
+                            readOnly={isReadOnly}
+                            subjectColor={subjectColor}
+                          />
+                        </div>
+                      );
+                    }
                     
                     if (isBearings && graphData?.bearingsConfig) {
                       const config = graphData.bearingsConfig as BearingsQuestionConfig;
@@ -1873,9 +1910,11 @@ const ExamInProgress = () => {
                     );
                     return question.question_type === 'graph_interpretation' || 
                            question.question_type === 'graph_plotting' || 
+                           question.question_type === 'graph_transformation' ||
                            question.question_type === 'bearings' ||
                            graphData?.graphType === 'interpretation' ||
                            graphData?.graphType === 'plotting' ||
+                           graphData?.graphType === 'transformation' ||
                            graphData?.graphType === 'bearings';
                   })() && (
                     <>
