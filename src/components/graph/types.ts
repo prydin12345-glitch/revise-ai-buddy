@@ -587,7 +587,34 @@ export function parseGraphQuestionData(
       ) {
         const out: any = { ...dc };
         if (out.graphConfig) out.graphConfig = normalizeGraphConfig(out.graphConfig);
+        if (out.graphType === 'transformation') {
+          const tConfig: any = {
+            ...(out.graphConfig || {}),
+            originalFunction: out.originalFunction || out.graphConfig?.originalFunction || { description: '', keyPoints: [] },
+            parts: out.parts || out.graphConfig?.parts || [],
+          };
+          out.transformationConfig = tConfig;
+          out.graphConfig = tConfig;
+        }
         return out as GraphQuestionData;
+      }
+      // Bare parts[] in diagram_config
+      if (Array.isArray(dc.parts) && dc.parts.length > 0) {
+        const tConfig: any = {
+          chartType: 'line',
+          xLabel: 'x',
+          yLabel: 'y',
+          domainX: dc.domainX ?? [-5, 5],
+          domainY: dc.domainY ?? [-10, 10],
+          gridEnabled: true,
+          originalFunction: dc.originalFunction || { description: '', keyPoints: [] },
+          parts: dc.parts,
+        };
+        return {
+          graphType: 'transformation',
+          graphConfig: tConfig,
+          transformationConfig: tConfig,
+        } as GraphQuestionData;
       }
 
       const plottingAnswer = dc.plottingAnswer ?? null;
