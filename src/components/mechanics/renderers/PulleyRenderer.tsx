@@ -159,9 +159,9 @@ const PulleyRenderer: React.FC<Props> = ({ config }) => {
           {friction && surface === 'rough' && (
             <g>
               <line
-                x1={surfBlockX - blockSize / 2}
+                x1={surfBlockX - surfBlockW / 2}
                 y1={surfBlockY + blockSize / 2}
-                x2={surfBlockX - blockSize / 2 - arrowLen * 0.6}
+                x2={surfBlockX - surfBlockW / 2 - arrowLen * 0.6}
                 y2={surfBlockY + blockSize / 2}
                 stroke={COLORS.friction}
                 strokeWidth={2}
