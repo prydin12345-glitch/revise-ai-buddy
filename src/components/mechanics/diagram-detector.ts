@@ -355,12 +355,21 @@ export function detectDiagramConfig(questionText: string): MechanicsConfig | nul
       const isRough = text.includes('rough');
       const unknowns = detectUnknowns(text);
       const forceMatch = text.match(/force\s*(?:of\s*)?(\d+\.?\d*)\s*n/i);
+      const hasUpSlope =
+        text.includes('up the slope') ||
+        text.includes('up the incline') ||
+        text.includes('pushed up') ||
+        text.includes('pulled up the') ||
+        text.includes('force up');
+      const slopeAngleMatch = text.match(/(\d+)\s*°/);
+      const slopeAngle = slopeAngleMatch ? parseInt(slopeAngleMatch[1], 10) : null;
       return {
         type: 'free_body',
         angle: 0,
         mass: extractMassLabel(text),
         appliedForce: forceMatch ? forceMatch[1] : undefined,
-        appliedForceDir: 'horizontal',
+        appliedForceDir: hasUpSlope ? 'up-slope' : 'horizontal',
+        ...(hasUpSlope && slopeAngle ? { slopeAngle } as any : {}),
         surface: isRough ? 'rough' : 'smooth',
         unknowns,
         showLabels: true,
