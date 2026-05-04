@@ -63,8 +63,10 @@ const _detect = (
     has(text, 'punnett', 'punnet') ||
     has(text, 'genetic cross', 'monohybrid cross', 'dihybrid cross',
         'single factor cross', 'two factor cross', 'test cross') ||
+    has(text, 'gene variant', 'allelic variation', 'gene locus', 'homologous pair') ||
     (hasAll(text, 'cross', 'allele') &&
       has(text, 'offspring', 'phenotype', 'genotype', 'ratio', 'probability')) ||
+    (has(text, 'allele') && has(text, 'cross', 'offspring', 'ratio', 'probability')) ||
     (has(text, 'dominant', 'recessive') &&
       has(text, 'cross', 'offspring', 'inherit')) ||
     has(text, 'x-linked', 'sex-linked', 'x linked') ||
