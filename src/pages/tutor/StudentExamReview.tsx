@@ -12,6 +12,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
+import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 
 interface Question {
   id: string;
@@ -282,6 +283,13 @@ const StudentExamReview = () => {
                     const circuitConfig = getCircuitConfig(question);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
+                  })()}
+
+                  {/* Biology figure panel */}
+                  {(() => {
+                    const bioConfig = detectBiologyDiagram(question.questionText, (question as any).subject);
+                    if (!bioConfig) return null;
+                    return <BiologyFigurePanel config={bioConfig} />;
                   })()}
 
                   {/* Student's Answer */}
