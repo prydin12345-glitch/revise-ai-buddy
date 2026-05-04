@@ -7,15 +7,15 @@ export const animalCellMeta: DiagramMeta = {
   diagramKey: 'animal_cell',
   labelData: [
     { id: 'cell_membrane', displayName: 'Cell membrane', x: 430, y: 30, anchorX: 370, anchorY: 80 },
-    { id: 'nucleus', displayName: 'Nucleus', x: 250, y: 180, anchorX: 250, anchorY: 200 },
-    { id: 'nucleolus', displayName: 'Nucleolus', x: 400, y: 150, anchorX: 260, anchorY: 195 },
+    { id: 'nucleus', displayName: 'Nucleus', x: 80, y: 200, anchorX: 200, anchorY: 200 },
+    { id: 'nucleolus', displayName: 'Nucleolus', x: 420, y: 165, anchorX: 268, anchorY: 195 },
     { id: 'mitochondria', displayName: 'Mitochondria', x: 80, y: 50, anchorX: 140, anchorY: 130 },
-    { id: 'rough_er', displayName: 'Rough ER', x: 80, y: 350, anchorX: 170, anchorY: 280 },
-    { id: 'ribosome', displayName: 'Ribosome', x: 80, y: 380, anchorX: 180, anchorY: 290 },
-    { id: 'golgi', displayName: 'Golgi apparatus', x: 420, y: 310, anchorX: 340, anchorY: 290 },
-    { id: 'cytoplasm', displayName: 'Cytoplasm', x: 130, y: 250 },
-    { id: 'centriole', displayName: 'Centriole', x: 420, y: 220, anchorX: 340, anchorY: 250 },
-    { id: 'lysosome', displayName: 'Lysosome', x: 80, y: 160, anchorX: 160, anchorY: 170 },
+    { id: 'rough_er', displayName: 'Rough ER', x: 80, y: 330, anchorX: 170, anchorY: 280 },
+    { id: 'ribosome', displayName: 'Ribosomes (80S)', x: 420, y: 360, anchorX: 230, anchorY: 290 },
+    { id: 'golgi', displayName: 'Golgi apparatus', x: 430, y: 290, anchorX: 350, anchorY: 285 },
+    { id: 'cytoplasm', displayName: 'Cytoplasm', x: 100, y: 380 },
+    { id: 'centriole', displayName: 'Centriole', x: 430, y: 240, anchorX: 348, anchorY: 255 },
+    { id: 'lysosome', displayName: 'Lysosome', x: 80, y: 130, anchorX: 158, anchorY: 168 },
   ],
 };
 
