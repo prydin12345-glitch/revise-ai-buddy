@@ -51,7 +51,7 @@ const _detect = (
 
     // Cell/organelle mentions without explicit visual context — suppress
     const isCellMentionOnly =
-      /\b(cell|organelle|nucleus|mitochondria|chloroplast|prokaryot|eukaryot)\b/i.test(lower) &&
+      /\b(cell|organelle|nucleus|mitochondri(a|on)|chloroplast|prokaryot|eukaryot|plasma membrane|cell organelle|nucleoid region|protoplasm)\b/i.test(lower) &&
       !hasVisualTrigger;
     if (isCellMentionOnly) {
       return null;
