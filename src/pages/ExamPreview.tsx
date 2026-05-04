@@ -25,6 +25,7 @@ import { getChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
+import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 
 interface Question {
   id: string;
@@ -224,6 +225,13 @@ const ExamPreview = () => {
                       const circuitConfig = getCircuitConfig(q);
                       if (!circuitConfig) return null;
                       return <CircuitFigurePanel config={circuitConfig} />;
+                    })()}
+
+                    {/* Biology diagram panel */}
+                    {(() => {
+                      const bioConfig = detectBiologyDiagram(q.question_text, (q as any).subject);
+                      if (!bioConfig) return null;
+                      return <BiologyFigurePanel config={bioConfig} />;
                     })()}
 
                     {q.figure_urls && q.figure_urls.length > 0 && (

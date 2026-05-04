@@ -24,6 +24,7 @@ import { getChartData, getCorrectChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
+import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   TableGridQuestion, 
@@ -594,6 +595,13 @@ const ExamReview = () => {
                      const circuitConfig = getCircuitConfig(question);
                      if (!circuitConfig) return null;
                      return <CircuitFigurePanel config={circuitConfig} />;
+                   })()}
+
+                   {/* Biology diagram panel */}
+                   {(() => {
+                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
+                     if (!bioConfig) return null;
+                     return <BiologyFigurePanel config={bioConfig} />;
                    })()}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (

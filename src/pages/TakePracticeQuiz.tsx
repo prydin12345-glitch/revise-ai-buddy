@@ -84,6 +84,7 @@ import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBo
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
+import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
@@ -1682,6 +1683,13 @@ const TakePracticeQuiz = () => {
                     const circuitConfig = getCircuitConfig(currentQuestion);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
+                  })()}
+
+                  {/* Biology figure panel */}
+                  {(() => {
+                    const bioConfig = detectBiologyDiagram(currentQuestion.question_text, (currentQuestion as any).subject);
+                    if (!bioConfig) return null;
+                    return <BiologyFigurePanel config={bioConfig} />;
                   })()}
 
                   {/* Chart rendering — diagram_config first, options fallback */}
