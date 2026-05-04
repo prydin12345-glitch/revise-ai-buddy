@@ -35,6 +35,12 @@ const _detect = (
 
   if (!isBiologySubject) return null;
 
+  // Prevent biology questions about "supply of oxygen/glucose" from triggering
+  const isEconomicsTermInBiology =
+    has(lower, 'supply and demand') &&
+    has(lower, 'oxygen', 'glucose', 'atp', 'enzyme', 'cell', 'organism');
+  if (isEconomicsTermInBiology) return null;
+
   // ── SUPPRESSION: descriptive/analytical questions don't need diagrams ──
   const visualTriggerRe = /\b(draw|sketch|label|annotate|on the diagram|in the diagram|on the figure|in the figure|complete the diagram|add to the diagram|identify on|show on|indicate on|refer to the diagram|using the diagram|from the diagram|the diagram shows|the figure shows|shown in the (diagram|figure)|illustrated in|depicted in)\b/i;
   const hasVisualTrigger = visualTriggerRe.test(lower);
