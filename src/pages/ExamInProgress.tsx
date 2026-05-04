@@ -64,6 +64,7 @@ import { getChartData } from "@/utils/chartData";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -1649,6 +1650,12 @@ const ExamInProgress = () => {
                     if (!bioConfig) return null;
                     return <BiologyFigurePanel config={bioConfig} />;
                   })()}
+
+                  <EconomicsFigurePanel
+                    questionText={question.question_text ?? ''}
+                    subject={(question as any).subject ?? ''}
+                    diagramConfig={null}
+                  />
 
                   {/* Chart rendering — reads from diagram_config first, falls back to options */}
                   {(() => {

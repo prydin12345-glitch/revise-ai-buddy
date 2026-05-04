@@ -17,6 +17,13 @@ export const detectEconomicsDiagram = (
 
   if (!isEconomicsSubject) return null;
 
+  // Suppress economics diagrams on biology-content questions when subject is not economics
+  const hasBiologyContent =
+    /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|photosynthesis|respiration|enzyme.substrate|punnett|allele|genotype|phenotype|food web|food chain|trophic|dna|rna|amino acid|cell membrane|nucleus|gamete)\b/i.test(lower);
+  if (hasBiologyContent && !/economics|business|commerce/i.test(subj)) {
+    return null;
+  }
+
   const isDescriptiveOnly =
     /^(explain|describe|outline|discuss|evaluate|assess|state (two|three|one|four|five|\d+)|give (two|three|one)|what (is|are|do|does)|why (is|are|do|does)|define|distinguish between|compare|contrast|list (two|three|one|\d+))/i.test(lower.trim()) &&
     !/\b(draw|sketch|diagram|show on|indicate on|label|construct|plot|illustrate|the diagram shows|the figure shows|using the diagram|from the diagram)\b/i.test(lower);
