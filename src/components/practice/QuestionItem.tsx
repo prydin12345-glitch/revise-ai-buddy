@@ -573,6 +573,16 @@ export function QuestionItem({
         <MathRenderer content={question.question_text} hasMath={question.has_math} />
       </div>
 
+      {(() => {
+        const saved = question.diagram_config && typeof question.diagram_config === 'object'
+          && ['animal_cell','plant_cell','bacterial_cell','neuron','heart','dna_helix',
+              'mitosis','punnett_square','food_web','food_chain','ecological_pyramid',
+              'enzyme_substrate'].includes((question.diagram_config as any).type)
+          ? (question.diagram_config as any) : null;
+        const cfg = saved ?? detectBiologyDiagram(question.question_text ?? '', question.subject ?? '');
+        return cfg ? <BiologyFigurePanel config={cfg} /> : null;
+      })()}
+
       {/* Answer input */}
       {renderAnswerInput()}
 
