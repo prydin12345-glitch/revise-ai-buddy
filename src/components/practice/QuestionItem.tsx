@@ -55,6 +55,7 @@ interface Question {
   worked_solution?: string;
   diagram_config?: any;
   subject?: string;
+}
 
 interface UserAnswer {
   answer: string;
