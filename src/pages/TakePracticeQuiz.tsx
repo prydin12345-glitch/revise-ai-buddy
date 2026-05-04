@@ -85,6 +85,7 @@ import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanic
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
@@ -1691,6 +1692,12 @@ const TakePracticeQuiz = () => {
                     if (!bioConfig) return null;
                     return <BiologyFigurePanel config={bioConfig} />;
                   })()}
+
+                  <EconomicsFigurePanel
+                    questionText={currentQuestion.question_text ?? ''}
+                    subject={(currentQuestion as any).subject ?? ''}
+                    diagramConfig={null}
+                  />
 
                   {/* Chart rendering — diagram_config first, options fallback */}
                   {(() => {

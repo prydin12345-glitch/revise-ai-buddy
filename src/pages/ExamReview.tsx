@@ -25,6 +25,7 @@ import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanic
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   TableGridQuestion, 
@@ -601,8 +602,14 @@ const ExamReview = () => {
                    {(() => {
                      const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
                      if (!bioConfig) return null;
-                     return <BiologyFigurePanel config={bioConfig} />;
-                   })()}
+                      return <BiologyFigurePanel config={bioConfig} />;
+                    })()}
+
+                    <EconomicsFigurePanel
+                      questionText={question.question_text ?? ''}
+                      subject={(question as any).subject ?? ''}
+                      diagramConfig={null}
+                    />
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
