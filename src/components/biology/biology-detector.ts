@@ -12,11 +12,6 @@ const IMPLEMENTED_TYPES = new Set([
   'ecological_pyramid','enzyme_substrate',
 ]);
 
-const _detectBiologyDiagramInner = (
-  questionText: string,
-  subject?: string,
-): BiologyDiagramConfig | null => null; // placeholder, overridden below
-
 export const detectBiologyDiagram = (
   questionText: string,
   subject?: string,
