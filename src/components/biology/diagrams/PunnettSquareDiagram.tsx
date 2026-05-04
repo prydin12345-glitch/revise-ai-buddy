@@ -93,7 +93,7 @@ export const PunnettSquareDiagram: React.FC<Props> = ({ config }) => {
           return (
             <g key={`${ri}-${ci}`}>
               <rect x={cellX} y={cellY} width={cellSize} height={cellSize}
-                fill={dominant ? 'hsl(var(--primary)/0.08)' : 'hsl(var(--muted)/0.4)'}
+                fill={dominant ? 'hsl(var(--primary)/0.12)' : 'hsl(var(--muted)/0.5)'}
                 stroke="hsl(var(--border))" strokeWidth={1.5} />
               <text x={cellX + cellSize / 2} y={cellY + cellSize / 2 + 5}
                 textAnchor="middle" fontSize={isDihybrid ? 11 : 14}
@@ -123,14 +123,14 @@ export const PunnettSquareDiagram: React.FC<Props> = ({ config }) => {
 
       <rect x={marginX + cellSize} y={marginY + cellSize * gridSize + 68}
         width={14} height={14} rx={2}
-        fill="hsl(var(--primary)/0.08)" stroke="hsl(var(--border))" strokeWidth={1} />
+        fill="hsl(var(--primary)/0.12)" stroke="hsl(var(--border))" strokeWidth={1} />
       <text x={marginX + cellSize + 20} y={marginY + cellSize * gridSize + 80}
         fontSize={11} fill="hsl(var(--muted-foreground))">
         {dominantTrait} (dominant)
       </text>
       <rect x={marginX + cellSize + 140} y={marginY + cellSize * gridSize + 68}
         width={14} height={14} rx={2}
-        fill="hsl(var(--muted)/0.4)" stroke="hsl(var(--border))" strokeWidth={1} />
+        fill="hsl(var(--muted)/0.5)" stroke="hsl(var(--border))" strokeWidth={1} />
       <text x={marginX + cellSize + 160} y={marginY + cellSize * gridSize + 80}
         fontSize={11} fill="hsl(var(--muted-foreground))">
         {recessiveTrait} (recessive)
