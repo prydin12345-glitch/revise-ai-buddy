@@ -205,7 +205,7 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   }
 
   // Early exit — biology content terms (catches unknown subjects)
-  const BIOLOGY_TERMS = /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|dna replication|protein synthesis|allele|genotype|phenotype|food web|food chain|trophic|enzyme.substrate|punnett|gamete|zygote|photosynthesis|cell division|cell cycle|stem cell|nucleoid|plasmid plant|cytoplasm cell)\b/i;
+  const BIOLOGY_TERMS = /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|dna replication|protein synthesis|allele|genotype|phenotype|food web|food chain|trophic|enzyme.substrate|punnett|gamete|zygote|photosynthesis|cell division|cell cycle|stem cell|nucleoid|plasma membrane|cell organelle|nucleoid region|protoplasm|gene locus|homologous pair|allelic variation|gene variant)\b/i;
   if (BIOLOGY_TERMS.test(fullText) && !/\b(physics|chemistry|electric|electronic)\b/i.test(subjLower)) {
     return null;
   }
