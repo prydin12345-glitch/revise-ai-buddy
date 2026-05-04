@@ -239,37 +239,50 @@ When generating multi-part questions involving circuit diagrams:
 
 /** Build biology diagram generation instructions */
 export function buildBiologyInstructions(subject: string | undefined): string {
-  if (!subject || !/biology|life.?science/i.test(subject)) return '';
+  if (!subject) return '';
+  if (!/biology|life.?science|biolog|human.?biology|marine.?biology|environmental.?science|biomedical|health.?science|anatomy|physiology/i.test(subject)) {
+    return '';
+  }
   return `
-BIOLOGY DIAGRAM INSTRUCTIONS:
-For biology questions involving a cell, organism structure, genetic cross, food web, or biological process — include a diagram_config field.
+BIOLOGY DIAGRAM INSTRUCTIONS — EMIT diagram_config FOR VISUAL QUESTIONS:
 
-Use these type values:
-- "animal_cell" — animal cell structure / organelles
-- "plant_cell" — plant cell structure
-- "bacterial_cell" — bacterial / prokaryotic cell structure
-- "punnett_square" — genetic crosses, inheritance, alleles
-- "food_web" — food chains, webs, trophic levels
-- "enzyme_substrate" — enzyme questions: active site, substrate, lock and key
-- "neuron" — neuron / nerve cell structure
-- "heart" — heart structure
-- "dna_helix" — DNA structure
-- "mitosis" — mitotic cell division
-- "meiosis" — meiosis / gamete formation
+When a biology question asks the student to label, draw, complete, or refer to
+a diagram — include a diagram_config field at the same level as question_text.
 
-For punnett_square include:
+Use these type values and schemas:
+
+For cell structure questions ("label the diagram", "identify structures"):
+{ "type": "animal_cell" }
+{ "type": "plant_cell" }
+{ "type": "bacterial_cell" }
+
+For genetic cross questions ("Punnett square", "monohybrid cross", "offspring ratio"):
 { "type": "punnett_square", "crossType": "monohybrid", "parent1": "Aa", "parent2": "Aa", "dominantTrait": "tall", "recessiveTrait": "dwarf" }
 
-For food_web include:
+For dihybrid crosses:
+{ "type": "punnett_square", "crossType": "dihybrid", "parent1": "AaBb", "parent2": "AaBb", "dominantTrait": "round yellow", "recessiveTrait": "wrinkled green" }
+
+For food chain, food web, trophic level questions:
 { "type": "food_web", "organisms": ["grass", "rabbit", "fox", "eagle"] }
 
-For enzyme_substrate include:
+For enzyme questions ("lock and key", "active site", "induced fit"):
 { "type": "enzyme_substrate", "model": "lock_and_key", "hasInhibitor": false }
 
-For other cell types:
-{ "type": "animal_cell" } | { "type": "plant_cell" } | { "type": "bacterial_cell" }
+For enzyme inhibitor questions:
+{ "type": "enzyme_substrate", "model": "lock_and_key", "hasInhibitor": true, "inhibitorType": "competitive" }
+
+For neuron / heart / DNA / mitosis structure questions:
+{ "type": "neuron" } | { "type": "heart" } | { "type": "dna_helix" } | { "type": "mitosis" }
+
+CRITICAL RULES:
+- Only include diagram_config when the question has a visual element
+  (draw, label, sketch, complete the diagram, identify on the diagram).
+- Do NOT include diagram_config for explain, describe, state, compare,
+  outline, give, name, list questions — these are text only.
+- diagram_config goes at the same level as question_text and correct_answer.
 `;
 }
+
 
 /** Translate exam board to board-specific style instruction */
 export function translateExamBoard(examBoard: string | undefined): string {

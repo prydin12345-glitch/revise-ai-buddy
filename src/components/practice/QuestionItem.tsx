@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { MathRenderer } from '@/components/MathRenderer';
+import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
 import { MathInsertKeypad, normalizeUnicodeForGrading } from '@/components/quiz/MathInsertKeypad';
 import { 
   ReferenceDiagram,
@@ -52,6 +53,8 @@ interface Question {
   question_latex?: string;
   subtopic: string;
   worked_solution?: string;
+  diagram_config?: any;
+  subject?: string;
 }
 
 interface UserAnswer {
@@ -569,6 +572,16 @@ export function QuestionItem({
       <div className="text-base lg:text-lg leading-relaxed">
         <MathRenderer content={question.question_text} hasMath={question.has_math} />
       </div>
+
+      {(() => {
+        const saved = question.diagram_config && typeof question.diagram_config === 'object'
+          && ['animal_cell','plant_cell','bacterial_cell','neuron','heart','dna_helix',
+              'mitosis','punnett_square','food_web','food_chain','ecological_pyramid',
+              'enzyme_substrate'].includes((question.diagram_config as any).type)
+          ? (question.diagram_config as any) : null;
+        const cfg = saved ?? detectBiologyDiagram(question.question_text ?? '', question.subject ?? '');
+        return cfg ? <BiologyFigurePanel config={cfg} /> : null;
+      })()}
 
       {/* Answer input */}
       {renderAnswerInput()}

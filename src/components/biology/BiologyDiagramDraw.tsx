@@ -13,15 +13,12 @@ import { EnzymeSubstrateDiagram } from './diagrams/EnzymeSubstrateDiagram';
 
 export type BiologyDiagramConfig = BiologyDiagramConfigType;
 
-const MissingDiagram: React.FC<{ type?: string }> = ({ type }) => (
-  <svg width="300" height="80" style={{ background: 'white', display: 'block', margin: '0 auto' }}>
-    <rect x="8" y="8" width="284" height="64"
-      fill="#fff8f8" stroke="#cc0000" strokeWidth={1} strokeDasharray="4 2" rx={4} />
-    <text x="150" y="40" textAnchor="middle" fontSize="11" fill="#cc0000" fontFamily="serif">
-      Biology diagram "{type || 'unknown'}" not recognised
-    </text>
-  </svg>
-);
+const MissingDiagram: React.FC<{ type?: string }> = ({ type }) => {
+  if (typeof window !== 'undefined' && (import.meta as any)?.env?.DEV) {
+    console.warn(`BiologyDiagramDraw: no renderer for type "${type}"`);
+  }
+  return null;
+};
 
 const BiologyDiagramDraw: React.FC<{ config: BiologyDiagramConfig }> = ({ config }) => {
   try {

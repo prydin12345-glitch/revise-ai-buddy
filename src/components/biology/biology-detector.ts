@@ -6,7 +6,22 @@ const has = (text: string, ...terms: string[]) =>
 const hasAll = (text: string, ...terms: string[]) =>
   terms.every(t => text.toLowerCase().includes(t.toLowerCase()));
 
+const IMPLEMENTED_TYPES = new Set([
+  'animal_cell','plant_cell','bacterial_cell','neuron','heart',
+  'dna_helix','mitosis','punnett_square','food_web','food_chain',
+  'ecological_pyramid','enzyme_substrate',
+]);
+
 export const detectBiologyDiagram = (
+  questionText: string,
+  subject?: string,
+): BiologyDiagramConfig | null => {
+  const cfg = _detect(questionText, subject);
+  if (cfg && !IMPLEMENTED_TYPES.has(cfg.type)) return null;
+  return cfg;
+};
+
+const _detect = (
   questionText: string,
   subject?: string,
 ): BiologyDiagramConfig | null => {
@@ -36,7 +51,7 @@ export const detectBiologyDiagram = (
 
     // Cell/organelle mentions without explicit visual context — suppress
     const isCellMentionOnly =
-      /\b(cell|organelle|nucleus|mitochondria|chloroplast|prokaryot|eukaryot)\b/i.test(lower) &&
+      /\b(cell|organelle|nucleus|mitochondri(a|on)|chloroplast|prokaryot|eukaryot|plasma membrane|cell organelle|nucleoid region|protoplasm)\b/i.test(lower) &&
       !hasVisualTrigger;
     if (isCellMentionOnly) {
       return null;
@@ -48,8 +63,10 @@ export const detectBiologyDiagram = (
     has(text, 'punnett', 'punnet') ||
     has(text, 'genetic cross', 'monohybrid cross', 'dihybrid cross',
         'single factor cross', 'two factor cross', 'test cross') ||
+    has(text, 'gene variant', 'allelic variation', 'gene locus', 'homologous pair') ||
     (hasAll(text, 'cross', 'allele') &&
       has(text, 'offspring', 'phenotype', 'genotype', 'ratio', 'probability')) ||
+    (has(text, 'allele') && has(text, 'cross', 'offspring', 'ratio', 'probability')) ||
     (has(text, 'dominant', 'recessive') &&
       has(text, 'cross', 'offspring', 'inherit')) ||
     has(text, 'x-linked', 'sex-linked', 'x linked') ||
