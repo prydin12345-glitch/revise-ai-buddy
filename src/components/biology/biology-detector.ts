@@ -11,6 +11,7 @@ export const detectBiologyDiagram = (
   subject?: string,
 ): BiologyDiagramConfig | null => {
   const text = questionText ?? '';
+  const lower = text.toLowerCase().trim();
   const subj = (subject ?? '').toLowerCase();
 
   const isBiologySubject =
@@ -18,6 +19,29 @@ export const detectBiologyDiagram = (
     subj === '';
 
   if (!isBiologySubject) return null;
+
+  // ── SUPPRESSION: descriptive/analytical questions don't need diagrams ──
+  const visualTriggerRe = /\b(draw|sketch|label|annotate|on the diagram|in the diagram|on the figure|in the figure|complete the diagram|add to the diagram|identify on|show on|indicate on|refer to the diagram|using the diagram|from the diagram|the diagram shows|the figure shows|shown in the (diagram|figure)|illustrated in|depicted in)\b/i;
+  const hasVisualTrigger = visualTriggerRe.test(lower);
+
+  // Always-visual topics — bypass suppression
+  const isAlwaysVisual =
+    /\b(punnett|monohybrid cross|dihybrid cross|genetic cross|food web|food chain|trophic|ecological pyramid|lock and key|lock-and-key|induced fit|enzyme.substrate complex)\b/i.test(lower);
+
+  if (!isAlwaysVisual) {
+    const startsDescriptive = /^(explain|describe|outline|discuss|evaluate|suggest|justify|compare|contrast|distinguish|differentiate|state|give|name|list|identify|what|why|how)\b/i.test(lower);
+    if (startsDescriptive && !hasVisualTrigger) {
+      return null;
+    }
+
+    // Cell/organelle mentions without explicit visual context — suppress
+    const isCellMentionOnly =
+      /\b(cell|organelle|nucleus|mitochondria|chloroplast|prokaryot|eukaryot)\b/i.test(lower) &&
+      !hasVisualTrigger;
+    if (isCellMentionOnly) {
+      return null;
+    }
+  }
 
   // 1. Punnett square
   if (
