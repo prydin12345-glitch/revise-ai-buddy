@@ -237,6 +237,40 @@ When generating multi-part questions involving circuit diagrams:
 `;
 }
 
+/** Build biology diagram generation instructions */
+export function buildBiologyInstructions(subject: string | undefined): string {
+  if (!subject || !/biology|life.?science/i.test(subject)) return '';
+  return `
+BIOLOGY DIAGRAM INSTRUCTIONS:
+For biology questions involving a cell, organism structure, genetic cross, food web, or biological process — include a diagram_config field.
+
+Use these type values:
+- "animal_cell" — animal cell structure / organelles
+- "plant_cell" — plant cell structure
+- "bacterial_cell" — bacterial / prokaryotic cell structure
+- "punnett_square" — genetic crosses, inheritance, alleles
+- "food_web" — food chains, webs, trophic levels
+- "enzyme_substrate" — enzyme questions: active site, substrate, lock and key
+- "neuron" — neuron / nerve cell structure
+- "heart" — heart structure
+- "dna_helix" — DNA structure
+- "mitosis" — mitotic cell division
+- "meiosis" — meiosis / gamete formation
+
+For punnett_square include:
+{ "type": "punnett_square", "crossType": "monohybrid", "parent1": "Aa", "parent2": "Aa", "dominantTrait": "tall", "recessiveTrait": "dwarf" }
+
+For food_web include:
+{ "type": "food_web", "organisms": ["grass", "rabbit", "fox", "eagle"] }
+
+For enzyme_substrate include:
+{ "type": "enzyme_substrate", "model": "lock_and_key", "hasInhibitor": false }
+
+For other cell types:
+{ "type": "animal_cell" } | { "type": "plant_cell" } | { "type": "bacterial_cell" }
+`;
+}
+
 /** Translate exam board to board-specific style instruction */
 export function translateExamBoard(examBoard: string | undefined): string {
   if (!examBoard) return '';

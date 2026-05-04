@@ -11,6 +11,7 @@ export * from './types';
 // Re-export metadata
 export { animalCellMeta } from './diagrams/AnimalCellDiagram';
 export { plantCellMeta } from './diagrams/PlantCellDiagram';
+export { bacterialCellMeta } from './diagrams/BacterialCellDiagram';
 export { neuronMeta } from './diagrams/NeuronDiagram';
 export { heartMeta } from './diagrams/HeartDiagram';
 export { dnaHelixMeta } from './diagrams/DnaHelixDiagram';

@@ -2,6 +2,7 @@ import React from 'react';
 import type { DiagramProps, BiologyDiagramConfig as BiologyDiagramConfigType } from './types';
 import AnimalCellDiagram from './diagrams/AnimalCellDiagram';
 import PlantCellDiagram from './diagrams/PlantCellDiagram';
+import BacterialCellDiagram from './diagrams/BacterialCellDiagram';
 import NeuronDiagram from './diagrams/NeuronDiagram';
 import HeartDiagram from './diagrams/HeartDiagram';
 import DnaHelixDiagram from './diagrams/DnaHelixDiagram';
@@ -35,6 +36,7 @@ const BiologyDiagramDraw: React.FC<{ config: BiologyDiagramConfig }> = ({ config
     switch (config.type) {
       case 'animal_cell': return <AnimalCellDiagram {...props} />;
       case 'plant_cell': return <PlantCellDiagram {...props} />;
+      case 'bacterial_cell': return <BacterialCellDiagram {...props} />;
       case 'neuron': return <NeuronDiagram {...props} />;
       case 'heart': return <HeartDiagram {...props} />;
       case 'dna_helix': return <DnaHelixDiagram {...props} />;
