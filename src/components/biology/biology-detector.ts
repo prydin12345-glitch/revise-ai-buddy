@@ -6,7 +6,27 @@ const has = (text: string, ...terms: string[]) =>
 const hasAll = (text: string, ...terms: string[]) =>
   terms.every(t => text.toLowerCase().includes(t.toLowerCase()));
 
+const IMPLEMENTED_TYPES = new Set([
+  'animal_cell','plant_cell','bacterial_cell','neuron','heart',
+  'dna_helix','mitosis','punnett_square','food_web','food_chain',
+  'ecological_pyramid','enzyme_substrate',
+]);
+
+const _detectBiologyDiagramInner = (
+  questionText: string,
+  subject?: string,
+): BiologyDiagramConfig | null => null; // placeholder, overridden below
+
 export const detectBiologyDiagram = (
+  questionText: string,
+  subject?: string,
+): BiologyDiagramConfig | null => {
+  const cfg = _detect(questionText, subject);
+  if (cfg && !IMPLEMENTED_TYPES.has(cfg.type)) return null;
+  return cfg;
+};
+
+const _detect = (
   questionText: string,
   subject?: string,
 ): BiologyDiagramConfig | null => {
