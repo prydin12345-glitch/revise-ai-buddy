@@ -1,15 +1,16 @@
 import React from 'react';
-import type { DiagramProps } from './types';
+import type { DiagramProps, BiologyDiagramConfig as BiologyDiagramConfigType } from './types';
 import AnimalCellDiagram from './diagrams/AnimalCellDiagram';
 import PlantCellDiagram from './diagrams/PlantCellDiagram';
 import NeuronDiagram from './diagrams/NeuronDiagram';
 import HeartDiagram from './diagrams/HeartDiagram';
 import DnaHelixDiagram from './diagrams/DnaHelixDiagram';
 import MitosisDiagram from './diagrams/MitosisDiagram';
+import { PunnettSquareDiagram } from './diagrams/PunnettSquareDiagram';
+import { FoodWebDiagram } from './diagrams/FoodWebDiagram';
+import { EnzymeSubstrateDiagram } from './diagrams/EnzymeSubstrateDiagram';
 
-export interface BiologyDiagramConfig extends DiagramProps {
-  type: 'animal_cell' | 'plant_cell' | 'neuron' | 'heart' | 'dna_helix' | 'mitosis';
-}
+export type BiologyDiagramConfig = BiologyDiagramConfigType;
 
 const MissingDiagram: React.FC<{ type?: string }> = ({ type }) => (
   <svg width="300" height="80" style={{ background: 'white', display: 'block', margin: '0 auto' }}>
@@ -38,6 +39,11 @@ const BiologyDiagramDraw: React.FC<{ config: BiologyDiagramConfig }> = ({ config
       case 'heart': return <HeartDiagram {...props} />;
       case 'dna_helix': return <DnaHelixDiagram {...props} />;
       case 'mitosis': return <MitosisDiagram {...props} />;
+      case 'punnett_square': return <PunnettSquareDiagram config={config} />;
+      case 'food_web':
+      case 'food_chain':
+      case 'ecological_pyramid': return <FoodWebDiagram config={config} />;
+      case 'enzyme_substrate': return <EnzymeSubstrateDiagram config={config} />;
       default: return <MissingDiagram type={(config as any).type} />;
     }
   } catch {

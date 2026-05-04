@@ -1,5 +1,7 @@
 export { default as BiologyDiagramDraw } from './BiologyDiagramDraw';
+export { default as BiologyFigurePanel } from './BiologyFigurePanel';
 export type { BiologyDiagramConfig } from './BiologyDiagramDraw';
+export { detectBiologyDiagram } from './biology-detector';
 export { default as ChemistryDiagramDraw } from './ChemistryDiagramDraw';
 export type { ChemistryDiagramConfig } from './ChemistryDiagramDraw';
 export { default as DiagramLabel } from './DiagramLabel';

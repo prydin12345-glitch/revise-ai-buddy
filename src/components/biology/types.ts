@@ -25,6 +25,56 @@ export interface DiagramMeta {
   labelData: DiagramLabelData[];
 }
 
+export type BiologyDiagramType =
+  | 'animal_cell'
+  | 'plant_cell'
+  | 'bacterial_cell'
+  | 'neuron'
+  | 'synapse'
+  | 'heart'
+  | 'dna_helix'
+  | 'dna_replication'
+  | 'protein_synthesis'
+  | 'mitosis'
+  | 'meiosis'
+  | 'punnett_square'
+  | 'food_web'
+  | 'food_chain'
+  | 'ecological_pyramid'
+  | 'enzyme_substrate'
+  | 'photosynthesis'
+  | 'respiration'
+  | 'gas_exchange'
+  | 'leaf_section'
+  | 'root_hair_cell'
+  | 'population_growth'
+  | 'nitrogen_cycle'
+  | 'carbon_cycle'
+  | 'immune_response'
+  | 'homeostasis'
+  | 'phylogenetic_tree'
+  | 'gel_electrophoresis'
+  | 'pcr';
+
+export interface BiologyDiagramConfig extends DiagramProps {
+  type: BiologyDiagramType;
+  // Punnett square:
+  crossType?: 'monohybrid' | 'dihybrid' | 'x_linked' | 'codominance';
+  parent1?: string;
+  parent2?: string;
+  dominantTrait?: string;
+  recessiveTrait?: string;
+  // Food web/chain:
+  organisms?: string[];
+  pyramidType?: 'numbers' | 'biomass' | 'energy';
+  // Enzyme:
+  model?: 'lock_and_key' | 'induced_fit';
+  hasInhibitor?: boolean;
+  inhibitorType?: 'competitive' | 'non_competitive';
+  // General:
+  labels?: Record<string, string>;
+}
+
 export const DIAGRAM_STYLE = {
   stroke: '#1a1a1a',
   strokeWidth: 2,
