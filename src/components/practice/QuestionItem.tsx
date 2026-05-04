@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { MathRenderer } from '@/components/MathRenderer';
+import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
 import { MathInsertKeypad, normalizeUnicodeForGrading } from '@/components/quiz/MathInsertKeypad';
 import { 
   ReferenceDiagram,
@@ -52,7 +53,8 @@ interface Question {
   question_latex?: string;
   subtopic: string;
   worked_solution?: string;
-}
+  diagram_config?: any;
+  subject?: string;
 
 interface UserAnswer {
   answer: string;
