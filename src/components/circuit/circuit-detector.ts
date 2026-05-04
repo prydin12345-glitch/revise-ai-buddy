@@ -198,6 +198,18 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
     ? `${parentQuestionText} ${questionText}`
     : questionText;
 
+  // Early exit — never show circuit diagrams for biology subjects
+  const subjLower = (subjectName ?? '').toLowerCase();
+  if (/biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical/i.test(subjLower)) {
+    return null;
+  }
+
+  // Early exit — biology content terms (catches unknown subjects)
+  const BIOLOGY_TERMS = /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|dna replication|protein synthesis|allele|genotype|phenotype|food web|food chain|trophic|enzyme.substrate|punnett|gamete|zygote|photosynthesis|cell division|cell cycle|stem cell|nucleoid|plasmid plant|cytoplasm cell)\b/i;
+  if (BIOLOGY_TERMS.test(fullText) && !/\b(physics|chemistry|electric|electronic)\b/i.test(subjLower)) {
+    return null;
+  }
+
   // Early exit — suppress diagram for theoretical topics
   if (shouldSuppressDiagram(topicTag ?? '', fullText, subjectName ?? '')) {
     return null;
