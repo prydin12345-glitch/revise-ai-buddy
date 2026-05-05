@@ -1702,6 +1702,38 @@ const TakePracticeQuiz = () => {
                     isReview={false}
                   />
 
+                  {(() => {
+                    const isGraphType =
+                      currentQuestion.question_type === 'graph_plotting' ||
+                      currentQuestion.question_type === 'graph_interpretation' ||
+                      currentQuestion.question_type === 'graph_transformation' ||
+                      currentQuestion.question_type === 'bearings';
+                    if (isGraphType) return null;
+                    const drawInfo = detectDrawQuestion(
+                      currentQuestion.question_text ?? '',
+                      (currentQuestion as any).subject ?? '',
+                      currentQuestion.question_type,
+                    );
+                    if (!drawInfo.needsDrawingCanvas) return null;
+                    return (
+                      <DrawDiagramQuestion
+                        questionText={currentQuestion.question_text ?? ''}
+                        subject={(currentQuestion as any).subject ?? ''}
+                        questionType={currentQuestion.question_type}
+                        totalMarks={currentQuestion.marks ?? 4}
+                        onAnswerChange={(url) => {
+                          setUserAnswers(prev => ({
+                            ...prev,
+                            [currentQuestion.id]: {
+                              ...(prev[currentQuestion.id] ?? { answer: '', submitted: false }),
+                              workingOut: url,
+                            },
+                          }));
+                        }}
+                      />
+                    );
+                  })()}
+
                   {/* Chart rendering — diagram_config first, options fallback */}
                   {(() => {
                     const chartData = getChartData(currentQuestion);
