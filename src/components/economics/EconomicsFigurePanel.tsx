@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TrendingUp, Maximize2, X } from 'lucide-react';
 import { EconomicsDiagramDraw } from './EconomicsDiagramDraw';
 import { detectEconomicsDiagram } from './economics-detector';
+import { detectDrawQuestion } from '@/components/drawing/DrawDiagramQuestion';
 import type { EconomicsDiagramConfig } from './types';
 
 interface Props {
