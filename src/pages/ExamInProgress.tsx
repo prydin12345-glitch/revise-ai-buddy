@@ -1659,6 +1659,39 @@ const ExamInProgress = () => {
                     isReview={false}
                   />
 
+                  {/* Drawing canvas for economics/biology/physics diagram-draw questions */}
+                  {(() => {
+                    const isGraphType =
+                      question.question_type === 'graph_plotting' ||
+                      question.question_type === 'graph_interpretation' ||
+                      question.question_type === 'graph_transformation' ||
+                      question.question_type === 'bearings';
+                    if (isGraphType) return null;
+                    const drawInfo = detectDrawQuestion(
+                      question.question_text ?? '',
+                      (question as any).subject ?? '',
+                      question.question_type,
+                    );
+                    if (!drawInfo.needsDrawingCanvas) return null;
+                    return (
+                      <DrawDiagramQuestion
+                        questionText={question.question_text ?? ''}
+                        subject={(question as any).subject ?? ''}
+                        questionType={question.question_type}
+                        totalMarks={question.marks ?? 4}
+                        onAnswerChange={(url) => {
+                          updateAnswer(question.id, { workingOut: url });
+                          if (saveTimeouts.current[question.id]) {
+                            clearTimeout(saveTimeouts.current[question.id]);
+                          }
+                          saveTimeouts.current[question.id] = setTimeout(() => {
+                            handleSaveAnswer(question.id);
+                          }, 1000);
+                        }}
+                      />
+                    );
+                  })()}
+
                   {/* Chart rendering — reads from diagram_config first, falls back to options */}
                   {(() => {
                     const chartData = getChartData(question);
