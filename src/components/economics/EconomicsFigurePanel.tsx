@@ -32,6 +32,8 @@ export const EconomicsFigurePanel = ({
 }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const drawInfo = detectDrawQuestion(questionText, subject);
+  if (drawInfo.needsDrawingCanvas) return null;
   const config = diagramConfig ?? detectEconomicsDiagram(questionText, subject);
   if (!config) return null;
 
