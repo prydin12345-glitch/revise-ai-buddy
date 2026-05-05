@@ -239,6 +239,8 @@ const ExamPreview = () => {
                       questionText={q.question_text ?? ''}
                       subject={(q as any).subject ?? ''}
                       diagramConfig={null}
+                      isSubmitted={true}
+                      isReview={true}
                     />
 
                     {q.figure_urls && q.figure_urls.length > 0 && (

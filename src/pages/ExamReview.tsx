@@ -609,6 +609,8 @@ const ExamReview = () => {
                       questionText={question.question_text ?? ''}
                       subject={(question as any).subject ?? ''}
                       diagramConfig={null}
+                      isSubmitted={true}
+                      isReview={true}
                     />
 
                   {question.figure_urls && question.figure_urls.length > 0 && (

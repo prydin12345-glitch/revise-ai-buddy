@@ -19,11 +19,11 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
   } = config;
 
   const svgW = 480;
-  const svgH = 400;
-  const marginL = 60;
-  const marginB = 60;
+  const svgH = 410;
+  const marginL = 70;
+  const marginB = 70;
   const marginT = 40;
-  const marginR = 40;
+  const marginR = 50;
   const plotW = svgW - marginL - marginR;
   const plotH = svgH - marginT - marginB;
 
@@ -71,9 +71,22 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
   const Sext_y1 = externalityType === 'negative' ? S1y1 - extShiftY : S1y1 + extShiftY;
   const Sext_x2 = S1x2;
   const Sext_y2 = externalityType === 'negative' ? S1y2 - extShiftY : S1y2 + extShiftY;
+  const extEq = showExternality
+    ? intersect(Sext_x1, Sext_y1, Sext_x2, Sext_y2, D1x1, D1y1, D1x2, D1y2)
+    : null;
 
   const floorY = showPriceFloor ? eqY - plotH * 0.12 : null;
   const ceilingY = showPriceCeiling ? eqY + plotH * 0.12 : null;
+
+  // Price floor surplus (Qd, Qs)
+  let qdX_floor: number | null = null;
+  let qsX_floor: number | null = null;
+  if (floorY !== null) {
+    const sSlope = (S1y2 - S1y1) / (S1x2 - S1x1);
+    qsX_floor = S1x1 + (floorY - S1y1) / sSlope;
+    const dSlope = (D1y2 - D1y1) / (D1x2 - D1x1);
+    qdX_floor = D1x1 + (floorY - D1y1) / dSlope;
+  }
 
   return (
     <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%"
@@ -92,13 +105,27 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
       <line x1={ox} y1={oy} x2={ox} y2={marginT - 10} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-axis-sd)" />
       <line x1={ox} y1={oy} x2={ox + plotW + 20} y2={oy} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-axis-sd)" />
 
-      <text x={ox - 12} y={marginT + 5} textAnchor="middle" fontSize={12} fill="hsl(var(--foreground))">
-        {variant === 'labour_market' ? 'Wage' : `${currency}/unit`}
+      {/* Axis labels — safely placed */}
+      <text
+        x={16}
+        y={marginT + plotH / 2}
+        textAnchor="middle"
+        fontSize={11}
+        fill="hsl(var(--foreground))"
+        transform={`rotate(-90, 16, ${marginT + plotH / 2})`}
+      >
+        {variant === 'labour_market' ? 'Wage' : `Price (${currency})`}
       </text>
-      <text x={ox + plotW + 22} y={oy + 4} textAnchor="start" fontSize={12} fill="hsl(var(--foreground))">
-        {variant === 'labour_market' ? 'Qty of Labour' : 'Quantity'}
+      <text
+        x={ox + plotW / 2}
+        y={oy + 44}
+        textAnchor="middle"
+        fontSize={11}
+        fill="hsl(var(--foreground))"
+      >
+        {variant === 'labour_market' ? 'Quantity of Labour' : 'Quantity'}
       </text>
-      <text x={ox - 8} y={oy} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">O</text>
+      <text x={ox - 8} y={oy + 12} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">O</text>
 
       {showConsumerSurplus && !hasShift && (
         <polygon points={`${ox},${oy - plotH * 0.95} ${eqX},${eqY} ${ox},${eqY}`} fill="hsl(221 83% 53% / 0.15)" />
@@ -120,14 +147,6 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
         <>
           <line x1={Stax_x1} y1={Stax_y1} x2={Stax_x2} y2={Stax_y2} stroke="hsl(25 95% 53%)" strokeWidth={2} strokeDasharray="5 3" />
           <text x={Stax_x2 + 6} y={Stax_y2} fontSize={11} fill="hsl(25 95% 53%)">S+tax</text>
-          {taxEq && (
-            <>
-              <line x1={taxEq.x} y1={oy} x2={taxEq.x} y2={taxEq.y} stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 3" />
-              <line x1={ox} y1={taxEq.y} x2={taxEq.x} y2={taxEq.y} stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 3" />
-              <line x1={ox + 20} y1={eqY} x2={ox + 20} y2={taxEq.y} stroke="hsl(25 95% 53%)" strokeWidth={2} />
-              <text x={ox + 26} y={(eqY + taxEq.y) / 2 + 4} fontSize={11} fill="hsl(25 95% 53%)">tax</text>
-            </>
-          )}
         </>
       )}
 
@@ -149,7 +168,7 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
 
       <line x1={S1x1} y1={S1y1} x2={S1x2} y2={S1y2} stroke="hsl(221 83% 53%)" strokeWidth={2.5} />
       <text x={S1x2 + 5} y={S1y2 + 4} fontSize={13} fontWeight={700} fill="hsl(221 83% 53%)">
-        {variant === 'labour_market' ? 'SL' : supplyShift ? 'S₁' : 'S'}
+        {variant === 'labour_market' ? 'SL' : showExternality ? 'S (MPC)' : supplyShift ? 'S₁' : 'S'}
       </text>
 
       <line x1={D1x1} y1={D1y1} x2={D1x2} y2={D1y2} stroke="hsl(0 84% 60%)" strokeWidth={2.5} />
@@ -199,6 +218,67 @@ export const SupplyDemandDiagram = ({ config }: Props) => {
           <text x={ox - 8} y={newEq.y + 4} textAnchor="end" fontSize={10} fill="hsl(var(--primary))" opacity={0.8}>P₂</text>
         </>
       )}
+
+      {/* Tax: new equilibrium E2, dashed lines, wedge bracket at NEW Q */}
+      {showTax && taxEq && (() => {
+        const sOriginalY = S1y1 + (S1y2 - S1y1) * ((taxEq.x - S1x1) / (S1x2 - S1x1));
+        return (
+          <>
+            <circle cx={taxEq.x} cy={taxEq.y} r={5} fill="hsl(25 95% 53%)" />
+            <text x={taxEq.x + 8} y={taxEq.y - 6} fontSize={11} fontWeight={600} fill="hsl(25 95% 53%)">E₂</text>
+            <line x1={taxEq.x} y1={oy} x2={taxEq.x} y2={taxEq.y} stroke="hsl(25 95% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.7} />
+            <line x1={ox} y1={taxEq.y} x2={taxEq.x} y2={taxEq.y} stroke="hsl(25 95% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.7} />
+            <text x={taxEq.x} y={oy + 28} textAnchor="middle" fontSize={9} fill="hsl(25 95% 53%)">Q₂</text>
+            <text x={ox - 8} y={taxEq.y + 4} textAnchor="end" fontSize={9} fill="hsl(25 95% 53%)">P₂</text>
+            <line x1={taxEq.x - 20} y1={taxEq.y} x2={taxEq.x - 20} y2={sOriginalY} stroke="hsl(25 95% 53%)" strokeWidth={2} />
+            <line x1={taxEq.x - 24} y1={taxEq.y} x2={taxEq.x - 16} y2={taxEq.y} stroke="hsl(25 95% 53%)" strokeWidth={1.5} />
+            <line x1={taxEq.x - 24} y1={sOriginalY} x2={taxEq.x - 16} y2={sOriginalY} stroke="hsl(25 95% 53%)" strokeWidth={1.5} />
+            <text x={taxEq.x - 26} y={(taxEq.y + sOriginalY) / 2 + 4} textAnchor="end" fontSize={10} fill="hsl(25 95% 53%)">tax</text>
+          </>
+        );
+      })()}
+
+      {/* Price floor surplus: Qs, Qd brackets */}
+      {floorY !== null && qdX_floor !== null && qsX_floor !== null && (
+        <>
+          <line x1={qsX_floor} y1={floorY} x2={qsX_floor} y2={oy} stroke="hsl(0 84% 60%)" strokeWidth={1} strokeDasharray="4 3" />
+          <text x={qsX_floor} y={oy + 16} textAnchor="middle" fontSize={9} fill="hsl(0 84% 60%)">Qs</text>
+          <line x1={qdX_floor} y1={floorY} x2={qdX_floor} y2={oy} stroke="hsl(0 84% 60%)" strokeWidth={1} strokeDasharray="4 3" />
+          <text x={qdX_floor} y={oy + 16} textAnchor="middle" fontSize={9} fill="hsl(0 84% 60%)">Qd</text>
+          <line x1={qdX_floor} y1={oy + 28} x2={qsX_floor} y2={oy + 28} stroke="hsl(0 84% 60%)" strokeWidth={1.5} />
+          <line x1={qdX_floor} y1={oy + 24} x2={qdX_floor} y2={oy + 32} stroke="hsl(0 84% 60%)" strokeWidth={1.5} />
+          <line x1={qsX_floor} y1={oy + 24} x2={qsX_floor} y2={oy + 32} stroke="hsl(0 84% 60%)" strokeWidth={1.5} />
+          <text x={(qdX_floor + qsX_floor) / 2} y={oy + 60} textAnchor="middle" fontSize={10} fontWeight={600} fill="hsl(0 84% 60%)">SURPLUS</text>
+          <circle cx={qdX_floor} cy={floorY} r={4} fill="hsl(0 84% 60%)" />
+          <circle cx={qsX_floor} cy={floorY} r={4} fill="hsl(0 84% 60%)" />
+        </>
+      )}
+
+      {/* Externality: Q*, P*, DWL */}
+      {showExternality && extEq && (() => {
+        const qm = { x: eqX, y: eqY };
+        // 3rd point of DWL triangle: vertical from qm to MSC at qm.x
+        const mscAtQm = Sext_y1 + (Sext_y2 - Sext_y1) * ((qm.x - Sext_x1) / (Sext_x2 - Sext_x1));
+        return (
+          <>
+            <line x1={extEq.x} y1={oy} x2={extEq.x} y2={extEq.y} stroke="hsl(0 84% 60%)" strokeWidth={1} strokeDasharray="4 3" />
+            <line x1={ox} y1={extEq.y} x2={extEq.x} y2={extEq.y} stroke="hsl(0 84% 60%)" strokeWidth={1} strokeDasharray="4 3" />
+            <text x={extEq.x} y={oy + 16} textAnchor="middle" fontSize={9} fill="hsl(0 84% 60%)">Q*</text>
+            <text x={ox - 8} y={extEq.y + 4} textAnchor="end" fontSize={9} fill="hsl(0 84% 60%)">P*</text>
+            <circle cx={extEq.x} cy={extEq.y} r={5} fill="hsl(0 84% 60%)" />
+            <text x={extEq.x + 8} y={extEq.y - 6} fontSize={10} fill="hsl(0 84% 60%)">E*</text>
+            <polygon
+              points={`${extEq.x},${extEq.y} ${qm.x},${qm.y} ${qm.x},${mscAtQm}`}
+              fill="hsl(0 84% 60% / 0.25)"
+              stroke="hsl(0 84% 60%)"
+              strokeWidth={1}
+            />
+            <text x={(extEq.x + qm.x) / 2 + 6} y={(extEq.y + qm.y) / 2} fontSize={9} fontWeight={600} fill="hsl(0 84% 60%)">DWL</text>
+            <text x={qm.x} y={oy + 28} textAnchor="middle" fontSize={9} fill="hsl(var(--muted-foreground))">Qm</text>
+            <text x={ox - 8} y={qm.y + 14} textAnchor="end" fontSize={9} fill="hsl(var(--muted-foreground))">Pm</text>
+          </>
+        );
+      })()}
 
       {showConsumerSurplus && !hasShift && (
         <text x={ox + 40} y={eqY - 30} fontSize={11} fill="hsl(221 83% 53%)">CS</text>

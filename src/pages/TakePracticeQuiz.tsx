@@ -1697,6 +1697,8 @@ const TakePracticeQuiz = () => {
                     questionText={currentQuestion.question_text ?? ''}
                     subject={(currentQuestion as any).subject ?? ''}
                     diagramConfig={null}
+                    isSubmitted={!!currentAnswer?.submitted}
+                    isReview={false}
                   />
 
                   {/* Chart rendering — diagram_config first, options fallback */}

@@ -1655,6 +1655,8 @@ const ExamInProgress = () => {
                     questionText={question.question_text ?? ''}
                     subject={(question as any).subject ?? ''}
                     diagramConfig={null}
+                    isSubmitted={false}
+                    isReview={false}
                   />
 
                   {/* Chart rendering — reads from diagram_config first, falls back to options */}
