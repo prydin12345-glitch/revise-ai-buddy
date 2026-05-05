@@ -17,18 +17,20 @@ export const BreakEvenDiagram = ({ config }: Props) => {
   const beQ = breakEvenQuantity ??
     (sellingPrice > variableUnitCost ? fixedCosts / (sellingPrice - variableUnitCost) : 0);
 
-  const svgW = 460;
-  const svgH = 380;
-  const marginL = 70;
-  const marginB = 60;
+  const svgW = 480;
+  const svgH = showMarginOfSafety ? 440 : 380;
+  const marginL = 75;
+  const marginB = showMarginOfSafety ? 110 : 60;
   const marginT = 40;
-  const marginR = 40;
+  const marginR = 50;
   const plotW = svgW - marginL - marginR;
   const plotH = svgH - marginT - marginB;
   const ox = marginL;
   const oy = marginT + plotH;
 
-  const maxQ = Math.max(beQ * 1.8, 1);
+  const maxQ = showMarginOfSafety && currentOutput
+    ? Math.max(beQ * 1.5, currentOutput * 1.2)
+    : Math.max(beQ * 1.8, 1);
   const maxRev = maxQ * sellingPrice;
   const maxCost = fixedCosts + maxQ * variableUnitCost;
   const maxY = Math.max(maxRev, maxCost) * 1.1;
@@ -66,6 +68,14 @@ export const BreakEvenDiagram = ({ config }: Props) => {
     return `${currency}${v.toFixed(0)}`;
   };
 
+  const formatQ = (q: number): string => {
+    if (q >= 1000) return `${(q / 1000).toFixed(q >= 10000 ? 0 : 1)}k`;
+    return q.toFixed(0);
+  };
+
+  const xTickCount = 6;
+  const yTickCount = 5;
+
   return (
     <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%"
       style={{ maxWidth: svgW, display: 'block', margin: '0 auto' }}>
@@ -82,18 +92,41 @@ export const BreakEvenDiagram = ({ config }: Props) => {
       <line x1={ox} y1={oy} x2={ox} y2={marginT - 10} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-be)" />
       <line x1={ox} y1={oy} x2={ox + plotW + 20} y2={oy} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-be)" />
 
-      <text x={12} y={marginT + plotH / 2} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))"
-        transform={`rotate(-90, 12, ${marginT + plotH / 2})`}>
+      <text x={16} y={marginT + plotH / 2} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))"
+        transform={`rotate(-90, 16, ${marginT + plotH / 2})`}>
         Revenue / Cost ({currency})
       </text>
-      <text x={ox + plotW / 2} y={oy + 40} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">
+      <text x={ox + plotW / 2} y={oy + 44} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">
         {outputLabel}
       </text>
 
-      <line x1={ox - 4} y1={fcY} x2={ox} y2={fcY} stroke="hsl(var(--foreground))" strokeWidth={1} />
-      <text x={ox - 6} y={fcY + 4} textAnchor="end" fontSize={9} fill="hsl(var(--muted-foreground))">
-        {formatVal(fixedCosts)}
-      </text>
+      {/* X-axis ticks */}
+      {Array.from({ length: xTickCount + 1 }, (_, i) => {
+        const q = (maxQ / xTickCount) * i;
+        const x = toX(q);
+        return (
+          <g key={`xt-${i}`}>
+            <line x1={x} y1={oy} x2={x} y2={oy + 5} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            <text x={x} y={oy + 18} textAnchor="middle" fontSize={9} fill="hsl(var(--muted-foreground))">
+              {formatQ(q)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Y-axis ticks */}
+      {Array.from({ length: yTickCount + 1 }, (_, i) => {
+        const v = (maxY / yTickCount) * i;
+        const y = toY(v);
+        return (
+          <g key={`yt-${i}`}>
+            <line x1={ox - 4} y1={y} x2={ox} y2={y} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            <text x={ox - 6} y={y + 4} textAnchor="end" fontSize={9} fill="hsl(var(--muted-foreground))">
+              {formatVal(v)}
+            </text>
+          </g>
+        );
+      })}
 
       <path d={lossPath} fill="hsl(0 84% 60% / 0.1)" stroke="none" />
       <path d={profitPath} fill="hsl(142 71% 45% / 0.1)" stroke="none" />
@@ -114,20 +147,22 @@ export const BreakEvenDiagram = ({ config }: Props) => {
 
       <line x1={beX} y1={oy} x2={beX} y2={beRevY} stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 3" />
       <line x1={ox} y1={beRevY} x2={beX} y2={beRevY} stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 3" />
-      <text x={beX} y={oy + 16} textAnchor="middle" fontSize={9} fill="hsl(var(--muted-foreground))">
-        {beQ.toFixed(0)} units
-      </text>
-      <text x={ox - 6} y={beRevY + 4} textAnchor="end" fontSize={9} fill="hsl(var(--muted-foreground))">
-        {formatVal(beQ * sellingPrice)}
-      </text>
 
-      {showMarginOfSafety && curX !== null && (
+      {showMarginOfSafety && curX !== null && currentOutput !== undefined && (
         <>
-          <line x1={curX} y1={oy} x2={curX} y2={oy - plotH * 0.1} stroke="hsl(25 95% 53%)" strokeWidth={2} />
-          <text x={curX} y={oy + 16} textAnchor="middle" fontSize={9} fill="hsl(25 95% 53%)">Current output</text>
-          <line x1={beX} y1={oy + 30} x2={curX} y2={oy + 30} stroke="hsl(25 95% 53%)" strokeWidth={1.5} />
-          <text x={(beX + curX) / 2} y={oy + 44} textAnchor="middle" fontSize={10} fill="hsl(25 95% 53%)">
+          <rect x={beX} y={marginT} width={curX - beX} height={plotH} fill="hsl(25 95% 53% / 0.06)" />
+          <line x1={curX} y1={marginT} x2={curX} y2={oy} stroke="hsl(25 95% 53%)" strokeWidth={2} strokeDasharray="6 3" />
+          <text x={curX} y={marginT - 6} textAnchor="middle" fontSize={10} fontWeight={600} fill="hsl(25 95% 53%)">
+            Current output
+          </text>
+          <line x1={beX} y1={oy + 56} x2={curX} y2={oy + 56} stroke="hsl(25 95% 53%)" strokeWidth={2} />
+          <line x1={beX} y1={oy + 50} x2={beX} y2={oy + 62} stroke="hsl(25 95% 53%)" strokeWidth={2} />
+          <line x1={curX} y1={oy + 50} x2={curX} y2={oy + 62} stroke="hsl(25 95% 53%)" strokeWidth={2} />
+          <text x={(beX + curX) / 2} y={oy + 76} textAnchor="middle" fontSize={11} fontWeight={700} fill="hsl(25 95% 53%)">
             Margin of Safety
+          </text>
+          <text x={(beX + curX) / 2} y={oy + 90} textAnchor="middle" fontSize={9} fill="hsl(25 95% 53%)">
+            {formatQ(currentOutput - Math.round(beQ))} units
           </text>
         </>
       )}
