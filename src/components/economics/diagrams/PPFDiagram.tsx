@@ -15,12 +15,12 @@ export const PPFDiagram = ({ config }: Props) => {
     shape = 'concave',
   } = config;
 
-  const svgW = 420;
+  const svgW = 460;
   const svgH = 380;
-  const marginL = 60;
+  const marginL = 70;
   const marginB = 60;
   const marginT = 40;
-  const marginR = 40;
+  const marginR = 60;
   const plotW = svgW - marginL - marginR;
   const plotH = svgH - marginT - marginB;
   const ox = marginL;
@@ -40,17 +40,25 @@ export const PPFDiagram = ({ config }: Props) => {
     return pts.join(' ');
   };
 
-  const attainableX = ox + plotW * 0.45;
-  const attainableY = oy - plotH * 0.35;
+  // Cap shift scale so PPF2 stays inside viewBox
+  const shiftScale = shiftDirection === 'outward' ? 1.15 : 0.78;
+
   const inefficientX = ox + plotW * 0.3;
   const inefficientY = oy - plotH * 0.25;
   const unattainableX = ox + plotW * 0.75;
   const unattainableY = oy - plotH * 0.65;
 
-  const ocAX = ox + plotW * 0.5;
-  const ocAY = oy - plotH * 0.6;
-  const ocBX = ox + plotW * 0.7;
-  const ocBY = oy - plotH * 0.3;
+  // Point ON the frontier
+  const onCurveT = 0.5;
+  const onCurveX = ox + (shape === 'concave' ? plotW * Math.sqrt(1 - onCurveT * onCurveT) : plotW * (1 - onCurveT));
+  const onCurveY = oy - plotH * onCurveT;
+
+  // Opportunity cost — two points on curve
+  const tA = 0.7, tB = 0.35;
+  const axA = ox + (shape === 'concave' ? plotW * Math.sqrt(1 - tA * tA) : plotW * (1 - tA));
+  const ayA = oy - plotH * tA;
+  const axB = ox + (shape === 'concave' ? plotW * Math.sqrt(1 - tB * tB) : plotW * (1 - tB));
+  const ayB = oy - plotH * tB;
 
   return (
     <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%"
@@ -59,8 +67,8 @@ export const PPFDiagram = ({ config }: Props) => {
         <marker id="arr-ppf" markerWidth={8} markerHeight={6} refX={7} refY={3} orient="auto">
           <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--foreground))" />
         </marker>
-        <marker id="arr-oc" markerWidth={8} markerHeight={6} refX={7} refY={3} orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="hsl(25 95% 53%)" />
+        <marker id="arr-oc2" markerWidth={8} markerHeight={6} refX={7} refY={3} orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--foreground))" />
         </marker>
       </defs>
 
@@ -71,11 +79,11 @@ export const PPFDiagram = ({ config }: Props) => {
       <line x1={ox} y1={oy} x2={ox} y2={marginT - 10} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-ppf)" />
       <line x1={ox} y1={oy} x2={ox + plotW + 20} y2={oy} stroke="hsl(var(--foreground))" strokeWidth={2} markerEnd="url(#arr-ppf)" />
 
-      <text x={ox - 12} y={marginT + plotH / 2} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))"
-        transform={`rotate(-90, ${ox - 12}, ${marginT + plotH / 2})`}>
+      <text x={16} y={marginT + plotH / 2} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))"
+        transform={`rotate(-90, 16, ${marginT + plotH / 2})`}>
         {good1}
       </text>
-      <text x={ox + plotW / 2} y={oy + 22} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">
+      <text x={ox + plotW / 2} y={oy + 28} textAnchor="middle" fontSize={11} fill="hsl(var(--foreground))">
         {good2}
       </text>
       <text x={ox - 8} y={oy + 14} textAnchor="middle" fontSize={10} fill="hsl(var(--foreground))">O</text>
@@ -85,10 +93,12 @@ export const PPFDiagram = ({ config }: Props) => {
       {showShift && (
         <>
           <polyline
-            points={ppfPoints(shiftDirection === 'outward' ? 1.2 : 0.75)}
+            points={ppfPoints(shiftScale)}
             fill="none" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="6 3" />
-          <text x={ox + plotW * (shiftDirection === 'outward' ? 1.2 : 0.75) - 10} y={oy - plotH * 0.05}
-            textAnchor="end" fontSize={11} fill="hsl(var(--primary))">PPF₂</text>
+          <text
+            x={ox + plotW * shiftScale - 4}
+            y={oy - plotH * 0.08}
+            textAnchor="end" fontSize={12} fontWeight={700} fill="hsl(var(--primary))">PPF₂</text>
         </>
       )}
 
@@ -104,22 +114,39 @@ export const PPFDiagram = ({ config }: Props) => {
           <text x={inefficientX + 10} y={inefficientY + 8} fontSize={9} fill="hsl(var(--muted-foreground))">unemployed resources</text>
         </>
       )}
-      {showAttainablePoint && (
+
+      {/* Always show point ON the frontier when other points shown */}
+      {(showAttainablePoint || showInefficientPoint || showUnattainablePoint) && (
         <>
-          <circle cx={attainableX} cy={attainableY} r={5} fill="hsl(142 71% 45%)" />
-          <text x={attainableX + 10} y={attainableY - 4} fontSize={11} fill="hsl(142 71% 45%)">Attainable (B)</text>
+          <circle cx={onCurveX} cy={onCurveY} r={5} fill="hsl(142 71% 45%)" />
+          <text x={onCurveX + 10} y={onCurveY - 4} fontSize={11} fill="hsl(142 71% 45%)">Efficient (on frontier)</text>
         </>
       )}
+
       {showUnattainablePoint && (
         <>
           <circle cx={unattainableX} cy={unattainableY} r={5} fill="hsl(0 84% 60%)" />
           <text x={unattainableX + 8} y={unattainableY - 4} fontSize={11} fill="hsl(0 84% 60%)">Unattainable (C)</text>
         </>
       )}
+
       {showOpportunityCost && (
         <>
-          <line x1={ocAX} y1={ocAY} x2={ocBX} y2={ocBY} stroke="hsl(25 95% 53%)" strokeWidth={1.5} strokeDasharray="5 3" markerEnd="url(#arr-oc)" />
-          <text x={(ocAX + ocBX) / 2 + 12} y={(ocAY + ocBY) / 2} fontSize={10} fill="hsl(25 95% 53%)">Opp. cost</text>
+          <circle cx={axA} cy={ayA} r={5} fill="hsl(221 83% 53%)" />
+          <text x={axA - 14} y={ayA - 6} fontSize={11} fill="hsl(221 83% 53%)">A</text>
+          <circle cx={axB} cy={ayB} r={5} fill="hsl(25 95% 53%)" />
+          <text x={axB + 8} y={ayB - 4} fontSize={11} fill="hsl(25 95% 53%)">B</text>
+          <line x1={axA} y1={ayA} x2={axA} y2={oy} stroke="hsl(221 83% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.6} />
+          <line x1={axA} y1={ayA} x2={ox} y2={ayA} stroke="hsl(221 83% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.6} />
+          <line x1={axB} y1={ayB} x2={axB} y2={oy} stroke="hsl(25 95% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.6} />
+          <line x1={axB} y1={ayB} x2={ox} y2={ayB} stroke="hsl(25 95% 53%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.6} />
+          <path
+            d={`M ${axA} ${ayA} Q ${(axA + axB) / 2 + 18} ${(ayA + ayB) / 2 - 18} ${axB} ${ayB}`}
+            fill="none" stroke="hsl(var(--foreground))" strokeWidth={1.5}
+            strokeDasharray="5 3" markerEnd="url(#arr-oc2)" />
+          <text x={(axA + axB) / 2 + 28} y={(ayA + ayB) / 2 - 10} fontSize={10} fill="hsl(var(--foreground))">A→B:</text>
+          <text x={(axA + axB) / 2 + 28} y={(ayA + ayB) / 2 + 2} fontSize={9} fill="hsl(var(--muted-foreground))">+ {good2.toLowerCase()}</text>
+          <text x={(axA + axB) / 2 + 28} y={(ayA + ayB) / 2 + 14} fontSize={9} fill="hsl(var(--muted-foreground))">− {good1.toLowerCase()}</text>
         </>
       )}
     </svg>
