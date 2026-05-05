@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TrendingUp, Maximize2, X } from 'lucide-react';
 import { EconomicsDiagramDraw } from './EconomicsDiagramDraw';
 import { detectEconomicsDiagram } from './economics-detector';
+import { detectDrawQuestion } from '@/components/drawing/DrawDiagramQuestion';
 import type { EconomicsDiagramConfig } from './types';
 
 interface Props {
@@ -31,6 +32,8 @@ export const EconomicsFigurePanel = ({
 }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const drawInfo = detectDrawQuestion(questionText, subject);
+  if (drawInfo.needsDrawingCanvas) return null;
   const config = diagramConfig ?? detectEconomicsDiagram(questionText, subject);
   if (!config) return null;
 

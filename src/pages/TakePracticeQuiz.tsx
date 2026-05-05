@@ -86,6 +86,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
@@ -1700,6 +1701,38 @@ const TakePracticeQuiz = () => {
                     isSubmitted={!!currentAnswer?.submitted}
                     isReview={false}
                   />
+
+                  {(() => {
+                    const isGraphType =
+                      currentQuestion.question_type === 'graph_plotting' ||
+                      currentQuestion.question_type === 'graph_interpretation' ||
+                      currentQuestion.question_type === 'graph_transformation' ||
+                      currentQuestion.question_type === 'bearings';
+                    if (isGraphType) return null;
+                    const drawInfo = detectDrawQuestion(
+                      currentQuestion.question_text ?? '',
+                      (currentQuestion as any).subject ?? '',
+                      currentQuestion.question_type,
+                    );
+                    if (!drawInfo.needsDrawingCanvas) return null;
+                    return (
+                      <DrawDiagramQuestion
+                        questionText={currentQuestion.question_text ?? ''}
+                        subject={(currentQuestion as any).subject ?? ''}
+                        questionType={currentQuestion.question_type}
+                        totalMarks={currentQuestion.marks ?? 4}
+                        onAnswerChange={(url) => {
+                          setUserAnswers(prev => ({
+                            ...prev,
+                            [currentQuestion.id]: {
+                              ...(prev[currentQuestion.id] ?? { answer: '', submitted: false }),
+                              workingOut: url,
+                            },
+                          }));
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Chart rendering — diagram_config first, options fallback */}
                   {(() => {

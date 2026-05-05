@@ -26,6 +26,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   TableGridQuestion, 
@@ -612,6 +613,34 @@ const ExamReview = () => {
                       isSubmitted={true}
                       isReview={true}
                     />
+
+                    {(() => {
+                      const isGraphType =
+                        question.question_type === 'graph_plotting' ||
+                        question.question_type === 'graph_interpretation' ||
+                        question.question_type === 'graph_transformation' ||
+                        question.question_type === 'bearings';
+                      if (isGraphType) return null;
+                      const drawInfo = detectDrawQuestion(
+                        question.question_text ?? '',
+                        (question as any).subject ?? '',
+                        question.question_type,
+                      );
+                      if (!drawInfo.needsDrawingCanvas) return null;
+                      const studentUrl = (question as any).user_answer?.workingOut
+                        ?? (question as any).workingOut
+                        ?? '';
+                      return (
+                        <DrawDiagramQuestion
+                          questionText={question.question_text ?? ''}
+                          subject={(question as any).subject ?? ''}
+                          questionType={question.question_type}
+                          totalMarks={question.marks ?? 4}
+                          isReview={true}
+                          studentDrawingDataUrl={studentUrl}
+                        />
+                      );
+                    })()}
 
                   {question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
