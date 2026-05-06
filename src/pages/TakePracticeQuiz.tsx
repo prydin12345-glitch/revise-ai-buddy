@@ -1757,6 +1757,7 @@ const TakePracticeQuiz = () => {
                         questionType={currentQuestion.question_type}
                         totalMarks={currentQuestion.marks ?? 4}
                         savedDrawingDataUrl={userAnswers[currentQuestion.id]?.workingOut ?? ''}
+                        initialElements={savedElementsRef.current[currentQuestion.id] ?? []}
                         onSave={(url) => {
                           setUserAnswers(prev => ({
                             ...prev,
@@ -1765,6 +1766,9 @@ const TakePracticeQuiz = () => {
                               workingOut: url,
                             },
                           }));
+                        }}
+                        onSaveWithElements={(_url, els) => {
+                          savedElementsRef.current[currentQuestion.id] = els;
                         }}
                         onUnsavedChanges={(has) => handleDrawingWorkingChange(currentQuestion.id, has)}
                       />
