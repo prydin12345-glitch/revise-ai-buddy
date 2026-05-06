@@ -2865,6 +2865,57 @@ const TakePracticeQuiz = () => {
           </AlertDialogContent>
         </AlertDialog>
       )}
+      {showUnsavedWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'hsl(var(--card))', borderRadius: 14, padding: 24,
+            maxWidth: 400, width: '100%',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
+              Unsaved diagram
+            </div>
+            <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
+              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { setShowUnsavedWarning(false); setPendingNavigation(null); }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
+                  color: 'hsl(var(--primary-foreground))',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Go back and save
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setUnsavedDrawingQuestions(new Set());
+                  if (pendingNavigation) pendingNavigation();
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid hsl(var(--border))', borderRadius: 8,
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Content Disclaimer Footer */}
       <div className="border-t border-border bg-muted/30 py-3 px-6 text-center mt-auto">
         <p className="text-xs text-muted-foreground">
