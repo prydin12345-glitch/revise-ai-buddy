@@ -1731,12 +1731,16 @@ const ExamInProgress = () => {
                         totalMarks={question.marks ?? 4}
                         isExam={true}
                         savedDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
+                        initialElements={savedElementsRef.current[question.id] ?? []}
                         onSave={(url) => {
                           updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           handleSaveAnswer(question.id);
+                        }}
+                        onSaveWithElements={(_url, els) => {
+                          savedElementsRef.current[question.id] = els;
                         }}
                         onUnsavedChanges={(hasChanges) =>
                           handleDrawingWorkingChange(question.id, hasChanges)
