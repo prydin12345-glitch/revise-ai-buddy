@@ -199,6 +199,31 @@ const ExamInProgress = () => {
   const answersRef = useRef(userAnswers);
   const [showSelfMarkReview, setShowSelfMarkReview] = useState(false);
   const [selfMarkScores, setSelfMarkScores] = useState<Record<string, number>>({});
+
+  // Track which questions have unsaved drawing changes
+  const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+
+  const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
+    setUnsavedDrawingQuestions(prev => {
+      const next = new Set(prev);
+      if (hasChanges) next.add(questionId);
+      else next.delete(questionId);
+      return next;
+    });
+  }, []);
+
+  // Intercept any navigation action; returns true if blocked by unsaved warning
+  const guardNavigation = useCallback((action: () => void): boolean => {
+    if (unsavedDrawingQuestions.size > 0) {
+      setPendingNavigation(() => action);
+      setShowUnsavedWarning(true);
+      return true;
+    }
+    action();
+    return false;
+  }, [unsavedDrawingQuestions]);
   
   // Keep answersRef in sync with userAnswers
   useEffect(() => {
