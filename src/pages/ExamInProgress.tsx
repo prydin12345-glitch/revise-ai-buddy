@@ -204,8 +204,12 @@ const ExamInProgress = () => {
   const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  // Synchronous mirror of unsavedDrawingQuestions to avoid stale-closure races
+  const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
 
   const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
+    if (hasChanges) unsavedDrawingQuestionsRef.current.add(questionId);
+    else unsavedDrawingQuestionsRef.current.delete(questionId);
     setUnsavedDrawingQuestions(prev => {
       const next = new Set(prev);
       if (hasChanges) next.add(questionId);
@@ -216,14 +220,14 @@ const ExamInProgress = () => {
 
   // Intercept any navigation action; returns true if blocked by unsaved warning
   const guardNavigation = useCallback((action: () => void): boolean => {
-    if (unsavedDrawingQuestions.size > 0) {
+    if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
       setShowUnsavedWarning(true);
       return true;
     }
     action();
     return false;
-  }, [unsavedDrawingQuestions]);
+  }, []);
   
   // Keep answersRef in sync with userAnswers
   useEffect(() => {
@@ -348,6 +352,18 @@ const ExamInProgress = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examId, timeRemaining, timerEnabled]);
+
+  // Warn on tab close/refresh if there are unsaved drawing changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (unsavedDrawingQuestionsRef.current.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   // Track mobile layout
   useEffect(() => {
@@ -901,6 +917,9 @@ const ExamInProgress = () => {
   };
 
   const handleAutoSubmit = () => {
+    // Time is up — drop unsaved-drawing flags so submission isn't blocked
+    unsavedDrawingQuestionsRef.current.clear();
+    setUnsavedDrawingQuestions(new Set());
     setIsAutoSubmit(true);
     toast({ title: "Time's Up!", description: "Auto-submitting exam...", variant: "destructive" });
     submitExam();
@@ -1263,8 +1282,8 @@ const ExamInProgress = () => {
                 onToggleNavigation={toggleNavigation}
                 isFlagged={flaggedQuestions.has(currentGroup.questions[0]?.id)}
                 onToggleFlag={() => currentGroup.questions[0] && toggleFlag(currentGroup.questions[0].id)}
-                onQuitAndSave={() => setShowQuitDialog(true)}
-                onSubmitAll={() => setShowSubmitDialog(true)}
+                onQuitAndSave={() => guardNavigation(() => setShowQuitDialog(true))}
+                onSubmitAll={() => guardNavigation(() => setShowSubmitDialog(true))}
                 isReadOnly={isReadOnly}
                 showProtractor={showProtractor}
                 onToggleProtractor={() => setShowProtractor(prev => !prev)}
@@ -1434,7 +1453,7 @@ const ExamInProgress = () => {
             {!isTeacher && (
               <Button 
                 size="lg" 
-                onClick={() => setShowSubmitDialog(true)}
+                onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
                 variant="destructive"
                 className="mt-auto"
@@ -2303,7 +2322,7 @@ const ExamInProgress = () => {
               <Button
                 variant="default"
                 className="px-4 sm:px-8 min-h-[44px]"
-                onClick={() => setShowSubmitDialog(true)}
+                onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -2434,42 +2453,44 @@ const ExamInProgress = () => {
               <AlertCircle className="h-5 w-5" style={{ color: 'hsl(25 95% 53%)' }} />
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
-              Unsaved diagram
+              You have an unsaved diagram
             </div>
             <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
-              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost and will not be included in your submission.
+              You have drawn a diagram for this question but have not saved it yet. Your diagram will not be included in your submission if you leave without saving. This cannot be undone.
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
                 onClick={() => {
                   setShowUnsavedWarning(false);
                   setPendingNavigation(null);
                 }}
                 style={{
-                  flex: 1, padding: '10px',
+                  width: '100%', padding: '11px',
                   background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
                   color: 'hsl(var(--primary-foreground))',
                   fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                Go back and save
+                Go back and save my diagram
               </button>
               <button
                 onClick={() => {
-                  setShowUnsavedWarning(false);
+                  // Drop unsaved flags so this navigation can complete
+                  unsavedDrawingQuestionsRef.current.clear();
                   setUnsavedDrawingQuestions(new Set());
+                  setShowUnsavedWarning(false);
                   if (pendingNavigation) pendingNavigation();
                   setPendingNavigation(null);
                 }}
                 style={{
-                  flex: 1, padding: '10px',
+                  width: '100%', padding: '11px',
                   background: 'transparent',
                   border: '1px solid hsl(var(--border))', borderRadius: 8,
                   color: 'hsl(var(--muted-foreground))',
                   fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                Leave without saving
+                Leave without saving — my diagram will be lost
               </button>
             </div>
           </div>

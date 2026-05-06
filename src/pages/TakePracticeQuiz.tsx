@@ -211,7 +211,10 @@ const TakePracticeQuiz = () => {
   const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
   const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
+    if (hasChanges) unsavedDrawingQuestionsRef.current.add(qid);
+    else unsavedDrawingQuestionsRef.current.delete(qid);
     setUnsavedDrawingQuestions(prev => {
       const n = new Set(prev);
       if (hasChanges) n.add(qid); else n.delete(qid);
@@ -219,14 +222,25 @@ const TakePracticeQuiz = () => {
     });
   }, []);
   const guardNavigation = useCallback((action: () => void): boolean => {
-    if (unsavedDrawingQuestions.size > 0) {
+    if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
       setShowUnsavedWarning(true);
       return true;
     }
     action();
     return false;
-  }, [unsavedDrawingQuestions]);
+  }, []);
+  // Warn on tab close/refresh if there are unsaved drawing changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (unsavedDrawingQuestionsRef.current.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
@@ -1516,8 +1530,8 @@ const TakePracticeQuiz = () => {
                 onToggleFlag={toggleFlag}
                 onShowSolution={() => setWorkedSolutionVisible(!workedSolutionVisible)}
                 solutionVisible={workedSolutionVisible}
-                onQuitAndSave={() => setShowQuitDialog(true)}
-                onSubmitAll={() => setShowSubmitDialog(true)}
+                onQuitAndSave={() => guardNavigation(() => setShowQuitDialog(true))}
+                onSubmitAll={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={currentAnswer.submitted}
                 showProtractor={showProtractor}
                 onToggleProtractor={() => setShowProtractor(prev => !prev)}
@@ -1577,7 +1591,7 @@ const TakePracticeQuiz = () => {
               {isReviewMode ? (
                 <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/quizzes')}>Exit Review</Button>
               ) : (
-                <Button variant="destructive" size="sm" className="mt-2" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+                <Button variant="destructive" size="sm" className="mt-2" onClick={() => guardNavigation(() => setShowSubmitDialog(true))}>Submit All</Button>
               )}
 
               {/* Resource Pack Section - at bottom of sidebar */}
@@ -2878,39 +2892,40 @@ const TakePracticeQuiz = () => {
             boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
           }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
-              Unsaved diagram
+              You have an unsaved diagram
             </div>
             <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
-              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost.
+              You have drawn a diagram for this question but have not saved it yet. Your diagram will not be included if you leave without saving. This cannot be undone.
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
                 onClick={() => { setShowUnsavedWarning(false); setPendingNavigation(null); }}
                 style={{
-                  flex: 1, padding: '10px',
+                  width: '100%', padding: '11px',
                   background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
                   color: 'hsl(var(--primary-foreground))',
                   fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                Go back and save
+                Go back and save my diagram
               </button>
               <button
                 onClick={() => {
-                  setShowUnsavedWarning(false);
+                  unsavedDrawingQuestionsRef.current.clear();
                   setUnsavedDrawingQuestions(new Set());
+                  setShowUnsavedWarning(false);
                   if (pendingNavigation) pendingNavigation();
                   setPendingNavigation(null);
                 }}
                 style={{
-                  flex: 1, padding: '10px',
+                  width: '100%', padding: '11px',
                   background: 'transparent',
                   border: '1px solid hsl(var(--border))', borderRadius: 8,
                   color: 'hsl(var(--muted-foreground))',
                   fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
-                Leave without saving
+                Leave without saving — my diagram will be lost
               </button>
             </div>
           </div>

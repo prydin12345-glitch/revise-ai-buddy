@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { DrawingCanvas } from './DrawingCanvas';
 import { DiagramMarkingChecklist } from './DiagramMarkingChecklist';
 import { generateMarkingCriteria } from './diagram-marking-criteria';
@@ -60,11 +60,18 @@ export const DrawDiagramQuestion = ({
   const [showMarking, setShowMarking] = useState(false);
   const [score, setScore] = useState<number | null>(null);
 
+  // Suppress the first onDrawingChange after the canvas mounts/remounts —
+  // the freshly re-encoded SVG is byte-different from savedDataUrl even when
+  // nothing has actually been drawn, which would otherwise flag spurious
+  // "unsaved changes".
+  const isInitialMountRef = useRef(true);
+
   // Sync if parent provides a new saved URL (e.g., navigating back to question)
   useEffect(() => {
     setSavedDataUrl(cleanSavedUrl);
     setWorkingDataUrl(cleanSavedUrl);
     setIsEditing(!cleanSavedUrl);
+    isInitialMountRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanSavedUrl]);
 
@@ -84,6 +91,13 @@ export const DrawDiagramQuestion = ({
     : null;
 
   const handleDrawingChange = useCallback((url: string) => {
+    // Ignore the first emission after (re)mounting the canvas — it's just
+    // the canvas re-encoding the existing saved drawing, not a real edit.
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      setWorkingDataUrl(url);
+      return;
+    }
     setWorkingDataUrl(url);
     const hasChanges = url !== savedDataUrl && url !== '';
     onUnsavedChanges?.(hasChanges);
@@ -100,6 +114,7 @@ export const DrawDiagramQuestion = ({
   }, [workingDataUrl, onSave, onAnswerChange, onUnsavedChanges]);
 
   const handleEdit = useCallback(() => {
+    isInitialMountRef.current = true; // suppress first re-encode after remount
     setIsEditing(true);
     setShowMarking(false);
     setScore(null);
@@ -245,19 +260,6 @@ export const DrawDiagramQuestion = ({
             textAlign: 'center', fontStyle: 'italic',
           }}>
             Draw your diagram above then click Save diagram
-          </div>
-        )}
-
-        {hasUnsavedChanges && (
-          <div style={{
-            marginTop: 8, padding: '6px 12px',
-            background: 'hsl(25 95% 53% / 0.08)',
-            border: '1px solid hsl(25 95% 53% / 0.2)',
-            borderRadius: 6, fontSize: 11,
-            color: 'hsl(25 95% 53%)',
-            textAlign: 'center',
-          }}>
-            You have unsaved changes — click Save diagram before moving on
           </div>
         )}
       </div>
