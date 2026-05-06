@@ -208,6 +208,25 @@ const TakePracticeQuiz = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hideNavigation, setHideNavigation] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
+  const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
+    setUnsavedDrawingQuestions(prev => {
+      const n = new Set(prev);
+      if (hasChanges) n.add(qid); else n.delete(qid);
+      return n;
+    });
+  }, []);
+  const guardNavigation = useCallback((action: () => void): boolean => {
+    if (unsavedDrawingQuestions.size > 0) {
+      setPendingNavigation(() => action);
+      setShowUnsavedWarning(true);
+      return true;
+    }
+    action();
+    return false;
+  }, [unsavedDrawingQuestions]);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
@@ -1538,7 +1557,7 @@ const TakePracticeQuiz = () => {
                   {questions.map((q) => {
                     const { className, style } = getQuestionButtonStyle(q);
                     return (
-                      <button key={q.id} onClick={() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); }} className={className} style={style}>
+                      <button key={q.id} onClick={() => guardNavigation(() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); })} className={className} style={style}>
                         {q.question_number}
                         {flaggedQuestions.has(q.id) && (
                           <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
@@ -1721,10 +1740,8 @@ const TakePracticeQuiz = () => {
                         subject={(currentQuestion as any).subject ?? ''}
                         questionType={currentQuestion.question_type}
                         totalMarks={currentQuestion.marks ?? 4}
-                        studentDrawingDataUrl={
-                          getDrawingDataUrl(userAnswers[currentQuestion.id]?.workingOut)
-                        }
-                        onAnswerChange={(url) => {
+                        savedDrawingDataUrl={userAnswers[currentQuestion.id]?.workingOut ?? ''}
+                        onSave={(url) => {
                           setUserAnswers(prev => ({
                             ...prev,
                             [currentQuestion.id]: {
@@ -1733,6 +1750,7 @@ const TakePracticeQuiz = () => {
                             },
                           }));
                         }}
+                        onUnsavedChanges={(has) => handleDrawingWorkingChange(currentQuestion.id, has)}
                       />
                     );
                   })()}
@@ -2637,7 +2655,7 @@ const TakePracticeQuiz = () => {
               ) : (
                 <>
                   <Button 
-                    onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
                     disabled={currentIndex === 0} 
                     variant="outline" 
                     size="lg" 
@@ -2668,7 +2686,7 @@ const TakePracticeQuiz = () => {
                     )}
                   </Button>
                   <Button 
-                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
                     disabled={currentIndex === questions.length - 1} 
                     variant="outline" 
                     size="lg" 
@@ -2846,6 +2864,57 @@ const TakePracticeQuiz = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+      {showUnsavedWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'hsl(var(--card))', borderRadius: 14, padding: 24,
+            maxWidth: 400, width: '100%',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
+              Unsaved diagram
+            </div>
+            <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
+              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { setShowUnsavedWarning(false); setPendingNavigation(null); }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
+                  color: 'hsl(var(--primary-foreground))',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Go back and save
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setUnsavedDrawingQuestions(new Set());
+                  if (pendingNavigation) pendingNavigation();
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid hsl(var(--border))', borderRadius: 8,
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {/* Content Disclaimer Footer */}
       <div className="border-t border-border bg-muted/30 py-3 px-6 text-center mt-auto">

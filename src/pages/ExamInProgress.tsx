@@ -199,6 +199,31 @@ const ExamInProgress = () => {
   const answersRef = useRef(userAnswers);
   const [showSelfMarkReview, setShowSelfMarkReview] = useState(false);
   const [selfMarkScores, setSelfMarkScores] = useState<Record<string, number>>({});
+
+  // Track which questions have unsaved drawing changes
+  const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+
+  const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
+    setUnsavedDrawingQuestions(prev => {
+      const next = new Set(prev);
+      if (hasChanges) next.add(questionId);
+      else next.delete(questionId);
+      return next;
+    });
+  }, []);
+
+  // Intercept any navigation action; returns true if blocked by unsaved warning
+  const guardNavigation = useCallback((action: () => void): boolean => {
+    if (unsavedDrawingQuestions.size > 0) {
+      setPendingNavigation(() => action);
+      setShowUnsavedWarning(true);
+      return true;
+    }
+    action();
+    return false;
+  }, [unsavedDrawingQuestions]);
   
   // Keep answersRef in sync with userAnswers
   useEffect(() => {
@@ -1333,14 +1358,14 @@ const ExamInProgress = () => {
                                 return (
                                   <button
                                     key={q.id}
-                                    onClick={async () => {
+                                    onClick={() => guardNavigation(async () => {
                                       await flushCurrentPageSaves();
                                       const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
                                       if (groupIndex !== -1) {
                                         setCurrentPage(groupIndex);
                                         setTimeout(() => scrollToQuestion(q.id), 100);
                                       }
-                                    }}
+                                    })}
                                     className={`relative flex items-center gap-2 w-full px-2 py-1 rounded text-xs transition-all hover:bg-muted/50 ${isFlagged ? 'ring-1 ring-yellow-500' : ''}`}
                                   >
                                     <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-semibold" style={{
@@ -1365,14 +1390,14 @@ const ExamInProgress = () => {
                             
                             return (
                               <button
-                                onClick={async () => {
+                                onClick={() => guardNavigation(async () => {
                                   await flushCurrentPageSaves();
                                   const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
                                   if (groupIndex !== -1) {
                                     setCurrentPage(groupIndex);
                                     setTimeout(() => scrollToQuestion(q.id), 100);
                                   }
-                                }}
+                                })}
                                 className={`relative flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-all ${isFlagged ? 'ring-1 ring-yellow-500' : ''}`}
                               >
                                 <span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold" style={{
@@ -1684,16 +1709,17 @@ const ExamInProgress = () => {
                         questionType={question.question_type}
                         totalMarks={question.marks ?? 4}
                         isExam={true}
-                        studentDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
-                        onAnswerChange={(url) => {
+                        savedDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
+                        onSave={(url) => {
                           updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
-                          saveTimeouts.current[question.id] = setTimeout(() => {
-                            handleSaveAnswer(question.id);
-                          }, 1000);
+                          handleSaveAnswer(question.id);
                         }}
+                        onUnsavedChanges={(hasChanges) =>
+                          handleDrawingWorkingChange(question.id, hasChanges)
+                        }
                       />
                     );
                   })()}
@@ -2252,10 +2278,10 @@ const ExamInProgress = () => {
             <Button
               variant="outline"
               className="px-3 sm:px-6 min-h-[44px]"
-              onClick={async () => {
+              onClick={() => guardNavigation(async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
-              }}
+              })}
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -2265,10 +2291,10 @@ const ExamInProgress = () => {
             {hasNextPage ? (
               <Button
                 className="px-3 sm:px-6 min-h-[44px]"
-                onClick={async () => {
+                onClick={() => guardNavigation(async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
-                }}
+                })}
               >
                 <span className="hidden sm:inline mr-1">Next Section</span>
                 <ChevronRight className="h-4 w-4 shrink-0" />
@@ -2385,6 +2411,70 @@ const ExamInProgress = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Unsaved diagram warning */}
+      {showUnsavedWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'hsl(var(--card))', borderRadius: 14, padding: 24,
+            maxWidth: 400, width: '100%',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'hsl(25 95% 53% / 0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 14,
+            }}>
+              <AlertCircle className="h-5 w-5" style={{ color: 'hsl(25 95% 53%)' }} />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
+              Unsaved diagram
+            </div>
+            <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
+              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost and will not be included in your submission.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
+                  color: 'hsl(var(--primary-foreground))',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Go back and save
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setUnsavedDrawingQuestions(new Set());
+                  if (pendingNavigation) pendingNavigation();
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid hsl(var(--border))', borderRadius: 8,
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Self-mark review for diagram questions before submission */}
       {showSelfMarkReview && (
