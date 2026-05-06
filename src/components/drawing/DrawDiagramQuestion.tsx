@@ -6,14 +6,25 @@ import { detectDrawQuestion } from './draw-question-detector';
 import { detectEconomicsDiagram } from '@/components/economics/economics-detector';
 import { EconomicsDiagramDraw } from '@/components/economics/EconomicsDiagramDraw';
 
+export const DRAWING_PREFIX = 'drawing:';
+
+export const isDrawingAnswer = (answer: string | null | undefined): boolean =>
+  (answer ?? '').startsWith(DRAWING_PREFIX);
+
+export const getDrawingDataUrl = (answer: string | null | undefined): string =>
+  (answer ?? '').startsWith(DRAWING_PREFIX)
+    ? (answer ?? '').slice(DRAWING_PREFIX.length)
+    : (answer ?? '');
+
 interface Props {
   questionText: string;
   subject?: string;
   questionType?: string;
   totalMarks: number;
-  onAnswerChange?: (dataUrl: string) => void;
+  onAnswerChange?: (prefixedDataUrl: string) => void;
   onScoreChange?: (score: number) => void;
   isReview?: boolean;
+  isExam?: boolean;
   studentDrawingDataUrl?: string;
 }
 
@@ -27,9 +38,11 @@ export const DrawDiagramQuestion = ({
   onAnswerChange,
   onScoreChange,
   isReview = false,
+  isExam = false,
   studentDrawingDataUrl,
 }: Props) => {
-  const [dataUrl, setDataUrl] = useState(studentDrawingDataUrl ?? '');
+  const initial = getDrawingDataUrl(studentDrawingDataUrl);
+  const [dataUrl, setDataUrl] = useState(initial);
   const [showMarking, setShowMarking] = useState(false);
   const [score, setScore] = useState<number | null>(null);
 
@@ -47,7 +60,7 @@ export const DrawDiagramQuestion = ({
 
   const handleChange = useCallback((url: string) => {
     setDataUrl(url);
-    onAnswerChange?.(url);
+    onAnswerChange?.(`${DRAWING_PREFIX}${url}`);
   }, [onAnswerChange]);
 
   const handleMarkingComplete = useCallback((s: number) => {
@@ -58,13 +71,13 @@ export const DrawDiagramQuestion = ({
   if (isReview) {
     return (
       <div style={{ marginTop: 12 }}>
-        {studentDrawingDataUrl ? (
+        {dataUrl ? (
           <>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'hsl(var(--foreground))' }}>
               Your diagram:
             </div>
             <img
-              src={studentDrawingDataUrl}
+              src={dataUrl}
               alt="Student diagram"
               style={{
                 width: '100%', maxWidth: 520,
@@ -122,7 +135,8 @@ export const DrawDiagramQuestion = ({
         axisLabels={info.axisLabels}
       />
 
-      {dataUrl && !showMarking && score === null && (
+      {/* Practice mode: inline self-mark */}
+      {!isExam && dataUrl && !showMarking && score === null && (
         <button
           onClick={() => setShowMarking(true)}
           style={{
@@ -138,7 +152,29 @@ export const DrawDiagramQuestion = ({
         </button>
       )}
 
-      {showMarking && (
+      {/* Exam mode: show saved confirmation only */}
+      {isExam && dataUrl && (
+        <div style={{
+          marginTop: 8,
+          padding: '7px 12px',
+          background: 'hsl(142 71% 45% / 0.08)',
+          border: '1px solid hsl(142 71% 45% / 0.2)',
+          borderRadius: 6,
+          fontSize: 12,
+          color: 'hsl(142 71% 45%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <svg width={14} height={14} viewBox="0 0 14 14" fill="none">
+            <circle cx={7} cy={7} r={6} stroke="hsl(142 71% 45%)" strokeWidth={1.5} />
+            <path d="M4 7l2 2 4-4" stroke="hsl(142 71% 45%)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Diagram saved — you can continue to the next question
+        </div>
+      )}
+
+      {!isExam && showMarking && (
         <DiagramMarkingChecklist
           criteria={criteria}
           referenceContent={referenceContent}
@@ -147,7 +183,7 @@ export const DrawDiagramQuestion = ({
         />
       )}
 
-      {score !== null && (
+      {!isExam && score !== null && (
         <div style={{
           marginTop: 10,
           padding: '10px',
