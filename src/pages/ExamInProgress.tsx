@@ -207,6 +207,7 @@ const ExamInProgress = () => {
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
   // Synchronous mirror of unsavedDrawingQuestions to avoid stale-closure races
   const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
+  const savedElementsRef = useRef<Record<string, DrawnElement[]>>({});
 
   const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
     if (hasChanges) unsavedDrawingQuestionsRef.current.add(questionId);
