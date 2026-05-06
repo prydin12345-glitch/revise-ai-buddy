@@ -106,11 +106,14 @@ export const DrawDiagramQuestion = ({
   const handleSave = useCallback(() => {
     if (!workingDataUrl) return;
     const prefixed = `${DRAWING_PREFIX}${workingDataUrl}`;
+    // Suppress any canvas re-emissions that fire during the React commit
+    // cycle after parent state updates. Must be set before onSave fires:
+    isInitialMountRef.current = true;
     setSavedDataUrl(workingDataUrl);
     setIsEditing(false);
-    onSave?.(prefixed);
+    onUnsavedChanges?.(false); // clear unsaved flag synchronously first
+    onSave?.(prefixed);        // then notify parent — may trigger re-renders
     onAnswerChange?.(prefixed);
-    onUnsavedChanges?.(false);
   }, [workingDataUrl, onSave, onAnswerChange, onUnsavedChanges]);
 
   const handleEdit = useCallback(() => {
