@@ -44,7 +44,12 @@ export const SelfMarkReviewModal = ({ questions, onComplete, onDismiss }: Props)
     current.marks,
   );
 
-  const drawingUrl = getDrawingDataUrl(current.studentDrawingDataUrl);
+  const raw = current.studentDrawingDataUrl ?? '';
+  const drawingUrl = raw.startsWith('drawing:')
+    ? raw.slice('drawing:'.length)
+    : raw.startsWith('data:')
+      ? raw
+      : '';
 
   const handleScore = (s: number) => {
     setScores(prev => ({ ...prev, [current.id]: s }));
