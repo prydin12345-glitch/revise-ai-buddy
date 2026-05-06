@@ -1390,14 +1390,14 @@ const ExamInProgress = () => {
                             
                             return (
                               <button
-                                onClick={async () => {
+                                onClick={() => guardNavigation(async () => {
                                   await flushCurrentPageSaves();
                                   const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
                                   if (groupIndex !== -1) {
                                     setCurrentPage(groupIndex);
                                     setTimeout(() => scrollToQuestion(q.id), 100);
                                   }
-                                }}
+                                })}
                                 className={`relative flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-all ${isFlagged ? 'ring-1 ring-yellow-500' : ''}`}
                               >
                                 <span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold" style={{
