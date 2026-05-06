@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { DrawingCanvas } from './DrawingCanvas';
+import type { DrawnElement } from './DrawingCanvas';
 import { DiagramMarkingChecklist } from './DiagramMarkingChecklist';
 import { generateMarkingCriteria } from './diagram-marking-criteria';
 import { detectDrawQuestion } from './draw-question-detector';
