@@ -213,6 +213,7 @@ const TakePracticeQuiz = () => {
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
   const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
+  const savedElementsRef = useRef<Record<string, DrawnElement[]>>({});
   const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
     if (hasChanges) unsavedDrawingQuestionsRef.current.add(qid);
     else unsavedDrawingQuestionsRef.current.delete(qid);
