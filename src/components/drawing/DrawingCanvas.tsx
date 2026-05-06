@@ -463,6 +463,16 @@ export const DrawingCanvas = ({
         onPointerLeave={onPointerUp}
         onPointerCancel={onPointerUp}
       >
+        {backgroundDataUrl && elements.length === 0 && (
+          <image
+            href={backgroundDataUrl}
+            x={0} y={0}
+            width={W} height={H}
+            preserveAspectRatio="xMidYMid meet"
+            opacity={0.85}
+            pointerEvents="none"
+          />
+        )}
         {showAxes && axisLabels.x && axisLabels.y && (
           <g opacity={0.3} pointerEvents="none">
             {Array.from({ length: 5 }, (_, i) => i + 1).map(i => (
