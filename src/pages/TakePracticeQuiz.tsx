@@ -230,7 +230,17 @@ const TakePracticeQuiz = () => {
     action();
     return false;
   }, []);
-  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  // Warn on tab close/refresh if there are unsaved drawing changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (unsavedDrawingQuestionsRef.current.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
