@@ -23,6 +23,7 @@ interface Props {
   questionType?: string;
   totalMarks: number;
   onSave?: (prefixedDataUrl: string) => void;
+  onSaveWithElements?: (prefixedDataUrl: string, elements: DrawnElement[]) => void;
   onAnswerChange?: (prefixedDataUrl: string) => void;
   onScoreChange?: (score: number) => void;
   onUnsavedChanges?: (hasChanges: boolean) => void;
@@ -32,6 +33,8 @@ interface Props {
   savedDrawingDataUrl?: string;
   /** Backward-compat alias */
   studentDrawingDataUrl?: string;
+  /** Previously-saved drawn elements — restores canvas exactly across navigation */
+  initialElements?: DrawnElement[];
 }
 
 export { detectDrawQuestion };
