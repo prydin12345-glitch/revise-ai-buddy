@@ -1519,8 +1519,8 @@ const TakePracticeQuiz = () => {
                 onToggleFlag={toggleFlag}
                 onShowSolution={() => setWorkedSolutionVisible(!workedSolutionVisible)}
                 solutionVisible={workedSolutionVisible}
-                onQuitAndSave={() => setShowQuitDialog(true)}
-                onSubmitAll={() => setShowSubmitDialog(true)}
+                onQuitAndSave={() => guardNavigation(() => setShowQuitDialog(true))}
+                onSubmitAll={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={currentAnswer.submitted}
                 showProtractor={showProtractor}
                 onToggleProtractor={() => setShowProtractor(prev => !prev)}
@@ -1580,7 +1580,7 @@ const TakePracticeQuiz = () => {
               {isReviewMode ? (
                 <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/quizzes')}>Exit Review</Button>
               ) : (
-                <Button variant="destructive" size="sm" className="mt-2" onClick={() => setShowSubmitDialog(true)}>Submit All</Button>
+                <Button variant="destructive" size="sm" className="mt-2" onClick={() => guardNavigation(() => setShowSubmitDialog(true))}>Submit All</Button>
               )}
 
               {/* Resource Pack Section - at bottom of sidebar */}
