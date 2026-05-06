@@ -204,8 +204,12 @@ const ExamInProgress = () => {
   const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  // Synchronous mirror of unsavedDrawingQuestions to avoid stale-closure races
+  const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
 
   const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
+    if (hasChanges) unsavedDrawingQuestionsRef.current.add(questionId);
+    else unsavedDrawingQuestionsRef.current.delete(questionId);
     setUnsavedDrawingQuestions(prev => {
       const next = new Set(prev);
       if (hasChanges) next.add(questionId);
@@ -216,14 +220,14 @@ const ExamInProgress = () => {
 
   // Intercept any navigation action; returns true if blocked by unsaved warning
   const guardNavigation = useCallback((action: () => void): boolean => {
-    if (unsavedDrawingQuestions.size > 0) {
+    if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
       setShowUnsavedWarning(true);
       return true;
     }
     action();
     return false;
-  }, [unsavedDrawingQuestions]);
+  }, []);
   
   // Keep answersRef in sync with userAnswers
   useEffect(() => {
