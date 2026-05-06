@@ -2686,7 +2686,7 @@ const TakePracticeQuiz = () => {
                     )}
                   </Button>
                   <Button 
-                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
                     disabled={currentIndex === questions.length - 1} 
                     variant="outline" 
                     size="lg" 
