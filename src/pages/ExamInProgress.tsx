@@ -2412,6 +2412,70 @@ const ExamInProgress = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Unsaved diagram warning */}
+      {showUnsavedWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'hsl(var(--card))', borderRadius: 14, padding: 24,
+            maxWidth: 400, width: '100%',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'hsl(25 95% 53% / 0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 14,
+            }}>
+              <AlertCircle className="h-5 w-5" style={{ color: 'hsl(25 95% 53%)' }} />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 8 }}>
+              Unsaved diagram
+            </div>
+            <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', lineHeight: 1.6, marginBottom: 20 }}>
+              You have drawn a diagram but have not saved it yet. If you leave now your diagram will be lost and will not be included in your submission.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'hsl(var(--primary))', border: 'none', borderRadius: 8,
+                  color: 'hsl(var(--primary-foreground))',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Go back and save
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setUnsavedDrawingQuestions(new Set());
+                  if (pendingNavigation) pendingNavigation();
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid hsl(var(--border))', borderRadius: 8,
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Self-mark review for diagram questions before submission */}
       {showSelfMarkReview && (
         <SelfMarkReviewModal
