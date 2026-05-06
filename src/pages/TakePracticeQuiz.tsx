@@ -86,7 +86,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
-import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
+import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
@@ -1721,6 +1721,9 @@ const TakePracticeQuiz = () => {
                         subject={(currentQuestion as any).subject ?? ''}
                         questionType={currentQuestion.question_type}
                         totalMarks={currentQuestion.marks ?? 4}
+                        studentDrawingDataUrl={
+                          getDrawingDataUrl(userAnswers[currentQuestion.id]?.workingOut)
+                        }
                         onAnswerChange={(url) => {
                           setUserAnswers(prev => ({
                             ...prev,
