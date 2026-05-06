@@ -28,20 +28,28 @@ const COLORS = [
 
 const STROKE_WIDTHS = [1.5, 2.5, 4];
 
+export type { DrawnElement, Point, DrawingTool };
+
 interface Props {
   onDrawingChange?: (dataUrl: string) => void;
+  onElementsChange?: (elements: DrawnElement[]) => void;
   disabled?: boolean;
   showAxes?: boolean;
   axisLabels?: { x: string; y: string };
   height?: number;
+  initialElements?: DrawnElement[];
+  backgroundDataUrl?: string;
 }
 
 export const DrawingCanvas = ({
   onDrawingChange,
+  onElementsChange,
   disabled = false,
   showAxes = true,
   axisLabels = { x: 'Quantity', y: 'Price' },
   height = 340,
+  initialElements,
+  backgroundDataUrl,
 }: Props) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
