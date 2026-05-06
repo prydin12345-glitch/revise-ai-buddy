@@ -1557,7 +1557,7 @@ const TakePracticeQuiz = () => {
                   {questions.map((q) => {
                     const { className, style } = getQuestionButtonStyle(q);
                     return (
-                      <button key={q.id} onClick={() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); }} className={className} style={style}>
+                      <button key={q.id} onClick={() => guardNavigation(() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); })} className={className} style={style}>
                         {q.question_number}
                         {flaggedQuestions.has(q.id) && (
                           <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
