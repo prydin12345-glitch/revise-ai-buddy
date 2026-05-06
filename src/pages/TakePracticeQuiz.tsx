@@ -208,6 +208,25 @@ const TakePracticeQuiz = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hideNavigation, setHideNavigation] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set());
+  const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
+    setUnsavedDrawingQuestions(prev => {
+      const n = new Set(prev);
+      if (hasChanges) n.add(qid); else n.delete(qid);
+      return n;
+    });
+  }, []);
+  const guardNavigation = useCallback((action: () => void): boolean => {
+    if (unsavedDrawingQuestions.size > 0) {
+      setPendingNavigation(() => action);
+      setShowUnsavedWarning(true);
+      return true;
+    }
+    action();
+    return false;
+  }, [unsavedDrawingQuestions]);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
