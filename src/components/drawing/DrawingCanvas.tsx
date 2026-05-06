@@ -85,6 +85,7 @@ export const DrawingCanvas = ({
   }, []);
 
   useEffect(() => {
+    onElementsChange?.(elements);
     if (!onDrawingChange || elements.length === 0) return;
     const svg = svgRef.current;
     if (!svg) return;
@@ -94,7 +95,7 @@ export const DrawingCanvas = ({
       unescape(encodeURIComponent(str))
     )}`;
     onDrawingChange(url);
-  }, [elements, onDrawingChange]);
+  }, [elements, onDrawingChange, onElementsChange]);
 
   const getPoint = useCallback((e: React.PointerEvent): Point => {
     const svg = svgRef.current;
