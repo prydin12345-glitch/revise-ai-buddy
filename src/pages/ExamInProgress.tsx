@@ -905,6 +905,9 @@ const ExamInProgress = () => {
   };
 
   const handleAutoSubmit = () => {
+    // Time is up — drop unsaved-drawing flags so submission isn't blocked
+    unsavedDrawingQuestionsRef.current.clear();
+    setUnsavedDrawingQuestions(new Set());
     setIsAutoSubmit(true);
     toast({ title: "Time's Up!", description: "Auto-submitting exam...", variant: "destructive" });
     submitExam();
