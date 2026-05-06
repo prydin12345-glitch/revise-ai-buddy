@@ -2278,10 +2278,10 @@ const ExamInProgress = () => {
             <Button
               variant="outline"
               className="px-3 sm:px-6 min-h-[44px]"
-              onClick={async () => {
+              onClick={() => guardNavigation(async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
-              }}
+              })}
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -2291,10 +2291,10 @@ const ExamInProgress = () => {
             {hasNextPage ? (
               <Button
                 className="px-3 sm:px-6 min-h-[44px]"
-                onClick={async () => {
+                onClick={() => guardNavigation(async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
-                }}
+                })}
               >
                 <span className="hidden sm:inline mr-1">Next Section</span>
                 <ChevronRight className="h-4 w-4 shrink-0" />
