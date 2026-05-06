@@ -241,6 +241,7 @@ const TakePracticeQuiz = () => {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
