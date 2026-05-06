@@ -28,20 +28,28 @@ const COLORS = [
 
 const STROKE_WIDTHS = [1.5, 2.5, 4];
 
+export type { DrawnElement, Point };
+
 interface Props {
   onDrawingChange?: (dataUrl: string) => void;
+  onElementsChange?: (elements: DrawnElement[]) => void;
   disabled?: boolean;
   showAxes?: boolean;
   axisLabels?: { x: string; y: string };
   height?: number;
+  initialElements?: DrawnElement[];
+  backgroundDataUrl?: string;
 }
 
 export const DrawingCanvas = ({
   onDrawingChange,
+  onElementsChange,
   disabled = false,
   showAxes = true,
   axisLabels = { x: 'Quantity', y: 'Price' },
   height = 340,
+  initialElements,
+  backgroundDataUrl,
 }: Props) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +59,7 @@ export const DrawingCanvas = ({
   const [tool, setTool] = useState<DrawingTool>('pen');
   const [color, setColor] = useState('#111111');
   const [strokeWidth, setStrokeWidth] = useState(2.5);
-  const [elements, setElements] = useState<DrawnElement[]>([]);
+  const [elements, setElements] = useState<DrawnElement[]>(initialElements ?? []);
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
   const [lineStart, setLineStart] = useState<Point | null>(null);
   const [linePreview, setLinePreview] = useState<Point | null>(null);
@@ -77,6 +85,7 @@ export const DrawingCanvas = ({
   }, []);
 
   useEffect(() => {
+    onElementsChange?.(elements);
     if (!onDrawingChange || elements.length === 0) return;
     const svg = svgRef.current;
     if (!svg) return;
@@ -86,7 +95,7 @@ export const DrawingCanvas = ({
       unescape(encodeURIComponent(str))
     )}`;
     onDrawingChange(url);
-  }, [elements, onDrawingChange]);
+  }, [elements, onDrawingChange, onElementsChange]);
 
   const getPoint = useCallback((e: React.PointerEvent): Point => {
     const svg = svgRef.current;
@@ -454,6 +463,16 @@ export const DrawingCanvas = ({
         onPointerLeave={onPointerUp}
         onPointerCancel={onPointerUp}
       >
+        {backgroundDataUrl && elements.length === 0 && (
+          <image
+            href={backgroundDataUrl}
+            x={0} y={0}
+            width={W} height={H}
+            preserveAspectRatio="xMidYMid meet"
+            opacity={0.85}
+            pointerEvents="none"
+          />
+        )}
         {showAxes && axisLabels.x && axisLabels.y && (
           <g opacity={0.3} pointerEvents="none">
             {Array.from({ length: 5 }, (_, i) => i + 1).map(i => (

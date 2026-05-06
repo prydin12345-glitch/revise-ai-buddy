@@ -66,6 +66,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
+import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 
 // Helper to add opacity to hex color
@@ -206,6 +207,7 @@ const ExamInProgress = () => {
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
   // Synchronous mirror of unsavedDrawingQuestions to avoid stale-closure races
   const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
+  const savedElementsRef = useRef<Record<string, DrawnElement[]>>({});
 
   const handleDrawingWorkingChange = useCallback((questionId: string, hasChanges: boolean) => {
     if (hasChanges) unsavedDrawingQuestionsRef.current.add(questionId);
@@ -1729,12 +1731,16 @@ const ExamInProgress = () => {
                         totalMarks={question.marks ?? 4}
                         isExam={true}
                         savedDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
+                        initialElements={savedElementsRef.current[question.id] ?? []}
                         onSave={(url) => {
                           updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
                           handleSaveAnswer(question.id);
+                        }}
+                        onSaveWithElements={(_url, els) => {
+                          savedElementsRef.current[question.id] = els;
                         }}
                         onUnsavedChanges={(hasChanges) =>
                           handleDrawingWorkingChange(question.id, hasChanges)

@@ -87,6 +87,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
+import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
@@ -212,6 +213,7 @@ const TakePracticeQuiz = () => {
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
   const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
+  const savedElementsRef = useRef<Record<string, DrawnElement[]>>({});
   const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
     if (hasChanges) unsavedDrawingQuestionsRef.current.add(qid);
     else unsavedDrawingQuestionsRef.current.delete(qid);
@@ -1755,6 +1757,7 @@ const TakePracticeQuiz = () => {
                         questionType={currentQuestion.question_type}
                         totalMarks={currentQuestion.marks ?? 4}
                         savedDrawingDataUrl={userAnswers[currentQuestion.id]?.workingOut ?? ''}
+                        initialElements={savedElementsRef.current[currentQuestion.id] ?? []}
                         onSave={(url) => {
                           setUserAnswers(prev => ({
                             ...prev,
@@ -1763,6 +1766,9 @@ const TakePracticeQuiz = () => {
                               workingOut: url,
                             },
                           }));
+                        }}
+                        onSaveWithElements={(_url, els) => {
+                          savedElementsRef.current[currentQuestion.id] = els;
                         }}
                         onUnsavedChanges={(has) => handleDrawingWorkingChange(currentQuestion.id, has)}
                       />

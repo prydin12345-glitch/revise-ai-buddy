@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { DrawingCanvas } from './DrawingCanvas';
+import type { DrawnElement } from './DrawingCanvas';
 import { DiagramMarkingChecklist } from './DiagramMarkingChecklist';
 import { generateMarkingCriteria } from './diagram-marking-criteria';
 import { detectDrawQuestion } from './draw-question-detector';
@@ -22,6 +23,7 @@ interface Props {
   questionType?: string;
   totalMarks: number;
   onSave?: (prefixedDataUrl: string) => void;
+  onSaveWithElements?: (prefixedDataUrl: string, elements: DrawnElement[]) => void;
   onAnswerChange?: (prefixedDataUrl: string) => void;
   onScoreChange?: (score: number) => void;
   onUnsavedChanges?: (hasChanges: boolean) => void;
@@ -31,6 +33,8 @@ interface Props {
   savedDrawingDataUrl?: string;
   /** Backward-compat alias */
   studentDrawingDataUrl?: string;
+  /** Previously-saved drawn elements — restores canvas exactly across navigation */
+  initialElements?: DrawnElement[];
 }
 
 export { detectDrawQuestion };
@@ -41,6 +45,7 @@ export const DrawDiagramQuestion = ({
   questionType,
   totalMarks,
   onSave,
+  onSaveWithElements,
   onAnswerChange,
   onScoreChange,
   onUnsavedChanges,
@@ -48,6 +53,7 @@ export const DrawDiagramQuestion = ({
   isExam = false,
   savedDrawingDataUrl,
   studentDrawingDataUrl,
+  initialElements,
 }: Props) => {
   const incomingRaw = savedDrawingDataUrl ?? studentDrawingDataUrl ?? '';
   const cleanSavedUrl = incomingRaw.startsWith(DRAWING_PREFIX)
@@ -59,6 +65,8 @@ export const DrawDiagramQuestion = ({
   const [isEditing, setIsEditing] = useState(!cleanSavedUrl);
   const [showMarking, setShowMarking] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [savedElements, setSavedElements] = useState<DrawnElement[]>(initialElements ?? []);
+  const [workingElements, setWorkingElements] = useState<DrawnElement[]>(initialElements ?? []);
 
   // Suppress the first onDrawingChange after the canvas mounts/remounts —
   // the freshly re-encoded SVG is byte-different from savedDataUrl even when
@@ -103,25 +111,30 @@ export const DrawDiagramQuestion = ({
     onUnsavedChanges?.(hasChanges);
   }, [savedDataUrl, onUnsavedChanges]);
 
+  const handleElementsChange = useCallback((els: DrawnElement[]) => {
+    setWorkingElements(els);
+  }, []);
+
   const handleSave = useCallback(() => {
     if (!workingDataUrl) return;
     const prefixed = `${DRAWING_PREFIX}${workingDataUrl}`;
-    // Suppress any canvas re-emissions that fire during the React commit
-    // cycle after parent state updates. Must be set before onSave fires:
     isInitialMountRef.current = true;
     setSavedDataUrl(workingDataUrl);
+    setSavedElements(workingElements);
     setIsEditing(false);
-    onUnsavedChanges?.(false); // clear unsaved flag synchronously first
-    onSave?.(prefixed);        // then notify parent — may trigger re-renders
+    onUnsavedChanges?.(false);
+    onSave?.(prefixed);
+    onSaveWithElements?.(prefixed, workingElements);
     onAnswerChange?.(prefixed);
-  }, [workingDataUrl, onSave, onAnswerChange, onUnsavedChanges]);
+  }, [workingDataUrl, workingElements, onSave, onSaveWithElements, onAnswerChange, onUnsavedChanges]);
 
   const handleEdit = useCallback(() => {
-    isInitialMountRef.current = true; // suppress first re-encode after remount
+    isInitialMountRef.current = true;
+    setWorkingElements(savedElements);
     setIsEditing(true);
     setShowMarking(false);
     setScore(null);
-  }, []);
+  }, [savedElements]);
 
   // ── Review mode ────────────────────────────────────────────────────────
   if (isReview) {
@@ -202,8 +215,13 @@ export const DrawDiagramQuestion = ({
       <div style={{ marginTop: 12 }}>
         <DrawingCanvas
           onDrawingChange={handleDrawingChange}
+          onElementsChange={handleElementsChange}
           showAxes={info.diagramCategory === 'economics'}
           axisLabels={info.axisLabels}
+          initialElements={workingElements.length > 0 ? workingElements : undefined}
+          backgroundDataUrl={
+            workingElements.length === 0 && savedDataUrl ? savedDataUrl : undefined
+          }
         />
 
         <div style={{
