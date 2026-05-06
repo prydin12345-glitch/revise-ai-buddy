@@ -1709,16 +1709,17 @@ const ExamInProgress = () => {
                         questionType={question.question_type}
                         totalMarks={question.marks ?? 4}
                         isExam={true}
-                        studentDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
-                        onAnswerChange={(url) => {
+                        savedDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
+                        onSave={(url) => {
                           updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
-                          saveTimeouts.current[question.id] = setTimeout(() => {
-                            handleSaveAnswer(question.id);
-                          }, 1000);
+                          handleSaveAnswer(question.id);
                         }}
+                        onUnsavedChanges={(hasChanges) =>
+                          handleDrawingWorkingChange(question.id, hasChanges)
+                        }
                       />
                     );
                   })()}
