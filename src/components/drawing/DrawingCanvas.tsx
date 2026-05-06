@@ -59,6 +59,7 @@ export const DrawingCanvas = ({
   const [labelText, setLabelText] = useState('');
   const [labelPos, setLabelPos] = useState<Point | null>(null);
   const [showLabelInput, setShowLabelInput] = useState(false);
+  const lastPointTime = useRef(0);
 
   const MARGIN = { top: 36, right: 28, bottom: 52, left: 58 };
   const plotW = W - MARGIN.left - MARGIN.right;
@@ -87,29 +88,20 @@ export const DrawingCanvas = ({
     onDrawingChange(url);
   }, [elements, onDrawingChange]);
 
-  const getPoint = useCallback((
-    e: React.MouseEvent | React.TouchEvent
-  ): Point => {
+  const getPoint = useCallback((e: React.PointerEvent): Point => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
-    const cx = 'touches' in e
-      ? e.touches[0]?.clientX ?? 0
-      : (e as React.MouseEvent).clientX;
-    const cy = 'touches' in e
-      ? e.touches[0]?.clientY ?? 0
-      : (e as React.MouseEvent).clientY;
     return {
-      x: ((cx - rect.left) / rect.width) * W,
-      y: ((cy - rect.top) / rect.height) * H,
+      x: ((e.clientX - rect.left) / rect.width) * W,
+      y: ((e.clientY - rect.top) / rect.height) * H,
     };
   }, [W, H]);
 
-  const onPointerDown = useCallback((
-    e: React.MouseEvent | React.TouchEvent
-  ) => {
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
     e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     const pt = getPoint(e);
 
     if (tool === 'label') {
@@ -119,6 +111,7 @@ export const DrawingCanvas = ({
     }
     if (tool === 'line') {
       setLineStart(pt);
+      setLinePreview(pt);
       setIsDrawing(true);
       return;
     }
@@ -126,9 +119,7 @@ export const DrawingCanvas = ({
     setCurrentPoints([pt]);
   }, [disabled, tool, getPoint]);
 
-  const onPointerMove = useCallback((
-    e: React.MouseEvent | React.TouchEvent
-  ) => {
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDrawing || disabled) return;
     e.preventDefault();
     const pt = getPoint(e);
@@ -136,22 +127,24 @@ export const DrawingCanvas = ({
       setLinePreview(pt);
       return;
     }
+    const now = Date.now();
+    if (now - lastPointTime.current < 16) return;
+    lastPointTime.current = now;
     setCurrentPoints(prev => [...prev, pt]);
   }, [isDrawing, disabled, tool, getPoint]);
 
-  const onPointerUp = useCallback((
-    e: React.MouseEvent | React.TouchEvent
-  ) => {
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!isDrawing || disabled) return;
     e.preventDefault();
     const pt = getPoint(e);
 
     if (tool === 'line' && lineStart) {
+      const endPoint = linePreview ?? pt;
       setElements(prev => [...prev, {
         id: `el-${Date.now()}`,
         tool: 'line',
         lineStart,
-        lineEnd: pt,
+        lineEnd: endPoint,
         color,
         strokeWidth,
       }]);
@@ -206,7 +199,7 @@ export const DrawingCanvas = ({
     setIsDrawing(false);
   }, [
     isDrawing, disabled, tool, currentPoints,
-    color, strokeWidth, lineStart, getPoint,
+    color, strokeWidth, lineStart, linePreview, getPoint,
   ]);
 
   const placeLabel = () => {
@@ -368,49 +361,77 @@ export const DrawingCanvas = ({
         </div>
       )}
 
-      {showLabelInput && labelPos && !disabled && (
-        <div style={{
-          position: 'absolute',
-          top: 52, left: 60,
-          zIndex: 200,
-          background: 'hsl(var(--card))',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: 8,
-          padding: '8px 10px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          display: 'flex', gap: 6, alignItems: 'center',
-        }}>
-          <input
-            autoFocus
-            value={labelText}
-            onChange={e => setLabelText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') placeLabel();
-              if (e.key === 'Escape') {
+      {showLabelInput && labelPos && !disabled && (() => {
+        const leftPct = (labelPos.x / W) * 100;
+        const topPct = (labelPos.y / H) * 100;
+        const clampedLeft = Math.min(leftPct, 65);
+        const clampedTop = Math.min(topPct, 75);
+        return (
+          <div style={{
+            position: 'absolute',
+            left: `${clampedLeft}%`,
+            top: `calc(${clampedTop}% + 44px)`,
+            zIndex: 200,
+            background: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 8,
+            padding: '8px 10px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            display: 'flex',
+            gap: 6,
+            alignItems: 'center',
+            maxWidth: 'calc(100% - 20px)',
+          }}>
+            <input
+              autoFocus
+              value={labelText}
+              onChange={e => setLabelText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') placeLabel();
+                if (e.key === 'Escape') {
+                  setShowLabelInput(false);
+                  setLabelText('');
+                }
+              }}
+              placeholder="e.g. E1, P1, S, D"
+              style={{
+                width: 130, padding: '4px 8px',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 5, fontSize: 12,
+                fontFamily: 'inherit',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+              }}
+            />
+            <button onClick={placeLabel} style={{
+              padding: '4px 10px',
+              background: 'hsl(var(--primary))',
+              border: 'none', borderRadius: 5,
+              color: 'hsl(var(--primary-foreground))',
+              fontSize: 12, cursor: 'pointer',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}>Place</button>
+            <button
+              onClick={() => {
                 setShowLabelInput(false);
                 setLabelText('');
-              }
-            }}
-            placeholder="e.g. E1, P1, D, S"
-            style={{
-              width: 130, padding: '4px 8px',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 5, fontSize: 12,
-              fontFamily: 'inherit',
-              background: 'hsl(var(--background))',
-              color: 'hsl(var(--foreground))',
-            }}
-          />
-          <button onClick={placeLabel} style={{
-            padding: '4px 10px',
-            background: 'hsl(var(--primary))',
-            border: 'none', borderRadius: 5,
-            color: 'hsl(var(--primary-foreground))',
-            fontSize: 12, cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}>Place</button>
-        </div>
-      )}
+                setLabelPos(null);
+              }}
+              style={{
+                padding: '4px 8px',
+                background: 'none',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 5,
+                fontSize: 12,
+                cursor: 'pointer',
+                color: 'hsl(var(--muted-foreground))',
+                fontFamily: 'inherit',
+              }}
+            >✕</button>
+          </div>
+        );
+      })()}
 
       <svg
         ref={svgRef}
@@ -427,13 +448,11 @@ export const DrawingCanvas = ({
             : 'crosshair',
           touchAction: 'none',
         }}
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         {showAxes && axisLabels.x && axisLabels.y && (
           <g opacity={0.3} pointerEvents="none">
@@ -549,13 +568,26 @@ export const DrawingCanvas = ({
           />
         )}
 
+        {tool === 'line' && lineStart && !disabled && (
+          <circle
+            cx={lineStart.x}
+            cy={lineStart.y}
+            r={5}
+            fill={color}
+            stroke="white"
+            strokeWidth={1.5}
+            pointerEvents="none"
+          />
+        )}
+
         {tool === 'line' && lineStart && linePreview && (
           <line
             x1={lineStart.x} y1={lineStart.y}
             x2={linePreview.x} y2={linePreview.y}
             stroke={color} strokeWidth={strokeWidth}
-            strokeDasharray="6 3" opacity={0.55}
+            strokeDasharray="6 3" opacity={0.6}
             strokeLinecap="round"
+            pointerEvents="none"
           />
         )}
 
@@ -575,10 +607,12 @@ export const DrawingCanvas = ({
           color: 'hsl(var(--muted-foreground))',
           textAlign: 'center',
           padding: '3px 0 1px',
+          lineHeight: 1.4,
         }}>
-          {tool === 'pen' && 'Pen — click and drag to draw freehand'}
-          {tool === 'line' && 'Line — click start point, drag to end point'}
-          {tool === 'label' && 'Label — click canvas to place text (e.g. E1, P1, S, D)'}
+          {tool === 'pen' && 'Pen — hold and drag to draw freehand curves'}
+          {tool === 'line' && !lineStart && 'Line — tap or click to set the start point'}
+          {tool === 'line' && lineStart && 'Line — tap or click to set the end point'}
+          {tool === 'label' && 'Label — tap or click where you want to place text'}
           {tool === 'eraser' && 'Eraser — drag over elements to remove them'}
         </div>
       )}
