@@ -1970,7 +1970,7 @@ const ExamInProgress = () => {
                            graphData?.graphType === 'plotting' ||
                            graphData?.graphType === 'transformation' ||
                            graphData?.graphType === 'bearings';
-                  })() && (
+                  })() && !detectDrawQuestion(question.question_text ?? '', (question as any).subject ?? '', question.question_type).needsDrawingCanvas && (
                     <>
                       {question.question_type === 'mcq' && question.options ? (
                         <RadioGroup 
