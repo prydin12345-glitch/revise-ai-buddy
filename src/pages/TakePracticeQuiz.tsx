@@ -1740,10 +1740,8 @@ const TakePracticeQuiz = () => {
                         subject={(currentQuestion as any).subject ?? ''}
                         questionType={currentQuestion.question_type}
                         totalMarks={currentQuestion.marks ?? 4}
-                        studentDrawingDataUrl={
-                          getDrawingDataUrl(userAnswers[currentQuestion.id]?.workingOut)
-                        }
-                        onAnswerChange={(url) => {
+                        savedDrawingDataUrl={userAnswers[currentQuestion.id]?.workingOut ?? ''}
+                        onSave={(url) => {
                           setUserAnswers(prev => ({
                             ...prev,
                             [currentQuestion.id]: {
@@ -1752,6 +1750,7 @@ const TakePracticeQuiz = () => {
                             },
                           }));
                         }}
+                        onUnsavedChanges={(has) => handleDrawingWorkingChange(currentQuestion.id, has)}
                       />
                     );
                   })()}
