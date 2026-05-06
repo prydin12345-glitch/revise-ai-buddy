@@ -1282,8 +1282,8 @@ const ExamInProgress = () => {
                 onToggleNavigation={toggleNavigation}
                 isFlagged={flaggedQuestions.has(currentGroup.questions[0]?.id)}
                 onToggleFlag={() => currentGroup.questions[0] && toggleFlag(currentGroup.questions[0].id)}
-                onQuitAndSave={() => setShowQuitDialog(true)}
-                onSubmitAll={() => setShowSubmitDialog(true)}
+                onQuitAndSave={() => guardNavigation(() => setShowQuitDialog(true))}
+                onSubmitAll={() => guardNavigation(() => setShowSubmitDialog(true))}
                 isReadOnly={isReadOnly}
                 showProtractor={showProtractor}
                 onToggleProtractor={() => setShowProtractor(prev => !prev)}
@@ -1453,7 +1453,7 @@ const ExamInProgress = () => {
             {!isTeacher && (
               <Button 
                 size="lg" 
-                onClick={() => setShowSubmitDialog(true)}
+                onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
                 variant="destructive"
                 className="mt-auto"
@@ -2322,7 +2322,7 @@ const ExamInProgress = () => {
               <Button
                 variant="default"
                 className="px-4 sm:px-8 min-h-[44px]"
-                onClick={() => setShowSubmitDialog(true)}
+                onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
