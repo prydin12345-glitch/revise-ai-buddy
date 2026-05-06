@@ -2386,6 +2386,34 @@ const ExamInProgress = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Self-mark review for diagram questions before submission */}
+      {showSelfMarkReview && (
+        <SelfMarkReviewModal
+          questions={questions
+            .filter(q => {
+              const ans = userAnswers[q.id];
+              const stored = ans?.workingOut || ans?.finalAnswer || '';
+              return isDrawingAnswer(stored) || (
+                detectDrawQuestion(q.question_text ?? '', (q as any).subject ?? '', q.question_type).needsDrawingCanvas
+              );
+            })
+            .map(q => ({
+              id: q.id,
+              questionText: q.question_text ?? '',
+              subject: (q as any).subject ?? '',
+              questionType: q.question_type,
+              marks: q.marks ?? 4,
+              studentDrawingDataUrl: userAnswers[q.id]?.workingOut || userAnswers[q.id]?.finalAnswer || '',
+            }))}
+          onComplete={async (scores) => {
+            setSelfMarkScores(scores);
+            setShowSelfMarkReview(false);
+            await submitExam();
+          }}
+          onDismiss={() => setShowSelfMarkReview(false)}
+        />
+      )}
+
       {/* Resource Viewer Modal */}
       <ResourceViewerModal
         open={selectedResource !== null}
