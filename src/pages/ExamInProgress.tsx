@@ -353,6 +353,18 @@ const ExamInProgress = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examId, timeRemaining, timerEnabled]);
 
+  // Warn on tab close/refresh if there are unsaved drawing changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (unsavedDrawingQuestionsRef.current.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   // Track mobile layout
   useEffect(() => {
     const handler = () => {
