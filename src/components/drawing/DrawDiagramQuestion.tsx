@@ -262,19 +262,6 @@ export const DrawDiagramQuestion = ({
             Draw your diagram above then click Save diagram
           </div>
         )}
-
-        {hasUnsavedChanges && (
-          <div style={{
-            marginTop: 8, padding: '6px 12px',
-            background: 'hsl(25 95% 53% / 0.08)',
-            border: '1px solid hsl(25 95% 53% / 0.2)',
-            borderRadius: 6, fontSize: 11,
-            color: 'hsl(25 95% 53%)',
-            textAlign: 'center',
-          }}>
-            You have unsaved changes — click Save diagram before moving on
-          </div>
-        )}
       </div>
     );
   }
