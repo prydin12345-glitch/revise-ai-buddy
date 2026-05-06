@@ -65,7 +65,8 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
-import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
+import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
+import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -1680,8 +1681,10 @@ const ExamInProgress = () => {
                         subject={(question as any).subject ?? ''}
                         questionType={question.question_type}
                         totalMarks={question.marks ?? 4}
+                        isExam={true}
+                        studentDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
                         onAnswerChange={(url) => {
-                          updateAnswer(question.id, { workingOut: url });
+                          updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
