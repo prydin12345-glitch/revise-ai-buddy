@@ -28,7 +28,7 @@ const COLORS = [
 
 const STROKE_WIDTHS = [1.5, 2.5, 4];
 
-export type { DrawnElement, Point, DrawingTool };
+export type { DrawnElement, Point };
 
 interface Props {
   onDrawingChange?: (dataUrl: string) => void;
