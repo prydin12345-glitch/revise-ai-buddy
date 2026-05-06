@@ -65,7 +65,8 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
-import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
+import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
+import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 
 // Helper to add opacity to hex color
 const addOpacity = (hex: string, opacity: number): string => {
@@ -196,6 +197,8 @@ const ExamInProgress = () => {
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
   const answersRef = useRef(userAnswers);
+  const [showSelfMarkReview, setShowSelfMarkReview] = useState(false);
+  const [selfMarkScores, setSelfMarkScores] = useState<Record<string, number>>({});
   
   // Keep answersRef in sync with userAnswers
   useEffect(() => {
@@ -1680,8 +1683,10 @@ const ExamInProgress = () => {
                         subject={(question as any).subject ?? ''}
                         questionType={question.question_type}
                         totalMarks={question.marks ?? 4}
+                        isExam={true}
+                        studentDrawingDataUrl={userAnswers[question.id]?.workingOut || ''}
                         onAnswerChange={(url) => {
-                          updateAnswer(question.id, { workingOut: url });
+                          updateAnswer(question.id, { workingOut: url, finalAnswer: url });
                           if (saveTimeouts.current[question.id]) {
                             clearTimeout(saveTimeouts.current[question.id]);
                           }
@@ -1967,7 +1972,7 @@ const ExamInProgress = () => {
                            graphData?.graphType === 'plotting' ||
                            graphData?.graphType === 'transformation' ||
                            graphData?.graphType === 'bearings';
-                  })() && (
+                  })() && !detectDrawQuestion(question.question_text ?? '', (question as any).subject ?? '', question.question_type).needsDrawingCanvas && (
                     <>
                       {question.question_type === 'mcq' && question.options ? (
                         <RadioGroup 
@@ -2318,7 +2323,30 @@ const ExamInProgress = () => {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSubmitting}>Review Answers</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={submitExam} 
+              onClick={() => {
+                const drawQs: DrawQuestionForReview[] = questions
+                  .filter(q => {
+                    const ans = userAnswers[q.id];
+                    const stored = ans?.workingOut || ans?.finalAnswer || '';
+                    return isDrawingAnswer(stored) || (
+                      detectDrawQuestion(q.question_text ?? '', (q as any).subject ?? '', q.question_type).needsDrawingCanvas
+                    );
+                  })
+                  .map(q => ({
+                    id: q.id,
+                    questionText: q.question_text ?? '',
+                    subject: (q as any).subject ?? '',
+                    questionType: q.question_type,
+                    marks: q.marks ?? 4,
+                    studentDrawingDataUrl: userAnswers[q.id]?.workingOut || userAnswers[q.id]?.finalAnswer || '',
+                  }));
+                if (drawQs.length > 0) {
+                  setShowSubmitDialog(false);
+                  setShowSelfMarkReview(true);
+                } else {
+                  submitExam();
+                }
+              }}
               disabled={isSubmitting}
               className="bg-destructive hover:bg-destructive/90"
             >
@@ -2357,6 +2385,34 @@ const ExamInProgress = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Self-mark review for diagram questions before submission */}
+      {showSelfMarkReview && (
+        <SelfMarkReviewModal
+          questions={questions
+            .filter(q => {
+              const ans = userAnswers[q.id];
+              const stored = ans?.workingOut || ans?.finalAnswer || '';
+              return isDrawingAnswer(stored) || (
+                detectDrawQuestion(q.question_text ?? '', (q as any).subject ?? '', q.question_type).needsDrawingCanvas
+              );
+            })
+            .map(q => ({
+              id: q.id,
+              questionText: q.question_text ?? '',
+              subject: (q as any).subject ?? '',
+              questionType: q.question_type,
+              marks: q.marks ?? 4,
+              studentDrawingDataUrl: userAnswers[q.id]?.workingOut || userAnswers[q.id]?.finalAnswer || '',
+            }))}
+          onComplete={async (scores) => {
+            setSelfMarkScores(scores);
+            setShowSelfMarkReview(false);
+            await submitExam();
+          }}
+          onDismiss={() => setShowSelfMarkReview(false)}
+        />
+      )}
 
       {/* Resource Viewer Modal */}
       <ResourceViewerModal

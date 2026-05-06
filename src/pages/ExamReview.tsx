@@ -26,7 +26,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
-import { DrawDiagramQuestion, detectDrawQuestion } from "@/components/drawing/DrawDiagramQuestion";
+import { DrawDiagramQuestion, detectDrawQuestion, isDrawingAnswer, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   TableGridQuestion, 
@@ -629,6 +629,7 @@ const ExamReview = () => {
                       if (!drawInfo.needsDrawingCanvas) return null;
                       const studentUrl = (question as any).user_answer?.workingOut
                         ?? (question as any).workingOut
+                        ?? answer?.answer_text
                         ?? '';
                       return (
                         <DrawDiagramQuestion
@@ -747,7 +748,9 @@ const ExamReview = () => {
                       )}
 
                       {answer?.answer_text ? (
-                        (() => {
+                        isDrawingAnswer(answer.answer_text) ? (
+                          <span className="text-muted-foreground italic text-sm">Diagram submitted — see above</span>
+                        ) : (() => {
                           try {
                             const parsed = JSON.parse(answer.answer_text);
                             if (parsed._type === 'table_grid') return null;
