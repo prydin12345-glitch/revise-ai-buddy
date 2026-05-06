@@ -215,8 +215,13 @@ export const DrawDiagramQuestion = ({
       <div style={{ marginTop: 12 }}>
         <DrawingCanvas
           onDrawingChange={handleDrawingChange}
+          onElementsChange={handleElementsChange}
           showAxes={info.diagramCategory === 'economics'}
           axisLabels={info.axisLabels}
+          initialElements={workingElements.length > 0 ? workingElements : undefined}
+          backgroundDataUrl={
+            workingElements.length === 0 && savedDataUrl ? savedDataUrl : undefined
+          }
         />
 
         <div style={{
