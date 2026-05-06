@@ -66,6 +66,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
+import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 
 // Helper to add opacity to hex color
