@@ -211,7 +211,10 @@ const TakePracticeQuiz = () => {
   const [unsavedDrawingQuestions, setUnsavedDrawingQuestions] = useState<Set<string>>(new Set());
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
+  const unsavedDrawingQuestionsRef = useRef<Set<string>>(new Set());
   const handleDrawingWorkingChange = useCallback((qid: string, hasChanges: boolean) => {
+    if (hasChanges) unsavedDrawingQuestionsRef.current.add(qid);
+    else unsavedDrawingQuestionsRef.current.delete(qid);
     setUnsavedDrawingQuestions(prev => {
       const n = new Set(prev);
       if (hasChanges) n.add(qid); else n.delete(qid);
@@ -219,14 +222,14 @@ const TakePracticeQuiz = () => {
     });
   }, []);
   const guardNavigation = useCallback((action: () => void): boolean => {
-    if (unsavedDrawingQuestions.size > 0) {
+    if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
       setShowUnsavedWarning(true);
       return true;
     }
     action();
     return false;
-  }, [unsavedDrawingQuestions]);
+  }, []);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
   const [workedSolutionVisible, setWorkedSolutionVisible] = useState(false);
