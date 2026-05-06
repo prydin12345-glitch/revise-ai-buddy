@@ -45,6 +45,7 @@ export const DrawDiagramQuestion = ({
   questionType,
   totalMarks,
   onSave,
+  onSaveWithElements,
   onAnswerChange,
   onScoreChange,
   onUnsavedChanges,
@@ -52,6 +53,7 @@ export const DrawDiagramQuestion = ({
   isExam = false,
   savedDrawingDataUrl,
   studentDrawingDataUrl,
+  initialElements,
 }: Props) => {
   const incomingRaw = savedDrawingDataUrl ?? studentDrawingDataUrl ?? '';
   const cleanSavedUrl = incomingRaw.startsWith(DRAWING_PREFIX)
@@ -63,6 +65,8 @@ export const DrawDiagramQuestion = ({
   const [isEditing, setIsEditing] = useState(!cleanSavedUrl);
   const [showMarking, setShowMarking] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [savedElements, setSavedElements] = useState<DrawnElement[]>(initialElements ?? []);
+  const [workingElements, setWorkingElements] = useState<DrawnElement[]>(initialElements ?? []);
 
   // Suppress the first onDrawingChange after the canvas mounts/remounts —
   // the freshly re-encoded SVG is byte-different from savedDataUrl even when
