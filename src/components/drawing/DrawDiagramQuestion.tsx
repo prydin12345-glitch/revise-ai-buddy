@@ -111,25 +111,30 @@ export const DrawDiagramQuestion = ({
     onUnsavedChanges?.(hasChanges);
   }, [savedDataUrl, onUnsavedChanges]);
 
+  const handleElementsChange = useCallback((els: DrawnElement[]) => {
+    setWorkingElements(els);
+  }, []);
+
   const handleSave = useCallback(() => {
     if (!workingDataUrl) return;
     const prefixed = `${DRAWING_PREFIX}${workingDataUrl}`;
-    // Suppress any canvas re-emissions that fire during the React commit
-    // cycle after parent state updates. Must be set before onSave fires:
     isInitialMountRef.current = true;
     setSavedDataUrl(workingDataUrl);
+    setSavedElements(workingElements);
     setIsEditing(false);
-    onUnsavedChanges?.(false); // clear unsaved flag synchronously first
-    onSave?.(prefixed);        // then notify parent — may trigger re-renders
+    onUnsavedChanges?.(false);
+    onSave?.(prefixed);
+    onSaveWithElements?.(prefixed, workingElements);
     onAnswerChange?.(prefixed);
-  }, [workingDataUrl, onSave, onAnswerChange, onUnsavedChanges]);
+  }, [workingDataUrl, workingElements, onSave, onSaveWithElements, onAnswerChange, onUnsavedChanges]);
 
   const handleEdit = useCallback(() => {
-    isInitialMountRef.current = true; // suppress first re-encode after remount
+    isInitialMountRef.current = true;
+    setWorkingElements(savedElements);
     setIsEditing(true);
     setShowMarking(false);
     setScore(null);
-  }, []);
+  }, [savedElements]);
 
   // ── Review mode ────────────────────────────────────────────────────────
   if (isReview) {
