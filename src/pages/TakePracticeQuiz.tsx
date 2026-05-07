@@ -223,6 +223,26 @@ const TakePracticeQuiz = () => {
       return n;
     });
   }, []);
+
+  // Persist drawing answer to DB so it survives reload / next-day return
+  const persistDrawingAnswer = useCallback(async (questionId: string, prefixedUrl: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !setId) return;
+      const { error } = await supabase
+        .from('practice_question_answers')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          question_id: questionId,
+          answer_text: prefixedUrl,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,question_id' });
+      if (error) console.error('[Drawing] Failed to persist:', error);
+    } catch (e) {
+      console.error('[Drawing] Persist exception:', e);
+    }
+  }, [setId]);
   const guardNavigation = useCallback((action: () => void): boolean => {
     if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
@@ -640,10 +660,11 @@ const TakePracticeQuiz = () => {
             }
           }
           
+          const isDrawing = typeof ans.answer_text === 'string' && ans.answer_text.startsWith('drawing:');
           initialAnswers[ans.question_id] = {
-            answer: ans.answer_text || "",
-            workingOut: ans.working_out || "",
-            submitted: true,
+            answer: isDrawing ? '' : (ans.answer_text || ''),
+            workingOut: isDrawing ? ans.answer_text : (ans.working_out || ''),
+            submitted: !isDrawing,
             score: Number(ans.score),
             methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
@@ -1766,6 +1787,7 @@ const TakePracticeQuiz = () => {
                               workingOut: url,
                             },
                           }));
+                          persistDrawingAnswer(currentQuestion.id, url);
                         }}
                         onSaveWithElements={(_url, els) => {
                           savedElementsRef.current[currentQuestion.id] = els;
