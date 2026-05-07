@@ -86,6 +86,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { MathsFigurePanel } from "@/components/maths";
 import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
@@ -1751,6 +1752,14 @@ const TakePracticeQuiz = () => {
                   })()}
 
                   <EconomicsFigurePanel
+                    questionText={currentQuestion.question_text ?? ''}
+                    subject={(currentQuestion as any).subject ?? ''}
+                    diagramConfig={null}
+                    isSubmitted={!!currentAnswer?.submitted}
+                    isReview={false}
+                  />
+
+                  <MathsFigurePanel
                     questionText={currentQuestion.question_text ?? ''}
                     subject={(currentQuestion as any).subject ?? ''}
                     diagramConfig={null}

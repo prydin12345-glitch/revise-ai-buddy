@@ -65,6 +65,7 @@ import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { MathsFigurePanel } from "@/components/maths";
 import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
@@ -1702,6 +1703,14 @@ const ExamInProgress = () => {
                   })()}
 
                   <EconomicsFigurePanel
+                    questionText={question.question_text ?? ''}
+                    subject={(question as any).subject ?? ''}
+                    diagramConfig={null}
+                    isSubmitted={false}
+                    isReview={false}
+                  />
+
+                  <MathsFigurePanel
                     questionText={question.question_text ?? ''}
                     subject={(question as any).subject ?? ''}
                     diagramConfig={null}
