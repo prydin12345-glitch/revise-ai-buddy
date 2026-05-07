@@ -640,10 +640,11 @@ const TakePracticeQuiz = () => {
             }
           }
           
+          const isDrawing = typeof ans.answer_text === 'string' && ans.answer_text.startsWith('drawing:');
           initialAnswers[ans.question_id] = {
-            answer: ans.answer_text || "",
-            workingOut: ans.working_out || "",
-            submitted: true,
+            answer: isDrawing ? '' : (ans.answer_text || ''),
+            workingOut: isDrawing ? ans.answer_text : (ans.working_out || ''),
+            submitted: !isDrawing,
             score: Number(ans.score),
             methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
