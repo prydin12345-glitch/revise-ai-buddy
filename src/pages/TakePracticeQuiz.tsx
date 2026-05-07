@@ -1787,6 +1787,7 @@ const TakePracticeQuiz = () => {
                               workingOut: url,
                             },
                           }));
+                          persistDrawingAnswer(currentQuestion.id, url);
                         }}
                         onSaveWithElements={(_url, els) => {
                           savedElementsRef.current[currentQuestion.id] = els;
