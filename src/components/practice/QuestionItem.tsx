@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { MathRenderer } from '@/components/MathRenderer';
 import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
+import { MathsFigurePanel } from '@/components/maths';
 import { EconomicsFigurePanel } from '@/components/economics/EconomicsFigurePanel';
 import { MathInsertKeypad, normalizeUnicodeForGrading } from '@/components/quiz/MathInsertKeypad';
 import { 
@@ -583,6 +584,12 @@ export function QuestionItem({
         const cfg = saved ?? detectBiologyDiagram(question.question_text ?? '', question.subject ?? '');
         return cfg ? <BiologyFigurePanel config={cfg} /> : null;
       })()}
+
+      <MathsFigurePanel
+        questionText={question.question_text ?? ''}
+        subject={(question as any).subject ?? ''}
+        diagramConfig={null}
+      />
 
       <EconomicsFigurePanel
         questionText={question.question_text ?? ''}

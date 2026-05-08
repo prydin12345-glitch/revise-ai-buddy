@@ -26,6 +26,7 @@ import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanic
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 
 interface Question {
@@ -234,6 +235,12 @@ const ExamPreview = () => {
                       if (!bioConfig) return null;
                       return <BiologyFigurePanel config={bioConfig} />;
                     })()}
+
+                    <MathsFigurePanel
+                      questionText={q.question_text ?? ''}
+                      subject={(q as any).subject ?? ''}
+                      diagramConfig={null}
+                    />
 
                     <EconomicsFigurePanel
                       questionText={q.question_text ?? ''}
