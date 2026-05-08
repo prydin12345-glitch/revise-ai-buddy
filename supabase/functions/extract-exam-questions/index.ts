@@ -5,7 +5,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
-import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions } from "../_shared/prompt-templates.ts";
+import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions } from "../_shared/prompt-templates.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -1502,6 +1502,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     MULTI_PART_GRAPH_INSTRUCTIONS,
     circuitBlock,
     buildBiologyInstructions(subject),
+    buildMathsInstructions(subject),
     deltaWyeBlock,
     chartDataBlock,
     outputBlock,
