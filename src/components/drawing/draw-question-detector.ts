@@ -155,9 +155,9 @@ export const detectDrawQuestion = (
     return NO_CANVAS;
   }
 
-  // Guard 3: subject must be economics, business, biology, or physics
+  // Guard 3: subject must be economics, business, biology, physics, or maths
   const isRelevantSubject =
-    /economics|business|commerce|finance|accounting|biology|life\s*science|biolog|physics|science/i.test(subj) ||
+    /economics|business|commerce|finance|accounting|biology|life\s*science|biolog|physics|science|mathematics|maths|math\b|statistics|probability|computer\s*science|computing/i.test(subj) ||
     subj === '';
 
   if (!isRelevantSubject) return NO_CANVAS;
@@ -196,6 +196,15 @@ export const detectDrawQuestion = (
     return {
       needsDrawingCanvas: true,
       diagramCategory: 'physics',
+      axisLabels: { y: '', x: '' },
+    };
+  }
+
+  // Maths draw questions (probability tree, Venn, two-way table, sample space)
+  if (MATHS_DRAW_PATTERNS.some(p => p.test(text))) {
+    return {
+      needsDrawingCanvas: true,
+      diagramCategory: 'maths',
       axisLabels: { y: '', x: '' },
     };
   }
