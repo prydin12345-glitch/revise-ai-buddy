@@ -103,11 +103,23 @@ const PHYSICS_DIAGRAM_DRAW_PATTERNS = [
   /draw\s+(?:a\s+)?circuit\s+diagram/i,
 ];
 
+const MATHS_DRAW_PATTERNS = [
+  /draw\s+(?:a\s+)?(?:probability\s+)?tree\s+diagram/i,
+  /complete\s+(?:the\s+)?(?:probability\s+)?tree\s+diagram/i,
+  /draw\s+(?:a\s+)?venn\s+diagram/i,
+  /complete\s+(?:the\s+)?venn\s+diagram/i,
+  /shade\s+(?:the\s+region|on\s+the\s+venn)/i,
+  /complete\s+(?:the\s+)?two.?way\s+table/i,
+  /copy\s+and\s+complete\s+(?:the\s+)?table/i,
+  /draw\s+(?:a\s+)?sample\s+space\s+diagram/i,
+  /complete\s+(?:the\s+)?sample\s+space/i,
+];
+
 // ─── Main detection function ──────────────────────────────────────────────────
 
 export interface DrawQuestionInfo {
   needsDrawingCanvas: boolean;
-  diagramCategory: 'economics' | 'biology' | 'physics' | 'generic' | null;
+  diagramCategory: 'economics' | 'biology' | 'physics' | 'maths' | 'generic' | null;
   axisLabels: { x: string; y: string };
 }
 
@@ -143,9 +155,9 @@ export const detectDrawQuestion = (
     return NO_CANVAS;
   }
 
-  // Guard 3: subject must be economics, business, biology, or physics
+  // Guard 3: subject must be economics, business, biology, physics, or maths
   const isRelevantSubject =
-    /economics|business|commerce|finance|accounting|biology|life\s*science|biolog|physics|science/i.test(subj) ||
+    /economics|business|commerce|finance|accounting|biology|life\s*science|biolog|physics|science|mathematics|maths|math\b|statistics|probability|computer\s*science|computing/i.test(subj) ||
     subj === '';
 
   if (!isRelevantSubject) return NO_CANVAS;
@@ -184,6 +196,15 @@ export const detectDrawQuestion = (
     return {
       needsDrawingCanvas: true,
       diagramCategory: 'physics',
+      axisLabels: { y: '', x: '' },
+    };
+  }
+
+  // Maths draw questions (probability tree, Venn, two-way table, sample space)
+  if (MATHS_DRAW_PATTERNS.some(p => p.test(text))) {
+    return {
+      needsDrawingCanvas: true,
+      diagramCategory: 'maths',
       axisLabels: { y: '', x: '' },
     };
   }

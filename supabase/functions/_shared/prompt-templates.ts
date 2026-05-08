@@ -284,7 +284,62 @@ CRITICAL RULES:
 }
 
 
-/** Translate exam board to board-specific style instruction */
+/** Build maths diagram generation instructions (probability trees, Venn, two-way tables, sample space) */
+export function buildMathsInstructions(subject: string | undefined): string {
+  if (!subject) return '';
+  if (!/mathematics|maths|math\b|statistics|stat\b|probability|further\s*maths|data\s*science|computer\s*science|computing/i.test(subject)) {
+    return '';
+  }
+  return `
+MATHS DIAGRAM INSTRUCTIONS — emit diagram_config for visual questions:
+
+For questions involving probability trees, Venn diagrams, two-way tables,
+or sample space diagrams include a diagram_config field at the same level
+as question_text.
+
+PROBABILITY TREE — successive trials / tree diagram:
+{ "type": "probability_tree", "stages": 2, "title": "Two coin flips",
+  "showOutcomes": true, "showFinalProbabilities": true,
+  "branches": [
+    { "label": "H", "probability": "1/2",
+      "children": [ { "label": "H", "probability": "1/2" }, { "label": "T", "probability": "1/2" } ] },
+    { "label": "T", "probability": "1/2",
+      "children": [ { "label": "H", "probability": "1/2" }, { "label": "T", "probability": "1/2" } ] }
+  ] }
+
+VENN DIAGRAM (2 sets):
+{ "type": "venn_two", "setA": "Football", "setB": "Tennis",
+  "both": 8, "onlyA": 12, "onlyB": 5, "neither": 3, "total": 28,
+  "universalSetLabel": "ξ", "showSetNotation": true }
+
+VENN DIAGRAM (3 sets):
+{ "type": "venn_three", "setA": "A", "setB": "B", "setC": "C",
+  "all_three": 3, "AB_only": 5, "AC_only": 4, "BC_only": 6,
+  "onlyA": 8, "onlyB": 7, "onlyC": 9, "neither": 2 }
+
+TWO-WAY TABLE:
+{ "type": "two_way_table", "rowVariable": "Gender", "colVariable": "Subject",
+  "rowLabels": ["Male","Female"], "colLabels": ["Maths","English","Science"],
+  "data": [[null,null,null],[null,null,null]],
+  "rowTotals": [null,null], "colTotals": [null,null,null],
+  "grandTotal": 60, "title": "Two-Way Frequency Table" }
+
+SAMPLE SPACE:
+{ "type": "sample_space", "event1Label": "Die 1", "event2Label": "Die 2",
+  "event1Values": ["1","2","3","4","5","6"],
+  "event2Values": ["1","2","3","4","5","6"],
+  "title": "Sample Space — Two Dice" }
+
+RULES:
+- Only include diagram_config when the question has a visual element.
+- Do NOT include for explain/describe/state questions — text only.
+- Use null for cells the student must calculate or fill in.
+- Use actual numbers extracted from the question for known values.
+- Probability values should be fractions like "1/2" not decimals where possible.
+`;
+}
+
+
 export function translateExamBoard(examBoard: string | undefined): string {
   if (!examBoard) return '';
   const boardTranslation: Record<string, string> = {
