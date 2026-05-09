@@ -589,6 +589,8 @@ export function QuestionItem({
         questionText={question.question_text ?? ''}
         subject={(question as any).subject ?? ''}
         diagramConfig={null}
+        isSubmitted={true}
+        isReview={true}
       />
 
       <EconomicsFigurePanel

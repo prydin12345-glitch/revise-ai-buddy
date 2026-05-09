@@ -6,13 +6,16 @@ import type { BiologyDiagramConfig } from './types';
 interface BiologyFigurePanelProps {
   config: BiologyDiagramConfig;
   figureNumber?: number;
+  isExam?: boolean;
 }
 
 const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
   config,
   figureNumber = 1,
+  isExam = false,
 }) => {
   const [enlarged, setEnlarged] = useState(false);
+  if (isExam) return null;
 
   return (
     <>

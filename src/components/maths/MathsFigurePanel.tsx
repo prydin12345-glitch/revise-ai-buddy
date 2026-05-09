@@ -10,6 +10,7 @@ interface Props {
   diagramConfig?: MathsDiagramConfig | null;
   isSubmitted?: boolean;
   isReview?: boolean;
+  isExam?: boolean;
 }
 
 const typeLabel: Record<string, string> = {
@@ -27,9 +28,12 @@ export const MathsFigurePanel = ({
   diagramConfig,
   isSubmitted = false,
   isReview = false,
+  isExam = false,
 }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
+
+  if (isExam) return null;
 
   const config = diagramConfig ?? detectMathsDiagram(questionText, subject);
   if (!config) return null;

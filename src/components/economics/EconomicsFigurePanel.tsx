@@ -11,6 +11,7 @@ interface Props {
   diagramConfig?: EconomicsDiagramConfig | null;
   isSubmitted?: boolean;
   isReview?: boolean;
+  isExam?: boolean;
 }
 
 const typeLabel: Record<string, string> = {
@@ -29,9 +30,11 @@ export const EconomicsFigurePanel = ({
   diagramConfig,
   isSubmitted = false,
   isReview = false,
+  isExam = false,
 }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  if (isExam) return null;
   const drawInfo = detectDrawQuestion(questionText, subject);
   if (drawInfo.needsDrawingCanvas) return null;
   const config = diagramConfig ?? detectEconomicsDiagram(questionText, subject);
