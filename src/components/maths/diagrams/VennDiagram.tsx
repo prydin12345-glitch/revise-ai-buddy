@@ -1,5 +1,18 @@
 import type { VennTwoConfig, VennThreeConfig } from '../types';
 
+const valueFontSize = (val: string | number | undefined): number => {
+  const len = String(val ?? '').length;
+  if (len <= 2) return 18;
+  if (len <= 4) return 15;
+  if (len <= 6) return 12;
+  return 10;
+};
+
+const vennThreeFontSize = (val: string | number | undefined): number => {
+  const len = String(val ?? '').length;
+  return len <= 2 ? 16 : len <= 4 ? 13 : 11;
+};
+
 export const VennTwoDiagram = ({ config }: { config: VennTwoConfig }) => {
   const {
     setA, setB, onlyA, onlyB, both, neither,
