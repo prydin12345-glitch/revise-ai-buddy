@@ -15,7 +15,7 @@ export const TwoWayTableDiagram = ({ config }: Props) => {
   const labelW = 90;
   const totalColW = 72;
 
-  const tableW = labelW + colLabels.length * cellW + totalColW + 24;
+  const tableW = labelW + (colLabels.length + 1) * cellW + totalColW + 24;
   const tableH = headerH * 2 + rowLabels.length * cellH + cellH + 40;
   const svgW = tableW + 20;
   const svgH = tableH + 40;
@@ -29,8 +29,8 @@ export const TwoWayTableDiagram = ({ config }: Props) => {
       fill: isHighlighted
         ? 'hsl(221 83% 53% / 0.15)'
         : isHeader || isTotal
-        ? 'hsl(var(--muted)/0.5)'
-        : 'white',
+        ? 'hsl(var(--muted) / 0.4)'
+        : 'hsl(var(--background))',
       stroke: 'hsl(var(--border))',
     };
   };
@@ -56,7 +56,7 @@ export const TwoWayTableDiagram = ({ config }: Props) => {
         )}
         {isEmpty && !isHeader && (
           <text x={x + w / 2} y={y + h / 2 + 5} textAnchor="middle"
-            fontSize={11} fill="hsl(var(--muted-foreground)/0.4)">?</text>
+            fontSize={11} fill="hsl(var(--muted-foreground) / 0.5)">?</text>
         )}
       </g>
     );
@@ -69,7 +69,7 @@ export const TwoWayTableDiagram = ({ config }: Props) => {
         <text x={svgW / 2} y={20} textAnchor="middle" fontSize={12} fontWeight={700}
           fill="hsl(var(--foreground))">{title}</text>
       )}
-      <text x={ox + labelW + (colLabels.length * cellW) / 2} y={oy + 14}
+      <text x={ox + labelW + ((colLabels.length + 1) * cellW) / 2} y={oy + 14}
         textAnchor="middle" fontSize={11} fontWeight={700}
         fill="hsl(var(--muted-foreground))">{colVariable}</text>
       <text x={ox + 10} y={oy + headerH + (rowLabels.length * cellH) / 2}
