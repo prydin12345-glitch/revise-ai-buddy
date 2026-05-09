@@ -1685,7 +1685,7 @@ const ExamInProgress = () => {
                   {(() => {
                     const diagConfig = detectDiagramConfig(question.question_text);
                     if (!diagConfig) return null;
-                    return <MechanicsFigurePanel config={diagConfig} />;
+                    return <MechanicsFigurePanel config={diagConfig} isExam={true} />;
                   })()}
 
                   {/* Circuit diagram panel */}
@@ -1699,7 +1699,7 @@ const ExamInProgress = () => {
                   {(() => {
                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
                     if (!bioConfig) return null;
-                    return <BiologyFigurePanel config={bioConfig} />;
+                    return <BiologyFigurePanel config={bioConfig} isExam={true} />;
                   })()}
 
                   <EconomicsFigurePanel
@@ -1708,6 +1708,7 @@ const ExamInProgress = () => {
                     diagramConfig={null}
                     isSubmitted={false}
                     isReview={false}
+                    isExam={true}
                   />
 
                   <MathsFigurePanel
@@ -1716,6 +1717,7 @@ const ExamInProgress = () => {
                     diagramConfig={null}
                     isSubmitted={false}
                     isReview={false}
+                    isExam={true}
                   />
 
                   {/* Drawing canvas for economics/biology/physics diagram-draw questions */}

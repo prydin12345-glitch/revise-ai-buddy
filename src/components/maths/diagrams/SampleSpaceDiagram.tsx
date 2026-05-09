@@ -85,7 +85,7 @@ export const SampleSpaceDiagram = ({ config }: Props) => {
                 <rect x={ox + labelW + (ci + 1) * cellSize}
                   y={oy + headerSize * 2 + ri * cellSize}
                   width={cellSize} height={cellSize}
-                  fill={highlighted ? 'hsl(221 83% 53% / 0.2)' : 'white'}
+                  fill={highlighted ? 'hsl(221 83% 53% / 0.2)' : 'hsl(var(--background))'}
                   stroke="hsl(var(--border))" strokeWidth={1} />
                 <text x={ox + labelW + (ci + 1) * cellSize + cellSize / 2}
                   y={oy + headerSize * 2 + ri * cellSize + cellSize / 2 + 5}

@@ -6,13 +6,16 @@ import type { MechanicsConfig } from './types';
 interface MechanicsFigurePanelProps {
   config: MechanicsConfig;
   figureNumber?: number;
+  isExam?: boolean;
 }
 
 const MechanicsFigurePanel: React.FC<MechanicsFigurePanelProps> = ({
   config,
   figureNumber = 1,
+  isExam = false,
 }) => {
   const [enlarged, setEnlarged] = useState(false);
+  if (isExam) return null;
 
   return (
     <>

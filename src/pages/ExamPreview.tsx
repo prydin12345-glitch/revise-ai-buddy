@@ -240,6 +240,8 @@ const ExamPreview = () => {
                       questionText={q.question_text ?? ''}
                       subject={(q as any).subject ?? ''}
                       diagramConfig={null}
+                      isSubmitted={true}
+                      isReview={true}
                     />
 
                     <EconomicsFigurePanel

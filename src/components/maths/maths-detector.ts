@@ -75,7 +75,7 @@ export const detectMathsDiagram = (
     has(lower, 'joint frequency', 'marginal frequency') ||
     (has(lower, 'frequency distribution table') && has(lower, 'two', 'row', 'column'))
   ) {
-    return buildTwoWayTableConfig(lower);
+    return buildTwoWayTableConfig(lower, text);
   }
 
   // ── 4. Sample Space Diagram ───────────────────────────────────────────────
@@ -272,37 +272,124 @@ const buildVennConfig = (lower: string): MathsDiagramConfig => {
   };
 };
 
-const buildTwoWayTableConfig = (lower: string): MathsDiagramConfig => {
-  const genderMatch = has(lower, 'male', 'female', 'boy', 'girl', 'men', 'women');
-  const subjectMatch = lower.match(/\b(maths|english|science|french|history|art|music)\b/gi);
-  const sportMatch = lower.match(/\b(football|tennis|swimming|rugby|cricket|basketball)\b/gi);
+const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagramConfig => {
+  const hasGender = has(lower, 'male', 'female', 'boy', 'girl', 'men', 'women');
+  const hasCatDog = has(lower, 'cat', 'dog');
+  const hasPetChoice = has(lower, 'cat', 'dog', 'fish', 'rabbit', 'hamster');
 
-  let rowVariable = 'Category A';
+  let rowVariable = 'Category';
   let rowLabels = ['Group 1', 'Group 2'];
-  let colVariable = 'Category B';
+  let colVariable = 'Preference';
   let colLabels = ['Option 1', 'Option 2'];
 
-  if (genderMatch) {
+  if (hasGender) {
     rowVariable = 'Gender';
     rowLabels = has(lower, 'boy', 'girl') ? ['Boy', 'Girl'] : ['Male', 'Female'];
   }
+  if (hasCatDog) {
+    colVariable = 'Preference';
+    colLabels = ['Cats', 'Dogs'];
+  } else if (hasPetChoice) {
+    const pets = ['Cat', 'Dog', 'Fish', 'Rabbit'].filter(p => lower.includes(p.toLowerCase()));
+    if (pets.length >= 2) { colVariable = 'Preference'; colLabels = pets; }
+  }
+
+  const subjectMatch = originalText.match(
+    /\b(maths|english|science|french|history|geography|art|music)\b/gi,
+  );
   if (subjectMatch && subjectMatch.length >= 2) {
     colVariable = 'Subject';
     colLabels = [...new Set(subjectMatch.slice(0, 3).map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()))];
-  } else if (sportMatch && sportMatch.length >= 2) {
-    colVariable = 'Sport';
-    colLabels = [...new Set(sportMatch.slice(0, 3).map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()))];
   }
 
   const rows = rowLabels.length;
   const cols = colLabels.length;
+
+  const totalMatch = originalText.match(
+    /(\d+)\s+(?:students?|people|children|pupils|participants?|respondents?)/i,
+  );
+  const grandTotal: number | null = totalMatch ? parseInt(totalMatch[1]) : null;
+
   const data: (number | null)[][] = Array.from({ length: rows }, () => Array(cols).fill(null));
   const rowTotals: (number | null)[] = Array(rows).fill(null);
   const colTotals: (number | null)[] = Array(cols).fill(null);
 
-  const numbers = [...lower.matchAll(/\b(\d+)\b/g)]
-    .map(m => parseInt(m[1]))
-    .filter(n => n > 0 && n < 1000);
+  rowLabels.forEach((rowLabel, ri) => {
+    const rowLower = rowLabel.toLowerCase();
+    const rowTotalMatch =
+      originalText.match(new RegExp(`(\\d+)\\s+(?:of\\s+the\\s+)?${rowLower}s?\\b(?![^.]*(?:preferred|chose|liked|selected))`, 'i')) ||
+      originalText.match(new RegExp(`${rowLower}s?\\b[^.]*?\\b(\\d+)\\b[^.]*?(?:total|altogether|in total)`, 'i'));
+    if (rowTotalMatch) rowTotals[ri] = parseInt(rowTotalMatch[1]);
+
+    colLabels.forEach((colLabel, ci) => {
+      const colLower = colLabel.toLowerCase();
+      const colSingular = colLower.replace(/s$/, '');
+      const cellPatterns = [
+        new RegExp(`(\\d+)\\s+${rowLower}s?\\s+preferred\\s+${colSingular}s?`, 'i'),
+        new RegExp(`(\\d+)\\s+${rowLower}s?\\s+chose\\s+${colSingular}s?`, 'i'),
+        new RegExp(`(\\d+)\\s+${rowLower}s?\\s+liked\\s+${colSingular}s?`, 'i'),
+        new RegExp(`(\\d+)\\s+${rowLower}s?\\s+selected\\s+${colSingular}s?`, 'i'),
+      ];
+      for (const pattern of cellPatterns) {
+        const m = originalText.match(pattern);
+        if (m) { data[ri][ci] = parseInt(m[1]); break; }
+      }
+    });
+  });
+
+  colLabels.forEach((colLabel, ci) => {
+    const colLower = colLabel.toLowerCase().replace(/s$/, '');
+    const colTotalMatch = originalText.match(
+      new RegExp(`(\\d+)\\s+(?:students?|people|children)?\\s*preferred\\s+${colLower}s?`, 'i'),
+    );
+    if (colTotalMatch) colTotals[ci] = parseInt(colTotalMatch[1]);
+  });
+
+  // Constraint solver
+  let changed = true;
+  let iter = 0;
+  while (changed && iter < 20) {
+    changed = false; iter++;
+    for (let ri = 0; ri < rows; ri++) {
+      const known = data[ri].filter(v => v !== null) as number[];
+      if (known.length === cols - 1 && rowTotals[ri] !== null) {
+        const missing = data[ri].findIndex(v => v === null);
+        data[ri][missing] = rowTotals[ri]! - known.reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+      if (rowTotals[ri] === null && data[ri].every(v => v !== null)) {
+        rowTotals[ri] = (data[ri] as number[]).reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+    }
+    for (let ci = 0; ci < cols; ci++) {
+      const colVals = data.map(r => r[ci]);
+      const known = colVals.filter(v => v !== null) as number[];
+      if (known.length === rows - 1 && colTotals[ci] !== null) {
+        const missing = colVals.findIndex(v => v === null);
+        data[missing][ci] = colTotals[ci]! - known.reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+      if (colTotals[ci] === null && colVals.every(v => v !== null)) {
+        colTotals[ci] = (colVals as number[]).reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+    }
+    if (grandTotal !== null) {
+      const knownRT = rowTotals.filter(v => v !== null) as number[];
+      if (knownRT.length === rows - 1) {
+        const missing = rowTotals.findIndex(v => v === null);
+        rowTotals[missing] = grandTotal - knownRT.reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+      const knownCT = colTotals.filter(v => v !== null) as number[];
+      if (knownCT.length === cols - 1) {
+        const missing = colTotals.findIndex(v => v === null);
+        colTotals[missing] = grandTotal - knownCT.reduce((a, b) => a + b, 0);
+        changed = true;
+      }
+    }
+  }
 
   return {
     type: 'two_way_table',
@@ -313,7 +400,7 @@ const buildTwoWayTableConfig = (lower: string): MathsDiagramConfig => {
     data,
     rowTotals,
     colTotals,
-    grandTotal: numbers.find(n => n > 20) ?? null,
+    grandTotal,
     title: 'Two-Way Frequency Table',
   };
 };

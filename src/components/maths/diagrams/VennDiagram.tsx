@@ -1,5 +1,18 @@
 import type { VennTwoConfig, VennThreeConfig } from '../types';
 
+const valueFontSize = (val: string | number | undefined): number => {
+  const len = String(val ?? '').length;
+  if (len <= 2) return 18;
+  if (len <= 4) return 15;
+  if (len <= 6) return 12;
+  return 10;
+};
+
+const vennThreeFontSize = (val: string | number | undefined): number => {
+  const len = String(val ?? '').length;
+  return len <= 2 ? 16 : len <= 4 ? 13 : 11;
+};
+
 export const VennTwoDiagram = ({ config }: { config: VennTwoConfig }) => {
   const {
     setA, setB, onlyA, onlyB, both, neither,
@@ -58,24 +71,24 @@ export const VennTwoDiagram = ({ config }: { config: VennTwoConfig }) => {
         fill="hsl(221 83% 53% / 0.08)" stroke="hsl(221 83% 53%)" strokeWidth={2} />
       <circle cx={cx2} cy={cy} r={r}
         fill="hsl(0 84% 60% / 0.08)" stroke="hsl(0 84% 60%)" strokeWidth={2} />
-      <text x={cx1 - r + 18} y={cy - r + 20} fontSize={14} fontWeight={700}
+      <text x={cx1} y={cy - r - 8} textAnchor="middle" fontSize={14} fontWeight={700}
         fill="hsl(221 83% 53%)">{setA}</text>
-      <text x={cx2 + r - 18} y={cy - r + 20} textAnchor="end" fontSize={14} fontWeight={700}
+      <text x={cx2} y={cy - r - 8} textAnchor="middle" fontSize={14} fontWeight={700}
         fill="hsl(0 84% 60%)">{setB}</text>
       {onlyA !== undefined && (
-        <text x={cx1 - 36} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={108} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(onlyA)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyA}</text>
       )}
       {both !== undefined && (
-        <text x={(cx1 + cx2) / 2} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={(cx1 + cx2) / 2} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(both)} fontWeight={600}
           fill="hsl(var(--foreground))">{both}</text>
       )}
       {onlyB !== undefined && (
-        <text x={cx2 + 36} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={312} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(onlyB)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyB}</text>
       )}
       {neither !== undefined && (
-        <text x={W - 28} y={H - 38} textAnchor="middle" fontSize={13}
+        <text x={W - 24} y={H - 28} textAnchor="end" fontSize={14}
           fill="hsl(var(--muted-foreground))">{neither}</text>
       )}
       {showSetNotation && (
@@ -130,32 +143,32 @@ export const VennThreeDiagram = ({ config }: { config: VennThreeConfig }) => {
       <text x={cxC} y={cyC + r + 18} textAnchor="middle" fontSize={13} fontWeight={700}
         fill="hsl(142 71% 45%)">{setC}</text>
       {onlyA !== undefined && (
-        <text x={cxA - 36} y={cyA - 10} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxA - 36} y={cyA - 10} textAnchor="middle" fontSize={vennThreeFontSize(onlyA)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyA}</text>
       )}
       {onlyB !== undefined && (
-        <text x={cxB + 36} y={cyB - 10} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxB + 36} y={cyB - 10} textAnchor="middle" fontSize={vennThreeFontSize(onlyB)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyB}</text>
       )}
       {onlyC !== undefined && (
-        <text x={cxC} y={cyC + 44} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxC} y={cyC + 44} textAnchor="middle" fontSize={vennThreeFontSize(onlyC)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyC}</text>
       )}
       {AB_only !== undefined && (
-        <text x={(cxA + cxB) / 2} y={cyA - 16} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={(cxA + cxB) / 2} y={cyA - 16} textAnchor="middle" fontSize={vennThreeFontSize(AB_only)} fontWeight={600}
           fill="hsl(var(--foreground))">{AB_only}</text>
       )}
       {AC_only !== undefined && (
         <text x={(cxA + cxC) / 2 - 20} y={(cyA + cyC) / 2 + 14} textAnchor="middle"
-          fontSize={13} fontWeight={600} fill="hsl(var(--foreground))">{AC_only}</text>
+          fontSize={vennThreeFontSize(AC_only)} fontWeight={600} fill="hsl(var(--foreground))">{AC_only}</text>
       )}
       {BC_only !== undefined && (
         <text x={(cxB + cxC) / 2 + 20} y={(cyB + cyC) / 2 + 14} textAnchor="middle"
-          fontSize={13} fontWeight={600} fill="hsl(var(--foreground))">{BC_only}</text>
+          fontSize={vennThreeFontSize(BC_only)} fontWeight={600} fill="hsl(var(--foreground))">{BC_only}</text>
       )}
       {all_three !== undefined && (
         <text x={(cxA + cxB + cxC) / 3} y={(cyA + cyB + cyC) / 3 + 5} textAnchor="middle"
-          fontSize={14} fontWeight={700} fill="hsl(var(--foreground))">{all_three}</text>
+          fontSize={vennThreeFontSize(all_three) + 1} fontWeight={700} fill="hsl(var(--foreground))">{all_three}</text>
       )}
       {neither !== undefined && (
         <text x={W - 24} y={H - 36} textAnchor="end" fontSize={12}
