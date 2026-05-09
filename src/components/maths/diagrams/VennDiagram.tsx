@@ -143,32 +143,32 @@ export const VennThreeDiagram = ({ config }: { config: VennThreeConfig }) => {
       <text x={cxC} y={cyC + r + 18} textAnchor="middle" fontSize={13} fontWeight={700}
         fill="hsl(142 71% 45%)">{setC}</text>
       {onlyA !== undefined && (
-        <text x={cxA - 36} y={cyA - 10} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxA - 36} y={cyA - 10} textAnchor="middle" fontSize={vennThreeFontSize(onlyA)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyA}</text>
       )}
       {onlyB !== undefined && (
-        <text x={cxB + 36} y={cyB - 10} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxB + 36} y={cyB - 10} textAnchor="middle" fontSize={vennThreeFontSize(onlyB)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyB}</text>
       )}
       {onlyC !== undefined && (
-        <text x={cxC} y={cyC + 44} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={cxC} y={cyC + 44} textAnchor="middle" fontSize={vennThreeFontSize(onlyC)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyC}</text>
       )}
       {AB_only !== undefined && (
-        <text x={(cxA + cxB) / 2} y={cyA - 16} textAnchor="middle" fontSize={13} fontWeight={600}
+        <text x={(cxA + cxB) / 2} y={cyA - 16} textAnchor="middle" fontSize={vennThreeFontSize(AB_only)} fontWeight={600}
           fill="hsl(var(--foreground))">{AB_only}</text>
       )}
       {AC_only !== undefined && (
         <text x={(cxA + cxC) / 2 - 20} y={(cyA + cyC) / 2 + 14} textAnchor="middle"
-          fontSize={13} fontWeight={600} fill="hsl(var(--foreground))">{AC_only}</text>
+          fontSize={vennThreeFontSize(AC_only)} fontWeight={600} fill="hsl(var(--foreground))">{AC_only}</text>
       )}
       {BC_only !== undefined && (
         <text x={(cxB + cxC) / 2 + 20} y={(cyB + cyC) / 2 + 14} textAnchor="middle"
-          fontSize={13} fontWeight={600} fill="hsl(var(--foreground))">{BC_only}</text>
+          fontSize={vennThreeFontSize(BC_only)} fontWeight={600} fill="hsl(var(--foreground))">{BC_only}</text>
       )}
       {all_three !== undefined && (
         <text x={(cxA + cxB + cxC) / 3} y={(cyA + cyB + cyC) / 3 + 5} textAnchor="middle"
-          fontSize={14} fontWeight={700} fill="hsl(var(--foreground))">{all_three}</text>
+          fontSize={vennThreeFontSize(all_three) + 1} fontWeight={700} fill="hsl(var(--foreground))">{all_three}</text>
       )}
       {neither !== undefined && (
         <text x={W - 24} y={H - 36} textAnchor="end" fontSize={12}
