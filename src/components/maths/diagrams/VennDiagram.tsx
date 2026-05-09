@@ -71,24 +71,24 @@ export const VennTwoDiagram = ({ config }: { config: VennTwoConfig }) => {
         fill="hsl(221 83% 53% / 0.08)" stroke="hsl(221 83% 53%)" strokeWidth={2} />
       <circle cx={cx2} cy={cy} r={r}
         fill="hsl(0 84% 60% / 0.08)" stroke="hsl(0 84% 60%)" strokeWidth={2} />
-      <text x={cx1 - r + 18} y={cy - r + 20} fontSize={14} fontWeight={700}
+      <text x={cx1} y={cy - r - 8} textAnchor="middle" fontSize={14} fontWeight={700}
         fill="hsl(221 83% 53%)">{setA}</text>
-      <text x={cx2 + r - 18} y={cy - r + 20} textAnchor="end" fontSize={14} fontWeight={700}
+      <text x={cx2} y={cy - r - 8} textAnchor="middle" fontSize={14} fontWeight={700}
         fill="hsl(0 84% 60%)">{setB}</text>
       {onlyA !== undefined && (
-        <text x={cx1 - 36} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={108} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(onlyA)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyA}</text>
       )}
       {both !== undefined && (
-        <text x={(cx1 + cx2) / 2} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={(cx1 + cx2) / 2} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(both)} fontWeight={600}
           fill="hsl(var(--foreground))">{both}</text>
       )}
       {onlyB !== undefined && (
-        <text x={cx2 + 36} y={cy + 5} textAnchor="middle" fontSize={15} fontWeight={600}
+        <text x={312} y={cy + 5} textAnchor="middle" fontSize={valueFontSize(onlyB)} fontWeight={600}
           fill="hsl(var(--foreground))">{onlyB}</text>
       )}
       {neither !== undefined && (
-        <text x={W - 28} y={H - 38} textAnchor="middle" fontSize={13}
+        <text x={W - 24} y={H - 28} textAnchor="end" fontSize={14}
           fill="hsl(var(--muted-foreground))">{neither}</text>
       )}
       {showSetNotation && (
