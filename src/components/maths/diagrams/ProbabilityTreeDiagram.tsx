@@ -151,8 +151,8 @@ export const ProbabilityTreeDiagram = ({ config }: Props) => {
         const dx = edge.x2 - edge.x1;
         const dy = edge.y2 - edge.y1;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const offsetX = (-dy / len) * 12;
-        const offsetY = (dx / len) * 12;
+        const offsetX = (-dy / len) * 18;
+        const offsetY = (dx / len) * 18;
         return (
           <g key={i}>
             <line x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2}
