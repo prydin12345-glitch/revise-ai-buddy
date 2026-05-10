@@ -11,6 +11,7 @@ interface Props {
   isSubmitted?: boolean;
   isReview?: boolean;
   isExam?: boolean;
+  isPracticeQuiz?: boolean;
 }
 
 const typeLabel: Record<string, string> = {
@@ -29,6 +30,7 @@ export const MathsFigurePanel = ({
   isSubmitted = false,
   isReview = false,
   isExam = false,
+  isPracticeQuiz = false,
 }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -38,7 +40,21 @@ export const MathsFigurePanel = ({
   const config = diagramConfig ?? detectMathsDiagram(questionText, subject);
   if (!config) return null;
 
-  const shouldShow = isReview || isSubmitted || revealed;
+  // Practice-quiz interactive flow:
+  //   - Before submit: render the interactive diagram (e.g. input cells in
+  //     a two-way table) so the student can attempt it. No "Show answer" button.
+  //   - After submit:  hide the interactive view and show the "Show answer"
+  //     button. Clicking it reveals the fully completed reference diagram.
+  // Other contexts (review/preview) keep their "always reveal" behaviour.
+  const isInteractive = isPracticeQuiz && !isSubmitted;
+  const shouldShow = isReview || (isPracticeQuiz ? revealed : (isSubmitted || revealed));
+  const showRevealButton = isPracticeQuiz
+    ? isSubmitted && !isReview
+    : !isReview && !isSubmitted;
+  const buttonLabel = isPracticeQuiz
+    ? (revealed ? 'Hide answer' : 'Show answer')
+    : (revealed ? 'Hide diagram' : 'Show reference diagram');
+
   const label = typeLabel[config.type] ?? 'Maths Diagram';
 
   return (
@@ -68,7 +84,7 @@ export const MathsFigurePanel = ({
             {label}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {!shouldShow && (
+            {!shouldShow && !isInteractive && (
               <span style={{
                 fontSize: 10,
                 color: 'hsl(var(--muted-foreground))',
@@ -77,7 +93,7 @@ export const MathsFigurePanel = ({
                 Reference diagram
               </span>
             )}
-            {!isReview && !isSubmitted && (
+            {showRevealButton && (
               <button
                 onClick={() => setRevealed(r => !r)}
                 style={{
@@ -93,10 +109,10 @@ export const MathsFigurePanel = ({
                   fontFamily: 'inherit',
                 }}
               >
-                {revealed ? 'Hide diagram' : 'Show reference diagram'}
+                {buttonLabel}
               </button>
             )}
-            {shouldShow && (
+            {(shouldShow || isInteractive) && (
               <button
                 onClick={() => setExpanded(true)}
                 style={{
@@ -111,9 +127,14 @@ export const MathsFigurePanel = ({
             )}
           </div>
         </div>
-        {shouldShow ? (
-          <div style={{ padding: '12px 8px', maxWidth: 600, margin: '0 auto' }}>
-            <MathsDiagramDraw config={config} />
+        {(shouldShow || isInteractive) ? (
+          <div style={{ padding: '12px 8px', maxWidth: 820, margin: '0 auto' }}>
+            <MathsDiagramDraw
+              config={config}
+              isPracticeQuiz={isPracticeQuiz}
+              isSubmitted={isSubmitted}
+              isAnswerRevealed={shouldShow}
+            />
           </div>
         ) : (
           <div style={{
@@ -123,12 +144,14 @@ export const MathsFigurePanel = ({
             fontSize: 12,
             fontStyle: 'italic',
           }}>
-            Answer the question above then click Show reference diagram
+            {isPracticeQuiz
+              ? 'Submit your answer to reveal the worked diagram'
+              : 'Answer the question above then click Show reference diagram'}
           </div>
         )}
       </div>
 
-      {expanded && shouldShow && (
+      {expanded && (shouldShow || isInteractive) && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
@@ -142,7 +165,7 @@ export const MathsFigurePanel = ({
             style={{
               background: 'hsl(var(--card))',
               borderRadius: 14, padding: 24,
-              width: '100%', maxWidth: 820,
+              width: '100%', maxWidth: 900,
               position: 'relative',
             }}
             onClick={e => e.stopPropagation()}
@@ -166,7 +189,12 @@ export const MathsFigurePanel = ({
             }}>
               {label}
             </div>
-            <MathsDiagramDraw config={config} />
+            <MathsDiagramDraw
+              config={config}
+              isPracticeQuiz={isPracticeQuiz}
+              isSubmitted={isSubmitted}
+              isAnswerRevealed={shouldShow}
+            />
           </div>
         </div>
       )}
@@ -175,3 +203,4 @@ export const MathsFigurePanel = ({
 };
 
 export default MathsFigurePanel;
+
