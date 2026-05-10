@@ -5,9 +5,20 @@ import { SampleSpaceDiagram } from './diagrams/SampleSpaceDiagram';
 import { PunnettSquareDiagram } from '@/components/biology/diagrams/PunnettSquareDiagram';
 import type { MathsDiagramConfig } from './types';
 
-interface Props { config: MathsDiagramConfig; }
+interface Props {
+  config: MathsDiagramConfig;
+  isPracticeQuiz?: boolean;
+  isSubmitted?: boolean;
+  /** True once the student has chosen to reveal the worked answer. */
+  isAnswerRevealed?: boolean;
+}
 
-export const MathsDiagramDraw = ({ config }: Props) => {
+export const MathsDiagramDraw = ({
+  config,
+  isPracticeQuiz = false,
+  isSubmitted = false,
+  isAnswerRevealed = false,
+}: Props) => {
   switch (config.type) {
     case 'probability_tree':
       return <ProbabilityTreeDiagram config={config} />;
@@ -16,7 +27,14 @@ export const MathsDiagramDraw = ({ config }: Props) => {
     case 'venn_three':
       return <VennThreeDiagram config={config} />;
     case 'two_way_table':
-      return <TwoWayTableDiagram config={config} />;
+      return (
+        <TwoWayTableDiagram
+          config={config}
+          isPracticeQuiz={isPracticeQuiz}
+          isSubmitted={isSubmitted}
+          isAnswerRevealed={isAnswerRevealed}
+        />
+      );
     case 'sample_space':
       return <SampleSpaceDiagram config={config} />;
     case 'punnett_maths':
