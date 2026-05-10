@@ -461,6 +461,9 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
     rowTotals,
     colTotals,
     grandTotal,
+    givenData,
+    givenRowTotals,
+    givenColTotals,
     title: 'Two-Way Frequency Table',
   };
 };
