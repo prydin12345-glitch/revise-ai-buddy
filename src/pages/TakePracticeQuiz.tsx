@@ -1765,6 +1765,7 @@ const TakePracticeQuiz = () => {
                     diagramConfig={null}
                     isSubmitted={!!currentAnswer?.submitted}
                     isReview={false}
+                    isPracticeQuiz={true}
                   />
 
                   {(() => {
