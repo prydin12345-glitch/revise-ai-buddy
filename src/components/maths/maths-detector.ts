@@ -226,11 +226,38 @@ const buildVennConfig = (lower: string): MathsDiagramConfig => {
     ? ['A', 'B', 'C']
     : ['A', 'B'];
 
-  const numbers = [...lower.matchAll(/\b(\d+)\b/g)]
-    .map(m => parseInt(m[1]))
-    .filter(n => n > 0 && n < 200);
+  // Heuristic extractor: find total, n(A), n(B), and "both"/intersection
+  const findNum = (re: RegExp): number | undefined => {
+    const m = lower.match(re);
+    return m ? parseInt(m[1]) : undefined;
+  };
+
+  const total =
+    findNum(/(\d+)\s+(?:students?|people|children|pupils|members|participants?|adults?|respondents?)/i) ??
+    findNum(/total\s+of\s+(\d+)/i) ??
+    findNum(/there\s+are\s+(\d+)/i);
+
+  const both =
+    findNum(/(\d+)\s+(?:students?|people|pupils|children)?\s*(?:study|studied|like|liked|chose|choose|play|played|do|did|take|took)\s+both/i) ??
+    findNum(/(\d+)\s+(?:do|did|study|studied|like|liked|chose|play|played|take|took)?\s*both/i) ??
+    findNum(/both\s+(?:subjects?|sets?|activities|sports?)\s*[:=]?\s*(\d+)/i) ??
+    findNum(/n\s*\(\s*a\s*∩\s*b\s*\)\s*=\s*(\d+)/i) ??
+    findNum(/intersection\s*[:=]?\s*(\d+)/i);
+
+  const labelANum = (label: string): number | undefined => {
+    const l = label.toLowerCase();
+    return (
+      findNum(new RegExp(`(\\d+)\\s+(?:students?|people|pupils|children)?\\s*(?:study|studied|like|liked|chose|play|played|take|took|do|did|prefer|preferred)\\s+${l}`, 'i')) ??
+      findNum(new RegExp(`(\\d+)\\s+${l}\\b`, 'i')) ??
+      findNum(new RegExp(`n\\s*\\(\\s*${l[0]}\\s*\\)\\s*=\\s*(\\d+)`, 'i'))
+    );
+  };
 
   if (threeSet) {
+    // Keep simple ordering for 3-set (rare in this fix scope)
+    const numbers = [...lower.matchAll(/\b(\d+)\b/g)]
+      .map(m => parseInt(m[1]))
+      .filter(n => n > 0 && n < 200);
     return {
       type: 'venn_three',
       setA: setLabels[0] ?? 'A',
@@ -257,17 +284,43 @@ const buildVennConfig = (lower: string): MathsDiagramConfig => {
   else if (has(lower, "b'", 'not b', 'complement of b')) highlightRegion = 'complement_B';
   else if (has(lower, 'neither')) highlightRegion = 'neither';
 
+  const nA = labelANum(setLabels[0] ?? 'A');
+  const nB = labelANum(setLabels[1] ?? 'B');
+
+  // Compute derived region values from raw inputs
+  let derivedBoth = both;
+  let derivedOnlyA: number | undefined;
+  let derivedOnlyB: number | undefined;
+  let derivedNeither: number | undefined;
+
+  if (nA !== undefined && nB !== undefined && derivedBoth !== undefined) {
+    derivedOnlyA = nA - derivedBoth;
+    derivedOnlyB = nB - derivedBoth;
+    if (total !== undefined) {
+      derivedNeither = total - nA - nB + derivedBoth;
+    }
+  } else {
+    // Fallback: use raw numbers in document order if we couldn't classify
+    const numbers = [...lower.matchAll(/\b(\d+)\b/g)]
+      .map(m => parseInt(m[1]))
+      .filter(n => n > 0 && n < 1000);
+    derivedBoth = derivedBoth ?? numbers[0];
+    derivedOnlyA = numbers[1];
+    derivedOnlyB = numbers[2];
+    derivedNeither = numbers[3];
+  }
+
   return {
     type: 'venn_two',
     setA: setLabels[0] ?? 'A',
     setB: setLabels[1] ?? 'B',
-    both: numbers[0],
-    onlyA: numbers[1],
-    onlyB: numbers[2],
-    neither: numbers[3],
-    total: numbers.find(n => n > (numbers[0] ?? 0) + (numbers[1] ?? 0) + (numbers[2] ?? 0)),
+    both: derivedBoth,
+    onlyA: derivedOnlyA,
+    onlyB: derivedOnlyB,
+    neither: derivedNeither,
+    total,
     universalSetLabel: 'ξ',
-    showSetNotation: true,
+    showSetNotation: false,
     highlightRegion,
   };
 };
