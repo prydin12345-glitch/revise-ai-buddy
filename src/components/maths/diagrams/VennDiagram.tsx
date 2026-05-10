@@ -91,16 +91,6 @@ export const VennTwoDiagram = ({ config }: { config: VennTwoConfig }) => {
         <text x={W - 24} y={H - 28} textAnchor="end" fontSize={14}
           fill="hsl(var(--muted-foreground))">{neither}</text>
       )}
-      {showSetNotation && (
-        <>
-          <text x={cx1 - 36} y={cy + 22} textAnchor="middle" fontSize={9}
-            fill="hsl(var(--muted-foreground))">A only</text>
-          <text x={(cx1 + cx2) / 2} y={cy + 22} textAnchor="middle" fontSize={9}
-            fill="hsl(var(--muted-foreground))">A∩B</text>
-          <text x={cx2 + 36} y={cy + 22} textAnchor="middle" fontSize={9}
-            fill="hsl(var(--muted-foreground))">B only</text>
-        </>
-      )}
     </svg>
   );
 };
