@@ -81,6 +81,10 @@ export interface TwoWayTableConfig {
   rowTotals?: (number | null)[];
   colTotals?: (number | null)[];
   grandTotal?: number | null;
+  /** Pre-solver snapshot — null cells are blanks the student must fill in. */
+  givenData?: (number | null)[][];
+  givenRowTotals?: (number | null)[];
+  givenColTotals?: (number | null)[];
   title?: string;
   highlightCell?: { row: number; col: number };
 }
