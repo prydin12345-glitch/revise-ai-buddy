@@ -400,6 +400,11 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
     if (colTotalMatch) colTotals[ci] = parseInt(colTotalMatch[1]);
   });
 
+  // Snapshot of what was extracted from the text — these are the "given" values.
+  const givenData = data.map(row => row.slice());
+  const givenRowTotals = rowTotals.slice();
+  const givenColTotals = colTotals.slice();
+
   // Constraint solver
   let changed = true;
   let iter = 0;
