@@ -10,10 +10,10 @@ export const ProbabilityTreeDiagram = ({ config }: Props) => {
 
   const totalLeaves = countLeaves(branches);
 
-  const SVG_W = showOutcomes ? 660 : 480;
-  const LEAF_HEIGHT = Math.max(36, Math.min(56, 340 / totalLeaves));
-  const SVG_H = Math.max(280, totalLeaves * LEAF_HEIGHT + 80);
-  const MARGIN = { top: 48, left: 40, right: showOutcomes ? 240 : 40 };
+  const SVG_W = showOutcomes ? 820 : 600;
+  const LEAF_HEIGHT = Math.max(64, Math.min(90, 480 / totalLeaves));
+  const SVG_H = Math.max(420, totalLeaves * LEAF_HEIGHT + 100);
+  const MARGIN = { top: 56, left: 48, right: showOutcomes ? 260 : 48 };
 
   const plotW = SVG_W - MARGIN.left - MARGIN.right;
   const stages = config.stages;
