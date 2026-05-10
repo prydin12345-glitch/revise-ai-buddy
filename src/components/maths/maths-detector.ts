@@ -366,6 +366,8 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
   const data: (number | null)[][] = Array.from({ length: rows }, () => Array(cols).fill(null));
   const rowTotals: (number | null)[] = Array(rows).fill(null);
   const colTotals: (number | null)[] = Array(cols).fill(null);
+  // Snapshot taken AFTER text-extraction but BEFORE solver — represents what is "given"
+  // vs. what the student must derive. Captured below after extraction.
 
   rowLabels.forEach((rowLabel, ri) => {
     const rowLower = rowLabel.toLowerCase();
