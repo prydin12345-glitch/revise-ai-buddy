@@ -366,6 +366,8 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
   const data: (number | null)[][] = Array.from({ length: rows }, () => Array(cols).fill(null));
   const rowTotals: (number | null)[] = Array(rows).fill(null);
   const colTotals: (number | null)[] = Array(cols).fill(null);
+  // Snapshot taken AFTER text-extraction but BEFORE solver — represents what is "given"
+  // vs. what the student must derive. Captured below after extraction.
 
   rowLabels.forEach((rowLabel, ri) => {
     const rowLower = rowLabel.toLowerCase();
@@ -397,6 +399,11 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
     );
     if (colTotalMatch) colTotals[ci] = parseInt(colTotalMatch[1]);
   });
+
+  // Snapshot of what was extracted from the text — these are the "given" values.
+  const givenData = data.map(row => row.slice());
+  const givenRowTotals = rowTotals.slice();
+  const givenColTotals = colTotals.slice();
 
   // Constraint solver
   let changed = true;
@@ -454,6 +461,9 @@ const buildTwoWayTableConfig = (lower: string, originalText: string): MathsDiagr
     rowTotals,
     colTotals,
     grandTotal,
+    givenData,
+    givenRowTotals,
+    givenColTotals,
     title: 'Two-Way Frequency Table',
   };
 };
