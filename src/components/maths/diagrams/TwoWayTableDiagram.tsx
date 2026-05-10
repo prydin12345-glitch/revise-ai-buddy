@@ -44,19 +44,21 @@ export const TwoWayTableDiagram = ({ config }: Props) => {
   ) => {
     const style = cellStyle(row, col, isHeader, isTotal);
     const isEmpty = content === null || content === undefined || content === '';
+    const isUnknownDataCell = isEmpty && !isHeader && !isTotal;
     return (
       <g key={key ?? `${x}-${y}`}>
-        <rect x={x} y={y} width={w} height={h}
-          fill={style.fill} stroke={style.stroke} strokeWidth={1} />
+        <rect
+          x={x} y={y} width={w} height={h}
+          fill={isUnknownDataCell ? 'hsl(var(--muted) / 0.15)' : style.fill}
+          stroke={isUnknownDataCell ? 'hsl(var(--muted-foreground) / 0.4)' : style.stroke}
+          strokeWidth={isUnknownDataCell ? 1.25 : 1}
+          strokeDasharray={isUnknownDataCell ? '4 3' : undefined}
+        />
         {!isEmpty && (
           <text x={x + w / 2} y={y + h / 2 + 5} textAnchor="middle"
             fontSize={isHeader ? 11 : 13}
             fontWeight={isHeader || isTotal ? 700 : 400}
             fill="hsl(var(--foreground))">{content}</text>
-        )}
-        {isEmpty && !isHeader && (
-          <text x={x + w / 2} y={y + h / 2 + 5} textAnchor="middle"
-            fontSize={11} fill="hsl(var(--muted-foreground) / 0.5)">?</text>
         )}
       </g>
     );
