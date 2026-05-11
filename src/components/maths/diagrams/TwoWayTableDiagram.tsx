@@ -1,23 +1,13 @@
-import { useState } from 'react';
 import type { TwoWayTableConfig } from '../types';
 
 interface Props {
   config: TwoWayTableConfig;
-  isPracticeQuiz?: boolean;
-  isSubmitted?: boolean;
-  isAnswerRevealed?: boolean;
 }
 
-export const TwoWayTableDiagram = ({
-  config,
-  isPracticeQuiz = false,
-  isSubmitted = false,
-  isAnswerRevealed = false,
-}: Props) => {
+export const TwoWayTableDiagram = ({ config }: Props) => {
   const {
     rowVariable, colVariable, rowLabels, colLabels,
     data, rowTotals, colTotals, grandTotal,
-    givenData, givenRowTotals, givenColTotals,
     title, highlightCell,
   } = config;
 
@@ -35,32 +25,6 @@ export const TwoWayTableDiagram = ({
   const ox = 10;
   const oy = title ? 32 : 12;
 
-  // Identify which cells were originally blank — only those become inputs
-  // for the practice-quiz interactive flow.
-  const isBlankCell = (ri: number, ci: number): boolean => {
-    if (!givenData) return data[ri]?.[ci] == null;
-    return givenData[ri]?.[ci] == null;
-  };
-  const isBlankRowTotal = (ri: number): boolean => {
-    if (!givenRowTotals) return rowTotals?.[ri] == null;
-    return givenRowTotals[ri] == null;
-  };
-  const isBlankColTotal = (ci: number): boolean => {
-    if (!givenColTotals) return colTotals?.[ci] == null;
-    return givenColTotals[ci] == null;
-  };
-
-  // Student inputs keyed "r-c" for data cells, "rt-r"/"ct-c" for totals.
-  const [studentInputs, setStudentInputs] = useState<Record<string, string>>({});
-  const setInput = (key: string, value: string) =>
-    setStudentInputs(prev => ({ ...prev, [key]: value }));
-
-  // The interactive (input) view is shown only in a practice quiz, before
-  // submit, and before the student reveals the answer.
-  const showInputs = isPracticeQuiz && !isSubmitted && !isAnswerRevealed;
-  // After submit (or answer revealed), show comparison feedback.
-  const showFeedback = isPracticeQuiz && (isSubmitted || isAnswerRevealed);
-
   const cellStyle = (row: number, col: number, isHeader = false, isTotal = false) => {
     const isHighlighted = highlightCell?.row === row && highlightCell?.col === col;
     return {
@@ -71,84 +35,6 @@ export const TwoWayTableDiagram = ({
         : 'hsl(var(--background))',
       stroke: 'hsl(var(--border))',
     };
-  };
-
-  const renderInteractiveCell = (
-    x: number, y: number, w: number, h: number,
-    inputKey: string, correctValue: number | null,
-    key: string,
-  ) => {
-    const studentVal = studentInputs[inputKey] ?? '';
-    const studentNum = studentVal === '' ? null : Number(studentVal);
-    const correct = correctValue != null && studentNum === correctValue;
-
-    if (showInputs) {
-      return (
-        <foreignObject key={key} x={x} y={y} width={w} height={h}>
-          <div style={{
-            width: '100%', height: '100%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1.5px dashed hsl(var(--muted-foreground) / 0.4)',
-            background: 'hsl(var(--muted) / 0.15)',
-            boxSizing: 'border-box',
-          }}>
-            <input
-              type="number"
-              value={studentVal}
-              onChange={e => setInput(inputKey, e.target.value)}
-              placeholder="?"
-              style={{
-                width: '100%', height: '100%',
-                background: 'transparent',
-                border: 'none', outline: 'none',
-                textAlign: 'center',
-                fontSize: 14, fontWeight: 600,
-                color: 'hsl(var(--foreground))',
-                padding: '0 4px',
-                fontFamily: 'inherit',
-              }}
-            />
-          </div>
-        </foreignObject>
-      );
-    }
-
-    if (showFeedback) {
-      const studentAttempted = studentVal !== '';
-      const correctColour = correct ? 'hsl(142 71% 45%)' : 'hsl(0 84% 60%)';
-      return (
-        <g key={key}>
-          <rect
-            x={x} y={y} width={w} height={h}
-            fill={correct ? 'hsl(142 71% 45% / 0.12)' : 'hsl(0 84% 60% / 0.08)'}
-            stroke={correctColour} strokeWidth={1.25}
-          />
-          {studentAttempted && !correct && (
-            <text
-              x={x + w / 2} y={y + 12}
-              textAnchor="middle"
-              fontSize={9}
-              fill="hsl(var(--muted-foreground))"
-              style={{ textDecoration: 'line-through' } as any}
-            >
-              {studentVal}
-            </text>
-          )}
-          <text
-            x={x + w / 2}
-            y={y + (studentAttempted && !correct ? h / 2 + 8 : h / 2 + 5)}
-            textAnchor="middle"
-            fontSize={13} fontWeight={700}
-            fill={correctColour}
-          >
-            {correctValue ?? '—'}
-          </text>
-        </g>
-      );
-    }
-
-    // Static reference (exam / preview / non-quiz contexts).
-    return renderCell(x, y, w, h, correctValue, false, false, -1, -1, key);
   };
 
   const renderCell = (
@@ -178,34 +64,6 @@ export const TwoWayTableDiagram = ({
         )}
       </g>
     );
-  };
-
-  // Decide whether a data cell renders as interactive (input/feedback) or static.
-  const renderDataCell = (
-    x: number, y: number, w: number, h: number,
-    ri: number, ci: number,
-  ) => {
-    const correctValue = data[ri]?.[ci] ?? null;
-    if (isPracticeQuiz && isBlankCell(ri, ci)) {
-      return renderInteractiveCell(x, y, w, h, `c-${ri}-${ci}`, correctValue, `cell-${ri}-${ci}`);
-    }
-    return renderCell(x, y, w, h, correctValue, false, false, ri, ci, `cell-${ri}-${ci}`);
-  };
-
-  const renderRowTotal = (x: number, y: number, w: number, h: number, ri: number) => {
-    const correctValue = rowTotals?.[ri] ?? null;
-    if (isPracticeQuiz && isBlankRowTotal(ri)) {
-      return renderInteractiveCell(x, y, w, h, `rt-${ri}`, correctValue, `rowtotal-${ri}`);
-    }
-    return renderCell(x, y, w, h, correctValue, false, true, -1, -1, `rowtotal-${ri}`);
-  };
-
-  const renderColTotal = (x: number, y: number, w: number, h: number, ci: number) => {
-    const correctValue = colTotals?.[ci] ?? null;
-    if (isPracticeQuiz && isBlankColTotal(ci)) {
-      return renderInteractiveCell(x, y, w, h, `ct-${ci}`, correctValue, `coltotal-${ci}`);
-    }
-    return renderCell(x, y, w, h, correctValue, false, true, -1, -1, `coltotal-${ci}`);
   };
 
   return (
@@ -238,16 +96,18 @@ export const TwoWayTableDiagram = ({
           {renderCell(ox + labelW, oy + headerH * 2 + ri * cellH, cellW, cellH,
             rowLabel, true, false, -1, -1, `rowhdr-${ri}`)}
           {colLabels.map((_, ci) =>
-            renderDataCell(
+            renderCell(
               ox + labelW + (ci + 1) * cellW,
               oy + headerH * 2 + ri * cellH,
-              cellW, cellH, ri, ci,
+              cellW, cellH, data[ri]?.[ci] ?? null,
+              false, false, ri, ci, `cell-${ri}-${ci}`,
             ),
           )}
-          {renderRowTotal(
+          {renderCell(
             ox + labelW + (colLabels.length + 1) * cellW,
             oy + headerH * 2 + ri * cellH,
-            totalColW, cellH, ri,
+            totalColW, cellH, rowTotals?.[ri] ?? null,
+            false, true, -1, -1, `rowtotal-${ri}`,
           )}
         </g>
       ))}
@@ -256,20 +116,18 @@ export const TwoWayTableDiagram = ({
         cellW, cellH, 'Total', true, false, -1, -1, 'totalrow',
       )}
       {colLabels.map((_, ci) =>
-        renderColTotal(
+        renderCell(
           ox + labelW + (ci + 1) * cellW,
           oy + headerH * 2 + rowLabels.length * cellH,
-          cellW, cellH, ci,
+          cellW, cellH, colTotals?.[ci] ?? null,
+          false, true, -1, -1, `coltotal-${ci}`,
         ),
       )}
-      {(() => {
-        const x = ox + labelW + (colLabels.length + 1) * cellW;
-        const y = oy + headerH * 2 + rowLabels.length * cellH;
-        if (isPracticeQuiz && (givenColTotals ? givenColTotals.every(v => v == null) : grandTotal == null)) {
-          return renderInteractiveCell(x, y, totalColW, cellH, 'gt', grandTotal ?? null, 'grandtotal');
-        }
-        return renderCell(x, y, totalColW, cellH, grandTotal ?? null, false, true, -1, -1, 'grandtotal');
-      })()}
+      {renderCell(
+        ox + labelW + (colLabels.length + 1) * cellW,
+        oy + headerH * 2 + rowLabels.length * cellH,
+        totalColW, cellH, grandTotal ?? null, false, true, -1, -1, 'grandtotal',
+      )}
     </svg>
   );
 };
