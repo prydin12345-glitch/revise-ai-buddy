@@ -19,6 +19,12 @@ export const MathsDiagramDraw = ({
   isSubmitted = false,
   isAnswerRevealed = false,
 }: Props) => {
+  // In practice-quiz context never expose the worked diagram until the
+  // student has submitted. The figure panel additionally controls the
+  // Show answer button — this gate is the safety net.
+  const shouldRender = !isPracticeQuiz || isSubmitted;
+  if (!shouldRender) return null;
+
   switch (config.type) {
     case 'probability_tree':
       return <ProbabilityTreeDiagram config={config} />;
@@ -27,14 +33,7 @@ export const MathsDiagramDraw = ({
     case 'venn_three':
       return <VennThreeDiagram config={config} />;
     case 'two_way_table':
-      return (
-        <TwoWayTableDiagram
-          config={config}
-          isPracticeQuiz={isPracticeQuiz}
-          isSubmitted={isSubmitted}
-          isAnswerRevealed={isAnswerRevealed}
-        />
-      );
+      return <TwoWayTableDiagram config={config} />;
     case 'sample_space':
       return <SampleSpaceDiagram config={config} />;
     case 'punnett_maths':

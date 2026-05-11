@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sigma, Maximize2, X } from 'lucide-react';
 import { MathsDiagramDraw } from './MathsDiagramDraw';
 import { detectMathsDiagram } from './maths-detector';
+import { detectDrawQuestion } from '@/components/drawing/draw-question-detector';
 import type { MathsDiagramConfig } from './types';
 
 interface Props {
@@ -37,23 +38,31 @@ export const MathsFigurePanel = ({
 
   if (isExam) return null;
 
+  // Suppress when the drawing canvas owns the question (matches
+  // EconomicsFigurePanel behaviour).
+  const drawInfo = detectDrawQuestion(questionText, subject);
+  if (drawInfo.needsDrawingCanvas) return null;
+
   const config = diagramConfig ?? detectMathsDiagram(questionText, subject);
   if (!config) return null;
 
-  // Practice-quiz interactive flow:
-  //   - Before submit: render the interactive diagram (e.g. input cells in
-  //     a two-way table) so the student can attempt it. No "Show answer" button.
-  //   - After submit:  hide the interactive view and show the "Show answer"
-  //     button. Clicking it reveals the fully completed reference diagram.
-  // Other contexts (review/preview) keep their "always reveal" behaviour.
-  const isInteractive = isPracticeQuiz && !isSubmitted;
-  const shouldShow = isReview || (isPracticeQuiz ? revealed : (isSubmitted || revealed));
-  const showRevealButton = isPracticeQuiz
-    ? isSubmitted && !isReview
-    : !isReview && !isSubmitted;
-  const buttonLabel = isPracticeQuiz
-    ? (revealed ? 'Hide answer' : 'Show answer')
-    : (revealed ? 'Hide diagram' : 'Show reference diagram');
+  // Reveal contract:
+  //   - review:   always show
+  //   - exam:     handled by isExam early return above
+  //   - practice: hidden until submit; after submit show "Show answer"
+  //               button which toggles reveal
+  //   - other:    show by default (preview / non-quiz contexts)
+  const shouldShow = isReview
+    ? true
+    : isPracticeQuiz
+      ? (isSubmitted && revealed)
+      : (isSubmitted || revealed || true);
+
+  // Show reveal button only in practice quiz, post-submit, when not yet revealed.
+  const showRevealButton =
+    isPracticeQuiz && isSubmitted && !isReview && !revealed;
+  // Show hide button when revealed (only outside review).
+  const showHideButton = !isReview && revealed;
 
   const label = typeLabel[config.type] ?? 'Maths Diagram';
 
@@ -84,24 +93,31 @@ export const MathsFigurePanel = ({
             {label}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {!shouldShow && !isInteractive && (
-              <span style={{
-                fontSize: 10,
-                color: 'hsl(var(--muted-foreground))',
-                fontStyle: 'italic',
-              }}>
-                Reference diagram
-              </span>
-            )}
             {showRevealButton && (
               <button
-                onClick={() => setRevealed(r => !r)}
+                onClick={() => setRevealed(true)}
                 style={{
                   fontSize: 11,
-                  padding: '2px 8px',
-                  background: revealed
-                    ? 'hsl(var(--muted))'
-                    : 'hsl(221 83% 53% / 0.12)',
+                  padding: '3px 10px',
+                  background: 'hsl(221 83% 53% / 0.12)',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  color: 'hsl(var(--foreground))',
+                  fontFamily: 'inherit',
+                  fontWeight: 600,
+                }}
+              >
+                Show answer
+              </button>
+            )}
+            {showHideButton && (
+              <button
+                onClick={() => setRevealed(false)}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 10px',
+                  background: 'hsl(var(--muted))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: 5,
                   cursor: 'pointer',
@@ -109,10 +125,10 @@ export const MathsFigurePanel = ({
                   fontFamily: 'inherit',
                 }}
               >
-                {buttonLabel}
+                Hide answer
               </button>
             )}
-            {(shouldShow || isInteractive) && (
+            {shouldShow && (
               <button
                 onClick={() => setExpanded(true)}
                 style={{
@@ -127,7 +143,8 @@ export const MathsFigurePanel = ({
             )}
           </div>
         </div>
-        {(shouldShow || isInteractive) ? (
+
+        {shouldShow ? (
           <div style={{ padding: '12px 8px', maxWidth: 820, margin: '0 auto' }}>
             <MathsDiagramDraw
               config={config}
@@ -136,22 +153,26 @@ export const MathsFigurePanel = ({
               isAnswerRevealed={shouldShow}
             />
           </div>
-        ) : (
+        ) : isPracticeQuiz && !isSubmitted ? (
           <div style={{
-            padding: '20px',
-            textAlign: 'center',
+            padding: '20px', textAlign: 'center',
             color: 'hsl(var(--muted-foreground))',
-            fontSize: 12,
-            fontStyle: 'italic',
+            fontSize: 12, fontStyle: 'italic',
           }}>
-            {isPracticeQuiz
-              ? 'Submit your answer to reveal the worked diagram'
-              : 'Answer the question above then click Show reference diagram'}
+            Submit your answer to reveal the correct diagram
           </div>
-        )}
+        ) : isPracticeQuiz && isSubmitted && !revealed ? (
+          <div style={{
+            padding: '20px', textAlign: 'center',
+            color: 'hsl(var(--muted-foreground))',
+            fontSize: 12, fontStyle: 'italic',
+          }}>
+            Click Show answer to see the correct diagram
+          </div>
+        ) : null}
       </div>
 
-      {expanded && (shouldShow || isInteractive) && (
+      {expanded && shouldShow && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
@@ -203,4 +224,3 @@ export const MathsFigurePanel = ({
 };
 
 export default MathsFigurePanel;
-
