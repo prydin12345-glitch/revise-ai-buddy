@@ -80,6 +80,9 @@ export const DrawDiagramQuestion = ({
     setWorkingDataUrl(cleanSavedUrl);
     setIsEditing(!cleanSavedUrl);
     isInitialMountRef.current = true;
+    // Reset marking state when question changes (defence-in-depth alongside parent key prop)
+    setShowMarking(false);
+    setScore(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanSavedUrl]);
 
