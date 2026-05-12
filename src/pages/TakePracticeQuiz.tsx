@@ -244,6 +244,39 @@ const TakePracticeQuiz = () => {
       console.error('[Drawing] Persist exception:', e);
     }
   }, [setId]);
+
+  const persistDrawingScore = useCallback(async (questionId: string, score: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !setId) return;
+      const { error } = await supabase
+        .from('practice_question_answers')
+        .upsert({
+          user_id: user.id,
+          set_id: setId,
+          question_id: questionId,
+          score,
+          is_correct: score > 0,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,question_id' });
+      if (error) console.error('[Drawing] Failed to persist score:', error);
+    } catch (e) {
+      console.error('[Drawing] Persist score exception:', e);
+    }
+  }, [setId]);
+
+  const handleDrawingScoreChange = useCallback((questionId: string, score: number) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: {
+        ...(prev[questionId] ?? { answer: '', submitted: false }),
+        score,
+        submitted: true,
+        isCorrect: score > 0,
+      },
+    }));
+    persistDrawingScore(questionId, score);
+  }, [persistDrawingScore]);
   const guardNavigation = useCallback((action: () => void): boolean => {
     if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
