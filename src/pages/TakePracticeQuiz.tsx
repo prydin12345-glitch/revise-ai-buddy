@@ -2985,6 +2985,16 @@ const TakePracticeQuiz = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {showPracticeSelfMarkModal && practiceDrawQuestionsForReview.length > 0 && (
+        <SelfMarkReviewModal
+          questions={practiceDrawQuestionsForReview}
+          onComplete={handlePracticeSelfMarkComplete}
+          onDismiss={() => {
+            setShowPracticeSelfMarkModal(false);
+            pendingSubmitAllRef.current = false;
+          }}
+        />
+      )}
       {showResults && (
         <AlertDialog open={showResults} onOpenChange={setShowResults}>
           <AlertDialogContent className="max-w-2xl">
