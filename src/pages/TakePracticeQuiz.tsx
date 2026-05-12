@@ -278,6 +278,155 @@ const TakePracticeQuiz = () => {
     }));
     persistDrawingScore(questionId, score);
   }, [persistDrawingScore]);
+
+  // Self-mark gate state for Submit All
+  const [showPracticeSelfMarkModal, setShowPracticeSelfMarkModal] = useState(false);
+  const [practiceDrawQuestionsForReview, setPracticeDrawQuestionsForReview] = useState<DrawQuestionForReview[]>([]);
+  const pendingSubmitAllRef = useRef(false);
+
+  const finaliseSubmitAll = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: allAnswers } = await supabase
+        .from('practice_question_answers')
+        .select('score, is_correct')
+        .eq('user_id', user.id)
+        .eq('set_id', setId);
+
+      const questionsAttempted = allAnswers?.length || 0;
+      const questionsCorrect = allAnswers?.filter(a => a.is_correct).length || 0;
+
+      await supabase.from('practice_set_progress').upsert({
+        user_id: user.id,
+        set_id: setId,
+        questions_attempted: questionsAttempted,
+        questions_correct: questionsCorrect,
+        completed_at: new Date().toISOString(),
+        time_spent_seconds: timeElapsed,
+        current_question_index: 0,
+        flagged_question_ids: [],
+        session_data: {}
+      }, { onConflict: 'user_id,set_id' });
+
+      const today = new Date().toISOString().split('T')[0];
+      const studyMinutes = Math.round(timeElapsed / 60);
+
+      const { data: existingGoal } = await supabase
+        .from('daily_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (existingGoal) {
+        await supabase
+          .from('daily_goals')
+          .update({
+            completed_minutes: (existingGoal.completed_minutes || 0) + studyMinutes,
+            blocks_completed: (existingGoal.blocks_completed || 0) + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingGoal.id);
+      } else {
+        await supabase
+          .from('daily_goals')
+          .insert({
+            user_id: user.id,
+            date: today,
+            completed_minutes: studyMinutes,
+            blocks_completed: 1,
+            target_minutes: 60
+          });
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await supabase.functions.invoke('update-study-streak', {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+        }
+      } catch (streakError) {
+        console.error("Streak update error:", streakError);
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit quiz");
+    }
+    setShowResults(true);
+  }, [setId, timeElapsed]);
+
+  const handleSubmitAll = useCallback(async () => {
+    // Find drawing questions saved but not self-marked, and ones with no drawing
+    const unmarkedDrawingQuestions: DrawQuestionForReview[] = [];
+    const undrawnDrawingQuestionIds: string[] = [];
+
+    for (const q of questions) {
+      const needsCanvas = detectDrawQuestion(
+        q.question_text ?? '',
+        (q as any).subject ?? '',
+        q.question_type,
+      ).needsDrawingCanvas;
+      if (!needsCanvas) continue;
+
+      const ans = userAnswers[q.id];
+      const stored = ans?.workingOut ?? '';
+      const hasDrawing = stored.startsWith('drawing:');
+      const hasScore = ans?.score !== undefined && ans?.score !== null;
+
+      if (hasDrawing && !hasScore) {
+        unmarkedDrawingQuestions.push({
+          id: q.id,
+          questionText: q.question_text ?? '',
+          subject: (q as any).subject ?? '',
+          questionType: q.question_type,
+          marks: q.marks ?? 4,
+          studentDrawingDataUrl: stored,
+        });
+      } else if (!hasDrawing) {
+        undrawnDrawingQuestionIds.push(q.id);
+      }
+    }
+
+    if (unmarkedDrawingQuestions.length > 0) {
+      setPracticeDrawQuestionsForReview(unmarkedDrawingQuestions);
+      pendingSubmitAllRef.current = true;
+      setShowPracticeSelfMarkModal(true);
+      return;
+    }
+
+    // Drawings the student never started: persist a 0 so they're counted in totals
+    for (const qid of undrawnDrawingQuestionIds) {
+      await persistDrawingScore(qid, 0);
+      setUserAnswers(prev => ({
+        ...prev,
+        [qid]: {
+          ...(prev[qid] ?? { answer: '', submitted: false }),
+          score: 0,
+          submitted: true,
+          isCorrect: false,
+        },
+      }));
+    }
+
+    await finaliseSubmitAll();
+  }, [questions, userAnswers, persistDrawingScore, finaliseSubmitAll]);
+
+  const handlePracticeSelfMarkComplete = useCallback(async (scores: Record<string, number>) => {
+    for (const [qid, score] of Object.entries(scores)) {
+      handleDrawingScoreChange(qid, score);
+      await persistDrawingScore(qid, score);
+    }
+    setShowPracticeSelfMarkModal(false);
+    setPracticeDrawQuestionsForReview([]);
+    if (pendingSubmitAllRef.current) {
+      pendingSubmitAllRef.current = false;
+      await handleSubmitAll();
+    }
+  }, [handleDrawingScoreChange, persistDrawingScore, handleSubmitAll]);
+
   const guardNavigation = useCallback((action: () => void): boolean => {
     if (unsavedDrawingQuestionsRef.current.size > 0) {
       setPendingNavigation(() => action);
