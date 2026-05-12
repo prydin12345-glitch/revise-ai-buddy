@@ -1736,6 +1736,7 @@ const ExamInProgress = () => {
                     if (!drawInfo.needsDrawingCanvas) return null;
                     return (
                       <DrawDiagramQuestion
+                        key={question.id}
                         questionText={question.question_text ?? ''}
                         subject={(question as any).subject ?? ''}
                         questionType={question.question_type}
