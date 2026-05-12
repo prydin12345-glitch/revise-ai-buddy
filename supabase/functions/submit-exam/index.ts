@@ -29,8 +29,10 @@ serve(async (req) => {
       });
     }
 
-    const { examId, timeTakenSeconds } = await req.json();
-    console.log('Submitting exam:', examId, 'for user:', user.id);
+    const { examId, timeTakenSeconds, selfMarkScores: rawSelfMarkScores } = await req.json();
+    const selfMarkScores: Record<string, number> =
+      rawSelfMarkScores && typeof rawSelfMarkScores === 'object' ? rawSelfMarkScores : {};
+    console.log('Submitting exam:', examId, 'for user:', user.id, 'self-mark questions:', Object.keys(selfMarkScores).length);
 
     // Check if already submitted (status='graded' means already submitted and graded)
     const { data: existingSubmission } = await supabase
