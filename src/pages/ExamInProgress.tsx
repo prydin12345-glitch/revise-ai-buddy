@@ -2541,7 +2541,8 @@ const ExamInProgress = () => {
           onComplete={async (scores) => {
             setSelfMarkScores(scores);
             setShowSelfMarkReview(false);
-            await submitExam();
+            // Pass scores directly — state update is async and submitExam needs them now
+            await submitExam(scores);
           }}
           onDismiss={() => setShowSelfMarkReview(false)}
         />
