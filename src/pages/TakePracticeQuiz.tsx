@@ -1783,6 +1783,7 @@ const TakePracticeQuiz = () => {
                     if (!drawInfo.needsDrawingCanvas) return null;
                     return (
                       <DrawDiagramQuestion
+                        key={currentQuestion.id}
                         questionText={currentQuestion.question_text ?? ''}
                         subject={(currentQuestion as any).subject ?? ''}
                         questionType={currentQuestion.question_type}
@@ -1803,6 +1804,7 @@ const TakePracticeQuiz = () => {
                           savedElementsRef.current[currentQuestion.id] = els;
                         }}
                         onUnsavedChanges={(has) => handleDrawingWorkingChange(currentQuestion.id, has)}
+                        onScoreChange={(score) => handleDrawingScoreChange(currentQuestion.id, score)}
                       />
                     );
                   })()}
