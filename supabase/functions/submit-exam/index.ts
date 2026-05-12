@@ -29,8 +29,10 @@ serve(async (req) => {
       });
     }
 
-    const { examId, timeTakenSeconds } = await req.json();
-    console.log('Submitting exam:', examId, 'for user:', user.id);
+    const { examId, timeTakenSeconds, selfMarkScores: rawSelfMarkScores } = await req.json();
+    const selfMarkScores: Record<string, number> =
+      rawSelfMarkScores && typeof rawSelfMarkScores === 'object' ? rawSelfMarkScores : {};
+    console.log('Submitting exam:', examId, 'for user:', user.id, 'self-mark questions:', Object.keys(selfMarkScores).length);
 
     // Check if already submitted (status='graded' means already submitted and graded)
     const { data: existingSubmission } = await supabase
@@ -127,6 +129,37 @@ serve(async (req) => {
     for (const question of questions || []) {
       totalMarks += question.marks;
       const studentAnswer = answerMap.get(question.id) || '';
+
+      // Drawing self-mark short-circuit: trust the student's self-mark score and skip AI grading.
+      // Triggered either by a self-mark score in the request, or by a stored answer prefixed "drawing:".
+      const hasSelfMarkScore = Object.prototype.hasOwnProperty.call(selfMarkScores, question.id);
+      const isDrawingAnswer = typeof studentAnswer === 'string' && studentAnswer.startsWith('drawing:');
+      if (hasSelfMarkScore || isDrawingAnswer) {
+        const rawScore = hasSelfMarkScore ? Number(selfMarkScores[question.id]) : 0;
+        const safeScore = Number.isFinite(rawScore)
+          ? Math.min(Math.max(0, rawScore), question.marks)
+          : 0;
+        const isCorrectSelfMark = safeScore >= question.marks && question.marks > 0;
+        const feedbackSelfMark = hasSelfMarkScore
+          ? `Self-marked: ${safeScore}/${question.marks}`
+          : 'Diagram submitted (not self-marked)';
+
+        totalScore += safeScore;
+        console.log(`Question ${question.id}: self-mark score=${safeScore}/${question.marks}`);
+
+        const { error: updateErr } = await supabase
+          .from('student_answers')
+          .update({
+            score: safeScore,
+            feedback: feedbackSelfMark,
+            is_correct: isCorrectSelfMark,
+          })
+          .eq('question_id', question.id)
+          .eq('student_id', user.id);
+        if (updateErr) console.error('Error updating self-marked answer:', updateErr);
+        continue;
+      }
+
       const studentLatex = latexAnswerMap.get(question.id) || '';
       const answerFormat = answerFormatMap.get(question.id) || 'text';
       const tableAnswers = tableAnswerMap.get(question.id);
