@@ -929,11 +929,14 @@ const ExamInProgress = () => {
   };
 
   // Retry logic with exponential backoff
-  const submitExamWithRetry = async (maxRetries = 3): Promise<any> => {
+  const submitExamWithRetry = async (
+    selfMarkScores: Record<string, number> = {},
+    maxRetries = 3,
+  ): Promise<any> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const { data, error } = await supabase.functions.invoke('submit-exam', {
-          body: { examId, timeTakenSeconds: timeElapsed }
+          body: { examId, timeTakenSeconds: timeElapsed, selfMarkScores }
         });
         
         if (error) throw error;
@@ -948,7 +951,7 @@ const ExamInProgress = () => {
     }
   };
 
-  const submitExam = async () => {
+  const submitExam = async (selfMarkScoresOverride?: Record<string, number>) => {
     setIsSubmitting(true);
     try {
       // 1. Clear any pending debounced saves
@@ -966,8 +969,9 @@ const ExamInProgress = () => {
       console.log(`[Submit] Saving ${answersToSave.length} answers before submission...`);
       await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
 
-      // 3. Call submit edge function with retry
-      const data = await submitExamWithRetry();
+      // 3. Call submit edge function with retry, passing self-mark scores for drawing questions
+      const scoresPayload = selfMarkScoresOverride ?? selfMarkScores;
+      const data = await submitExamWithRetry(scoresPayload);
 
       // 4. Clear localStorage timer state
       localStorage.removeItem(`exam_${examId}_time_remaining`);
