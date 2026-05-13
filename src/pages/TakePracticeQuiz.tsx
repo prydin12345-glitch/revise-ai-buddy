@@ -87,6 +87,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { MathsFigurePanel } from "@/components/maths";
+import { PhysicsFigurePanel } from "@/components/physics";
 import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
@@ -1946,6 +1947,15 @@ const TakePracticeQuiz = () => {
                     questionText={currentQuestion.question_text ?? ''}
                     subject={(currentQuestion as any).subject ?? ''}
                     diagramConfig={null}
+                    isSubmitted={!!currentAnswer?.submitted}
+                    isReview={false}
+                    isPracticeQuiz={true}
+                  />
+
+                  <PhysicsFigurePanel
+                    questionText={currentQuestion.question_text ?? ''}
+                    subject={(currentQuestion as any).subject ?? ''}
+                    diagramConfig={(currentQuestion as any).diagram_config ?? null}
                     isSubmitted={!!currentAnswer?.submitted}
                     isReview={false}
                     isPracticeQuiz={true}
