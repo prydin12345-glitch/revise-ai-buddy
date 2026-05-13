@@ -7,7 +7,7 @@ import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, p
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
-import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions } from "../_shared/prompt-templates.ts";
+import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
@@ -1264,23 +1264,13 @@ ${MULTI_PART_GRAPH_INSTRUCTIONS}
 ${buildBiologyInstructions(subjectName)}
 ${buildMathsInstructions(subjectName)}
 ${(() => {
-  // Inject circuit label consistency rules for physics/electronics subjects
+  // Inject full circuit consistency instructions for physics/electronics subjects.
+  // Fires for both exam and practice generation paths.
   const lowerSubject = subjectName.toLowerCase();
   const lowerTopics = (setData.subtopics || []).map((t: string) => t.toLowerCase()).join(' ');
-  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter'];
+  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter', 'physics', 'electronics'];
   const needsCircuitRules = circuitKeywords.some(kw => lowerSubject.includes(kw) || lowerTopics.includes(kw));
-  if (needsCircuitRules) {
-    return `
-CIRCUIT DIAGRAM LABEL CONSISTENCY (MANDATORY):
-When generating multi-part questions involving circuit diagrams:
-1. LABEL PERSISTENCE: Every component label (R₁, R₂, ε, r) MUST remain consistent across ALL parts of the question. Never rename R₁ to just "R" in later parts.
-2. FULL CIRCUIT RETENTION: If Q1 establishes a parallel/series arrangement, Q2 and Q3 MUST show the COMPLETE circuit — do not simplify to a single resistor unless explicitly computing a Thévenin equivalent.
-3. VALUE CONSISTENCY: If Q1 says R₁ = 12.0Ω, every subsequent question referencing that resistor must use R₁ = 12.0Ω — never change the value.
-4. CIRCUIT_DESCRIPTION: Always include a circuit_description field with the full circuit topology for EVERY question that has a diagram, even for follow-up questions. Do not rely on "refer to previous question."
-5. LABEL FORMAT: Use Unicode subscripts (R₁, R₂, R₃) not LaTeX subscripts in circuit_description labels. Use ε for EMF, r for internal resistance.
-`;
-  }
-  return '';
+  return needsCircuitRules ? buildCircuitInstructions() : '';
 })()}
 ${resourcePackContext}
 
