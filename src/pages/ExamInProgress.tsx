@@ -1731,7 +1731,7 @@ const ExamInProgress = () => {
                     diagramConfig={(question as any).diagram_config ?? null}
                     isSubmitted={false}
                     isReview={false}
-                    isExam={false}
+                    isExam={true}
                   />
 
                   {/* Drawing canvas for economics/biology/physics diagram-draw questions */}
