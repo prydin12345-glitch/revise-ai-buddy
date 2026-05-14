@@ -2,204 +2,337 @@ import type { WaveDiagramConfig } from '../types';
 
 interface Props { config: WaveDiagramConfig; }
 
-const C = {
-  axis: 'hsl(var(--muted-foreground))',
-  wave1: 'hsl(221 83% 53%)',
-  wave2: 'hsl(0 84% 60%)',
-  result: 'hsl(262 83% 58%)',
-  label: 'hsl(var(--foreground))',
-  dim: 'hsl(var(--muted-foreground))',
-};
-
-const sinePath = (
-  amp: number, wl: number, w: number, h: number,
-  cx: number, cy: number, phase = 0,
-): string => {
-  const pts: string[] = [];
-  const n = 200;
-  for (let i = 0; i <= n; i++) {
-    const x = (i / n) * w;
-    const k = (2 * Math.PI) / wl;
-    const y = cy - amp * Math.sin(k * (x - cx) + phase);
-    pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`);
-  }
-  return pts.join(' ');
-  void h;
-};
-
 export const WaveDiagramRenderer = ({ config }: Props) => {
-  const W = 520, H = 280;
-  const cx = 40, cy = H / 2;
-  const w = W - 80;
-  const amp = 60;
-  const wl = w / 2.5;
-  const { variant, harmonicNumber = 1, phaseShift = 0, title } = config;
+  const {
+    variant, amplitude = 1,
+    amplitude2, phaseShift = 0, harmonicNumber = 1,
+    showAmplitudeLabel, showWavelengthLabel, showNodeLabels,
+    title,
+  } = config;
+
+  const W = 480, H = 280;
+  const MARGIN = { top: 40, bottom: 40, left: 48, right: 24 };
+  const plotW = W - MARGIN.left - MARGIN.right;
+  const plotH = H - MARGIN.top - MARGIN.bottom;
+  const axisY = MARGIN.top + plotH / 2;
+
+  const A = (amplitude / 1.5) * (plotH / 2 - 16);
+  const A2 = amplitude2 ? (amplitude2 / 1.5) * (plotH / 2 - 16) : A;
+  const cycles = 2;
+  const pts = 200;
+
+  const wavePath = (
+    ampPx: number,
+    phaseOffset = 0,
+    startX = MARGIN.left,
+    endX = MARGIN.left + plotW,
+  ): string => {
+    const points: string[] = [];
+    for (let i = 0; i <= pts; i++) {
+      const x = startX + (endX - startX) * (i / pts);
+      const t = (i / pts) * cycles * 2 * Math.PI + phaseOffset;
+      const y = axisY - ampPx * Math.sin(t);
+      points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    }
+    return points.join(' ');
+  };
+
+  const colors = {
+    axis: 'hsl(var(--muted-foreground))',
+    wave1: 'hsl(221 83% 53%)',
+    wave2: 'hsl(0 84% 60%)',
+    resultant: 'hsl(142 71% 45%)',
+    label: 'hsl(var(--foreground))',
+    dim: 'hsl(var(--muted-foreground))',
+    node: 'hsl(25 95% 53%)',
+  };
 
   if (variant === 'longitudinal') {
-    const dots: { x: number; y: number }[] = [];
-    for (let i = 0; i < 40; i++) {
-      const t = i / 40;
-      const compression = 1 + 0.7 * Math.sin(2 * Math.PI * 3 * t);
-      const x = 40 + t * w + compression * 4;
-      dots.push({ x, y: cy });
-    }
+    const numParticles = 20;
+    const baseSpacing = plotW / numParticles;
     return (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%"
         style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-        {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-          fontWeight={700} fill={C.label}>{title}</text>}
-        {dots.map((d, i) => (
-          <circle key={i} cx={d.x} cy={d.y} r={3} fill={C.wave1} />
-        ))}
-        <text x={120} y={cy + 50} fontSize={10} fill={C.dim}>Compression</text>
-        <text x={300} y={cy + 50} fontSize={10} fill={C.dim}>Rarefaction</text>
+        {title && <text x={W/2} y={22} textAnchor="middle"
+          fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
+
+        <line x1={MARGIN.left} y1={axisY - A - 28}
+          x2={MARGIN.left + plotW * 0.4} y2={axisY - A - 28}
+          stroke={colors.dim} strokeWidth={1.5}
+          markerEnd="url(#arrDir)" />
+        <text x={MARGIN.left + plotW * 0.2} y={axisY - A - 34}
+          textAnchor="middle" fontSize={10}
+          fill={colors.dim}>Wave direction →</text>
+
+        {Array.from({ length: numParticles }, (_, i) => {
+          const baseX = MARGIN.left + i * baseSpacing + baseSpacing / 2;
+          const phase = (i / numParticles) * cycles * 2 * Math.PI;
+          const displacement = Math.sin(phase) * baseSpacing * 0.4;
+          const particleX = baseX + displacement;
+          const isCompression = displacement < -baseSpacing * 0.15;
+          const isRarefaction = displacement > baseSpacing * 0.15;
+
+          return (
+            <circle key={i}
+              cx={particleX} cy={axisY} r={5}
+              fill={isCompression ? colors.wave1
+                : isRarefaction ? colors.wave2
+                : colors.dim}
+              opacity={0.8}
+            />
+          );
+        })}
+
+        <text x={MARGIN.left + plotW * 0.18} y={axisY + 30}
+          textAnchor="middle" fontSize={10}
+          fill={colors.wave1}>Compression</text>
+        <text x={MARGIN.left + plotW * 0.55} y={axisY + 30}
+          textAnchor="middle" fontSize={10}
+          fill={colors.wave2}>Rarefaction</text>
+
+        {showWavelengthLabel && (
+          <>
+            <line x1={MARGIN.left + 10} y1={axisY + 50}
+              x2={MARGIN.left + plotW / 2} y2={axisY + 50}
+              stroke={colors.dim} strokeWidth={1.5} />
+            <text x={MARGIN.left + plotW / 4} y={axisY + 64}
+              textAnchor="middle" fontSize={11}
+              fill={colors.dim}>λ (one wavelength)</text>
+          </>
+        )}
+
+        <defs>
+          <marker id="arrDir" markerWidth={8} markerHeight={6}
+            refX={7} refY={3} orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill={colors.dim} />
+          </marker>
+        </defs>
       </svg>
     );
   }
 
   if (variant === 'standing_wave') {
-    const n = harmonicNumber;
-    const len = w;
-    const path: string[] = [];
-    const pts = 200;
-    for (let i = 0; i <= pts; i++) {
-      const x = (i / pts) * len;
-      const env = Math.sin((n * Math.PI * x) / len);
-      path.push(`${i === 0 ? 'M' : 'L'} ${cx + x} ${cy - amp * env}`);
+    const nodePositions: number[] = [];
+    const antinodePositions: number[] = [];
+
+    for (let i = 0; i <= harmonicNumber; i++) {
+      nodePositions.push(MARGIN.left + (i / harmonicNumber) * plotW);
     }
-    const pathNeg: string[] = [];
-    for (let i = 0; i <= pts; i++) {
-      const x = (i / pts) * len;
-      const env = Math.sin((n * Math.PI * x) / len);
-      pathNeg.push(`${i === 0 ? 'M' : 'L'} ${cx + x} ${cy + amp * env}`);
+    for (let i = 0; i < harmonicNumber; i++) {
+      antinodePositions.push(
+        MARGIN.left + ((i + 0.5) / harmonicNumber) * plotW
+      );
     }
-    const nodes: number[] = [];
-    for (let k = 0; k <= n; k++) nodes.push(cx + (k * len) / n);
+
+    const upperPath = wavePath(A, 0, MARGIN.left, MARGIN.left + plotW);
+    const lowerPath = wavePath(-A, 0, MARGIN.left, MARGIN.left + plotW);
+
     return (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%"
         style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-        {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-          fontWeight={700} fill={C.label}>{title}</text>}
-        <line x1={cx} y1={cy} x2={cx + len} y2={cy} stroke={C.axis} strokeDasharray="4 3" />
-        <path d={path.join(' ')} stroke={C.wave1} strokeWidth={2} fill="none" />
-        <path d={pathNeg.join(' ')} stroke={C.wave1} strokeWidth={2} fill="none"
-          strokeDasharray="4 3" opacity={0.6} />
-        {nodes.map((nx, i) => (
+        {title && <text x={W/2} y={22} textAnchor="middle"
+          fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
+
+        <line x1={MARGIN.left} y1={axisY}
+          x2={MARGIN.left + plotW} y2={axisY}
+          stroke={colors.axis} strokeWidth={1} strokeDasharray="4 3" />
+
+        <line x1={MARGIN.left} y1={axisY - A - 16}
+          x2={MARGIN.left} y2={axisY + A + 16}
+          stroke={colors.dim} strokeWidth={3} />
+        <line x1={MARGIN.left + plotW} y1={axisY - A - 16}
+          x2={MARGIN.left + plotW} y2={axisY + A + 16}
+          stroke={colors.dim} strokeWidth={3} />
+
+        <path d={upperPath} fill="none"
+          stroke={colors.wave1} strokeWidth={2}
+          strokeDasharray="8 4" />
+        <path d={lowerPath} fill="none"
+          stroke={colors.wave1} strokeWidth={2}
+          strokeDasharray="8 4" />
+
+        <path
+          d={`${upperPath} L ${MARGIN.left + plotW} ${axisY} ${lowerPath
+            .replace('M', 'L').split(' ').reverse().join(' ')}`}
+          fill={colors.wave1}
+          opacity={0.08}
+        />
+
+        {nodePositions.map((x, i) => (
           <g key={i}>
-            <circle cx={nx} cy={cy} r={4} fill={C.wave2} />
-            {config.showNodeLabels && <text x={nx} y={cy + 22} textAnchor="middle"
-              fontSize={10} fill={C.dim}>N</text>}
+            <circle cx={x} cy={axisY} r={5}
+              fill={colors.node} />
+            {showNodeLabels && (
+              <text x={x} y={axisY + 20} textAnchor="middle"
+                fontSize={10} fontWeight={600}
+                fill={colors.node}>N</text>
+            )}
           </g>
         ))}
+
+        {antinodePositions.map((x, i) => (
+          <g key={i}>
+            <line x1={x} y1={axisY - A} x2={x} y2={axisY + A}
+              stroke={colors.wave2} strokeWidth={1}
+              strokeDasharray="3 2" />
+            {showNodeLabels && (
+              <text x={x} y={axisY - A - 8} textAnchor="middle"
+                fontSize={10} fontWeight={600}
+                fill={colors.wave2}>A</text>
+            )}
+          </g>
+        ))}
+
+        <text x={W/2} y={H - 10} textAnchor="middle"
+          fontSize={11} fill={colors.dim}>
+          {harmonicNumber === 1 ? 'Fundamental (1st harmonic)'
+            : harmonicNumber === 2 ? '2nd harmonic (1st overtone)'
+            : harmonicNumber === 3 ? '3rd harmonic (2nd overtone)'
+            : `${harmonicNumber}th harmonic`}
+        </text>
       </svg>
     );
   }
 
   if (variant === 'superposition') {
+    const resultantPath = (() => {
+      const points: string[] = [];
+      for (let i = 0; i <= pts; i++) {
+        const x = MARGIN.left + plotW * (i / pts);
+        const t = (i / pts) * cycles * 2 * Math.PI;
+        const y1 = A * Math.sin(t);
+        const y2 = A2 * Math.sin(t + phaseShift);
+        const y = axisY - (y1 + y2) / 2;
+        points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+      }
+      return points.join(' ');
+    })();
+
     return (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%"
         style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-        {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-          fontWeight={700} fill={C.label}>{title}</text>}
-        <line x1={cx} y1={cy} x2={cx + w} y2={cy} stroke={C.axis} strokeDasharray="4 3" />
-        <path d={sinePath(amp * 0.5, wl, w, H, cx, cy)}
-          stroke={C.wave1} strokeWidth={1.5} fill="none" />
-        <path d={sinePath(amp * 0.5, wl, w, H, cx, cy, phaseShift)}
-          stroke={C.wave2} strokeWidth={1.5} fill="none" />
-        {(() => {
-          const pts: string[] = [];
-          const n = 200;
-          for (let i = 0; i <= n; i++) {
-            const x = (i / n) * w;
-            const k = (2 * Math.PI) / wl;
-            const y = cy - amp * 0.5 * Math.sin(k * x) - amp * 0.5 * Math.sin(k * x + phaseShift);
-            pts.push(`${i === 0 ? 'M' : 'L'} ${cx + x} ${y}`);
-          }
-          return <path d={pts.join(' ')} stroke={C.result} strokeWidth={2.5} fill="none" />;
-        })()}
-        <text x={W - 90} y={40} fontSize={10} fill={C.wave1}>Wave 1</text>
-        <text x={W - 90} y={54} fontSize={10} fill={C.wave2}>Wave 2</text>
-        <text x={W - 90} y={68} fontSize={10} fill={C.result}>Resultant</text>
+        {title && <text x={W/2} y={22} textAnchor="middle"
+          fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
+
+        <line x1={MARGIN.left} y1={axisY}
+          x2={MARGIN.left + plotW} y2={axisY}
+          stroke={colors.axis} strokeWidth={1} strokeDasharray="4 3" />
+
+        <path d={wavePath(A / 2)}
+          fill="none" stroke={colors.wave1}
+          strokeWidth={1.5} strokeDasharray="6 3" opacity={0.7} />
+
+        <path d={wavePath(A2 / 2, phaseShift)}
+          fill="none" stroke={colors.wave2}
+          strokeWidth={1.5} strokeDasharray="6 3" opacity={0.7} />
+
+        <path d={resultantPath}
+          fill="none" stroke={colors.resultant} strokeWidth={2.5} />
+
+        <line x1={MARGIN.left} y1={MARGIN.top - 10}
+          x2={MARGIN.left + 24} y2={MARGIN.top - 10}
+          stroke={colors.wave1} strokeWidth={1.5} strokeDasharray="6 3" />
+        <text x={MARGIN.left + 28} y={MARGIN.top - 6}
+          fontSize={10} fill={colors.wave1}>Wave 1</text>
+
+        <line x1={MARGIN.left + 80} y1={MARGIN.top - 10}
+          x2={MARGIN.left + 104} y2={MARGIN.top - 10}
+          stroke={colors.wave2} strokeWidth={1.5} strokeDasharray="6 3" />
+        <text x={MARGIN.left + 108} y={MARGIN.top - 6}
+          fontSize={10} fill={colors.wave2}>Wave 2</text>
+
+        <line x1={MARGIN.left + 160} y1={MARGIN.top - 10}
+          x2={MARGIN.left + 184} y2={MARGIN.top - 10}
+          stroke={colors.resultant} strokeWidth={2.5} />
+        <text x={MARGIN.left + 188} y={MARGIN.top - 6}
+          fontSize={10} fill={colors.resultant}>Resultant</text>
+
+        <text x={W/2} y={H - 8} textAnchor="middle"
+          fontSize={10} fill={colors.dim}>
+          {Math.abs(phaseShift - Math.PI) < 0.1
+            ? 'Waves in antiphase → destructive interference'
+            : phaseShift < 0.1
+            ? 'Waves in phase → constructive interference'
+            : 'Superposition of two waves'}
+        </text>
       </svg>
     );
   }
 
-  if (variant === 'diffraction') {
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%"
-        style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-        {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-          fontWeight={700} fill={C.label}>{title}</text>}
-        {[0,1,2,3,4].map(i => (
-          <line key={i} x1={60 + i * 30} y1={50} x2={60 + i * 30} y2={H - 40}
-            stroke={C.wave1} strokeWidth={1.5} />
-        ))}
-        <line x1={W/2 - 60} y1={cy - 40} x2={W/2 - 60} y2={cy - 5}
-          stroke={C.label} strokeWidth={3} />
-        <line x1={W/2 - 60} y1={cy + 5} x2={W/2 - 60} y2={cy + 40}
-          stroke={C.label} strokeWidth={3} />
-        {[0,1,2,3,4,5].map(i => (
-          <path key={i}
-            d={`M ${W/2 - 60} ${cy} a ${30 + i * 25} ${30 + i * 25} 0 0 1 ${(30 + i * 25) * 2} 0`}
-            stroke={C.wave2} strokeWidth={1.5} fill="none" />
-        ))}
-        <text x={cx} y={H - 10} fontSize={10} fill={C.dim}>Plane wavefronts</text>
-        <text x={W - 130} y={H - 10} fontSize={10} fill={C.dim}>Circular wavefronts</text>
-      </svg>
-    );
-  }
-
-  if (variant === 'doppler') {
-    const sx = W / 2;
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%"
-        style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-        {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-          fontWeight={700} fill={C.label}>{title}</text>}
-        <circle cx={sx} cy={cy} r={6} fill={C.label} />
-        {[1,2,3,4].map(i => (
-          <ellipse key={i} cx={sx + i * 8} cy={cy} rx={i * 25} ry={i * 25}
-            stroke={C.wave1} fill="none" strokeWidth={1.5} />
-        ))}
-        <text x={40} y={cy + 100} fontSize={10} fill={C.dim}>Lower frequency</text>
-        <text x={W - 130} y={cy + 100} fontSize={10} fill={C.dim}>Higher frequency</text>
-      </svg>
-    );
-  }
-
-  // Default transverse / interference
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%"
       style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
-      {title && <text x={W/2} y={20} textAnchor="middle" fontSize={12}
-        fontWeight={700} fill={C.label}>{title}</text>}
-      <line x1={cx} y1={cy} x2={cx + w} y2={cy} stroke={C.axis} strokeDasharray="4 3" />
-      <path d={sinePath(amp, wl, w, H, cx, cy)}
-        stroke={C.wave1} strokeWidth={2.5} fill="none" />
-      {config.showAmplitudeLabel && (
+
+      {title && <text x={W/2} y={22} textAnchor="middle"
+        fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
+
+      <line x1={MARGIN.left} y1={MARGIN.top}
+        x2={MARGIN.left} y2={H - MARGIN.bottom}
+        stroke={colors.axis} strokeWidth={1.5} />
+      <line x1={MARGIN.left} y1={axisY}
+        x2={W - MARGIN.right} y2={axisY}
+        stroke={colors.axis} strokeWidth={1.5}
+        markerEnd="url(#arrAxis)" />
+
+      <text x={MARGIN.left - 6} y={MARGIN.top + 6}
+        textAnchor="end" fontSize={11}
+        fill={colors.dim}>Displacement</text>
+      <text x={W - MARGIN.right + 8} y={axisY + 4}
+        fontSize={11} fill={colors.dim}>Distance</text>
+
+      <text x={MARGIN.left - 6} y={axisY + 4}
+        textAnchor="end" fontSize={10}
+        fill={colors.dim}>0</text>
+
+      <path d={wavePath(A)}
+        fill="none" stroke={colors.wave1} strokeWidth={2.5} />
+
+      {showAmplitudeLabel && (
         <>
-          <line x1={cx + wl/4} y1={cy} x2={cx + wl/4} y2={cy - amp}
-            stroke={C.dim} strokeDasharray="3 2" />
-          <text x={cx + wl/4 + 6} y={cy - amp/2}
-            fontSize={10} fill={C.dim}>amplitude</text>
+          <line x1={MARGIN.left - 12} y1={axisY}
+            x2={MARGIN.left - 12} y2={axisY - A}
+            stroke={colors.dim} strokeWidth={1}
+            markerStart="url(#arrAxisRev)"
+            markerEnd="url(#arrAxis)" />
+          <text x={MARGIN.left - 28} y={axisY - A / 2 + 4}
+            textAnchor="middle" fontSize={11}
+            fill={colors.dim}
+            transform={`rotate(-90, ${MARGIN.left - 28}, ${axisY - A / 2 + 4})`}>
+            A
+          </text>
         </>
       )}
-      {config.showWavelengthLabel && (
+
+      {showWavelengthLabel && (
         <>
-          <line x1={cx} y1={cy + amp + 20} x2={cx + wl} y2={cy + amp + 20}
-            stroke={C.dim} markerStart="url(#wL)" markerEnd="url(#wR)" />
-          <text x={cx + wl/2} y={cy + amp + 36}
-            textAnchor="middle" fontSize={10} fill={C.dim}>wavelength λ</text>
-          <defs>
-            <marker id="wL" markerWidth={6} markerHeight={6} refX={3} refY={3} orient="auto">
-              <polygon points="6 0, 0 3, 6 6" fill={C.dim} />
-            </marker>
-            <marker id="wR" markerWidth={6} markerHeight={6} refX={3} refY={3} orient="auto">
-              <polygon points="0 0, 6 3, 0 6" fill={C.dim} />
-            </marker>
-          </defs>
+          <line x1={MARGIN.left} y1={axisY + A + 20}
+            x2={MARGIN.left + plotW / cycles} y2={axisY + A + 20}
+            stroke={colors.dim} strokeWidth={1.5} />
+          <line x1={MARGIN.left} y1={axisY + A + 14}
+            x2={MARGIN.left} y2={axisY + A + 26}
+            stroke={colors.dim} strokeWidth={1.5} />
+          <line x1={MARGIN.left + plotW / cycles}
+            y1={axisY + A + 14}
+            x2={MARGIN.left + plotW / cycles}
+            y2={axisY + A + 26}
+            stroke={colors.dim} strokeWidth={1.5} />
+          <text x={MARGIN.left + plotW / (cycles * 2)}
+            y={axisY + A + 36}
+            textAnchor="middle" fontSize={11}
+            fill={colors.dim}>λ</text>
         </>
       )}
+
+      <defs>
+        <marker id="arrAxis" markerWidth={8} markerHeight={6}
+          refX={7} refY={3} orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill={colors.axis} />
+        </marker>
+        <marker id="arrAxisRev" markerWidth={8} markerHeight={6}
+          refX={1} refY={3} orient="auto">
+          <polygon points="8 0, 0 3, 8 6" fill={colors.axis} />
+        </marker>
+      </defs>
     </svg>
   );
 };
