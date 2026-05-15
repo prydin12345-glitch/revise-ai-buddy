@@ -23,6 +23,7 @@ import { parseGraphQuestionData } from "@/components/graph/types";
 import { getChartData, getCorrectChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
+import { PhysicsFigurePanel } from "@/components/physics";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
@@ -615,13 +616,21 @@ const ExamReview = () => {
                        isReview={true}
                      />
 
-                     <EconomicsFigurePanel
-                      questionText={question.question_text ?? ''}
-                      subject={(question as any).subject ?? ''}
-                      diagramConfig={null}
-                      isSubmitted={true}
-                      isReview={true}
-                    />
+                      <EconomicsFigurePanel
+                       questionText={question.question_text ?? ''}
+                       subject={(question as any).subject ?? ''}
+                       diagramConfig={null}
+                       isSubmitted={true}
+                       isReview={true}
+                     />
+
+                      <PhysicsFigurePanel
+                        questionText={question.question_text ?? ''}
+                        subject={(question as any).subject ?? ''}
+                        isExam={false}
+                        isReview={true}
+                        isSubmitted={true}
+                      />
 
                     {(() => {
                       const isGraphType =

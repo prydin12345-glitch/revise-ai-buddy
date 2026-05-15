@@ -7,7 +7,7 @@ import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, p
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
-import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions } from "../_shared/prompt-templates.ts";
+import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
@@ -1268,9 +1268,15 @@ ${(() => {
   // Fires for both exam and practice generation paths.
   const lowerSubject = subjectName.toLowerCase();
   const lowerTopics = (setData.subtopics || []).map((t: string) => t.toLowerCase()).join(' ');
-  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter', 'physics', 'electronics'];
+  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter', 'physics', 'electronics', 'electric', 'engineering', 'physical science'];
   const needsCircuitRules = circuitKeywords.some(kw => lowerSubject.includes(kw) || lowerTopics.includes(kw));
   return needsCircuitRules ? buildCircuitInstructions() : '';
+})()}
+${(() => {
+  // Physics diagram instructions: ray, wave, magnetic field, nuclear decay, EM spectrum.
+  const lowerSubject = subjectName.toLowerCase();
+  const isPhysicsSubject = /physics|physical\s*science|natural\s*science|optics|electronics|engineering/i.test(lowerSubject);
+  return isPhysicsSubject ? buildPhysicsInstructions() : '';
 })()}
 ${resourcePackContext}
 

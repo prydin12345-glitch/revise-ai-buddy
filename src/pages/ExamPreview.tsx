@@ -24,6 +24,7 @@ import {
 import { getChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
+import { PhysicsFigurePanel } from "@/components/physics";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
@@ -250,6 +251,14 @@ const ExamPreview = () => {
                       diagramConfig={null}
                       isSubmitted={true}
                       isReview={true}
+                    />
+
+                    <PhysicsFigurePanel
+                      questionText={q.question_text ?? ''}
+                      subject={(q as any).subject ?? ''}
+                      isExam={false}
+                      isReview={true}
+                      isSubmitted={true}
                     />
 
                     {q.figure_urls && q.figure_urls.length > 0 && (
