@@ -253,6 +253,14 @@ const ExamPreview = () => {
                       isReview={true}
                     />
 
+                    <PhysicsFigurePanel
+                      questionText={q.question_text ?? ''}
+                      subject={(q as any).subject ?? ''}
+                      isExam={false}
+                      isReview={true}
+                      isSubmitted={true}
+                    />
+
                     {q.figure_urls && q.figure_urls.length > 0 && (
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {q.figure_urls.map((url, idx) => (
