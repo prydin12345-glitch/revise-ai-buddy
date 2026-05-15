@@ -12,6 +12,7 @@ import { MathRenderer } from '@/components/MathRenderer';
 import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
 import { MathsFigurePanel } from '@/components/maths';
 import { EconomicsFigurePanel } from '@/components/economics/EconomicsFigurePanel';
+import { PhysicsFigurePanel } from '@/components/physics';
 import { MathInsertKeypad, normalizeUnicodeForGrading } from '@/components/quiz/MathInsertKeypad';
 import { 
   ReferenceDiagram,
