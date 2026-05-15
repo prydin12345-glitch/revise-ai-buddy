@@ -1503,6 +1503,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     circuitBlock,
     buildBiologyInstructions(subject),
     buildMathsInstructions(subject),
+    (/physics|physical\s*science|natural\s*science|optics|electronics|engineering/i.test(subject) && !suppressDiagrams) ? buildPhysicsInstructions() : '',
     deltaWyeBlock,
     chartDataBlock,
     outputBlock,
