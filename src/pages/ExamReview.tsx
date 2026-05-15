@@ -616,13 +616,21 @@ const ExamReview = () => {
                        isReview={true}
                      />
 
-                     <EconomicsFigurePanel
-                      questionText={question.question_text ?? ''}
-                      subject={(question as any).subject ?? ''}
-                      diagramConfig={null}
-                      isSubmitted={true}
-                      isReview={true}
-                    />
+                      <EconomicsFigurePanel
+                       questionText={question.question_text ?? ''}
+                       subject={(question as any).subject ?? ''}
+                       diagramConfig={null}
+                       isSubmitted={true}
+                       isReview={true}
+                     />
+
+                      <PhysicsFigurePanel
+                        questionText={question.question_text ?? ''}
+                        subject={(question as any).subject ?? ''}
+                        isExam={false}
+                        isReview={true}
+                        isSubmitted={true}
+                      />
 
                     {(() => {
                       const isGraphType =
