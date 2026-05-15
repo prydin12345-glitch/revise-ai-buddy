@@ -237,7 +237,43 @@ When generating multi-part questions involving circuit diagrams:
 `;
 }
 
-/** Build biology diagram generation instructions */
+/** Build physics diagram generation instructions (ray, wave, magnetic, nuclear, EM spectrum) */
+export function buildPhysicsInstructions(): string {
+  return `
+PHYSICS DIAGRAM INSTRUCTIONS — emit diagram_config for visual questions:
+
+Only include diagram_config when the question asks to draw, show, sketch,
+label, or describe a visual element. Do NOT include for calculate/explain
+questions without a visual component.
+
+RAY DIAGRAM — optics:
+{ "type": "ray_diagram", "variant": "converging_lens", "objectPosition": "beyond_2f", "showConstruction": true, "showImage": true, "title": "Converging Lens Ray Diagram" }
+Variants: converging_lens, diverging_lens, converging_mirror, diverging_mirror, flat_mirror, refraction_block, prism_dispersion, optical_fibre, eye_long_sight, eye_short_sight
+Object positions: beyond_2f, at_2f, between_f_2f, at_f, inside_f
+
+WAVE DIAGRAM — wave properties:
+{ "type": "wave_diagram", "variant": "transverse", "amplitude": 1, "wavelength": 4, "showAmplitudeLabel": true, "showWavelengthLabel": true, "title": "Transverse Wave" }
+Variants: transverse, longitudinal, superposition, standing_wave, interference, doppler, diffraction
+
+MAGNETIC FIELD — magnetism:
+{ "type": "magnetic_field", "variant": "bar_magnet", "northOnLeft": true, "showFieldLines": true, "showArrows": true, "title": "Magnetic Field — Bar Magnet" }
+Variants: bar_magnet, two_bar_magnets_attract, two_bar_magnets_repel, current_straight_wire, current_solenoid, current_loop, motor_effect, electromagnet, earth_field
+
+NUCLEAR DECAY — radioactivity:
+{ "type": "nuclear_decay", "variant": "alpha_decay", "parentSymbol": "Ra", "parentMassNumber": 226, "parentAtomicNumber": 88, "showPenetration": false, "title": "Alpha Decay" }
+Variants: alpha_decay, beta_minus_decay, beta_plus_decay, gamma_decay, decay_chain, nuclear_equation, fission, fusion
+Set showPenetration: true for penetrating power comparison questions.
+
+EM SPECTRUM:
+{ "type": "electromagnetic_spectrum", "showWavelength": true, "showFrequency": true, "showUses": true, "title": "The Electromagnetic Spectrum" }
+
+RULES:
+- Only include diagram_config when question has a visual element
+- Do NOT include for purely numerical or descriptive questions
+- Use null diagram_config for calculation-only physics questions
+- All physics diagrams work for GCSE, A-Level, IB, AP, CBSE, HSC
+`;
+}
 export function buildBiologyInstructions(subject: string | undefined): string {
   if (!subject) return '';
   if (!/biology|life.?science|biolog|human.?biology|marine.?biology|environmental.?science|biomedical|health.?science|anatomy|physiology/i.test(subject)) {
