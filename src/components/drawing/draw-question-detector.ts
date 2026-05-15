@@ -101,6 +101,17 @@ const PHYSICS_DIAGRAM_DRAW_PATTERNS = [
   /draw\s+(?:a\s+)?ray\s+diagram/i,
   /sketch\s+(?:the\s+)?(?:field\s+lines|magnetic\s+field)/i,
   /draw\s+(?:a\s+)?circuit\s+diagram/i,
+  /draw\s+(?:a\s+)?wave\s+diagram/i,
+  /sketch\s+(?:a\s+)?(?:transverse|longitudinal)\s+wave/i,
+  /draw\s+(?:the\s+)?wavefront/i,
+  /sketch\s+(?:the\s+)?diffraction\s+pattern/i,
+  /draw\s+(?:the\s+)?(?:standing|stationary)\s+wave/i,
+  /draw\s+(?:a\s+)?nuclear\s+decay\s+(?:diagram|chain)/i,
+  /draw\s+(?:the\s+)?electromagnetic\s+spectrum/i,
+  /label\s+(?:the\s+)?electromagnetic\s+spectrum/i,
+  /draw\s+(?:a\s+)?(?:bar\s+)?magnet/i,
+  /sketch\s+(?:the\s+)?magnetic\s+field\s+(?:around|of|near)/i,
+  /draw\s+(?:a\s+)?(?:concave|convex)\s+(?:lens|mirror)/i,
 ];
 
 const MATHS_DRAW_PATTERNS = [
