@@ -2049,20 +2049,22 @@ ${notesSection}`;
     const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
-      // Reliability fallback chain:
-      // - Attempt 1: Gemini Flash (best balance of speed + quality for complex prompts)
-      // - Attempt 2: Gemini Pro (stronger reasoning, handles complex tool schemas better)
-      // - Attempt 3: GPT-5-mini (different provider as final fallback)
+      // Reliability fallback chain (tuned for heavy diagram-config prompts like physics):
+      // - Attempt 1: Gemini Flash with generous timeout (handles 15-question diagram batches)
+      // - Attempt 2: Gemini Pro for higher reasoning headroom
+      // - Attempt 3: Gemini Flash again as fast last-resort (gpt-5-mini was timing out at 110s)
       const modelChain = [
         'google/gemini-2.5-flash',
         'google/gemini-2.5-pro',
-        'openai/gpt-5-mini'
+        'google/gemini-2.5-flash'
       ];
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Tighter timeouts so all 3 attempts fit within edge function runtime (~400s)
-      const timeoutMs = attempt === 0 ? 90_000 : attempt === 1 ? 100_000 : 110_000;
+      // Generous per-attempt timeouts. Total budget 170+200+150 = 520s; edge runtime is 400s+
+      // for background tasks, but we accept that attempt 3 may be cut short — better to give
+      // attempts 1 and 2 enough room to actually succeed.
+      const timeoutMs = attempt === 0 ? 170_000 : attempt === 1 ? 200_000 : 150_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
