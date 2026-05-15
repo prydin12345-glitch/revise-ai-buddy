@@ -602,6 +602,15 @@ export function QuestionItem({
         isReview={!!isReviewMode}
       />
 
+      <PhysicsFigurePanel
+        questionText={question.question_text ?? ''}
+        subject={(question as any).subject ?? ''}
+        isExam={false}
+        isPracticeQuiz={!isReviewMode}
+        isSubmitted={!!answer?.submitted}
+        isReview={!!isReviewMode}
+      />
+
       {/* Answer input */}
       {renderAnswerInput()}
 
