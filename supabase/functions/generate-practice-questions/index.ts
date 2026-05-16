@@ -1275,7 +1275,7 @@ ${(() => {
 ${(() => {
   // Physics diagram instructions: ray, wave, magnetic field, nuclear decay, EM spectrum.
   const lowerSubject = subjectName.toLowerCase();
-  const isPhysicsSubject = /physics|physical\s*science|natural\s*science|optics|electronics|engineering/i.test(lowerSubject);
+  const isPhysicsSubject = /physics|physical\s*science|natural\s*science|\bscience\b|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(lowerSubject);
   return isPhysicsSubject ? buildPhysicsInstructions() : '';
 })()}
 ${resourcePackContext}

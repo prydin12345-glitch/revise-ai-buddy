@@ -60,7 +60,7 @@ export const detectPhysicsDiagram = (
     (has(lower, 'real image', 'virtual image', 'focal point', 'principal axis',
         'centre of curvature') && has(lower, 'draw', 'sketch', 'show', 'diagram'))
   ) {
-    return buildRayDiagramConfig(lower);
+    return buildRayDiagramConfig(lower, text);
   }
 
   // ── 2. Wave Diagrams ────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ export const detectPhysicsDiagram = (
 
 // ─── Config builders ──────────────────────────────────────────────────────────
 
-const buildRayDiagramConfig = (lower: string): PhysicsDiagramConfig => {
+const buildRayDiagramConfig = (lower: string, originalText: string = lower): PhysicsDiagramConfig => {
   let variant: RayDiagramVariant = 'converging_lens';
 
   if (has(lower, 'concave mirror', 'converging mirror')) {
@@ -181,12 +181,31 @@ const buildRayDiagramConfig = (lower: string): PhysicsDiagramConfig => {
   }
 
   let objectPosition = 'beyond_2f';
-  if (has(lower, 'inside f', 'within f', 'between f and lens',
-      'closer than f', 'inside the focal')) objectPosition = 'inside_f';
-  else if (has(lower, 'at f', 'at the focal', 'at the focus')) objectPosition = 'at_f';
-  else if (has(lower, 'between f and 2f', 'between f and c',
-      'between focal')) objectPosition = 'between_f_2f';
-  else if (has(lower, 'at 2f', 'at c', 'at the centre')) objectPosition = 'at_2f';
+
+  // First try numeric parsing: object distance vs focal length
+  const objectDistMatch = originalText.match(
+    /object\s+(?:is\s+)?(?:placed\s+)?(\d+(?:\.\d+)?)\s*(?:cm|mm|m)\b/i
+  );
+  const focalLengthMatch =
+    originalText.match(/focal\s+length\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*(?:cm|mm|m)\b/i) ||
+    originalText.match(/\bf\s*=\s*(\d+(?:\.\d+)?)\s*(?:cm|mm|m)\b/i);
+
+  if (objectDistMatch && focalLengthMatch) {
+    const u = parseFloat(objectDistMatch[1]);
+    const f = parseFloat(focalLengthMatch[1]);
+    if (u < f) objectPosition = 'inside_f';
+    else if (Math.abs(u - f) < 0.5) objectPosition = 'at_f';
+    else if (u < 2 * f) objectPosition = 'between_f_2f';
+    else if (Math.abs(u - 2 * f) < 0.5) objectPosition = 'at_2f';
+    else objectPosition = 'beyond_2f';
+  } else {
+    if (has(lower, 'inside f', 'within f', 'between f and lens',
+        'closer than f', 'inside the focal')) objectPosition = 'inside_f';
+    else if (has(lower, 'at f', 'at the focal', 'at the focus')) objectPosition = 'at_f';
+    else if (has(lower, 'between f and 2f', 'between f and c',
+        'between focal')) objectPosition = 'between_f_2f';
+    else if (has(lower, 'at 2f', 'at c', 'at the centre')) objectPosition = 'at_2f';
+  }
 
   const nMatch = lower.match(/refractive\s+index\s+(?:of\s+)?[\w\s]*?(?:is\s+)?([\d.]+)/);
   const refractiveIndex = nMatch ? parseFloat(nMatch[1]) : undefined;
