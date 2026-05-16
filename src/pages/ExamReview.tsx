@@ -627,6 +627,7 @@ const ExamReview = () => {
                       <PhysicsFigurePanel
                         questionText={question.question_text ?? ''}
                         subject={(question as any).subject ?? ''}
+                        diagramConfig={(question as any).diagram_config ?? null}
                         isExam={false}
                         isReview={true}
                         isSubmitted={true}
