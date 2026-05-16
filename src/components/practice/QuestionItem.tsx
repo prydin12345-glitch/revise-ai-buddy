@@ -605,6 +605,7 @@ export function QuestionItem({
       <PhysicsFigurePanel
         questionText={question.question_text ?? ''}
         subject={(question as any).subject ?? ''}
+        diagramConfig={(question as any).diagram_config ?? null}
         isExam={false}
         isPracticeQuiz={!isReviewMode}
         isSubmitted={!!answer?.submitted}
