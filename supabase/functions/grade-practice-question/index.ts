@@ -1560,6 +1560,7 @@ Return your grading using the grade_practice_answer function.`;
     }
 
     const gradingResult = JSON.parse(toolCall.function.arguments);
+    gradingResult.feedback = sanitiseFeedback(gradingResult.feedback);
 
     // Save answer to database (with both latex and text)
     const { error: saveError } = await supabase
