@@ -389,7 +389,7 @@ serve(async (req) => {
                 if (toolCall) {
                   const grading = JSON.parse(toolCall.function.arguments);
                   score = Math.min(Math.max(0, grading.score), question.marks);
-                  feedback = grading.feedback;
+                  feedback = sanitiseFeedback(grading.feedback);
                   isCorrect = grading.isCorrect;
                   
                   // If AI provided correct answers, store them for future reference
