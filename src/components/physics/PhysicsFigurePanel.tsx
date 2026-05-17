@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atom, Maximize2, X } from 'lucide-react';
 import { PhysicsDiagramDraw } from './PhysicsDiagramDraw';
-import { detectPhysicsDiagram } from './physics-detector';
+import { detectPhysicsDiagram, isPhysicsAnswerDiagram } from './physics-detector';
 import { detectDrawQuestion } from '@/components/drawing/draw-question-detector';
 import type { PhysicsDiagramConfig } from './types';
 
