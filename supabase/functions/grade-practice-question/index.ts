@@ -1472,7 +1472,8 @@ ALWAYS use: "Almost there", "Good effort", "Let's refine this", "You're close"
 For mathematical expressions in feedback:
 - Render LaTeX when appropriate but also provide decimal/simplified forms
 - Example: "x = π/6 (or 0.524 radians)"
-- Include brief explanations like "These values satisfy the equation within 0 ≤ x < 2π"`;
+- Include brief explanations like "These values satisfy the equation within 0 ≤ x < 2π"
+${FEEDBACK_FORMATTING_RULE}`;
 
     const userPrompt = `Question: ${question.question_text}
 
