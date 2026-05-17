@@ -25,7 +25,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are a concise, helpful tutor. A student is reviewing an exam question they got wrong. 
 Explain clearly and briefly why the correct answer is right. Keep your response under 150 words. 
-Use simple language appropriate for the student's level. Do not repeat the full question back to them.`;
+Use simple language appropriate for the student's level. Do not repeat the full question back to them.
+${FEEDBACK_FORMATTING_RULE}`;
 
     const userPrompt = `Question: ${questionText}
 ${optionsText}
