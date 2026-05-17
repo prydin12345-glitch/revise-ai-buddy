@@ -67,7 +67,7 @@ Give a brief, clear explanation.`;
     }
 
     const data = await response.json();
-    const explanation = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate an explanation.";
+    const explanation = sanitiseFeedback(data.choices?.[0]?.message?.content || "Sorry, I couldn't generate an explanation.");
 
     // Log usage
     try {
