@@ -622,14 +622,15 @@ Provide:
             if (toolCall) {
               const grading = JSON.parse(toolCall.function.arguments);
               score = Math.min(Math.max(0, grading.score), question.marks);
-              
+              grading.feedback = sanitiseFeedback(grading.feedback);
+
               // Build feedback with breakdown if available
               if (grading.methodMarks !== undefined && grading.accuracyMarks !== undefined) {
                 feedback = `${grading.feedback}\n\n📊 Mark Breakdown:\n• Method: ${grading.methodMarks}/${question.marks - (grading.accuracyMarks || 0)}\n• Accuracy: ${grading.accuracyMarks}/${grading.accuracyMarks || 0}`;
               } else {
                 feedback = grading.feedback;
               }
-              
+
               isCorrect = grading.isCorrect;
             } else {
               console.error('No tool call in AI response');
