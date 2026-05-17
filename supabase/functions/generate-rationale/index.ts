@@ -88,7 +88,8 @@ Return JSON only: {"rationale": "your explanation here"}`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(content);
-    const rationale = parsed.rationale || 'Could not generate an explanation.';
+    const { sanitiseFeedback } = await import('../_shared/sanitise-feedback.ts');
+    const rationale = sanitiseFeedback(parsed.rationale || 'Could not generate an explanation.');
 
     // Cache in DB
     await supabase
