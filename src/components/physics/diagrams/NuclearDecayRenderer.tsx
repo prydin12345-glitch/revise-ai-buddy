@@ -238,21 +238,21 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
         fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
 
       <NuclearSymbol
-        x={100} y={H/2}
+        x={80} y={H/2}
         symbol={parentSymbol ?? 'X'}
         massNumber={parentMassNumber}
         atomicNumber={parentAtomicNumber}
         color={colors.parent}
       />
 
-      <line x1={150} y1={H/2} x2={220} y2={H/2}
+      <line x1={140} y1={H/2} x2={230} y2={H/2}
         stroke={colors.arrow} strokeWidth={2}
         markerEnd="url(#arrDecay)" />
       <text x={185} y={H/2 - 10} textAnchor="middle"
         fontSize={20} fill={colors.dim}>→</text>
 
       <NuclearSymbol
-        x={300} y={H/2}
+        x={310} y={H/2}
         symbol={daughterSymbol ?? 'Y'}
         massNumber={dA || undefined}
         atomicNumber={dZ || undefined}
@@ -261,17 +261,17 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
 
       {decay && (
         <>
-          <text x={370} y={H/2 + 8} fontSize={20}
+          <text x={390} y={H/2 + 8} fontSize={20}
             fill={colors.dim}>+</text>
-          <circle cx={420} cy={H/2} r={20}
+          <circle cx={450} cy={H/2} r={22}
             fill={`${decay.particleColor}20`}
             stroke={decay.particleColor} strokeWidth={2} />
-          <text x={420} y={H/2 + 7} textAnchor="middle"
+          <text x={450} y={H/2 + 7} textAnchor="middle"
             fontSize={14} fontWeight={700}
             fill={decay.particleColor}>
             {decay.particleLabel}
           </text>
-          <text x={420} y={H/2 + 36} textAnchor="middle"
+          <text x={450} y={H/2 + 38} textAnchor="middle"
             fontSize={9} fill={colors.dim}>
             {decay.particleName}
           </text>
