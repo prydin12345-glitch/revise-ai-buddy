@@ -274,13 +274,15 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
     const isOutOfPage = currentDirection === 'out_of_page' ||
       !currentDirection;
 
+    const SW_H = 340; // taller than the default H for extra breathing room
+
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%"
+      <svg viewBox={`0 0 ${W} ${SW_H}`} width="100%"
         style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
         {title && <text x={W/2} y={20} textAnchor="middle"
           fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
 
-        {[30, 60, 90, 120].map((r, i) => (
+        {[28, 56, 84, 110].map((r, i) => (
           <circle key={i} cx={cx} cy={cy} r={r}
             fill="none" stroke={colors.fieldLine}
             strokeWidth={i === 0 ? 2 : 1.5}
@@ -288,7 +290,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           />
         ))}
 
-        {showArrows && [40, 75, 105].map((r, i) => {
+        {showArrows && [40, 70, 100].map((r, i) => {
           const angle = isOutOfPage ? -Math.PI / 2 : Math.PI / 2;
           const x = cx + r * Math.cos(angle);
           const y = cy + r * Math.sin(angle);
@@ -308,13 +310,13 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           <CrossSymbol x={cx} y={cy} r={18} />
         )}
 
-        <text x={cx} y={cy + 36} textAnchor="middle"
+        <text x={cx} y={cy + 44} textAnchor="middle"
           fontSize={11} fontWeight={600}
           fill={colors.current}>
           Current {isOutOfPage ? 'out of page ⊙' : 'into page ⊗'}
         </text>
 
-        <text x={cx} y={H - 12} textAnchor="middle"
+        <text x={cx} y={SW_H - 16} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           {isOutOfPage
             ? 'Field circles anticlockwise (viewed from front)'

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atom, Maximize2, X } from 'lucide-react';
 import { PhysicsDiagramDraw } from './PhysicsDiagramDraw';
-import { detectPhysicsDiagram } from './physics-detector';
+import { detectPhysicsDiagram, isPhysicsAnswerDiagram } from './physics-detector';
 import { detectDrawQuestion } from '@/components/drawing/draw-question-detector';
 import type { PhysicsDiagramConfig } from './types';
 
@@ -44,14 +44,20 @@ export const PhysicsFigurePanel = ({
   const config = diagramConfig ?? detectPhysicsDiagram(questionText, subject);
   if (!config) return null;
 
-  const shouldShow = isReview
-    ? true
-    : isPracticeQuiz
-      ? (isSubmitted && revealed)
-      : true;
+  // Question-aid diagrams are always visible. Answer diagrams stay hidden
+  // until the student submits (and reveals) or is in review mode.
+  const isAnswer = isPhysicsAnswerDiagram(questionText, config);
 
-  const showRevealButton = isPracticeQuiz && isSubmitted && !isReview && !revealed;
-  const showHideButton = !isReview && revealed;
+  const shouldShow = isAnswer
+    ? (isReview
+        ? true
+        : isPracticeQuiz
+          ? (isSubmitted && revealed)
+          : true)
+    : true;
+
+  const showRevealButton = isAnswer && isPracticeQuiz && isSubmitted && !isReview && !revealed;
+  const showHideButton = isAnswer && !isReview && revealed;
 
   const label = typeLabel[config.type] ?? 'Physics Diagram';
 

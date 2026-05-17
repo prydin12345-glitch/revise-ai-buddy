@@ -421,3 +421,40 @@ const buildNuclearDecayConfig = (lower: string): PhysicsDiagramConfig => {
       : 'Nuclear Decay',
   };
 };
+
+// ─── Answer-diagram classifier ──────────────────────────────────────────────
+// Returns true if the diagram visualises the ANSWER (must be hidden behind
+// the reveal panel) vs being a question aid (always shown alongside the
+// question text).
+export const isPhysicsAnswerDiagram = (
+  questionText: string,
+  config: PhysicsDiagramConfig | null,
+): boolean => {
+  if (!config) return false;
+  const lower = (questionText ?? '').toLowerCase();
+
+  // Always answer diagrams — they reveal the solution:
+  if (config.type === 'ray_diagram') return true;
+  if (config.type === 'wave_diagram') return true;
+  if (config.type === 'electromagnetic_spectrum') return true;
+
+  if (config.type === 'nuclear_decay') {
+    if ((config as any).showPenetration) return true;
+    if (/write\s+(?:the\s+)?(?:nuclear\s+)?equation|show\s+(?:the\s+)?decay|represent\s+(?:the\s+)?decay|compare\s+(?:the\s+)?(?:penetrat|ionisation|ionization|properties)/i.test(lower)) {
+      return true;
+    }
+    return false;
+  }
+
+  if (config.type === 'magnetic_field') {
+    // Sketch/draw questions — diagram is the answer:
+    if (/sketch|draw\s+(?:the\s+)?(?:field|pattern|lines)/i.test(lower)) return true;
+    // Calculation questions referencing a field — diagram is a question aid:
+    if (/calculate|determine|find\s+(?:the\s+)?force|find\s+(?:the\s+)?(?:direction|magnitude)/i.test(lower)) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
+};

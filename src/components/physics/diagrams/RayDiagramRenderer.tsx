@@ -17,25 +17,61 @@ export const RayDiagramRenderer = ({ config }: Props) => {
   const lensX = cx;
   const axisY = cy;
 
-  const getObjectX = () => {
-    switch (objectPosition) {
-      case 'inside_f': return lensX - f * 0.6;
-      case 'at_f': return lensX - f;
-      case 'between_f_2f': return lensX - f * 1.5;
-      case 'at_2f': return lensX - twoF;
+  const objH = 50;
+
+  // Proportional geometry — derives image position from the actual
+  // objectPosition so the diagram is physically accurate rather than
+  // a fixed 80px sketch.
+  const getScaledGeometry = (position: string | undefined) => {
+    switch (position) {
+      case 'inside_f':
+        // Object inside F → virtual, upright, magnified image on same side
+        return {
+          objX: lensX - f * 0.6,
+          imgX: lensX - f * 2.5,
+          imgH: -objH * 3,
+          isVirtual: true,
+        };
+      case 'at_f':
+        // Rays emerge parallel — image at infinity (no image drawn)
+        return {
+          objX: lensX - f,
+          imgX: null,
+          imgH: 0,
+          isVirtual: false,
+        };
+      case 'between_f_2f':
+        // u = 1.5f → v = 3f, real inverted magnified
+        return {
+          objX: lensX - f * 1.5,
+          imgX: lensX + f * 3,
+          imgH: objH * 2,
+          isVirtual: false,
+        };
+      case 'at_2f':
+        // Object at 2F → image at 2F on right, same size
+        return {
+          objX: lensX - f * 2,
+          imgX: lensX + f * 2,
+          imgH: objH,
+          isVirtual: false,
+        };
       case 'beyond_2f':
-      default: return lensX - twoF * 1.2;
+      default:
+        // u = 2.5f → v ≈ 1.67f, real inverted diminished
+        return {
+          objX: lensX - f * 2.5,
+          imgX: lensX + f * 1.67,
+          imgH: objH * 0.67,
+          isVirtual: false,
+        };
     }
   };
 
-  const objX = getObjectX();
-  const objH = 50;
-
-  const u = lensX - objX;
-  const focalLen = f;
-  const v = (focalLen * u) / (u - focalLen);
-  const imgX = lensX + v;
-  const imgH = objectPosition === 'inside_f' ? -objH * (v / u) : objH * (v / u);
+  const geom = getScaledGeometry(objectPosition);
+  const objX = geom.objX;
+  const imgX = geom.imgX ?? lensX + f * 1.67;
+  const imgH = geom.imgH;
 
   const colors = {
     axis: 'hsl(var(--muted-foreground))',

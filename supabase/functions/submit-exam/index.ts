@@ -1,6 +1,7 @@
 import "https://esm.sh/xhr-shim@0.1.3";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE } from "../_shared/sanitise-feedback.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -388,7 +389,7 @@ serve(async (req) => {
                 if (toolCall) {
                   const grading = JSON.parse(toolCall.function.arguments);
                   score = Math.min(Math.max(0, grading.score), question.marks);
-                  feedback = grading.feedback;
+                  feedback = sanitiseFeedback(grading.feedback);
                   isCorrect = grading.isCorrect;
                   
                   // If AI provided correct answers, store them for future reference
@@ -506,6 +507,7 @@ IMPORTANT: Address the student directly using "You" (e.g., "You have provided th
           } else {
             systemPrompt = 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
           }
+          systemPrompt += FEEDBACK_FORMATTING_RULE;
           
           // Build the user prompt based on answer type
           let userPrompt = '';
@@ -620,14 +622,15 @@ Provide:
             if (toolCall) {
               const grading = JSON.parse(toolCall.function.arguments);
               score = Math.min(Math.max(0, grading.score), question.marks);
-              
+              grading.feedback = sanitiseFeedback(grading.feedback);
+
               // Build feedback with breakdown if available
               if (grading.methodMarks !== undefined && grading.accuracyMarks !== undefined) {
                 feedback = `${grading.feedback}\n\n📊 Mark Breakdown:\n• Method: ${grading.methodMarks}/${question.marks - (grading.accuracyMarks || 0)}\n• Accuracy: ${grading.accuracyMarks}/${grading.accuracyMarks || 0}`;
               } else {
                 feedback = grading.feedback;
               }
-              
+
               isCorrect = grading.isCorrect;
             } else {
               console.error('No tool call in AI response');

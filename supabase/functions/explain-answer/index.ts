@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE } from "../_shared/sanitise-feedback.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -24,7 +25,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are a concise, helpful tutor. A student is reviewing an exam question they got wrong. 
 Explain clearly and briefly why the correct answer is right. Keep your response under 150 words. 
-Use simple language appropriate for the student's level. Do not repeat the full question back to them.`;
+Use simple language appropriate for the student's level. Do not repeat the full question back to them.
+${FEEDBACK_FORMATTING_RULE}`;
 
     const userPrompt = `Question: ${questionText}
 ${optionsText}
@@ -65,7 +67,7 @@ Give a brief, clear explanation.`;
     }
 
     const data = await response.json();
-    const explanation = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate an explanation.";
+    const explanation = sanitiseFeedback(data.choices?.[0]?.message?.content || "Sorry, I couldn't generate an explanation.");
 
     // Log usage
     try {

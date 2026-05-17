@@ -1,0 +1,109 @@
+/**
+ * Strip LaTeX notation from AI-generated feedback so it renders as
+ * plain readable text in the UI rather than escaped source.
+ *
+ * Applied to every AI feedback string before it is stored in the
+ * database or returned to the client.
+ */
+export const sanitiseFeedback = (text: string | null | undefined): string => {
+  if (!text) return text ?? '';
+
+  let out = text;
+
+  // Strip explicit math delimiters
+  out = out
+    .replace(/\\\(|\\\)/g, '')
+    .replace(/\\\[|\\\]/g, '')
+    .replace(/\$\$/g, '')
+    .replace(/(?<!\\)\$(?!\$)/g, '');
+
+  // \frac{a}{b} → a/b  (run twice to handle nested fractions)
+  for (let i = 0; i < 2; i++) {
+    out = out.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '($1)/($2)');
+  }
+  // Tidy up redundant parens around single tokens
+  out = out.replace(/\(([A-Za-z0-9_]+)\)\/\(([A-Za-z0-9_]+)\)/g, '$1/$2');
+
+  // \text{x} → x, \mathrm{x} → x, \mathbf{x} → x, \boxed{x} → x
+  out = out
+    .replace(/\\(?:text|mathrm|mathbf|mathit|boxed|operatorname)\s*\{([^{}]*)\}/g, '$1')
+    // Broken \text → \ext seen in nuclear feedback
+    .replace(/\\ext\s*\{([^{}]*)\}/g, '$1')
+    .replace(/\\ext([A-Z])/g, '$1')
+    .replace(/(\d+)ext([A-Z])/g, '$1$2');
+
+  // Common LaTeX symbols → Unicode
+  const map: Array<[RegExp, string]> = [
+    [/\\rightarrow|\\to\b/g, '→'],
+    [/\\leftarrow|\\gets\b/g, '←'],
+    [/\\Rightarrow/g, '⇒'],
+    [/\\Leftarrow/g, '⇐'],
+    [/\\leftrightarrow/g, '↔'],
+    [/\\times/g, '×'],
+    [/\\cdot/g, '·'],
+    [/\\div/g, '÷'],
+    [/\\pm/g, '±'],
+    [/\\mp/g, '∓'],
+    [/\\approx/g, '≈'],
+    [/\\equiv/g, '≡'],
+    [/\\leq|\\le\b/g, '≤'],
+    [/\\geq|\\ge\b/g, '≥'],
+    [/\\neq|\\ne\b/g, '≠'],
+    [/\\infty/g, '∞'],
+    [/\\degree/g, '°'],
+    [/\\circ/g, '°'],
+    [/\\alpha/g, 'α'], [/\\beta/g, 'β'], [/\\gamma/g, 'γ'], [/\\Gamma/g, 'Γ'],
+    [/\\delta/g, 'δ'], [/\\Delta/g, 'Δ'], [/\\epsilon/g, 'ε'], [/\\varepsilon/g, 'ε'],
+    [/\\zeta/g, 'ζ'], [/\\eta/g, 'η'], [/\\theta/g, 'θ'], [/\\Theta/g, 'Θ'],
+    [/\\iota/g, 'ι'], [/\\kappa/g, 'κ'], [/\\lambda/g, 'λ'], [/\\Lambda/g, 'Λ'],
+    [/\\mu/g, 'μ'], [/\\nu/g, 'ν'], [/\\xi/g, 'ξ'], [/\\pi/g, 'π'], [/\\Pi/g, 'Π'],
+    [/\\rho/g, 'ρ'], [/\\sigma/g, 'σ'], [/\\Sigma/g, 'Σ'], [/\\tau/g, 'τ'],
+    [/\\phi/g, 'φ'], [/\\varphi/g, 'φ'], [/\\Phi/g, 'Φ'],
+    [/\\chi/g, 'χ'], [/\\psi/g, 'ψ'], [/\\Psi/g, 'Ψ'],
+    [/\\omega/g, 'ω'], [/\\Omega/g, 'Ω'],
+    [/\\sqrt\s*\{([^{}]*)\}/g, '√($1)'],
+    [/\\sum/g, 'Σ'],
+    [/\\prod/g, 'Π'],
+    [/\\int/g, '∫'],
+    [/\\partial/g, '∂'],
+    [/\\nabla/g, '∇'],
+  ];
+  for (const [re, sub] of map) out = out.replace(re, sub);
+
+  // _{...} / ^{...} → drop braces, leave readable
+  out = out
+    .replace(/\^\{([^{}]*)\}/g, '^$1')
+    .replace(/_\{([^{}]*)\}/g, '_$1');
+
+  // Catch-all: remaining \command{arg} → arg, then bare \command → ''
+  out = out
+    .replace(/\\[a-zA-Z]+\s*\{([^{}]*)\}/g, '$1')
+    .replace(/\\[a-zA-Z]+/g, '');
+
+  // Tidy whitespace
+  out = out.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+  return out;
+};
+
+/**
+ * Rule appended to all AI feedback/grading system prompts so the model
+ * avoids emitting LaTeX in the first place. The sanitiser is the safety
+ * net for when it does anyway.
+ */
+export const FEEDBACK_FORMATTING_RULE = `
+
+CRITICAL FORMATTING RULE FOR FEEDBACK:
+Never use LaTeX notation in feedback text. Do NOT use \\frac{}{}, \\(, \\), \\[, \\], $$, \\text{}, \\rightarrow, \\ext, or any LaTeX delimiters or commands.
+Write maths in plain readable text using Unicode:
+- Fractions: write "1/f = 1/do + 1/di" not "\\frac{1}{f} = ..."
+- Arrows: write "→" not "\\rightarrow"
+- Multiplication: write "×" not "\\times"
+- Superscripts: use Unicode superscripts (²³⁸U) or caret (x^2), never \\^{}
+- Greek letters: write "α β γ Δ λ μ π θ Ω" directly, not "\\alpha" etc.
+- Variables with units: write "f = 15.0 cm" not "f = 15.0\\text{ cm}"
+- Nuclear equations: write "²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He" using Unicode
+
+Correct example: "Using the lens formula 1/f = 1/do + 1/di, with f = 15 cm and do = 25 cm, rearranging gives di = 37.5 cm. The image is real and inverted."
+Wrong example: "Using \\(\\frac{1}{f} = \\frac{1}{d_o} + \\frac{1}{d_i}\\)"
+`;

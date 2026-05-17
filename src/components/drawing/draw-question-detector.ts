@@ -96,12 +96,28 @@ const BIOLOGY_DRAW_PATTERNS = [
 ];
 
 const PHYSICS_DIAGRAM_DRAW_PATTERNS = [
+  // Free body / forces — student-drawn:
   /draw\s+(?:a\s+)?free\s+body\s+diagram/i,
   /draw\s+(?:the\s+)?(?:force|forces)\s+(?:acting|on)/i,
   // Circuit diagrams — circuit SVG system handles these but keep canvas fallback:
   /draw\s+(?:a\s+)?circuit\s+diagram/i,
-  // NOTE: ray/wave/magnetic/nuclear/EM-spectrum patterns removed — those are
-  // now rendered by PhysicsFigurePanel SVG renderers, not the freehand canvas.
+
+  // Magnetism — only when student is explicitly asked to sketch/draw the
+  // field pattern themselves (not for calculation questions that just
+  // reference a field):
+  /sketch\s+(?:the\s+)?magnetic\s+field\s+(?:pattern|lines?|around|near|of)/i,
+  /draw\s+(?:the\s+)?magnetic\s+field\s+(?:pattern|lines?|around|near|of)/i,
+  /sketch\s+(?:the\s+)?field\s+(?:pattern|lines?)\s+(?:around|near|of|for)/i,
+
+  // Ray diagrams — student-drawn:
+  /sketch\s+(?:a\s+)?ray\s+diagram/i,
+  /draw\s+(?:a\s+)?ray\s+diagram/i,
+  /draw\s+(?:the\s+)?rays?\s+(?:through|from|to)/i,
+
+  // Waves — student-drawn:
+  /sketch\s+(?:a\s+)?(?:transverse|longitudinal|standing|stationary)\s+wave/i,
+  /draw\s+(?:a\s+)?(?:transverse|longitudinal|standing|stationary)\s+wave/i,
+  /sketch\s+(?:the\s+)?wave\s+(?:pattern|profile|diagram)/i,
 ];
 
 const MATHS_DRAW_PATTERNS = [
