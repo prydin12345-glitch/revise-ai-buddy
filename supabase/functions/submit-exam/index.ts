@@ -507,6 +507,7 @@ IMPORTANT: Address the student directly using "You" (e.g., "You have provided th
           } else {
             systemPrompt = 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
           }
+          systemPrompt += FEEDBACK_FORMATTING_RULE;
           
           // Build the user prompt based on answer type
           let userPrompt = '';
