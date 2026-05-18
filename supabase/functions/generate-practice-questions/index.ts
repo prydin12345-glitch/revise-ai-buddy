@@ -767,6 +767,34 @@ For delta vs wye comparison questions:
     console.log('Auto-detected visual needs:', { needsGraphs, needsTables, subtopics: setData.subtopics });
     
     // Build visual question instructions based on AUTO-DETECTION (not manual toggles)
+    // CRITICAL EXCLUSION — physics diagram sketches must NEVER use graph_plotting.
+    // They are answered on a freehand drawing canvas, not a coordinate grid.
+    const physicsDiagramExclusion = `
+PHYSICS DIAGRAM SKETCH EXCLUSION — MANDATORY:
+The following question types MUST use question_type = "short_answer" (NOT graph_plotting),
+even when they contain the words "sketch" or "draw":
+- "Sketch the magnetic field pattern around a wire/magnet/solenoid..."
+- "Draw a ray diagram showing..." (lenses, mirrors, prisms, total internal reflection)
+- "Sketch a transverse / longitudinal / standing wave and label..."
+- "Draw the field lines around a bar magnet / current-carrying wire"
+- "Sketch the wave pattern produced by..."
+- "Draw a free body diagram showing the forces on..."
+- "Sketch / write the nuclear decay equation for..."
+- "Draw the electromagnetic spectrum"
+- ANY physics question involving magnetic fields, ray diagrams, wave diagrams,
+  nuclear decay, electromagnetic spectrum, force diagrams, or field lines.
+These are rendered as a freehand drawing canvas. graph_plotting renders a
+coordinate grid for plotting (x, y) points and is the wrong renderer.
+
+graph_plotting is ONLY for:
+- Mathematical function curves: y = x², y = sin(x), y = 2x + 3
+- Plotting (x, y) data points from a table of values
+- Graph transformations: f(x+2), -f(x), 2f(x)
+- Velocity-time, distance-time, acceleration-time graphs
+- Scatter graphs and lines of best fit
+- Any question where the student plots (x, y) coordinate points on a grid
+`;
+
     let visualQuestionInstructions = '';
     if (needsGraphs && needsTables) {
       visualQuestionInstructions = `
@@ -776,7 +804,8 @@ Based on the subtopics selected, this set REQUIRES visual questions.
 - When the question involves data, frequencies, or tabular information: USE table_grid
 - EVERY graph question MUST include complete graphConfig with series.data array containing at least 10 {x,y} points for smooth curves
 - A graph question WITHOUT visible data points is INVALID and will be rejected
-- If a question says "sketch", "plot", "draw", or "the graph shows" it MUST be a graph question type, NOT extended or short_answer`;
+- If a question says "sketch", "plot", "draw", or "the graph shows" it MUST be a graph question type, NOT extended or short_answer
+${physicsDiagramExclusion}`;
     } else if (needsGraphs) {
       visualQuestionInstructions = `
 INTELLIGENT GRAPH QUESTIONS (AUTO-DETECTED REQUIREMENT):
@@ -789,7 +818,8 @@ Based on the subtopics selected (${setData.subtopics?.join(', ')}), this set REQ
   - domainX, domainY: [min, max] arrays
   - series: array with at least one object containing data: [{x, y}, ...] with at least 10 points for smooth curves
 - A graph question WITHOUT visible data points is INVALID and will be rejected
-- NEVER use question_type "extended" for questions that say "sketch" or "plot" - those MUST be graph_plotting`;
+- NEVER use question_type "extended" for questions that say "sketch" or "plot" - those MUST be graph_plotting
+${physicsDiagramExclusion}`;
     } else if (needsTables) {
       visualQuestionInstructions = `
 INTELLIGENT TABLE QUESTIONS (AUTO-DETECTED REQUIREMENT):
@@ -802,7 +832,8 @@ VISUAL QUESTION GUIDELINES:
 - Use graph_plotting or graph_interpretation when the question naturally involves coordinates, curves, or visual analysis
 - Use table_grid when the question involves data entry or tabular information
 - IMPORTANT: If a question says "sketch", "plot", "draw", or "the graph shows", it MUST use graph_plotting type
-- Never use "extended" type for questions that require visual/graphical answers`;
+- Never use "extended" type for questions that require visual/graphical answers
+${physicsDiagramExclusion}`;
     }
 
     // SUBJECT-AWARE GRAPHING: Add annotations and subject profile instructions for non-Math subjects
@@ -1027,6 +1058,11 @@ COMPLEXITY LEVEL: Standard
       transformationInstructions = `
 MANDATORY A-LEVEL GRAPH TRANSFORMATION REQUIREMENTS:
 ***** AT LEAST 50% OF QUESTIONS MUST USE question_type = "graph_plotting" *****
+EXCEPTION: Physics diagram sketch questions must NEVER use graph_plotting.
+Physics subjects with sketch/draw questions about magnetic fields, ray diagrams,
+waves, nuclear decay, force diagrams, or field patterns must use
+question_type = "short_answer". The 50% graph_plotting target applies to maths
+and data questions only.
 
 For graph_plotting: correct_answer must be JSON with:
 - graphType: "plotting"
@@ -1064,11 +1100,20 @@ ALGEBRAIC ANSWER VERBS (use question_type = "short_answer"):
 - "Describe" → extended (description required)
 
 GRAPHICAL ACTION VERBS (use question_type = "graph_plotting"):
-- "Sketch" → graph_plotting (student draws on grid)
-- "Plot" → graph_plotting (student places points)
-- "Draw" → graph_plotting (student creates curve)
-- "Mark" → graph_plotting (student marks on diagram)
-- "On the grid, show" → graph_plotting
+- "Sketch y = ..." or "Sketch the curve f(x)" → graph_plotting (student draws on grid)
+- "Plot these values" / "Plot the points from the table" → graph_plotting
+- "Draw the curve y = ..." → graph_plotting (student creates curve)
+- "Mark the point on the curve" → graph_plotting (student marks on grid)
+- "On the grid, show y = ..." → graph_plotting
+
+PHYSICS DIAGRAM VERBS (use question_type = "short_answer", NOT graph_plotting):
+- "Sketch the magnetic field" → short_answer (freehand canvas)
+- "Draw a ray diagram" → short_answer (freehand canvas)
+- "Draw the forces / free body diagram" → short_answer (freehand canvas)
+- "Sketch the wave pattern / transverse wave" → short_answer (freehand canvas)
+- "Draw the electromagnetic spectrum" → short_answer (freehand canvas)
+- Rule: if the question asks for a physics diagram, field pattern, ray diagram,
+  wave diagram, force diagram, or nuclear decay diagram → short_answer.
 
 READING FROM GRAPH VERBS (use question_type = "graph_interpretation"):
 - "Read from the graph" → graph_interpretation with visible data

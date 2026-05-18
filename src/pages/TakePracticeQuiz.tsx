@@ -89,6 +89,7 @@ import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePane
 import { MathsFigurePanel } from "@/components/maths";
 import { PhysicsFigurePanel } from "@/components/physics";
 import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
+import { isPhysicsDrawOverride } from "@/components/drawing/physics-draw-override";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
@@ -1011,8 +1012,17 @@ const TakePracticeQuiz = () => {
         )
       : null;
     const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
-    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
-    
+    const rawIsGraphPlotting = currentQuestion.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
+    // Defensive: physics diagram sketches sometimes get stored as graph_plotting
+    // by the AI. In that case the freehand canvas renders instead of a grid,
+    // so we must skip the graph-plotting validation.
+    const physicsDrawOverride = isPhysicsDrawOverride(
+      currentQuestion.question_text,
+      (currentQuestion as any).subject,
+      currentQuestion.question_type,
+    );
+    const isGraphPlotting = rawIsGraphPlotting && !physicsDrawOverride;
+
     // Validate graph interpretation: check which fields are answered
     if (isGraphInterpretation && graphData) {
       const fields = graphData.interpretationFields || [];
@@ -1962,11 +1972,17 @@ const TakePracticeQuiz = () => {
                   />
 
                   {(() => {
+                    const physicsOverride = isPhysicsDrawOverride(
+                      currentQuestion.question_text,
+                      (currentQuestion as any).subject,
+                      currentQuestion.question_type,
+                    );
                     const isGraphType =
-                      currentQuestion.question_type === 'graph_plotting' ||
-                      currentQuestion.question_type === 'graph_interpretation' ||
-                      currentQuestion.question_type === 'graph_transformation' ||
-                      currentQuestion.question_type === 'bearings';
+                      (currentQuestion.question_type === 'graph_plotting' ||
+                       currentQuestion.question_type === 'graph_interpretation' ||
+                       currentQuestion.question_type === 'graph_transformation' ||
+                       currentQuestion.question_type === 'bearings') &&
+                      !physicsOverride;
                     if (isGraphType) return null;
                     const drawInfo = detectDrawQuestion(
                       currentQuestion.question_text ?? '',
@@ -2134,14 +2150,19 @@ const TakePracticeQuiz = () => {
                     
                     // Only treat as graph question if question_type explicitly says so
                     // OR if question_type is unset/generic but graphData has a graphType
-                    const isGraphInterpretation = currentQuestion.question_type === 'graph_interpretation' || 
-                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'interpretation');
-                    const isGraphPlotting = currentQuestion.question_type === 'graph_plotting' || 
-                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'plotting');
-                    const isBearings = currentQuestion.question_type === 'bearings' || 
-                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'bearings');
-                    const isGraphTransformation = currentQuestion.question_type === 'graph_transformation' || 
-                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'transformation');
+                    const physicsOverride = isPhysicsDrawOverride(
+                      currentQuestion.question_text,
+                      (currentQuestion as any).subject,
+                      currentQuestion.question_type,
+                    );
+                    const isGraphInterpretation = !physicsOverride && (currentQuestion.question_type === 'graph_interpretation' ||
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'interpretation'));
+                    const isGraphPlotting = !physicsOverride && (currentQuestion.question_type === 'graph_plotting' ||
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'plotting'));
+                    const isBearings = !physicsOverride && (currentQuestion.question_type === 'bearings' ||
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'bearings'));
+                    const isGraphTransformation = !physicsOverride && (currentQuestion.question_type === 'graph_transformation' ||
+                      (currentQuestion.question_type !== 'short_answer' && currentQuestion.question_type !== 'extended' && graphData?.graphType === 'transformation'));
                     
                     // Render graph transformation (multi-part sketch)
                     if (isGraphTransformation && graphData?.transformationConfig) {
