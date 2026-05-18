@@ -1038,6 +1038,15 @@ ${topicTagVocabulary.join(', ')}` : '';
   // ── BLOCK 8: GRAPH QUESTION REQUIREMENTS ────────────────────────────────
   const graphBlock = `
 ## GRAPH QUESTION REQUIREMENTS — MANDATORY
+
+PHYSICS DIAGRAM SKETCH EXCLUSION:
+Physics questions asking the student to sketch/draw a magnetic field pattern,
+ray diagram, wave diagram, free body / force diagram, nuclear decay diagram,
+or electromagnetic spectrum must use question_type = "short_answer"
+(NOT "graph_plotting"). These are rendered on a freehand drawing canvas.
+graph_plotting renders a coordinate grid for plotting (x, y) points and is
+the wrong renderer for physics diagrams.
+
 If any question uses question_type "graph_plotting" or "graph_sketch", its correct_answer must include a plottingAnswer with:
 
 {
