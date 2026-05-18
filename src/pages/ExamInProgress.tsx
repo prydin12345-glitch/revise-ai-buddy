@@ -68,6 +68,7 @@ import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePane
 import { MathsFigurePanel } from "@/components/maths";
 import { PhysicsFigurePanel } from "@/components/physics";
 import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
+import { isPhysicsDrawOverride } from "@/components/drawing/physics-draw-override";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
 
@@ -1736,11 +1737,17 @@ const ExamInProgress = () => {
 
                   {/* Drawing canvas for economics/biology/physics diagram-draw questions */}
                   {(() => {
+                    const physicsOverride = isPhysicsDrawOverride(
+                      question.question_text,
+                      (question as any).subject,
+                      question.question_type,
+                    );
                     const isGraphType =
-                      question.question_type === 'graph_plotting' ||
-                      question.question_type === 'graph_interpretation' ||
-                      question.question_type === 'graph_transformation' ||
-                      question.question_type === 'bearings';
+                      (question.question_type === 'graph_plotting' ||
+                       question.question_type === 'graph_interpretation' ||
+                       question.question_type === 'graph_transformation' ||
+                       question.question_type === 'bearings') &&
+                      !physicsOverride;
                     if (isGraphType) return null;
                     const drawInfo = detectDrawQuestion(
                       question.question_text ?? '',
@@ -1825,9 +1832,14 @@ const ExamInProgress = () => {
                       (question as any).diagram_config ?? null,
                       question.question_type ?? null,
                     );
-                    const isGraphInterpretation = question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation';
-                    const isGraphPlotting = question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting';
-                    const isBearings = question.question_type === 'bearings' || graphData?.graphType === 'bearings';
+                    const physicsOverride = isPhysicsDrawOverride(
+                      question.question_text,
+                      (question as any).subject,
+                      question.question_type,
+                    );
+                    const isGraphInterpretation = !physicsOverride && (question.question_type === 'graph_interpretation' || graphData?.graphType === 'interpretation');
+                    const isGraphPlotting = !physicsOverride && (question.question_type === 'graph_plotting' || graphData?.graphType === 'plotting');
+                    const isBearings = !physicsOverride && (question.question_type === 'bearings' || graphData?.graphType === 'bearings');
                     const isGraphTransformation = question.question_type === 'graph_transformation' || graphData?.graphType === 'transformation';
                     const currentGraphAnswer = graphAnswers[question.id] || {};
                     
@@ -2036,6 +2048,12 @@ const ExamInProgress = () => {
 
                   {/* Standard answer inputs for non-graph questions */}
                   {!(() => {
+                    const physicsOverride = isPhysicsDrawOverride(
+                      question.question_text,
+                      (question as any).subject,
+                      question.question_type,
+                    );
+                    if (physicsOverride) return false;
                     const graphData = parseGraphQuestionData(
                       question.correct_answer || null,
                       (question as any).diagram_config ?? null,
