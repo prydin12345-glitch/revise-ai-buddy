@@ -23,6 +23,10 @@ export function isPhysicsDrawOverride(
     questionType === 'bearings';
   if (!isGraphType) return false;
 
-  const info = detectDrawQuestion(questionText ?? '', subject ?? '', questionType ?? undefined);
+  // CRITICAL: pass undefined for questionType so detectDrawQuestion's Guard 1
+  // (which short-circuits on graph_plotting / graph_interpretation / etc.)
+  // does not block the text-pattern matcher. We've already confirmed above
+  // that the stored type is a graph type — now we want the text to decide.
+  const info = detectDrawQuestion(questionText ?? '', subject ?? '', undefined);
   return info.needsDrawingCanvas && info.diagramCategory === 'physics';
 }
