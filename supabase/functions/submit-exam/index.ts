@@ -1,7 +1,7 @@
 import "https://esm.sh/xhr-shim@0.1.3";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE } from "../_shared/sanitise-feedback.ts";
+import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE, MARKING_QUALITY_RULES } from "../_shared/sanitise-feedback.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -507,7 +507,7 @@ IMPORTANT: Address the student directly using "You" (e.g., "You have provided th
           } else {
             systemPrompt = 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
           }
-          systemPrompt += FEEDBACK_FORMATTING_RULE;
+          systemPrompt += FEEDBACK_FORMATTING_RULE + MARKING_QUALITY_RULES;
           
           // Build the user prompt based on answer type
           let userPrompt = '';

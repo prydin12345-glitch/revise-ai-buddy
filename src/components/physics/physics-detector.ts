@@ -440,7 +440,7 @@ export const isPhysicsAnswerDiagram = (
 
   if (config.type === 'nuclear_decay') {
     if ((config as any).showPenetration) return true;
-    if (/write\s+(?:the\s+)?(?:nuclear\s+)?equation|show\s+(?:the\s+)?decay|represent\s+(?:the\s+)?decay|compare\s+(?:the\s+)?(?:penetrat|ionisation|ionization|properties)/i.test(lower)) {
+    if (/write[^.]{0,40}\bequation\b|write[^.]{0,40}\bnuclear\b|balanced\s+nuclear\s+equation|show\s+(?:the\s+)?decay|show\s+(?:the\s+)?(?:nuclear\s+)?equation|represent\s+(?:the\s+)?decay|complete\s+(?:the\s+)?(?:nuclear\s+)?equation|compare\s+(?:the\s+)?(?:penetrat|ionisation|ionization|properties)/i.test(lower)) {
       return true;
     }
     return false;
