@@ -18,14 +18,30 @@ window.addEventListener("vite:preloadError", (event) => {
   recoverFromStaleModule();
 });
 
+const STALE_MODULE_PATTERNS = [
+  "Importing a module script failed",
+  "Failed to fetch dynamically imported module",
+  "error loading dynamically imported module",
+  "Load failed",
+  "_result.default",
+  "Cannot read properties of undefined (reading 'default')",
+  "undefined is not an object (evaluating 'e._result.default')",
+];
+
+const matchesStaleModule = (msg: string) =>
+  STALE_MODULE_PATTERNS.some((p) => msg.includes(p));
+
 window.addEventListener("unhandledrejection", (event) => {
   const message = String(event.reason?.message ?? event.reason ?? "");
-  if (
-    message.includes("Importing a module script failed") ||
-    message.includes("Failed to fetch dynamically imported module") ||
-    message.includes("error loading dynamically imported module") ||
-    message.includes("Load failed")
-  ) {
+  if (matchesStaleModule(message)) {
+    event.preventDefault();
+    recoverFromStaleModule();
+  }
+});
+
+window.addEventListener("error", (event) => {
+  const message = String(event.error?.message ?? event.message ?? "");
+  if (matchesStaleModule(message)) {
     event.preventDefault();
     recoverFromStaleModule();
   }
