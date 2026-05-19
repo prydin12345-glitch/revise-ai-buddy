@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { markSketch, type GraphPoint, type KeyFeatures, evaluateFormulaAtX } from "../_shared/math-engine.ts";
-import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE } from "../_shared/sanitise-feedback.ts";
+import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE, MARKING_QUALITY_RULES } from "../_shared/sanitise-feedback.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1473,7 +1473,7 @@ For mathematical expressions in feedback:
 - Render LaTeX when appropriate but also provide decimal/simplified forms
 - Example: "x = π/6 (or 0.524 radians)"
 - Include brief explanations like "These values satisfy the equation within 0 ≤ x < 2π"
-${FEEDBACK_FORMATTING_RULE}`;
+${FEEDBACK_FORMATTING_RULE}${MARKING_QUALITY_RULES}`;
 
     const userPrompt = `Question: ${question.question_text}
 
