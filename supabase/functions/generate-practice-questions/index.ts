@@ -4389,7 +4389,7 @@ ${notesSection}`;
         set_id: setId,
         question_number: q.question_number,
         question_number_int: questionNumberInt,
-        question_text: q.question_text,
+        question_text: sanitiseFeedback(q.question_text),
         question_latex: q.question_latex || null,
         question_type: q.question_type,
         marks: q.marks,
@@ -4397,9 +4397,9 @@ ${notesSection}`;
         difficulty_level: q.difficulty_level,
         has_math: q.has_math || false,
         equation_complexity: q.equation_complexity || null,
-        correct_answer: correctAnswer,
+        correct_answer: typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer,
         options: options,
-        rationale: q.rationale || null,
+        rationale: typeof q.rationale === 'string' ? sanitiseFeedback(q.rationale) : (q.rationale || null),
         diagram_config: (() => {
           const baseDiagram = q.diagramConfig ?? q.diagram_config ?? null;
           const correctChart = q.correct_chart_data ?? null;
