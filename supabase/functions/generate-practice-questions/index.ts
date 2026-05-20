@@ -11,6 +11,7 @@ import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTI
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
+import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import {
   parseFunctionFromText,
   parseTransformFromText,
