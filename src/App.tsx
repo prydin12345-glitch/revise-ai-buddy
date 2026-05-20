@@ -2,64 +2,65 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { CookieConsent } from "@/components/CookieConsent";
+import { lazyWithReload } from "@/lib/lazy-with-reload";
 
 // Only eagerly load the landing page + auth (first paint)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-// Everything else is lazy loaded
-const Auth = lazy(() => import("./pages/Auth"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const MyExams = lazy(() => import("./pages/MyExams"));
-const CreateExam = lazy(() => import("./pages/CreateExam"));
-const AnalyzeExam = lazy(() => import("./pages/AnalyzeExam"));
-const ExamSettings = lazy(() => import("./pages/ExamSettings"));
-const FormatExam = lazy(() => import("./pages/FormatExam"));
-const TimerSetup = lazy(() => import("./pages/TimerSetup"));
-const ReviewQuestions = lazy(() => import("./pages/ReviewQuestions"));
-const RedirectToReview = lazy(() => import("./pages/RedirectToReview"));
-const ExamInProgress = lazy(() => import("./pages/ExamInProgress"));
-const ExamPreview = lazy(() => import("./pages/ExamPreview"));
-const ExamReview = lazy(() => import("./pages/ExamReview"));
-const Stats = lazy(() => import("./pages/Stats"));
-const MySubjects = lazy(() => import("./pages/MySubjects"));
-const CreatePracticeQuestions = lazy(() => import("./pages/CreatePracticeQuestions"));
-const MyQuizzes = lazy(() => import("./pages/MyQuizzes"));
-const PracticeSetPreview = lazy(() => import("./pages/PracticeSetPreview"));
-const TakePracticeQuiz = lazy(() => import("./pages/TakePracticeQuiz"));
-const Settings = lazy(() => import("./pages/Settings"));
-const AdminVerifications = lazy(() => import("./pages/AdminVerifications"));
-const MyClasses = lazy(() => import("./pages/MyClasses"));
-const UploadExam = lazy(() => import("./pages/UploadExam"));
-const PreviewExam = lazy(() => import("./pages/PreviewExam"));
-const Pricing = lazy(() => import("./pages/Pricing"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
+// Everything else is lazy loaded (with stale-chunk auto-recovery)
+const Auth = lazyWithReload(() => import("./pages/Auth"));
+const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
+const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
+const Onboarding = lazyWithReload(() => import("./pages/Onboarding"));
+const MyExams = lazyWithReload(() => import("./pages/MyExams"));
+const CreateExam = lazyWithReload(() => import("./pages/CreateExam"));
+const AnalyzeExam = lazyWithReload(() => import("./pages/AnalyzeExam"));
+const ExamSettings = lazyWithReload(() => import("./pages/ExamSettings"));
+const FormatExam = lazyWithReload(() => import("./pages/FormatExam"));
+const TimerSetup = lazyWithReload(() => import("./pages/TimerSetup"));
+const ReviewQuestions = lazyWithReload(() => import("./pages/ReviewQuestions"));
+const RedirectToReview = lazyWithReload(() => import("./pages/RedirectToReview"));
+const ExamInProgress = lazyWithReload(() => import("./pages/ExamInProgress"));
+const ExamPreview = lazyWithReload(() => import("./pages/ExamPreview"));
+const ExamReview = lazyWithReload(() => import("./pages/ExamReview"));
+const Stats = lazyWithReload(() => import("./pages/Stats"));
+const MySubjects = lazyWithReload(() => import("./pages/MySubjects"));
+const CreatePracticeQuestions = lazyWithReload(() => import("./pages/CreatePracticeQuestions"));
+const MyQuizzes = lazyWithReload(() => import("./pages/MyQuizzes"));
+const PracticeSetPreview = lazyWithReload(() => import("./pages/PracticeSetPreview"));
+const TakePracticeQuiz = lazyWithReload(() => import("./pages/TakePracticeQuiz"));
+const Settings = lazyWithReload(() => import("./pages/Settings"));
+const AdminVerifications = lazyWithReload(() => import("./pages/AdminVerifications"));
+const MyClasses = lazyWithReload(() => import("./pages/MyClasses"));
+const UploadExam = lazyWithReload(() => import("./pages/UploadExam"));
+const PreviewExam = lazyWithReload(() => import("./pages/PreviewExam"));
+const Pricing = lazyWithReload(() => import("./pages/Pricing"));
+const Privacy = lazyWithReload(() => import("./pages/Privacy"));
+const Terms = lazyWithReload(() => import("./pages/Terms"));
 
 // Tutor pages
-const ManageExams = lazy(() => import("./pages/tutor/ManageExams"));
-const ManagePracticeSets = lazy(() => import("./pages/tutor/ManagePracticeSets"));
-const StudentProgress = lazy(() => import("./pages/tutor/StudentProgress"));
-const CreateTutorExam = lazy(() => import("./pages/tutor/CreateTutorExam"));
-const EditExam = lazy(() => import("./pages/tutor/EditExam"));
-const ManageStudents = lazy(() => import("./pages/tutor/ManageStudents"));
-const ManageFeedback = lazy(() => import("./pages/tutor/ManageFeedback"));
-const ExamHub = lazy(() => import("./pages/tutor/ExamHub"));
-const StudentExamReview = lazy(() => import("./pages/tutor/StudentExamReview"));
-const ManualExamCreator = lazy(() => import("./pages/tutor/ManualExamCreator"));
-const ExamDashboard = lazy(() => import("./pages/tutor/ExamDashboard"));
+const ManageExams = lazyWithReload(() => import("./pages/tutor/ManageExams"));
+const ManagePracticeSets = lazyWithReload(() => import("./pages/tutor/ManagePracticeSets"));
+const StudentProgress = lazyWithReload(() => import("./pages/tutor/StudentProgress"));
+const CreateTutorExam = lazyWithReload(() => import("./pages/tutor/CreateTutorExam"));
+const EditExam = lazyWithReload(() => import("./pages/tutor/EditExam"));
+const ManageStudents = lazyWithReload(() => import("./pages/tutor/ManageStudents"));
+const ManageFeedback = lazyWithReload(() => import("./pages/tutor/ManageFeedback"));
+const ExamHub = lazyWithReload(() => import("./pages/tutor/ExamHub"));
+const StudentExamReview = lazyWithReload(() => import("./pages/tutor/StudentExamReview"));
+const ManualExamCreator = lazyWithReload(() => import("./pages/tutor/ManualExamCreator"));
+const ExamDashboard = lazyWithReload(() => import("./pages/tutor/ExamDashboard"));
 
 // Demo/dev pages — never in main bundle
-const GraphTest = lazy(() => import("./pages/GraphTest"));
-const MechanicsDemo = lazy(() => import("./pages/MechanicsDemo"));
-const CircuitDemo = lazy(() => import("./pages/CircuitDemo"));
-const ScienceDiagramDemo = lazy(() => import("./pages/ScienceDiagramDemo"));
+const GraphTest = lazyWithReload(() => import("./pages/GraphTest"));
+const MechanicsDemo = lazyWithReload(() => import("./pages/MechanicsDemo"));
+const CircuitDemo = lazyWithReload(() => import("./pages/CircuitDemo"));
+const ScienceDiagramDemo = lazyWithReload(() => import("./pages/ScienceDiagramDemo"));
 
 // TutorLayout is small, load eagerly for smooth sidebar
 import { TutorLayout } from "./components/tutor/TutorLayout";
