@@ -5,6 +5,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
+import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
@@ -627,14 +628,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
       question_type: qType,
-      question_text: q.question_text || '',
+      question_text: sanitiseFeedback(q.question_text || ''),
       question_latex: q.question_latex || null,
       has_math: q.has_math || false,
       parent_question_number: q.parent_question_number || null,
       root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
       marks: q.marks || 1,
       options,
-      correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
+      correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
       has_figures: q.has_figures || false,
       has_tables: q.has_tables || false,
       topic_tag: q.topic_tag || null,

@@ -30,6 +30,11 @@ export const sanitiseFeedback = (text: string | null | undefined): string => {
     // Broken \text → \ext seen in nuclear feedback
     .replace(/\\ext\s*\{([^{}]*)\}/g, '$1')
     .replace(/\\ext([A-Z])/g, '$1')
+    // Doubled "<num>ext<unit><num>ext<unit>" pattern e.g. "1200extBq1200extBq" → "1200 Bq"
+    .replace(/(\d+(?:\.\d+)?(?:\s*×\s*10[⁰¹²³⁴⁵⁶⁷⁸⁹\-\+\d]+)?)\s*ext([A-Za-z]+)\1\s*ext\2/g, '$1 $2')
+    // Generic "<num>ext<unit>" leftover (handles lowercase units like "Bq", "kg")
+    .replace(/(\d)\s*ext([A-Za-z]+)/g, '$1 $2')
+    .replace(/\bext([A-Z][a-z]?)\b/g, '$1')
     .replace(/(\d+)ext([A-Z])/g, '$1$2');
 
   // Common LaTeX symbols → Unicode

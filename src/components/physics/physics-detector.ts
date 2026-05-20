@@ -440,7 +440,7 @@ export const isPhysicsAnswerDiagram = (
 
   if (config.type === 'nuclear_decay') {
     if ((config as any).showPenetration) return true;
-    if (/write[^.]{0,40}\bequation\b|write[^.]{0,40}\bnuclear\b|balanced\s+nuclear\s+equation|show\s+(?:the\s+)?decay|show\s+(?:the\s+)?(?:nuclear\s+)?equation|represent\s+(?:the\s+)?decay|complete\s+(?:the\s+)?(?:nuclear\s+)?equation|compare\s+(?:the\s+)?(?:penetrat|ionisation|ionization|properties)/i.test(lower)) {
+    if (/write[^.]{0,40}\bequation\b|write[^.]{0,40}\bnuclear\b|balanced\s+nuclear\s+equation|complete\s+(?:the\s+)?(?:nuclear\s+)?equation|show\s+(?:the\s+)?(?:nuclear\s+)?equation|show\s+(?:the\s+)?decay|represent\s+(?:the\s+)?decay|outline\s+(?:the\s+)?(?:process\s+of\s+)?(?:alpha|beta|gamma)\s+decay|describe\s+(?:the\s+)?(?:process\s+of\s+)?(?:alpha|beta|gamma)\s+decay|explain\s+(?:the\s+)?(?:process\s+of\s+)?(?:alpha|beta|gamma)\s+decay|what\s+(?:happens|changes)\s+(?:during|in)\s+(?:alpha|beta|gamma)\s+decay|changes\s+to\s+(?:the\s+)?nucleus|compare\s+(?:the\s+)?(?:penetrat|ionisation|ionization|properties)|state\s+(?:the\s+)?(?:changes|products)\s+of\s+(?:alpha|beta|gamma)/i.test(lower)) {
       return true;
     }
     return false;
