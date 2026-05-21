@@ -956,6 +956,28 @@ graph_plotting is ONLY for:
 - Any question where the student plots (x, y) coordinate points on a grid
 `;
 
+    const NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS = `
+NUCLEAR EQUATION COMPLETION QUESTIONS:
+For questions asking students to complete a nuclear equation, use this format:
+
+question_type: "nuclear_equation_completion"
+question_text must contain the partial equation with ? marking the blank.
+Example: "Complete the nuclear equation for the beta-plus decay of carbon-11:  11/6 C -> ? + b+ + neutrino"
+
+correct_answer must contain the missing nucleus in the format: "MassNumber Symbol AtomicNumber"
+Example: "11 B 5" (boron-11, atomic number 5)
+
+worked_solution must show the conservation calculation:
+"Mass number: 11 = 11 + 0  Atomic number: 6 = 5 + 1  Missing nucleus: 11/5 B"
+
+Use this question_type for any question containing:
+- "Complete the equation"
+- "Complete the nuclear equation"
+- "Fill in the missing nucleus"
+- "What is the missing particle"
+with a nuclear decay equation that has a blank or ?
+`;
+
     let visualQuestionInstructions = '';
     if (needsGraphs && needsTables) {
       visualQuestionInstructions = `
