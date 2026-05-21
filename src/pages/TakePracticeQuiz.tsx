@@ -15,6 +15,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { NuclearEquationInput } from "@/components/nuclear/NuclearEquationInput";
+import {
+  isNuclearEquationQuestion,
+  parseNuclearEquation,
+  extractEquationFromQuestionText,
+} from "@/components/nuclear/nuclear-equation-detector";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
