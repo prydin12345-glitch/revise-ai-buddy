@@ -7,6 +7,12 @@ import { Card } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NuclearEquationInput } from "@/components/nuclear/NuclearEquationInput";
+import {
+  isNuclearEquationQuestion,
+  parseNuclearEquation,
+  extractEquationFromQuestionText,
+} from "@/components/nuclear/nuclear-equation-detector";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock, Check, Circle, AlertCircle, Menu, ChevronLeft, ChevronRight, MoreVertical, Calculator, Send, Flag, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
@@ -2103,7 +2109,22 @@ const ExamInProgress = () => {
                             );
                           })}
                         </RadioGroup>
-                      ) : examSubject.toLowerCase().includes('math') ? (
+                      ) : isNuclearEquationQuestion(question.question_text ?? '') && extractEquationFromQuestionText(question.question_text ?? '') ? (() => {
+                          const eq = extractEquationFromQuestionText(question.question_text ?? '')!;
+                          const data = parseNuclearEquation(eq, question.correct_answer);
+                          if (data.blankCount === 0) return null;
+                          return (
+                            <div className="space-y-2">
+                              <Label className="text-base font-medium">Your Answer</Label>
+                              <NuclearEquationInput
+                                terms={data.terms}
+                                correctAnswer={data.correctAnswer}
+                                disabled={isReadOnly}
+                                onAnswerChange={(answer) => handleAnswerChange(question.id, answer)}
+                              />
+                            </div>
+                          );
+                        })() : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-medium">Your Answer</Label>

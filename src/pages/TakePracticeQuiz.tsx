@@ -15,6 +15,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { NuclearEquationInput } from "@/components/nuclear/NuclearEquationInput";
+import {
+  isNuclearEquationQuestion,
+  parseNuclearEquation,
+  extractEquationFromQuestionText,
+} from "@/components/nuclear/nuclear-equation-detector";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -2729,6 +2735,32 @@ const TakePracticeQuiz = () => {
                       );
                     }
                     
+                    // Nuclear equation completion input
+                    if (isNuclearEquationQuestion(currentQuestion.question_text ?? '')) {
+                      const eq = extractEquationFromQuestionText(currentQuestion.question_text ?? '');
+                      if (eq) {
+                        const data = parseNuclearEquation(eq, currentQuestion.correct_answer);
+                        if (data.blankCount > 0) {
+                          return (
+                            <div className="space-y-2">
+                              <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
+                              <NuclearEquationInput
+                                terms={data.terms}
+                                correctAnswer={data.correctAnswer}
+                                showCorrect={!!currentAnswer?.submitted}
+                                disabled={!!currentAnswer?.submitted}
+                                onAnswerChange={(answer) => {
+                                  const newAnswer = { ...currentAnswer, answer };
+                                  setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                  debouncedSave(currentQuestion.id, { answer });
+                                }}
+                              />
+                            </div>
+                          );
+                        }
+                      }
+                    }
+
                     // Default: standard text input with math keypad
                     return (
                       <div className="space-y-2">
