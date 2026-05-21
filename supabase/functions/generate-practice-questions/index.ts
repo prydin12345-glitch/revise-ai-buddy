@@ -1443,7 +1443,13 @@ Context:
 - Topics (with subject context): ${topicContextStrings.join('; ')}
 - Educational Level: ${setData.educational_tier || 'not specified'}
 ${translatedBoard ? `- Question Style: ${translatedBoard}` : ''}
-- ${difficultyInstructions}
+
+==================================================================
+DIFFICULTY CALIBRATION (READ BEFORE GENERATING ANY QUESTION)
+==================================================================
+${difficultyInstructions}
+==================================================================
+
 ${complexityInstructions}
 ${topicContextInstruction}
 
