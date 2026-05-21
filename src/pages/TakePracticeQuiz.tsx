@@ -2735,6 +2735,32 @@ const TakePracticeQuiz = () => {
                       );
                     }
                     
+                    // Nuclear equation completion input
+                    if (isNuclearEquationQuestion(currentQuestion.question_text ?? '')) {
+                      const eq = extractEquationFromQuestionText(currentQuestion.question_text ?? '');
+                      if (eq) {
+                        const data = parseNuclearEquation(eq, currentQuestion.correct_answer);
+                        if (data.blankCount > 0) {
+                          return (
+                            <div className="space-y-2">
+                              <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
+                              <NuclearEquationInput
+                                terms={data.terms}
+                                correctAnswer={data.correctAnswer}
+                                showCorrect={!!currentAnswer?.submitted}
+                                disabled={!!currentAnswer?.submitted}
+                                onAnswerChange={(answer) => {
+                                  const newAnswer = { ...currentAnswer, answer };
+                                  setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                  debouncedSave(currentQuestion.id, { answer });
+                                }}
+                              />
+                            </div>
+                          );
+                        }
+                      }
+                    }
+
                     // Default: standard text input with math keypad
                     return (
                       <div className="space-y-2">
