@@ -2103,7 +2103,38 @@ const ExamInProgress = () => {
                             );
                           })}
                         </RadioGroup>
-                      ) : examSubject.toLowerCase().includes('math') ? (
+                      ) : (() => {
+                          if (!isNuclearEquationQuestion(question.question_text ?? '')) return null;
+                          const eq = extractEquationFromQuestionText(question.question_text ?? '');
+                          if (!eq) return null;
+                          const data = parseNuclearEquation(eq, question.correct_answer);
+                          if (data.blankCount === 0) return null;
+                          return (
+                            <div className="space-y-2">
+                              <Label className="text-base font-medium">Your Answer</Label>
+                              <NuclearEquationInput
+                                terms={data.terms}
+                                correctAnswer={data.correctAnswer}
+                                disabled={isReadOnly}
+                                onAnswerChange={(answer) => handleAnswerChange(question.id, answer)}
+                              />
+                            </div>
+                          );
+                        })() ? (() => {
+                          const eq = extractEquationFromQuestionText(question.question_text ?? '')!;
+                          const data = parseNuclearEquation(eq, question.correct_answer);
+                          return (
+                            <div className="space-y-2">
+                              <Label className="text-base font-medium">Your Answer</Label>
+                              <NuclearEquationInput
+                                terms={data.terms}
+                                correctAnswer={data.correctAnswer}
+                                disabled={isReadOnly}
+                                onAnswerChange={(answer) => handleAnswerChange(question.id, answer)}
+                              />
+                            </div>
+                          );
+                        })() : examSubject.toLowerCase().includes('math') ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-medium">Your Answer</Label>
