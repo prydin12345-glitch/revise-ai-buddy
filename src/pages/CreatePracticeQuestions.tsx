@@ -96,7 +96,7 @@ const CreatePracticeQuestions = () => {
 
   // Generation states
   const [generating, setGenerating] = useState(false);
-  const [forceRefresh, setForceRefresh] = useState(false);
+  
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
   const [generatedSetId, setGeneratedSetId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
