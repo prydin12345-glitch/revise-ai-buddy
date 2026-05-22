@@ -2326,10 +2326,10 @@ ${notesSection}`;
             // Google models: use temperature=0 for deterministic output
             ...(model.startsWith('openai/') 
               ? { max_completion_tokens: 16000 } 
-              : { temperature: 0, max_tokens: 16000 }),
+              : { temperature: 0.7, max_tokens: 16000 }),
             messages: [
               { role: 'system', content: sys },
-              { role: 'user', content: prompt },
+              { role: 'user', content: effectivePrompt },
             ],
             tools: [tool],
             tool_choice: { type: 'function', function: { name: 'generate_practice_questions' } },
