@@ -1471,7 +1471,11 @@ These topics must be interpreted ONLY within the context of "${subjectName}".
       mcqFormatInstruction = `\nQUESTION FORMAT: All questions should be written format (short_answer, extended, graph_plotting, graph_interpretation, table_grid, etc.). Do NOT generate MCQ questions unless the topic specifically requires it.\n`;
     }
 
-    const prompt = `${subjectLockInstruction}
+    const countInstruction = hasCountRange
+      ? `Generate between ${countMin} and ${countMax} practice questions — aim for approximately ${effectiveQuestionCount}. Choose the exact number that best fits topic coverage; do not pad with repetitive questions, and do not cut short before key concepts are covered.`
+      : `Generate ${effectiveQuestionCount} practice questions.`;
+
+    let prompt = `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
@@ -1480,7 +1484,7 @@ ${diagramSuppressionNotice}
 ${phasorDiagramInstructions}
 ${deltaWyeDiagramInstructions}
 ${nodalAnalysisInstruction}
-Generate ${effectiveQuestionCount} practice questions.
+${countInstruction}
 ${mcqFormatInstruction}
 
 Context:
