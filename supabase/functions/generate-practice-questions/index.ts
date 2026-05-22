@@ -2281,6 +2281,32 @@ ${notesSection}`;
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
 
+    const buildSimplifiedPrompt = (
+      subject: string,
+      topics: string,
+      count: number,
+      difficulty: string,
+    ): string => `
+Generate ${count} ${difficulty} practice questions for ${subject} on the topic: ${topics}.
+
+Return a JSON array of question objects via the generate_practice_questions tool.
+Each object must have:
+- question_text: string
+- question_type: "short_answer" | "long_form" | "mcq" | "extended"
+- marks: number (1-6)
+- correct_answer: string
+- working_out: string (step by step solution)
+
+For ${difficulty} difficulty:
+${difficulty === 'hard'
+  ? 'Questions must be multi-part, use real-world contexts, and be 4-6 marks each.'
+  : difficulty === 'easy'
+  ? 'Questions must be single-step recall or basic application, 1-2 marks each.'
+  : 'Questions must be 2-4 step calculations or explanations, 2-4 marks each.'}
+
+Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
+`.trim();
+
     const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
