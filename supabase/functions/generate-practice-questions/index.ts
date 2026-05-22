@@ -2464,8 +2464,37 @@ Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
             try {
               return JSON.parse(jsonCandidate);
             } catch {
-              const sanitized = sanitizeJsonString(jsonCandidate);
-              return JSON.parse(sanitized);
+              try {
+                const sanitized = sanitizeJsonString(jsonCandidate);
+                return JSON.parse(sanitized);
+              } catch { /* fall through to array recovery */ }
+            }
+          }
+
+          // Recovery: model returned a raw JSON array of questions instead of the tool envelope.
+          const arrayMatch = trimmed.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (arrayMatch) {
+            try {
+              const parsed = JSON.parse(sanitizeJsonString(arrayMatch[0]));
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                console.log(`[Recovery] Extracted ${parsed.length} questions from plain text array`);
+                return { questions: parsed };
+              }
+            } catch (e) {
+              console.error('[Recovery] Failed to parse plain text JSON array:', e);
+            }
+          }
+
+          // Last-ditch: pull individual question objects.
+          const objectMatches = [...trimmed.matchAll(/\{[^{}]*"question_text"[\s\S]*?\}(?=\s*[,\]\}]|\s*$)/g)];
+          if (objectMatches.length > 0) {
+            const recovered: any[] = [];
+            for (const m of objectMatches) {
+              try { recovered.push(JSON.parse(sanitizeJsonString(m[0]))); } catch { /* skip */ }
+            }
+            if (recovered.length > 0) {
+              console.log(`[Recovery] Extracted ${recovered.length} individual questions from plain text`);
+              return { questions: recovered };
             }
           }
         }
