@@ -711,11 +711,34 @@ For delta vs wye comparison questions:
       educationalLevel.includes('university') ||
       (setData.subtopics || []).length > 5
     );
-    const effectiveQuestionCount = isComplexSubject
-      ? Math.min(setData.question_count, 8)
+    // Range-aware question count: client may pass min/max so AI picks a flexible count.
+    const rawCountMin = Number((setData as any).__count_min);
+    const rawCountMax = Number((setData as any).__count_max);
+    const hasCountRange =
+      Number.isFinite(rawCountMin) && Number.isFinite(rawCountMax) &&
+      rawCountMin > 0 && rawCountMax >= rawCountMin;
+    const countMin = hasCountRange ? Math.max(1, Math.floor(rawCountMin)) : setData.question_count;
+    const countMax = hasCountRange ? Math.max(countMin, Math.floor(rawCountMax)) : setData.question_count;
+    const targetQuestionCount = hasCountRange
+      ? Math.floor(Math.random() * (countMax - countMin + 1)) + countMin
       : setData.question_count;
+    const effectiveQuestionCount = isComplexSubject
+      ? Math.min(targetQuestionCount, 8)
+      : targetQuestionCount;
     if (effectiveQuestionCount < setData.question_count) {
       console.log(`Complex subject detected — capping generation at ${effectiveQuestionCount} questions (requested: ${setData.question_count}) to prevent timeout`);
+    }
+    if (hasCountRange) {
+      console.log(`Question count range ${countMin}-${countMax}, target ${targetQuestionCount}`);
+      // Persist the chosen target so downstream UI shows the actual count.
+      try {
+        await supabaseClient
+          .from('practice_question_sets')
+          .update({ question_count: effectiveQuestionCount })
+          .eq('id', setId);
+      } catch (e) {
+        console.warn('Failed to persist target question count:', e);
+      }
     }
 
     // Build regional persona and region-aware subject instructions
@@ -1448,7 +1471,11 @@ These topics must be interpreted ONLY within the context of "${subjectName}".
       mcqFormatInstruction = `\nQUESTION FORMAT: All questions should be written format (short_answer, extended, graph_plotting, graph_interpretation, table_grid, etc.). Do NOT generate MCQ questions unless the topic specifically requires it.\n`;
     }
 
-    const prompt = `${subjectLockInstruction}
+    const countInstruction = hasCountRange
+      ? `Generate between ${countMin} and ${countMax} practice questions — aim for approximately ${effectiveQuestionCount}. Choose the exact number that best fits topic coverage; do not pad with repetitive questions, and do not cut short before key concepts are covered.`
+      : `Generate ${effectiveQuestionCount} practice questions.`;
+
+    let prompt = `${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
@@ -1457,7 +1484,7 @@ ${diagramSuppressionNotice}
 ${phasorDiagramInstructions}
 ${deltaWyeDiagramInstructions}
 ${nodalAnalysisInstruction}
-Generate ${effectiveQuestionCount} practice questions.
+${countInstruction}
 ${mcqFormatInstruction}
 
 Context:
@@ -2281,6 +2308,32 @@ ${notesSection}`;
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
 
+    const buildSimplifiedPrompt = (
+      subject: string,
+      topics: string,
+      count: number,
+      difficulty: string,
+    ): string => `
+Generate ${count} ${difficulty} practice questions for ${subject} on the topic: ${topics}.
+
+Return a JSON array of question objects via the generate_practice_questions tool.
+Each object must have:
+- question_text: string
+- question_type: "short_answer" | "long_form" | "mcq" | "extended"
+- marks: number (1-6)
+- correct_answer: string
+- working_out: string (step by step solution)
+
+For ${difficulty} difficulty:
+${difficulty === 'hard'
+  ? 'Questions must be multi-part, use real-world contexts, and be 4-6 marks each.'
+  : difficulty === 'easy'
+  ? 'Questions must be single-step recall or basic application, 1-2 marks each.'
+  : 'Questions must be 2-4 step calculations or explanations, 2-4 marks each.'}
+
+Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
+`.trim();
+
     const callAi = async (attempt: 0 | 1 | 2) => {
       const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
 
@@ -2296,11 +2349,19 @@ ${notesSection}`;
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Generous per-attempt timeouts. Total budget 170+200+150 = 520s; edge runtime is 400s+
-      // for background tasks, but we accept that attempt 3 may be cut short — better to give
-      // attempts 1 and 2 enough room to actually succeed.
-      const timeoutMs = attempt === 0 ? 170_000 : attempt === 1 ? 200_000 : 150_000;
+      const timeoutMs = attempt === 0 ? 170_000 : attempt === 1 ? 200_000 : 170_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      // On the third attempt, fall back to a drastically simplified prompt
+      // so the model is more likely to honour tool-mode instead of returning prose.
+      const effectivePrompt = attempt === 2
+        ? buildSimplifiedPrompt(
+            subjectName,
+            (setData.subtopics || []).join(', '),
+            effectiveQuestionCount,
+            (setData.difficulty_level || 'medium').toLowerCase(),
+          )
+        : prompt;
 
       let response: Response;
       try {
@@ -2318,10 +2379,10 @@ ${notesSection}`;
             // Google models: use temperature=0 for deterministic output
             ...(model.startsWith('openai/') 
               ? { max_completion_tokens: 16000 } 
-              : { temperature: 0, max_tokens: 16000 }),
+              : { temperature: 0.7, max_tokens: 16000 }),
             messages: [
               { role: 'system', content: sys },
-              { role: 'user', content: prompt },
+              { role: 'user', content: effectivePrompt },
             ],
             tools: [tool],
             tool_choice: { type: 'function', function: { name: 'generate_practice_questions' } },
@@ -2430,8 +2491,37 @@ ${notesSection}`;
             try {
               return JSON.parse(jsonCandidate);
             } catch {
-              const sanitized = sanitizeJsonString(jsonCandidate);
-              return JSON.parse(sanitized);
+              try {
+                const sanitized = sanitizeJsonString(jsonCandidate);
+                return JSON.parse(sanitized);
+              } catch { /* fall through to array recovery */ }
+            }
+          }
+
+          // Recovery: model returned a raw JSON array of questions instead of the tool envelope.
+          const arrayMatch = trimmed.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (arrayMatch) {
+            try {
+              const parsed = JSON.parse(sanitizeJsonString(arrayMatch[0]));
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                console.log(`[Recovery] Extracted ${parsed.length} questions from plain text array`);
+                return { questions: parsed };
+              }
+            } catch (e) {
+              console.error('[Recovery] Failed to parse plain text JSON array:', e);
+            }
+          }
+
+          // Last-ditch: pull individual question objects.
+          const objectMatches = [...trimmed.matchAll(/\{[^{}]*"question_text"[\s\S]*?\}(?=\s*[,\]\}]|\s*$)/g)];
+          if (objectMatches.length > 0) {
+            const recovered: any[] = [];
+            for (const m of objectMatches) {
+              try { recovered.push(JSON.parse(sanitizeJsonString(m[0]))); } catch { /* skip */ }
+            }
+            if (recovered.length > 0) {
+              console.log(`[Recovery] Extracted ${recovered.length} individual questions from plain text`);
+              return { questions: recovered };
             }
           }
         }
@@ -2523,6 +2613,44 @@ ${notesSection}`;
 
       return { ...parsed.data, questions: normalizedQuestions };
     };
+
+    // ── Dedupe: avoid repeating questions this student has recently seen on this subject.
+    try {
+      const { data: recentSets } = await supabaseClient
+        .from('practice_question_sets')
+        .select('id')
+        .eq('user_id', userId)
+        .ilike('subject_id', `%${setData.subject_id || ''}%`)
+        .neq('id', setId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      const recentSetIds = (recentSets || []).map((r: any) => r.id).filter(Boolean);
+      if (recentSetIds.length > 0) {
+        const { data: recentQuestions } = await supabaseClient
+          .from('practice_questions')
+          .select('question_text')
+          .in('set_id', recentSetIds)
+          .limit(30);
+        const recentTexts = (recentQuestions || [])
+          .map((q: any) => q.question_text)
+          .filter((t: any) => typeof t === 'string' && t.trim().length > 0)
+          .slice(0, 20);
+        if (recentTexts.length > 0) {
+          const dedupeBlock = `VARIATION REQUIREMENT — CRITICAL:
+The student has recently seen the questions listed below. Do NOT generate similar questions.
+Generate completely different questions covering different aspects of the topic, using different scenarios, different numbers, and different command words.
+
+Recently seen questions to AVOID repeating:
+${recentTexts.map((q: string, i: number) => `${i + 1}. "${q.slice(0, 140)}..."`).join('\n')}
+
+Generate questions that are meaningfully different from all of the above.`;
+          prompt = dedupeBlock + '\n\n' + prompt;
+          console.log(`Injected dedupe block with ${recentTexts.length} recent questions`);
+        }
+      }
+    } catch (e) {
+      console.warn('Dedupe lookup failed (non-fatal):', e);
+    }
 
     let generated: z.infer<typeof GeneratePracticeQuestionsSchema> | null = null;
     let lastErr: unknown = null;
@@ -4718,6 +4846,8 @@ serve(async (req) => {
     const body = await req.json();
     const setId = body.setId;
     const forceRefresh = body.forceRefresh === true;
+    const countMin = Number.isFinite(Number(body.questionCountMin)) ? Number(body.questionCountMin) : undefined;
+    const countMax = Number.isFinite(Number(body.questionCountMax)) ? Number(body.questionCountMax) : undefined;
 
     if (!setId) {
       return new Response(
@@ -4767,7 +4897,12 @@ serve(async (req) => {
       .eq('id', setId);
 
     // Inject forceRefresh flag into setData for background function
-    const setDataWithFlags = { ...setData, __force_refresh: forceRefresh };
+    const setDataWithFlags = {
+      ...setData,
+      __force_refresh: forceRefresh,
+      __count_min: countMin,
+      __count_max: countMax,
+    };
 
     // Start background generation using EdgeRuntime.waitUntil
     // This ensures the work completes even after the response is sent

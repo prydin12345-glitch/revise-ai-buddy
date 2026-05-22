@@ -67,7 +67,9 @@ const CreatePracticeQuestions = () => {
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
-  const [questionCount, setQuestionCount] = useState(20);
+  const [questionRange, setQuestionRange] = useState<[number, number]>([8, 12]);
+  const questionCount = Math.round((questionRange[0] + questionRange[1]) / 2);
+  const setQuestionCount = (n: number) => setQuestionRange([Math.max(1, n - 2), n + 2]);
   const [difficultyMode, setDifficultyMode] = useState<"fixed" | "increasing" | "mixed">("increasing");
   const [difficultyLevel, setDifficultyLevel] = useState<"easy" | "medium" | "hard">("medium");
   const [exampleFile, setExampleFile] = useState<File | null>(null);
@@ -94,7 +96,7 @@ const CreatePracticeQuestions = () => {
 
   // Generation states
   const [generating, setGenerating] = useState(false);
-  const [forceRefresh, setForceRefresh] = useState(false);
+  
   const [showGenerationComplete, setShowGenerationComplete] = useState(false);
   const [generatedSetId, setGeneratedSetId] = useState("");
   const [totalQuestionsGenerated, setTotalQuestionsGenerated] = useState(0);
@@ -408,7 +410,12 @@ const CreatePracticeQuestions = () => {
       const { error: genError } = await supabase.functions.invoke(
         "generate-practice-questions",
         {
-          body: { setId: setData.id, forceRefresh },
+          body: {
+            setId: setData.id,
+            forceRefresh: true,
+            questionCountMin: questionRange[0],
+            questionCountMax: questionRange[1],
+          },
         }
       );
 
@@ -604,19 +611,6 @@ const CreatePracticeQuestions = () => {
               <Sparkles className="h-5 w-5 mr-2" />
               Generate
             </Button>
-            <label
-              htmlFor="forceRefresh"
-              className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <input
-                type="checkbox"
-                id="forceRefresh"
-                checked={forceRefresh}
-                onChange={e => setForceRefresh(e.target.checked)}
-                className="h-3 w-3 rounded border-muted-foreground/40"
-              />
-              Fresh questions (uses more AI credits)
-            </label>
           </div>
         </div>
 
@@ -1006,27 +1000,58 @@ const CreatePracticeQuestions = () => {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-2xl font-bold" style={{ color: subjectColor }}>
-                      {questionCount}
+                    <span className="text-sm font-semibold px-2.5 py-1 rounded-md" style={{ color: subjectColor, backgroundColor: `${subjectColor}1a` }}>
+                      {questionRange[0]} – {questionRange[1]}
                     </span>
                   </div>
-                  
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'Quick check', range: [3, 5] as [number, number] },
+                      { label: 'Short', range: [5, 8] as [number, number] },
+                      { label: 'Standard', range: [8, 12] as [number, number] },
+                      { label: 'Full', range: [12, 18] as [number, number] },
+                      { label: 'Exam', range: [18, 25] as [number, number] },
+                    ].map((p) => {
+                      const active = questionRange[0] === p.range[0] && questionRange[1] === p.range[1];
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setQuestionRange(p.range)}
+                          className="text-xs px-2.5 py-1 rounded-md border transition-colors"
+                          style={{
+                            borderColor: active ? subjectColor : 'hsl(var(--border))',
+                            background: active ? subjectColor : 'transparent',
+                            color: active ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+                          }}
+                        >
+                          {p.label} ({p.range[0]}–{p.range[1]})
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <Slider
-                    min={1}
-                    max={profileMaxQuestions || 30}
+                    min={3}
+                    max={Math.max(25, profileMaxQuestions || 25)}
                     step={1}
-                    value={[questionCount]}
-                    onValueChange={(values) => setQuestionCount(values[0])}
+                    value={questionRange}
+                    onValueChange={(values) => {
+                      const [mn, mx] = values as [number, number];
+                      if (mx - mn >= 2) setQuestionRange([mn, mx]);
+                    }}
                     className="w-full"
                     style={{
                       '--slider-track': 'hsl(var(--muted))',
                       '--slider-range': subjectColor,
                     } as React.CSSProperties}
                   />
-                  
+
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>1</span>
-                    <span>{profileMaxQuestions || 30}</span>
+                    <span>3 min</span>
+                    <span>The AI will generate {questionRange[0]}–{questionRange[1]} questions</span>
+                    <span>{Math.max(25, profileMaxQuestions || 25)} max</span>
                   </div>
 
                   {selectedProfileId && (
@@ -1134,16 +1159,19 @@ const CreatePracticeQuestions = () => {
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-sm font-medium">Questions</Label>
-                  <span className="text-xl font-bold" style={{ color: subjectColor }}>
-                    {questionCount}
+                  <span className="text-sm font-semibold px-2.5 py-1 rounded-md" style={{ color: subjectColor, backgroundColor: `${subjectColor}1a` }}>
+                    {questionRange[0]} – {questionRange[1]}
                   </span>
                 </div>
                 <Slider
-                  min={1}
-                  max={30}
+                  min={3}
+                  max={25}
                   step={1}
-                  value={[questionCount]}
-                  onValueChange={(values) => setQuestionCount(values[0])}
+                  value={questionRange}
+                  onValueChange={(values) => {
+                    const [mn, mx] = values as [number, number];
+                    if (mx - mn >= 2) setQuestionRange([mn, mx]);
+                  }}
                   className="w-full"
                   style={{
                     '--slider-track': '#D3D3D3',
