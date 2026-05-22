@@ -410,7 +410,12 @@ const CreatePracticeQuestions = () => {
       const { error: genError } = await supabase.functions.invoke(
         "generate-practice-questions",
         {
-          body: { setId: setData.id, forceRefresh },
+          body: {
+            setId: setData.id,
+            forceRefresh: true,
+            questionCountMin: questionRange[0],
+            questionCountMax: questionRange[1],
+          },
         }
       );
 
