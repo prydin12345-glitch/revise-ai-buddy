@@ -4897,7 +4897,12 @@ serve(async (req) => {
       .eq('id', setId);
 
     // Inject forceRefresh flag into setData for background function
-    const setDataWithFlags = { ...setData, __force_refresh: forceRefresh };
+    const setDataWithFlags = {
+      ...setData,
+      __force_refresh: forceRefresh,
+      __count_min: countMin,
+      __count_max: countMax,
+    };
 
     // Start background generation using EdgeRuntime.waitUntil
     // This ensures the work completes even after the response is sent
