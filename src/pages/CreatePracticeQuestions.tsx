@@ -611,19 +611,6 @@ const CreatePracticeQuestions = () => {
               <Sparkles className="h-5 w-5 mr-2" />
               Generate
             </Button>
-            <label
-              htmlFor="forceRefresh"
-              className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <input
-                type="checkbox"
-                id="forceRefresh"
-                checked={forceRefresh}
-                onChange={e => setForceRefresh(e.target.checked)}
-                className="h-3 w-3 rounded border-muted-foreground/40"
-              />
-              Fresh questions (uses more AI credits)
-            </label>
           </div>
         </div>
 
