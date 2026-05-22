@@ -1159,16 +1159,19 @@ const CreatePracticeQuestions = () => {
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-sm font-medium">Questions</Label>
-                  <span className="text-xl font-bold" style={{ color: subjectColor }}>
-                    {questionCount}
+                  <span className="text-sm font-semibold px-2.5 py-1 rounded-md" style={{ color: subjectColor, backgroundColor: `${subjectColor}1a` }}>
+                    {questionRange[0]} – {questionRange[1]}
                   </span>
                 </div>
                 <Slider
-                  min={1}
-                  max={30}
+                  min={3}
+                  max={25}
                   step={1}
-                  value={[questionCount]}
-                  onValueChange={(values) => setQuestionCount(values[0])}
+                  value={questionRange}
+                  onValueChange={(values) => {
+                    const [mn, mx] = values as [number, number];
+                    if (mx - mn >= 2) setQuestionRange([mn, mx]);
+                  }}
                   className="w-full"
                   style={{
                     '--slider-track': '#D3D3D3',
