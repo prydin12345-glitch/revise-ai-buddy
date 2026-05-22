@@ -67,7 +67,9 @@ const CreatePracticeQuestions = () => {
   const [subjectId, setSubjectId] = useState("");
   const [subjectColor, setSubjectColor] = useState("#3b82f6");
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
-  const [questionCount, setQuestionCount] = useState(20);
+  const [questionRange, setQuestionRange] = useState<[number, number]>([8, 12]);
+  const questionCount = Math.round((questionRange[0] + questionRange[1]) / 2);
+  const setQuestionCount = (n: number) => setQuestionRange([Math.max(1, n - 2), n + 2]);
   const [difficultyMode, setDifficultyMode] = useState<"fixed" | "increasing" | "mixed">("increasing");
   const [difficultyLevel, setDifficultyLevel] = useState<"easy" | "medium" | "hard">("medium");
   const [exampleFile, setExampleFile] = useState<File | null>(null);
