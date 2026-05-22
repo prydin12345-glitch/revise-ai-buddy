@@ -1000,27 +1000,58 @@ const CreatePracticeQuestions = () => {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-2xl font-bold" style={{ color: subjectColor }}>
-                      {questionCount}
+                    <span className="text-sm font-semibold px-2.5 py-1 rounded-md" style={{ color: subjectColor, backgroundColor: `${subjectColor}1a` }}>
+                      {questionRange[0]} – {questionRange[1]}
                     </span>
                   </div>
-                  
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'Quick check', range: [3, 5] as [number, number] },
+                      { label: 'Short', range: [5, 8] as [number, number] },
+                      { label: 'Standard', range: [8, 12] as [number, number] },
+                      { label: 'Full', range: [12, 18] as [number, number] },
+                      { label: 'Exam', range: [18, 25] as [number, number] },
+                    ].map((p) => {
+                      const active = questionRange[0] === p.range[0] && questionRange[1] === p.range[1];
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setQuestionRange(p.range)}
+                          className="text-xs px-2.5 py-1 rounded-md border transition-colors"
+                          style={{
+                            borderColor: active ? subjectColor : 'hsl(var(--border))',
+                            background: active ? subjectColor : 'transparent',
+                            color: active ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+                          }}
+                        >
+                          {p.label} ({p.range[0]}–{p.range[1]})
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <Slider
-                    min={1}
-                    max={profileMaxQuestions || 30}
+                    min={3}
+                    max={Math.max(25, profileMaxQuestions || 25)}
                     step={1}
-                    value={[questionCount]}
-                    onValueChange={(values) => setQuestionCount(values[0])}
+                    value={questionRange}
+                    onValueChange={(values) => {
+                      const [mn, mx] = values as [number, number];
+                      if (mx - mn >= 2) setQuestionRange([mn, mx]);
+                    }}
                     className="w-full"
                     style={{
                       '--slider-track': 'hsl(var(--muted))',
                       '--slider-range': subjectColor,
                     } as React.CSSProperties}
                   />
-                  
+
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>1</span>
-                    <span>{profileMaxQuestions || 30}</span>
+                    <span>3 min</span>
+                    <span>The AI will generate {questionRange[0]}–{questionRange[1]} questions</span>
+                    <span>{Math.max(25, profileMaxQuestions || 25)} max</span>
                   </div>
 
                   {selectedProfileId && (
