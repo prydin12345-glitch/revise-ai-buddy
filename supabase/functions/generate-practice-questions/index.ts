@@ -2614,6 +2614,44 @@ Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
       return { ...parsed.data, questions: normalizedQuestions };
     };
 
+    // ── Dedupe: avoid repeating questions this student has recently seen on this subject.
+    try {
+      const { data: recentSets } = await supabaseClient
+        .from('practice_question_sets')
+        .select('id')
+        .eq('user_id', userId)
+        .ilike('subject_id', `%${setData.subject_id || ''}%`)
+        .neq('id', setId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      const recentSetIds = (recentSets || []).map((r: any) => r.id).filter(Boolean);
+      if (recentSetIds.length > 0) {
+        const { data: recentQuestions } = await supabaseClient
+          .from('practice_questions')
+          .select('question_text')
+          .in('set_id', recentSetIds)
+          .limit(30);
+        const recentTexts = (recentQuestions || [])
+          .map((q: any) => q.question_text)
+          .filter((t: any) => typeof t === 'string' && t.trim().length > 0)
+          .slice(0, 20);
+        if (recentTexts.length > 0) {
+          const dedupeBlock = `VARIATION REQUIREMENT — CRITICAL:
+The student has recently seen the questions listed below. Do NOT generate similar questions.
+Generate completely different questions covering different aspects of the topic, using different scenarios, different numbers, and different command words.
+
+Recently seen questions to AVOID repeating:
+${recentTexts.map((q: string, i: number) => `${i + 1}. "${q.slice(0, 140)}..."`).join('\n')}
+
+Generate questions that are meaningfully different from all of the above.`;
+          prompt = dedupeBlock + '\n\n' + prompt;
+          console.log(`Injected dedupe block with ${recentTexts.length} recent questions`);
+        }
+      }
+    } catch (e) {
+      console.warn('Dedupe lookup failed (non-fatal):', e);
+    }
+
     let generated: z.infer<typeof GeneratePracticeQuestionsSchema> | null = null;
     let lastErr: unknown = null;
 
