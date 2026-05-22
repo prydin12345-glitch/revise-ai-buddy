@@ -711,11 +711,34 @@ For delta vs wye comparison questions:
       educationalLevel.includes('university') ||
       (setData.subtopics || []).length > 5
     );
-    const effectiveQuestionCount = isComplexSubject
-      ? Math.min(setData.question_count, 8)
+    // Range-aware question count: client may pass min/max so AI picks a flexible count.
+    const rawCountMin = Number((setData as any).__count_min);
+    const rawCountMax = Number((setData as any).__count_max);
+    const hasCountRange =
+      Number.isFinite(rawCountMin) && Number.isFinite(rawCountMax) &&
+      rawCountMin > 0 && rawCountMax >= rawCountMin;
+    const countMin = hasCountRange ? Math.max(1, Math.floor(rawCountMin)) : setData.question_count;
+    const countMax = hasCountRange ? Math.max(countMin, Math.floor(rawCountMax)) : setData.question_count;
+    const targetQuestionCount = hasCountRange
+      ? Math.floor(Math.random() * (countMax - countMin + 1)) + countMin
       : setData.question_count;
+    const effectiveQuestionCount = isComplexSubject
+      ? Math.min(targetQuestionCount, 8)
+      : targetQuestionCount;
     if (effectiveQuestionCount < setData.question_count) {
       console.log(`Complex subject detected — capping generation at ${effectiveQuestionCount} questions (requested: ${setData.question_count}) to prevent timeout`);
+    }
+    if (hasCountRange) {
+      console.log(`Question count range ${countMin}-${countMax}, target ${targetQuestionCount}`);
+      // Persist the chosen target so downstream UI shows the actual count.
+      try {
+        await supabaseClient
+          .from('practice_question_sets')
+          .update({ question_count: effectiveQuestionCount })
+          .eq('id', setId);
+      } catch (e) {
+        console.warn('Failed to persist target question count:', e);
+      }
     }
 
     // Build regional persona and region-aware subject instructions
