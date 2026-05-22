@@ -4846,6 +4846,8 @@ serve(async (req) => {
     const body = await req.json();
     const setId = body.setId;
     const forceRefresh = body.forceRefresh === true;
+    const countMin = Number.isFinite(Number(body.questionCountMin)) ? Number(body.questionCountMin) : undefined;
+    const countMax = Number.isFinite(Number(body.questionCountMax)) ? Number(body.questionCountMax) : undefined;
 
     if (!setId) {
       return new Response(
