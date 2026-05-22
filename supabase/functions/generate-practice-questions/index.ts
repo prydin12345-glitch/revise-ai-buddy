@@ -2296,11 +2296,19 @@ ${notesSection}`;
       const model = modelChain[Math.min(attempt, modelChain.length - 1)];
 
       const controller = new AbortController();
-      // Generous per-attempt timeouts. Total budget 170+200+150 = 520s; edge runtime is 400s+
-      // for background tasks, but we accept that attempt 3 may be cut short — better to give
-      // attempts 1 and 2 enough room to actually succeed.
-      const timeoutMs = attempt === 0 ? 170_000 : attempt === 1 ? 200_000 : 150_000;
+      const timeoutMs = attempt === 0 ? 170_000 : attempt === 1 ? 200_000 : 170_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      // On the third attempt, fall back to a drastically simplified prompt
+      // so the model is more likely to honour tool-mode instead of returning prose.
+      const effectivePrompt = attempt === 2
+        ? buildSimplifiedPrompt(
+            subjectName,
+            (setData.subtopics || []).join(', '),
+            effectiveQuestionCount,
+            (setData.difficulty_level || 'medium').toLowerCase(),
+          )
+        : prompt;
 
       let response: Response;
       try {
