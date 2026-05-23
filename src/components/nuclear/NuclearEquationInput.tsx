@@ -123,7 +123,26 @@ export const NuclearEquationInput = ({
           return <span key={i} className="mx-2 text-2xl font-semibold">{term.operator}</span>;
         }
         if (term.type === 'particle') {
-          return <span key={i} className="mx-1 text-xl font-mono">{term.label}</span>;
+          const particleColors: Record<string, string> = {
+            'α': 'hsl(0 84% 60%)',
+            'β⁻': 'hsl(25 95% 53%)', 'β⁺': 'hsl(25 95% 53%)',
+            'e⁻': 'hsl(25 95% 53%)', 'e⁺': 'hsl(25 95% 53%)',
+            'γ': 'hsl(262 83% 58%)',
+            'νₑ': 'hsl(142 71% 45%)', 'ν̄ₑ': 'hsl(142 71% 45%)',
+            'n': 'hsl(var(--muted-foreground))',
+            'p': 'hsl(221 83% 53%)',
+          };
+          const color = particleColors[term.label ?? ''] ?? 'hsl(262 83% 58%)';
+          return (
+            <span key={i} style={{
+              fontSize: 16, fontWeight: 600, color,
+              margin: '0 4px', padding: '3px 8px',
+              background: `${color.replace(')', ' / 0.12)').replace('hsl(', 'hsla(')}`,
+              borderRadius: 5, fontFamily: 'serif',
+            }}>
+              {term.label}
+            </span>
+          );
         }
         if (term.type === 'nucleus' && term.nucleus?.isBlank) {
           return (
