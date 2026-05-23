@@ -48,30 +48,67 @@ export const parseNuclearEquation = (
   correctAnswerText?: string,
 ): NuclearEquationData => {
   const terms: NuclearTerm[] = [];
-  const normalized = equationText.replace(/->/g, '→');
 
-  const parts = normalized
-    .split(/(\s*→\s*|\s+\+\s+)/)
+  // Clean up: drop outer braces, normalise arrow:
+  const clean = equationText
+    .replace(/^\s*\{|\}\s*$/g, '')
+    .replace(/->/g, '→')
+    .trim();
+
+  const parts = clean
+    .split(/(\s*→\s*|\s+\+\s+|\s+\+\s*|\s*\+\s+)/)
     .map(s => s.trim())
     .filter(Boolean);
 
-  for (const part of parts) {
-    if (part === '→') { terms.push({ type: 'operator', operator: '→' }); continue; }
-    if (part === '+') { terms.push({ type: 'operator', operator: '+' }); continue; }
+  for (const rawPart of parts) {
+    const part = rawPart.replace(/^\{|\}$/g, '').trim();
+    if (!part) continue;
+
+    if (/^→$/.test(part)) { terms.push({ type: 'operator', operator: '→' }); continue; }
+    if (/^\+$/.test(part)) { terms.push({ type: 'operator', operator: '+' }); continue; }
 
     if (/^\?+$|^_{2,}$|^\[\s*blank\s*\]$/i.test(part)) {
       terms.push({ type: 'nucleus', nucleus: { isBlank: true } });
       continue;
     }
 
-    if (/^(alpha|beta|gamma|ν|ν̄|neutrino|antineutrino)$/i.test(part) ||
-        /^[αβγ]/.test(part) || /^β[⁺⁻±+\-]/.test(part) ||
-        /^b[+\-]$/i.test(part) || /^e[⁺⁻+\-]?$/i.test(part)) {
-      terms.push({ type: 'particle', label: part });
+    // Known particle labels — check before nuclear symbols:
+    const particleMap: Record<string, string> = {
+      'e^-': 'e⁻', 'e^+': 'e⁺', 'e-': 'e⁻', 'e+': 'e⁺',
+      'β-': 'β⁻', 'β+': 'β⁺', 'β^-': 'β⁻', 'β^+': 'β⁺',
+      'beta-': 'β⁻', 'beta+': 'β⁺', 'beta': 'β',
+      'v_e': 'νₑ', 've': 'νₑ', 'v_mu': 'νμ', 'ν_e': 'νₑ', 'νe': 'νₑ',
+      'anti-v_e': 'ν̄ₑ', 'anti_ve': 'ν̄ₑ', 'antineutrino': 'ν̄ₑ',
+      'α': 'α', 'alpha': 'α',
+      'γ': 'γ', 'gamma': 'γ',
+      'n': 'n', 'p': 'p', 'neutrino': 'νₑ',
+    };
+    const particleKey = Object.keys(particleMap).find(
+      k => part.toLowerCase() === k.toLowerCase()
+    );
+    if (particleKey) {
+      terms.push({ type: 'particle', label: particleMap[particleKey] });
       continue;
     }
 
-    // Superscript/subscript format: ²³⁸₉₂U or ²³⁸U₉₂
+    if (/^e\^?[+\-⁺⁻]$/i.test(part) || /^[βα]\^?[+\-⁺⁻]?$/i.test(part)) {
+      const label = part
+        .replace('e^-', 'e⁻').replace('e^+', 'e⁺')
+        .replace('β-', 'β⁻').replace('β+', 'β⁺')
+        .replace('β^-', 'β⁻').replace('β^+', 'β⁺');
+      terms.push({ type: 'particle', label });
+      continue;
+    }
+    if (/^v_?e$/i.test(part) || /^ν_?e$/i.test(part)) {
+      terms.push({ type: 'particle', label: 'νₑ' });
+      continue;
+    }
+    if (/^\\?bar.*v.*e/i.test(part) || /^anti.*v.*e/i.test(part)) {
+      terms.push({ type: 'particle', label: 'ν̄ₑ' });
+      continue;
+    }
+
+    // Unicode super/subscript nuclide: ²³⁸₉₂U
     const supSubMatch = part.match(/^([⁰-⁹]+)?([₀-₉]+)?([A-Z][a-z]?)([₀-₉]+)?([⁰-⁹]+)?$/);
     if (supSubMatch && (supSubMatch[1] || supSubMatch[2] || supSubMatch[4] || supSubMatch[5])) {
       const mass = supSubMatch[1] ? parseInt(fromSuperscript(supSubMatch[1])) :
@@ -85,8 +122,36 @@ export const parseNuclearEquation = (
       continue;
     }
 
-    // Format like "11/6 C" or "11 6 C" or "11C6"
-    const slashMatch = part.match(/(\d+)\s*[\/,]\s*(\d+)\s*([A-Z][a-z]?)/);
+    // ASCII ^A_Z<Sym> or _Z^A<Sym>  (with optional braces)
+    const ascii1 = part.match(/^\^?\{?(\d+)\}?_\{?(\d+)\}?\s*([A-Z][a-z]?)$/);
+    const ascii2 = part.match(/^_\{?(\d+)\}?\^\{?(\d+)\}?\s*([A-Z][a-z]?)$/);
+    if (ascii1) {
+      terms.push({
+        type: 'nucleus',
+        nucleus: {
+          massNumber: parseInt(ascii1[1]),
+          atomicNumber: parseInt(ascii1[2]),
+          symbol: ascii1[3],
+          isBlank: false,
+        },
+      });
+      continue;
+    }
+    if (ascii2) {
+      terms.push({
+        type: 'nucleus',
+        nucleus: {
+          atomicNumber: parseInt(ascii2[1]),
+          massNumber: parseInt(ascii2[2]),
+          symbol: ascii2[3],
+          isBlank: false,
+        },
+      });
+      continue;
+    }
+
+    // Slash format: 11/6 C
+    const slashMatch = part.match(/^(\d+)\s*[\/,]\s*(\d+)\s*([A-Z][a-z]?)$/);
     if (slashMatch) {
       terms.push({
         type: 'nucleus',
@@ -100,27 +165,27 @@ export const parseNuclearEquation = (
       continue;
     }
 
-    const massMatch = part.match(/(\d+)\s*([A-Z][a-z]?)/);
-    const atomicMatch = part.match(/[A-Z][a-z]?\s*(\d+)/);
-    if (massMatch) {
+    // Mass + symbol only
+    const simple = part.match(/^\^?\{?(\d+)\}?\s*([A-Z][a-z]?)$/);
+    if (simple) {
       terms.push({
         type: 'nucleus',
         nucleus: {
-          massNumber: parseInt(massMatch[1]),
-          symbol: massMatch[2],
-          atomicNumber: atomicMatch ? parseInt(atomicMatch[1]) : undefined,
+          massNumber: parseInt(simple[1]),
+          symbol: simple[2],
           isBlank: false,
         },
       });
       continue;
     }
 
-    terms.push({ type: 'particle', label: part });
+    // Fallback: strip braces, treat as particle label
+    const cleaned = part.replace(/[{}]/g, '').trim();
+    if (cleaned) terms.push({ type: 'particle', label: cleaned });
   }
 
   let correctAnswer: NuclearEquationData['correctAnswer'];
   if (correctAnswerText) {
-    // Try "11 B 5" or "11|5|B" or "11/5 B"
     const pipe = correctAnswerText.split('|').map(s => s.trim());
     if (pipe.length === 3 && /^\d+$/.test(pipe[0])) {
       correctAnswer = {
@@ -130,6 +195,7 @@ export const parseNuclearEquation = (
       };
     } else {
       const m = correctAnswerText.match(/(\d+)\s+([A-Z][a-z]?)\s+(\d+)/) ||
+                correctAnswerText.match(/(\d+)([A-Z][a-z]?)(\d+)/) ||
                 correctAnswerText.match(/(\d+)\s*[\/,]\s*(\d+)\s*([A-Z][a-z]?)/);
       if (m) {
         if (/[A-Z]/.test(m[2])) {

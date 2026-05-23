@@ -979,6 +979,37 @@ graph_plotting is ONLY for:
 - Any question where the student plots (x, y) coordinate points on a grid
 `;
 
+    const NOTATION_RULES = `
+PHYSICS NOTATION RULES — always use these formats in question_text and correct_answer:
+- Half-life: write as T½ (NOT T1/2 or T_{1/2})
+- Initial values: A₀, N₀, v₀, u₀, I₀, Q₀, x₀ (Unicode subscripts, NOT A_0 or A_{0})
+- Particles: e⁻ (NOT e^-), e⁺ (NOT e^+), νₑ (NOT v_e), ν̄ₑ (NOT anti-v_e or \\bar{v}_e)
+- Nuclear symbols: ¹⁴₆C (Unicode super- and subscripts) — NEVER ^14_6C, NEVER $_{6}^{14}\\text{C}$
+- Decay arrow: → (NOT \\rightarrow or ->)
+- Units: s⁻¹, m⁻¹, cm³, m² (Unicode), NEVER s^{-1} or s^-1
+- Powers of 10: × 10⁶ (NOT \\times 10^{6} or x 10^6)
+- NEVER use LaTeX dollar signs, backslash commands, or unbraced caret/underscore in question_text.
+- Use Unicode characters directly. The renderer does not interpret raw ^ or _ outside math mode.
+`;
+
+    const SKETCH_TYPE_RULE = `
+QUALITATIVE SKETCH QUESTIONS — use question_type = "short_answer" NOT "graph_plotting":
+graph_plotting is ONLY for questions where the student must plot specific (x,y) coordinate
+points on a grid. Examples where graph_plotting is CORRECT:
+- "Plot the following data on a graph: [table of values]"
+- "Draw the curve y = x² for -3 ≤ x ≤ 3"
+- "Plot velocity against time using the data in the table"
+
+short_answer is CORRECT for qualitative sketch questions where the student draws the general
+shape of a curve without specific numeric coordinates. Examples:
+- "Sketch a graph to show how N varies with t for radioactive decay"
+- "Sketch the velocity-time graph for a ball thrown upward"
+- "Sketch the graph of activity against time showing the concept of half-life"
+- "Draw a sketch graph showing how pressure varies with volume"
+These qualitative sketches MUST use question_type = "short_answer" and MUST NOT include
+a diagram_config with pre-drawn graph data.
+`;
+
     const NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS = `
 NUCLEAR EQUATION COMPLETION QUESTIONS:
 For questions asking students to complete a nuclear equation, use this format:
@@ -1552,6 +1583,8 @@ CRITICAL OUTPUT RULES:
 8) NEVER use \\[ ... \\] or [ ... ] as LaTeX delimiters. ONLY use $...$ (inline) and $$...$$ (block). The renderer does NOT support bracket delimiters.
 ${visualQuestionInstructions}
 ${NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS}
+${NOTATION_RULES}
+${SKETCH_TYPE_RULE}
 
 MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
