@@ -1583,6 +1583,8 @@ CRITICAL OUTPUT RULES:
 8) NEVER use \\[ ... \\] or [ ... ] as LaTeX delimiters. ONLY use $...$ (inline) and $$...$$ (block). The renderer does NOT support bracket delimiters.
 ${visualQuestionInstructions}
 ${NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS}
+${NOTATION_RULES}
+${SKETCH_TYPE_RULE}
 
 MCQ rules (avoid duplication in UI):
 - question_text MUST contain only the stem (no A/B/C/D in the text).
