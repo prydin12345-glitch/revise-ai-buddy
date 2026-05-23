@@ -5,8 +5,66 @@
  * Applied to every AI feedback string before it is stored in the
  * database or returned to the client.
  */
+const SUPERSCRIPT_MAP: Record<string, string> = {
+  '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴',
+  '5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
+  '+':'⁺','-':'⁻',
+};
+const SUBSCRIPT_MAP: Record<string, string> = {
+  '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄',
+  '5':'₅','6':'₆','7':'₇','8':'₈','9':'₉',
+};
+const toSuperscript = (s: string): string =>
+  s.split('').map(c => SUPERSCRIPT_MAP[c] ?? c).join('');
+const toSubscript = (s: string): string =>
+  s.split('').map(c => SUBSCRIPT_MAP[c] ?? c).join('');
+
 export const sanitiseFeedback = (text: string | null | undefined): string => {
   if (!text) return text ?? '';
+
+  // ── Physics shorthand notation (run BEFORE LaTeX brace removal) ──────────
+  text = text
+    // Half-life:
+    .replace(/\bT\s*1\/2\b/g, 'T½')
+    .replace(/\bT\s*_\{?1\/2\}?\b/g, 'T½')
+    .replace(/\bT\s*_\{?½\}?\b/g, 'T½')
+    .replace(/\bhalf[‐\-]?life\s+T\s*1\/2/gi, 'half-life T½')
+    // Initial value subscripts:
+    .replace(/\bA\s*_\{?0\}?\b/g, 'A₀')
+    .replace(/\bN\s*_\{?0\}?\b/g, 'N₀')
+    .replace(/\bx\s*_\{?0\}?\b/g, 'x₀')
+    .replace(/\bv\s*_\{?0\}?\b/g, 'v₀')
+    .replace(/\bu\s*_\{?0\}?\b/g, 'u₀')
+    .replace(/\bI\s*_\{?0\}?\b/g, 'I₀')
+    .replace(/\bQ\s*_\{?0\}?\b/g, 'Q₀')
+    // Particle notation:
+    .replace(/\be\s*\^\s*-1\b/g, 'e⁻¹')
+    .replace(/\be\s*\^\s*-/g, 'e⁻')
+    .replace(/\be\s*\^\s*\+/g, 'e⁺')
+    .replace(/\banti[-\s]?v\s*_\{?e\}?/gi, 'ν̄ₑ')
+    .replace(/\bv\s*_\{?e\}?/g, 'νₑ')
+    .replace(/\bv\s*_\{?mu\}?/g, 'νμ')
+    .replace(/\\bar\s*\{\s*\\?nu\s*\}\s*_\{?e\}?/g, 'ν̄ₑ')
+    .replace(/\\bar\s*\{\s*v\s*\}/g, 'ν̄')
+    .replace(/\\bar\s*\{\s*\\nu\s*\}/g, 'ν̄')
+    .replace(/\\nu\s*_\{?e\}?/g, 'νₑ')
+    // Nuclear notation ^A_Z<Sym> with optional braces:
+    .replace(/\^\{?(\d+)\}?_\{?(\d+)\}?([A-Z][a-z]?)/g,
+      (_, mass, atomic, sym) => toSuperscript(mass) + toSubscript(atomic) + sym)
+    .replace(/_\{?(\d+)\}?\^\{?(\d+)\}?([A-Z][a-z]?)/g,
+      (_, atomic, mass, sym) => toSuperscript(mass) + toSubscript(atomic) + sym)
+    .replace(/\^\{?(\d+)\}?([A-Z][a-z]?)/g,
+      (_, mass, sym) => toSuperscript(mass) + sym)
+    // Units with caret powers:
+    .replace(/\bs\s*\^\s*-\s*1\b/g, 's⁻¹')
+    .replace(/\bm\s*\^\s*-\s*1\b/g, 'm⁻¹')
+    .replace(/\byr\s*\^\s*-\s*1\b/g, 'yr⁻¹')
+    .replace(/\bcm\s*\^\s*3\b/g, 'cm³')
+    .replace(/\bm\s*\^\s*2\b/g, 'm²')
+    .replace(/\bm\s*\^\s*3\b/g, 'm³')
+    .replace(/\bkm\s*\^\s*2\b/g, 'km²')
+    // Strip stray braces wrapping nuclear equations:
+    .replace(/\{([^{}]*→[^{}]*)\}/g, '$1');
 
   let out = text;
 
