@@ -208,6 +208,35 @@ export const detectDrawQuestion = (
     };
   }
 
+  // Qualitative physics graph sketches (e.g. "sketch how N varies with t")
+  // — these come through with questionType=undefined from physicsDrawOverride.
+  const QUALITATIVE_SKETCH_PATTERNS = [
+    /sketch\s+(?:a\s+)?graph\s+to\s+show\s+how/i,
+    /sketch\s+(?:a\s+)?graph\s+(?:showing|to\s+illustrate)/i,
+    /sketch\s+(?:a\s+)?(?:curve|graph)\s+(?:showing|to\s+show)/i,
+    /sketch.*(?:number\s+of\s+undecayed|activity|N\s+varies|A\s+varies)/i,
+    /sketch.*(?:exponential\s+decay|decay\s+curve|half[\s-]life\s+concept)/i,
+    /sketch.*(?:varies\s+with|as\s+a\s+function\s+of).*(?:time|distance|temperature)/i,
+  ];
+  if (QUALITATIVE_SKETCH_PATTERNS.some(p => p.test(text))) {
+    const yLabel = /number\s+of\s+undecayed/i.test(text) ? 'N (undecayed nuclei)'
+      : /\bactivity\b/i.test(text) ? 'Activity (Bq)'
+      : /\bvelocity\b/i.test(text) ? 'Velocity (m/s)'
+      : /\bdisplacement\b/i.test(text) ? 'Displacement (m)'
+      : /\bpressure\b/i.test(text) ? 'Pressure (Pa)'
+      : 'y';
+    const xLabel = /with\s+time/i.test(text) ? 'Time (s)'
+      : /with\s+distance/i.test(text) ? 'Distance (m)'
+      : /with\s+volume/i.test(text) ? 'Volume (m³)'
+      : /with\s+temperature/i.test(text) ? 'Temperature (K)'
+      : 'x';
+    return {
+      needsDrawingCanvas: true,
+      diagramCategory: 'physics',
+      axisLabels: { x: xLabel, y: yLabel },
+    };
+  }
+
   // Physics diagram draw questions
   if (PHYSICS_DIAGRAM_DRAW_PATTERNS.some(p => p.test(text))) {
     return {
