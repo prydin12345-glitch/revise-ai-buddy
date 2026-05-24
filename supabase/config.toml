@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.export-user-data]
 verify_jwt = true
+
+[functions.sanitise-questions]
+verify_jwt = false
