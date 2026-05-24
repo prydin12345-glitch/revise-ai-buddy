@@ -19,23 +19,31 @@ export function lazyWithReload<T extends ComponentType<any>>(
       }
       return mod as { default: T };
     };
+
+    const tryReload = () => {
+      const last = Number(sessionStorage.getItem(reloadKey) ?? "0");
+      const now = Date.now();
+      if (now - last > 10_000) {
+        sessionStorage.setItem(reloadKey, String(now));
+        window.location.reload();
+        return new Promise(() => {}) as any;
+      }
+      return null;
+    };
+
     try {
-      return await load();
+      const result = await load();
+      sessionStorage.removeItem(reloadKey);
+      return result;
     } catch (err) {
-      // brief wait, then retry once
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 300));
       try {
-        return await load();
+        const result = await load();
+        sessionStorage.removeItem(reloadKey);
+        return result;
       } catch (err2) {
-        const last = Number(sessionStorage.getItem(reloadKey) ?? "0");
-        const now = Date.now();
-        if (now - last > 30_000) {
-          sessionStorage.setItem(reloadKey, String(now));
-          window.location.reload();
-          // Return a never-resolving promise so React keeps the Suspense fallback
-          // mounted while the page reloads.
-          return new Promise(() => {}) as any;
-        }
+        const reloaded = tryReload();
+        if (reloaded) return reloaded;
         throw err2;
       }
     }
