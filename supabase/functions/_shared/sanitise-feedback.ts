@@ -24,7 +24,27 @@ export const sanitiseFeedback = (text: string | null | undefined): string => {
 
   // ── Physics shorthand notation (run BEFORE LaTeX brace removal) ──────────
   text = text
-    // Half-life:
+    // ── Powers of ten (run first so coefficient × 10^N matches before generic ^) ──
+    .replace(/(\d+(?:\.\d+)?)\s*[×x]\s*10\s*\^\s*\{?(-?\d+)\}?/g,
+      (_, coeff, exp) => `${coeff} × 10${toSuperscript(exp)}`)
+    .replace(/\b10\s*\^\s*\{?(-?\d+)\}?/g,
+      (_, exp) => `10${toSuperscript(exp)}`)
+    // ── Metastable nuclides: ^99m_43Tc, ^99mTc ──
+    .replace(/\^\{?(\d+)m\}?_\{?(\d+)\}?\s*([A-Z][a-z]?)/g,
+      (_, mass, _atomic, sym) => `${toSuperscript(mass)}ᵐ${sym}`)
+    .replace(/\^\{?(\d+)m\}?\s*([A-Z][a-z]?)/g,
+      (_, mass, sym) => `${toSuperscript(mass)}ᵐ${sym}`)
+    .replace(/\b(\d+)m([A-Z][a-z]?)\b/g, (match, mass, sym) => {
+      const knownMetastable = ['Tc', 'In', 'Ba', 'Xe', 'Ir', 'Au', 'Hg'];
+      return knownMetastable.includes(sym) ? `${toSuperscript(mass)}ᵐ${sym}` : match;
+    })
+    // ── Common physics constants ──
+    .replace(/\bN_\{?A\}?\b/g, 'Nₐ')
+    .replace(/\bN_\{?a\}?\b/g, 'Nₐ')
+    .replace(/\bk_\{?B\}?\b/g, 'kB')
+    .replace(/\bk_\{?b\}?\b/g, 'kB')
+    .replace(/\bmu_\{?0\}?\b/g, 'μ₀')
+    .replace(/\bepsilon_\{?0\}?\b/g, 'ε₀')
     .replace(/\bT\s*1\/2\b/g, 'T½')
     .replace(/\bT\s*_\{?1\/2\}?\b/g, 'T½')
     .replace(/\bT\s*_\{?½\}?\b/g, 'T½')
