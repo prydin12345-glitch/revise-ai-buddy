@@ -980,16 +980,35 @@ graph_plotting is ONLY for:
 `;
 
     const NOTATION_RULES = `
-PHYSICS NOTATION RULES — always use these formats in question_text and correct_answer:
-- Half-life: write as T½ (NOT T1/2 or T_{1/2})
-- Initial values: A₀, N₀, v₀, u₀, I₀, Q₀, x₀ (Unicode subscripts, NOT A_0 or A_{0})
-- Particles: e⁻ (NOT e^-), e⁺ (NOT e^+), νₑ (NOT v_e), ν̄ₑ (NOT anti-v_e or \\bar{v}_e)
-- Nuclear symbols: ¹⁴₆C (Unicode super- and subscripts) — NEVER ^14_6C, NEVER $_{6}^{14}\\text{C}$
-- Decay arrow: → (NOT \\rightarrow or ->)
-- Units: s⁻¹, m⁻¹, cm³, m² (Unicode), NEVER s^{-1} or s^-1
-- Powers of 10: × 10⁶ (NOT \\times 10^{6} or x 10^6)
-- NEVER use LaTeX dollar signs, backslash commands, or unbraced caret/underscore in question_text.
-- Use Unicode characters directly. The renderer does not interpret raw ^ or _ outside math mode.
+CRITICAL NOTATION RULES — FOLLOW THESE EXACTLY:
+
+These rules override any other formatting instructions.
+Never use LaTeX dollar signs, backslash commands, or raw caret/underscore notation.
+Always use Unicode characters directly in question text and answers.
+
+REQUIRED FORMATS:
+Half-life: T½ (never T1/2 or T_{1/2})
+Initial values: A₀ N₀ v₀ x₀ u₀ I₀ Q₀ (never A_0 or A_{0} or $A_0$)
+Particles: e⁻ e⁺ β⁻ β⁺ α γ νₑ ν̄ₑ (never e^- or \\beta^- or $e^-$)
+Nuclear symbols: ²³⁸₉₄Pu ¹⁴₆C ⁴₂He (never ^238_94Pu or $_{94}^{238}Pu$)
+Decay arrow: → (never \\rightarrow or ->)
+Powers of ten: × 10⁻¹⁰ × 10⁶ (never × 10^{-10} or 10^-10 or $10^{-10}$)
+Units: s⁻¹ m⁻² yr⁻¹ cm³ m² (never s^{-1} or s^-1 or $s^{-1}$)
+Constants: Nₐ kB (never N_A or k_B or $N_A$)
+Metastable: ⁹⁹ᵐTc (never ^99m_43Tc or 99mTc)
+Fractions: write as 1/f = 1/u + 1/v (never \\frac{1}{f})
+
+UNICODE SUPERSCRIPTS: ⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻
+UNICODE SUBSCRIPTS: ₀₁₂₃₄₅₆₇₈₉
+
+WRONG: "The half-life of ^238Pu is 87.7 years and λ = 2.5 × 10^-10 s^-1"
+RIGHT: "The half-life of ²³⁸Pu is 87.7 years and λ = 2.5 × 10⁻¹⁰ s⁻¹"
+
+WRONG: "N_A = 6.02 × 10^23 mol^-1"
+RIGHT: "Nₐ = 6.02 × 10²³ mol⁻¹"
+
+WRONG: "^14_6C → ? + e^- + v_e"
+RIGHT: "¹⁴₆C → ? + e⁻ + νₑ"
 `;
 
     const SKETCH_TYPE_RULE = `
@@ -1572,18 +1591,13 @@ ${(() => {
 })()}
 ${resourcePackContext}
 
+${NOTATION_RULES}
+
 CRITICAL OUTPUT RULES:
-1) Wrap ALL mathematical expressions in LaTeX delimiters: $...$ for inline math, $$...$$ for standalone equations.
-2) Use proper LaTeX commands: \\frac{a}{b}, \\sqrt{x}, x^{2}, \\pi, \\theta, \\leq, \\geq, \\neq, \\times, \\div, \\pm
-3) Example: instead of "h_max = (m*u^2) / (2*(mg + R))", output "$$h_{max} = \\frac{mu^2}{2(mg + R)}$$"
-4) Use $...$ for inline math within sentences, $$...$$ for standalone block equations.
-5) Do not output markdown code fences.
-6) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
-7) IMPORTANT: LaTeX is ONLY for display text fields (question_text, feedback, worked_solution, correct_answer for short-answer). NEVER put LaTeX in markingFormula, graphConfig numeric data, or coordinate arrays.
-8) NEVER use \\[ ... \\] or [ ... ] as LaTeX delimiters. ONLY use $...$ (inline) and $$...$$ (block). The renderer does NOT support bracket delimiters.
+1) Do not output markdown code fences.
+2) Do not output JSON as raw text in chat content. You will return data via the provided function call only.
 ${visualQuestionInstructions}
 ${NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS}
-${NOTATION_RULES}
 ${SKETCH_TYPE_RULE}
 
 MCQ rules (avoid duplication in UI):
