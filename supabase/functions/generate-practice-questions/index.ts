@@ -1514,11 +1514,55 @@ These topics must be interpreted ONLY within the context of "${subjectName}".
 
     let mcqFormatInstruction = '';
     if (questionFormat === 'mcq_only') {
-      mcqFormatInstruction = `\nQUESTION FORMAT: ALL ${setData.question_count} questions MUST be multiple choice (question_type: "mcq"). Every question must have exactly 4 options.\n`;
+      mcqFormatInstruction = `
+QUESTION FORMAT — CRITICAL:
+ALL ${setData.question_count} questions MUST be multiple choice.
+Every single question must use question_type: "mcq".
+Do NOT generate any short_answer, extended, long_form, or written questions.
+
+FOR EVERY QUESTION regardless of topic:
+- Provide exactly 4 answer options labelled A, B, C, D
+- Exactly one option must be correct
+- Three options must be plausible but wrong distractors
+
+HOW TO CREATE DISTRACTORS FOR CALCULATION QUESTIONS:
+When the question requires a numerical calculation, generate distractors using
+these strategies so they look realistic to a student who made a common error:
+- Distractor 1: a common algebraic error (e.g. add instead of subtract, or forget to square a value)
+- Distractor 2: correct method but wrong unit conversion (e.g. forget to convert hours to seconds)
+- Distractor 3: inverted formula (e.g. compute f/u instead of u/f)
+
+Example for "Calculate the image distance given f=15cm, u=20cm":
+- Correct: 60.0 cm (1/v = 1/15 - 1/20 = 1/60)
+- Distractor: 8.6 cm (rounding error)
+- Distractor: 30.0 cm (used wrong formula)
+- Distractor: 12.0 cm (subtracted distances directly)
+
+HOW TO CREATE DISTRACTORS FOR CONCEPTUAL QUESTIONS:
+- Include one distractor that is almost correct but subtly wrong
+- Include one distractor that confuses two related concepts
+- Include one distractor that is a common student misconception
+
+OPTIONS FORMAT:
+Store options as a JSON array: ["A. [text]", "B. [text]", "C. [text]", "D. [text]"].
+Store correct_answer as the letter only: "A", "B", "C", or "D".
+Vary which letter is correct — do not always make A the correct answer.
+`;
     } else if (questionFormat === 'mixed' && desiredMcqCount > 0) {
-      mcqFormatInstruction = `\nQUESTION FORMAT: Generate exactly ${desiredMcqCount} multiple choice questions (question_type: "mcq") and ${desiredWrittenCount} written questions (short_answer, extended, graph_plotting, etc.). MCQ questions should appear first.\n`;
+      mcqFormatInstruction = `
+QUESTION FORMAT — MIX:
+Generate exactly ${desiredMcqCount} MCQ questions (question_type: "mcq") and ${desiredWrittenCount} written questions (short_answer, extended, graph_plotting, etc.).
+For MCQ questions, follow the distractor strategies (common algebraic error, wrong unit conversion, inverted formula, common misconception). Provide exactly 4 options labelled A–D and store correct_answer as the letter.
+For written questions, use short_answer or extended as appropriate for the marks.
+IMPORTANT: You must generate BOTH types. Do not generate all MCQ or all written. Alternate between MCQ and written questions throughout the set.
+`;
     } else {
-      mcqFormatInstruction = `\nQUESTION FORMAT: All questions should be written format (short_answer, extended, graph_plotting, graph_interpretation, table_grid, etc.). Do NOT generate MCQ questions unless the topic specifically requires it.\n`;
+      mcqFormatInstruction = `
+QUESTION FORMAT — WRITTEN ONLY:
+Do NOT generate any MCQ questions.
+All questions must be short_answer or extended type (or graph_plotting, graph_interpretation, table_grid where the topic requires).
+Do not include any options arrays.
+`;
     }
 
     const countInstruction = hasCountRange
