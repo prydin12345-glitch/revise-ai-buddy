@@ -2768,13 +2768,76 @@ Generate questions that are meaningfully different from all of the above.`;
     }
 
     // Backslash escaping disabled — backslashes are now intentional LaTeX commands (e.g. \frac, \sqrt)
-    const questions = generated.questions;
+    let questions = generated.questions;
 
     if (!questions || !Array.isArray(questions)) {
       throw new Error('AI response does not contain a valid questions array');
     }
 
     console.log(`Generated ${questions.length} questions`);
+
+    // =====================================================================
+    // MCQ FORMAT ENFORCER
+    // =====================================================================
+    // Catches cases where the AI slipped a non-MCQ question into an MCQ-only
+    // set, or under-delivered MCQ count for a mixed set.
+    if (setData.question_format === 'mcq_only') {
+      const invalidQuestions = questions.filter((q: any) =>
+        q.question_type !== 'mcq' ||
+        !Array.isArray(q.options) ||
+        q.options.length !== 4 ||
+        !q.correct_answer ||
+        !['A', 'B', 'C', 'D'].includes(String(q.correct_answer).trim().toUpperCase())
+      );
+
+      if (invalidQuestions.length > 0) {
+        console.warn(
+          `[MCQ Enforcer] ${invalidQuestions.length} questions failed MCQ validation. ` +
+          `Types: ${invalidQuestions.map((q: any) => q.question_type).join(', ')}`
+        );
+
+        // Fix questions that have valid options but wrong type
+        questions = questions.map((q: any) => {
+          if (q.question_type !== 'mcq' && Array.isArray(q.options) && q.options.length === 4) {
+            return { ...q, question_type: 'mcq' };
+          }
+          return q;
+        });
+
+        // Remove questions that still don't qualify as valid MCQ
+        const beforeCount = questions.length;
+        questions = questions.filter((q: any) =>
+          q.question_type === 'mcq' &&
+          Array.isArray(q.options) &&
+          q.options.length === 4
+        );
+
+        if (questions.length < beforeCount) {
+          console.warn(
+            `[MCQ Enforcer] Removed ${beforeCount - questions.length} unfixable non-MCQ questions`
+          );
+        }
+
+        if (questions.length < Math.floor((setData.question_count ?? 0) * 0.7)) {
+          console.error(
+            `[MCQ Enforcer] Only ${questions.length}/${setData.question_count} valid MCQ questions — ` +
+            `AI did not follow MCQ format. Consider regenerating.`
+          );
+        }
+      }
+    } else if (setData.question_format === 'mixed') {
+      const actualMcq = questions.filter((q: any) => q.question_type === 'mcq').length;
+      const expectedMcq = setData.mcq_count ?? Math.floor((setData.question_count ?? 0) / 2);
+
+      if (actualMcq === 0 && expectedMcq > 0) {
+        console.warn('[Mix Enforcer] AI returned zero MCQ questions for a mixed format request');
+      } else if (expectedMcq > 0 && actualMcq < expectedMcq * 0.5) {
+        console.warn(
+          `[Mix Enforcer] Expected ${expectedMcq} MCQ, got ${actualMcq} — AI underdelivered on MCQ count`
+        );
+      }
+    }
+
 
     for (const q of questions) {
       const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
