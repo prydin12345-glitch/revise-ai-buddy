@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_tutor_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_tutor_rate_limits: {
+        Row: {
+          date: string
+          message_count: number
+          user_id: string
+        }
+        Insert: {
+          date?: string
+          message_count?: number
+          user_id: string
+        }
+        Update: {
+          date?: string
+          message_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_usage_tracking: {
         Row: {
           cache_hit: boolean | null
