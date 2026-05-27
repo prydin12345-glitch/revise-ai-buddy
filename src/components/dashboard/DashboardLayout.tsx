@@ -14,6 +14,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { useTheme } from "@/hooks/useTheme";
+import { AiTutorChat } from "@/components/ai-tutor/AiTutorChat";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -322,6 +323,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       {/* Mobile Floating Nav */}
       <MobileNavFAB />
+
+      {/* AI Tutor Chat — appears on every authenticated page */}
+      <AiTutorChat />
     </div>
   );
 };

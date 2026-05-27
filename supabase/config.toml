@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.sanitise-questions]
 verify_jwt = false
+
+[functions.ai-tutor-chat]
+verify_jwt = false
