@@ -280,30 +280,37 @@ export const AiTutorChat = () => {
           </div>
 
           {/* Input */}
-          <div className="border-t border-border p-3 flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything...'}
-              disabled={loading || rateLimitHit}
-              className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || loading || rateLimitHit}
-              className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex-shrink-0"
-              aria-label="Send message"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+          <div className="border-t border-border p-3">
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything...'}
+                disabled={loading || rateLimitHit}
+                className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+              />
+              <button
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || loading || rateLimitHit}
+                className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex-shrink-0"
+                aria-label="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            {!rateLimitHit && (
+              <div className="text-[10px] text-muted-foreground text-right mt-1 opacity-60">
+                {Math.max(0, 50 - messagesSentToday)} messages remaining today
+              </div>
+            )}
           </div>
         </div>
       )}
