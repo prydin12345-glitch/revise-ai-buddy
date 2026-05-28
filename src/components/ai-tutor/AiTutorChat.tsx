@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GraduationCap, X, Send } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
 
