@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
         return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
       }).join(', ') || 'no completed exams yet';
-    const recentTopics = (recentSets as any[] | null)?.map(s => s.topic).filter(Boolean).join(', ') || 'none';
+    const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none';
 
     const studentContext = `Student context:
 - Subjects: ${subjects}
