@@ -188,13 +188,33 @@ export const AiTutorChat = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close chat"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleNewChat}
+                title="New chat"
+                className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/60 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                New
+              </button>
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearChat}
+                  title="Clear chat"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[11px] text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close chat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
