@@ -64,12 +64,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Student context — defensive, swallow errors per query
     const safe = async <T>(p: Promise<{ data: T | null }>): Promise<T | null> => {
       try { return (await p).data; } catch { return null; }
     };
 
-    const [recentSets, recentExams, userSubjects] = await Promise.all([
+    const [recentSets, recentExams, userSubjects, practiceSubjects, examSubjects] = await Promise.all([
       safe(supabase
         .from('practice_question_sets')
         .select('subject_id, subtopics, created_at')
@@ -88,37 +87,64 @@ Deno.serve(async (req) => {
         .limit(5) as any),
       safe(supabase
         .from('user_subjects')
-        .select('subject_name')
+        .select('subject_name, custom_name, is_custom')
+        .eq('user_id', user.id) as any),
+      safe(supabase
+        .from('practice_question_sets')
+        .select('subject_id')
         .eq('user_id', user.id)
-        .limit(5) as any),
+        .not('subject_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(20) as any),
+      safe(supabase
+        .from('exams')
+        .select('subject_id')
+        .eq('user_id', user.id)
+        .not('subject_id', 'is', null)
+        .limit(10) as any),
     ]);
 
-    const subjects = (userSubjects as any[] | null)?.map(s => s.subject_name).filter(Boolean).join(', ') || 'not set';
+    const allSubjectNames = [
+      ...((userSubjects as any[] | null)?.map(s => s.custom_name || s.subject_name) ?? []),
+      ...((practiceSubjects as any[] | null)?.map(s => s.subject_id) ?? []),
+      ...((examSubjects as any[] | null)?.map(s => s.subject_id) ?? []),
+    ].filter(Boolean);
+    const uniqueSubjects = [...new Set(allSubjectNames)];
+    const subjects = uniqueSubjects.length > 0 ? uniqueSubjects.join(', ') : 'various subjects';
+
     const recentScores = (recentExams as any[] | null)
       ?.filter(e => (e.total_marks ?? 0) > 0 && e.total_score !== null && e.total_score !== undefined)
       .map(e => {
         const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
         return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
       }).join(', ') || 'no completed exams yet';
-    const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none';
+    const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none yet';
 
-    const studentContext = `Student context:
-- Subjects: ${subjects}
-- Recent exam scores: ${recentScores}
-- Recent practice topics: ${recentTopics}`;
+    const systemPrompt = `You are an AI tutor for Examly, a revision and exam practice platform.
 
-    const systemPrompt = `You are an AI tutor for Examly, an exam practice platform.
+Student profile:
+- Main exam subjects: ${subjects}
+- Recent completed exam scores: ${recentScores}
+- Recently practised topics: ${recentTopics}
 
-${studentContext}
+Your behaviour:
+- You are a knowledgeable tutor who can help with ANY academic or professional topic
+- Do NOT refuse questions because they are outside the student's exam subjects
+- If a student asks about a specialist topic like NHS sterilization protocols, medical equipment, law, music theory, or any other subject — answer it helpfully and accurately
+- You have broad academic knowledge — use it
+- When the question relates to their exam subjects, reference their specific performance data
+- When the question is outside their exam subjects, answer it as a knowledgeable tutor would
+- Never say a topic is "outside our scope" — there is no scope limit
 
-Your role:
-- Give concise, specific advice based on the student's actual performance data above
-- Never give generic revision tips — always reference their specific weak areas when data exists
-- Keep responses under 120 words unless the student explicitly asks for a detailed explanation
-- When suggesting practice, say "I can generate practice questions on this — just let me know"
-- Be encouraging but honest
-- Use plain text — no LaTeX, no markdown headers, no bullet symbols unless asked
-- You can help with: explaining wrong answers, revision planning, topic explanations, exam technique`;
+Response style:
+- Keep responses under 120 words unless the student asks for a detailed explanation
+- Be specific and practical — avoid generic advice
+- Use plain text — no LaTeX, no markdown headers
+- When you suggest practice questions say "I can generate practice questions on this — just let me know"
+- Be encouraging and direct
+
+If the student asks about their exam performance, reference their actual data above.
+If the student asks a general knowledge or subject question, answer it directly without referencing their exam data unless relevant.`;
 
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
     const messages = [
@@ -163,7 +189,6 @@ Your role:
       });
     }
 
-    // Increment rate limit + save user message (fire and forget)
     await supabase.from('ai_tutor_rate_limits').upsert({
       user_id: user.id,
       date: today,

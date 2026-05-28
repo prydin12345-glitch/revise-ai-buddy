@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GraduationCap, X, Send } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
 
@@ -24,10 +24,23 @@ export const AiTutorChat = () => {
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
   const [rateLimitHit, setRateLimitHit] = useState(false);
+  const [messagesSentToday, setMessagesSentToday] = useState(0);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const session = useSession();
   const historyLoadedRef = useRef(false);
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setSessionId(crypto.randomUUID());
+    setRateLimitHit(false);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
+  };
 
   useEffect(() => {
     if (open) {
@@ -76,6 +89,7 @@ export const AiTutorChat = () => {
     const assistantMessage: Message = { id: assistantId, role: 'assistant', content: '', streaming: true };
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setMessagesSentToday(n => n + 1);
 
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -175,13 +189,33 @@ export const AiTutorChat = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close chat"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleNewChat}
+                title="New chat"
+                className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/60 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                New
+              </button>
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearChat}
+                  title="Clear chat"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[11px] text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close chat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -246,30 +280,37 @@ export const AiTutorChat = () => {
           </div>
 
           {/* Input */}
-          <div className="border-t border-border p-3 flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything...'}
-              disabled={loading || rateLimitHit}
-              className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || loading || rateLimitHit}
-              className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex-shrink-0"
-              aria-label="Send message"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+          <div className="border-t border-border p-3">
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything...'}
+                disabled={loading || rateLimitHit}
+                className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+              />
+              <button
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || loading || rateLimitHit}
+                className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex-shrink-0"
+                aria-label="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            {!rateLimitHit && (
+              <div className="text-[10px] text-muted-foreground text-right mt-1 opacity-60">
+                {Math.max(0, 50 - messagesSentToday)} messages remaining today
+              </div>
+            )}
           </div>
         </div>
       )}
