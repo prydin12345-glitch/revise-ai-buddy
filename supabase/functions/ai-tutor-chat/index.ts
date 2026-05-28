@@ -72,16 +72,20 @@ Deno.serve(async (req) => {
     const [recentSets, recentExams, userSubjects] = await Promise.all([
       safe(supabase
         .from('practice_question_sets')
-        .select('subject, topic, created_at')
+        .select('subject_id, subtopics, created_at')
         .eq('user_id', user.id)
+        .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(5) as any),
       safe(supabase
         .from('exam_submissions')
         .select('total_score, total_marks, submitted_at, exams(title)')
         .eq('student_id', user.id)
+        .eq('status', 'submitted')
+        .not('total_score', 'is', null)
+        .gt('total_marks', 0)
         .order('submitted_at', { ascending: false })
-        .limit(3) as any),
+        .limit(5) as any),
       safe(supabase
         .from('user_subjects')
         .select('subject_name')
@@ -90,13 +94,13 @@ Deno.serve(async (req) => {
     ]);
 
     const subjects = (userSubjects as any[] | null)?.map(s => s.subject_name).filter(Boolean).join(', ') || 'not set';
-    const recentScores = (recentExams as any[] | null)?.map(e => {
-      const total = e.total_marks ?? 0;
-      const score = e.total_score ?? 0;
-      const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-      return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
-    }).join(', ') || 'no recent exams';
-    const recentTopics = (recentSets as any[] | null)?.map(s => s.topic).filter(Boolean).join(', ') || 'none';
+    const recentScores = (recentExams as any[] | null)
+      ?.filter(e => (e.total_marks ?? 0) > 0 && e.total_score !== null && e.total_score !== undefined)
+      .map(e => {
+        const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
+        return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
+      }).join(', ') || 'no completed exams yet';
+    const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none';
 
     const studentContext = `Student context:
 - Subjects: ${subjects}
