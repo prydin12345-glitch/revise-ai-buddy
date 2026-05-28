@@ -41,7 +41,6 @@ export const AiTutorChat = () => {
   const handleClearChat = () => {
     setMessages([]);
   };
-  const historyLoadedRef = useRef(false);
 
   useEffect(() => {
     if (open) {
