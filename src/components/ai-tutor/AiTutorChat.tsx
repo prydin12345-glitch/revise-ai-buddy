@@ -89,6 +89,7 @@ export const AiTutorChat = () => {
     const assistantMessage: Message = { id: assistantId, role: 'assistant', content: '', streaming: true };
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setMessagesSentToday(n => n + 1);
 
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
