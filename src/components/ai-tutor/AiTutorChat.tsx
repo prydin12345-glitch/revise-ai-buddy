@@ -24,9 +24,23 @@ export const AiTutorChat = () => {
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
   const [rateLimitHit, setRateLimitHit] = useState(false);
+  const [messagesSentToday, setMessagesSentToday] = useState(0);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const session = useSession();
+  const historyLoadedRef = useRef(false);
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setSessionId(crypto.randomUUID());
+    setRateLimitHit(false);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
+  };
   const historyLoadedRef = useRef(false);
 
   useEffect(() => {
