@@ -19,6 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { ProgressCarousel } from "./ProgressCarousel";
+import { ClassesGrid } from "./ClassesGrid";
+import { SubjectDonut } from "./SubjectDonut";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { ALL_LEVELS, detectRegionKey } from "@/lib/educational-levels";
 
 interface DashboardContentProps {
@@ -801,205 +809,163 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </p>
           </div>
           <div className="flex gap-2 items-center shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-9 px-4 text-xs font-semibold">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Create
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate('/upload')} className="cursor-pointer">
+                  <FileText className="w-4 h-4 mr-2 text-primary" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Create exam</span>
+                    <span className="text-[10px] text-muted-foreground">Upload or build a mock</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/create-practice-questions')} className="cursor-pointer">
+                  <Zap className="w-4 h-4 mr-2" style={{ color: 'hsl(38 92% 50%)' }} />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Practice questions</span>
+                    <span className="text-[10px] text-muted-foreground">Generate a quick quiz</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <TooltipProvider delayDuration={200}>
-              {quickActions.map(action => (
-                <Tooltip key={action.label}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={action.onClick}
-                      className="flex items-center justify-center cursor-pointer transition-all duration-150"
-                      style={{
-                        width: 36, height: 36,
-                        borderRadius: 9,
-                        border: '1px solid hsl(var(--border))',
-                        background: 'hsl(var(--card))',
-                        color: action.colour,
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'hsl(var(--muted))';
-                        e.currentTarget.style.borderColor = action.colour;
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'hsl(var(--card))';
-                        e.currentTarget.style.borderColor = 'hsl(var(--border))';
-                      }}
-                    >
-                      <action.icon size={16} strokeWidth={1.8} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs font-medium">
-                    {action.label}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate('/stats')}
+                    className="flex items-center justify-center cursor-pointer transition-all duration-150"
+                    style={{
+                      width: 36, height: 36,
+                      borderRadius: 9,
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--card))',
+                      color: 'hsl(142 71% 45%)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <TrendingUp size={16} strokeWidth={1.8} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs font-medium">View progress</TooltipContent>
+              </Tooltip>
             </TooltipProvider>
           </div>
         </div>
 
-        {/* 3-Column Dashboard Grid */}
-        <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
-          
-          {/* Column 1: Mock Exams */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">Mock Exams</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllExams(true)}>View all</Button>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {inProgressExams.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No exams in progress</p>
-                  <Button variant="link" size="sm" onClick={() => navigate("/upload")} className="mt-1 text-primary">Create one →</Button>
+        {/* 2-Column Dashboard Grid */}
+        <div className="grid grid-cols-[1fr_320px] gap-3">
+
+          {/* LEFT COLUMN: My Classes + Recent Activity */}
+          <div className="space-y-3 min-w-0">
+            <ClassesGrid classes={classes} onJoinClass={() => setShowJoinClassModal(true)} />
+
+            {/* Recent Activity (in-progress exams + practice) */}
+            <Card className="rounded-2xl border-border/50">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-base font-semibold">Recent activity</CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setShowAllExams(true)}>Exams</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setShowAllQuizzes(true)}>Practice</Button>
                 </div>
-              ) : (
-                inProgressExams.slice(0, 3).map((exam, idx) => {
-                  const progress = getExamProgress(exam);
-                  const color = getSubjectColor(exam.subject_id);
-                  return (
-                    <div
-                      key={exam.id}
-                      onClick={() => navigate(exam.submission?.id ? `/exam/${exam.id}/in-progress` : `/exam/${exam.id}/preview`)}
-                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
-                      style={{
-                        padding: '11px 24px',
-                        margin: '0 -24px',
-                        borderBottom: idx < Math.min(inProgressExams.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
-                      }}
-                    >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{exam.title}</p>
-                        <div className="h-[3px] rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: color }} />
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* In-progress exams */}
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">In progress · exams</p>
+                {inProgressExams.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-2">No exams in progress.</p>
+                ) : (
+                  inProgressExams.slice(0, 3).map((exam, idx) => {
+                    const progress = getExamProgress(exam);
+                    const color = getSubjectColor(exam.subject_id);
+                    return (
+                      <div
+                        key={exam.id}
+                        onClick={() => navigate(exam.submission?.id ? `/exam/${exam.id}/in-progress` : `/exam/${exam.id}/preview`)}
+                        className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
+                        style={{
+                          padding: '10px 24px',
+                          margin: '0 -24px',
+                          borderBottom: idx < Math.min(inProgressExams.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
+                        }}
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-foreground truncate mb-1">{exam.title}</p>
+                          <div className="h-[3px] rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: color }} />
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[13px] font-bold text-foreground">{progress}%</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{getTimeAgo(exam.created_at)}</p>
                         </div>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-[13px] font-bold" style={{ color: progress === 100 ? 'hsl(142 71% 45%)' : 'hsl(var(--foreground))' }}>{progress}%</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{getTimeAgo(exam.created_at)}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              {/* Recently completed */}
-              {recentCompletedExams.length > 0 && (
-                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
-                  {recentCompletedExams.map(exam => (
-                    <div
-                      key={exam.id}
-                      onClick={() => navigate(`/exam/${exam.id}/review`)}
-                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
-                      style={{ padding: '7px 0' }}
-                    >
-                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{exam.title}</span>
-                      {exam.score !== null && (
-                        <span className="text-xs font-bold shrink-0" style={{
-                          color: exam.score >= 70 ? 'hsl(142 71% 45%)' : exam.score >= 50 ? 'hsl(25 95% 53%)' : 'hsl(0 84% 60%)',
-                        }}>
-                          {exam.score}%
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    );
+                  })
+                )}
 
-          {/* Column 2: Practice Quizzes */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">Practice Quizzes</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllQuizzes(true)}>View all</Button>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {practiceSets.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No practice quizzes yet</p>
-                  <Button variant="link" size="sm" onClick={() => navigate("/create-practice-questions")} className="mt-1 text-primary">Create one →</Button>
-                </div>
-              ) : (
-                practiceSets.slice(0, 3).map((set, idx) => {
-                  const status = getPracticeStatus(set);
-                  const attempted = set.progress?.questions_attempted || 0;
-                  const progress = set.question_count > 0 ? Math.round((attempted / set.question_count) * 100) : 0;
-                  const color = getSubjectColor(set.subject_id);
-                  return (
-                    <div
-                      key={set.id}
-                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
-                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
-                      style={{
-                        padding: '11px 24px',
-                        margin: '0 -24px',
-                        borderBottom: idx < Math.min(practiceSets.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
-                      }}
-                    >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{set.set_name}</p>
-                        {status === 'not_started' ? (
-                          <div className="h-[3px] rounded-full bg-muted" />
-                        ) : (
+                {/* Practice quizzes */}
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Practice quizzes</p>
+                {practiceSets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-2">No practice quizzes yet.</p>
+                ) : (
+                  practiceSets.slice(0, 3).map((set, idx) => {
+                    const status = getPracticeStatus(set);
+                    const attempted = set.progress?.questions_attempted || 0;
+                    const progress = set.question_count > 0 ? Math.round((attempted / set.question_count) * 100) : 0;
+                    const color = getSubjectColor(set.subject_id);
+                    return (
+                      <div
+                        key={set.id}
+                        onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
+                        className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
+                        style={{
+                          padding: '10px 24px',
+                          margin: '0 -24px',
+                          borderBottom: idx < Math.min(practiceSets.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
+                        }}
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-foreground truncate mb-1">{set.set_name}</p>
                           <div className="h-[3px] rounded-full bg-muted overflow-hidden">
                             <div className="h-full rounded-full transition-all duration-500" style={{
                               width: `${status === 'complete' ? 100 : progress}%`,
                               background: status === 'complete' ? 'hsl(142 71% 45%)' : color,
                             }} />
                           </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        {status === 'complete' ? (
-                          <>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {status === 'complete' ? (
                             <p className="text-[13px] font-bold" style={{ color: 'hsl(142 71% 45%)' }}>Done</p>
-                            {set.progress?.questions_correct !== null && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{set.progress?.questions_correct}/{set.question_count} ✓</p>
-                            )}
-                          </>
-                        ) : status === 'not_started' ? (
-                          <p className="text-xs text-muted-foreground">{set.question_count}q</p>
-                        ) : (
-                          <>
-                            <p className="text-[13px] font-bold text-foreground">{progress}%</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{attempted}/{set.question_count}</p>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <p className="text-[13px] font-bold text-foreground">{progress}%</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{attempted}/{set.question_count}</p>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              {/* Recently completed practice sets */}
-              {completedPracticeSets.length > 0 && (
-                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
-                  {completedPracticeSets.map(set => (
-                    <div
-                      key={set.id}
-                      onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
-                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
-                      style={{ padding: '7px 0' }}
-                    >
-                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{set.set_name}</span>
-                      {set.progress?.questions_correct !== null && set.question_count > 0 && (
-                        <span className="text-xs font-bold shrink-0" style={{ color: 'hsl(142 71% 45%)' }}>
-                          {Math.round(((set.progress?.questions_correct ?? 0) / set.question_count) * 100)}%
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Column 3: Unified Right Sidebar — FIX 3: icons + numbers only with tooltips */}
-          <div className="row-span-2 flex">
+            {/* Weak topics nudge (preserved) */}
+            <div className="xl:col-span-1">
+              <ProgressCarousel weakTopics={weakTopics} subjects={subjects} getSubjectColor={getSubjectColor} studyActivityData={studyActivityData} scoreHistory={scoreHistory} />
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Profile + Stats + Subject donut + Announcements */}
+          <div className="flex">
             <Card className="rounded-2xl border-border/50 overflow-hidden flex flex-col w-full">
               <div className="p-5 border-b border-border/50 text-center">
                 <div className="relative inline-block mb-3">
@@ -1029,29 +995,20 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   </div>
                 </TooltipProvider>
               </div>
-              <div className="p-4 border-b border-border/50">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">My Classes</p>
-                {classes.length === 0 ? (
-                  <div className="text-center py-2">
-                    <p className="text-xs text-muted-foreground mb-2 italic">No classes yet</p>
-                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowJoinClassModal(true)}><Users className="w-3 h-3 mr-1" /> Join a Class</Button>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {classes.map(cls => (
-                      <div key={cls.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/my-classes?classId=${cls.id}`)}>
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{cls.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{cls.tutorName} · {cls.studentCount} students</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
+              {/* Subject donut (replaces inline classes block) */}
+              <div className="border-b border-border/50">
+                <SubjectDonut
+                  exams={allExams}
+                  subjects={subjects}
+                  getSubjectColor={getSubjectColor}
+                  overallAverage={averageScore}
+                />
               </div>
+
+              {/* Recent announcements */}
               <div className="p-4 flex-1">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent Announcements</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent announcements</p>
                 {announcements.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">No announcements</p>
                 ) : (
@@ -1066,11 +1023,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                 )}
               </div>
             </Card>
-          </div>
-
-          {/* Row 2: Progress Carousel */}
-          <div className="xl:col-span-2">
-            <ProgressCarousel weakTopics={weakTopics} subjects={subjects} getSubjectColor={getSubjectColor} studyActivityData={studyActivityData} scoreHistory={scoreHistory} />
           </div>
         </div>
 
