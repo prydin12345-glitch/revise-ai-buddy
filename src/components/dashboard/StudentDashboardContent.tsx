@@ -809,38 +809,51 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </p>
           </div>
           <div className="flex gap-2 items-center shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-9 px-4 text-xs font-semibold">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Create
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate('/upload')} className="cursor-pointer">
+                  <FileText className="w-4 h-4 mr-2 text-primary" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Create exam</span>
+                    <span className="text-[10px] text-muted-foreground">Upload or build a mock</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/create-practice-questions')} className="cursor-pointer">
+                  <Zap className="w-4 h-4 mr-2" style={{ color: 'hsl(38 92% 50%)' }} />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Practice questions</span>
+                    <span className="text-[10px] text-muted-foreground">Generate a quick quiz</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <TooltipProvider delayDuration={200}>
-              {quickActions.map(action => (
-                <Tooltip key={action.label}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={action.onClick}
-                      className="flex items-center justify-center cursor-pointer transition-all duration-150"
-                      style={{
-                        width: 36, height: 36,
-                        borderRadius: 9,
-                        border: '1px solid hsl(var(--border))',
-                        background: 'hsl(var(--card))',
-                        color: action.colour,
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'hsl(var(--muted))';
-                        e.currentTarget.style.borderColor = action.colour;
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'hsl(var(--card))';
-                        e.currentTarget.style.borderColor = 'hsl(var(--border))';
-                      }}
-                    >
-                      <action.icon size={16} strokeWidth={1.8} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs font-medium">
-                    {action.label}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate('/stats')}
+                    className="flex items-center justify-center cursor-pointer transition-all duration-150"
+                    style={{
+                      width: 36, height: 36,
+                      borderRadius: 9,
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--card))',
+                      color: 'hsl(142 71% 45%)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <TrendingUp size={16} strokeWidth={1.8} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs font-medium">View progress</TooltipContent>
+              </Tooltip>
             </TooltipProvider>
           </div>
         </div>
