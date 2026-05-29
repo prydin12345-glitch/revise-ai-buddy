@@ -295,8 +295,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors px-1 gap-2 h-9">
-                    <Avatar className="w-8 h-8 border-2 border-primary/40">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs">
+                    <Avatar className="w-8 h-8 border border-border/60">
+                      <AvatarFallback className="bg-muted text-foreground text-xs">
                         <User className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
