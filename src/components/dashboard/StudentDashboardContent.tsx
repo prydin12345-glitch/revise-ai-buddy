@@ -790,16 +790,19 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       </div>
 
       {/* ========== DESKTOP LAYOUT (xl and above) ========== */}
-      <div className="hidden xl:block space-y-3 overflow-y-auto pb-10" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        {/* Welcome Banner + Quick Actions */}
-        <div className="px-1 py-1 flex items-start justify-between" style={{ marginBottom: 4 }}>
+      <div className="hidden xl:block space-y-8 pb-12">
+        {/* Greeting + Quick Actions */}
+        <div className="flex items-start justify-between">
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', margin: 0 }} className="text-foreground">
-              Welcome back, {userName}!
+            <p className="text-sm text-muted-foreground">{greeting}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-1">
+              {userFirstName}
             </h1>
-            <p className="text-[13px] text-muted-foreground" style={{ margin: '3px 0 0' }}>
-              {greeting} — here's your study overview.
-            </p>
+            {userLevelLabel && (
+              <span className="inline-flex items-center mt-3 px-2 py-0.5 rounded-md bg-muted text-[11px] text-muted-foreground">
+                {userLevelLabel}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 items-center shrink-0">
             <TooltipProvider delayDuration={200}>
@@ -808,25 +811,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   <TooltipTrigger asChild>
                     <button
                       onClick={action.onClick}
-                      className="flex items-center justify-center cursor-pointer transition-all duration-150"
-                      style={{
-                        width: 36, height: 36,
-                        borderRadius: 9,
-                        border: '1px solid hsl(var(--border))',
-                        background: 'hsl(var(--card))',
-                        color: action.colour,
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'hsl(var(--muted))';
-                        e.currentTarget.style.borderColor = action.colour;
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'hsl(var(--card))';
-                        e.currentTarget.style.borderColor = 'hsl(var(--border))';
-                      }}
+                      className="flex items-center justify-center cursor-pointer transition-colors w-9 h-9 rounded-md border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
                     >
-                      <action.icon size={16} strokeWidth={1.8} />
+                      <action.icon size={16} strokeWidth={1.75} />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs font-medium">
@@ -838,93 +825,109 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           </div>
         </div>
 
-        {/* 3-Column Dashboard Grid */}
-        <div className="grid grid-cols-[1fr_1fr_300px] gap-3">
-          
-          {/* Column 1: Mock Exams */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">Mock Exams</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllExams(true)}>View all</Button>
-            </CardHeader>
-            <CardContent className="pt-0">
+        {/* Stats row — 4 columns, tall and quiet */}
+        <div className="grid grid-cols-4 gap-6">
+          {desktopStats.map(stat => (
+            <button
+              key={stat.label}
+              onClick={() => drilldown.openDrawer(stat.drilldown)}
+              className="text-left bg-card border border-border/60 rounded-xl py-6 px-5 hover:border-border transition-colors"
+            >
+              <stat.icon size={16} strokeWidth={1.75} className="text-muted-foreground" />
+              <p className="text-3xl font-semibold tracking-tight text-foreground tabular-nums mt-5">
+                {stat.value}
+              </p>
+              <div className="border-t border-border/60 mt-4 pt-3">
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Main grid: Exams | Practice | Activity rail */}
+        <div className="grid grid-cols-[1fr_1fr_260px] gap-6">
+
+          {/* Mock Exams */}
+          <section className="bg-card border border-border/60 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
+              <h2 className="text-base font-semibold text-foreground">Mock Exams</h2>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowAllExams(true)}>
+                View all <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              </Button>
+            </div>
+            <div>
               {inProgressExams.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
+                <div className="text-center py-10 px-5">
+                  <FileText className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">No exams in progress</p>
-                  <Button variant="link" size="sm" onClick={() => navigate("/upload")} className="mt-1 text-primary">Create one →</Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate("/upload")} className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+                    Create one <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                  </Button>
                 </div>
               ) : (
-                inProgressExams.slice(0, 3).map((exam, idx) => {
+                inProgressExams.slice(0, 3).map((exam, idx, arr) => {
                   const progress = getExamProgress(exam);
                   const color = getSubjectColor(exam.subject_id);
                   return (
                     <div
                       key={exam.id}
                       onClick={() => navigate(exam.submission?.id ? `/exam/${exam.id}/in-progress` : `/exam/${exam.id}/preview`)}
-                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
-                      style={{
-                        padding: '11px 24px',
-                        margin: '0 -24px',
-                        borderBottom: idx < Math.min(inProgressExams.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
-                      }}
+                      className={`flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-muted/40 transition-colors ${idx < arr.length - 1 ? 'border-b border-border/60' : ''}`}
                     >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{exam.title}</p>
-                        <div className="h-[3px] rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: color }} />
+                        <p className="text-sm font-medium text-foreground truncate mb-2">{exam.title}</p>
+                        <div className="h-1 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: 'hsl(var(--foreground) / 0.75)' }} />
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[13px] font-bold" style={{ color: progress === 100 ? 'hsl(142 71% 45%)' : 'hsl(var(--foreground))' }}>{progress}%</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{getTimeAgo(exam.created_at)}</p>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{progress}%</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{getTimeAgo(exam.created_at)}</p>
                       </div>
                     </div>
                   );
                 })
               )}
-              {/* Recently completed */}
               {recentCompletedExams.length > 0 && (
-                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
+                <div className="px-5 py-3 border-t border-border/60 bg-muted/20">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Recently completed</p>
                   {recentCompletedExams.map(exam => (
                     <div
                       key={exam.id}
                       onClick={() => navigate(`/exam/${exam.id}/review`)}
-                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
-                      style={{ padding: '7px 0' }}
+                      className="flex items-center justify-between py-1.5 cursor-pointer hover:opacity-70"
                     >
-                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{exam.title}</span>
+                      <span className="text-xs text-foreground truncate flex-1 mr-2">{exam.title}</span>
                       {exam.score !== null && (
-                        <span className="text-xs font-bold shrink-0" style={{
-                          color: exam.score >= 70 ? 'hsl(142 71% 45%)' : exam.score >= 50 ? 'hsl(25 95% 53%)' : 'hsl(0 84% 60%)',
-                        }}>
-                          {exam.score}%
-                        </span>
+                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">{exam.score}%</span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          {/* Column 2: Practice Quizzes */}
-          <Card className="rounded-2xl border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">Practice Quizzes</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs p-0 h-auto" onClick={() => setShowAllQuizzes(true)}>View all</Button>
-            </CardHeader>
-            <CardContent className="pt-0">
+          {/* Practice Quizzes */}
+          <section className="bg-card border border-border/60 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
+              <h2 className="text-base font-semibold text-foreground">Practice Quizzes</h2>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowAllQuizzes(true)}>
+                View all <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              </Button>
+            </div>
+            <div>
               {practiceSets.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
+                <div className="text-center py-10 px-5">
+                  <FileText className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">No practice quizzes yet</p>
-                  <Button variant="link" size="sm" onClick={() => navigate("/create-practice-questions")} className="mt-1 text-primary">Create one →</Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate("/create-practice-questions")} className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+                    Create one <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                  </Button>
                 </div>
               ) : (
-                practiceSets.slice(0, 3).map((set, idx) => {
+                practiceSets.slice(0, 3).map((set, idx, arr) => {
                   const status = getPracticeStatus(set);
                   const attempted = set.progress?.questions_attempted || 0;
                   const progress = set.question_count > 0 ? Math.round((attempted / set.question_count) * 100) : 0;
@@ -933,41 +936,32 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                     <div
                       key={set.id}
                       onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
-                      className="flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-muted/40"
-                      style={{
-                        padding: '11px 24px',
-                        margin: '0 -24px',
-                        borderBottom: idx < Math.min(practiceSets.length, 3) - 1 ? '1px solid hsl(var(--border) / 0.4)' : 'none',
-                      }}
+                      className={`flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-muted/40 transition-colors ${idx < arr.length - 1 ? 'border-b border-border/60' : ''}`}
                     >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-foreground truncate mb-1">{set.set_name}</p>
-                        {status === 'not_started' ? (
-                          <div className="h-[3px] rounded-full bg-muted" />
-                        ) : (
-                          <div className="h-[3px] rounded-full bg-muted overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-500" style={{
-                              width: `${status === 'complete' ? 100 : progress}%`,
-                              background: status === 'complete' ? 'hsl(142 71% 45%)' : color,
-                            }} />
-                          </div>
-                        )}
+                        <p className="text-sm font-medium text-foreground truncate mb-2">{set.set_name}</p>
+                        <div className="h-1 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{
+                            width: `${status === 'complete' ? 100 : progress}%`,
+                            background: 'hsl(var(--foreground) / 0.75)',
+                          }} />
+                        </div>
                       </div>
                       <div className="shrink-0 text-right">
                         {status === 'complete' ? (
                           <>
-                            <p className="text-[13px] font-bold" style={{ color: 'hsl(142 71% 45%)' }}>Done</p>
+                            <p className="text-sm font-semibold text-foreground tabular-nums">Done</p>
                             {set.progress?.questions_correct !== null && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{set.progress?.questions_correct}/{set.question_count} ✓</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">{set.progress?.questions_correct}/{set.question_count}</p>
                             )}
                           </>
                         ) : status === 'not_started' ? (
-                          <p className="text-xs text-muted-foreground">{set.question_count}q</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">{set.question_count}q</p>
                         ) : (
                           <>
-                            <p className="text-[13px] font-bold text-foreground">{progress}%</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{attempted}/{set.question_count}</p>
+                            <p className="text-sm font-semibold text-foreground tabular-nums">{progress}%</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">{attempted}/{set.question_count}</p>
                           </>
                         )}
                       </div>
@@ -975,20 +969,18 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   );
                 })
               )}
-              {/* Recently completed practice sets */}
               {completedPracticeSets.length > 0 && (
-                <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid hsl(var(--border) / 0.5)' }}>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recently completed</p>
+                <div className="px-5 py-3 border-t border-border/60 bg-muted/20">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Recently completed</p>
                   {completedPracticeSets.map(set => (
                     <div
                       key={set.id}
                       onClick={() => navigate(`/practice-questions/${set.id}/preview`)}
-                      className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-70"
-                      style={{ padding: '7px 0' }}
+                      className="flex items-center justify-between py-1.5 cursor-pointer hover:opacity-70"
                     >
-                      <span className="text-xs text-foreground truncate flex-1 mr-2.5">{set.set_name}</span>
+                      <span className="text-xs text-foreground truncate flex-1 mr-2">{set.set_name}</span>
                       {set.progress?.questions_correct !== null && set.question_count > 0 && (
-                        <span className="text-xs font-bold shrink-0" style={{ color: 'hsl(142 71% 45%)' }}>
+                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
                           {Math.round(((set.progress?.questions_correct ?? 0) / set.question_count) * 100)}%
                         </span>
                       )}
@@ -996,84 +988,74 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          {/* Column 3: Unified Right Sidebar — FIX 3: icons + numbers only with tooltips */}
-          <div className="row-span-2 flex">
-            <Card className="rounded-2xl border-border/50 overflow-hidden flex flex-col w-full">
-              <div className="p-5 border-b border-border/50 text-center">
-                <div className="relative inline-block mb-3">
-                  <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">{userInitials}</div>
-                  <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-card" />
+          {/* Activity rail — no card chrome, row items only */}
+          <div className="space-y-8 px-1">
+            {/* Profile compact */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground text-sm font-semibold shrink-0">{userInitials}</div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{userName}</p>
+                {userLevelLabel && <p className="text-[11px] text-muted-foreground truncate">{userLevelLabel}</p>}
+              </div>
+            </div>
+
+            {/* My Classes */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">My Classes</p>
+              {classes.length === 0 ? (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">No classes yet</p>
+                  <Button variant="ghost" size="sm" className="text-xs px-2 -ml-2 h-7 text-muted-foreground hover:text-foreground" onClick={() => setShowJoinClassModal(true)}>
+                    <Users className="w-3 h-3 mr-1.5" /> Join a class
+                  </Button>
                 </div>
-                <p className="font-semibold text-sm">{userName}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{userLevelLabel || 'Set your curriculum in Settings'}</p>
-                <TooltipProvider delayDuration={150}>
-                  <div className="grid grid-cols-4 gap-1.5 mt-4">
-                    {desktopStats.map((stat, i) => (
-                      <Tooltip key={i}>
-                        <TooltipTrigger asChild>
-                          <button
-                            className="flex flex-col items-center p-2 rounded-lg bg-background/50 hover:bg-muted/50 transition-colors border-none cursor-pointer"
-                            onClick={() => drilldown.openDrawer(stat.drilldown)}
-                          >
-                            <stat.icon size={16} style={{ color: stat.colour }} />
-                            <span className="text-sm font-bold mt-1">{stat.value}</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-xs font-medium">
-                          {stat.label}
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </div>
-                </TooltipProvider>
-              </div>
-              <div className="p-4 border-b border-border/50">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">My Classes</p>
-                {classes.length === 0 ? (
-                  <div className="text-center py-2">
-                    <p className="text-xs text-muted-foreground mb-2 italic">No classes yet</p>
-                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowJoinClassModal(true)}><Users className="w-3 h-3 mr-1" /> Join a Class</Button>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {classes.map(cls => (
-                      <div key={cls.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/my-classes?classId=${cls.id}`)}>
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{cls.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{cls.tutorName} · {cls.studentCount} students</p>
-                        </div>
+              ) : (
+                <div>
+                  {classes.map((cls, i) => (
+                    <div
+                      key={cls.id}
+                      onClick={() => navigate(`/my-classes?classId=${cls.id}`)}
+                      className={`flex items-center gap-2.5 py-2.5 cursor-pointer hover:opacity-70 transition-opacity ${i < classes.length - 1 ? 'border-b border-border/60' : ''}`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cls.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">{cls.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{cls.tutorName}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="p-4 flex-1">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">Recent Announcements</p>
-                {announcements.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No announcements</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {announcements.slice(0, 3).map(ann => (
-                      <div key={ann.id} className="p-2.5 rounded-lg bg-background/50 cursor-pointer border-l-2 border-primary/40 hover:border-primary hover:bg-muted/50 transition-all" onClick={() => navigate(`/my-classes?classId=${ann.groupId}`)}>
-                        <p className="text-xs font-medium">{ann.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{ann.className} · {ann.timeAgo}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Row 2: Progress Carousel */}
-          <div className="xl:col-span-2">
-            <ProgressCarousel weakTopics={weakTopics} subjects={subjects} getSubjectColor={getSubjectColor} studyActivityData={studyActivityData} scoreHistory={scoreHistory} />
+            {/* Announcements */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Announcements</p>
+              {announcements.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No announcements</p>
+              ) : (
+                <div>
+                  {announcements.slice(0, 3).map((ann, i, arr) => (
+                    <div
+                      key={ann.id}
+                      onClick={() => navigate(`/my-classes?classId=${ann.groupId}`)}
+                      className={`py-3 cursor-pointer hover:opacity-70 transition-opacity ${i < arr.length - 1 ? 'border-b border-border/60' : ''}`}
+                    >
+                      <p className="text-xs font-medium text-foreground leading-snug">{ann.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{ann.className} · {ann.timeAgo}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Progress carousel — hero, full width */}
+        <ProgressCarousel weakTopics={weakTopics} subjects={subjects} getSubjectColor={getSubjectColor} studyActivityData={studyActivityData} scoreHistory={scoreHistory} />
 
         {/* FIX 4: Slide-over panels using Sheet */}
         {/* All Exams Sheet */}
