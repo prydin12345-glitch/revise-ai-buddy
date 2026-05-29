@@ -609,10 +609,11 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               {weakTopics.length > 0 && (
                 <button
                   onClick={() => navigate('/stats?tab=weak-topics')}
-                  className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-destructive/8 border border-destructive/20 cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-card border border-destructive/30 cursor-pointer text-left"
                 >
-                  <span className="text-xs text-destructive font-medium">
-                    ⚠ {weakTopics.length} weak topic{weakTopics.length > 1 ? 's' : ''} need attention
+                  <span className="flex items-center gap-2 text-xs text-destructive font-medium">
+                    <AlertTriangle size={14} />
+                    {weakTopics.length} weak topic{weakTopics.length > 1 ? 's' : ''} need attention
                   </span>
                   <ChevronRight size={14} className="text-destructive" />
                 </button>
