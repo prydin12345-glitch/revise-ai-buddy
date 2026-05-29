@@ -116,7 +116,9 @@ Deno.serve(async (req) => {
       ?.filter(e => (e.total_marks ?? 0) > 0 && e.total_score !== null && e.total_score !== undefined)
       .map(e => {
         const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
-        return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
+        const examTitle = e.exams?.title ?? 'Exam';
+        const examSubject = e.exams?.subject_id ?? '';
+        return examSubject ? `${examTitle} (${examSubject}): ${pct}%` : `${examTitle}: ${pct}%`;
       }).join(', ') || 'no completed exams yet';
     const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none yet';
 
