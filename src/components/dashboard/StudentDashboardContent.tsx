@@ -199,10 +199,10 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const streakDisplay = currentStreak > 0 ? currentStreak.toString() : '—';
 
   const stats = [
-    { label: "Exams", value: completedExamsCount.toString(), emoji: "📝", drilldown: 'exams' as DrilldownType },
-    { label: "Avg Score", value: averageScore !== null ? `${averageScore}%` : "-", emoji: "🏆", drilldown: 'scores' as DrilldownType },
-    { label: "Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}` : "0", emoji: "⏱", drilldown: 'study-hours' as DrilldownType },
-    { label: "Streak", value: loading ? "..." : streakDisplay, emoji: "🔥", drilldown: 'streak' as DrilldownType },
+    { label: "Exams", value: completedExamsCount.toString(), icon: FileText, drilldown: 'exams' as DrilldownType },
+    { label: "Avg Score", value: averageScore !== null ? `${averageScore}%` : "—", icon: Trophy, drilldown: 'scores' as DrilldownType },
+    { label: "Hours", value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}` : "0", icon: Clock, drilldown: 'study-hours' as DrilldownType },
+    { label: "Streak", value: loading ? "..." : streakDisplay, icon: Flame, drilldown: 'streak' as DrilldownType },
   ];
 
   const scoreHistory = useMemo(() => {
