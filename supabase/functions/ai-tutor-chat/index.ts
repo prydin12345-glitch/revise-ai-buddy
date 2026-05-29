@@ -78,9 +78,9 @@ Deno.serve(async (req) => {
         .limit(5) as any),
       safe(supabase
         .from('exam_submissions')
-        .select('total_score, total_marks, submitted_at, exams(title)')
+        .select('total_score, total_marks, submitted_at, exams(title, subject_id)')
         .eq('student_id', user.id)
-        .eq('status', 'submitted')
+        .in('status', ['graded', 'submitted'])
         .not('total_score', 'is', null)
         .gt('total_marks', 0)
         .order('submitted_at', { ascending: false })
@@ -116,7 +116,9 @@ Deno.serve(async (req) => {
       ?.filter(e => (e.total_marks ?? 0) > 0 && e.total_score !== null && e.total_score !== undefined)
       .map(e => {
         const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
-        return `${e.exams?.title ?? 'Exam'}: ${pct}%`;
+        const examTitle = e.exams?.title ?? 'Exam';
+        const examSubject = e.exams?.subject_id ?? '';
+        return examSubject ? `${examTitle} (${examSubject}): ${pct}%` : `${examTitle}: ${pct}%`;
       }).join(', ') || 'no completed exams yet';
     const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none yet';
 
