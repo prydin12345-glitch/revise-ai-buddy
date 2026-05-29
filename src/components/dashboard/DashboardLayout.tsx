@@ -121,7 +121,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="min-h-screen flex w-full bg-background">
       {/* Sidebar - Hidden on mobile */}
       <aside
-        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
+        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
@@ -283,7 +283,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <Button
                 variant="default"
                 size="sm"
-                className="hidden sm:flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground h-9"
+                className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all h-9"
                 onClick={() => navigate("/pricing")}
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -295,8 +295,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors px-1 gap-2 h-9">
-                    <Avatar className="w-8 h-8 border border-border/60">
-                      <AvatarFallback className="bg-muted text-foreground text-xs">
+                    <Avatar className="w-8 h-8 border-2 border-primary/40">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs">
                         <User className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
@@ -318,9 +318,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="px-4 pb-6 pt-4 xl:px-8 xl:pt-6 overflow-y-auto">
-          <div className="max-w-[1180px] mx-auto">{children}</div>
-        </main>
+        <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
       </div>
 
       {/* Mobile Floating Nav */}
