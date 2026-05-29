@@ -19,6 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { ProgressCarousel } from "./ProgressCarousel";
+import { ClassesGrid } from "./ClassesGrid";
+import { SubjectDonut } from "./SubjectDonut";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { ALL_LEVELS, detectRegionKey } from "@/lib/educational-levels";
 
 interface DashboardContentProps {
