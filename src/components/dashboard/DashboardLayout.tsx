@@ -283,7 +283,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <Button
                 variant="default"
                 size="sm"
-                className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all h-9"
+                className="hidden sm:flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground h-9"
                 onClick={() => navigate("/pricing")}
               >
                 <Sparkles className="w-3.5 h-3.5" />
