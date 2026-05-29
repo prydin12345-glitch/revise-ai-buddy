@@ -767,8 +767,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                       className="flex flex-col items-center p-1.5 rounded-lg bg-background/50 hover:bg-muted/50 transition-colors border-none cursor-pointer"
                       onClick={() => drilldown.openDrawer(stat.drilldown)}
                     >
-                      <span className="text-sm">{stat.emoji}</span>
-                      <span className="text-xs font-bold mt-0.5">{stat.value}</span>
+                      <stat.icon size={14} className="text-muted-foreground" />
+                      <span className="text-xs font-semibold mt-1 tabular-nums">{stat.value}</span>
                       <span className="text-[8px] text-muted-foreground">{stat.label}</span>
                     </button>
                   ))}
