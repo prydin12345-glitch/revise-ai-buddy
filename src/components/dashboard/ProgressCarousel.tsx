@@ -100,7 +100,7 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
 
   return (
     <Card
-      className="rounded-2xl border-border/50 overflow-hidden group relative"
+      className="rounded-xl border-border/60 overflow-hidden group relative shadow-none"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => { setIsPaused(false); setAnimKey(k => k + 1); }}
       onTouchStart={handleTouchStart}
@@ -109,28 +109,28 @@ export const ProgressCarousel = ({ weakTopics, subjects, getSubjectColor, studyA
       {/* Arrow navigation — visible on hover */}
       <button
         onClick={goToPrev}
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       <button
         onClick={goToNext}
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background/80 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
 
-      <CardContent className="p-5">
+      <CardContent className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold">My Progress</h3>
-            <p className="text-xs text-muted-foreground">{SLIDE_LABELS[SLIDES[currentSlide]]}</p>
+            <h3 className="text-base font-semibold text-foreground">My Progress</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{SLIDE_LABELS[SLIDES[currentSlide]]}</p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3">
             {subjects.slice(0, 4).map((s, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.subject_color }} />
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.subject_color }} />
                 <span className="text-xs text-muted-foreground hidden sm:inline">{s.subject_name}</span>
               </div>
             ))}
