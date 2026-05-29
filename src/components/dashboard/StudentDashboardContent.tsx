@@ -707,8 +707,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-sm font-medium text-foreground truncate flex-1 mr-2">{set.set_name}</span>
-                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                            {status === 'complete' ? '✓ Done' : `${progress}%`}
+                          <span className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums">
+                            {status === 'complete' ? 'Done' : `${progress}%`}
                           </span>
                         </div>
                         {status !== 'complete' && <Progress value={progress} className="h-1" />}
