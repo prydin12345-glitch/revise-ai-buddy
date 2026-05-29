@@ -568,9 +568,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
                   </p>
                 </div>
                 {currentStreak > 0 && (
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
-                    <span className="text-sm">🔥</span>
-                    <span className="text-xs font-bold text-primary">{currentStreak}</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted border border-border/60">
+                    <Flame size={12} className="text-foreground" />
+                    <span className="text-xs font-semibold text-foreground tabular-nums">{currentStreak}</span>
                   </div>
                 )}
               </div>
