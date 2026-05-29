@@ -318,7 +318,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
+        <main className="px-4 pb-6 pt-4 xl:px-8 xl:pt-6 overflow-y-auto">
+          <div className="max-w-[1180px] mx-auto">{children}</div>
+        </main>
       </div>
 
       {/* Mobile Floating Nav */}
