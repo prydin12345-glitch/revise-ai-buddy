@@ -17,9 +17,11 @@ export default function ClassesGrid({ classes, onContinue }: ClassesGridProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
         {classes.map((c) => (
-          <ClassCard key={c.id} item={c} onContinue={onContinue} />
+          <div key={c.id} className="w-[340px] flex-none snap-start sm:w-[380px]">
+            <ClassCard item={c} onContinue={onContinue} />
+          </div>
         ))}
       </div>
     </section>
