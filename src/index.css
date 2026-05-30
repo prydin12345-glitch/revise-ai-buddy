@@ -45,7 +45,7 @@ All colors MUST be HSL.
     --destructive-foreground: 0 0% 100%;
 
     /* Danger - High visibility for overdue/critical */
-    --danger: 0 80% 55%;
+    --danger: 351 70% 53%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 80% 95%;
     --danger-border: 0 70% 50%;
