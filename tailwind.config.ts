@@ -74,6 +74,9 @@ export default {
         coral: {
           500: "#FF7F6A",
         },
+        panel: "hsl(var(--surface-panel))",
+        "panel-2": "hsl(var(--surface-panel-2))",
+        "surface-hover": "hsl(var(--surface-hover))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -84,6 +87,9 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      fontFamily: {
+        sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
