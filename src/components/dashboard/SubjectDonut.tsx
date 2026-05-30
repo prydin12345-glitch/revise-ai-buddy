@@ -1,131 +1,123 @@
-import { useMemo } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { PieChart as PieIcon } from "lucide-react";
-import type { ExamWithSubmission } from "./ExamRowItem";
+// src/components/dashboard/SubjectDonut.tsx
+// Subject statistics donut. Hover a segment OR a legend row → that subject's
+// slice grows, the others dim, and the centre shows its name + %.
+// Built on recharts. Subject colours are user content → passed as data (inline).
+import { useState } from "react";
+import { PieChart, Pie, Cell, Sector, ResponsiveContainer } from "recharts";
+import { ChevronRight } from "lucide-react";
+import type { Subject } from "./types";
 
-interface Subject {
-  id: string;
-  subject_name: string;
-}
-
-interface Props {
-  exams: ExamWithSubmission[];
+interface SubjectDonutProps {
   subjects: Subject[];
-  getSubjectColor: (id: string) => string;
-  overallAverage: number | null;
+  /** Centre value when nothing is hovered, e.g. "73%". */
+  centerValue?: string;
+  centerLabel?: string;
 }
 
-interface Slice {
-  id: string;
-  name: string;
-  value: number;
-  count: number;
-  color: string;
-}
-
-export const SubjectDonut = ({ exams, subjects, getSubjectColor, overallAverage }: Props) => {
-  const data = useMemo<Slice[]>(() => {
-    const bySubject = new Map<string, { sum: number; count: number }>();
-    exams.forEach((e) => {
-      const s = e.submission;
-      if (!s || s.status !== "graded" || !s.total_marks || s.total_marks <= 0) return;
-      const pct = (s.total_score / s.total_marks) * 100;
-      const id = e.subject_id;
-      const cur = bySubject.get(id) ?? { sum: 0, count: 0 };
-      cur.sum += pct;
-      cur.count += 1;
-      bySubject.set(id, cur);
-    });
-
-    return Array.from(bySubject.entries()).map(([id, v]) => {
-      const subjectName = subjects.find((s) => s.id === id)?.subject_name ?? id;
-      return {
-        id,
-        name: subjectName,
-        value: Math.round(v.sum / v.count),
-        count: v.count,
-        color: getSubjectColor(id),
-      };
-    });
-  }, [exams, subjects, getSubjectColor]);
-
-  if (data.length === 0) {
-    return (
-      <div className="p-4">
-        <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
-          Subject statistics
-        </p>
-        <div className="flex flex-col items-center justify-center text-center py-6 text-muted-foreground">
-          <PieIcon size={28} className="opacity-40 mb-2" />
-          <p className="text-xs">Complete an exam to see your subject breakdown.</p>
-        </div>
-      </div>
-    );
-  }
-
+const activeShape = (props: any) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold">
-          Subject statistics
-        </p>
-        <span className="text-[10px] text-muted-foreground">avg per subject</span>
-      </div>
-
-      <div className="relative" style={{ height: 180 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={56}
-              outerRadius={80}
-              paddingAngle={2}
-              stroke="hsl(var(--card))"
-              strokeWidth={2}
-            >
-              {data.map((slice) => (
-                <Cell key={slice.id} fill={slice.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              cursor={{ fill: "transparent" }}
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 8,
-                fontSize: 12,
-                padding: "6px 10px",
-              }}
-              formatter={(value: number, _name: string, item: any) => {
-                const count = item?.payload?.count ?? 0;
-                return [`${value}% (${count} exam${count === 1 ? "" : "s"})`, item?.payload?.name];
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-
-        {/* Center label */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-bold text-foreground leading-none">
-            {overallAverage !== null ? `${overallAverage}%` : "—"}
-          </span>
-          <span className="text-[10px] text-muted-foreground mt-1">overall avg</span>
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-1">
-        {data.map((slice) => (
-          <div key={slice.id} className="flex items-center justify-between text-xs py-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: slice.color }} />
-              <span className="truncate text-foreground">{slice.name}</span>
-            </div>
-            <span className="font-semibold text-foreground shrink-0 ml-2">{slice.value}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Sector
+      cx={cx} cy={cy}
+      innerRadius={innerRadius} outerRadius={outerRadius + 5}
+      startAngle={startAngle} endAngle={endAngle}
+      cornerRadius={6} fill={fill}
+    />
   );
 };
+
+export default function SubjectDonut({
+  subjects, centerValue = "73%", centerLabel = "Average score",
+}: SubjectDonutProps) {
+  const [active, setActive] = useState<number | null>(null);
+  const current = active != null ? subjects[active] : null;
+
+  return (
+    <section className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
+      <div className="mb-1.5 flex items-center justify-between">
+        <h2 className="text-base font-bold">Statistics by subject</h2>
+      </div>
+      <p className="mb-3.5 text-[12.5px] font-semibold text-muted-foreground">
+        Share of your study time · hover for detail
+      </p>
+
+      <div className="flex flex-col items-center">
+        {/* donut */}
+        <div className="relative h-[196px] w-[196px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={subjects}
+                dataKey="pct"
+                nameKey="name"
+                cx="50%" cy="50%"
+                innerRadius={64} outerRadius={92}
+                paddingAngle={3} cornerRadius={6} stroke="none"
+                activeIndex={active ?? undefined}
+                activeShape={activeShape}
+                onMouseEnter={(_, i) => setActive(i)}
+                onMouseLeave={() => setActive(null)}
+              >
+                {subjects.map((s, i) => (
+                  <Cell
+                    key={s.key}
+                    fill={s.color}
+                    opacity={active == null || active === i ? 1 : 0.3}
+                  />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* centre */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span
+              className="text-[32px] font-extrabold leading-none tracking-tight"
+              style={current ? { color: current.color } : undefined}
+            >
+              {current ? `${current.pct}%` : centerValue}
+            </span>
+            <span className="mt-1.5 text-[11.5px] font-semibold text-muted-foreground">
+              {current ? current.name : centerLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* legend with per-subject bars */}
+        <div className="mt-5 w-full space-y-1">
+          {subjects.map((s, i) => (
+            <div
+              key={s.key}
+              onMouseEnter={() => setActive(i)}
+              onMouseLeave={() => setActive(null)}
+              className="cursor-default rounded-[10px] px-1.5 py-2 transition-colors hover:bg-panel-2"
+            >
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="flex items-center gap-2.5 text-[13px] font-semibold">
+                  <span className="h-[9px] w-[9px] rounded-[3px]" style={{ background: s.color }} />
+                  {s.name}
+                </span>
+                <span
+                  className="text-[13px] font-extrabold tabular-nums text-muted-foreground"
+                  style={active === i ? { color: s.color } : undefined}
+                >
+                  {s.pct}%
+                </span>
+              </div>
+              <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${s.pct}%`,
+                    background: s.color,
+                    opacity: active == null || active === i ? 1 : 0.4,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
