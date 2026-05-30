@@ -26,13 +26,17 @@ export default function ProfileCard({ profile, stats }: ProfileCardProps) {
         <div className="mt-5 flex w-full justify-between gap-1.5">
           {stats.map((s) => {
             const Icon = s.icon;
+            const Cmp: any = s.onClick ? "button" : "div";
             return (
               <Tooltip key={s.key}>
                 <TooltipTrigger asChild>
-                  <div className="flex flex-1 cursor-default flex-col items-center gap-2.5 rounded-xl px-1 py-2.5 transition-colors hover:bg-panel-2">
+                  <Cmp
+                    onClick={s.onClick}
+                    className={`flex flex-1 flex-col items-center gap-2.5 rounded-xl px-1 py-2.5 transition-colors hover:bg-panel-2 ${s.onClick ? "cursor-pointer" : "cursor-default"}`}
+                  >
                     <Icon className={`h-[22px] w-[22px] ${s.iconClass}`} />
                     <span className="text-[19px] font-extrabold tabular-nums tracking-tight">{s.value}</span>
-                  </div>
+                  </Cmp>
                 </TooltipTrigger>
                 <TooltipContent className="font-bold">{s.label}</TooltipContent>
               </Tooltip>
