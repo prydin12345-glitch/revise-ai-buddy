@@ -452,6 +452,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     [practiceSets, userSubjects, getSubjectColor]
   );
 
+  if (dashLoading && !dash) return <DashboardSkeleton />;
+
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="font-sans">
