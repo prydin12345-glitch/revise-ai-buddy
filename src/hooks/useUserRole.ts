@@ -48,20 +48,24 @@ export const useUserRole = () => {
     };
 
     fetchRoles();
-    
-    // Listen for auth state changes
+
+    // Re-fetch only on actual sign-in (ignore TOKEN_REFRESHED / INITIAL_SESSION duplicates)
+    let lastUid: string | null = null;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+      (event, session) => {
+        const uid = session?.user?.id ?? null;
+        if (event === 'SIGNED_IN' && uid && uid !== lastUid) {
+          lastUid = uid;
           console.log("useUserRole: User signed in, re-fetching roles");
           setLoading(true);
           fetchRoles();
         }
       }
     );
-    
+
     return () => subscription.unsubscribe();
   }, []);
+
 
   const hasRole = (role: AppRole) => roles.includes(role);
 
