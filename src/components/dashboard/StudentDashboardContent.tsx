@@ -306,8 +306,18 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return Math.round(sum / graded.length);
   }, [allExams]);
 
-  const subjectName = (id: string) =>
-    userSubjects.find((s) => s.id === id)?.subject_name ?? "Subject";
+  // exams.subject_id stores the subject NAME string in this app's schema.
+  // Match against user_subjects.subject_name case-insensitively; fall back to the raw value.
+  const subjectName = (idOrName: string) => {
+    if (!idOrName) return "Subject";
+    const found = userSubjects.find(
+      (s) =>
+        s.subject_name.toLowerCase() === idOrName.toLowerCase() ||
+        s.id === idOrName ||
+        (s.subject_id && s.subject_id === idOrName)
+    );
+    return found?.subject_name ?? idOrName;
+  };
 
   // Subject share of study time (from studyActivityData)
   const subjectsForDonut = useMemo<Subject[]>(() => {
