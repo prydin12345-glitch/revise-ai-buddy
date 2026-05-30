@@ -87,4 +87,6 @@ export interface DashboardData {
   onOpenExam?: (id: string) => void;
   onStartQuiz?: (id: string) => void;
   onOpenAnnouncement?: (id: string) => void;
+  /** Mobile-only: triggered by the speed-dial "Ask AI" option. */
+  onAskAI?: () => void;
 }

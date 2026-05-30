@@ -7,9 +7,11 @@ import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { DashboardSkeleton } from "./DashboardSkeleton";
+import MobileDashboard from "./mobile/MobileDashboard";
 
 
 import CreateBanner from "./CreateBanner";
@@ -68,6 +70,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const { studyActivityData } = useExamStats();
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
   const drilldown = useStatsDrilldown();
+  const isMobile = useIsMobile();
 
   const [showJoinClass, setShowJoinClass] = useState(false);
   const [activityModal, setActivityModal] = useState<{ open: boolean; tab: "exams" | "quizzes" }>({
@@ -454,6 +457,45 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   if (dashLoading && !dash) return <DashboardSkeleton />;
 
+  const handleOpenExam = (id: string) => {
+    const ex = allExams.find((e) => e.id === id);
+    const s = ex?.submission?.status;
+    if (s === "graded" || s === "submitted" || s === "completed") {
+      navigate(`/exam/${id}/review`);
+    } else {
+      navigate(`/exam/${id}/in-progress`);
+    }
+  };
+  const handleStartQuiz = (id: string) => {
+    const set = practiceSets.find((p) => p.id === id);
+    if (set?.progress?.completed_at) {
+      navigate(`/practice-questions/${id}/preview`);
+    } else {
+      navigate(`/practice-questions/${id}/take`);
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <MobileDashboard
+        profile={profile}
+        profileStats={profileStats}
+        subjects={subjectsForDonut}
+        averageScore={averageScore !== null ? `${averageScore}%` : "—"}
+        classes={classes}
+        mockExams={mockExams}
+        quizzes={quizzes}
+        announcements={announcements}
+        onCreateExam={() => navigate("/upload")}
+        onCreateQuiz={() => navigate("/create-practice-questions")}
+        onJoinClass={() => setShowJoinClass(true)}
+        onContinue={(id) => navigate(`/my-classes?classId=${id}`)}
+        onOpenExam={handleOpenExam}
+        onStartQuiz={handleStartQuiz}
+        onOpenAnnouncement={() => navigate("/my-classes")}
+      />
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
