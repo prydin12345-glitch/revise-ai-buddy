@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "lucide-react";
@@ -8,6 +9,8 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
+import { DashboardSkeleton } from "./DashboardSkeleton";
+
 
 import CreateBanner from "./CreateBanner";
 import Announcements from "./Announcements";
