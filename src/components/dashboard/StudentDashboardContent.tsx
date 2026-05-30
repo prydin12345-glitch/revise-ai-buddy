@@ -459,7 +459,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </header>
 
             <CreateBanner
-              onCreateExam={() => navigate("/upload-exam")}
+              onCreateExam={() => navigate("/upload")}
               onCreateQuiz={() => navigate("/create-practice-questions")}
             />
             {announcements.length > 0 && (
@@ -494,17 +494,22 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               quizzes={quizzes}
               onOpenExam={(id) => {
                 const ex = allExams.find((e) => e.id === id);
-                if (
-                  ex?.submission?.status === "graded" ||
-                  ex?.submission?.status === "submitted" ||
-                  ex?.submission?.status === "completed"
-                ) {
+                const s = ex?.submission?.status;
+                if (s === "graded" || s === "submitted" || s === "completed") {
                   navigate(`/exam/${id}/review`);
                 } else {
-                  navigate(`/exam/${id}`);
+                  navigate(`/exam/${id}/in-progress`);
                 }
               }}
-              onStartQuiz={(id) => navigate(`/practice-questions/${id}/preview`)}
+              onStartQuiz={(id) => {
+                const set = practiceSets.find((p) => p.id === id);
+                if (set?.progress?.completed_at) {
+                  navigate(`/practice-questions/${id}/preview`);
+                } else {
+                  navigate(`/practice-questions/${id}/take`);
+                }
+              }}
+              onViewAll={(tab) => setActivityModal({ open: true, tab })}
             />
           </div>
 
@@ -522,6 +527,47 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         open={showJoinClass}
         onOpenChange={setShowJoinClass}
         onSuccess={() => window.location.reload()}
+      />
+
+      <ActivityAllModal
+        open={activityModal.open}
+        onOpenChange={(open) => setActivityModal((s) => ({ ...s, open }))}
+        initialTab={activityModal.tab}
+        mockExams={mockExams}
+        quizzes={quizzes}
+        onOpenExam={(id) => {
+          const ex = allExams.find((e) => e.id === id);
+          const s = ex?.submission?.status;
+          if (s === "graded" || s === "submitted" || s === "completed") {
+            navigate(`/exam/${id}/review`);
+          } else {
+            navigate(`/exam/${id}/in-progress`);
+          }
+        }}
+        onStartQuiz={(id) => {
+          const set = practiceSets.find((p) => p.id === id);
+          if (set?.progress?.completed_at) {
+            navigate(`/practice-questions/${id}/preview`);
+          } else {
+            navigate(`/practice-questions/${id}/take`);
+          }
+        }}
+      />
+
+      <StatsDrilldownDrawer
+        type={drilldown.activeDrawer}
+        onClose={drilldown.closeDrawer}
+        loading={drilldown.loading}
+        completedExams={drilldown.completedExams}
+        averageScore={drilldown.averageScore}
+        scoreBreakdown={drilldown.scoreBreakdown}
+        excludedCount={drilldown.excludedCount}
+        totalHours={drilldown.totalHours}
+        studySessions={drilldown.studySessions}
+        weeklyBreakdown={drilldown.weeklyBreakdown}
+        streakData={drilldown.streakData}
+        studyTimeRange={drilldown.studyTimeRange}
+        onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
       />
     </div>
   );
