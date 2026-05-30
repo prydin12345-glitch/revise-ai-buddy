@@ -278,7 +278,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     });
   }, [dash, getSubjectColor]);
 
-  if (dashLoading && !dash) return <DashboardSkeleton />;
+  
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const totalStudyHours = useMemo(
@@ -451,6 +451,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       }),
     [practiceSets, userSubjects, getSubjectColor]
   );
+
+  if (dashLoading && !dash) return <DashboardSkeleton />;
+
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
