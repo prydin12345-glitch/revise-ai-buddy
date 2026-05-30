@@ -7,9 +7,11 @@ import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { DashboardSkeleton } from "./DashboardSkeleton";
+import MobileDashboard from "./mobile/MobileDashboard";
 
 
 import CreateBanner from "./CreateBanner";
