@@ -8,20 +8,29 @@ interface ActivityPanelProps {
   quizzes: Quiz[];
   onOpenExam?: (id: string) => void;
   onStartQuiz?: (id: string) => void;
+  onViewAll?: (tab: "exams" | "quizzes") => void;
 }
 
 type Tab = "exams" | "quizzes";
 
+const MAX_ROWS = 5;
+
 export default function ActivityPanel({
-  mockExams, quizzes, onOpenExam, onStartQuiz,
+  mockExams, quizzes, onOpenExam, onStartQuiz, onViewAll,
 }: ActivityPanelProps) {
   const [tab, setTab] = useState<Tab>("exams");
+  const visibleExams = mockExams.slice(0, MAX_ROWS);
+  const visibleQuizzes = quizzes.slice(0, MAX_ROWS);
+  const hasMore = tab === "exams" ? mockExams.length > MAX_ROWS : quizzes.length > MAX_ROWS;
 
   return (
     <section className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-bold">Recent Activity</h2>
-        <button className="flex items-center gap-1 text-[13px] font-semibold text-primary">
+        <button
+          onClick={() => onViewAll?.(tab)}
+          className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+        >
           View all <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -34,9 +43,18 @@ export default function ActivityPanel({
 
       <div className="mt-1.5 flex flex-col">
         {tab === "exams"
-          ? mockExams.map((m) => <ExamRow key={m.id} exam={m} onClick={() => onOpenExam?.(m.id)} />)
-          : quizzes.map((q) => <QuizRow key={q.id} quiz={q} onClick={() => onStartQuiz?.(q.id)} />)}
+          ? visibleExams.map((m) => <ExamRow key={m.id} exam={m} onClick={() => onOpenExam?.(m.id)} />)
+          : visibleQuizzes.map((q) => <QuizRow key={q.id} quiz={q} onClick={() => onStartQuiz?.(q.id)} />)}
       </div>
+
+      {hasMore && (
+        <button
+          onClick={() => onViewAll?.(tab)}
+          className="mt-2 w-full rounded-[10px] border border-border bg-panel-2 py-2 text-[13px] font-bold text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          View all {tab === "exams" ? mockExams.length : quizzes.length}
+        </button>
+      )}
     </section>
   );
 }
