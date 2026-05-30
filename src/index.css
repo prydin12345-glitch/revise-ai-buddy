@@ -51,9 +51,14 @@ All colors MUST be HSL.
     --danger-border: 0 70% 50%;
 
     /* Border and input */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 210 85% 60%;
+    --border: 216 25% 88%;
+    --input: 216 25% 88%;
+    --ring: 217 92% 52%;
+
+    /* Custom surfaces */
+    --surface-panel: 216 33% 97%;
+    --surface-panel-2: 216 30% 93%;
+    --surface-hover: 216 30% 91%;
 
     /* Border radius */
     --radius: 0.75rem;
