@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import './styles/mathquill-custom.css';
 
 @tailwind base;
@@ -11,62 +12,67 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Core brand colors */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 216 40% 98%;
+    --foreground: 220 38% 11%;
 
     /* Card styles */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 38% 11%;
 
     /* Popover styles */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 38% 11%;
 
-    /* Primary - Soft Blue */
-    --primary: 210 85% 60%;
+    /* Primary */
+    --primary: 217 92% 52%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 210 85% 90%;
+    --primary-light: 217 92% 92%;
 
-    /* Secondary - Vibrant Yellow */
-    --secondary: 45 100% 60%;
-    --secondary-foreground: 220 15% 20%;
+    /* Secondary */
+    --secondary: 216 30% 95%;
+    --secondary-foreground: 220 38% 11%;
 
     /* Muted styles */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 216 30% 93%;
+    --muted-foreground: 218 14% 42%;
 
-    /* Accent - Light blue for hover states */
-    --accent: 210 85% 95%;
-    --accent-foreground: 210 85% 35%;
+    /* Accent */
+    --accent: 216 30% 94%;
+    --accent-foreground: 220 38% 11%;
 
     /* Destructive */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
     /* Danger - High visibility for overdue/critical */
-    --danger: 0 80% 55%;
+    --danger: 351 70% 53%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 80% 95%;
     --danger-border: 0 70% 50%;
 
     /* Border and input */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 210 85% 60%;
+    --border: 216 25% 88%;
+    --input: 216 25% 88%;
+    --ring: 217 92% 52%;
+
+    /* Custom surfaces */
+    --surface-panel: 216 33% 97%;
+    --surface-panel-2: 216 30% 93%;
+    --surface-hover: 216 30% 91%;
 
     /* Border radius */
     --radius: 0.75rem;
 
     /* Status colors */
-    --success: 142 71% 45%;
+    --success: 158 60% 38%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 92%;
-    --success-border: 142 71% 50%;
+    --success-light: 158 76% 92%;
+    --success-border: 158 60% 45%;
     
-    --warning: 38 92% 50%;
+    --warning: 38 92% 44%;
     --warning-foreground: 39 100% 15%;
     --warning-light: 38 95% 88%;
-    --warning-border: 38 92% 55%;
+    --warning-border: 38 92% 50%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
@@ -101,52 +107,57 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 220 38% 5%;
+    --foreground: 216 40% 95%;
 
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 35% 8%;
+    --card-foreground: 216 40% 95%;
 
-    --popover: 222 47% 14%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 33% 11%;
+    --popover-foreground: 216 40% 95%;
 
-    --primary: 210 85% 55%;
+    --primary: 217 92% 58%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 210 85% 25%;
+    --primary-light: 217 92% 25%;
 
-    --secondary: 45 100% 55%;
-    --secondary-foreground: 220 20% 12%;
+    --secondary: 220 33% 12%;
+    --secondary-foreground: 216 40% 95%;
 
-    --muted: 222 47% 16%;
-    --muted-foreground: 210 40% 70%;
+    --muted: 220 28% 15%;
+    --muted-foreground: 218 16% 64%;
 
-    --accent: 222 47% 18%;
-    --accent-foreground: 210 85% 70%;
+    --accent: 220 33% 14%;
+    --accent-foreground: 216 40% 95%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     --destructive-muted: 0 65% 18%;
     --destructive-border: 0 62% 40%;
 
-    --border: 222 30% 25%;
-    --input: 222 30% 25%;
-    --ring: 210 85% 55%;
+    --border: 220 24% 16%;
+    --input: 220 24% 16%;
+    --ring: 217 92% 58%;
 
-    /* Danger/Overdue - high contrast for dark theme */
-    --danger: 0 80% 60%;
+    /* Custom surfaces */
+    --surface-panel: 220 35% 8%;
+    --surface-panel-2: 220 32% 12%;
+    --surface-hover: 220 30% 15%;
+
+    /* Danger */
+    --danger: 351 95% 71%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 60% 15%;
-    --danger-border: 0 70% 45%;
+    --danger-border: 351 80% 50%;
 
-    --success: 142 71% 45%;
+    --success: 158 64% 52%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 71% 22%;
-    --success-border: 142 71% 45%;
+    --success-light: 158 64% 22%;
+    --success-border: 158 64% 45%;
     
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 100% 90%;
-    --warning-light: 38 92% 18%;
-    --warning-border: 38 92% 50%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 38 100% 12%;
+    --warning-light: 43 96% 18%;
+    --warning-border: 43 96% 50%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;

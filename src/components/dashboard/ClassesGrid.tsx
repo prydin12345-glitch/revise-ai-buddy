@@ -1,90 +1,99 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, ChevronRight, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+// src/components/dashboard/ClassesGrid.tsx
+import { Clock, ArrowRight, ChevronRight } from "lucide-react";
+import type { ClassItem } from "./types";
 
-interface ClassInfo {
-  id: string;
-  name: string;
-  tutorName: string;
-  studentCount: number;
-  color: string;
+interface ClassesGridProps {
+  classes: ClassItem[];
+  onContinue?: (classId: string) => void;
 }
 
-interface Props {
-  classes: ClassInfo[];
-  onJoinClass: () => void;
-}
-
-export const ClassesGrid = ({ classes, onJoinClass }: Props) => {
-  const navigate = useNavigate();
-
+export default function ClassesGrid({ classes, onContinue }: ClassesGridProps) {
   return (
-    <Card className="rounded-2xl border-border/50 p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-foreground">My Classes</h2>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={onJoinClass}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Join
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            className="text-primary text-xs p-0 h-auto"
-            onClick={() => navigate("/my-classes")}
-          >
-            View all
-          </Button>
-        </div>
+    <section>
+      <div className="mb-3.5 flex items-center justify-between">
+        <h2 className="text-base font-bold">My Classes</h2>
+        <button className="flex items-center gap-1 text-[13px] font-semibold text-primary">
+          View all <ChevronRight className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {classes.length === 0 ? (
-        <div className="text-center py-10 border border-dashed border-border rounded-xl">
-          <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground mb-3">You haven't joined any classes yet.</p>
-          <Button size="sm" variant="outline" onClick={onJoinClass}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Join a class
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {classes.slice(0, 4).map((cls) => (
-            <button
-              key={cls.id}
-              onClick={() => navigate(`/my-classes?classId=${cls.id}`)}
-              className="group text-left rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:bg-muted/30 transition-all p-4 cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: cls.color }}
-                  />
-                  <span className="text-sm font-semibold text-foreground truncate">
-                    {cls.name}
-                  </span>
-                </div>
-                <ChevronRight
-                  size={16}
-                  className="text-muted-foreground group-hover:text-primary transition-colors shrink-0"
-                />
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="truncate">{cls.tutorName}</span>
-                <span className="flex items-center gap-1 shrink-0">
-                  <Users size={11} />
-                  {cls.studentCount}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {classes.map((c) => (
+          <ClassCard key={c.id} item={c} onContinue={onContinue} />
+        ))}
+      </div>
+    </section>
   );
-};
+}
+
+/** Subtle, accent-tinted thumbnail. Accent is subject (content) colour → inline style. */
+function thumbStyle(motif: ClassItem["motif"], accent: string): React.CSSProperties {
+  const base = `linear-gradient(135deg, ${accent}33, ${accent}0d)`;
+  if (motif === "grid")
+    return {
+      background: `${base}, repeating-linear-gradient(0deg, ${accent}1a 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, ${accent}1a 0 1px, transparent 1px 22px), hsl(var(--surface-panel-2))`,
+    };
+  if (motif === "dots")
+    return {
+      background: `${base}, radial-gradient(${accent}40 1.5px, transparent 1.6px) 0 0 / 16px 16px, hsl(var(--surface-panel-2))`,
+    };
+  return { background: `${base}, hsl(var(--surface-panel-2))` };
+}
+
+function ClassCard({ item, onContinue }: { item: ClassItem; onContinue?: (id: string) => void }) {
+  const Glyph = item.glyph;
+  return (
+    <article className="flex overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-border">
+      {/* thumb */}
+      <div
+        className="relative grid w-[120px] flex-none place-items-center sm:w-[138px]"
+        style={thumbStyle(item.motif, item.accentColor)}
+      >
+        <span
+          className="absolute left-3 top-3 z-[2] flex items-center gap-1.5 rounded-[7px] bg-black/40 px-2.5 py-1 text-[10.5px] font-bold backdrop-blur"
+          style={{ color: item.accentColor }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.accentColor }} />
+          {item.subjectTag}
+        </span>
+        <Glyph className="z-[1] h-10 w-10 opacity-35" style={{ color: item.accentColor }} strokeWidth={1.5} />
+      </div>
+
+      {/* body */}
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
+        <div>
+          <div className="truncate text-[15.5px] font-bold tracking-tight">{item.title}</div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            {item.teacher}
+            <span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />
+            {item.students} students
+          </div>
+        </div>
+
+        <div className="flex max-w-full items-center gap-1.5 self-start truncate rounded-lg border border-border bg-panel-2 px-2.5 py-1.5 text-[11.5px] font-semibold text-muted-foreground">
+          <Clock className="h-3 w-3 flex-none" />
+          <span className="truncate">{item.next}</span>
+        </div>
+
+        <div className="mt-auto">
+          <div className="flex items-center justify-between text-[11.5px] font-semibold text-muted-foreground">
+            <span>Course progress</span>
+            <span className="font-extrabold tabular-nums" style={{ color: item.accentColor }}>
+              {item.progress}%
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <div className="h-full rounded-full" style={{ width: `${item.progress}%`, background: item.accentColor }} />
+          </div>
+        </div>
+
+        <button
+          onClick={() => onContinue?.(item.id)}
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-[10px] border border-border bg-panel-2 py-2 text-[13px] font-bold transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+        >
+          Continue <ArrowRight className="h-[15px] w-[15px]" />
+        </button>
+      </div>
+    </article>
+  );
+}
