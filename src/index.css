@@ -12,33 +12,33 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Core brand colors */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 216 40% 98%;
+    --foreground: 220 38% 11%;
 
     /* Card styles */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 38% 11%;
 
     /* Popover styles */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 38% 11%;
 
-    /* Primary - Soft Blue */
-    --primary: 210 85% 60%;
+    /* Primary */
+    --primary: 217 92% 52%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 210 85% 90%;
+    --primary-light: 217 92% 92%;
 
-    /* Secondary - Vibrant Yellow */
-    --secondary: 45 100% 60%;
-    --secondary-foreground: 220 15% 20%;
+    /* Secondary */
+    --secondary: 216 30% 95%;
+    --secondary-foreground: 220 38% 11%;
 
     /* Muted styles */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 216 30% 93%;
+    --muted-foreground: 218 14% 42%;
 
-    /* Accent - Light blue for hover states */
-    --accent: 210 85% 95%;
-    --accent-foreground: 210 85% 35%;
+    /* Accent */
+    --accent: 216 30% 94%;
+    --accent-foreground: 220 38% 11%;
 
     /* Destructive */
     --destructive: 0 84.2% 60.2%;
