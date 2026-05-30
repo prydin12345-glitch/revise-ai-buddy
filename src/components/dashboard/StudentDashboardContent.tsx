@@ -278,7 +278,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     });
   }, [dash, getSubjectColor]);
 
-  if (dashLoading && !dash) return <DashboardSkeleton />;
+  
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const totalStudyHours = useMemo(
