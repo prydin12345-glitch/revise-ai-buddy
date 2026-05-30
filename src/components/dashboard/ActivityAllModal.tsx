@@ -91,7 +91,7 @@ export default function ActivityAllModal({
     setStatus("all");
     setSubjects([]);
   };
-  const hasActive = query || status !== "all" || subjects.length > 0;
+  const hasActive = Boolean(query) || status !== "all" || subjects.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
