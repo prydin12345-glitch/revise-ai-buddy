@@ -64,6 +64,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const navigate = useNavigate();
   const { studyActivityData } = useExamStats();
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
+  const drilldown = useStatsDrilldown();
 
   const [userName, setUserName] = useState("");
   const [initials, setInitials] = useState("U");
@@ -74,6 +75,10 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showJoinClass, setShowJoinClass] = useState(false);
+  const [activityModal, setActivityModal] = useState<{ open: boolean; tab: "exams" | "quizzes" }>({
+    open: false,
+    tab: "exams",
+  });
 
   useEffect(() => {
     (async () => {
