@@ -17,6 +17,8 @@ export interface ProfileStat {
   label: string;
   /** Tailwind text-colour class for the icon, e.g. "text-primary". */
   iconClass: string;
+  /** Optional click handler — turns the stat into a button. */
+  onClick?: () => void;
 }
 
 export interface ClassItem {
