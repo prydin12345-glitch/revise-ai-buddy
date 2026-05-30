@@ -363,6 +363,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: completedExams.length.toString(),
       label: "Exams Completed",
       iconClass: "text-primary",
+      onClick: () => drilldown.openDrawer("exams"),
     },
     {
       key: "avg",
@@ -370,6 +371,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: averageScore !== null ? `${averageScore}%` : "—",
       label: "Average Score",
       iconClass: "text-warning",
+      onClick: () => drilldown.openDrawer("scores"),
     },
     {
       key: "hours",
@@ -377,6 +379,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}h` : "0h",
       label: "Total Study Hours",
       iconClass: "text-[#a78bfa]",
+      onClick: () => drilldown.openDrawer("study-hours"),
     },
     {
       key: "streak",
@@ -384,6 +387,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: currentStreak > 0 ? currentStreak.toString() : "—",
       label: "Day Streak",
       iconClass: "text-danger",
+      onClick: () => drilldown.openDrawer("streak"),
     },
   ];
 
