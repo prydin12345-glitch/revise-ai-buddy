@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "lucide-react";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 
@@ -12,8 +13,10 @@ import CreateBanner from "./CreateBanner";
 import Announcements from "./Announcements";
 import ClassesGrid from "./ClassesGrid";
 import ActivityPanel from "./ActivityPanel";
+import ActivityAllModal from "./ActivityAllModal";
 import ProfileCard from "./ProfileCard";
 import SubjectDonut from "./SubjectDonut";
+import { StatsDrilldownDrawer, type DrilldownType } from "./StatsDrilldownDrawer";
 import type {
   Announcement,
   ClassItem,
@@ -61,6 +64,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const navigate = useNavigate();
   const { studyActivityData } = useExamStats();
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
+  const drilldown = useStatsDrilldown();
 
   const [userName, setUserName] = useState("");
   const [initials, setInitials] = useState("U");
@@ -71,6 +75,10 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showJoinClass, setShowJoinClass] = useState(false);
+  const [activityModal, setActivityModal] = useState<{ open: boolean; tab: "exams" | "quizzes" }>({
+    open: false,
+    tab: "exams",
+  });
 
   useEffect(() => {
     (async () => {
@@ -298,8 +306,18 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return Math.round(sum / graded.length);
   }, [allExams]);
 
-  const subjectName = (id: string) =>
-    userSubjects.find((s) => s.id === id)?.subject_name ?? "Subject";
+  // exams.subject_id stores the subject NAME string in this app's schema.
+  // Match against user_subjects.subject_name case-insensitively; fall back to the raw value.
+  const subjectName = (idOrName: string) => {
+    if (!idOrName) return "Subject";
+    const found = userSubjects.find(
+      (s) =>
+        s.subject_name.toLowerCase() === idOrName.toLowerCase() ||
+        s.id === idOrName ||
+        (s.subject_id && s.subject_id === idOrName)
+    );
+    return found?.subject_name ?? idOrName;
+  };
 
   // Subject share of study time (from studyActivityData)
   const subjectsForDonut = useMemo<Subject[]>(() => {
@@ -345,6 +363,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: completedExams.length.toString(),
       label: "Exams Completed",
       iconClass: "text-primary",
+      onClick: () => drilldown.openDrawer("exams"),
     },
     {
       key: "avg",
@@ -352,6 +371,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: averageScore !== null ? `${averageScore}%` : "—",
       label: "Average Score",
       iconClass: "text-warning",
+      onClick: () => drilldown.openDrawer("scores"),
     },
     {
       key: "hours",
@@ -359,6 +379,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}h` : "0h",
       label: "Total Study Hours",
       iconClass: "text-[#a78bfa]",
+      onClick: () => drilldown.openDrawer("study-hours"),
     },
     {
       key: "streak",
@@ -366,6 +387,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       value: currentStreak > 0 ? currentStreak.toString() : "—",
       label: "Day Streak",
       iconClass: "text-danger",
+      onClick: () => drilldown.openDrawer("streak"),
     },
   ];
 
@@ -437,7 +459,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             </header>
 
             <CreateBanner
-              onCreateExam={() => navigate("/upload-exam")}
+              onCreateExam={() => navigate("/upload")}
               onCreateQuiz={() => navigate("/create-practice-questions")}
             />
             {announcements.length > 0 && (
@@ -472,17 +494,22 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               quizzes={quizzes}
               onOpenExam={(id) => {
                 const ex = allExams.find((e) => e.id === id);
-                if (
-                  ex?.submission?.status === "graded" ||
-                  ex?.submission?.status === "submitted" ||
-                  ex?.submission?.status === "completed"
-                ) {
+                const s = ex?.submission?.status;
+                if (s === "graded" || s === "submitted" || s === "completed") {
                   navigate(`/exam/${id}/review`);
                 } else {
-                  navigate(`/exam/${id}`);
+                  navigate(`/exam/${id}/in-progress`);
                 }
               }}
-              onStartQuiz={(id) => navigate(`/practice-questions/${id}/preview`)}
+              onStartQuiz={(id) => {
+                const set = practiceSets.find((p) => p.id === id);
+                if (set?.progress?.completed_at) {
+                  navigate(`/practice-questions/${id}/preview`);
+                } else {
+                  navigate(`/practice-questions/${id}/take`);
+                }
+              }}
+              onViewAll={(tab) => setActivityModal({ open: true, tab })}
             />
           </div>
 
@@ -500,6 +527,47 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         open={showJoinClass}
         onOpenChange={setShowJoinClass}
         onSuccess={() => window.location.reload()}
+      />
+
+      <ActivityAllModal
+        open={activityModal.open}
+        onOpenChange={(open) => setActivityModal((s) => ({ ...s, open }))}
+        initialTab={activityModal.tab}
+        mockExams={mockExams}
+        quizzes={quizzes}
+        onOpenExam={(id) => {
+          const ex = allExams.find((e) => e.id === id);
+          const s = ex?.submission?.status;
+          if (s === "graded" || s === "submitted" || s === "completed") {
+            navigate(`/exam/${id}/review`);
+          } else {
+            navigate(`/exam/${id}/in-progress`);
+          }
+        }}
+        onStartQuiz={(id) => {
+          const set = practiceSets.find((p) => p.id === id);
+          if (set?.progress?.completed_at) {
+            navigate(`/practice-questions/${id}/preview`);
+          } else {
+            navigate(`/practice-questions/${id}/take`);
+          }
+        }}
+      />
+
+      <StatsDrilldownDrawer
+        type={drilldown.activeDrawer}
+        onClose={drilldown.closeDrawer}
+        loading={drilldown.loading}
+        completedExams={drilldown.completedExams}
+        averageScore={drilldown.averageScore}
+        scoreBreakdown={drilldown.scoreBreakdown}
+        excludedCount={drilldown.excludedCount}
+        totalHours={drilldown.totalHours}
+        studySessions={drilldown.studySessions}
+        weeklyBreakdown={drilldown.weeklyBreakdown}
+        streakData={drilldown.streakData}
+        studyTimeRange={drilldown.studyTimeRange}
+        onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
       />
     </div>
   );
