@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "lucide-react";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 
@@ -12,8 +13,10 @@ import CreateBanner from "./CreateBanner";
 import Announcements from "./Announcements";
 import ClassesGrid from "./ClassesGrid";
 import ActivityPanel from "./ActivityPanel";
+import ActivityAllModal from "./ActivityAllModal";
 import ProfileCard from "./ProfileCard";
 import SubjectDonut from "./SubjectDonut";
+import { StatsDrilldownDrawer, type DrilldownType } from "./StatsDrilldownDrawer";
 import type {
   Announcement,
   ClassItem,
