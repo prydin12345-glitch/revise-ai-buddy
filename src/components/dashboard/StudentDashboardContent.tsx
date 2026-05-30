@@ -69,210 +69,216 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
   const drilldown = useStatsDrilldown();
 
-  const [userName, setUserName] = useState("");
-  const [initials, setInitials] = useState("U");
-  const [program, setProgram] = useState("");
-  const [allExams, setAllExams] = useState<ExamWithSubmission[]>([]);
-  const [practiceSets, setPracticeSets] = useState<PracticeSetWithProgress[]>([]);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [currentStreak, setCurrentStreak] = useState(0);
   const [showJoinClass, setShowJoinClass] = useState(false);
   const [activityModal, setActivityModal] = useState<{ open: boolean; tab: "exams" | "quizzes" }>({
     open: false,
     tab: "exams",
   });
 
-  useEffect(() => {
-    (async () => {
+  const { data: dash, isLoading: dashLoading, isError } = useQuery({
+    queryKey: ["student-dashboard"],
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
-      if (!uid) return;
+      if (!uid) throw new Error("no auth user");
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("first_name, last_name, display_name")
-        .eq("id", uid)
-        .maybeSingle();
-
-      const first = profile?.first_name || "";
-      const last = profile?.last_name || "";
-      const full =
-        first && last
-          ? `${first} ${last}`
-          : profile?.display_name ||
-            auth.user?.user_metadata?.full_name ||
-            auth.user?.email?.split("@")[0] ||
-            "User";
-      setUserName(full);
-      const parts = full.split(" ");
-      setInitials(
-        parts.length >= 2
-          ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-          : full.slice(0, 2).toUpperCase()
-      );
-
-      const { data: prefs } = await supabase
-        .from("user_preferences")
-        .select("curriculum_region")
-        .eq("user_id", uid)
-        .maybeSingle();
-      if (prefs?.curriculum_region) setProgram(prefs.curriculum_region);
-
-      try {
-        const { data: streak } = await supabase
-          .from("user_streaks")
-          .select("current_streak, last_exam_submitted_at")
+      // ── Batch 1: independent top-level queries ────────────────────────────
+      const [
+        profileRes,
+        prefsRes,
+        streakRes,
+        ownExamsRes,
+        assignmentsRes,
+        practiceSetsRes,
+        membershipsRes,
+      ] = await Promise.all([
+        supabase.from("user_profiles").select("first_name, last_name, display_name").eq("id", uid).maybeSingle(),
+        supabase.from("user_preferences").select("curriculum_region").eq("user_id", uid).maybeSingle(),
+        supabase.from("user_streaks").select("current_streak, last_exam_submitted_at").eq("user_id", uid).maybeSingle(),
+        supabase.from("exams").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
+        supabase
+          .from("exam_assignments")
+          .select("exam_id, deadline, exams(*)")
+          .in("assignment_type", ["individual", "group", "class", "student", "all_students"])
+          .eq("is_active", true)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("practice_question_sets")
+          .select("id, set_name, subject_id, question_count, status")
           .eq("user_id", uid)
-          .maybeSingle();
-        if (streak?.last_exam_submitted_at) {
-          const hours =
-            (Date.now() - new Date(streak.last_exam_submitted_at).getTime()) / 3600000;
-          setCurrentStreak(hours <= 48 ? streak.current_streak : 0);
-        }
-      } catch {
-        /* ignore */
-      }
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("group_members")
+          .select("group_id, student_groups(id, name, tutor_id, subjects_covered)")
+          .eq("student_id", uid)
+          .eq("is_active", true),
+      ]);
 
-      // Exams (own + assigned)
-      const { data: ownExams } = await supabase
-        .from("exams")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false });
-
-      const { data: assignments } = await supabase
-        .from("exam_assignments")
-        .select("exam_id, deadline, exams(*)")
-        .in("assignment_type", [
-          "individual",
-          "group",
-          "class",
-          "student",
-          "all_students",
-        ])
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
+      const ownExams = ownExamsRes.data || [];
       const assignedExams =
-        assignments?.map((a) => ({
+        assignmentsRes.data?.map((a) => ({
           ...(a.exams as any),
           assigned_by: "teacher",
           deadline: a.deadline,
         })) || [];
+      const examsData = [...ownExams, ...assignedExams];
+      const examIds = examsData.map((e) => e.id).filter(Boolean);
 
-      const examsData = [...(ownExams || []), ...assignedExams];
-      const withSubs = await Promise.all(
-        examsData.map(async (exam) => {
-          const { data: submission } = await supabase
-            .from("exam_submissions")
-            .select("id, total_score, total_marks, status, last_accessed_at")
-            .eq("exam_id", exam.id)
-            .eq("student_id", uid)
-            .maybeSingle();
-          return {
-            ...exam,
-            submission: submission
-              ? { ...submission, status: submission.status as any }
-              : undefined,
-          };
-        })
-      );
-      withSubs.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setAllExams(withSubs);
+      const practiceSetsRaw = practiceSetsRes.data || [];
+      const setIds = practiceSetsRaw.map((s) => s.id);
 
-      // Practice sets
-      const { data: sets } = await supabase
-        .from("practice_question_sets")
-        .select("id, set_name, subject_id, question_count, status")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (sets) {
-        const withProgress = await Promise.all(
-          sets.map(async (s) => {
-            const { data: progress } = await supabase
+      const groups = (membershipsRes.data || [])
+        .map((m) => (m.student_groups as any) || null)
+        .filter(Boolean);
+      const groupIds = groups.map((g) => g.id);
+      const tutorIds = Array.from(new Set(groups.map((g) => g.tutor_id).filter(Boolean)));
+
+      // ── Batch 2: fan-out lookups, all in one round-trip ───────────────────
+      const [submissionsRes, progressRes, groupMembersRes, tutorsRes, annsRes] = await Promise.all([
+        examIds.length
+          ? supabase
+              .from("exam_submissions")
+              .select("id, exam_id, total_score, total_marks, status, last_accessed_at")
+              .in("exam_id", examIds)
+              .eq("student_id", uid)
+          : Promise.resolve({ data: [] as any[] }),
+        setIds.length
+          ? supabase
               .from("practice_set_progress")
-              .select("questions_attempted, completed_at, questions_correct")
-              .eq("set_id", s.id)
+              .select("set_id, questions_attempted, completed_at, questions_correct")
+              .in("set_id", setIds)
               .eq("user_id", uid)
-              .maybeSingle();
-            return { ...s, progress: progress || undefined };
-          })
-        );
-        setPracticeSets(withProgress);
+          : Promise.resolve({ data: [] as any[] }),
+        groupIds.length
+          ? supabase.from("group_members").select("group_id").in("group_id", groupIds).eq("is_active", true)
+          : Promise.resolve({ data: [] as any[] }),
+        tutorIds.length
+          ? supabase.from("user_profiles").select("id, display_name").in("id", tutorIds)
+          : Promise.resolve({ data: [] as any[] }),
+        groupIds.length
+          ? supabase
+              .from("group_announcements")
+              .select("id, title, created_at, group_id, student_groups(name)")
+              .in("group_id", groupIds)
+              .order("created_at", { ascending: false })
+              .limit(3)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const subByExam = new Map<string, any>();
+      (submissionsRes.data || []).forEach((s: any) => subByExam.set(s.exam_id, s));
+      const allExams: ExamWithSubmission[] = examsData.map((exam) => {
+        const submission = subByExam.get(exam.id);
+        return {
+          ...exam,
+          submission: submission ? { ...submission, status: submission.status as any } : undefined,
+        };
+      });
+      allExams.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      const progByset = new Map<string, any>();
+      (progressRes.data || []).forEach((p: any) => progByset.set(p.set_id, p));
+      const practiceSets: PracticeSetWithProgress[] = practiceSetsRaw.map((s) => ({
+        ...s,
+        progress: progByset.get(s.id) || undefined,
+      }));
+
+      const countByGroup = new Map<string, number>();
+      (groupMembersRes.data || []).forEach((m: any) => {
+        countByGroup.set(m.group_id, (countByGroup.get(m.group_id) || 0) + 1);
+      });
+
+      const tutorById = new Map<string, string>();
+      (tutorsRes.data || []).forEach((t: any) => tutorById.set(t.id, t.display_name));
+
+      // ── Profile/name derivation ───────────────────────────────────────────
+      const first = profileRes.data?.first_name || "";
+      const last = profileRes.data?.last_name || "";
+      const full =
+        first && last
+          ? `${first} ${last}`
+          : profileRes.data?.display_name ||
+            auth.user?.user_metadata?.full_name ||
+            auth.user?.email?.split("@")[0] ||
+            "User";
+      const parts = full.split(" ");
+      const initials =
+        parts.length >= 2
+          ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+          : full.slice(0, 2).toUpperCase();
+
+      let currentStreak = 0;
+      const streak = streakRes.data;
+      if (streak?.last_exam_submitted_at) {
+        const hours = (Date.now() - new Date(streak.last_exam_submitted_at).getTime()) / 3600000;
+        currentStreak = hours <= 48 ? streak.current_streak : 0;
       }
 
-      // Classes
-      const { data: memberships } = await supabase
-        .from("group_members")
-        .select("group_id, student_groups(id, name, tutor_id, subjects_covered)")
-        .eq("student_id", uid)
-        .eq("is_active", true);
+      const classesRaw = groups.map((g: any, i: number) => ({
+        id: g.id,
+        name: g.name,
+        tutorId: g.tutor_id,
+        subjects_covered: g.subjects_covered,
+        students: countByGroup.get(g.id) || 0,
+        index: i,
+      }));
 
-      if (memberships?.length) {
-        const list: ClassItem[] = [];
-        for (let i = 0; i < memberships.length; i++) {
-          const g = (memberships[i].student_groups as any) || null;
-          if (!g) continue;
-          const { count } = await supabase
-            .from("group_members")
-            .select("*", { count: "exact", head: true })
-            .eq("group_id", g.id)
-            .eq("is_active", true);
-          const { data: tutor } = await supabase
-            .from("user_profiles")
-            .select("display_name")
-            .eq("id", g.tutor_id)
-            .maybeSingle();
-          const subjectTag =
-            (Array.isArray(g.subjects_covered) && g.subjects_covered[0]?.name) ||
-            g.name;
-          list.push({
-            id: g.id,
-            title: g.name,
-            teacher: tutor?.display_name || "Tutor",
-            students: count || 0,
-            progress: 0,
-            next: "No upcoming work",
-            subjectTag,
-            accentColor: getSubjectColor(subjectTag),
-            motif: MOTIFS[i % MOTIFS.length],
-            glyph: GLYPHS[i % GLYPHS.length],
-          });
-        }
-        setClasses(list);
+      const announcements: Announcement[] = (annsRes.data || []).map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        from: (a.student_groups as any)?.name || "Class",
+        when: timeAgo(a.created_at),
+      }));
 
-        const groupIds = memberships
-          .map((m) => (m.student_groups as any)?.id)
-          .filter(Boolean);
-        if (groupIds.length) {
-          const { data: anns } = await supabase
-            .from("group_announcements")
-            .select("id, title, created_at, group_id, student_groups(name)")
-            .in("group_id", groupIds)
-            .order("created_at", { ascending: false })
-            .limit(3);
-          if (anns) {
-            setAnnouncements(
-              anns.map((a) => ({
-                id: a.id,
-                title: a.title,
-                from: (a.student_groups as any)?.name || "Class",
-                when: timeAgo(a.created_at),
-              }))
-            );
-          }
-        }
-      }
-    })().catch((err) => {
-      console.error(err);
-      toast.error("Failed to load dashboard data");
+      return {
+        userName: full,
+        initials,
+        program: prefsRes.data?.curriculum_region || "",
+        currentStreak,
+        allExams,
+        practiceSets,
+        classesRaw,
+        tutorById,
+        announcements,
+      };
+    },
+  });
+
+  if (isError) toast.error("Failed to load dashboard data");
+
+  const userName = dash?.userName || "";
+  const initials = dash?.initials || "U";
+  const program = dash?.program || "";
+  const currentStreak = dash?.currentStreak || 0;
+  const allExams: ExamWithSubmission[] = useMemo(() => dash?.allExams || [], [dash]);
+  const practiceSets: PracticeSetWithProgress[] = useMemo(() => dash?.practiceSets || [], [dash]);
+  const announcements = dash?.announcements || [];
+
+  const classes: ClassItem[] = useMemo(() => {
+    if (!dash?.classesRaw) return [];
+    return dash.classesRaw.map((g) => {
+      const subjectTag =
+        (Array.isArray(g.subjects_covered) && (g.subjects_covered as any)[0]?.name) || g.name;
+      return {
+        id: g.id,
+        title: g.name,
+        teacher: dash.tutorById.get(g.tutorId) || "Tutor",
+        students: g.students,
+        progress: 0,
+        next: "No upcoming work",
+        subjectTag,
+        accentColor: getSubjectColor(subjectTag),
+        motif: MOTIFS[g.index % MOTIFS.length],
+        glyph: GLYPHS[g.index % GLYPHS.length],
+      };
     });
-  }, [getSubjectColor]);
+  }, [dash, getSubjectColor]);
+
+  if (dashLoading && !dash) return <DashboardSkeleton />;
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const totalStudyHours = useMemo(
