@@ -23,7 +23,7 @@ export default function MobileDashboard(props: DashboardData) {
   const firstName = profile.name.split(" ")[0];
 
   return (
-    <div className="flex flex-col gap-6 pt-1">
+    <div className="flex flex-col gap-6 pt-1 overflow-x-hidden max-w-full">
       {/* header: greeting + bell on top, icon+number stats below */}
       <header className="flex flex-col gap-[15px] px-[18px]">
         <div className="flex items-start justify-between gap-3">
