@@ -60,6 +60,11 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, a
                 {o.label}
               </span>
               <Icon className="h-[21px] w-[21px]" />
+              {o.badge && o.badge > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
+                  {o.badge > 9 ? '9+' : o.badge}
+                </span>
+              )}
             </button>
           );
         })}
