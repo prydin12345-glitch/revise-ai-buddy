@@ -36,6 +36,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { primaryRole } = useUserRole();
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiUnread, setAiUnread] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
