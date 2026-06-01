@@ -7,6 +7,7 @@ interface MobileSpeedDialProps {
   onCreateExam?: () => void;
   onCreateQuiz?: () => void;
   onAskAI?: () => void;
+  aiUnreadCount?: number;
 }
 
 interface Opt {
