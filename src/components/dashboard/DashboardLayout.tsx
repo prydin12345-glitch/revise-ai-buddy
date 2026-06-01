@@ -355,11 +355,26 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
+        {/* Page content — extra bottom padding on mobile to clear the tab bar */}
+        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile Floating Nav */}
+      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB */}
+      {primaryRole !== 'tutor' && (
+        <>
+          <MobileBottomNav />
+          <MobileSpeedDial
+            onCreateExam={() => navigate('/upload')}
+            onCreateQuiz={() => navigate('/create-practice-questions')}
+            onAskAI={() => {
+              const btn = document.querySelector<HTMLButtonElement>('[data-ai-tutor-trigger]');
+              btn?.click();
+            }}
+          />
+        </>
+      )}
+
+      {/* Tablet / tutor nav drawer FAB (md–lg only after edit) */}
       <MobileNavFAB />
 
       {/* AI Tutor Chat — appears on every authenticated page */}
