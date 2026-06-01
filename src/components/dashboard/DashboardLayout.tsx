@@ -119,9 +119,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen flex w-full bg-background">
-      {/* Sidebar - Hidden on mobile */}
+      {/* Sidebar - visible from lg (iPad horizontal) and up */}
       <aside
-        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
+        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
