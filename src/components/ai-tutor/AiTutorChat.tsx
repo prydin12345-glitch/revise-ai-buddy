@@ -320,28 +320,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
         </div>
       )}
 
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 w-13 h-13 rounded-full flex items-center justify-center z-[9999] shadow-lg transition-transform hover:scale-105"
-        style={{
-          width: 52,
-          height: 52,
-          background: open ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
-          boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)',
-        }}
-        title="AI Tutor"
-        aria-label="AI Tutor"
-      >
-        {open
-          ? <X className="w-5 h-5 text-foreground" />
-          : <GraduationCap className="w-5 h-5 text-primary-foreground" />}
-        {unread > 0 && !open && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
 
       <style>{`
         @keyframes aiChatPopUp {
