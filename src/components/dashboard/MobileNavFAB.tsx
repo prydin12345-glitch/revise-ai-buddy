@@ -150,7 +150,7 @@ export const MobileNavFAB = () => {
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={() => setOpen(prev => !prev)}
-        className={`fixed z-[100] xl:hidden flex items-center justify-center w-[52px] h-[52px] rounded-full border-none shadow-xl cursor-pointer transition-colors duration-200 ${
+        className={`fixed z-[100] hidden md:flex lg:hidden items-center justify-center w-[52px] h-[52px] rounded-full border-none shadow-xl cursor-pointer transition-colors duration-200 ${
           open ? 'bg-foreground' : 'bg-primary'
         }`}
         style={{
