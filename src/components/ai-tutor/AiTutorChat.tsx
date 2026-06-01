@@ -10,6 +10,12 @@ interface Message {
   streaming?: boolean;
 }
 
+interface AiTutorChatProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUnreadChange?: (count: number) => void;
+}
+
 const SUGGESTIONS = [
   'Explain my last wrong answer',
   'What should I revise this week?',
@@ -17,8 +23,7 @@ const SUGGESTIONS = [
   'How am I performing overall?',
 ];
 
-export const AiTutorChat = () => {
-  const [open, setOpen] = useState(false);
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
