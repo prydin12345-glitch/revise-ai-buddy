@@ -292,6 +292,42 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
 
+              {/* Create dropdown — hidden on mobile (speed-dial FAB handles it there) */}
+              {primaryRole !== 'tutor' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="hidden md:flex items-center gap-1.5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+                      <Plus className="w-3.5 h-3.5" /> Create
+                      <ChevronDown className="w-3 h-3 opacity-80" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
+                    <DropdownMenuItem onClick={() => navigate("/upload")} className="cursor-pointer gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Mock Exam</span>
+                        <span className="text-xs text-muted-foreground">Full timed paper</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/create-practice-questions")} className="cursor-pointer gap-2">
+                      <ListChecks className="w-4 h-4 text-success" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Practice Quiz</span>
+                        <span className="text-xs text-muted-foreground">Quick drill or quiz</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setJoinClassModalOpen(true)} className="cursor-pointer gap-2">
+                      <Users className="w-4 h-4 text-[#a78bfa]" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Join Class</span>
+                        <span className="text-xs text-muted-foreground">Enter an invite code</span>
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               <NotificationDropdown />
 
               <DropdownMenu>
