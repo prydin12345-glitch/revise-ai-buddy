@@ -14,19 +14,20 @@ interface Opt {
   key: string;
   dx: number;
   dy: number;
-  className: string; // background
+  className: string;
   icon: LucideIcon;
   label: string;
   action?: () => void;
+  badge?: number;
 }
 
-export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI }: MobileSpeedDialProps) {
+export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
   const opts: Opt[] = [
     { key: "exam", dx: 4, dy: -106, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
     { key: "quiz", dx: -68, dy: -64, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai", dx: -98, dy: 4, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI },
+    { key: "ai", dx: -98, dy: 4, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
