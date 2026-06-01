@@ -18,7 +18,7 @@ interface MobileTabBarProps {
 
 export default function MobileTabBar({ active, onNavigate }: MobileTabBarProps) {
   return (
-    <nav className="absolute inset-x-0 bottom-0 z-30 flex h-[84px] border-t border-border bg-[hsl(var(--background)/0.92)] px-1.5 pb-[22px] pt-2 backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[84px] border-t border-border bg-[hsl(var(--background)/0.92)] px-1.5 pb-[22px] pt-2 backdrop-blur-xl md:hidden" style={{ paddingBottom: 'calc(22px + env(safe-area-inset-bottom, 0px))' }}>
       {TABS.map((t) => {
         const on = active === t.key;
         const Icon = t.icon;

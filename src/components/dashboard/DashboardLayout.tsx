@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen, Sun, Moon } from "lucide-react";
+import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen, Sun, Moon, Plus, ChevronDown, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { MobileNavFAB } from "./MobileNavFAB";
+import MobileBottomNav from "./mobile/MobileBottomNav";
+import MobileSpeedDial from "./mobile/MobileSpeedDial";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
@@ -119,9 +121,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen flex w-full bg-background">
-      {/* Sidebar - Hidden on mobile */}
+      {/* Sidebar - visible from lg (iPad horizontal) and up */}
       <aside
-        className={`hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
+        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
@@ -240,7 +242,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
@@ -290,6 +292,42 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
 
+              {/* Create dropdown — hidden on mobile (speed-dial FAB handles it there) */}
+              {primaryRole !== 'tutor' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="hidden md:flex items-center gap-1.5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+                      <Plus className="w-3.5 h-3.5" /> Create
+                      <ChevronDown className="w-3 h-3 opacity-80" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-card border-border/50">
+                    <DropdownMenuItem onClick={() => navigate("/upload")} className="cursor-pointer gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Mock Exam</span>
+                        <span className="text-xs text-muted-foreground">Full timed paper</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/create-practice-questions")} className="cursor-pointer gap-2">
+                      <ListChecks className="w-4 h-4 text-success" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Practice Quiz</span>
+                        <span className="text-xs text-muted-foreground">Quick drill or quiz</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setJoinClassModalOpen(true)} className="cursor-pointer gap-2">
+                      <Users className="w-4 h-4 text-[#a78bfa]" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Join Class</span>
+                        <span className="text-xs text-muted-foreground">Enter an invite code</span>
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               <NotificationDropdown />
 
               <DropdownMenu>
@@ -317,11 +355,26 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="p-4 pb-6 xl:p-6 overflow-y-auto">{children}</main>
+        {/* Page content — extra bottom padding on mobile to clear the tab bar */}
+        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile Floating Nav */}
+      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB */}
+      {primaryRole !== 'tutor' && (
+        <>
+          <MobileBottomNav />
+          <MobileSpeedDial
+            onCreateExam={() => navigate('/upload')}
+            onCreateQuiz={() => navigate('/create-practice-questions')}
+            onAskAI={() => {
+              const btn = document.querySelector<HTMLButtonElement>('[data-ai-tutor-trigger]');
+              btn?.click();
+            }}
+          />
+        </>
+      )}
+
+      {/* Tablet / tutor nav drawer FAB (md–lg only after edit) */}
       <MobileNavFAB />
 
       {/* AI Tutor Chat — appears on every authenticated page */}
