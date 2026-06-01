@@ -10,6 +10,12 @@ interface Message {
   streaming?: boolean;
 }
 
+interface AiTutorChatProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUnreadChange?: (count: number) => void;
+}
+
 const SUGGESTIONS = [
   'Explain my last wrong answer',
   'What should I revise this week?',
@@ -17,8 +23,7 @@ const SUGGESTIONS = [
   'How am I performing overall?',
 ];
 
-export const AiTutorChat = () => {
-  const [open, setOpen] = useState(false);
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,6 +53,10 @@ export const AiTutorChat = () => {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
+
+  useEffect(() => {
+    onUnreadChange?.(unread);
+  }, [unread, onUnreadChange]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -209,7 +218,7 @@ export const AiTutorChat = () => {
                 </button>
               )}
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => onOpenChange(false)}
                 className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Close chat"
               >
@@ -315,28 +324,6 @@ export const AiTutorChat = () => {
         </div>
       )}
 
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 w-13 h-13 rounded-full flex items-center justify-center z-[9999] shadow-lg transition-transform hover:scale-105"
-        style={{
-          width: 52,
-          height: 52,
-          background: open ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
-          boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)',
-        }}
-        title="AI Tutor"
-        aria-label="AI Tutor"
-      >
-        {open
-          ? <X className="w-5 h-5 text-foreground" />
-          : <GraduationCap className="w-5 h-5 text-primary-foreground" />}
-        {unread > 0 && !open && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
 
       <style>{`
         @keyframes aiChatPopUp {

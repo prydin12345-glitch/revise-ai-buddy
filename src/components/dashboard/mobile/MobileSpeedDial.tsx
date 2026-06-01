@@ -7,25 +7,27 @@ interface MobileSpeedDialProps {
   onCreateExam?: () => void;
   onCreateQuiz?: () => void;
   onAskAI?: () => void;
+  aiUnreadCount?: number;
 }
 
 interface Opt {
   key: string;
   dx: number;
   dy: number;
-  className: string; // background
+  className: string;
   icon: LucideIcon;
   label: string;
   action?: () => void;
+  badge?: number;
 }
 
-export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI }: MobileSpeedDialProps) {
+export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
   const opts: Opt[] = [
     { key: "exam", dx: 4, dy: -106, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
     { key: "quiz", dx: -68, dy: -64, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai", dx: -98, dy: 4, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI },
+    { key: "ai", dx: -98, dy: 4, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
@@ -58,6 +60,11 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI }:
                 {o.label}
               </span>
               <Icon className="h-[21px] w-[21px]" />
+              {o.badge && o.badge > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
+                  {o.badge > 9 ? '9+' : o.badge}
+                </span>
+              )}
             </button>
           );
         })}
