@@ -9,7 +9,7 @@ interface CreateBannerProps {
 
 export default function CreateBanner({ onCreateExam, onCreateQuiz }: CreateBannerProps) {
   return (
-    <section className="relative flex flex-col items-start gap-5 overflow-hidden rounded-[20px] border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:px-6">
+    <section className="relative flex flex-col items-start gap-5 overflow-hidden rounded-[20px] border border-border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:px-6">
       {/* soft glow */}
       <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-primary/15 blur-2xl" />
 
