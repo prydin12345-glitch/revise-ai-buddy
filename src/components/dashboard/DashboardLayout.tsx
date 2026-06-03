@@ -358,7 +358,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — extra bottom padding on mobile to clear the tab bar */}
-        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-y-auto">{children}</main>
+        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
 
       {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes) */}
