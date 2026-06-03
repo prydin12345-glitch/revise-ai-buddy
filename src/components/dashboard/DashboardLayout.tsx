@@ -244,7 +244,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+      <div className={`flex-1 min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
@@ -358,7 +358,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — extra bottom padding on mobile to clear the tab bar */}
-        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-y-auto">{children}</main>
+        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
 
       {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes) */}

@@ -1,8 +1,9 @@
 // src/components/dashboard/mobile/MobileActivityStats.tsx
-// Horizontal swipe pager: "Recent Activity" (Mock Exams / Quizzes toggle) ⇄
-// "Statistics" (subject donut). Blue dots are the only indicator.
-import { useRef, useState } from "react";
-import MobileSubjectDonut from "./MobileSubjectDonut";
+// Mobile "Recent Activity" / "Statistics" panel. Tab-toggled (no horizontal
+// swipe) so the view stays put. Statistics uses the full desktop SubjectDonut
+// component so users get the same Subjects → Exam Profiles → Topics drill-down.
+import { useState } from "react";
+import SubjectDonut from "../SubjectDonut";
 import type { MockExam, Quiz, Subject } from "../types";
 
 interface Props {
@@ -15,39 +16,33 @@ interface Props {
 }
 
 export default function MobileActivityStats({
-  mockExams, quizzes, subjects, averageScore = "73%", onOpenExam, onStartQuiz,
+  mockExams, quizzes, subjects, averageScore = "—", onOpenExam, onStartQuiz,
 }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pg, setPg] = useState(0);
-  const go = (i: number) => ref.current?.scrollTo({ left: i * ref.current.clientWidth, behavior: "smooth" });
-  const onScroll = () => { const el = ref.current; if (el) setPg(Math.round(el.scrollLeft / el.clientWidth)); };
+  const [page, setPage] = useState<0 | 1>(0);
 
   return (
-    <section>
+    <section className="min-w-0">
       <div className="mb-3 flex gap-[18px] px-[18px]">
-        <button onClick={() => go(0)} className={`relative pb-[5px] text-base font-extrabold tracking-tight ${pg === 0 ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-[2.5px] after:rounded-full after:bg-primary" : "text-muted-foreground"}`}>
+        <button
+          onClick={() => setPage(0)}
+          className={`relative pb-[5px] text-base font-extrabold tracking-tight ${page === 0 ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-[2.5px] after:rounded-full after:bg-primary" : "text-muted-foreground"}`}
+        >
           Recent Activity
         </button>
-        <button onClick={() => go(1)} className={`relative pb-[5px] text-base font-extrabold tracking-tight ${pg === 1 ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-[2.5px] after:rounded-full after:bg-primary" : "text-muted-foreground"}`}>
+        <button
+          onClick={() => setPage(1)}
+          className={`relative pb-[5px] text-base font-extrabold tracking-tight ${page === 1 ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-[2.5px] after:rounded-full after:bg-primary" : "text-muted-foreground"}`}
+        >
           Statistics
         </button>
       </div>
 
-      <div ref={ref} onScroll={onScroll} className="flex snap-x snap-mandatory overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        <div className="w-full flex-none snap-center px-[18px]">
+      <div className="px-[18px]">
+        {page === 0 ? (
           <ActivityCard mockExams={mockExams} quizzes={quizzes} onOpenExam={onOpenExam} onStartQuiz={onStartQuiz} />
-        </div>
-        <div className="w-full flex-none snap-center px-[18px]">
-          <div className="rounded-[20px] border border-border bg-card p-[18px]">
-            <p className="mb-3.5 text-xs font-semibold text-muted-foreground">Share of study time · tap a slice</p>
-            <MobileSubjectDonut subjects={subjects} centerValue={averageScore} />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3.5 flex justify-center gap-1.5">
-        <span className={`h-1.5 rounded-full transition-all ${pg === 0 ? "w-[18px] bg-primary" : "w-1.5 bg-[hsl(var(--border))]"}`} />
-        <span className={`h-1.5 rounded-full transition-all ${pg === 1 ? "w-[18px] bg-primary" : "w-1.5 bg-[hsl(var(--border))]"}`} />
+        ) : (
+          <SubjectDonut subjects={subjects} centerValue={averageScore} />
+        )}
       </div>
     </section>
   );
@@ -60,10 +55,10 @@ function ActivityCard({
   return (
     <div className="rounded-[20px] border border-border bg-card p-[18px]">
       <div className="flex gap-1 rounded-[13px] border border-border bg-panel-2 p-1">
-        <button onClick={() => setTab("exams")} className={`flex flex-1 items-center justify-center gap-2 rounded-[9px] py-2.5 text-[13px] font-bold transition-colors ${tab === "exams" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground"}`}>
+        <button onClick={() => setTab("exams")} className={`flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[9px] py-2.5 text-[13px] font-bold transition-colors ${tab === "exams" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground"}`}>
           Mock Exams <Count active={tab === "exams"}>{mockExams.length}</Count>
         </button>
-        <button onClick={() => setTab("quizzes")} className={`flex flex-1 items-center justify-center gap-2 rounded-[9px] py-2.5 text-[13px] font-bold transition-colors ${tab === "quizzes" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground"}`}>
+        <button onClick={() => setTab("quizzes")} className={`flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[9px] py-2.5 text-[13px] font-bold transition-colors ${tab === "quizzes" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground"}`}>
           Quizzes <Count active={tab === "quizzes"}>{quizzes.length}</Count>
         </button>
       </div>
