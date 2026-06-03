@@ -37,11 +37,11 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, a
       {/* backdrop */}
       <div
         onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-[54] bg-black/45 transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-[54] bg-black/45 transition-opacity duration-200 ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
-      <div className="fixed bottom-[104px] right-[18px] z-[55] h-14 w-14 md:hidden">
+      <div className="fixed bottom-[104px] right-[18px] z-[55] h-14 w-14 md:bottom-6">
         {opts.map((o, i) => {
           const Icon = o.icon;
           return (
