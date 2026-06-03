@@ -361,7 +361,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB */}
+      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes) */}
       {primaryRole !== 'tutor' && (
         <>
           <MobileBottomNav />
@@ -376,27 +376,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       {/* Tablet / tutor nav drawer FAB (md–lg only after edit) */}
       <MobileNavFAB />
-
-      {/* Desktop / tablet AI Tutor FAB (md+) — mobile uses SpeedDial Ask AI */}
-      <button
-        onClick={() => setAiChatOpen(o => !o)}
-        className="hidden md:flex fixed bottom-6 right-6 w-[52px] h-[52px] rounded-full items-center justify-center z-[9999] shadow-lg transition-transform hover:scale-105"
-        style={{
-          background: aiChatOpen ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
-          boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)',
-        }}
-        title="AI Tutor"
-        aria-label="AI Tutor"
-      >
-        {aiChatOpen
-          ? <X className="w-5 h-5 text-foreground" />
-          : <GraduationCap className="w-5 h-5 text-primary-foreground" />}
-        {aiUnread > 0 && !aiChatOpen && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center border-2 border-background">
-            {aiUnread > 9 ? '9+' : aiUnread}
-          </span>
-        )}
-      </button>
 
       {/* AI Tutor Chat — appears on every authenticated page */}
       <AiTutorChat

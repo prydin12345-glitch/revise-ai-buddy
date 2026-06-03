@@ -24,7 +24,7 @@ export default function CreateBanner({ onCreateExam, onCreateQuiz }: CreateBanne
         </p>
       </div>
 
-      <div className="z-10 flex w-full flex-wrap gap-3 lg:w-auto">
+      <div className="z-10 flex w-full flex-wrap gap-3 lg:w-auto lg:flex-nowrap">
         <Button
           onClick={onCreateExam}
           className="h-11 flex-1 gap-2 rounded-xl bg-primary px-[18px] text-sm font-bold text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90 sm:flex-none"
