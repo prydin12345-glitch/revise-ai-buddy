@@ -342,6 +342,44 @@ const ChatBody = ({
 
     {/* Input */}
     <div className="border-t border-border p-3 bg-background/95 flex-shrink-0">
+      {activeQuestionChip && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border flex-1 min-w-0 ${
+              activeQuestionChip.isCorrect
+                ? 'bg-emerald-500/10 border-emerald-500/20'
+                : 'bg-red-500/10 border-red-500/20'
+            }`}
+          >
+            <div
+              className={`px-1.5 h-4 rounded flex items-center justify-center flex-shrink-0 text-[9px] font-bold ${
+                activeQuestionChip.isCorrect
+                  ? 'bg-emerald-500/20 text-emerald-600'
+                  : 'bg-red-500/20 text-red-500'
+              }`}
+            >
+              Q{activeQuestionChip.number}
+            </div>
+            <span className="text-[11px] text-foreground truncate flex-1">
+              {activeQuestionChip.text}
+            </span>
+            <span
+              className={`text-[10px] font-semibold flex-shrink-0 ${
+                activeQuestionChip.isCorrect ? 'text-emerald-600' : 'text-red-500'
+              }`}
+            >
+              {activeQuestionChip.score}/{activeQuestionChip.totalMarks}
+            </span>
+          </div>
+          <button
+            onClick={onClearChip}
+            aria-label="Clear question context"
+            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
       {!rateLimitHit && messagesSentToday > 40 && (
         <div className="text-[10px] text-muted-foreground text-right mb-1.5">
           {Math.max(0, 50 - messagesSentToday)} messages remaining today
