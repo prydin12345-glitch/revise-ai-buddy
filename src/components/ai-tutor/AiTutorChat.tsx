@@ -326,7 +326,7 @@ const ChatBody = ({
   </>
 );
 
-export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -351,6 +351,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
 
   // Session summary state
   const [savedSummary, setSavedSummary] = useState<SessionSummary | null>(null);
+
+  // Tabs / history / resume review state
+  const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
+  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; updated_at: string }>>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [lastReview, setLastReview] = useState<LastReview | null>(null);
+  const autoPickerFiredRef = useRef(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
