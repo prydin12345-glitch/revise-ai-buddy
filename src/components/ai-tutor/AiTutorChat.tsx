@@ -333,7 +333,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
   const [unread, setUnread] = useState(0);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [messagesSentToday, setMessagesSentToday] = useState(0);
-  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
