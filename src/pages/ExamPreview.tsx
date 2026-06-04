@@ -225,7 +225,7 @@ const ExamPreview = () => {
 
                     {/* Circuit diagram panel */}
                     {(() => {
-                      const circuitConfig = getCircuitConfig(q);
+                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? '');
                       if (!circuitConfig) return null;
                       return <CircuitFigurePanel config={circuitConfig} />;
                     })()}
