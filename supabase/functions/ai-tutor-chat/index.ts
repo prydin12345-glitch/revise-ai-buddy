@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversationHistory, selectedExamId, selectedSetId, sessionId } = await req.json();
+    const { message, conversationHistory, selectedExamId, selectedSetId, sessionId, selectedTitle } = await req.json();
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: 'Message required' }), {
         status: 400,
