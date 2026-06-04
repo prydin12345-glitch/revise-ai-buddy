@@ -996,35 +996,16 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const handleQuestionClick = useCallback((question: any) => {
     setActiveQuestionId(question.id);
 
-    const qText: string = String(question.questionText ?? '');
-    const qShort = qText.length > 80 ? qText.slice(0, 80) + '…' : qText;
-    const studentAns: string = String(question.studentAnswer ?? '');
-    const ansShort = studentAns.length > 60 ? studentAns.slice(0, 60) + '…' : studentAns;
+    const starter = question.isCorrect
+      ? `Can you explain Q${question.questionNumber} in more detail?`
+      : `Why was I wrong on Q${question.questionNumber}?`;
 
-    const statusNote = question.isCorrect
-      ? `I got this right (${question.score}/${question.totalMarks} marks)`
-      : question.isPartial
-        ? `I got partial marks (${question.score}/${question.totalMarks})`
-        : `I got this wrong (${question.score}/${question.totalMarks} marks)`;
-
-    const inputText = question.isCorrect
-      ? `Q${question.questionNumber}: ${qShort} — ${statusNote}. Can you explain this?`
-      : `Q${question.questionNumber}: ${qShort} — I wrote "${ansShort}". ${statusNote}. What did I do wrong?`;
-
-    setActiveQuestionChip({
-      number: question.questionNumber,
-      text: qText.length > 60 ? qText.slice(0, 60) + '…' : qText,
-      isCorrect: !!question.isCorrect,
-      score: Number(question.score ?? 0),
-      totalMarks: Number(question.totalMarks ?? 0),
-    });
-
-    setInput(inputText);
+    setInput(starter);
 
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        const len = inputText.length;
+        const len = starter.length;
         try { inputRef.current.setSelectionRange(len, len); } catch { /* ignore */ }
         inputRef.current.style.height = 'auto';
         inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
