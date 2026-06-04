@@ -159,6 +159,29 @@ const ChatBody = ({
           );
         }
 
+        if (msg.type === 'followup_question' && msg.followupQuestion) {
+          return (
+            <div
+              key={msg.id}
+              className="flex gap-2.5 items-start"
+              style={{ animation: 'aiMessageSlide 0.3s ease both' }}
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0 max-w-[90%]">
+                <FollowUpQuestionCard
+                  question={msg.followupQuestion}
+                  answered={msg.followupAnswer}
+                  onAnswer={(answer, isCorrect) =>
+                    handleFollowupAnswer(msg.id, msg.followupQuestion!, answer, isCorrect)
+                  }
+                />
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             key={msg.id}
