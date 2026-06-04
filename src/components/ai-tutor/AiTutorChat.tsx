@@ -309,6 +309,9 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [splitViewTotalMarks, setSplitViewTotalMarks] = useState(0);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
 
+  // Session summary state
+  const [savedSummary, setSavedSummary] = useState<SessionSummary | null>(null);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const session = useSession();
@@ -321,6 +324,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedExamId(null);
     setSelectedSetId(null);
     setSelectedTitle(null);
+    setSplitViewOpen(false);
     setActiveQuestionId(null);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
