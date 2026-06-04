@@ -752,6 +752,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     if (!msg || loading || !session) return;
 
     setInput('');
+    setActiveQuestionChip(null);
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
     setMessages(prev => [...prev, {
