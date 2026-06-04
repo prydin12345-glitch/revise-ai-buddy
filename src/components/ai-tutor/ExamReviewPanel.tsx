@@ -164,7 +164,10 @@ export const ExamReviewPanel = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 relative overflow-hidden min-h-0">
+        <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+        <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50">
+
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full p-6">
             <p className="text-[12px] text-muted-foreground">No questions match this filter</p>
