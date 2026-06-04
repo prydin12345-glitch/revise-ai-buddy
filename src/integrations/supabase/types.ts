@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           role: string
+          session_id: string | null
           user_id: string
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string
           id?: string
           role: string
+          session_id?: string | null
           user_id: string
         }
         Update: {
@@ -34,6 +36,7 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+          session_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -52,6 +55,45 @@ export type Database = {
         Update: {
           date?: string
           message_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_tutor_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          message_count: number | null
+          preview: string | null
+          selected_exam_id: string | null
+          selected_set_id: string | null
+          selected_title: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          preview?: string | null
+          selected_exam_id?: string | null
+          selected_set_id?: string | null
+          selected_title?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          preview?: string | null
+          selected_exam_id?: string | null
+          selected_set_id?: string | null
+          selected_title?: string | null
+          title?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

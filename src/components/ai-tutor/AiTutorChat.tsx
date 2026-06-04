@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
-import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
@@ -23,14 +23,27 @@ interface Message {
     isCorrect: boolean;
     explanation: string;
   };
+  timestamp?: Date;
 }
 
 const SESSION_SUMMARY_KEY = 'examly_last_session_summary';
+const LAST_REVIEW_KEY = 'examly_last_review';
+
+interface LastReview {
+  mode: 'exam' | 'quiz';
+  submissionId: string;
+  contextId: string;
+  title: string;
+  totalScore?: number;
+  totalMarks?: number;
+  timestamp: number;
+}
 
 interface AiTutorChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUnreadChange?: (count: number) => void;
+  initialMode?: 'review' | null;
 }
 
 const SUGGESTIONS = [
@@ -57,6 +70,8 @@ interface ChatBodyProps {
   savedSummary: SessionSummary | null;
   onDismissSummary: () => void;
   onRevisitSummary: () => void;
+  lastReview?: LastReview | null;
+  onResumeReview?: () => void;
 }
 
 const ChatBody = ({
@@ -75,10 +90,28 @@ const ChatBody = ({
   savedSummary,
   onDismissSummary,
   onRevisitSummary,
+  lastReview,
+  onResumeReview,
 }: ChatBodyProps) => (
   <>
     {/* Messages */}
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+      {messages.length === 0 && lastReview && onResumeReview && (
+        <button
+          onClick={onResumeReview}
+          className="flex items-center gap-2.5 w-full px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all duration-150 group mb-2"
+        >
+          <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <RotateCcw size={13} className="text-primary" />
+          </div>
+          <div className="text-left min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-primary">Resume review</div>
+            <div className="text-[11px] text-muted-foreground truncate">{lastReview.title}</div>
+          </div>
+          <ChevronRight size={13} className="text-primary/60 group-hover:text-primary transition-colors" />
+        </button>
+      )}
+
       {messages.length === 0 && savedSummary && (
         <SessionSummaryCard
           summary={savedSummary}
@@ -193,39 +226,46 @@ const ChatBody = ({
                 <GraduationCap className="w-4 h-4 text-primary" />
               </div>
             )}
-            <div
-              className={`max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
-                msg.role === 'user'
-                  ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
-                  : 'bg-muted text-foreground rounded-2xl rounded-tl-sm'
-              }`}
-            >
-              {msg.role === 'assistant' ? (
-                <>
-                  {msg.streaming && !msg.content ? (
-                    <span className="inline-flex gap-1 items-center py-1">
-                      {[0, 1, 2].map(j => (
-                        <span
-                          key={j}
-                          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
-                          style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  )}
-                  {msg.streaming && msg.content && (
-                    <span
-                      className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
-                      style={{ animation: 'aiCursorBlink 1s infinite' }}
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+            <div className={`flex flex-col max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div
+                className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm shadow-sm'
+                    : 'bg-muted/60 border border-border/60 text-foreground rounded-2xl rounded-tl-sm'
+                }`}
+              >
+                {msg.role === 'assistant' ? (
+                  <>
+                    {msg.streaming && !msg.content ? (
+                      <span className="inline-flex gap-1 items-center py-1">
+                        {[0, 1, 2].map(j => (
+                          <span
+                            key={j}
+                            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
+                            style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
+                    {msg.streaming && msg.content && (
+                      <span
+                        className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
+                        style={{ animation: 'aiCursorBlink 1s infinite' }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
+              </div>
+              {msg.timestamp && !msg.streaming && (
+                <div className="text-[9px] text-muted-foreground mt-0.5 px-1">
+                  {msg.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                </div>
               )}
             </div>
           </div>
@@ -286,14 +326,14 @@ const ChatBody = ({
   </>
 );
 
-export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [messagesSentToday, setMessagesSentToday] = useState(0);
-  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
@@ -312,6 +352,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   // Session summary state
   const [savedSummary, setSavedSummary] = useState<SessionSummary | null>(null);
 
+  // Tabs / history / resume review state
+  const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
+  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; updated_at: string }>>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [lastReview, setLastReview] = useState<LastReview | null>(null);
+  const autoPickerFiredRef = useRef(false);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const session = useSession();
@@ -326,12 +373,83 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedTitle(null);
     setSplitViewOpen(false);
     setActiveQuestionId(null);
+    setActiveTab('chat');
+    autoPickerFiredRef.current = false;
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const handleClearChat = () => {
     setMessages([]);
   };
+
+  const loadSessions = useCallback(async () => {
+    if (!session?.user?.id) return;
+    setSessionsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('ai_tutor_sessions')
+        .select('id, title, preview, selected_title, updated_at')
+        .eq('user_id', session.user.id)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      setSessions(data ?? []);
+    } catch (err) {
+      console.error('Failed to load sessions:', err);
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'history') loadSessions();
+  }, [activeTab, loadSessions]);
+
+  const openSession = useCallback(async (s: { id: string }) => {
+    const { data } = await supabase
+      .from('ai_tutor_messages')
+      .select('role, content, created_at')
+      .eq('session_id', s.id)
+      .order('created_at', { ascending: true });
+    if (data) {
+      setMessages(data.map((m: any, j: number) => ({
+        id: `history-${j}`,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        type: 'text',
+        timestamp: m.created_at ? new Date(m.created_at) : undefined,
+      })));
+      setSessionId(s.id);
+    }
+    setActiveTab('chat');
+  }, []);
+
+  // Load lastReview from localStorage on open
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const stored = localStorage.getItem(LAST_REVIEW_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as LastReview;
+        if (Date.now() - (parsed.timestamp ?? 0) < 3 * 24 * 60 * 60 * 1000) {
+          setLastReview(parsed);
+          return;
+        }
+      }
+      setLastReview(null);
+    } catch { setLastReview(null); }
+  }, [open]);
+
+  const handleResumeReview = useCallback(() => {
+    if (!lastReview) return;
+    setSplitViewMode(lastReview.mode);
+    setSplitViewContextId(lastReview.contextId || lastReview.submissionId);
+    setSplitViewTotalScore(lastReview.totalScore ?? 0);
+    setSplitViewTotalMarks(lastReview.totalMarks ?? 0);
+    setSelectedTitle(lastReview.title);
+    if (lastReview.mode === 'exam') setSelectedExamId(lastReview.submissionId);
+    else setSelectedSetId(lastReview.submissionId);
+    setSplitViewOpen(true);
+  }, [lastReview]);
 
   useEffect(() => {
     if (open) {
@@ -436,6 +554,28 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     if (open) loadPickerData();
   }, [open, loadPickerData]);
 
+  // Auto-trigger picker when chat opened in review mode
+  useEffect(() => {
+    if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
+    if (!pickerDataLoaded) return;
+    if (messages.length > 0) return;
+    const hasExams = completedExams.length > 0;
+    const hasQuizzes = completedQuizzes.length > 0;
+    if (!hasExams && !hasQuizzes) return;
+    autoPickerFiredRef.current = true;
+    const useExams = completedExams.length >= completedQuizzes.length;
+    setTimeout(() => {
+      setMessages([{
+        id: `autopicker-${Date.now()}`,
+        role: 'assistant',
+        content: 'What would you like to review?',
+        type: useExams ? 'exam_picker' : 'quiz_picker',
+        pickerData: useExams ? completedExams : completedQuizzes,
+      }]);
+      setActiveTab('chat');
+    }, 250);
+  }, [open, initialMode, pickerDataLoaded, completedExams, completedQuizzes, messages.length]);
+
   const streamAiResponse = useCallback(async (
     msg: string,
     history: Array<{ role: string; content: string }>,
@@ -469,6 +609,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
             conversationHistory: history,
             selectedExamId: examId ?? undefined,
             selectedSetId: setId ?? undefined,
+            sessionId,
           }),
         }
       );
@@ -540,7 +681,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     } finally {
       setLoading(false);
     }
-  }, [open, splitViewOpen]);
+  }, [open, splitViewOpen, sessionId]);
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -554,6 +695,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       role: 'user',
       content: msg,
       type: 'text',
+      timestamp: new Date(),
     }]);
 
     const intent = detectIntent(msg);
@@ -614,12 +756,25 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedTitle(item.title);
 
     // Open split view using actual exam.id for question lookups
+    const ctxId = item.examId || item.id;
     setSplitViewMode('exam');
-    setSplitViewContextId(item.examId || item.id);
+    setSplitViewContextId(ctxId);
     setSplitViewTotalScore(item.score);
     setSplitViewTotalMarks(item.totalMarks);
     setSplitViewOpen(true);
     setActiveQuestionId(null);
+
+    try {
+      localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
+        mode: 'exam',
+        submissionId: item.id,
+        contextId: ctxId,
+        title: item.title,
+        totalScore: item.score,
+        totalMarks: item.totalMarks,
+        timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
 
     const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}%. Walk me through what I got wrong.`;
 
@@ -636,6 +791,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
         role: 'user',
         content: followUp,
         type: 'text',
+        timestamp: new Date(),
       },
     ]);
 
@@ -655,6 +811,16 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSplitViewOpen(true);
     setActiveQuestionId(null);
 
+    try {
+      localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
+        mode: 'quiz',
+        submissionId: item.id,
+        contextId: item.id,
+        title: item.title,
+        timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
+
     const followUp = `Let's review my ${item.title} practice quiz. Walk me through what I got wrong.`;
 
     setMessages(prev => [
@@ -670,6 +836,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
         role: 'user',
         content: followUp,
         type: 'text',
+        timestamp: new Date(),
       },
     ]);
 
@@ -696,6 +863,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       role: 'user',
       content: questionContext,
       type: 'text',
+      timestamp: new Date(),
     }]);
 
     streamAiResponse(questionContext, [], selectedExamId, selectedSetId);
@@ -841,7 +1009,53 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       savedSummary={savedSummary}
       onDismissSummary={handleDismissSummary}
       onRevisitSummary={handleRevisitSummary}
+      lastReview={lastReview}
+      onResumeReview={handleResumeReview}
     />
+  );
+
+  const historyPane = (
+    <div className="flex-1 overflow-y-auto">
+      {sessionsLoading ? (
+        <div className="flex items-center justify-center h-24">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-32 gap-2">
+          <p className="text-sm text-muted-foreground">No past conversations yet</p>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className="text-[12px] text-primary hover:underline"
+          >
+            Start a new chat
+          </button>
+        </div>
+      ) : (
+        sessions.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => openSession(s)}
+            className="w-full text-left px-4 py-3.5 border-b border-border hover:bg-muted/40 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[12.5px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                  {s.selected_title ?? s.title ?? 'Chat session'}
+                </div>
+                {s.preview && (
+                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {s.preview}
+                  </div>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
+                {new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </div>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
   );
 
   return (
@@ -866,72 +1080,94 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
         <div
           className="fixed bg-background border border-border shadow-2xl flex flex-col z-[9998] rounded-2xl overflow-hidden
             inset-x-3 bottom-24 top-20
-            sm:inset-x-auto sm:right-6 sm:bottom-24 sm:top-auto sm:w-[400px] sm:h-[600px]"
+            sm:inset-x-auto sm:right-6 sm:bottom-24 sm:top-auto sm:w-[420px] sm:h-[640px]"
           style={{ animation: 'aiChatPopUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative flex-shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
-                  <GraduationCap className="w-4 h-4 text-primary-foreground" strokeWidth={2.2} />
+          <div className="flex flex-col border-b border-border bg-background/95 backdrop-blur-sm flex-shrink-0">
+            <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+                    <GraduationCap className="w-4 h-4 text-primary-foreground" strokeWidth={2.2} />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+                <div className="leading-tight min-w-0">
+                  <div className="text-sm font-semibold text-foreground">AI Tutor</div>
+                  <div className="text-[11px] text-emerald-500">Online</div>
+                </div>
               </div>
-              <div className="leading-tight min-w-0">
-                <div className="text-sm font-semibold text-foreground">AI Tutor</div>
-                <div className="text-[11px] text-muted-foreground">Online</div>
+
+              {selectedTitle && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 max-w-[120px] flex-shrink min-w-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                  <span className="text-[10px] text-primary font-medium truncate">{selectedTitle}</span>
+                  <button
+                    onClick={() => {
+                      setSelectedExamId(null);
+                      setSelectedSetId(null);
+                      setSelectedTitle(null);
+                    }}
+                    className="flex-shrink-0 text-primary/60 hover:text-primary transition-colors"
+                    aria-label="Clear context"
+                  >
+                    <X size={9} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={handleNewChat}
+                  title="New chat"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                >
+                  <Plus className="w-3 h-3" />
+                  New
+                </button>
+                {messages.length > 0 && activeTab === 'chat' && (
+                  <button
+                    onClick={handleClearChat}
+                    title="Clear chat"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={handleClose}
+                  aria-label="Close chat"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {selectedTitle && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 max-w-[140px] flex-shrink min-w-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                <span className="text-[10px] text-primary font-medium truncate">{selectedTitle}</span>
+            {/* Tab bar */}
+            <div className="flex px-4 gap-4">
+              {([
+                { id: 'chat' as const, label: 'Chat' },
+                { id: 'history' as const, label: 'History' },
+              ]).map(tab => (
                 <button
-                  onClick={() => {
-                    setSelectedExamId(null);
-                    setSelectedSetId(null);
-                    setSelectedTitle(null);
-                  }}
-                  className="flex-shrink-0 text-primary/60 hover:text-primary transition-colors"
-                  aria-label="Clear context"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`pb-2 text-[12px] font-semibold border-b-2 transition-all ${
+                    activeTab === tab.id
+                      ? 'text-primary border-primary'
+                      : 'text-muted-foreground border-transparent hover:text-foreground'
+                  }`}
                 >
-                  <X size={9} />
+                  {tab.label}
                 </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={handleNewChat}
-                title="New chat"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
-              >
-                <Plus className="w-3 h-3" />
-                New
-              </button>
-              {messages.length > 0 && (
-                <button
-                  onClick={handleClearChat}
-                  title="Clear chat"
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Clear
-                </button>
-              )}
-              <button
-                onClick={handleClose}
-                aria-label="Close chat"
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              ))}
             </div>
           </div>
 
-          {chatBody}
+          {activeTab === 'chat' ? chatBody : historyPane}
         </div>
       )}
 

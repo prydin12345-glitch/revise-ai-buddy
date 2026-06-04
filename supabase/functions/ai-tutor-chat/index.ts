@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversationHistory, selectedExamId, selectedSetId } = await req.json();
+    const { message, conversationHistory, selectedExamId, selectedSetId, sessionId } = await req.json();
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: 'Message required' }), {
         status: 400,
@@ -251,8 +251,14 @@ BEHAVIOUR RULES:
 - Never refuse a question as out of scope
 - Never give generic revision advice when you have specific data to reference
 
+RESPONSE LENGTH — CRITICAL:
+- Default response: maximum 3 sentences or 60 words. No exceptions.
+- If the student asks "explain in detail" or "walk me through" or "why": maximum 120 words.
+- If reviewing a specific question: state what was wrong in one sentence, state the correct answer in one sentence, give one sentence of explanation. That is three sentences total.
+- Never repeat yourself. Never summarise what you just said. Never add encouragement after the answer — just stop.
+- Short and direct always wins over long and thorough.
+
 RESPONSE STYLE:
-- Keep responses under 150 words unless the student asks for a detailed explanation
 - Use plain text — no LaTeX, no markdown headers, no bullet symbols unless the student asks
 - Be direct and specific — always reference actual question data when available
 - When offering practice questions say "I can generate practice questions on this — just let me know"
@@ -393,7 +399,7 @@ Rules for follow-up questions:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages,
-          max_tokens: 600,
+          max_tokens: 250,
           temperature: 0.7,
           stream: true,
         }),
@@ -428,7 +434,20 @@ Rules for follow-up questions:
       user_id: user.id,
       role: 'user',
       content: message,
+      session_id: sessionId ?? null,
     });
+
+    if (sessionId) {
+      await supabase.from('ai_tutor_sessions').upsert({
+        id: sessionId,
+        user_id: user.id,
+        title: (selectedExamId || selectedSetId) ? 'Review session' : 'Chat session',
+        preview: message.slice(0, 80),
+        selected_exam_id: selectedExamId ?? null,
+        selected_set_id: selectedSetId ?? null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    }
 
     const encoder = new TextEncoder();
     let fullResponse = '';
@@ -473,6 +492,7 @@ Rules for follow-up questions:
           user_id: user.id,
           role: 'assistant',
           content: cleanResponse,
+          session_id: sessionId ?? null,
         });
       }
 
