@@ -7,15 +7,25 @@ import { detectIntent, isReviewIntent } from './intent-detector';
 import { ExamPickerCard, type ExamPickerItem } from './ExamPickerCard';
 import { QuizPickerCard, type QuizPickerItem } from './QuizPickerCard';
 import { SplitReviewView } from './SplitReviewView';
+import { FollowUpQuestionCard, type FollowUpQuestion } from './FollowUpQuestionCard';
+import { SessionSummaryCard, type SessionSummary } from './SessionSummaryCard';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   streaming?: boolean;
-  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz';
+  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question';
   pickerData?: ExamPickerItem[] | QuizPickerItem[];
+  followupQuestion?: FollowUpQuestion;
+  followupAnswer?: {
+    studentAnswer: string;
+    isCorrect: boolean;
+    explanation: string;
+  };
 }
+
+const SESSION_SUMMARY_KEY = 'examly_last_session_summary';
 
 interface AiTutorChatProps {
   open: boolean;
