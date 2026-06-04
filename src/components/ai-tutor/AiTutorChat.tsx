@@ -116,7 +116,12 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentSession.access_token}`,
           },
-          body: JSON.stringify({ message: msg, conversationHistory: history }),
+          body: JSON.stringify({
+            message: msg,
+            conversationHistory: history,
+            selectedExamId: selectedExamId ?? undefined,
+            selectedSetId: selectedSetId ?? undefined,
+          }),
         }
       );
 
