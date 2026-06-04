@@ -53,6 +53,10 @@ interface ChatBodyProps {
   sendMessage: (text?: string) => void;
   handleExamSelect: (item: ExamPickerItem) => void;
   handleQuizSelect: (item: QuizPickerItem) => void;
+  handleFollowupAnswer: (messageId: string, question: FollowUpQuestion, answer: string, isCorrect: boolean) => void;
+  savedSummary: SessionSummary | null;
+  onDismissSummary: () => void;
+  onRevisitSummary: () => void;
 }
 
 const ChatBody = ({
@@ -67,10 +71,22 @@ const ChatBody = ({
   sendMessage,
   handleExamSelect,
   handleQuizSelect,
+  handleFollowupAnswer,
+  savedSummary,
+  onDismissSummary,
+  onRevisitSummary,
 }: ChatBodyProps) => (
   <>
     {/* Messages */}
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+      {messages.length === 0 && savedSummary && (
+        <SessionSummaryCard
+          summary={savedSummary}
+          onDismiss={onDismissSummary}
+          onRevisit={onRevisitSummary}
+        />
+      )}
+
       {messages.length === 0 && (
         <div className="space-y-4">
           <div className="flex gap-2.5">
