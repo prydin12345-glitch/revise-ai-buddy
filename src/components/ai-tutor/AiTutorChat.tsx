@@ -703,7 +703,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     } finally {
       setLoading(false);
     }
-  }, [open, splitViewOpen, sessionId]);
+  }, [open, splitViewOpen, sessionId, selectedTitle]);
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
