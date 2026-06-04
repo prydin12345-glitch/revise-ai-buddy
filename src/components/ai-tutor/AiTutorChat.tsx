@@ -673,6 +673,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       role: 'user',
       content: msg,
       type: 'text',
+      timestamp: new Date(),
     }]);
 
     const intent = detectIntent(msg);
@@ -733,12 +734,25 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     setSelectedTitle(item.title);
 
     // Open split view using actual exam.id for question lookups
+    const ctxId = item.examId || item.id;
     setSplitViewMode('exam');
-    setSplitViewContextId(item.examId || item.id);
+    setSplitViewContextId(ctxId);
     setSplitViewTotalScore(item.score);
     setSplitViewTotalMarks(item.totalMarks);
     setSplitViewOpen(true);
     setActiveQuestionId(null);
+
+    try {
+      localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
+        mode: 'exam',
+        submissionId: item.id,
+        contextId: ctxId,
+        title: item.title,
+        totalScore: item.score,
+        totalMarks: item.totalMarks,
+        timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
 
     const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}%. Walk me through what I got wrong.`;
 
@@ -755,6 +769,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
         role: 'user',
         content: followUp,
         type: 'text',
+        timestamp: new Date(),
       },
     ]);
 
@@ -774,6 +789,16 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     setSplitViewOpen(true);
     setActiveQuestionId(null);
 
+    try {
+      localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
+        mode: 'quiz',
+        submissionId: item.id,
+        contextId: item.id,
+        title: item.title,
+        timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
+
     const followUp = `Let's review my ${item.title} practice quiz. Walk me through what I got wrong.`;
 
     setMessages(prev => [
@@ -789,6 +814,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
         role: 'user',
         content: followUp,
         type: 'text',
+        timestamp: new Date(),
       },
     ]);
 
