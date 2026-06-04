@@ -373,12 +373,83 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     setSelectedTitle(null);
     setSplitViewOpen(false);
     setActiveQuestionId(null);
+    setActiveTab('chat');
+    autoPickerFiredRef.current = false;
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const handleClearChat = () => {
     setMessages([]);
   };
+
+  const loadSessions = useCallback(async () => {
+    if (!session?.user?.id) return;
+    setSessionsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('ai_tutor_sessions')
+        .select('id, title, preview, selected_title, updated_at')
+        .eq('user_id', session.user.id)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      setSessions(data ?? []);
+    } catch (err) {
+      console.error('Failed to load sessions:', err);
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'history') loadSessions();
+  }, [activeTab, loadSessions]);
+
+  const openSession = useCallback(async (s: { id: string }) => {
+    const { data } = await supabase
+      .from('ai_tutor_messages')
+      .select('role, content, created_at')
+      .eq('session_id', s.id)
+      .order('created_at', { ascending: true });
+    if (data) {
+      setMessages(data.map((m: any, j: number) => ({
+        id: `history-${j}`,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        type: 'text',
+        timestamp: m.created_at ? new Date(m.created_at) : undefined,
+      })));
+      setSessionId(s.id);
+    }
+    setActiveTab('chat');
+  }, []);
+
+  // Load lastReview from localStorage on open
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const stored = localStorage.getItem(LAST_REVIEW_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as LastReview;
+        if (Date.now() - (parsed.timestamp ?? 0) < 3 * 24 * 60 * 60 * 1000) {
+          setLastReview(parsed);
+          return;
+        }
+      }
+      setLastReview(null);
+    } catch { setLastReview(null); }
+  }, [open]);
+
+  const handleResumeReview = useCallback(() => {
+    if (!lastReview) return;
+    setSplitViewMode(lastReview.mode);
+    setSplitViewContextId(lastReview.contextId || lastReview.submissionId);
+    setSplitViewTotalScore(lastReview.totalScore ?? 0);
+    setSplitViewTotalMarks(lastReview.totalMarks ?? 0);
+    setSelectedTitle(lastReview.title);
+    if (lastReview.mode === 'exam') setSelectedExamId(lastReview.submissionId);
+    else setSelectedSetId(lastReview.submissionId);
+    setSplitViewOpen(true);
+  }, [lastReview]);
 
   useEffect(() => {
     if (open) {
