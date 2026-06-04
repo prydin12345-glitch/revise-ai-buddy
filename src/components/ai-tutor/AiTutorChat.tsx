@@ -841,6 +841,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       role: 'user',
       content: questionContext,
       type: 'text',
+      timestamp: new Date(),
     }]);
 
     streamAiResponse(questionContext, [], selectedExamId, selectedSetId);
