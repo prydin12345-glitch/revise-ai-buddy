@@ -226,39 +226,46 @@ const ChatBody = ({
                 <GraduationCap className="w-4 h-4 text-primary" />
               </div>
             )}
-            <div
-              className={`max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
-                msg.role === 'user'
-                  ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
-                  : 'bg-muted text-foreground rounded-2xl rounded-tl-sm'
-              }`}
-            >
-              {msg.role === 'assistant' ? (
-                <>
-                  {msg.streaming && !msg.content ? (
-                    <span className="inline-flex gap-1 items-center py-1">
-                      {[0, 1, 2].map(j => (
-                        <span
-                          key={j}
-                          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
-                          style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  )}
-                  {msg.streaming && msg.content && (
-                    <span
-                      className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
-                      style={{ animation: 'aiCursorBlink 1s infinite' }}
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+            <div className={`flex flex-col max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div
+                className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm shadow-sm'
+                    : 'bg-muted/60 border border-border/60 text-foreground rounded-2xl rounded-tl-sm'
+                }`}
+              >
+                {msg.role === 'assistant' ? (
+                  <>
+                    {msg.streaming && !msg.content ? (
+                      <span className="inline-flex gap-1 items-center py-1">
+                        {[0, 1, 2].map(j => (
+                          <span
+                            key={j}
+                            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
+                            style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
+                    {msg.streaming && msg.content && (
+                      <span
+                        className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
+                        style={{ animation: 'aiCursorBlink 1s infinite' }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
+              </div>
+              {msg.timestamp && !msg.streaming && (
+                <div className="text-[9px] text-muted-foreground mt-0.5 px-1">
+                  {msg.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                </div>
               )}
             </div>
           </div>
