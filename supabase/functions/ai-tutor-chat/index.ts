@@ -362,20 +362,19 @@ ${setAnswers.map((a: any, i: number) => {
     const FOLLOWUP_INSTRUCTIONS = `
 
 FOLLOW-UP PRACTICE QUESTIONS:
-After explaining a wrong answer, you may offer a follow-up practice question to check understanding.
+After explaining a wrong answer where the student showed a clear conceptual misunderstanding,
+you MAY end your response with ONE of these exact phrases — choose the most natural:
 
-When you want to offer one, end your response with this EXACT format on a new line (no markdown, no code fences):
-FOLLOWUP_QUESTION:{"question":"<question text>","type":"<short_answer|mcq>","options":["A. option1","B. option2","C. option3","D. option4"],"correctAnswer":"<answer or letter>","explanation":"<brief explanation>","marks":<number>}
+"Want me to give you a practice question on this?"
+"Would a quick practice question help?"
+"Shall I test you on this concept?"
 
-Rules for follow-up questions:
-- Only offer one after explaining a wrong answer, not for general questions
-- Make it directly related to the concept the student got wrong
-- For MCQ include exactly 4 options with plausible distractors and set correctAnswer to the letter (A/B/C/D)
-- For short_answer leave options as an empty array []
-- Keep the question concise — maximum 2 marks
-- The explanation should be one sentence maximum
-- Only include the FOLLOWUP_QUESTION block when genuinely useful — not after every message
-- The JSON must be on a single line and be valid JSON`;
+RULES:
+- Only add this offer after explaining a substantive conceptual error
+- NEVER add it after: factual recall, MCQ explanations, short clarifications, questions about marks or model answers, or any question the student got right
+- Never generate a FOLLOWUP_QUESTION JSON block — that mechanism is disabled
+- The offer must be the FINAL sentence of your response, nothing after it
+- Only offer once per topic — if the student already declined, do not offer again`;
 
     let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
@@ -403,6 +402,42 @@ Maximum 2 questions per response. After 2 questions end with:
 "Tap any question on the right to go deeper, or ask me about a specific one."
 
 Keep each question block to 4 lines maximum. No introduction. No conclusion. Start directly with Q1.`;
+    }
+
+    // Detect detailed-answer intent → lift token limit + add override instruction
+    const lowerMessage = String(message).toLowerCase();
+    const isDetailedAnswerRequest =
+      lowerMessage.includes('model answer') ||
+      lowerMessage.includes('full answer') ||
+      lowerMessage.includes('write out the answer') ||
+      lowerMessage.includes('write the answer') ||
+      lowerMessage.includes('what is the answer') ||
+      lowerMessage.includes('show me the answer') ||
+      lowerMessage.includes('mark scheme') ||
+      lowerMessage.includes('how many marks') ||
+      lowerMessage.includes('6 mark') ||
+      lowerMessage.includes('5 mark') ||
+      lowerMessage.includes('4 mark') ||
+      (lowerMessage.includes('what would') && lowerMessage.includes('marks')) ||
+      lowerMessage.includes('full explanation') ||
+      lowerMessage.includes('explain in full') ||
+      lowerMessage.includes('detailed explanation') ||
+      lowerMessage.includes('in detail');
+
+    const maxTokens = isDetailedAnswerRequest ? 800 : 250;
+
+    if (isDetailedAnswerRequest) {
+      fullSystemPrompt += `
+
+OVERRIDE — DETAILED RESPONSE REQUESTED:
+The student has asked for a full or detailed answer. Ignore the word limit for this response only.
+Write a complete, thorough answer appropriate for the mark tariff of the question.
+For a 6-mark question write at least 6 distinct marking points.
+For a model answer use this format:
+- State each key point clearly on its own line
+- Include specific scientific terminology
+- Match the depth expected by the mark scheme
+- Do not truncate or summarise`;
     }
 
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
