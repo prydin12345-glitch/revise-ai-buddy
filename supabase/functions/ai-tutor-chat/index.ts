@@ -559,26 +559,3 @@ Rules for follow-up questions:
     });
   }
 });
-        } catch (err) {
-          console.error('Stream error:', err);
-          try { controller.close(); } catch {}
-        }
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
-  } catch (err: any) {
-    console.error('ai-tutor-chat error:', err);
-    return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
