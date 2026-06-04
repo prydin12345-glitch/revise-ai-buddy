@@ -31,6 +31,8 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [messagesSentToday, setMessagesSentToday] = useState(0);
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const session = useSession();
@@ -114,7 +116,12 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentSession.access_token}`,
           },
-          body: JSON.stringify({ message: msg, conversationHistory: history }),
+          body: JSON.stringify({
+            message: msg,
+            conversationHistory: history,
+            selectedExamId: selectedExamId ?? undefined,
+            selectedSetId: selectedSetId ?? undefined,
+          }),
         }
       );
 

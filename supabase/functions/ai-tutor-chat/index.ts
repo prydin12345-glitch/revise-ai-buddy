@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversationHistory } = await req.json();
+    const { message, conversationHistory, selectedExamId, selectedSetId } = await req.json();
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: 'Message required' }), {
         status: 400,
@@ -64,93 +64,302 @@ Deno.serve(async (req) => {
       );
     }
 
-    const safe = async <T>(p: Promise<{ data: T | null }>): Promise<T | null> => {
-      try { return (await p).data; } catch { return null; }
-    };
-
-    const [recentSets, recentExams, userSubjects, practiceSubjects, examSubjects] = await Promise.all([
-      safe(supabase
-        .from('practice_question_sets')
-        .select('subject_id, subtopics, created_at')
+    const [
+      recentSets,
+      recentExams,
+      userSubjects,
+      practiceSubjects,
+      examSubjects,
+      recentPracticeAnswers,
+      recentExamAnswers,
+    ] = await Promise.all([
+      supabase.from('practice_question_sets')
+        .select('id, set_name, subject_id, subtopics, created_at, status')
         .eq('user_id', user.id)
         .eq('status', 'published')
         .order('created_at', { ascending: false })
-        .limit(5) as any),
-      safe(supabase
-        .from('exam_submissions')
-        .select('total_score, total_marks, submitted_at, exams(title, subject_id)')
+        .limit(8),
+      supabase.from('exam_submissions')
+        .select('id, total_score, total_marks, submitted_at, exams(id, title, subject_id)')
         .eq('student_id', user.id)
         .in('status', ['graded', 'submitted'])
         .not('total_score', 'is', null)
         .gt('total_marks', 0)
         .order('submitted_at', { ascending: false })
-        .limit(5) as any),
-      safe(supabase
-        .from('user_subjects')
+        .limit(8),
+      supabase.from('user_subjects')
         .select('subject_name, custom_name, is_custom')
-        .eq('user_id', user.id) as any),
-      safe(supabase
-        .from('practice_question_sets')
+        .eq('user_id', user.id),
+      supabase.from('practice_question_sets')
         .select('subject_id')
         .eq('user_id', user.id)
         .not('subject_id', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(20) as any),
-      safe(supabase
-        .from('exams')
+        .limit(20),
+      supabase.from('exams')
         .select('subject_id')
         .eq('user_id', user.id)
         .not('subject_id', 'is', null)
-        .limit(10) as any),
+        .limit(10),
+      supabase.from('practice_question_answers')
+        .select(`
+          question_id,
+          answer_text,
+          score,
+          is_correct,
+          feedback,
+          submitted_at,
+          practice_questions (
+            question_text,
+            correct_answer,
+            worked_solution,
+            subtopic,
+            marks,
+            rationale
+          ),
+          practice_question_sets (
+            set_name,
+            subject_id,
+            subtopics
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_correct', false)
+        .not('answer_text', 'is', null)
+        .order('submitted_at', { ascending: false })
+        .limit(15),
+      supabase.from('student_answers')
+        .select(`
+          question_id,
+          answer_text,
+          score,
+          is_correct,
+          feedback,
+          submitted_at,
+          exam_id,
+          exams (
+            title,
+            subject_id
+          )
+        `)
+        .eq('student_id', user.id)
+        .eq('is_correct', false)
+        .not('answer_text', 'is', null)
+        .order('submitted_at', { ascending: false })
+        .limit(15),
     ]);
 
     const allSubjectNames = [
-      ...((userSubjects as any[] | null)?.map(s => s.custom_name || s.subject_name) ?? []),
-      ...((practiceSubjects as any[] | null)?.map(s => s.subject_id) ?? []),
-      ...((examSubjects as any[] | null)?.map(s => s.subject_id) ?? []),
+      ...(userSubjects.data?.map((s: any) => s.custom_name || s.subject_name) ?? []),
+      ...(practiceSubjects.data?.map((s: any) => s.subject_id) ?? []),
+      ...(examSubjects.data?.map((s: any) => s.subject_id) ?? []),
     ].filter(Boolean);
     const uniqueSubjects = [...new Set(allSubjectNames)];
     const subjects = uniqueSubjects.length > 0 ? uniqueSubjects.join(', ') : 'various subjects';
 
-    const recentScores = (recentExams as any[] | null)
-      ?.filter(e => (e.total_marks ?? 0) > 0 && e.total_score !== null && e.total_score !== undefined)
-      .map(e => {
-        const pct = Math.round((Number(e.total_score) / Number(e.total_marks)) * 100);
-        const examTitle = e.exams?.title ?? 'Exam';
-        const examSubject = e.exams?.subject_id ?? '';
-        return examSubject ? `${examTitle} (${examSubject}): ${pct}%` : `${examTitle}: ${pct}%`;
-      }).join(', ') || 'no completed exams yet';
-    const recentTopics = (recentSets as any[] | null)?.flatMap(s => s.subtopics ?? []).filter(Boolean).slice(0, 8).join(', ') || 'none yet';
+    const examSummaries = recentExams.data
+      ?.filter((e: any) => e.total_marks > 0 && e.total_score !== null)
+      .map((e: any) => {
+        const pct = Math.round((e.total_score / e.total_marks) * 100);
+        const title = e.exams?.title ?? 'Exam';
+        const subject = e.exams?.subject_id ?? '';
+        const examId = e.exams?.id ?? '';
+        const date = e.submitted_at
+          ? new Date(e.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'unknown date';
+        return `- "${title}"${subject ? ` (${subject})` : ''}: ${e.total_score}/${e.total_marks} = ${pct}% on ${date} [exam_id:${examId}]`;
+      })
+      .join('\n') || 'No completed exams yet';
 
-    const systemPrompt = `You are an AI tutor for Examly, a revision and exam practice platform.
+    const practiceSummaries = recentSets.data
+      ?.map((s: any) => {
+        const topics = Array.isArray(s.subtopics) ? s.subtopics.slice(0, 3).join(', ') : s.subtopics ?? 'general';
+        return `- "${s.set_name || topics}" (${s.subject_id ?? 'unknown subject'}) on ${
+          new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        } [set_id:${s.id}]`;
+      })
+      .join('\n') || 'No practice sets yet';
 
-Student profile:
-- Main exam subjects: ${subjects}
-- Recent completed exam scores: ${recentScores}
-- Recently practised topics: ${recentTopics}
+    const wrongPracticeQuestions = recentPracticeAnswers.data
+      ?.filter((a: any) => a.practice_questions?.question_text && a.answer_text)
+      .slice(0, 8)
+      .map((a: any) => {
+        const q = a.practice_questions;
+        const s = a.practice_question_sets;
+        return [
+          `  Question: "${q.question_text?.slice(0, 120)}${q.question_text?.length > 120 ? '...' : ''}"`,
+          `  Topic: ${q.subtopic || s?.subject_id || 'unknown'}`,
+          `  Student wrote: "${a.answer_text?.slice(0, 100)}"`,
+          `  Correct answer: "${q.correct_answer?.slice(0, 100)}"`,
+          `  Score: ${a.score ?? 0} marks`,
+          q.rationale ? `  Why wrong: ${q.rationale.slice(0, 150)}` : null,
+        ].filter(Boolean).join('\n');
+      })
+      .join('\n\n') || 'No practice question errors on record';
 
-Your behaviour:
-- You are a knowledgeable tutor who can help with ANY academic or professional topic
-- Do NOT refuse questions because they are outside the student's exam subjects
-- If a student asks about a specialist topic like NHS sterilization protocols, medical equipment, law, music theory, or any other subject — answer it helpfully and accurately
-- You have broad academic knowledge — use it
-- When the question relates to their exam subjects, reference their specific performance data
-- When the question is outside their exam subjects, answer it as a knowledgeable tutor would
-- Never say a topic is "outside our scope" — there is no scope limit
+    const wrongExamQuestions = recentExamAnswers.data
+      ?.filter((a: any) => a.answer_text)
+      .slice(0, 8)
+      .map((a: any) => {
+        const exam = a.exams;
+        return [
+          `  Exam: "${exam?.title ?? 'unknown'}"`,
+          `  Student wrote: "${a.answer_text?.slice(0, 100)}"`,
+          `  Score: ${a.score ?? 0}`,
+          a.feedback ? `  Feedback given: ${a.feedback.slice(0, 150)}` : null,
+        ].filter(Boolean).join('\n');
+      })
+      .join('\n\n') || 'No exam errors on record';
 
-Response style:
-- Keep responses under 120 words unless the student asks for a detailed explanation
-- Be specific and practical — avoid generic advice
-- Use plain text — no LaTeX, no markdown headers
-- When you suggest practice questions say "I can generate practice questions on this — just let me know"
-- Be encouraging and direct
+    const topicErrorCounts: Record<string, number> = {};
+    recentPracticeAnswers.data?.forEach((a: any) => {
+      const subtopic = a.practice_questions?.subtopic;
+      if (subtopic) topicErrorCounts[subtopic] = (topicErrorCounts[subtopic] ?? 0) + 1;
+    });
+    const weakestTopics = Object.entries(topicErrorCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([topic, count]) => `${topic} (${count} errors)`)
+      .join(', ') || 'not yet determined from practice data';
 
-If the student asks about their exam performance, reference their actual data above.
-If the student asks a general knowledge or subject question, answer it directly without referencing their exam data unless relevant.`;
+    const systemPrompt = `You are an AI tutor for Examly, a personalised exam practice platform for UK students.
+
+STUDENT PROFILE:
+- Subjects: ${subjects}
+- Weakest topics (from practice data): ${weakestTopics}
+
+COMPLETED EXAMS:
+${examSummaries}
+
+RECENT PRACTICE SETS:
+${practiceSummaries}
+
+RECENT WRONG ANSWERS — PRACTICE QUIZZES:
+${wrongPracticeQuestions}
+
+RECENT WRONG ANSWERS — EXAMS:
+${wrongExamQuestions}
+
+YOUR ROLE:
+You are a knowledgeable, encouraging tutor who helps students understand where they went wrong and how to improve. You have full access to the student's actual answer history above.
+
+BEHAVIOUR RULES:
+- When a student asks about a specific exam or quiz, reference the actual data above — name the specific questions they got wrong, quote their answer, explain what the correct answer was and why
+- When a student asks "what did I get wrong" or similar, immediately reference the wrong answer data above — do not give a generic response
+- Identify patterns in errors — if a student keeps getting the same topic wrong, point this out
+- You can help with ANY academic topic, not just the student's current subjects
+- Never refuse a question as out of scope
+- Never give generic revision advice when you have specific data to reference
+
+RESPONSE STYLE:
+- Keep responses under 150 words unless the student asks for a detailed explanation
+- Use plain text — no LaTeX, no markdown headers, no bullet symbols unless the student asks
+- Be direct and specific — always reference actual question data when available
+- When offering practice questions say "I can generate practice questions on this — just let me know"
+- Tone: encouraging, direct, like a good private tutor
+
+SPECIAL INSTRUCTIONS:
+- The [exam_id:xxx] and [set_id:xxx] tags in the data above are for system use — never mention them to the student
+- If a student names a specific exam, match it to the exam list above and reference its questions
+- If asked to review a specific exam or quiz, walk through the wrong answers one by one
+- Always tell the student the correct answer and a brief explanation of why, not just that they were wrong`;
+
+    // Selected-exam deep context
+    let selectedExamContext = '';
+    if (selectedExamId) {
+      const { data: examAnswers } = await supabase
+        .from('student_answers')
+        .select(`
+          question_id,
+          answer_text,
+          score,
+          is_correct,
+          feedback,
+          exam_questions (
+            question_text,
+            correct_answer,
+            marks,
+            question_number
+          )
+        `)
+        .eq('student_id', user.id)
+        .eq('exam_id', selectedExamId)
+        .order('question_id');
+
+      if (examAnswers && examAnswers.length > 0) {
+        const total = examAnswers.length;
+        const correct = examAnswers.filter((a: any) => a.is_correct).length;
+        selectedExamContext = `
+SELECTED EXAM FOR REVIEW — FULL BREAKDOWN:
+Student scored ${correct}/${total} questions correct.
+
+${examAnswers.map((a: any, i: number) => {
+  const q = a.exam_questions;
+  const status = a.is_correct ? '✓' : '✗';
+  return [
+    `Q${q?.question_number ?? i + 1} [${status}] (${a.score ?? 0}/${q?.marks ?? '?'} marks)`,
+    `Question: "${q?.question_text?.slice(0, 200) ?? 'unknown'}"`,
+    `Student answered: "${a.answer_text?.slice(0, 150) ?? 'no answer'}"`,
+    !a.is_correct ? `Correct answer: "${q?.correct_answer?.slice(0, 150) ?? 'unknown'}"` : null,
+    a.feedback ? `Feedback: ${a.feedback.slice(0, 150)}` : null,
+  ].filter(Boolean).join('\n  ');
+}).join('\n\n')}`;
+      }
+    }
+
+    let selectedSetContext = '';
+    if (selectedSetId) {
+      const { data: setAnswers } = await supabase
+        .from('practice_question_answers')
+        .select(`
+          question_id,
+          answer_text,
+          score,
+          is_correct,
+          feedback,
+          practice_questions (
+            question_text,
+            correct_answer,
+            worked_solution,
+            subtopic,
+            marks,
+            question_number
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('set_id', selectedSetId)
+        .order('question_id');
+
+      if (setAnswers && setAnswers.length > 0) {
+        const total = setAnswers.length;
+        const correct = setAnswers.filter((a: any) => a.is_correct).length;
+        selectedSetContext = `
+SELECTED PRACTICE SET FOR REVIEW — FULL BREAKDOWN:
+Student scored ${correct}/${total} questions correct.
+
+${setAnswers.map((a: any, i: number) => {
+  const q = a.practice_questions;
+  const status = a.is_correct ? '✓' : '✗';
+  return [
+    `Q${q?.question_number ?? i + 1} [${status}] (${a.score ?? 0}/${q?.marks ?? '?'} marks)`,
+    `Topic: ${q?.subtopic ?? 'unknown'}`,
+    `Question: "${q?.question_text?.slice(0, 200) ?? 'unknown'}"`,
+    `Student answered: "${a.answer_text?.slice(0, 150) ?? 'no answer'}"`,
+    !a.is_correct ? `Correct answer: "${q?.correct_answer?.slice(0, 150) ?? 'unknown'}"` : null,
+    !a.is_correct && q?.worked_solution ? `Worked solution: ${q.worked_solution.slice(0, 200)}` : null,
+    a.feedback ? `Feedback: ${a.feedback.slice(0, 150)}` : null,
+  ].filter(Boolean).join('\n  ');
+}).join('\n\n')}`;
+      }
+    }
+
+    const fullSystemPrompt = systemPrompt +
+      (selectedExamContext ? '\n\n' + selectedExamContext : '') +
+      (selectedSetContext ? '\n\n' + selectedSetContext : '');
 
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
     const messages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: fullSystemPrompt },
       ...history,
       { role: 'user', content: message },
     ];
