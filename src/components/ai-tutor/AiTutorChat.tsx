@@ -554,27 +554,43 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     if (open) loadPickerData();
   }, [open, loadPickerData]);
 
+  const triggerReviewPicker = useCallback(() => {
+    setActiveTab('chat');
+    const hasExams = completedExams.length > 0;
+    const hasQuizzes = completedQuizzes.length > 0;
+
+    if (!hasExams && !hasQuizzes) {
+      setMessages(prev => [...prev, {
+        id: `noreview-${Date.now()}`,
+        role: 'assistant',
+        content: 'You have not completed any exams or practice quizzes yet. Complete some first and then come back to review them.',
+        type: 'text',
+      }]);
+      return;
+    }
+
+    setMessages(prev => {
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg?.type === 'exam_picker' || lastMsg?.type === 'quiz_picker') return prev;
+      const useExams = completedExams.length >= completedQuizzes.length;
+      return [...prev, {
+        id: `review-picker-${Date.now()}`,
+        role: 'assistant',
+        content: 'Which exam or practice quiz would you like to review?',
+        type: useExams ? 'exam_picker' : 'quiz_picker',
+        pickerData: useExams ? completedExams : completedQuizzes,
+      }];
+    });
+  }, [completedExams, completedQuizzes]);
+
   // Auto-trigger picker when chat opened in review mode
   useEffect(() => {
     if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
     if (!pickerDataLoaded) return;
     if (messages.length > 0) return;
-    const hasExams = completedExams.length > 0;
-    const hasQuizzes = completedQuizzes.length > 0;
-    if (!hasExams && !hasQuizzes) return;
     autoPickerFiredRef.current = true;
-    const useExams = completedExams.length >= completedQuizzes.length;
-    setTimeout(() => {
-      setMessages([{
-        id: `autopicker-${Date.now()}`,
-        role: 'assistant',
-        content: 'What would you like to review?',
-        type: useExams ? 'exam_picker' : 'quiz_picker',
-        pickerData: useExams ? completedExams : completedQuizzes,
-      }]);
-      setActiveTab('chat');
-    }, 250);
-  }, [open, initialMode, pickerDataLoaded, completedExams, completedQuizzes, messages.length]);
+    setTimeout(() => triggerReviewPicker(), 250);
+  }, [open, initialMode, pickerDataLoaded, messages.length, triggerReviewPicker]);
 
   const streamAiResponse = useCallback(async (
     msg: string,
