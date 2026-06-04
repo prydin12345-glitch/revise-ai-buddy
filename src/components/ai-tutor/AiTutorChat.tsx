@@ -702,9 +702,30 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [selectedExamId, selectedSetId, streamAiResponse]);
 
   const handleCloseSplitView = useCallback(() => {
+    // Save summary when exiting a review session (but keep the chat panel open)
+    if (selectedTitle && messages.length > 3) {
+      const followupMessages = messages.filter(m => m.type === 'followup_question');
+      const answeredFollowups = followupMessages.filter(m => m.followupAnswer);
+      const correctFollowups = answeredFollowups.filter(m => m.followupAnswer?.isCorrect).length;
+      const wrongCount = answeredFollowups.length - correctFollowups;
+      const summary: SessionSummary = {
+        title: selectedTitle,
+        correctFollowups,
+        totalFollowups: answeredFollowups.length,
+        topicsReviewed: [],
+        keyTakeaway: answeredFollowups.length > 0
+          ? correctFollowups === answeredFollowups.length
+            ? 'Good progress — you answered all follow-up questions correctly.'
+            : `Still working on ${wrongCount} concept${wrongCount !== 1 ? 's' : ''} from this review.`
+          : `Reviewed ${selectedTitle} with your AI tutor.`,
+      };
+      try {
+        localStorage.setItem(SESSION_SUMMARY_KEY, JSON.stringify({ ...summary, timestamp: Date.now() }));
+      } catch { /* ignore */ }
+    }
     setSplitViewOpen(false);
     setActiveQuestionId(null);
-  }, []);
+  }, [selectedTitle, messages]);
 
   // Follow-up answer handler: marks message, sends result back to AI
   const handleFollowupAnswer = useCallback(
