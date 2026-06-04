@@ -596,7 +596,7 @@ const ExamReview = () => {
 
                    {/* Circuit diagram panel */}
                    {(() => {
-                     const circuitConfig = getCircuitConfig(question);
+                     const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '');
                      if (!circuitConfig) return null;
                      return <CircuitFigurePanel config={circuitConfig} />;
                    })()}

@@ -118,7 +118,19 @@ export const shouldSuppressDiagram = (
   topicName: string,
   questionText: string,
   subjectName: string,
+  diagramType?: string,
 ): boolean => {
+  const lowerSubject = (subjectName || '').toLowerCase();
+
+  // Biology subjects must never show circuit diagrams
+  const isBiology =
+    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
+      lowerSubject,
+    );
+  if (isBiology && (diagramType === 'circuit' || diagramType === 'circuit_diagram')) {
+    return true;
+  }
+
   const combined = `${topicName} ${questionText} ${subjectName}`.toLowerCase();
 
   const alwaysDiagram = ALWAYS_DIAGRAM_TOPICS.some(t =>

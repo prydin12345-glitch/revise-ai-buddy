@@ -1619,18 +1619,36 @@ ${MULTI_PART_GRAPH_INSTRUCTIONS}
 ${buildBiologyInstructions(subjectName)}
 ${buildMathsInstructions(subjectName)}
 ${(() => {
-  // Inject full circuit consistency instructions for physics/electronics subjects.
-  // Fires for both exam and practice generation paths.
+  // Inject circuit consistency instructions ONLY for genuine physics/electronics subjects.
   const lowerSubject = subjectName.toLowerCase();
   const lowerTopics = (setData.subtopics || []).map((t: string) => t.toLowerCase()).join(' ');
-  const circuitKeywords = ['circuit', 'resistor', 'resistance', 'emf', 'internal resistance', 'parallel', 'series', 'potential divider', 'thermistor', 'voltmeter', 'ammeter', 'physics', 'electronics', 'electric', 'engineering', 'physical science'];
+
+  // Hard exclude biology contexts (e.g. "antibiotic resistance", "parallel evolution")
+  const isBiologyContext =
+    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
+      lowerSubject,
+    );
+  if (isBiologyContext) return '';
+
+  // Use specific unambiguous electrical terms only (removed: resistance, parallel, series, electric, physics)
+  const circuitKeywords = [
+    'circuit', 'resistor', 'emf', 'internal resistance',
+    'potential divider', 'thermistor', 'voltmeter', 'ammeter',
+    'kirchhoff', 'ohm', 'capacitor', 'inductor', 'diode',
+    'rectifier', 'transformer', 'alternating current', 'direct current',
+    'electronics', 'electrical circuit', 'electric circuit',
+  ];
   const needsCircuitRules = circuitKeywords.some(kw => lowerSubject.includes(kw) || lowerTopics.includes(kw));
   return needsCircuitRules ? buildCircuitInstructions() : '';
 })()}
 ${(() => {
   // Physics diagram instructions: ray, wave, magnetic field, nuclear decay, EM spectrum.
   const lowerSubject = subjectName.toLowerCase();
-  const isPhysicsSubject = /physics|physical\s*science|natural\s*science|\bscience\b|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(lowerSubject);
+  const isBiologyContext =
+    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
+      lowerSubject,
+    );
+  const isPhysicsSubject = !isBiologyContext && /physics|physical\s*science|natural\s*science|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(lowerSubject);
   return isPhysicsSubject ? buildPhysicsInstructions() : '';
 })()}
 ${resourcePackContext}

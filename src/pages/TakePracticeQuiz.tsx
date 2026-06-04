@@ -1939,7 +1939,7 @@ const TakePracticeQuiz = () => {
 
                   {/* Circuit figure panel */}
                   {(() => {
-                    const circuitConfig = getCircuitConfig(currentQuestion);
+                    const circuitConfig = getCircuitConfig(currentQuestion, (currentQuestion as any).subject ?? '');
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
