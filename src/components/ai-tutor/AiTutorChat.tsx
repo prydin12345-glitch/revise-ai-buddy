@@ -922,7 +922,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
                 </button>
               )}
               <button
-                onClick={() => onOpenChange(false)}
+                onClick={handleClose}
                 aria-label="Close chat"
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
               >
