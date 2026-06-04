@@ -1232,6 +1232,15 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
                     {s.preview}
                   </div>
                 )}
+                {(s.selected_exam_id || s.selected_set_id) && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                      <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide">
+                        Review
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
                 {new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
