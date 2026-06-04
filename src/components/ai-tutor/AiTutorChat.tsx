@@ -405,8 +405,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const autoPickerFiredRef = useRef(false);
 
-  // Active question chip (when a question is clicked in review panel)
-  const [activeQuestionChip, setActiveQuestionChip] = useState<QuestionChip | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
