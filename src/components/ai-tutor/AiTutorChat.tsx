@@ -99,8 +99,6 @@ const ChatBody = ({
   onRevisitSummary,
   lastReview,
   onResumeReview,
-  activeQuestionChip,
-  onClearChip,
   onReopenReview,
   onDismissReopen,
 }: ChatBodyProps) => (
