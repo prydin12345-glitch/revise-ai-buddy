@@ -587,6 +587,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
             conversationHistory: history,
             selectedExamId: examId ?? undefined,
             selectedSetId: setId ?? undefined,
+            sessionId,
           }),
         }
       );
