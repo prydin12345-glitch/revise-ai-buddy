@@ -1103,12 +1103,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       onRevisitSummary={handleRevisitSummary}
       lastReview={lastReview}
       onResumeReview={handleResumeReview}
-      activeQuestionChip={activeQuestionChip}
-      onClearChip={() => {
-        setActiveQuestionChip(null);
-        setInput('');
-        setActiveQuestionId(null);
-      }}
       onReopenReview={(data) => {
         setSplitViewMode(data.mode);
         setSplitViewContextId(data.submissionId);
