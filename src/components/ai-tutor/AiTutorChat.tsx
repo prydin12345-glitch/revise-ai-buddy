@@ -659,7 +659,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     } finally {
       setLoading(false);
     }
-  }, [open, splitViewOpen]);
+  }, [open, splitViewOpen, sessionId]);
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
