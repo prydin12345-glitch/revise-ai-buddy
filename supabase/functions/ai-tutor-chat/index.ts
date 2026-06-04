@@ -432,6 +432,53 @@ Rules for follow-up questions:
 
     const encoder = new TextEncoder();
     let fullResponse = '';
+    let streamedSoFar = '';
+    const FOLLOWUP_MARKER = '\nFOLLOWUP_QUESTION:';
+
+    const flushFinal = async (controller: ReadableStreamDefaultController) => {
+      // Detect followup block in full response
+      const idx = fullResponse.indexOf(FOLLOWUP_MARKER);
+      let cleanResponse = fullResponse;
+      let followupData: any = null;
+
+      if (idx !== -1) {
+        const jsonPart = fullResponse.slice(idx + FOLLOWUP_MARKER.length).trim();
+        // Find a valid JSON object (greedy match through last `}`)
+        const lastBrace = jsonPart.lastIndexOf('}');
+        if (lastBrace !== -1) {
+          const candidate = jsonPart.slice(0, lastBrace + 1);
+          try {
+            followupData = JSON.parse(candidate);
+          } catch {
+            // ignore malformed
+          }
+        }
+        cleanResponse = fullResponse.slice(0, idx).trim();
+      }
+
+      // Flush any remaining clean text that hasn't been streamed yet
+      if (cleanResponse.length > streamedSoFar.length) {
+        const remaining = cleanResponse.slice(streamedSoFar.length);
+        if (remaining) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: remaining })}\n\n`));
+        }
+      }
+
+      if (followupData) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ followup: followupData })}\n\n`));
+      }
+
+      if (cleanResponse) {
+        await supabase.from('ai_tutor_messages').insert({
+          user_id: user.id,
+          role: 'assistant',
+          content: cleanResponse,
+        });
+      }
+
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    };
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -453,15 +500,7 @@ Rules for follow-up questions:
               if (!trimmed.startsWith('data:')) continue;
               const data = trimmed.slice(5).trim();
               if (data === '[DONE]') {
-                if (fullResponse) {
-                  await supabase.from('ai_tutor_messages').insert({
-                    user_id: user.id,
-                    role: 'assistant',
-                    content: fullResponse,
-                  });
-                }
-                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                controller.close();
+                await flushFinal(controller);
                 return;
               }
 
@@ -470,7 +509,25 @@ Rules for follow-up questions:
                 const token = parsed.choices?.[0]?.delta?.content ?? '';
                 if (token) {
                   fullResponse += token;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+
+                  // Stream only safe-to-emit text (everything before the FOLLOWUP marker).
+                  // If the marker hasn't appeared, hold back the last 25 chars in case
+                  // it's the start of "\nFOLLOWUP_QUESTION:" arriving across token boundaries.
+                  const markerIdx = fullResponse.indexOf(FOLLOWUP_MARKER);
+                  let safeUpTo: number;
+                  if (markerIdx !== -1) {
+                    safeUpTo = markerIdx;
+                  } else {
+                    safeUpTo = Math.max(0, fullResponse.length - 25);
+                  }
+
+                  if (safeUpTo > streamedSoFar.length) {
+                    const toEmit = fullResponse.slice(streamedSoFar.length, safeUpTo);
+                    streamedSoFar = fullResponse.slice(0, safeUpTo);
+                    if (toEmit) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: toEmit })}\n\n`));
+                    }
+                  }
                 }
               } catch {
                 // skip
@@ -478,15 +535,30 @@ Rules for follow-up questions:
             }
           }
 
-          if (fullResponse) {
-            await supabase.from('ai_tutor_messages').insert({
-              user_id: user.id,
-              role: 'assistant',
-              content: fullResponse,
-            });
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          await flushFinal(controller);
+        } catch (err) {
+          console.error('Stream error:', err);
+          try { controller.close(); } catch {}
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (err) {
+    console.error('ai-tutor-chat error:', err);
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
         } catch (err) {
           console.error('Stream error:', err);
           try { controller.close(); } catch {}
