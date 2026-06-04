@@ -15,13 +15,18 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   streaming?: boolean;
-  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question';
+  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question' | 'reopen_review';
   pickerData?: ExamPickerItem[] | QuizPickerItem[];
   followupQuestion?: FollowUpQuestion;
   followupAnswer?: {
     studentAnswer: string;
     isCorrect: boolean;
     explanation: string;
+  };
+  reopenData?: {
+    mode: 'exam' | 'quiz';
+    submissionId: string;
+    title: string;
   };
   timestamp?: Date;
 }
@@ -39,11 +44,18 @@ interface LastReview {
   timestamp: number;
 }
 
+interface QuestionChip {
+  number: string | number;
+  text: string;
+  isCorrect: boolean;
+  score: number;
+  totalMarks: number;
+}
+
 interface AiTutorChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUnreadChange?: (count: number) => void;
-  initialMode?: 'review' | null;
 }
 
 const SUGGESTIONS = [
