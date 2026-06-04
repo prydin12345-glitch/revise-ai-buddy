@@ -792,7 +792,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       }));
     } catch { /* ignore */ }
 
-    const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}%. Walk me through what I got wrong.`;
+    const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}% (${item.score}/${item.totalMarks} marks). Go through each question I got wrong one by one. For each one: state the question briefly, state what I wrote, explain what was wrong with my answer, and give the correct answer. Be concise — one short paragraph per question.`;
 
     setMessages(prev => [
       ...prev,
@@ -813,7 +813,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
 
     setTimeout(() => {
       streamAiResponse(followUp, [], item.id, null);
-    }, 300);
+    }, 350);
   }, [streamAiResponse]);
 
   const handleQuizSelect = useCallback((item: QuizPickerItem) => {
