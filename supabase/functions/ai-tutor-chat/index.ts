@@ -492,6 +492,7 @@ Rules for follow-up questions:
           user_id: user.id,
           role: 'assistant',
           content: cleanResponse,
+          session_id: sessionId ?? null,
         });
       }
 
