@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
-import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
@@ -23,14 +23,27 @@ interface Message {
     isCorrect: boolean;
     explanation: string;
   };
+  timestamp?: Date;
 }
 
 const SESSION_SUMMARY_KEY = 'examly_last_session_summary';
+const LAST_REVIEW_KEY = 'examly_last_review';
+
+interface LastReview {
+  mode: 'exam' | 'quiz';
+  submissionId: string;
+  contextId: string;
+  title: string;
+  totalScore?: number;
+  totalMarks?: number;
+  timestamp: number;
+}
 
 interface AiTutorChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUnreadChange?: (count: number) => void;
+  initialMode?: 'review' | null;
 }
 
 const SUGGESTIONS = [
