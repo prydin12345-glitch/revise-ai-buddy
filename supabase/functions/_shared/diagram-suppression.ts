@@ -127,7 +127,7 @@ export const shouldSuppressDiagram = (
     /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
       lowerSubject,
     );
-  if (isBiology && (!diagramType || diagramType === 'circuit' || diagramType === 'circuit_diagram')) {
+  if (isBiology && (diagramType === 'circuit' || diagramType === 'circuit_diagram')) {
     return true;
   }
 
