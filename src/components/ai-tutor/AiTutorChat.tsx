@@ -70,6 +70,8 @@ interface ChatBodyProps {
   savedSummary: SessionSummary | null;
   onDismissSummary: () => void;
   onRevisitSummary: () => void;
+  lastReview?: LastReview | null;
+  onResumeReview?: () => void;
 }
 
 const ChatBody = ({
@@ -88,10 +90,28 @@ const ChatBody = ({
   savedSummary,
   onDismissSummary,
   onRevisitSummary,
+  lastReview,
+  onResumeReview,
 }: ChatBodyProps) => (
   <>
     {/* Messages */}
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+      {messages.length === 0 && lastReview && onResumeReview && (
+        <button
+          onClick={onResumeReview}
+          className="flex items-center gap-2.5 w-full px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all duration-150 group mb-2"
+        >
+          <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <RotateCcw size={13} className="text-primary" />
+          </div>
+          <div className="text-left min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-primary">Resume review</div>
+            <div className="text-[11px] text-muted-foreground truncate">{lastReview.title}</div>
+          </div>
+          <ChevronRight size={13} className="text-primary/60 group-hover:text-primary transition-colors" />
+        </button>
+      )}
+
       {messages.length === 0 && savedSummary && (
         <SessionSummaryCard
           summary={savedSummary}
