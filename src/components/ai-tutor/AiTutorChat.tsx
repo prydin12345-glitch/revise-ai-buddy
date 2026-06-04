@@ -44,13 +44,6 @@ interface LastReview {
   timestamp: number;
 }
 
-interface QuestionChip {
-  number: string | number;
-  text: string;
-  isCorrect: boolean;
-  score: number;
-  totalMarks: number;
-}
 
 interface AiTutorChatProps {
   open: boolean;
