@@ -121,17 +121,23 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           .eq("is_active", true),
       ]);
 
-      const ownExams = ownExamsRes.data || [];
+      const ownExams = (ownExamsRes.data || []).filter((e: any) => e && e.id);
+      // Filter out assignments whose underlying exam has been deleted (join returns null)
       const assignedExams =
-        assignmentsRes.data?.map((a) => ({
-          ...(a.exams as any),
-          assigned_by: "teacher",
-          deadline: a.deadline,
-        })) || [];
-      const examsData = [...ownExams, ...assignedExams];
+        (assignmentsRes.data || [])
+          .filter((a: any) => a && a.exams && (a.exams as any).id)
+          .map((a: any) => ({
+            ...(a.exams as any),
+            assigned_by: "teacher",
+            deadline: a.deadline,
+          })) || [];
+      const examsData = [...ownExams, ...assignedExams].filter((e: any) => e && e.id);
       const examIds = examsData.map((e) => e.id).filter(Boolean);
 
-      const practiceSetsRaw = practiceSetsRes.data || [];
+      // Practice sets: hide deleted (defensive filter on id) and tombstoned/archived statuses
+      const practiceSetsRaw = (practiceSetsRes.data || []).filter(
+        (s: any) => s && s.id && s.status !== "deleted" && s.status !== "archived"
+      );
       const setIds = practiceSetsRaw.map((s) => s.id);
 
       const groups = (membershipsRes.data || [])
