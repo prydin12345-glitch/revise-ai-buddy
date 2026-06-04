@@ -121,17 +121,22 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           .eq("is_active", true),
       ]);
 
-      const ownExams = (ownExamsRes.data || []).filter((e: any) => e && e.id);
-      // Filter out assignments whose underlying exam has been deleted (join returns null)
+      // Hide hard-deleted, archived, or otherwise tombstoned exams from Recent Activity
+      const isLiveExam = (e: any) =>
+        !!e && !!e.id && e.status !== "archived" && e.status !== "deleted";
+
+      const ownExams = (ownExamsRes.data || []).filter(isLiveExam);
+      // Filter out assignments whose underlying exam has been deleted/archived
+      // (Supabase returns exams: null when the joined row no longer exists)
       const assignedExams =
         (assignmentsRes.data || [])
-          .filter((a: any) => a && a.exams && (a.exams as any).id)
+          .filter((a: any) => a && a.exams && isLiveExam(a.exams))
           .map((a: any) => ({
             ...(a.exams as any),
             assigned_by: "teacher",
             deadline: a.deadline,
           })) || [];
-      const examsData = [...ownExams, ...assignedExams].filter((e: any) => e && e.id);
+      const examsData = [...ownExams, ...assignedExams].filter(isLiveExam);
       const examIds = examsData.map((e) => e.id).filter(Boolean);
 
       // Practice sets: hide deleted (defensive filter on id) and tombstoned/archived statuses
