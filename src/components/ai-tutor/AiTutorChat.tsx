@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
 import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +6,7 @@ import { useSession } from '@/hooks/useSession';
 import { detectIntent, isReviewIntent } from './intent-detector';
 import { ExamPickerCard, type ExamPickerItem } from './ExamPickerCard';
 import { QuizPickerCard, type QuizPickerItem } from './QuizPickerCard';
+import { SplitReviewView } from './SplitReviewView';
 
 interface Message {
   id: string;
@@ -29,6 +30,213 @@ const SUGGESTIONS = [
   'Explain a topic I am struggling with',
 ];
 
+// ---- Shared chat content sub-component (used by both compact panel and split view) ----
+interface ChatBodyProps {
+  messages: Message[];
+  input: string;
+  setInput: (v: string) => void;
+  loading: boolean;
+  rateLimitHit: boolean;
+  messagesSentToday: number;
+  inputRef: RefObject<HTMLTextAreaElement>;
+  bottomRef: RefObject<HTMLDivElement>;
+  sendMessage: (text?: string) => void;
+  handleExamSelect: (item: ExamPickerItem) => void;
+  handleQuizSelect: (item: QuizPickerItem) => void;
+}
+
+const ChatBody = ({
+  messages,
+  input,
+  setInput,
+  loading,
+  rateLimitHit,
+  messagesSentToday,
+  inputRef,
+  bottomRef,
+  sendMessage,
+  handleExamSelect,
+  handleQuizSelect,
+}: ChatBodyProps) => (
+  <>
+    {/* Messages */}
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+      {messages.length === 0 && (
+        <div className="space-y-4">
+          <div className="flex gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <GraduationCap className="w-4 h-4 text-primary" />
+            </div>
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[13px] text-foreground leading-relaxed max-w-[85%]">
+              Hi! I have access to your exam history and practice results. What would you like help with?
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 pt-1">
+            {SUGGESTIONS.map((s, i) => (
+              <button
+                key={s}
+                onClick={() => sendMessage(s)}
+                className="text-left px-3.5 py-2.5 rounded-xl border border-border text-[12.5px] text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-foreground transition-all duration-150"
+                style={{ animation: `aiSuggestionFade 0.3s ease ${i * 0.08}s both` }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {messages.map((msg) => {
+        if (msg.type === 'selected_exam' || msg.type === 'selected_quiz') {
+          return (
+            <div
+              key={msg.id}
+              className="flex justify-center"
+              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+            >
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                <CheckCircle2 size={11} className="text-primary" />
+                <span className="text-[11px] text-primary font-medium">{msg.content}</span>
+              </div>
+            </div>
+          );
+        }
+
+        if (msg.type === 'exam_picker' || msg.type === 'quiz_picker') {
+          return (
+            <div
+              key={msg.id}
+              className="flex gap-2.5 items-start"
+              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
+                <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 w-fit max-w-[85%]">
+                  <p className="text-[13px] text-foreground">{msg.content}</p>
+                </div>
+                {msg.type === 'exam_picker' && Array.isArray(msg.pickerData) && (
+                  <ExamPickerCard
+                    items={msg.pickerData as ExamPickerItem[]}
+                    onSelect={handleExamSelect}
+                  />
+                )}
+                {msg.type === 'quiz_picker' && Array.isArray(msg.pickerData) && (
+                  <QuizPickerCard
+                    items={msg.pickerData as QuizPickerItem[]}
+                    onSelect={handleQuizSelect}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={msg.id}
+            className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            style={{ animation: 'aiMessageSlide 0.25s ease-out' }}
+          >
+            {msg.role === 'assistant' && (
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+            )}
+            <div
+              className={`max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
+                  : 'bg-muted text-foreground rounded-2xl rounded-tl-sm'
+              }`}
+            >
+              {msg.role === 'assistant' ? (
+                <>
+                  {msg.streaming && !msg.content ? (
+                    <span className="inline-flex gap-1 items-center py-1">
+                      {[0, 1, 2].map(j => (
+                        <span
+                          key={j}
+                          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
+                          style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  )}
+                  {msg.streaming && msg.content && (
+                    <span
+                      className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
+                      style={{ animation: 'aiCursorBlink 1s infinite' }}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {rateLimitHit && (
+        <div className="text-center py-2">
+          <span className="inline-block text-[11px] text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+            Daily message limit reached. Resets at midnight.
+          </span>
+        </div>
+      )}
+
+      <div ref={bottomRef} />
+    </div>
+
+    {/* Input */}
+    <div className="border-t border-border p-3 bg-background/95 flex-shrink-0">
+      {!rateLimitHit && messagesSentToday > 40 && (
+        <div className="text-[10px] text-muted-foreground text-right mb-1.5">
+          {Math.max(0, 50 - messagesSentToday)} messages remaining today
+        </div>
+      )}
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => {
+              setInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything… (Enter to send)'}
+            disabled={loading || rateLimitHit}
+            rows={1}
+            className="w-full resize-none bg-muted/40 border border-border rounded-xl px-3.5 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:bg-muted/60 transition-colors duration-150 leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minHeight: '40px', maxHeight: '120px' }}
+          />
+        </div>
+        <button
+          onClick={() => sendMessage()}
+          disabled={!input.trim() || loading || rateLimitHit}
+          aria-label="Send message"
+          className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0 hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 shadow-sm"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  </>
+);
+
 export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -43,6 +251,15 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [completedExams, setCompletedExams] = useState<ExamPickerItem[]>([]);
   const [completedQuizzes, setCompletedQuizzes] = useState<QuizPickerItem[]>([]);
   const [pickerDataLoaded, setPickerDataLoaded] = useState(false);
+
+  // Split-view state
+  const [splitViewOpen, setSplitViewOpen] = useState(false);
+  const [splitViewMode, setSplitViewMode] = useState<'exam' | 'quiz'>('exam');
+  const [splitViewContextId, setSplitViewContextId] = useState('');
+  const [splitViewTotalScore, setSplitViewTotalScore] = useState(0);
+  const [splitViewTotalMarks, setSplitViewTotalMarks] = useState(0);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const session = useSession();
@@ -55,6 +272,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedExamId(null);
     setSelectedSetId(null);
     setSelectedTitle(null);
+    setActiveQuestionId(null);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -243,7 +461,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setMessages(prev => prev.map(m =>
         m.id === assistantId ? { ...m, streaming: false } : m));
       setMessagesSentToday(n => n + 1);
-      if (!open) setUnread(u => u + 1);
+      if (!open && !splitViewOpen) setUnread(u => u + 1);
     } catch (err) {
       console.error('Chat error:', err);
       setMessages(prev => prev.map(m =>
@@ -253,7 +471,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     } finally {
       setLoading(false);
     }
-  }, [open]);
+  }, [open, splitViewOpen]);
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -326,6 +544,14 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedExamId(item.id);
     setSelectedTitle(item.title);
 
+    // Open split view using actual exam.id for question lookups
+    setSplitViewMode('exam');
+    setSplitViewContextId(item.examId || item.id);
+    setSplitViewTotalScore(item.score);
+    setSplitViewTotalMarks(item.totalMarks);
+    setSplitViewOpen(true);
+    setActiveQuestionId(null);
+
     const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}%. Walk me through what I got wrong.`;
 
     setMessages(prev => [
@@ -353,6 +579,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedSetId(item.id);
     setSelectedTitle(item.title);
 
+    setSplitViewMode('quiz');
+    setSplitViewContextId(item.id);
+    setSplitViewTotalScore(0);
+    setSplitViewTotalMarks(0);
+    setSplitViewOpen(true);
+    setActiveQuestionId(null);
+
     const followUp = `Let's review my ${item.title} practice quiz. Walk me through what I got wrong.`;
 
     setMessages(prev => [
@@ -376,11 +609,71 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     }, 300);
   }, [streamAiResponse]);
 
+  const handleQuestionClick = useCallback((question: any) => {
+    setActiveQuestionId(question.id);
+
+    const questionContext = [
+      `I want to understand Q${question.questionNumber}: "${question.questionText}"`,
+      `I answered: "${question.studentAnswer}"`,
+      question.isCorrect
+        ? `I got this right (${question.score}/${question.totalMarks} marks).`
+        : `I got this wrong (${question.score}/${question.totalMarks} marks). The correct answer was: "${question.correctAnswer}"`,
+      question.feedback ? `The feedback was: "${question.feedback}"` : null,
+      'Please explain this question clearly and tell me how to approach it correctly.',
+    ].filter(Boolean).join(' ');
+
+    setMessages(prev => [...prev, {
+      id: `user-q-${Date.now()}`,
+      role: 'user',
+      content: questionContext,
+      type: 'text',
+    }]);
+
+    streamAiResponse(questionContext, [], selectedExamId, selectedSetId);
+  }, [selectedExamId, selectedSetId, streamAiResponse]);
+
+  const handleCloseSplitView = useCallback(() => {
+    setSplitViewOpen(false);
+    setActiveQuestionId(null);
+  }, []);
+
   if (!session) return null;
+
+  const chatBody = (
+    <ChatBody
+      messages={messages}
+      input={input}
+      setInput={setInput}
+      loading={loading}
+      rateLimitHit={rateLimitHit}
+      messagesSentToday={messagesSentToday}
+      inputRef={inputRef}
+      bottomRef={bottomRef}
+      sendMessage={sendMessage}
+      handleExamSelect={handleExamSelect}
+      handleQuizSelect={handleQuizSelect}
+    />
+  );
 
   return (
     <>
-      {open && (
+      {/* Split review view */}
+      {splitViewOpen && (
+        <SplitReviewView
+          mode={splitViewMode}
+          contextId={splitViewContextId}
+          title={selectedTitle || ''}
+          totalScore={splitViewTotalScore}
+          totalMarks={splitViewTotalMarks}
+          onQuestionClick={handleQuestionClick}
+          onClose={handleCloseSplitView}
+          activeQuestionId={activeQuestionId}
+          chatContent={chatBody}
+        />
+      )}
+
+      {/* Compact panel — only when split view is closed */}
+      {open && !splitViewOpen && (
         <div
           className="fixed bg-background border border-border shadow-2xl flex flex-col z-[9998] rounded-2xl overflow-hidden
             inset-x-3 bottom-24 top-20
@@ -449,185 +742,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
-            {messages.length === 0 && (
-              <div className="space-y-4">
-                <div className="flex gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <GraduationCap className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[13px] text-foreground leading-relaxed max-w-[85%]">
-                    Hi! I have access to your exam history and practice results. What would you like help with?
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-2 pt-1">
-                  {SUGGESTIONS.map((s, i) => (
-                    <button
-                      key={s}
-                      onClick={() => sendMessage(s)}
-                      className="text-left px-3.5 py-2.5 rounded-xl border border-border text-[12.5px] text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-foreground transition-all duration-150"
-                      style={{ animation: `aiSuggestionFade 0.3s ease ${i * 0.08}s both` }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {messages.map((msg, i) => {
-              // System confirmation pill
-              if (msg.type === 'selected_exam' || msg.type === 'selected_quiz') {
-                return (
-                  <div
-                    key={msg.id}
-                    className="flex justify-center"
-                    style={{ animation: 'aiMessageSlide 0.2s ease both' }}
-                  >
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-                      <CheckCircle2 size={11} className="text-primary" />
-                      <span className="text-[11px] text-primary font-medium">{msg.content}</span>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Picker messages
-              if (msg.type === 'exam_picker' || msg.type === 'quiz_picker') {
-                return (
-                  <div
-                    key={msg.id}
-                    className="flex gap-2.5 items-start"
-                    style={{ animation: 'aiMessageSlide 0.2s ease both' }}
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <GraduationCap className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-2">
-                      <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 w-fit max-w-[85%]">
-                        <p className="text-[13px] text-foreground">{msg.content}</p>
-                      </div>
-                      {msg.type === 'exam_picker' && Array.isArray(msg.pickerData) && (
-                        <ExamPickerCard
-                          items={msg.pickerData as ExamPickerItem[]}
-                          onSelect={handleExamSelect}
-                        />
-                      )}
-                      {msg.type === 'quiz_picker' && Array.isArray(msg.pickerData) && (
-                        <QuizPickerCard
-                          items={msg.pickerData as QuizPickerItem[]}
-                          onSelect={handleQuizSelect}
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              // Normal messages
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  style={{ animation: 'aiMessageSlide 0.25s ease-out' }}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <GraduationCap className="w-4 h-4 text-primary" />
-                    </div>
-                  )}
-
-                  <div
-                    className={`max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
-                        : 'bg-muted text-foreground rounded-2xl rounded-tl-sm'
-                    }`}
-                  >
-                    {msg.role === 'assistant' ? (
-                      <>
-                        {msg.streaming && !msg.content ? (
-                          <span className="inline-flex gap-1 items-center py-1">
-                            {[0, 1, 2].map(j => (
-                              <span
-                                key={j}
-                                className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
-                                style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
-                              />
-                            ))}
-                          </span>
-                        ) : (
-                          <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                          </div>
-                        )}
-                        {msg.streaming && msg.content && (
-                          <span
-                            className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
-                            style={{ animation: 'aiCursorBlink 1s infinite' }}
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {rateLimitHit && (
-              <div className="text-center py-2">
-                <span className="inline-block text-[11px] text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-                  Daily message limit reached. Resets at midnight.
-                </span>
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input */}
-          <div className="border-t border-border p-3 bg-background/95">
-            {!rateLimitHit && messagesSentToday > 40 && (
-              <div className="text-[10px] text-muted-foreground text-right mb-1.5">
-                {Math.max(0, 50 - messagesSentToday)} messages remaining today
-              </div>
-            )}
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => {
-                    setInput(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything… (Enter to send)'}
-                  disabled={loading || rateLimitHit}
-                  rows={1}
-                  className="w-full resize-none bg-muted/40 border border-border rounded-xl px-3.5 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:bg-muted/60 transition-colors duration-150 leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ minHeight: '40px', maxHeight: '120px' }}
-                />
-              </div>
-              <button
-                onClick={() => sendMessage()}
-                disabled={!input.trim() || loading || rateLimitHit}
-                aria-label="Send message"
-                className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0 hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 shadow-sm"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          {chatBody}
         </div>
       )}
 
