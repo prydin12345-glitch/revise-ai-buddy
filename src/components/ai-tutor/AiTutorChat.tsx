@@ -403,11 +403,11 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     try {
       const { data } = await supabase
         .from('ai_tutor_sessions')
-        .select('id, title, preview, selected_title, updated_at')
+        .select('id, title, preview, selected_title, selected_exam_id, selected_set_id, updated_at')
         .eq('user_id', session.user.id)
         .order('updated_at', { ascending: false })
         .limit(20);
-      setSessions(data ?? []);
+      setSessions((data as any) ?? []);
     } catch (err) {
       console.error('Failed to load sessions:', err);
     } finally {
@@ -419,7 +419,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     if (activeTab === 'history') loadSessions();
   }, [activeTab, loadSessions]);
 
-  const openSession = useCallback(async (s: { id: string }) => {
+  const openSession = useCallback(async (s: {
+    id: string;
+    title?: string | null;
+    selected_title?: string | null;
+    selected_exam_id?: string | null;
+    selected_set_id?: string | null;
+  }) => {
     const { data } = await supabase
       .from('ai_tutor_messages')
       .select('role, content, created_at')
@@ -435,8 +441,41 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       })));
       setSessionId(s.id);
     }
+
+    // Restore review context if this was a review session
+    if (s.selected_exam_id) {
+      setSelectedExamId(s.selected_exam_id);
+      setSelectedSetId(null);
+      setSelectedTitle(s.selected_title ?? s.title ?? 'Exam review');
+    } else if (s.selected_set_id) {
+      setSelectedSetId(s.selected_set_id);
+      setSelectedExamId(null);
+      setSelectedTitle(s.selected_title ?? s.title ?? 'Quiz review');
+    } else {
+      setSelectedExamId(null);
+      setSelectedSetId(null);
+      setSelectedTitle(null);
+    }
+
     setActiveTab('chat');
+
+    // Offer to reopen the split view for review sessions
+    if (s.selected_exam_id || s.selected_set_id) {
+      const mode: 'exam' | 'quiz' = s.selected_exam_id ? 'exam' : 'quiz';
+      const submissionId = (s.selected_exam_id ?? s.selected_set_id) as string;
+      const title = s.selected_title ?? s.title ?? 'Review session';
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `reopen-${Date.now()}`,
+          role: 'assistant',
+          content: '',
+          type: 'reopen_review',
+          reopenData: { mode, submissionId, title },
+        }]);
+      }, 200);
+    }
   }, []);
+
 
   // Load lastReview from localStorage on open
   useEffect(() => {
