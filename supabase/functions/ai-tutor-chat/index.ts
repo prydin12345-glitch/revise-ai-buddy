@@ -393,7 +393,7 @@ Rules for follow-up questions:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages,
-          max_tokens: 400,
+          max_tokens: 600,
           temperature: 0.7,
           stream: true,
         }),
