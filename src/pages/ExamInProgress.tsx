@@ -1702,7 +1702,7 @@ const ExamInProgress = () => {
 
                   {/* Circuit diagram panel */}
                   {(() => {
-                    const circuitConfig = getCircuitConfig(question);
+                    const circuitConfig = getCircuitConfig(question, (question as any).subject ?? examSubject ?? '');
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
