@@ -913,26 +913,41 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const handleQuestionClick = useCallback((question: any) => {
     setActiveQuestionId(question.id);
 
-    const questionContext = [
-      `I want to understand Q${question.questionNumber}: "${question.questionText}"`,
-      `I answered: "${question.studentAnswer}"`,
-      question.isCorrect
-        ? `I got this right (${question.score}/${question.totalMarks} marks).`
-        : `I got this wrong (${question.score}/${question.totalMarks} marks). The correct answer was: "${question.correctAnswer}"`,
-      question.feedback ? `The feedback was: "${question.feedback}"` : null,
-      'Please explain this question clearly and tell me how to approach it correctly.',
-    ].filter(Boolean).join(' ');
+    const qText: string = String(question.questionText ?? '');
+    const qShort = qText.length > 80 ? qText.slice(0, 80) + '…' : qText;
+    const studentAns: string = String(question.studentAnswer ?? '');
+    const ansShort = studentAns.length > 60 ? studentAns.slice(0, 60) + '…' : studentAns;
 
-    setMessages(prev => [...prev, {
-      id: `user-q-${Date.now()}`,
-      role: 'user',
-      content: questionContext,
-      type: 'text',
-      timestamp: new Date(),
-    }]);
+    const statusNote = question.isCorrect
+      ? `I got this right (${question.score}/${question.totalMarks} marks)`
+      : question.isPartial
+        ? `I got partial marks (${question.score}/${question.totalMarks})`
+        : `I got this wrong (${question.score}/${question.totalMarks} marks)`;
 
-    streamAiResponse(questionContext, [], selectedExamId, selectedSetId);
-  }, [selectedExamId, selectedSetId, streamAiResponse]);
+    const inputText = question.isCorrect
+      ? `Q${question.questionNumber}: ${qShort} — ${statusNote}. Can you explain this?`
+      : `Q${question.questionNumber}: ${qShort} — I wrote "${ansShort}". ${statusNote}. What did I do wrong?`;
+
+    setActiveQuestionChip({
+      number: question.questionNumber,
+      text: qText.length > 60 ? qText.slice(0, 60) + '…' : qText,
+      isCorrect: !!question.isCorrect,
+      score: Number(question.score ?? 0),
+      totalMarks: Number(question.totalMarks ?? 0),
+    });
+
+    setInput(inputText);
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const len = inputText.length;
+        try { inputRef.current.setSelectionRange(len, len); } catch { /* ignore */ }
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+      }
+    }, 100);
+  }, []);
 
   const handleCloseSplitView = useCallback(() => {
     // Save summary when exiting a review session (but keep the chat panel open)
