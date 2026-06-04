@@ -198,14 +198,18 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
     ? `${parentQuestionText} ${questionText}`
     : questionText;
 
-  // Early exit — never show circuit diagrams for biology subjects
-  const subjLower = (subjectName ?? '').toLowerCase();
-  if (/biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical/i.test(subjLower)) {
+  // Early exit — never show circuit diagrams for biology subjects (expanded list)
+  const subjLower = (subjectName ?? '').toLowerCase().trim();
+  const isBiologySubject =
+    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
+      subjLower,
+    );
+  if (isBiologySubject) {
     return null;
   }
 
-  // Early exit — biology content terms (catches unknown subjects)
-  const BIOLOGY_TERMS = /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|dna replication|protein synthesis|allele|genotype|phenotype|food web|food chain|trophic|enzyme.substrate|punnett|gamete|zygote|photosynthesis|cell division|cell cycle|stem cell|nucleoid|plasma membrane|cell organelle|nucleoid region|protoplasm|gene locus|homologous pair|allelic variation|gene variant)\b/i;
+  // Early exit — biology content terms (catches unknown/empty subjects)
+  const BIOLOGY_TERMS = /\b(prokaryot|eukaryot|mitosis|meiosis|chromosome|organelle|mitochondri|chloroplast|ribosome|dna replication|protein synthesis|allele|genotype|phenotype|food web|food chain|trophic|enzyme.substrate|punnett|gamete|zygote|photosynthesis|cell division|cell cycle|stem cell|nucleoid|plasma membrane|cell organelle|nucleoid region|protoplasm|gene locus|homologous pair|allelic variation|gene variant|cell membrane|dna|rna|gene\b|natural selection|antibiotic resistance|pathogen|immune system|antibod|vaccine|nervous system|neuron|synapse|hormone|digestion|ecosystem|osmosis|respiration|plant cell|animal cell)\b/i;
   if (BIOLOGY_TERMS.test(fullText) && !/\b(physics|chemistry|electric|electronic)\b/i.test(subjLower)) {
     return null;
   }
