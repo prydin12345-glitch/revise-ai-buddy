@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
-import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
@@ -554,27 +554,43 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     if (open) loadPickerData();
   }, [open, loadPickerData]);
 
+  const triggerReviewPicker = useCallback(() => {
+    setActiveTab('chat');
+    const hasExams = completedExams.length > 0;
+    const hasQuizzes = completedQuizzes.length > 0;
+
+    if (!hasExams && !hasQuizzes) {
+      setMessages(prev => [...prev, {
+        id: `noreview-${Date.now()}`,
+        role: 'assistant',
+        content: 'You have not completed any exams or practice quizzes yet. Complete some first and then come back to review them.',
+        type: 'text',
+      }]);
+      return;
+    }
+
+    setMessages(prev => {
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg?.type === 'exam_picker' || lastMsg?.type === 'quiz_picker') return prev;
+      const useExams = completedExams.length >= completedQuizzes.length;
+      return [...prev, {
+        id: `review-picker-${Date.now()}`,
+        role: 'assistant',
+        content: 'Which exam or practice quiz would you like to review?',
+        type: useExams ? 'exam_picker' : 'quiz_picker',
+        pickerData: useExams ? completedExams : completedQuizzes,
+      }];
+    });
+  }, [completedExams, completedQuizzes]);
+
   // Auto-trigger picker when chat opened in review mode
   useEffect(() => {
     if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
     if (!pickerDataLoaded) return;
     if (messages.length > 0) return;
-    const hasExams = completedExams.length > 0;
-    const hasQuizzes = completedQuizzes.length > 0;
-    if (!hasExams && !hasQuizzes) return;
     autoPickerFiredRef.current = true;
-    const useExams = completedExams.length >= completedQuizzes.length;
-    setTimeout(() => {
-      setMessages([{
-        id: `autopicker-${Date.now()}`,
-        role: 'assistant',
-        content: 'What would you like to review?',
-        type: useExams ? 'exam_picker' : 'quiz_picker',
-        pickerData: useExams ? completedExams : completedQuizzes,
-      }]);
-      setActiveTab('chat');
-    }, 250);
-  }, [open, initialMode, pickerDataLoaded, completedExams, completedQuizzes, messages.length]);
+    setTimeout(() => triggerReviewPicker(), 250);
+  }, [open, initialMode, pickerDataLoaded, messages.length, triggerReviewPicker]);
 
   const streamAiResponse = useCallback(async (
     msg: string,
@@ -776,7 +792,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       }));
     } catch { /* ignore */ }
 
-    const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}%. Walk me through what I got wrong.`;
+    const followUp = `Let's review my ${item.title} exam. I scored ${item.pct}% (${item.score}/${item.totalMarks} marks). Go through each question I got wrong one by one. For each one: state the question briefly, state what I wrote, explain what was wrong with my answer, and give the correct answer. Be concise — one short paragraph per question.`;
 
     setMessages(prev => [
       ...prev,
@@ -797,7 +813,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
 
     setTimeout(() => {
       streamAiResponse(followUp, [], item.id, null);
-    }, 300);
+    }, 350);
   }, [streamAiResponse]);
 
   const handleQuizSelect = useCallback((item: QuizPickerItem) => {
@@ -821,7 +837,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       }));
     } catch { /* ignore */ }
 
-    const followUp = `Let's review my ${item.title} practice quiz. Walk me through what I got wrong.`;
+    const followUp = `Let's review my ${item.title} practice quiz. Go through each question I got wrong one by one. For each one: state the question briefly, state what I wrote, explain what was wrong with my answer, and give the correct answer. Be concise — one short paragraph per question.`;
 
     setMessages(prev => [
       ...prev,
@@ -842,7 +858,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
 
     setTimeout(() => {
       streamAiResponse(followUp, [], null, item.id);
-    }, 300);
+    }, 350);
   }, [streamAiResponse]);
 
   const handleQuestionClick = useCallback((question: any) => {
@@ -1118,6 +1134,20 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
               )}
 
               <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    if (!pickerDataLoaded) {
+                      loadPickerData().then(() => triggerReviewPicker());
+                    } else {
+                      triggerReviewPicker();
+                    }
+                  }}
+                  title="Review my work"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10 transition-colors duration-150"
+                >
+                  <BookOpen className="w-3 h-3" />
+                  Review
+                </button>
                 <button
                   onClick={handleNewChat}
                   title="New chat"

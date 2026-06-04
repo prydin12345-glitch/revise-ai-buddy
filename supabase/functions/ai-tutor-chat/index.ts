@@ -377,9 +377,33 @@ Rules for follow-up questions:
 - Only include the FOLLOWUP_QUESTION block when genuinely useful — not after every message
 - The JSON must be on a single line and be valid JSON`;
 
-    const fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
+    let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
       (selectedSetContext ? '\n\n' + selectedSetContext : '');
+
+    const isReviewWalkthrough =
+      message.includes('Go through each question I got wrong') ||
+      message.includes('go through each question');
+
+    if (isReviewWalkthrough) {
+      fullSystemPrompt += `
+
+REVIEW MODE — CRITICAL FORMATTING RULES:
+This is a question-by-question exam review. Format your response exactly like this:
+
+For each wrong answer write:
+"**Q[number] — [topic]**
+You wrote: "[brief quote of student answer]"
+What went wrong: [one sentence explanation]
+Correct answer: [the correct answer in one sentence]"
+
+Then a blank line before the next question.
+
+Maximum 2 questions per response. After 2 questions end with:
+"Tap any question on the right to go deeper, or ask me about a specific one."
+
+Keep each question block to 4 lines maximum. No introduction. No conclusion. Start directly with Q1.`;
+    }
 
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
     const messages = [
