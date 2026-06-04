@@ -554,6 +554,28 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     if (open) loadPickerData();
   }, [open, loadPickerData]);
 
+  // Auto-trigger picker when chat opened in review mode
+  useEffect(() => {
+    if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
+    if (!pickerDataLoaded) return;
+    if (messages.length > 0) return;
+    const hasExams = completedExams.length > 0;
+    const hasQuizzes = completedQuizzes.length > 0;
+    if (!hasExams && !hasQuizzes) return;
+    autoPickerFiredRef.current = true;
+    const useExams = completedExams.length >= completedQuizzes.length;
+    setTimeout(() => {
+      setMessages([{
+        id: `autopicker-${Date.now()}`,
+        role: 'assistant',
+        content: 'What would you like to review?',
+        type: useExams ? 'exam_picker' : 'quiz_picker',
+        pickerData: useExams ? completedExams : completedQuizzes,
+      }]);
+      setActiveTab('chat');
+    }, 250);
+  }, [open, initialMode, pickerDataLoaded, completedExams, completedQuizzes, messages.length]);
+
   const streamAiResponse = useCallback(async (
     msg: string,
     history: Array<{ role: string; content: string }>,
