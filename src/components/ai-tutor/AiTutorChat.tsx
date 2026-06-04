@@ -1174,6 +1174,28 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       onRevisitSummary={handleRevisitSummary}
       lastReview={lastReview}
       onResumeReview={handleResumeReview}
+      activeQuestionChip={activeQuestionChip}
+      onClearChip={() => {
+        setActiveQuestionChip(null);
+        setInput('');
+        setActiveQuestionId(null);
+      }}
+      onReopenReview={(data) => {
+        setSplitViewMode(data.mode);
+        setSplitViewContextId(data.submissionId);
+        setSelectedTitle(data.title);
+        if (data.mode === 'exam') {
+          setSelectedExamId(data.submissionId);
+          setSelectedSetId(null);
+        } else {
+          setSelectedSetId(data.submissionId);
+          setSelectedExamId(null);
+        }
+        setSplitViewOpen(true);
+      }}
+      onDismissReopen={(messageId) => {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      }}
     />
   );
 
