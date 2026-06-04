@@ -1009,7 +1009,53 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       savedSummary={savedSummary}
       onDismissSummary={handleDismissSummary}
       onRevisitSummary={handleRevisitSummary}
+      lastReview={lastReview}
+      onResumeReview={handleResumeReview}
     />
+  );
+
+  const historyPane = (
+    <div className="flex-1 overflow-y-auto">
+      {sessionsLoading ? (
+        <div className="flex items-center justify-center h-24">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-32 gap-2">
+          <p className="text-sm text-muted-foreground">No past conversations yet</p>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className="text-[12px] text-primary hover:underline"
+          >
+            Start a new chat
+          </button>
+        </div>
+      ) : (
+        sessions.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => openSession(s)}
+            className="w-full text-left px-4 py-3.5 border-b border-border hover:bg-muted/40 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[12.5px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                  {s.selected_title ?? s.title ?? 'Chat session'}
+                </div>
+                {s.preview && (
+                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {s.preview}
+                  </div>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
+                {new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </div>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
   );
 
   return (
@@ -1034,72 +1080,94 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
         <div
           className="fixed bg-background border border-border shadow-2xl flex flex-col z-[9998] rounded-2xl overflow-hidden
             inset-x-3 bottom-24 top-20
-            sm:inset-x-auto sm:right-6 sm:bottom-24 sm:top-auto sm:w-[400px] sm:h-[600px]"
+            sm:inset-x-auto sm:right-6 sm:bottom-24 sm:top-auto sm:w-[420px] sm:h-[640px]"
           style={{ animation: 'aiChatPopUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative flex-shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
-                  <GraduationCap className="w-4 h-4 text-primary-foreground" strokeWidth={2.2} />
+          <div className="flex flex-col border-b border-border bg-background/95 backdrop-blur-sm flex-shrink-0">
+            <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+                    <GraduationCap className="w-4 h-4 text-primary-foreground" strokeWidth={2.2} />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+                <div className="leading-tight min-w-0">
+                  <div className="text-sm font-semibold text-foreground">AI Tutor</div>
+                  <div className="text-[11px] text-emerald-500">Online</div>
+                </div>
               </div>
-              <div className="leading-tight min-w-0">
-                <div className="text-sm font-semibold text-foreground">AI Tutor</div>
-                <div className="text-[11px] text-muted-foreground">Online</div>
+
+              {selectedTitle && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 max-w-[120px] flex-shrink min-w-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                  <span className="text-[10px] text-primary font-medium truncate">{selectedTitle}</span>
+                  <button
+                    onClick={() => {
+                      setSelectedExamId(null);
+                      setSelectedSetId(null);
+                      setSelectedTitle(null);
+                    }}
+                    className="flex-shrink-0 text-primary/60 hover:text-primary transition-colors"
+                    aria-label="Clear context"
+                  >
+                    <X size={9} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={handleNewChat}
+                  title="New chat"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                >
+                  <Plus className="w-3 h-3" />
+                  New
+                </button>
+                {messages.length > 0 && activeTab === 'chat' && (
+                  <button
+                    onClick={handleClearChat}
+                    title="Clear chat"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={handleClose}
+                  aria-label="Close chat"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {selectedTitle && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 max-w-[140px] flex-shrink min-w-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                <span className="text-[10px] text-primary font-medium truncate">{selectedTitle}</span>
+            {/* Tab bar */}
+            <div className="flex px-4 gap-4">
+              {([
+                { id: 'chat' as const, label: 'Chat' },
+                { id: 'history' as const, label: 'History' },
+              ]).map(tab => (
                 <button
-                  onClick={() => {
-                    setSelectedExamId(null);
-                    setSelectedSetId(null);
-                    setSelectedTitle(null);
-                  }}
-                  className="flex-shrink-0 text-primary/60 hover:text-primary transition-colors"
-                  aria-label="Clear context"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`pb-2 text-[12px] font-semibold border-b-2 transition-all ${
+                    activeTab === tab.id
+                      ? 'text-primary border-primary'
+                      : 'text-muted-foreground border-transparent hover:text-foreground'
+                  }`}
                 >
-                  <X size={9} />
+                  {tab.label}
                 </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={handleNewChat}
-                title="New chat"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
-              >
-                <Plus className="w-3 h-3" />
-                New
-              </button>
-              {messages.length > 0 && (
-                <button
-                  onClick={handleClearChat}
-                  title="Clear chat"
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Clear
-                </button>
-              )}
-              <button
-                onClick={handleClose}
-                aria-label="Close chat"
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              ))}
             </div>
           </div>
 
-          {chatBody}
+          {activeTab === 'chat' ? chatBody : historyPane}
         </div>
       )}
 
