@@ -24,10 +24,11 @@ interface Opt {
 export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
+  // Evenly spaced across a 130px radius arc: 90°, 135°, 180°
   const opts: Opt[] = [
-    { key: "exam", dx: 4, dy: -130, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
-    { key: "quiz", dx: -76, dy: -100, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai", dx: -118, dy: 0, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
+    { key: "exam", dx: 0, dy: -130, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
+    { key: "quiz", dx: -92, dy: -92, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
+    { key: "ai", dx: -130, dy: 0, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
