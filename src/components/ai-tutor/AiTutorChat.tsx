@@ -77,8 +77,6 @@ interface ChatBodyProps {
   onRevisitSummary: () => void;
   lastReview?: LastReview | null;
   onResumeReview?: () => void;
-  activeQuestionChip: QuestionChip | null;
-  onClearChip: () => void;
   onReopenReview: (data: { mode: 'exam' | 'quiz'; submissionId: string; title: string }) => void;
   onDismissReopen: (messageId: string) => void;
 }
