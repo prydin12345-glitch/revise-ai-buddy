@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, MinusCircle, ChevronRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, MinusCircle, ChevronRight, Loader2, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
 
@@ -35,6 +35,7 @@ export const QuizReviewPanel = ({
   const [questions, setQuestions] = useState<QuizQuestionResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct'>('all');
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
   const session = useSession();
 
   useEffect(() => {
@@ -127,12 +128,18 @@ export const QuizReviewPanel = ({
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <style>{`
+        @keyframes expandDown {
+          from { opacity: 0; transform: translateY(-4px); max-height: 0; }
+          to   { opacity: 1; transform: translateY(0);    max-height: 600px; }
+        }
+      `}</style>
       <div className="px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-foreground truncate">{setTitle}</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {questions.length} questions · Click any question to discuss it
+              {questions.length} questions · Tap any to expand
             </p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -166,8 +173,8 @@ export const QuizReviewPanel = ({
       </div>
 
       <div className="flex-1 relative overflow-hidden min-h-0">
-        <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
-        <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50">
+        <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background via-background/80 to-transparent z-10 pointer-events-none" />
+        <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-muted/30 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50 [&::-webkit-scrollbar-thumb:active]:bg-muted-foreground/70">
 
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full p-6">
@@ -176,6 +183,7 @@ export const QuizReviewPanel = ({
         ) : (
           filtered.map(q => {
             const isActive = activeQuestionId === q.id;
+            const isExpanded = expandedQuestionId === q.id;
             const statusIcon = q.isCorrect
               ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
               : q.isPartial
@@ -188,42 +196,114 @@ export const QuizReviewPanel = ({
                 : 'border-l-red-500';
 
             return (
-              <button
-                key={q.id}
-                onClick={() => onQuestionClick(q)}
-                className={`w-full text-left px-4 py-3.5 border-b border-border border-l-2 ${statusBg} hover:bg-muted/40 transition-all duration-150 group ${
-                  isActive ? 'bg-primary/5 border-l-primary' : ''
-                }`}
-              >
-                <div className="flex items-start gap-2.5">
-                  {statusIcon}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[11px] font-semibold text-foreground">
-                        Q{q.questionNumber}
-                        {q.subtopic && <span className="text-muted-foreground font-normal"> · {q.subtopic}</span>}
-                      </span>
-                      <span className="text-[11px] font-mono text-muted-foreground flex-shrink-0">
-                        {q.score}/{q.totalMarks}
-                      </span>
-                    </div>
-                    <p className="text-[12px] text-foreground/80 line-clamp-2 leading-snug">
-                      {q.questionText}
-                    </p>
-                    {!q.isCorrect && q.studentAnswer && (
-                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
-                        Your answer: <span className="text-foreground/70">{q.studentAnswer}</span>
+              <div key={q.id}>
+                <button
+                  onClick={() => setExpandedQuestionId(isExpanded ? null : q.id)}
+                  className={`w-full text-left px-4 py-3.5 border-b border-border border-l-2 ${statusBg} hover:bg-muted/40 transition-all duration-150 group ${
+                    isActive || isExpanded ? 'bg-muted/50' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {statusIcon}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[11px] font-semibold text-foreground">
+                          Q{q.questionNumber}
+                          {q.subtopic && <span className="text-muted-foreground font-normal"> · {q.subtopic}</span>}
+                        </span>
+                        <span className="text-[11px] font-mono text-muted-foreground flex-shrink-0">
+                          {q.score}/{q.totalMarks}
+                        </span>
+                      </div>
+                      <p className={`text-[12px] text-foreground/80 leading-snug ${isExpanded ? '' : 'line-clamp-2'}`}>
+                        {q.questionText}
                       </p>
-                    )}
+                      {!isExpanded && !q.isCorrect && q.studentAnswer && (
+                        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
+                          Your answer: <span className="text-foreground/70">{q.studentAnswer}</span>
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground flex-shrink-0 mt-0.5 transition-transform ${
+                        isExpanded ? 'rotate-90' : ''
+                      }`}
+                    />
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground flex-shrink-0 mt-0.5" />
-                </div>
-              </button>
+                </button>
+
+                {isExpanded && (
+                  <div
+                    className="border-b border-border bg-muted/20 px-4 py-3 space-y-3 overflow-hidden"
+                    style={{ animation: 'expandDown 0.2s ease-out' }}
+                  >
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                        Your answer
+                      </div>
+                      <div className="text-[12px] text-foreground whitespace-pre-wrap leading-snug">
+                        {q.studentAnswer || (
+                          <span className="italic text-muted-foreground">No answer recorded</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {!q.isCorrect && (
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 mb-1">
+                          Correct answer
+                        </div>
+                        <div className="text-[12px] text-foreground whitespace-pre-wrap leading-snug">
+                          {q.correctAnswer || (
+                            <span className="italic text-muted-foreground">See mark scheme</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {!q.isCorrect && q.workedSolution && (
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                          Worked solution
+                        </div>
+                        <div className="text-[12px] text-foreground/80 whitespace-pre-wrap leading-snug">
+                          {q.workedSolution}
+                        </div>
+                      </div>
+                    )}
+
+                    {q.feedback && (
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                          Feedback
+                        </div>
+                        <div className="text-[12px] text-foreground/80 leading-snug">{q.feedback}</div>
+                      </div>
+                    )}
+
+                    <div className="text-[11px] font-mono text-muted-foreground">
+                      {q.score}/{q.totalMarks} marks
+                      {q.isCorrect ? ' ✓' : q.isPartial ? ' (partial)' : ' ✗'}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        onQuestionClick(q);
+                        setExpandedQuestionId(null);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-[12px] font-semibold text-primary transition-all duration-150"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Discuss with AI tutor
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })
         )}
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background via-background/80 to-transparent z-10 pointer-events-none" />
       </div>
     </div>
   );
