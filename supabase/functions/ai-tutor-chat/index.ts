@@ -458,7 +458,7 @@ For a model answer use this format:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages,
-          max_tokens: 250,
+          max_tokens: maxTokens,
           temperature: 0.7,
           stream: true,
         }),
