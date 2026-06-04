@@ -595,14 +595,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     });
   }, [completedExams, completedQuizzes]);
 
-  // Auto-trigger picker when chat opened in review mode
-  useEffect(() => {
-    if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
-    if (!pickerDataLoaded) return;
-    if (messages.length > 0) return;
-    autoPickerFiredRef.current = true;
-    setTimeout(() => triggerReviewPicker(), 250);
-  }, [open, initialMode, pickerDataLoaded, messages.length, triggerReviewPicker]);
+  // (review picker is now triggered only from the in-header Review button)
 
   const streamAiResponse = useCallback(async (
     msg: string,
