@@ -366,10 +366,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
 
   // Tabs / history / resume review state
   const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
-  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; updated_at: string }>>([]);
+  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; selected_exam_id: string | null; selected_set_id: string | null; updated_at: string }>>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const autoPickerFiredRef = useRef(false);
+
+  // Active question chip (when a question is clicked in review panel)
+  const [activeQuestionChip, setActiveQuestionChip] = useState<QuestionChip | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
