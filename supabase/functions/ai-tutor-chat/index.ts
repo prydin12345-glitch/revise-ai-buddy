@@ -353,7 +353,25 @@ ${setAnswers.map((a: any, i: number) => {
       }
     }
 
-    const fullSystemPrompt = systemPrompt +
+    const FOLLOWUP_INSTRUCTIONS = `
+
+FOLLOW-UP PRACTICE QUESTIONS:
+After explaining a wrong answer, you may offer a follow-up practice question to check understanding.
+
+When you want to offer one, end your response with this EXACT format on a new line (no markdown, no code fences):
+FOLLOWUP_QUESTION:{"question":"<question text>","type":"<short_answer|mcq>","options":["A. option1","B. option2","C. option3","D. option4"],"correctAnswer":"<answer or letter>","explanation":"<brief explanation>","marks":<number>}
+
+Rules for follow-up questions:
+- Only offer one after explaining a wrong answer, not for general questions
+- Make it directly related to the concept the student got wrong
+- For MCQ include exactly 4 options with plausible distractors and set correctAnswer to the letter (A/B/C/D)
+- For short_answer leave options as an empty array []
+- Keep the question concise — maximum 2 marks
+- The explanation should be one sentence maximum
+- Only include the FOLLOWUP_QUESTION block when genuinely useful — not after every message
+- The JSON must be on a single line and be valid JSON`;
+
+    const fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
       (selectedSetContext ? '\n\n' + selectedSetContext : '');
 
