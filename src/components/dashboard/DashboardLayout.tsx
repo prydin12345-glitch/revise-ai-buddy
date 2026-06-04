@@ -37,7 +37,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
-  const [aiChatInitialMode, setAiChatInitialMode] = useState<'review' | null>(null);
+  const [aiUnread, setAiUnread] = useState(0);
   const [aiUnread, setAiUnread] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
