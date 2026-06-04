@@ -320,20 +320,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setAiChatInitialMode('review');
-                        setAiChatOpen(true);
-                      }}
-                      className="cursor-pointer gap-2"
-                    >
-                      <BookOpen className="w-4 h-4 text-amber-500" />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Review My Work</span>
-                        <span className="text-xs text-muted-foreground">Go through past exams with AI</span>
-                      </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setJoinClassModalOpen(true)} className="cursor-pointer gap-2">
                       <Users className="w-4 h-4 text-[#a78bfa]" />
                       <div className="flex flex-col">
