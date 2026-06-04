@@ -706,6 +706,101 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setActiveQuestionId(null);
   }, []);
 
+  // Follow-up answer handler: marks message, sends result back to AI
+  const handleFollowupAnswer = useCallback(
+    (messageId: string, question: FollowUpQuestion, answer: string, isCorrect: boolean) => {
+      setMessages(prev => prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              followupAnswer: {
+                studentAnswer: answer,
+                isCorrect,
+                explanation: question.explanation,
+              },
+            }
+          : m
+      ));
+
+      const followupMsg = isCorrect
+        ? `I answered the follow-up question correctly: "${answer}"`
+        : `I got the follow-up question wrong. I answered "${answer}" but the correct answer was "${question.correctAnswer}". Can you explain further?`;
+
+      setTimeout(() => {
+        streamAiResponse(followupMsg, [], selectedExamId, selectedSetId);
+      }, 500);
+    },
+    [selectedExamId, selectedSetId, streamAiResponse]
+  );
+
+  // Generate session summary from current messages
+  const generateSessionSummary = useCallback((): SessionSummary | null => {
+    if (!selectedTitle || messages.length < 3) return null;
+
+    const followupMessages = messages.filter(m => m.type === 'followup_question');
+    const answeredFollowups = followupMessages.filter(m => m.followupAnswer);
+    const correctFollowups = answeredFollowups.filter(m => m.followupAnswer?.isCorrect).length;
+    const wrongCount = answeredFollowups.length - correctFollowups;
+
+    const summary: SessionSummary = {
+      title: selectedTitle,
+      correctFollowups,
+      totalFollowups: answeredFollowups.length,
+      topicsReviewed: [],
+      keyTakeaway: answeredFollowups.length > 0
+        ? correctFollowups === answeredFollowups.length
+          ? 'Good progress — you answered all follow-up questions correctly.'
+          : `Still working on ${wrongCount} concept${wrongCount !== 1 ? 's' : ''} from this review.`
+        : `Reviewed ${selectedTitle} with your AI tutor.`,
+    };
+
+    try {
+      localStorage.setItem(
+        SESSION_SUMMARY_KEY,
+        JSON.stringify({ ...summary, timestamp: Date.now() })
+      );
+    } catch { /* ignore */ }
+
+    return summary;
+  }, [selectedTitle, messages]);
+
+  // Load saved summary when chat opens
+  useEffect(() => {
+    if (!open || savedSummary) return;
+    try {
+      const stored = localStorage.getItem(SESSION_SUMMARY_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Date.now() - (parsed.timestamp ?? 0) < 7 * 24 * 60 * 60 * 1000) {
+          const { timestamp: _ts, ...summary } = parsed;
+          setSavedSummary(summary as SessionSummary);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [open, savedSummary]);
+
+  // Close handler — generates summary if there was a review session
+  const handleClose = useCallback(() => {
+    if (selectedTitle && messages.length > 3) {
+      generateSessionSummary();
+    }
+    setSplitViewOpen(false);
+    setActiveQuestionId(null);
+    onOpenChange(false);
+  }, [selectedTitle, messages, generateSessionSummary, onOpenChange]);
+
+  const handleDismissSummary = useCallback(() => {
+    setSavedSummary(null);
+    try { localStorage.removeItem(SESSION_SUMMARY_KEY); } catch { /* ignore */ }
+  }, []);
+
+  const handleRevisitSummary = useCallback(() => {
+    const title = savedSummary?.title;
+    setSavedSummary(null);
+    try { localStorage.removeItem(SESSION_SUMMARY_KEY); } catch { /* ignore */ }
+    if (title) sendMessage(`Let's continue reviewing ${title}`);
+  }, [savedSummary, sendMessage]);
+
   if (!session) return null;
 
   const chatBody = (
@@ -721,6 +816,10 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       sendMessage={sendMessage}
       handleExamSelect={handleExamSelect}
       handleQuizSelect={handleQuizSelect}
+      handleFollowupAnswer={handleFollowupAnswer}
+      savedSummary={savedSummary}
+      onDismissSummary={handleDismissSummary}
+      onRevisitSummary={handleRevisitSummary}
     />
   );
 
