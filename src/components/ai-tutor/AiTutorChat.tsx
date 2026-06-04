@@ -338,7 +338,7 @@ const ChatBody = ({
   </>
 );
 
-export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }: AiTutorChatProps) => {
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
