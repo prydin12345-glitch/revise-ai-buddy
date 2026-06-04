@@ -507,6 +507,22 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
               setMessages(prev => prev.map(m =>
                 m.id === assistantId ? { ...m, content: fullContent } : m));
             }
+            if (parsed.followup) {
+              // Mark current assistant message as done streaming
+              setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, streaming: false } : m));
+              // Append the follow-up question card as a new message
+              const followupId = `followup-${Date.now()}`;
+              setTimeout(() => {
+                setMessages(prev => [...prev, {
+                  id: followupId,
+                  role: 'assistant',
+                  content: '',
+                  type: 'followup_question',
+                  followupQuestion: parsed.followup,
+                }]);
+              }, 350);
+            }
           } catch { /* skip */ }
         }
       }
