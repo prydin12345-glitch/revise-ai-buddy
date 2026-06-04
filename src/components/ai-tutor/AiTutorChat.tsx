@@ -44,13 +44,6 @@ interface LastReview {
   timestamp: number;
 }
 
-interface QuestionChip {
-  number: string | number;
-  text: string;
-  isCorrect: boolean;
-  score: number;
-  totalMarks: number;
-}
 
 interface AiTutorChatProps {
   open: boolean;
@@ -84,8 +77,6 @@ interface ChatBodyProps {
   onRevisitSummary: () => void;
   lastReview?: LastReview | null;
   onResumeReview?: () => void;
-  activeQuestionChip: QuestionChip | null;
-  onClearChip: () => void;
   onReopenReview: (data: { mode: 'exam' | 'quiz'; submissionId: string; title: string }) => void;
   onDismissReopen: (messageId: string) => void;
 }
@@ -108,8 +99,6 @@ const ChatBody = ({
   onRevisitSummary,
   lastReview,
   onResumeReview,
-  activeQuestionChip,
-  onClearChip,
   onReopenReview,
   onDismissReopen,
 }: ChatBodyProps) => (
@@ -342,44 +331,6 @@ const ChatBody = ({
 
     {/* Input */}
     <div className="border-t border-border p-3 bg-background/95 flex-shrink-0">
-      {activeQuestionChip && (
-        <div className="flex items-center gap-2 mb-2 px-1">
-          <div
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border flex-1 min-w-0 ${
-              activeQuestionChip.isCorrect
-                ? 'bg-emerald-500/10 border-emerald-500/20'
-                : 'bg-red-500/10 border-red-500/20'
-            }`}
-          >
-            <div
-              className={`px-1.5 h-4 rounded flex items-center justify-center flex-shrink-0 text-[9px] font-bold ${
-                activeQuestionChip.isCorrect
-                  ? 'bg-emerald-500/20 text-emerald-600'
-                  : 'bg-red-500/20 text-red-500'
-              }`}
-            >
-              Q{activeQuestionChip.number}
-            </div>
-            <span className="text-[11px] text-foreground truncate flex-1">
-              {activeQuestionChip.text}
-            </span>
-            <span
-              className={`text-[10px] font-semibold flex-shrink-0 ${
-                activeQuestionChip.isCorrect ? 'text-emerald-600' : 'text-red-500'
-              }`}
-            >
-              {activeQuestionChip.score}/{activeQuestionChip.totalMarks}
-            </span>
-          </div>
-          <button
-            onClick={onClearChip}
-            aria-label="Clear question context"
-            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-          >
-            <X size={12} />
-          </button>
-        </div>
-      )}
       {!rateLimitHit && messagesSentToday > 40 && (
         <div className="text-[10px] text-muted-foreground text-right mb-1.5">
           {Math.max(0, 50 - messagesSentToday)} messages remaining today
@@ -454,8 +405,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const autoPickerFiredRef = useRef(false);
 
-  // Active question chip (when a question is clicked in review panel)
-  const [activeQuestionChip, setActiveQuestionChip] = useState<QuestionChip | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -795,22 +744,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
               setMessages(prev => prev.map(m =>
                 m.id === assistantId ? { ...m, content: fullContent } : m));
             }
-            if (parsed.followup) {
-              // Mark current assistant message as done streaming
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, streaming: false } : m));
-              // Append the follow-up question card as a new message
-              const followupId = `followup-${Date.now()}`;
-              setTimeout(() => {
-                setMessages(prev => [...prev, {
-                  id: followupId,
-                  role: 'assistant',
-                  content: '',
-                  type: 'followup_question',
-                  followupQuestion: parsed.followup,
-                }]);
-              }, 350);
-            }
           } catch { /* skip */ }
         }
       }
@@ -835,7 +768,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     if (!msg || loading || !session) return;
 
     setInput('');
-    setActiveQuestionChip(null);
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
     setMessages(prev => [...prev, {
@@ -996,35 +928,16 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const handleQuestionClick = useCallback((question: any) => {
     setActiveQuestionId(question.id);
 
-    const qText: string = String(question.questionText ?? '');
-    const qShort = qText.length > 80 ? qText.slice(0, 80) + '…' : qText;
-    const studentAns: string = String(question.studentAnswer ?? '');
-    const ansShort = studentAns.length > 60 ? studentAns.slice(0, 60) + '…' : studentAns;
+    const starter = question.isCorrect
+      ? `Can you explain Q${question.questionNumber} in more detail?`
+      : `Why was I wrong on Q${question.questionNumber}?`;
 
-    const statusNote = question.isCorrect
-      ? `I got this right (${question.score}/${question.totalMarks} marks)`
-      : question.isPartial
-        ? `I got partial marks (${question.score}/${question.totalMarks})`
-        : `I got this wrong (${question.score}/${question.totalMarks} marks)`;
-
-    const inputText = question.isCorrect
-      ? `Q${question.questionNumber}: ${qShort} — ${statusNote}. Can you explain this?`
-      : `Q${question.questionNumber}: ${qShort} — I wrote "${ansShort}". ${statusNote}. What did I do wrong?`;
-
-    setActiveQuestionChip({
-      number: question.questionNumber,
-      text: qText.length > 60 ? qText.slice(0, 60) + '…' : qText,
-      isCorrect: !!question.isCorrect,
-      score: Number(question.score ?? 0),
-      totalMarks: Number(question.totalMarks ?? 0),
-    });
-
-    setInput(inputText);
+    setInput(starter);
 
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        const len = inputText.length;
+        const len = starter.length;
         try { inputRef.current.setSelectionRange(len, len); } catch { /* ignore */ }
         inputRef.current.style.height = 'auto';
         inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
@@ -1174,12 +1087,6 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       onRevisitSummary={handleRevisitSummary}
       lastReview={lastReview}
       onResumeReview={handleResumeReview}
-      activeQuestionChip={activeQuestionChip}
-      onClearChip={() => {
-        setActiveQuestionChip(null);
-        setInput('');
-        setActiveQuestionId(null);
-      }}
       onReopenReview={(data) => {
         setSplitViewMode(data.mode);
         setSplitViewContextId(data.submissionId);
