@@ -353,7 +353,25 @@ ${setAnswers.map((a: any, i: number) => {
       }
     }
 
-    const fullSystemPrompt = systemPrompt +
+    const FOLLOWUP_INSTRUCTIONS = `
+
+FOLLOW-UP PRACTICE QUESTIONS:
+After explaining a wrong answer, you may offer a follow-up practice question to check understanding.
+
+When you want to offer one, end your response with this EXACT format on a new line (no markdown, no code fences):
+FOLLOWUP_QUESTION:{"question":"<question text>","type":"<short_answer|mcq>","options":["A. option1","B. option2","C. option3","D. option4"],"correctAnswer":"<answer or letter>","explanation":"<brief explanation>","marks":<number>}
+
+Rules for follow-up questions:
+- Only offer one after explaining a wrong answer, not for general questions
+- Make it directly related to the concept the student got wrong
+- For MCQ include exactly 4 options with plausible distractors and set correctAnswer to the letter (A/B/C/D)
+- For short_answer leave options as an empty array []
+- Keep the question concise — maximum 2 marks
+- The explanation should be one sentence maximum
+- Only include the FOLLOWUP_QUESTION block when genuinely useful — not after every message
+- The JSON must be on a single line and be valid JSON`;
+
+    const fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
       (selectedSetContext ? '\n\n' + selectedSetContext : '');
 
@@ -375,7 +393,7 @@ ${setAnswers.map((a: any, i: number) => {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages,
-          max_tokens: 400,
+          max_tokens: 600,
           temperature: 0.7,
           stream: true,
         }),
@@ -414,6 +432,53 @@ ${setAnswers.map((a: any, i: number) => {
 
     const encoder = new TextEncoder();
     let fullResponse = '';
+    let streamedSoFar = '';
+    const FOLLOWUP_MARKER = '\nFOLLOWUP_QUESTION:';
+
+    const flushFinal = async (controller: ReadableStreamDefaultController) => {
+      // Detect followup block in full response
+      const idx = fullResponse.indexOf(FOLLOWUP_MARKER);
+      let cleanResponse = fullResponse;
+      let followupData: any = null;
+
+      if (idx !== -1) {
+        const jsonPart = fullResponse.slice(idx + FOLLOWUP_MARKER.length).trim();
+        // Find a valid JSON object (greedy match through last `}`)
+        const lastBrace = jsonPart.lastIndexOf('}');
+        if (lastBrace !== -1) {
+          const candidate = jsonPart.slice(0, lastBrace + 1);
+          try {
+            followupData = JSON.parse(candidate);
+          } catch {
+            // ignore malformed
+          }
+        }
+        cleanResponse = fullResponse.slice(0, idx).trim();
+      }
+
+      // Flush any remaining clean text that hasn't been streamed yet
+      if (cleanResponse.length > streamedSoFar.length) {
+        const remaining = cleanResponse.slice(streamedSoFar.length);
+        if (remaining) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: remaining })}\n\n`));
+        }
+      }
+
+      if (followupData) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ followup: followupData })}\n\n`));
+      }
+
+      if (cleanResponse) {
+        await supabase.from('ai_tutor_messages').insert({
+          user_id: user.id,
+          role: 'assistant',
+          content: cleanResponse,
+        });
+      }
+
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    };
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -435,15 +500,7 @@ ${setAnswers.map((a: any, i: number) => {
               if (!trimmed.startsWith('data:')) continue;
               const data = trimmed.slice(5).trim();
               if (data === '[DONE]') {
-                if (fullResponse) {
-                  await supabase.from('ai_tutor_messages').insert({
-                    user_id: user.id,
-                    role: 'assistant',
-                    content: fullResponse,
-                  });
-                }
-                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                controller.close();
+                await flushFinal(controller);
                 return;
               }
 
@@ -452,7 +509,25 @@ ${setAnswers.map((a: any, i: number) => {
                 const token = parsed.choices?.[0]?.delta?.content ?? '';
                 if (token) {
                   fullResponse += token;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+
+                  // Stream only safe-to-emit text (everything before the FOLLOWUP marker).
+                  // If the marker hasn't appeared, hold back the last 25 chars in case
+                  // it's the start of "\nFOLLOWUP_QUESTION:" arriving across token boundaries.
+                  const markerIdx = fullResponse.indexOf(FOLLOWUP_MARKER);
+                  let safeUpTo: number;
+                  if (markerIdx !== -1) {
+                    safeUpTo = markerIdx;
+                  } else {
+                    safeUpTo = Math.max(0, fullResponse.length - 25);
+                  }
+
+                  if (safeUpTo > streamedSoFar.length) {
+                    const toEmit = fullResponse.slice(streamedSoFar.length, safeUpTo);
+                    streamedSoFar = fullResponse.slice(0, safeUpTo);
+                    if (toEmit) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: toEmit })}\n\n`));
+                    }
+                  }
                 }
               } catch {
                 // skip
@@ -460,15 +535,7 @@ ${setAnswers.map((a: any, i: number) => {
             }
           }
 
-          if (fullResponse) {
-            await supabase.from('ai_tutor_messages').insert({
-              user_id: user.id,
-              role: 'assistant',
-              content: fullResponse,
-            });
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          await flushFinal(controller);
         } catch (err) {
           console.error('Stream error:', err);
           try { controller.close(); } catch {}
@@ -484,11 +551,11 @@ ${setAnswers.map((a: any, i: number) => {
         'Connection': 'keep-alive',
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('ai-tutor-chat error:', err);
-    return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

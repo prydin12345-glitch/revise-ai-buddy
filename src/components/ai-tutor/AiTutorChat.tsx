@@ -7,15 +7,25 @@ import { detectIntent, isReviewIntent } from './intent-detector';
 import { ExamPickerCard, type ExamPickerItem } from './ExamPickerCard';
 import { QuizPickerCard, type QuizPickerItem } from './QuizPickerCard';
 import { SplitReviewView } from './SplitReviewView';
+import { FollowUpQuestionCard, type FollowUpQuestion } from './FollowUpQuestionCard';
+import { SessionSummaryCard, type SessionSummary } from './SessionSummaryCard';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   streaming?: boolean;
-  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz';
+  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question';
   pickerData?: ExamPickerItem[] | QuizPickerItem[];
+  followupQuestion?: FollowUpQuestion;
+  followupAnswer?: {
+    studentAnswer: string;
+    isCorrect: boolean;
+    explanation: string;
+  };
 }
+
+const SESSION_SUMMARY_KEY = 'examly_last_session_summary';
 
 interface AiTutorChatProps {
   open: boolean;
@@ -43,6 +53,10 @@ interface ChatBodyProps {
   sendMessage: (text?: string) => void;
   handleExamSelect: (item: ExamPickerItem) => void;
   handleQuizSelect: (item: QuizPickerItem) => void;
+  handleFollowupAnswer: (messageId: string, question: FollowUpQuestion, answer: string, isCorrect: boolean) => void;
+  savedSummary: SessionSummary | null;
+  onDismissSummary: () => void;
+  onRevisitSummary: () => void;
 }
 
 const ChatBody = ({
@@ -57,10 +71,22 @@ const ChatBody = ({
   sendMessage,
   handleExamSelect,
   handleQuizSelect,
+  handleFollowupAnswer,
+  savedSummary,
+  onDismissSummary,
+  onRevisitSummary,
 }: ChatBodyProps) => (
   <>
     {/* Messages */}
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
+      {messages.length === 0 && savedSummary && (
+        <SessionSummaryCard
+          summary={savedSummary}
+          onDismiss={onDismissSummary}
+          onRevisit={onRevisitSummary}
+        />
+      )}
+
       {messages.length === 0 && (
         <div className="space-y-4">
           <div className="flex gap-2.5">
@@ -128,6 +154,29 @@ const ChatBody = ({
                     onSelect={handleQuizSelect}
                   />
                 )}
+              </div>
+            </div>
+          );
+        }
+
+        if (msg.type === 'followup_question' && msg.followupQuestion) {
+          return (
+            <div
+              key={msg.id}
+              className="flex gap-2.5 items-start"
+              style={{ animation: 'aiMessageSlide 0.3s ease both' }}
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0 max-w-[90%]">
+                <FollowUpQuestionCard
+                  question={msg.followupQuestion}
+                  answered={msg.followupAnswer}
+                  onAnswer={(answer, isCorrect) =>
+                    handleFollowupAnswer(msg.id, msg.followupQuestion!, answer, isCorrect)
+                  }
+                />
               </div>
             </div>
           );
@@ -260,6 +309,9 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   const [splitViewTotalMarks, setSplitViewTotalMarks] = useState(0);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
 
+  // Session summary state
+  const [savedSummary, setSavedSummary] = useState<SessionSummary | null>(null);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const session = useSession();
@@ -272,6 +324,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedExamId(null);
     setSelectedSetId(null);
     setSelectedTitle(null);
+    setSplitViewOpen(false);
     setActiveQuestionId(null);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -454,6 +507,22 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
               setMessages(prev => prev.map(m =>
                 m.id === assistantId ? { ...m, content: fullContent } : m));
             }
+            if (parsed.followup) {
+              // Mark current assistant message as done streaming
+              setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, streaming: false } : m));
+              // Append the follow-up question card as a new message
+              const followupId = `followup-${Date.now()}`;
+              setTimeout(() => {
+                setMessages(prev => [...prev, {
+                  id: followupId,
+                  role: 'assistant',
+                  content: '',
+                  type: 'followup_question',
+                  followupQuestion: parsed.followup,
+                }]);
+              }, 350);
+            }
           } catch { /* skip */ }
         }
       }
@@ -633,9 +702,125 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [selectedExamId, selectedSetId, streamAiResponse]);
 
   const handleCloseSplitView = useCallback(() => {
+    // Save summary when exiting a review session (but keep the chat panel open)
+    if (selectedTitle && messages.length > 3) {
+      const followupMessages = messages.filter(m => m.type === 'followup_question');
+      const answeredFollowups = followupMessages.filter(m => m.followupAnswer);
+      const correctFollowups = answeredFollowups.filter(m => m.followupAnswer?.isCorrect).length;
+      const wrongCount = answeredFollowups.length - correctFollowups;
+      const summary: SessionSummary = {
+        title: selectedTitle,
+        correctFollowups,
+        totalFollowups: answeredFollowups.length,
+        topicsReviewed: [],
+        keyTakeaway: answeredFollowups.length > 0
+          ? correctFollowups === answeredFollowups.length
+            ? 'Good progress — you answered all follow-up questions correctly.'
+            : `Still working on ${wrongCount} concept${wrongCount !== 1 ? 's' : ''} from this review.`
+          : `Reviewed ${selectedTitle} with your AI tutor.`,
+      };
+      try {
+        localStorage.setItem(SESSION_SUMMARY_KEY, JSON.stringify({ ...summary, timestamp: Date.now() }));
+      } catch { /* ignore */ }
+    }
     setSplitViewOpen(false);
     setActiveQuestionId(null);
+  }, [selectedTitle, messages]);
+
+  // Follow-up answer handler: marks message, sends result back to AI
+  const handleFollowupAnswer = useCallback(
+    (messageId: string, question: FollowUpQuestion, answer: string, isCorrect: boolean) => {
+      setMessages(prev => prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              followupAnswer: {
+                studentAnswer: answer,
+                isCorrect,
+                explanation: question.explanation,
+              },
+            }
+          : m
+      ));
+
+      const followupMsg = isCorrect
+        ? `I answered the follow-up question correctly: "${answer}"`
+        : `I got the follow-up question wrong. I answered "${answer}" but the correct answer was "${question.correctAnswer}". Can you explain further?`;
+
+      setTimeout(() => {
+        streamAiResponse(followupMsg, [], selectedExamId, selectedSetId);
+      }, 500);
+    },
+    [selectedExamId, selectedSetId, streamAiResponse]
+  );
+
+  // Generate session summary from current messages
+  const generateSessionSummary = useCallback((): SessionSummary | null => {
+    if (!selectedTitle || messages.length < 3) return null;
+
+    const followupMessages = messages.filter(m => m.type === 'followup_question');
+    const answeredFollowups = followupMessages.filter(m => m.followupAnswer);
+    const correctFollowups = answeredFollowups.filter(m => m.followupAnswer?.isCorrect).length;
+    const wrongCount = answeredFollowups.length - correctFollowups;
+
+    const summary: SessionSummary = {
+      title: selectedTitle,
+      correctFollowups,
+      totalFollowups: answeredFollowups.length,
+      topicsReviewed: [],
+      keyTakeaway: answeredFollowups.length > 0
+        ? correctFollowups === answeredFollowups.length
+          ? 'Good progress — you answered all follow-up questions correctly.'
+          : `Still working on ${wrongCount} concept${wrongCount !== 1 ? 's' : ''} from this review.`
+        : `Reviewed ${selectedTitle} with your AI tutor.`,
+    };
+
+    try {
+      localStorage.setItem(
+        SESSION_SUMMARY_KEY,
+        JSON.stringify({ ...summary, timestamp: Date.now() })
+      );
+    } catch { /* ignore */ }
+
+    return summary;
+  }, [selectedTitle, messages]);
+
+  // Load saved summary when chat opens
+  useEffect(() => {
+    if (!open || savedSummary) return;
+    try {
+      const stored = localStorage.getItem(SESSION_SUMMARY_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Date.now() - (parsed.timestamp ?? 0) < 7 * 24 * 60 * 60 * 1000) {
+          const { timestamp: _ts, ...summary } = parsed;
+          setSavedSummary(summary as SessionSummary);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [open, savedSummary]);
+
+  // Close handler — generates summary if there was a review session
+  const handleClose = useCallback(() => {
+    if (selectedTitle && messages.length > 3) {
+      generateSessionSummary();
+    }
+    setSplitViewOpen(false);
+    setActiveQuestionId(null);
+    onOpenChange(false);
+  }, [selectedTitle, messages, generateSessionSummary, onOpenChange]);
+
+  const handleDismissSummary = useCallback(() => {
+    setSavedSummary(null);
+    try { localStorage.removeItem(SESSION_SUMMARY_KEY); } catch { /* ignore */ }
   }, []);
+
+  const handleRevisitSummary = useCallback(() => {
+    const title = savedSummary?.title;
+    setSavedSummary(null);
+    try { localStorage.removeItem(SESSION_SUMMARY_KEY); } catch { /* ignore */ }
+    if (title) sendMessage(`Let's continue reviewing ${title}`);
+  }, [savedSummary, sendMessage]);
 
   if (!session) return null;
 
@@ -652,6 +837,10 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       sendMessage={sendMessage}
       handleExamSelect={handleExamSelect}
       handleQuizSelect={handleQuizSelect}
+      handleFollowupAnswer={handleFollowupAnswer}
+      savedSummary={savedSummary}
+      onDismissSummary={handleDismissSummary}
+      onRevisitSummary={handleRevisitSummary}
     />
   );
 
@@ -733,7 +922,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
                 </button>
               )}
               <button
-                onClick={() => onOpenChange(false)}
+                onClick={handleClose}
                 aria-label="Close chat"
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
               >
