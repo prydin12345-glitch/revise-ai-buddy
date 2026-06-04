@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, conversationHistory, selectedExamId, selectedSetId, sessionId } = await req.json();
+    const { message, conversationHistory, selectedExamId, selectedSetId, sessionId, selectedTitle } = await req.json();
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: 'Message required' }), {
         status: 400,
@@ -462,6 +462,13 @@ Keep each question block to 4 lines maximum. No introduction. No conclusion. Sta
     });
 
     if (sessionId) {
+      const { data: existingSession } = await supabase
+        .from('ai_tutor_sessions')
+        .select('message_count')
+        .eq('id', sessionId)
+        .maybeSingle();
+      const currentSessionCount = existingSession?.message_count ?? 0;
+
       await supabase.from('ai_tutor_sessions').upsert({
         id: sessionId,
         user_id: user.id,
@@ -469,6 +476,8 @@ Keep each question block to 4 lines maximum. No introduction. No conclusion. Sta
         preview: message.slice(0, 80),
         selected_exam_id: selectedExamId ?? null,
         selected_set_id: selectedSetId ?? null,
+        selected_title: selectedTitle ?? null,
+        message_count: currentSessionCount + 2,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
     }

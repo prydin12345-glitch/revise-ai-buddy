@@ -1,13 +1,12 @@
 // src/components/dashboard/mobile/MobileSpeedDial.tsx
 // Single round button that fans out three circular options on tap.
 import { useState } from "react";
-import { Plus, FileText, ListChecks, Sparkles, BookOpen, type LucideIcon } from "lucide-react";
+import { Plus, FileText, ListChecks, Sparkles, type LucideIcon } from "lucide-react";
 
 interface MobileSpeedDialProps {
   onCreateExam?: () => void;
   onCreateQuiz?: () => void;
   onAskAI?: () => void;
-  onReviewWork?: () => void;
   aiUnreadCount?: number;
 }
 
@@ -22,13 +21,12 @@ interface Opt {
   badge?: number;
 }
 
-export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, onReviewWork, aiUnreadCount }: MobileSpeedDialProps) {
+export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
   const opts: Opt[] = [
-    { key: "exam", dx: 4, dy: -150, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
-    { key: "quiz", dx: -54, dy: -118, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "review", dx: -98, dy: -68, className: "bg-amber-500", icon: BookOpen, label: "Review Work", action: onReviewWork },
+    { key: "exam", dx: 4, dy: -130, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
+    { key: "quiz", dx: -76, dy: -100, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
     { key: "ai", dx: -118, dy: 0, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 

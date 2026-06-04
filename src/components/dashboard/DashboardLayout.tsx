@@ -37,7 +37,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
-  const [aiChatInitialMode, setAiChatInitialMode] = useState<'review' | null>(null);
   const [aiUnread, setAiUnread] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
@@ -370,10 +369,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             onCreateExam={() => navigate('/upload')}
             onCreateQuiz={() => navigate('/create-practice-questions')}
             onAskAI={() => setAiChatOpen(true)}
-            onReviewWork={() => {
-              setAiChatInitialMode('review');
-              setAiChatOpen(true);
-            }}
             aiUnreadCount={aiUnread}
           />
         </>
@@ -385,12 +380,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* AI Tutor Chat — appears on every authenticated page */}
       <AiTutorChat
         open={aiChatOpen}
-        onOpenChange={(o) => {
-          setAiChatOpen(o);
-          if (!o) setAiChatInitialMode(null);
-        }}
+        onOpenChange={setAiChatOpen}
         onUnreadChange={setAiUnread}
-        initialMode={aiChatInitialMode}
       />
     </div>
   );

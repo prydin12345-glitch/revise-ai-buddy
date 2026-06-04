@@ -15,13 +15,18 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   streaming?: boolean;
-  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question';
+  type?: 'text' | 'exam_picker' | 'quiz_picker' | 'selected_exam' | 'selected_quiz' | 'followup_question' | 'reopen_review';
   pickerData?: ExamPickerItem[] | QuizPickerItem[];
   followupQuestion?: FollowUpQuestion;
   followupAnswer?: {
     studentAnswer: string;
     isCorrect: boolean;
     explanation: string;
+  };
+  reopenData?: {
+    mode: 'exam' | 'quiz';
+    submissionId: string;
+    title: string;
   };
   timestamp?: Date;
 }
@@ -39,11 +44,18 @@ interface LastReview {
   timestamp: number;
 }
 
+interface QuestionChip {
+  number: string | number;
+  text: string;
+  isCorrect: boolean;
+  score: number;
+  totalMarks: number;
+}
+
 interface AiTutorChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUnreadChange?: (count: number) => void;
-  initialMode?: 'review' | null;
 }
 
 const SUGGESTIONS = [
@@ -72,6 +84,10 @@ interface ChatBodyProps {
   onRevisitSummary: () => void;
   lastReview?: LastReview | null;
   onResumeReview?: () => void;
+  activeQuestionChip: QuestionChip | null;
+  onClearChip: () => void;
+  onReopenReview: (data: { mode: 'exam' | 'quiz'; submissionId: string; title: string }) => void;
+  onDismissReopen: (messageId: string) => void;
 }
 
 const ChatBody = ({
@@ -92,6 +108,10 @@ const ChatBody = ({
   onRevisitSummary,
   lastReview,
   onResumeReview,
+  activeQuestionChip,
+  onClearChip,
+  onReopenReview,
+  onDismissReopen,
 }: ChatBodyProps) => (
   <>
     {/* Messages */}
@@ -192,6 +212,43 @@ const ChatBody = ({
           );
         }
 
+        if (msg.type === 'reopen_review' && msg.reopenData) {
+          return (
+            <div
+              key={msg.id}
+              className="flex gap-2.5 items-start"
+              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="bg-muted/50 border border-border rounded-2xl rounded-tl-sm px-3.5 py-3 max-w-[88%]">
+                <p className="text-[12.5px] text-foreground mb-2.5">
+                  This was a review session for{' '}
+                  <span className="font-semibold">{msg.reopenData.title}</span>.
+                  Want to pick up where you left off?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onReopenReview(msg.reopenData!)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11.5px] font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <BookOpen size={11} />
+                    Reopen review
+                  </button>
+                  <button
+                    onClick={() => onDismissReopen(msg.id)}
+                    className="px-3 py-1.5 rounded-lg border border-border text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Just chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+
         if (msg.type === 'followup_question' && msg.followupQuestion) {
           return (
             <div
@@ -285,6 +342,44 @@ const ChatBody = ({
 
     {/* Input */}
     <div className="border-t border-border p-3 bg-background/95 flex-shrink-0">
+      {activeQuestionChip && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border flex-1 min-w-0 ${
+              activeQuestionChip.isCorrect
+                ? 'bg-emerald-500/10 border-emerald-500/20'
+                : 'bg-red-500/10 border-red-500/20'
+            }`}
+          >
+            <div
+              className={`px-1.5 h-4 rounded flex items-center justify-center flex-shrink-0 text-[9px] font-bold ${
+                activeQuestionChip.isCorrect
+                  ? 'bg-emerald-500/20 text-emerald-600'
+                  : 'bg-red-500/20 text-red-500'
+              }`}
+            >
+              Q{activeQuestionChip.number}
+            </div>
+            <span className="text-[11px] text-foreground truncate flex-1">
+              {activeQuestionChip.text}
+            </span>
+            <span
+              className={`text-[10px] font-semibold flex-shrink-0 ${
+                activeQuestionChip.isCorrect ? 'text-emerald-600' : 'text-red-500'
+              }`}
+            >
+              {activeQuestionChip.score}/{activeQuestionChip.totalMarks}
+            </span>
+          </div>
+          <button
+            onClick={onClearChip}
+            aria-label="Clear question context"
+            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
       {!rateLimitHit && messagesSentToday > 40 && (
         <div className="text-[10px] text-muted-foreground text-right mb-1.5">
           {Math.max(0, 50 - messagesSentToday)} messages remaining today
@@ -326,7 +421,7 @@ const ChatBody = ({
   </>
 );
 
-export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }: AiTutorChatProps) => {
+export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -354,10 +449,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
 
   // Tabs / history / resume review state
   const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
-  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; updated_at: string }>>([]);
+  const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; selected_exam_id: string | null; selected_set_id: string | null; updated_at: string }>>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
   const autoPickerFiredRef = useRef(false);
+
+  // Active question chip (when a question is clicked in review panel)
+  const [activeQuestionChip, setActiveQuestionChip] = useState<QuestionChip | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -388,11 +486,11 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     try {
       const { data } = await supabase
         .from('ai_tutor_sessions')
-        .select('id, title, preview, selected_title, updated_at')
+        .select('id, title, preview, selected_title, selected_exam_id, selected_set_id, updated_at')
         .eq('user_id', session.user.id)
         .order('updated_at', { ascending: false })
         .limit(20);
-      setSessions(data ?? []);
+      setSessions((data as any) ?? []);
     } catch (err) {
       console.error('Failed to load sessions:', err);
     } finally {
@@ -404,7 +502,13 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     if (activeTab === 'history') loadSessions();
   }, [activeTab, loadSessions]);
 
-  const openSession = useCallback(async (s: { id: string }) => {
+  const openSession = useCallback(async (s: {
+    id: string;
+    title?: string | null;
+    selected_title?: string | null;
+    selected_exam_id?: string | null;
+    selected_set_id?: string | null;
+  }) => {
     const { data } = await supabase
       .from('ai_tutor_messages')
       .select('role, content, created_at')
@@ -420,8 +524,41 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       })));
       setSessionId(s.id);
     }
+
+    // Restore review context if this was a review session
+    if (s.selected_exam_id) {
+      setSelectedExamId(s.selected_exam_id);
+      setSelectedSetId(null);
+      setSelectedTitle(s.selected_title ?? s.title ?? 'Exam review');
+    } else if (s.selected_set_id) {
+      setSelectedSetId(s.selected_set_id);
+      setSelectedExamId(null);
+      setSelectedTitle(s.selected_title ?? s.title ?? 'Quiz review');
+    } else {
+      setSelectedExamId(null);
+      setSelectedSetId(null);
+      setSelectedTitle(null);
+    }
+
     setActiveTab('chat');
+
+    // Offer to reopen the split view for review sessions
+    if (s.selected_exam_id || s.selected_set_id) {
+      const mode: 'exam' | 'quiz' = s.selected_exam_id ? 'exam' : 'quiz';
+      const submissionId = (s.selected_exam_id ?? s.selected_set_id) as string;
+      const title = s.selected_title ?? s.title ?? 'Review session';
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: `reopen-${Date.now()}`,
+          role: 'assistant',
+          content: '',
+          type: 'reopen_review',
+          reopenData: { mode, submissionId, title },
+        }]);
+      }, 200);
+    }
   }, []);
+
 
   // Load lastReview from localStorage on open
   useEffect(() => {
@@ -583,14 +720,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     });
   }, [completedExams, completedQuizzes]);
 
-  // Auto-trigger picker when chat opened in review mode
-  useEffect(() => {
-    if (!open || initialMode !== 'review' || autoPickerFiredRef.current) return;
-    if (!pickerDataLoaded) return;
-    if (messages.length > 0) return;
-    autoPickerFiredRef.current = true;
-    setTimeout(() => triggerReviewPicker(), 250);
-  }, [open, initialMode, pickerDataLoaded, messages.length, triggerReviewPicker]);
+  // (review picker is now triggered only from the in-header Review button)
 
   const streamAiResponse = useCallback(async (
     msg: string,
@@ -625,6 +755,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
             conversationHistory: history,
             selectedExamId: examId ?? undefined,
             selectedSetId: setId ?? undefined,
+            selectedTitle: selectedTitle ?? undefined,
             sessionId,
           }),
         }
@@ -697,13 +828,14 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
     } finally {
       setLoading(false);
     }
-  }, [open, splitViewOpen, sessionId]);
+  }, [open, splitViewOpen, sessionId, selectedTitle]);
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || loading || !session) return;
 
     setInput('');
+    setActiveQuestionChip(null);
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
     setMessages(prev => [...prev, {
@@ -864,26 +996,41 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
   const handleQuestionClick = useCallback((question: any) => {
     setActiveQuestionId(question.id);
 
-    const questionContext = [
-      `I want to understand Q${question.questionNumber}: "${question.questionText}"`,
-      `I answered: "${question.studentAnswer}"`,
-      question.isCorrect
-        ? `I got this right (${question.score}/${question.totalMarks} marks).`
-        : `I got this wrong (${question.score}/${question.totalMarks} marks). The correct answer was: "${question.correctAnswer}"`,
-      question.feedback ? `The feedback was: "${question.feedback}"` : null,
-      'Please explain this question clearly and tell me how to approach it correctly.',
-    ].filter(Boolean).join(' ');
+    const qText: string = String(question.questionText ?? '');
+    const qShort = qText.length > 80 ? qText.slice(0, 80) + '…' : qText;
+    const studentAns: string = String(question.studentAnswer ?? '');
+    const ansShort = studentAns.length > 60 ? studentAns.slice(0, 60) + '…' : studentAns;
 
-    setMessages(prev => [...prev, {
-      id: `user-q-${Date.now()}`,
-      role: 'user',
-      content: questionContext,
-      type: 'text',
-      timestamp: new Date(),
-    }]);
+    const statusNote = question.isCorrect
+      ? `I got this right (${question.score}/${question.totalMarks} marks)`
+      : question.isPartial
+        ? `I got partial marks (${question.score}/${question.totalMarks})`
+        : `I got this wrong (${question.score}/${question.totalMarks} marks)`;
 
-    streamAiResponse(questionContext, [], selectedExamId, selectedSetId);
-  }, [selectedExamId, selectedSetId, streamAiResponse]);
+    const inputText = question.isCorrect
+      ? `Q${question.questionNumber}: ${qShort} — ${statusNote}. Can you explain this?`
+      : `Q${question.questionNumber}: ${qShort} — I wrote "${ansShort}". ${statusNote}. What did I do wrong?`;
+
+    setActiveQuestionChip({
+      number: question.questionNumber,
+      text: qText.length > 60 ? qText.slice(0, 60) + '…' : qText,
+      isCorrect: !!question.isCorrect,
+      score: Number(question.score ?? 0),
+      totalMarks: Number(question.totalMarks ?? 0),
+    });
+
+    setInput(inputText);
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const len = inputText.length;
+        try { inputRef.current.setSelectionRange(len, len); } catch { /* ignore */ }
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+      }
+    }, 100);
+  }, []);
 
   const handleCloseSplitView = useCallback(() => {
     // Save summary when exiting a review session (but keep the chat panel open)
@@ -1027,6 +1174,28 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
       onRevisitSummary={handleRevisitSummary}
       lastReview={lastReview}
       onResumeReview={handleResumeReview}
+      activeQuestionChip={activeQuestionChip}
+      onClearChip={() => {
+        setActiveQuestionChip(null);
+        setInput('');
+        setActiveQuestionId(null);
+      }}
+      onReopenReview={(data) => {
+        setSplitViewMode(data.mode);
+        setSplitViewContextId(data.submissionId);
+        setSelectedTitle(data.title);
+        if (data.mode === 'exam') {
+          setSelectedExamId(data.submissionId);
+          setSelectedSetId(null);
+        } else {
+          setSelectedSetId(data.submissionId);
+          setSelectedExamId(null);
+        }
+        setSplitViewOpen(true);
+      }}
+      onDismissReopen={(messageId) => {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      }}
     />
   );
 
@@ -1061,6 +1230,15 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange, initialMode }:
                 {s.preview && (
                   <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                     {s.preview}
+                  </div>
+                )}
+                {(s.selected_exam_id || s.selected_set_id) && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                      <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide">
+                        Review
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
