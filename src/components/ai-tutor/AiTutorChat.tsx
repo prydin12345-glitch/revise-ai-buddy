@@ -212,6 +212,43 @@ const ChatBody = ({
           );
         }
 
+        if (msg.type === 'reopen_review' && msg.reopenData) {
+          return (
+            <div
+              key={msg.id}
+              className="flex gap-2.5 items-start"
+              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="bg-muted/50 border border-border rounded-2xl rounded-tl-sm px-3.5 py-3 max-w-[88%]">
+                <p className="text-[12.5px] text-foreground mb-2.5">
+                  This was a review session for{' '}
+                  <span className="font-semibold">{msg.reopenData.title}</span>.
+                  Want to pick up where you left off?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onReopenReview(msg.reopenData!)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11.5px] font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <BookOpen size={11} />
+                    Reopen review
+                  </button>
+                  <button
+                    onClick={() => onDismissReopen(msg.id)}
+                    className="px-3 py-1.5 rounded-lg border border-border text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Just chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+
         if (msg.type === 'followup_question' && msg.followupQuestion) {
           return (
             <div
