@@ -449,8 +449,8 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (activeTab === 'history') loadSessions();
-  }, [activeTab, loadSessions]);
+    if (sidebarOpen) loadSessions();
+  }, [sidebarOpen, loadSessions]);
 
   const openSession = useCallback(async (s: {
     id: string;
