@@ -238,6 +238,7 @@ const ExamReview = () => {
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedQuestionForFeedback, setSelectedQuestionForFeedback] = useState<{ id: string; number: string } | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('all');
 
   useEffect(() => {
     loadReview();
