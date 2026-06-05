@@ -398,8 +398,9 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   // Session summary state
   const [savedSummary, setSavedSummary] = useState<SessionSummary | null>(null);
 
-  // Tabs / history / resume review state
-  const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
+  // History / sidebar / resume review state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState('');
   const [sessions, setSessions] = useState<Array<{ id: string; title: string | null; preview: string | null; selected_title: string | null; selected_exam_id: string | null; selected_set_id: string | null; updated_at: string }>>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [lastReview, setLastReview] = useState<LastReview | null>(null);
