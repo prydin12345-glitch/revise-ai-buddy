@@ -114,6 +114,10 @@ All colors MUST be HSL.
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* AI tutor brand gradient (blue → violet) */
+    --tutor-grad-from: 231 91% 65%;
+    --tutor-grad-to: 258 90% 66%;
   }
 
   .dark {
