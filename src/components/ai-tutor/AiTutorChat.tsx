@@ -101,243 +101,311 @@ const ChatBody = ({
   onResumeReview,
   onReopenReview,
   onDismissReopen,
-}: ChatBodyProps) => (
-  <>
-    {/* Messages */}
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5">
-      {messages.length === 0 && lastReview && onResumeReview && (
-        <button
-          onClick={onResumeReview}
-          className="flex items-center gap-2.5 w-full px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all duration-150 group mb-2"
-        >
-          <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
-            <RotateCcw size={13} className="text-primary" />
-          </div>
-          <div className="text-left min-w-0 flex-1">
-            <div className="text-[12px] font-semibold text-primary">Resume review</div>
-            <div className="text-[11px] text-muted-foreground truncate">{lastReview.title}</div>
-          </div>
-          <ChevronRight size={13} className="text-primary/60 group-hover:text-primary transition-colors" />
-        </button>
-      )}
+}: ChatBodyProps) => {
+  // Index of the last assistant text message (for Copy / Regenerate actions)
+  let lastAssistantIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === 'assistant' && (!m.type || m.type === 'text') && !m.streaming) {
+      lastAssistantIdx = i;
+      break;
+    }
+  }
+  const lastUserText = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user' && messages[i].content) return messages[i].content;
+    }
+    return '';
+  })();
 
-      {messages.length === 0 && savedSummary && (
-        <SessionSummaryCard
-          summary={savedSummary}
-          onDismiss={onDismissSummary}
-          onRevisit={onRevisitSummary}
-        />
-      )}
+  const lastReviewPct =
+    lastReview && lastReview.totalMarks
+      ? Math.round(((lastReview.totalScore ?? 0) / lastReview.totalMarks) * 100)
+      : null;
+  const ringDeg = lastReviewPct != null ? Math.max(0, Math.min(100, lastReviewPct)) * 3.6 : 0;
 
-      {messages.length === 0 && (
-        <div className="space-y-4">
-          <div className="flex gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-4 h-4 text-primary" />
+  return (
+    <>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto scroll-themed px-4 py-4 space-y-3.5">
+        {messages.length === 0 && savedSummary && (
+          <SessionSummaryCard
+            summary={savedSummary}
+            onDismiss={onDismissSummary}
+            onRevisit={onRevisitSummary}
+          />
+        )}
+
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center text-center pt-2 pb-4 space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-tutor-gradient flex items-center justify-center shadow-md">
+              <GraduationCap className="w-7 h-7 text-white" strokeWidth={2.2} />
             </div>
-            <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[13px] text-foreground leading-relaxed max-w-[85%]">
-              Hi! I have access to your exam history and practice results. What would you like help with?
+            <div className="space-y-1">
+              <div className="flex items-center justify-center gap-1.5 text-base font-semibold text-foreground">
+                <Hand className="w-4 h-4 text-primary" />
+                Hey — ready to revise?
+              </div>
+              <p className="text-[12.5px] text-muted-foreground max-w-[280px]">
+                Ask anything about your exams, practice sets or topics.
+              </p>
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 pt-1">
-            {SUGGESTIONS.map((s, i) => (
+
+            {lastReview && onResumeReview && (
               <button
-                key={s}
-                onClick={() => sendMessage(s)}
-                className="text-left px-3.5 py-2.5 rounded-xl border border-border text-[12.5px] text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-foreground transition-all duration-150"
-                style={{ animation: `aiSuggestionFade 0.3s ease ${i * 0.08}s both` }}
+                onClick={onResumeReview}
+                className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border border-border bg-[hsl(var(--surface-panel-2))] hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 group text-left"
               >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {messages.map((msg) => {
-        if (msg.type === 'selected_exam' || msg.type === 'selected_quiz') {
-          return (
-            <div
-              key={msg.id}
-              className="flex justify-center"
-              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
-            >
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-                <CheckCircle2 size={11} className="text-primary" />
-                <span className="text-[11px] text-primary font-medium">{msg.content}</span>
-              </div>
-            </div>
-          );
-        }
-
-        if (msg.type === 'exam_picker' || msg.type === 'quiz_picker') {
-          return (
-            <div
-              key={msg.id}
-              className="flex gap-2.5 items-start"
-              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
-            >
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col gap-2">
-                <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 w-fit max-w-[85%]">
-                  <p className="text-[13px] text-foreground">{msg.content}</p>
-                </div>
-                {msg.type === 'exam_picker' && Array.isArray(msg.pickerData) && (
-                  <ExamPickerCard
-                    items={msg.pickerData as ExamPickerItem[]}
-                    onSelect={handleExamSelect}
-                  />
-                )}
-                {msg.type === 'quiz_picker' && Array.isArray(msg.pickerData) && (
-                  <QuizPickerCard
-                    items={msg.pickerData as QuizPickerItem[]}
-                    onSelect={handleQuizSelect}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        }
-
-        if (msg.type === 'reopen_review' && msg.reopenData) {
-          return (
-            <div
-              key={msg.id}
-              className="flex gap-2.5 items-start"
-              style={{ animation: 'aiMessageSlide 0.2s ease both' }}
-            >
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-primary" />
-              </div>
-              <div className="bg-muted/50 border border-border rounded-2xl rounded-tl-sm px-3.5 py-3 max-w-[88%]">
-                <p className="text-[12.5px] text-foreground mb-2.5">
-                  This was a review session for{' '}
-                  <span className="font-semibold">{msg.reopenData.title}</span>.
-                  Want to pick up where you left off?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onReopenReview(msg.reopenData!)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11.5px] font-semibold hover:bg-primary/90 transition-colors"
+                {lastReviewPct != null ? (
+                  <div
+                    className="relative w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: `conic-gradient(hsl(var(--primary)) ${ringDeg}deg, hsl(var(--muted)) ${ringDeg}deg)`,
+                    }}
                   >
-                    <BookOpen size={11} />
-                    Reopen review
-                  </button>
-                  <button
-                    onClick={() => onDismissReopen(msg.id)}
-                    className="px-3 py-1.5 rounded-lg border border-border text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Just chat
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-
-        if (msg.type === 'followup_question' && msg.followupQuestion) {
-          return (
-            <div
-              key={msg.id}
-              className="flex gap-2.5 items-start"
-              style={{ animation: 'aiMessageSlide 0.3s ease both' }}
-            >
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0 max-w-[90%]">
-                <FollowUpQuestionCard
-                  question={msg.followupQuestion}
-                  answered={msg.followupAnswer}
-                  onAnswer={(answer, isCorrect) =>
-                    handleFollowupAnswer(msg.id, msg.followupQuestion!, answer, isCorrect)
-                  }
-                />
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div
-            key={msg.id}
-            className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            style={{ animation: 'aiMessageSlide 0.25s ease-out' }}
-          >
-            {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-primary" />
-              </div>
-            )}
-            <div className={`flex flex-col max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div
-                className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm shadow-sm'
-                    : 'bg-muted/60 border border-border/60 text-foreground rounded-2xl rounded-tl-sm'
-                }`}
-              >
-                {msg.role === 'assistant' ? (
-                  <>
-                    {msg.streaming && !msg.content ? (
-                      <span className="inline-flex gap-1 items-center py-1">
-                        {[0, 1, 2].map(j => (
-                          <span
-                            key={j}
-                            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 inline-block"
-                            style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
-                          />
-                        ))}
-                      </span>
-                    ) : (
-                      <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                    )}
-                    {msg.streaming && msg.content && (
-                      <span
-                        className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
-                        style={{ animation: 'aiCursorBlink 1s infinite' }}
-                      />
-                    )}
-                  </>
+                    <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
+                      <span className="text-[10.5px] font-bold text-foreground">{lastReviewPct}%</span>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <RotateCcw size={16} className="text-primary" />
+                  </div>
                 )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">Last attempt</div>
+                  <div className="text-[13px] font-semibold text-foreground truncate">{lastReview.title}</div>
+                  <div className="text-[11px] text-primary mt-0.5">Tap to review</div>
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+              </button>
+            )}
+
+            <div className="w-full grid grid-cols-1 gap-2 pt-1">
+              {SUGGESTIONS.map((s, i) => (
+                <button
+                  key={s}
+                  onClick={() => setInput(s)}
+                  className="text-left px-3.5 py-2.5 rounded-xl border border-border bg-background text-[12.5px] text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-foreground transition-all duration-150"
+                  style={{ animation: `aiSuggestionFade 0.3s ease ${i * 0.08}s both` }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, idx) => {
+          if (msg.type === 'selected_exam' || msg.type === 'selected_quiz') {
+            return (
+              <div
+                key={msg.id}
+                className="flex justify-center"
+                style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+              >
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                  <CheckCircle2 size={11} className="text-primary" />
+                  <span className="text-[11px] text-primary font-medium">{msg.content}</span>
+                </div>
               </div>
-              {msg.timestamp && !msg.streaming && (
-                <div className="text-[9px] text-muted-foreground mt-0.5 px-1">
-                  {msg.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            );
+          }
+
+          if (msg.type === 'exam_picker' || msg.type === 'quiz_picker') {
+            return (
+              <div
+                key={msg.id}
+                className="flex gap-2.5 items-start"
+                style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+              >
+                <div className="w-8 h-8 rounded-xl bg-tutor-gradient flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <GraduationCap className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <div className="bg-[hsl(var(--surface-panel-2))] border border-border rounded-2xl rounded-bl-sm px-3.5 py-2.5 w-fit max-w-[88%]">
+                    <p className="text-[13px] text-foreground">{msg.content}</p>
+                  </div>
+                  {msg.type === 'exam_picker' && Array.isArray(msg.pickerData) && (
+                    <ExamPickerCard
+                      items={msg.pickerData as ExamPickerItem[]}
+                      onSelect={handleExamSelect}
+                    />
+                  )}
+                  {msg.type === 'quiz_picker' && Array.isArray(msg.pickerData) && (
+                    <QuizPickerCard
+                      items={msg.pickerData as QuizPickerItem[]}
+                      onSelect={handleQuizSelect}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          if (msg.type === 'reopen_review' && msg.reopenData) {
+            return (
+              <div
+                key={msg.id}
+                className="flex gap-2.5 items-start"
+                style={{ animation: 'aiMessageSlide 0.2s ease both' }}
+              >
+                <div className="w-8 h-8 rounded-xl bg-tutor-gradient flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <GraduationCap className="w-4 h-4 text-white" />
+                </div>
+                <div className="bg-[hsl(var(--surface-panel-2))] border border-border rounded-2xl rounded-bl-sm px-3.5 py-3 max-w-[88%]">
+                  <p className="text-[12.5px] text-foreground mb-2.5">
+                    This was a review session for{' '}
+                    <span className="font-semibold">{msg.reopenData.title}</span>.
+                    Want to pick up where you left off?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onReopenReview(msg.reopenData!)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tutor-gradient text-white text-[11.5px] font-semibold hover:opacity-95 transition-opacity"
+                    >
+                      <BookOpen size={11} />
+                      Reopen review
+                    </button>
+                    <button
+                      onClick={() => onDismissReopen(msg.id)}
+                      className="px-3 py-1.5 rounded-lg border border-border text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Just chat
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (msg.type === 'followup_question' && msg.followupQuestion) {
+            return (
+              <div
+                key={msg.id}
+                className="flex gap-2.5 items-start"
+                style={{ animation: 'aiMessageSlide 0.3s ease both' }}
+              >
+                <div className="w-8 h-8 rounded-xl bg-tutor-gradient flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <GraduationCap className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0 max-w-[90%]">
+                  <FollowUpQuestionCard
+                    question={msg.followupQuestion}
+                    answered={msg.followupAnswer}
+                    onAnswer={(answer, isCorrect) =>
+                      handleFollowupAnswer(msg.id, msg.followupQuestion!, answer, isCorrect)
+                    }
+                  />
+                </div>
+              </div>
+            );
+          }
+
+          const isLastAssistant = idx === lastAssistantIdx;
+          return (
+            <div
+              key={msg.id}
+              className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              style={{ animation: 'aiMessageSlide 0.25s ease-out' }}
+            >
+              {msg.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-xl bg-tutor-gradient flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <GraduationCap className="w-4 h-4 text-white" strokeWidth={2.2} />
                 </div>
               )}
+              <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div
+                  className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
+                    msg.role === 'user'
+                      ? 'bg-tutor-gradient text-primary-foreground rounded-2xl rounded-br-sm shadow-sm'
+                      : 'bg-[hsl(var(--surface-panel-2))] border border-border text-foreground rounded-2xl rounded-bl-sm'
+                  }`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <>
+                      {msg.streaming && !msg.content ? (
+                        <span className="inline-flex gap-1 items-center py-1">
+                          {[0, 1, 2].map(j => (
+                            <span
+                              key={j}
+                              className="w-1.5 h-1.5 rounded-full bg-primary inline-block"
+                              style={{ animation: `aiTypingBounce 1.2s infinite ${j * 0.15}s` }}
+                            />
+                          ))}
+                        </span>
+                      ) : (
+                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      )}
+                      {msg.streaming && msg.content && (
+                        <span
+                          className="inline-block w-[2px] h-[14px] bg-current ml-0.5 align-middle"
+                          style={{ animation: 'aiCursorBlink 1s infinite' }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  )}
+                </div>
+
+                {/* Ghost actions under last assistant text message */}
+                {msg.role === 'assistant' && isLastAssistant && !msg.streaming && msg.content && (
+                  <div className="flex items-center gap-1 mt-1 px-1">
+                    <button
+                      onClick={() => {
+                        try { navigator.clipboard?.writeText(msg.content); } catch { /* noop */ }
+                      }}
+                      title="Copy"
+                      aria-label="Copy message"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    {lastUserText && (
+                      <button
+                        onClick={() => sendMessage(lastUserText)}
+                        title="Regenerate"
+                        aria-label="Regenerate response"
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {msg.timestamp && !msg.streaming && (
+                  <div className="text-[9px] text-muted-foreground mt-0.5 px-1">
+                    {msg.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
             </div>
+          );
+        })}
+
+        {rateLimitHit && (
+          <div className="text-center py-2">
+            <span className="inline-block text-[11px] text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+              Daily message limit reached. Resets at midnight.
+            </span>
           </div>
-        );
-      })}
+        )}
 
-      {rateLimitHit && (
-        <div className="text-center py-2">
-          <span className="inline-block text-[11px] text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-            Daily message limit reached. Resets at midnight.
-          </span>
-        </div>
-      )}
+        <div ref={bottomRef} />
+      </div>
 
-      <div ref={bottomRef} />
-    </div>
-
-    {/* Input */}
-    <div className="border-t border-border p-3 bg-background/95 flex-shrink-0">
-      {!rateLimitHit && messagesSentToday > 40 && (
-        <div className="text-[10px] text-muted-foreground text-right mb-1.5">
-          {Math.max(0, 50 - messagesSentToday)} messages remaining today
-        </div>
-      )}
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
+      {/* Composer */}
+      <div className="border-t border-border px-3 pt-3 pb-2 bg-background/95 flex-shrink-0">
+        {!rateLimitHit && messagesSentToday > 40 && (
+          <div className="text-[10px] text-muted-foreground text-right mb-1.5">
+            {Math.max(0, 50 - messagesSentToday)} messages remaining today
+          </div>
+        )}
+        <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-2 py-1.5 focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary/50 transition-all">
           <textarea
             ref={inputRef}
             value={input}
@@ -352,25 +420,35 @@ const ChatBody = ({
                 sendMessage();
               }
             }}
-            placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything… (Enter to send)'}
+            placeholder={rateLimitHit ? 'Daily limit reached' : 'Ask anything…'}
             disabled={loading || rateLimitHit}
             rows={1}
-            className="w-full resize-none bg-muted/40 border border-border rounded-xl px-3.5 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:bg-muted/60 transition-colors duration-150 leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ minHeight: '40px', maxHeight: '120px' }}
+            className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground outline-none leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minHeight: '32px', maxHeight: '120px' }}
           />
+          <button
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || loading || rateLimitHit}
+            aria-label="Send message"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 shadow-sm ${
+              !input.trim() || loading || rateLimitHit
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-tutor-gradient text-white hover:opacity-95 active:scale-95'
+            }`}
+          >
+            <Send className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          onClick={() => sendMessage()}
-          disabled={!input.trim() || loading || rateLimitHit}
-          aria-label="Send message"
-          className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0 hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 shadow-sm"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+        <div className="flex items-center justify-center gap-1 mt-1.5">
+          <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
+          <p className="text-[10px] text-muted-foreground">
+            Examly can make mistakes. Check important facts.
+          </p>
+        </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
