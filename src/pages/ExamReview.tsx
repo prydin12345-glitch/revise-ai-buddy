@@ -511,9 +511,9 @@ const ExamReview = () => {
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[hsl(var(--surface-panel))]">
       {/* Top Bar */}
-      <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--surface-panel))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--surface-panel))]/80">
         <div className="flex items-center justify-between h-14 px-3 sm:px-6">
           <div className="flex items-center gap-2">
             {isMobile && (
@@ -526,7 +526,14 @@ const ExamReview = () => {
               <span className="hidden sm:inline">Back to Exams</span>
             </Button>
           </div>
-          <h1 className="text-base sm:text-xl font-bold">Exam Review</h1>
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="font-serif text-base sm:text-xl font-bold text-foreground truncate">Exam Review</h1>
+            {!scoresHidden && submission && (
+              <span className={`font-serif font-bold text-base sm:text-lg ${pctTone}`}>
+                {Math.round(percentage)}%
+              </span>
+            )}
+          </div>
           <Button size="sm" onClick={handleSaveToDashboard} className="gap-1.5">
             <Save className="w-4 h-4" />
             <span className="hidden sm:inline">Save to Dashboard</span>
@@ -538,9 +545,9 @@ const ExamReview = () => {
       {isMobile && sidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-64 z-50 bg-card border-r overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <span className="font-semibold text-sm">Overview</span>
+          <div className="fixed inset-y-0 left-0 w-72 z-50 bg-[hsl(var(--surface-panel))] border-r border-border overflow-y-auto scroll-themed">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <span className="font-serif font-bold text-sm">Overview</span>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSidebarOpen(false)}>
                 <X className="w-4 h-4" />
               </Button>
@@ -553,10 +560,11 @@ const ExamReview = () => {
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
         {!isMobile && (
-          <div className="w-64 border-r bg-card/30 flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <div className="w-72 border-r border-border bg-[hsl(var(--surface-panel))] flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto scroll-themed">
             {sidebarContent}
           </div>
         )}
+
 
         {/* Main Panel */}
         <div className="flex-1 overflow-y-auto">
