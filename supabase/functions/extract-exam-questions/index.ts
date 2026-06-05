@@ -1520,7 +1520,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     mcqRulesBlock,
     writtenRulesBlock,
     mediaInstruction,
-    markDistributionInstruction,
+    markCapInstruction,
     suppressionNotice,
     nodalAnalysisInstruction,
     sourceBlock,
