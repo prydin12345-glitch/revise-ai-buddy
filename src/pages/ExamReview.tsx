@@ -818,8 +818,10 @@ const ExamReview = () => {
                   {/* For non-MCQ, show answer section */}
                   {!isMcq && (
                   <div>
-                    <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
-                    <div className="p-3 rounded-lg bg-muted space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1.5 text-muted-foreground">Your response</div>
+                    <div className={`bg-[hsl(var(--surface-panel-2))] border-l-2 ${
+                      s === 'correct' ? 'border-l-success' : s === 'lost' ? 'border-l-danger' : s === 'partial' ? 'border-l-warning' : 'border-l-border'
+                    } rounded-r-md px-3 py-2 space-y-3`}>
                       {/* Table grid answer display */}
                       {(() => {
                         const isTableGridQuestion = isTickXTable(question.question_text);
