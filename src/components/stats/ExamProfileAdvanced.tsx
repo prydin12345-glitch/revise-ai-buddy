@@ -65,6 +65,12 @@ const CALC_OPTIONS = [
   { id: "mixed", label: "Mixed paper" },
 ];
 
+const MCQ_POSITION_OPTIONS = [
+  { id: "start", label: "At the start" },
+  { id: "end", label: "At the end" },
+  { id: "mixed", label: "Mixed throughout" },
+];
+
 const EXTENDED_MARKS_OPTIONS = [8, 10, 12, 15, 20, 25];
 
 interface ExamProfileAdvancedProps {
