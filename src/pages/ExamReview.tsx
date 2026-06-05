@@ -911,10 +911,10 @@ const ExamReview = () => {
                   {/* MCQ redundant text removed — options highlighting is sufficient */}
 
                   {/* Non-MCQ correct answer */}
-                  {!isMcq && !scoresHidden && (
+                  {!isMcq && !scoresHidden && s !== 'correct' && (
                     <div>
-                      <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
-                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-success mb-1.5">Mark scheme</div>
+                      <div className="px-3 py-2 rounded-md bg-success/10 border border-success/20">
                         {(() => {
                           if (isTickXTable(question.question_text) && question.correct_answer) {
                             try {
