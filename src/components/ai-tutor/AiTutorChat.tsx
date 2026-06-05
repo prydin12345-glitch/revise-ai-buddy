@@ -421,7 +421,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     setSelectedTitle(null);
     setSplitViewOpen(false);
     setActiveQuestionId(null);
-    setActiveTab('chat');
+    
     autoPickerFiredRef.current = false;
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -490,7 +490,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setSelectedTitle(null);
     }
 
-    setActiveTab('chat');
+    
 
     // Offer to reopen the split view for review sessions
     if (s.selected_exam_id || s.selected_set_id) {
@@ -642,7 +642,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [open, loadPickerData]);
 
   const triggerReviewPicker = useCallback(() => {
-    setActiveTab('chat');
+    
     const hasExams = completedExams.length > 0;
     const hasQuizzes = completedQuizzes.length > 0;
 
