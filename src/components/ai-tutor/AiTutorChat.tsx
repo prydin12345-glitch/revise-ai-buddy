@@ -1107,57 +1107,165 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     />
   );
 
-  const historyPane = (
-    <div className="flex-1 overflow-y-auto">
-      {sessionsLoading ? (
-        <div className="flex items-center justify-center h-24">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : sessions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-32 gap-2">
-          <p className="text-sm text-muted-foreground">No past conversations yet</p>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className="text-[12px] text-primary hover:underline"
-          >
-            Start a new chat
-          </button>
-        </div>
-      ) : (
-        sessions.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => openSession(s)}
-            className="w-full text-left px-4 py-3.5 border-b border-border hover:bg-muted/40 transition-colors group"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="text-[12.5px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                  {s.selected_title ?? s.title ?? 'Chat session'}
-                </div>
-                {s.preview && (
-                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                    {s.preview}
-                  </div>
-                )}
-                {(s.selected_exam_id || s.selected_set_id) && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
-                      <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide">
-                        Review
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
-                {new Date(s.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-              </div>
+  // Group sessions by recency for the slide-in sidebar
+  const groupedSessions = (() => {
+    const filtered = sessions.filter(s => {
+      if (!sessionSearch.trim()) return true;
+      const q = sessionSearch.toLowerCase();
+      const title = (s.selected_title ?? s.title ?? '').toLowerCase();
+      const preview = (s.preview ?? '').toLowerCase();
+      return title.includes(q) || preview.includes(q);
+    });
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const start7d = startOfToday - 7 * 86400000;
+    const groups: { label: string; items: typeof sessions }[] = [
+      { label: 'Today', items: [] },
+      { label: 'Yesterday', items: [] },
+      { label: 'Previous 7 days', items: [] },
+      { label: 'Older', items: [] },
+    ];
+    for (const s of filtered) {
+      const t = new Date(s.updated_at).getTime();
+      if (t >= startOfToday) groups[0].items.push(s);
+      else if (t >= startOfYesterday) groups[1].items.push(s);
+      else if (t >= start7d) groups[2].items.push(s);
+      else groups[3].items.push(s);
+    }
+    return groups.filter(g => g.items.length > 0);
+  })();
+
+  const currentSessionMeta = sessions.find(s => s.id === sessionId);
+  const headerSubtitle = currentSessionMeta?.selected_title ?? currentSessionMeta?.title ?? selectedTitle ?? 'AI revision tutor';
+
+  const sessionSidebar = (
+    <>
+      {/* Scrim */}
+      <button
+        type="button"
+        aria-label="Close menu"
+        onClick={() => setSidebarOpen(false)}
+        className={`absolute inset-0 z-10 bg-black/30 transition-opacity duration-200 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      />
+      {/* Slide-in panel */}
+      <aside
+        className={`absolute inset-y-0 left-0 z-20 w-[300px] max-w-[85%] flex flex-col bg-[hsl(var(--surface-panel))] border-r border-border shadow-xl transition-transform duration-200 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        {/* Brand row */}
+        <div className="flex items-center justify-between gap-2 px-3 py-3 border-b border-border">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-tutor-gradient flex items-center justify-center shadow-sm flex-shrink-0">
+              <GraduationCap className="w-4 h-4 text-white" strokeWidth={2.2} />
             </div>
+            <div className="text-sm font-semibold text-foreground truncate">Examly</div>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
-        ))
-      )}
-    </div>
+        </div>
+
+        {/* Search */}
+        <div className="px-3 pt-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={sessionSearch}
+              onChange={e => setSessionSearch(e.target.value)}
+              placeholder="Search conversations"
+              className="w-full h-9 pl-8 pr-3 rounded-lg bg-muted/40 border border-border text-[12.5px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:bg-muted/60 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="px-3 pt-3 space-y-2">
+          <button
+            onClick={() => { handleNewChat(); setSidebarOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted/60 transition-colors text-[12.5px] font-medium text-foreground"
+          >
+            <Plus className="w-3.5 h-3.5" /> New chat
+          </button>
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              if (!pickerDataLoaded) {
+                loadPickerData().then(() => triggerReviewPicker());
+              } else {
+                triggerReviewPicker();
+              }
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-tutor-gradient text-white text-[12.5px] font-semibold shadow-sm hover:opacity-95 transition-opacity"
+          >
+            <BookOpen className="w-3.5 h-3.5" /> Review an exam
+          </button>
+        </div>
+
+        {/* Session list */}
+        <div className="flex-1 overflow-y-auto scroll-themed mt-3">
+          {sessionsLoading ? (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : groupedSessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2 px-4 text-center">
+              <p className="text-xs text-muted-foreground">
+                {sessionSearch ? 'No conversations match' : 'No past conversations yet'}
+              </p>
+            </div>
+          ) : (
+            groupedSessions.map(group => (
+              <div key={group.label} className="pb-2">
+                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
+                </div>
+                {group.items.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => { openSession(s); setSidebarOpen(false); }}
+                    className={`w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors group ${s.id === sessionId ? 'bg-muted/50' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12.5px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          {s.selected_title ?? s.title ?? 'Chat session'}
+                        </div>
+                        {s.preview && (
+                          <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {s.preview}
+                          </div>
+                        )}
+                      </div>
+                      {(s.selected_exam_id || s.selected_set_id) && (
+                        <span className="flex-shrink-0 px-1.5 py-0.5 rounded bg-warning/15 border border-warning/30 text-[9px] font-semibold uppercase tracking-wide text-warning">
+                          Review
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Account footer */}
+        {session?.user && (
+          <div className="border-t border-border px-3 py-2.5 flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-tutor-gradient flex items-center justify-center text-white text-[11px] font-semibold flex-shrink-0">
+              {(session.user.email ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <div className="text-[11.5px] text-foreground truncate min-w-0 flex-1">
+              {session.user.email}
+            </div>
+          </div>
+        )}
+      </aside>
+    </>
   );
 
   return (
