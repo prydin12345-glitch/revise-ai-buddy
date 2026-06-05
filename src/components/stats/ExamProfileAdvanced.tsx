@@ -65,6 +65,12 @@ const CALC_OPTIONS = [
   { id: "mixed", label: "Mixed paper" },
 ];
 
+const MCQ_POSITION_OPTIONS = [
+  { id: "start", label: "At the start" },
+  { id: "end", label: "At the end" },
+  { id: "mixed", label: "Mixed throughout" },
+];
+
 const EXTENDED_MARKS_OPTIONS = [8, 10, 12, 15, 20, 25];
 
 interface ExamProfileAdvancedProps {
@@ -121,6 +127,36 @@ export const ExamProfileAdvanced = ({
               subject and educational level. You only need to set the options below.
             </p>
           </div>
+
+          {/* MCQ Position (only when MCQs exist) */}
+          {settings.mcqCount > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                MCQ Position
+              </Label>
+              <div className="flex gap-2">
+                {MCQ_POSITION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => update({ mcqPosition: opt.id })}
+                    className={cn(
+                      "flex-1 rounded-md border py-2 text-[11px] transition-all",
+                      settings.mcqPosition === opt.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 text-muted-foreground hover:bg-card"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Where the {settings.mcqCount} multiple choice question{settings.mcqCount === 1 ? "" : "s"} appear in the paper.
+              </p>
+            </div>
+          )}
+
 
           {/* Extended Response */}
           <div className="space-y-2">

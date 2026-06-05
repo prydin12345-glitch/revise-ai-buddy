@@ -224,6 +224,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     includeTables: profileMeta.include_tables ?? null,
     includeDiagrams: profileMeta.include_diagrams ?? null,
     markDistribution: formatData?.mark_distribution ?? null,
+    mcqPosition: (formatData?.mcq_position ?? 'start') as 'start' | 'end' | 'mixed',
     suppressDiagrams,
     isElectricalEngineering,
     hasDeltaWyeTopic,
@@ -857,6 +858,7 @@ function buildPrompt(params: {
   includeTables?: boolean | null;
   includeDiagrams?: boolean | null;
   markDistribution?: Record<string, number> | null;
+  mcqPosition?: 'start' | 'end' | 'mixed';
   suppressDiagrams?: boolean;
   isElectricalEngineering?: boolean;
   hasDeltaWyeTopic?: boolean;
@@ -884,6 +886,7 @@ function buildPrompt(params: {
     includeTables,
     includeDiagrams,
     markDistribution,
+    mcqPosition = 'start',
     suppressDiagrams = false,
     isElectricalEngineering = false,
     hasDeltaWyeTopic = false,
@@ -986,10 +989,31 @@ Rules:
       questionCountBlock += `\nThe final question must be an extended response question worth ${extendedResponseMarks} marks.`;
     }
   } else if (isMixed) {
-    questionCountBlock += `Generate two sections:
-Section A: ${desiredMcqCount} multiple choice questions (standalone, numbered 1 through ${desiredMcqCount}, 1 mark each)
-Section B: ${desiredWrittenCount} written questions (${questionStructure === 'sub_questions' ? 'using sub-part structure with 2-4 parts per parent question' : questionStructure === 'mixed' ? 'a mix of standalone and sub-part questions' : 'standalone questions'})
-${includeExtended && extendedResponseMarks > 0 ? `The final written question must be an extended response worth ${extendedResponseMarks} marks.` : ''}`;
+    const writtenStyle = questionStructure === 'sub_questions'
+      ? 'using sub-part structure with 2-4 parts per parent question'
+      : questionStructure === 'mixed'
+        ? 'a mix of standalone and sub-part questions'
+        : 'standalone questions';
+    const extendedNote = includeExtended && extendedResponseMarks > 0
+      ? `\nThe final written question must be an extended response worth ${extendedResponseMarks} marks.`
+      : '';
+
+    if (mcqPosition === 'end') {
+      questionCountBlock += `Generate two sections in this order:
+Section A: ${desiredWrittenCount} written questions (${writtenStyle}), numbered 1 through ${desiredWrittenCount}.
+Section B: ${desiredMcqCount} multiple choice questions (standalone, 1 mark each), numbered ${desiredWrittenCount + 1} through ${desiredWrittenCount + desiredMcqCount}.
+ALL written questions MUST appear before any MCQ.${extendedNote}`;
+    } else if (mcqPosition === 'mixed') {
+      questionCountBlock += `Generate ${desiredMcqCount} multiple choice questions (1 mark each) and ${desiredWrittenCount} written questions (${writtenStyle}).
+Interleave the MCQ and written questions throughout the paper — do NOT cluster all MCQs together.
+Number questions 1 through ${desiredMcqCount + desiredWrittenCount}.${extendedNote}`;
+    } else {
+      // 'start' (default)
+      questionCountBlock += `Generate two sections in this order:
+Section A: ${desiredMcqCount} multiple choice questions (standalone, 1 mark each), numbered 1 through ${desiredMcqCount}.
+Section B: ${desiredWrittenCount} written questions (${writtenStyle}), numbered ${desiredMcqCount + 1} through ${desiredMcqCount + desiredWrittenCount}.
+ALL ${desiredMcqCount} MCQ questions MUST appear before any written question.${extendedNote}`;
+    }
   }
 
   if (difficultyProgression === 'ascending') {
