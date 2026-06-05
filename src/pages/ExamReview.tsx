@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Award, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send, Lightbulb } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send, Lightbulb, ArrowDown } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
@@ -122,6 +122,33 @@ function getOptionLabel(index: number): string {
   return String.fromCharCode(65 + index);
 }
 
+// ── Marked-paper helpers ────────────────────────────────────────────────────
+type ReviewStatus = 'correct' | 'partial' | 'lost';
+function questionStatus(answer: Answer | undefined, marks: number): ReviewStatus {
+  if (!answer) return 'lost';
+  if (answer.score >= marks) return 'correct';
+  if (answer.score === 0) return 'lost';
+  return 'partial';
+}
+type FilterKey = 'all' | 'correct' | 'lost' | 'partial';
+
+const PenTick = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 13.5 9 19l11-13" />
+  </svg>
+);
+const PenCross = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5l14 14M19 5 5 19" />
+  </svg>
+);
+const PenHalf = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 19 19 5" />
+    <path d="M5 13l4 4" />
+  </svg>
+);
+
 // ── AI Explain Inline Component ─────────────────────────────────────────────
 function AIExplainPanel({ question, answer }: { question: Question; answer?: Answer }) {
   const [open, setOpen] = useState(false);
@@ -211,6 +238,7 @@ const ExamReview = () => {
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedQuestionForFeedback, setSelectedQuestionForFeedback] = useState<{ id: string; number: string } | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('all');
 
   useEffect(() => {
     loadReview();
@@ -311,45 +339,158 @@ const ExamReview = () => {
   }
 
   const percentage = submission && !scoresHidden ? (submission.total_score / submission.total_marks) * 100 : 0;
+  const pctTone = percentage >= 75 ? 'text-success' : percentage >= 50 ? 'text-warning' : 'text-danger';
   const correctCount = scoresHidden ? 0 : Object.values(answers).filter(a => a.is_correct).length;
   const partialCount = scoresHidden ? 0 : Object.values(answers).filter(a => !a.is_correct && a.score > 0).length;
   const incorrectCount = scoresHidden ? 0 : questions.length - correctCount - partialCount;
 
+  // ── Marked-paper filter + topic rollup ──────────────────────────────────
+  const counts = useMemo(() => ({
+    all: questions.length,
+    correct: correctCount,
+    lost: incorrectCount,
+    partial: partialCount,
+  }), [questions.length, correctCount, incorrectCount, partialCount]);
+
+  const visibleQuestions = useMemo(() => {
+    if (scoresHidden || filter === 'all') return questions;
+    return questions.filter((q) => questionStatus(answers[q.id], q.marks) === filter);
+  }, [questions, answers, filter, scoresHidden]);
+
+  const lostByTopic = useMemo(() => {
+    if (scoresHidden) return [] as Array<[string, { lost: number; total: number }]>;
+    const m = new Map<string, { lost: number; total: number }>();
+    questions.forEach((q) => {
+      const tag = (q as any).topic_tag as string | undefined;
+      if (!tag) return;
+      const a = answers[q.id];
+      const lost = Math.max(0, (q.marks ?? 0) - (a?.score ?? 0));
+      const entry = m.get(tag) ?? { lost: 0, total: 0 };
+      entry.lost += lost;
+      entry.total += q.marks ?? 0;
+      m.set(tag, entry);
+    });
+    return Array.from(m.entries()).filter(([, v]) => v.lost > 0).sort((a, b) => b[1].lost - a[1].lost);
+  }, [questions, answers, scoresHidden]);
+
+  const jumpToNextMistake = useCallback(() => {
+    const next = questions.find((q) => {
+      const s = questionStatus(answers[q.id], q.marks);
+      return s !== 'correct';
+    });
+    if (!next) return;
+    setFilter('all');
+    requestAnimationFrame(() => scrollToQuestion(next.id));
+  }, [questions, answers]);
+
   // ── Sidebar Content (shared between mobile drawer and desktop sidebar) ────
   const sidebarContent = (
-    <div className="p-4 lg:p-6 flex flex-col gap-5 h-full">
+    <div className="p-4 lg:p-6 flex flex-col gap-5 h-full bg-[hsl(var(--surface-panel))]">
+      {/* Score card (band-coloured percentage in serif) */}
+      {scoresHidden ? (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <EyeOff className="w-5 h-5 text-muted-foreground" />
+            <span className="font-semibold">Scores Hidden</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your tutor has not released scores yet. Check back later.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Your score</div>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-serif text-4xl font-bold leading-none ${pctTone}`}>{Math.round(percentage)}%</span>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Filter chips + Next mistake */}
+      {!scoresHidden && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {([
+            { key: 'all',     label: 'All',     count: counts.all,     active: 'bg-foreground text-background border-foreground' },
+            { key: 'correct', label: 'correct', count: counts.correct, active: 'bg-success text-success-foreground border-success' },
+            { key: 'lost',    label: 'lost',    count: counts.lost,    active: 'bg-danger text-danger-foreground border-danger' },
+            { key: 'partial', label: 'partial', count: counts.partial, active: 'bg-warning text-warning-foreground border-warning' },
+          ] as const).map((chip) => {
+            const active = filter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setFilter(chip.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                  active ? chip.active : 'text-muted-foreground bg-transparent border-border hover:bg-[hsl(var(--surface-hover))]'
+                }`}
+              >
+                {chip.label} <span className="font-mono opacity-80">{chip.count}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={jumpToNextMistake}
+            disabled={counts.lost + counts.partial === 0}
+            className="w-full mt-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next mistake <ArrowDown className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Where you lost marks */}
+      {!scoresHidden && lostByTopic.length > 0 && (
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
+            Where you lost marks
+          </div>
+          <div className="space-y-1.5">
+            {lostByTopic.slice(0, 4).map(([topic, v]) => {
+              const w = Math.min(100, Math.round((v.lost / Math.max(1, v.total)) * 100));
+              return (
+                <div key={topic} className="flex items-center gap-2.5">
+                  <span className="text-[11px] text-foreground/80 flex-shrink-0 min-w-[90px] max-w-[140px] truncate">{topic}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[hsl(var(--surface-hover))] overflow-hidden">
+                    <div className="h-full bg-danger rounded-full" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="text-[11px] font-mono text-danger flex-shrink-0">−{v.lost}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Question navigator grid */}
       <div>
-        <h2 className="text-xs font-semibold mb-3 text-muted-foreground tracking-wide">QUESTIONS</h2>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] mb-3 text-muted-foreground">Questions</h2>
         <div className="grid grid-cols-4 gap-2">
           {questions.map((q) => {
             const answer = answers[q.id];
-
             if (scoresHidden) {
               return (
                 <button
                   key={q.id}
                   onClick={() => scrollToQuestion(q.id)}
-                  className="aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 bg-muted text-muted-foreground"
+                  className="aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 bg-[hsl(var(--surface-hover))] text-muted-foreground"
                 >
                   {q.question_number}
                 </button>
               );
             }
-
-            const isFullyCorrect = answer && answer.score === q.marks;
-            const isPartial = answer && answer.score > 0 && answer.score < q.marks;
-
+            const s = questionStatus(answer, q.marks);
+            const cls =
+              s === 'correct' ? 'bg-success text-success-foreground' :
+              s === 'partial' ? 'bg-warning text-warning-foreground' :
+                                'bg-danger text-danger-foreground';
             return (
               <button
                 key={q.id}
                 onClick={() => scrollToQuestion(q.id)}
-                className={`aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${
-                  isFullyCorrect
-                    ? 'bg-green-500 text-white'
-                    : isPartial
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-destructive text-destructive-foreground'
-                }`}
+                className={`aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 ${cls}`}
                 title={answer ? `Score: ${Math.round(answer.score)}/${q.marks}` : 'Not answered'}
               >
                 {q.question_number}
@@ -359,70 +500,20 @@ const ExamReview = () => {
         </div>
       </div>
 
-      {scoresHidden ? (
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <EyeOff className="w-5 h-5 text-muted-foreground" />
-            <span className="font-semibold">Scores Hidden</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Your tutor has not released scores yet. Check back later.
-          </p>
-        </Card>
-      ) : (
-        <>
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-primary" />
-              <span className="font-semibold">Your Score</span>
-            </div>
-            <div className="text-3xl font-bold text-primary">
-              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
-            </div>
-            <div className="text-lg font-semibold text-muted-foreground">
-              {percentage.toFixed(1)}%
-            </div>
-          </Card>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Correct</span>
-              </div>
-              <span className="font-semibold">{correctCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-500" />
-                <span>Partial</span>
-              </div>
-              <span className="font-semibold">{partialCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-destructive" />
-                <span>Incorrect</span>
-              </div>
-              <span className="font-semibold">{incorrectCount}</span>
-            </div>
-          </div>
-        </>
-      )}
-
       {submission && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4 border-t">
-          <Clock className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-3 mt-auto border-t border-border">
+          <Clock className="w-3.5 h-3.5" />
           <span>Time: {formatTime(submission.time_taken_seconds)}</span>
         </div>
       )}
     </div>
   );
 
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[hsl(var(--surface-panel))]">
       {/* Top Bar */}
-      <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--surface-panel))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--surface-panel))]/80">
         <div className="flex items-center justify-between h-14 px-3 sm:px-6">
           <div className="flex items-center gap-2">
             {isMobile && (
@@ -435,7 +526,14 @@ const ExamReview = () => {
               <span className="hidden sm:inline">Back to Exams</span>
             </Button>
           </div>
-          <h1 className="text-base sm:text-xl font-bold">Exam Review</h1>
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="font-serif text-base sm:text-xl font-bold text-foreground truncate">Exam Review</h1>
+            {!scoresHidden && submission && (
+              <span className={`font-serif font-bold text-base sm:text-lg ${pctTone}`}>
+                {Math.round(percentage)}%
+              </span>
+            )}
+          </div>
           <Button size="sm" onClick={handleSaveToDashboard} className="gap-1.5">
             <Save className="w-4 h-4" />
             <span className="hidden sm:inline">Save to Dashboard</span>
@@ -447,9 +545,9 @@ const ExamReview = () => {
       {isMobile && sidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-64 z-50 bg-card border-r overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <span className="font-semibold text-sm">Overview</span>
+          <div className="fixed inset-y-0 left-0 w-72 z-50 bg-[hsl(var(--surface-panel))] border-r border-border overflow-y-auto scroll-themed">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <span className="font-serif font-bold text-sm">Overview</span>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSidebarOpen(false)}>
                 <X className="w-4 h-4" />
               </Button>
@@ -462,68 +560,74 @@ const ExamReview = () => {
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
         {!isMobile && (
-          <div className="w-64 border-r bg-card/30 flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <div className="w-72 border-r border-border bg-[hsl(var(--surface-panel))] flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto scroll-themed">
             {sidebarContent}
           </div>
         )}
 
+
         {/* Main Panel */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-6 sm:space-y-8">
-            {questions.map((question, qIdx) => {
+        <div className="flex-1 overflow-y-auto scroll-themed">
+          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+            {!scoresHidden && visibleQuestions.length === 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] py-10 text-center text-sm text-muted-foreground">
+                No questions match this filter.
+              </div>
+            )}
+            {visibleQuestions.map((question, qIdx) => {
               const answer = answers[question.id];
               const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
               const parentNum = subPartMatch?.[1] || question.question_number;
               const subPart = subPartMatch?.[2] || '';
               const isSubPart = !!subPart;
-              const prevQ = qIdx > 0 ? questions[qIdx - 1] : null;
+              const prevQ = qIdx > 0 ? visibleQuestions[qIdx - 1] : null;
               const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
               const showParentHeader = isSubPart && parentNum !== prevParent;
               const isMcq = question.question_type === 'mcq' || (question.options && Array.isArray(question.options) && question.options.length > 0);
 
+              const s = scoresHidden ? null : questionStatus(answer, question.marks);
+              const tone =
+                s === 'correct' ? 'text-success' :
+                s === 'lost'    ? 'text-danger'  :
+                s === 'partial' ? 'text-warning' : 'text-muted-foreground';
+              const cardBorder =
+                s === 'correct' ? 'border-l-success' :
+                s === 'lost'    ? 'border-l-danger'  :
+                s === 'partial' ? 'border-l-warning' : 'border-l-border';
+              const pen =
+                s === 'correct' ? <PenTick  className="w-6 h-6 text-success" /> :
+                s === 'lost'    ? <PenCross className="w-6 h-6 text-danger" /> :
+                s === 'partial' ? <PenHalf  className="w-6 h-6 text-warning" /> : null;
+
               return (
                 <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
                   {showParentHeader && (
-                    <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                    <h2 className="font-serif text-xl font-bold mb-4 mt-2 text-foreground">Question {parentNum}</h2>
                   )}
                 <Card 
                   ref={(el) => questionRefs.current[question.id] = el}
-                  className={`p-4 sm:p-6 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}
+                  className={`p-4 sm:p-6 bg-[hsl(var(--surface-panel))] border-l-4 ${cardBorder}`}
                 >
-                  {/* Question header */}
-                  <div className="flex items-start gap-2 sm:gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {isSubPart ? (
-                        <span className="text-lg font-semibold shrink-0">({subPart})</span>
-                      ) : (
-                        <Badge variant="outline" className="shrink-0 font-bold">Q{question.question_number}</Badge>
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground shrink-0">
-                        ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
+                  {/* Marked-paper question header */}
+                  <div className="flex items-start gap-3 sm:gap-4 mb-4">
+                    {/* Left margin: serif Q number + pen mark */}
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5 w-10 sm:w-12">
+                      <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-none">
+                        {isSubPart ? `(${subPart})` : `Q${question.question_number}`}
                       </span>
-                      {/* Status badge - Correct/Incorrect/Partial */}
-                      {!scoresHidden && answer && (
-                        answer.is_correct ? (
-                          <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
-                            <CheckCircle className="w-3 h-3" />
-                            Correct
-                          </Badge>
-                        ) : answer.score > 0 ? (
-                          <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            Partial
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
-                            <XCircle className="w-3 h-3" />
-                            Incorrect
-                          </Badge>
-                        )
-                      )}
+                      {pen}
                     </div>
-                    <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-                      {/* Help button: AI explain for self-study, feedback thread for tutor-assigned */}
-                      {isTutorAssigned ? (
+
+                    {/* Center: marks */}
+                    <div className="flex-1 min-w-0 pt-1">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
+                      </span>
+                    </div>
+
+                    {/* Right margin: teacher score + help button */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isTutorAssigned && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -536,11 +640,11 @@ const ExamReview = () => {
                           <MessageCircle className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">Ask for Help</span>
                         </Button>
-                      ) : null}
+                      )}
                       {!scoresHidden && answer && (
-                        <Badge className={getStatusColor(answer)}>
+                        <span className={`font-serif font-bold text-base sm:text-lg ${tone}`}>
                           {Math.round(answer.score)}/{question.marks}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -549,8 +653,9 @@ const ExamReview = () => {
                     content={question.question_text}
                     latex={(question as any).question_latex}
                     hasMath={(question as any).has_math}
-                    className="mb-4"
+                    className="mb-4 font-serif text-foreground"
                   />
+
 
                    {/* Chart rendering — diagram_config first, options fallback */}
                    {(() => {
@@ -713,8 +818,10 @@ const ExamReview = () => {
                   {/* For non-MCQ, show answer section */}
                   {!isMcq && (
                   <div>
-                    <div className="text-sm font-semibold mb-2 text-muted-foreground">Your Answer:</div>
-                    <div className="p-3 rounded-lg bg-muted space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1.5 text-muted-foreground">Your response</div>
+                    <div className={`bg-[hsl(var(--surface-panel-2))] border-l-2 ${
+                      s === 'correct' ? 'border-l-success' : s === 'lost' ? 'border-l-danger' : s === 'partial' ? 'border-l-warning' : 'border-l-border'
+                    } rounded-r-md px-3 py-2 space-y-3`}>
                       {/* Table grid answer display */}
                       {(() => {
                         const isTableGridQuestion = isTickXTable(question.question_text);
@@ -804,10 +911,10 @@ const ExamReview = () => {
                   {/* MCQ redundant text removed — options highlighting is sufficient */}
 
                   {/* Non-MCQ correct answer */}
-                  {!isMcq && !scoresHidden && (
+                  {!isMcq && !scoresHidden && s !== 'correct' && (
                     <div>
-                      <div className="text-sm font-semibold mb-2 text-green-600">Correct Answer:</div>
-                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-success mb-1.5">Mark scheme</div>
+                      <div className="px-3 py-2 rounded-md bg-success/10 border border-success/20">
                         {(() => {
                           if (isTickXTable(question.question_text) && question.correct_answer) {
                             try {
@@ -967,9 +1074,21 @@ const ExamReview = () => {
 
                     {!scoresHidden && answer?.feedback && (
                       <div>
-                        <div className="text-sm font-semibold mb-2 text-muted-foreground">Feedback:</div>
-                        <div className="p-3 rounded-lg bg-accent text-sm">
-                          {answer.feedback}
+                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Examiner's note</div>
+                        <div className="border border-dashed border-border rounded-md px-3 py-2 text-sm text-foreground/85 leading-snug flex items-start gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                          <span>{answer.feedback}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MCQ Rationale / Insight Box — review mode only */}
+                    {!scoresHidden && isMcq && question.rationale && (
+                      <div className="border border-dashed border-border rounded-md px-3 py-2 flex items-start gap-2.5">
+                        <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-0.5">Quick insight</p>
+                          <p className="text-xs leading-relaxed text-foreground/85">{question.rationale}</p>
                         </div>
                       </div>
                     )}
@@ -977,17 +1096,6 @@ const ExamReview = () => {
                     {/* AI Explain for non-tutor exams */}
                     {!isTutorAssigned && !scoresHidden && (
                       <AIExplainPanel question={question} answer={answer} />
-                    )}
-
-                    {/* MCQ Rationale / Insight Box — review mode only */}
-                    {!scoresHidden && isMcq && question.rationale && (
-                      <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 flex items-start gap-2.5">
-                        <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">Quick Insight</p>
-                          <p className="text-xs leading-relaxed text-muted-foreground">{question.rationale}</p>
-                        </div>
-                      </div>
                     )}
                   </div>
                   {/* Bottom padding to prevent cutoff */}
