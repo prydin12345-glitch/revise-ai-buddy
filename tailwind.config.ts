@@ -90,6 +90,7 @@ export default {
       },
       fontFamily: {
         sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
