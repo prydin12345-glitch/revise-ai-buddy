@@ -33,10 +33,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 38% 11%;
 
-    /* Primary */
-    --primary: 217 92% 52%;
+    /* Primary — Examly blue */
+    --primary: 231 91% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 92% 92%;
+    --primary-light: 231 91% 95%;
 
     /* Secondary */
     --secondary: 216 30% 95%;
@@ -55,34 +55,34 @@ All colors MUST be HSL.
     --destructive-foreground: 0 0% 100%;
 
     /* Danger - High visibility for overdue/critical */
-    --danger: 351 70% 53%;
+    --danger: 351 72% 50%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 80% 95%;
     --danger-border: 0 70% 50%;
 
     /* Border and input */
-    --border: 216 25% 88%;
-    --input: 216 25% 88%;
-    --ring: 217 92% 52%;
+    --border: 216 24% 89%;
+    --input: 216 24% 89%;
+    --ring: 231 91% 65%;
 
-    /* Custom surfaces */
-    --surface-panel: 216 33% 97%;
-    --surface-panel-2: 216 30% 93%;
+    /* Custom surfaces — unified panel used for chat AND review paper */
+    --surface-panel: 0 0% 100%;
+    --surface-panel-2: 216 38% 97%;
     --surface-hover: 216 30% 91%;
 
     /* Border radius */
     --radius: 0.75rem;
 
     /* Status colors */
-    --success: 158 60% 38%;
+    --success: 152 55% 38%;
     --success-foreground: 0 0% 100%;
-    --success-light: 158 76% 92%;
-    --success-border: 158 60% 45%;
-    
-    --warning: 38 92% 44%;
+    --success-light: 152 60% 92%;
+    --success-border: 152 55% 45%;
+
+    --warning: 38 80% 42%;
     --warning-foreground: 39 100% 15%;
     --warning-light: 38 95% 88%;
-    --warning-border: 38 92% 50%;
+    --warning-border: 38 80% 50%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
