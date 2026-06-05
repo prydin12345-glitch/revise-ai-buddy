@@ -280,6 +280,14 @@ export function buildBiologyInstructions(subject: string | undefined): string {
     return '';
   }
   return `
+BIOLOGY QUESTION STYLE — APPLICATION-FIRST (HARD RULE):
+- ≤ 25% recall (State / Name / Define). ≥ 50% application & data-handling (Calculate, Use Figure X, Use the data in Table Y). ≥ 25% analysis & evaluation (Evaluate, Suggest reasons for, Critique the method).
+- Every MCQ must be stimulus-based (data table, graph, micrograph description, experimental setup). No pure-definition MCQs.
+- At least one third of structured questions must reference a data table or graph and require calculation, deduction, or interpretation.
+- Include at least one quantitative calculation per set: percentage change, rate of reaction / uptake / transpiration, magnification, surface area : volume, Hardy–Weinberg, water potential, chi-squared interpretation.
+- Include at least one question on experimental method: independent / dependent / controlled variables, controls, repeats, validity, reliability, accuracy.
+- Preferred stems: "Figure 1 shows …", "Table 2 shows the results of an investigation into …", "A student investigated …", "Calculate the percentage increase in …", "Evaluate the student's conclusion that …".
+
 BIOLOGY DIAGRAM INSTRUCTIONS — EMIT diagram_config FOR VISUAL QUESTIONS:
 
 When a biology question asks the student to label, draw, complete, or refer to
