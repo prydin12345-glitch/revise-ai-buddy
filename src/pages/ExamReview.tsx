@@ -1093,30 +1093,9 @@ const ExamReview = () => {
                       </div>
                     )}
 
-                    {/* AI Explain for non-tutor exams (kept) + gradient launcher */}
+                    {/* AI Explain for non-tutor exams */}
                     {!isTutorAssigned && !scoresHidden && (
-                      <>
-                        <AIExplainPanel question={question} answer={answer} />
-                        <button
-                          onClick={() => {
-                            const target = document.querySelector<HTMLButtonElement>(`[data-tutor-launch="${question.id}"]`);
-                            target?.click();
-                          }}
-                          data-tutor-launch-proxy={question.id}
-                          className="hidden"
-                        />
-                        <button
-                          onClick={() => {
-                            // Open the inline AI explain panel as the "Discuss with AI tutor" entry point
-                            const ev = new CustomEvent('examly:open-explain', { detail: { questionId: question.id } });
-                            window.dispatchEvent(ev);
-                          }}
-                          className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-tutor-gradient text-primary-foreground text-[12px] font-semibold shadow-sm hover:opacity-95 transition-opacity"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          Discuss with AI tutor
-                        </button>
-                      </>
+                      <AIExplainPanel question={question} answer={answer} />
                     )}
                   </div>
                   {/* Bottom padding to prevent cutoff */}
