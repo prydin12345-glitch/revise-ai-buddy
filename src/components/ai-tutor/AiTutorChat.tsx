@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
-import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight, BookOpen } from 'lucide-react';
+import { GraduationCap, X, Send, Plus, Trash2, CheckCircle2, Loader2, RotateCcw, ChevronRight, BookOpen, Menu, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
