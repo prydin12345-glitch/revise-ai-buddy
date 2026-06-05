@@ -339,9 +339,49 @@ const ExamReview = () => {
   }
 
   const percentage = submission && !scoresHidden ? (submission.total_score / submission.total_marks) * 100 : 0;
+  const pctTone = percentage >= 75 ? 'text-success' : percentage >= 50 ? 'text-warning' : 'text-danger';
   const correctCount = scoresHidden ? 0 : Object.values(answers).filter(a => a.is_correct).length;
   const partialCount = scoresHidden ? 0 : Object.values(answers).filter(a => !a.is_correct && a.score > 0).length;
   const incorrectCount = scoresHidden ? 0 : questions.length - correctCount - partialCount;
+
+  // ── Marked-paper filter + topic rollup ──────────────────────────────────
+  const counts = useMemo(() => ({
+    all: questions.length,
+    correct: correctCount,
+    lost: incorrectCount,
+    partial: partialCount,
+  }), [questions.length, correctCount, incorrectCount, partialCount]);
+
+  const visibleQuestions = useMemo(() => {
+    if (scoresHidden || filter === 'all') return questions;
+    return questions.filter((q) => questionStatus(answers[q.id], q.marks) === filter);
+  }, [questions, answers, filter, scoresHidden]);
+
+  const lostByTopic = useMemo(() => {
+    if (scoresHidden) return [] as Array<[string, { lost: number; total: number }]>;
+    const m = new Map<string, { lost: number; total: number }>();
+    questions.forEach((q) => {
+      const tag = (q as any).topic_tag as string | undefined;
+      if (!tag) return;
+      const a = answers[q.id];
+      const lost = Math.max(0, (q.marks ?? 0) - (a?.score ?? 0));
+      const entry = m.get(tag) ?? { lost: 0, total: 0 };
+      entry.lost += lost;
+      entry.total += q.marks ?? 0;
+      m.set(tag, entry);
+    });
+    return Array.from(m.entries()).filter(([, v]) => v.lost > 0).sort((a, b) => b[1].lost - a[1].lost);
+  }, [questions, answers, scoresHidden]);
+
+  const jumpToNextMistake = useCallback(() => {
+    const next = questions.find((q) => {
+      const s = questionStatus(answers[q.id], q.marks);
+      return s !== 'correct';
+    });
+    if (!next) return;
+    setFilter('all');
+    requestAnimationFrame(() => scrollToQuestion(next.id));
+  }, [questions, answers]);
 
   // ── Sidebar Content (shared between mobile drawer and desktop sidebar) ────
   const sidebarContent = (
