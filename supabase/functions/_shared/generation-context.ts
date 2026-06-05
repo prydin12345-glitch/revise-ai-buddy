@@ -187,23 +187,46 @@ export interface AdvancedProfileSettings {
   calculator_policy?: string | null;
 }
 
+/**
+ * Per-question mark cap inferred from subject (and lightly from level).
+ * The AI is free to pick any mark value at or below the cap.
+ * Extended-response questions are exempt and may use higher mark values.
+ */
+export function getSubjectMarkCap(subject: string, level?: string): number {
+  const s = (subject || '').toLowerCase();
+  const l = (level || '').toLowerCase();
+
+  if (/biology|chemistry|physics|combined\s*science|triple\s*science|natural\s*science|\bscience\b/.test(s)) {
+    return 8;
+  }
+  if (/math|further\s*maths|statistics|mechanics|pure\s*maths|computer\s*science|computing|engineering|accounting|finance/.test(s)) {
+    return 10;
+  }
+  if (/economics|business/.test(s)) {
+    return 12;
+  }
+  if (/history|geography|psychology|sociology|politics|government|religious|philosophy|law/.test(s)) {
+    return l.includes('a-level') || l.includes('ib') || l.includes('ap') ? 20 : 16;
+  }
+  if (/english|literature|language|french|spanish|german|mandarin|latin|drama|theatre|media|film|art/.test(s)) {
+    return 30;
+  }
+  return 12;
+}
+
 export function buildAdvancedStructurePrompt(profile: AdvancedProfileSettings): string {
-  const hasDistribution = profile.mark_distribution && Object.keys(profile.mark_distribution).length > 0;
   const hasMcq = (profile.mcq_count ?? 0) > 0;
   const hasExtended = profile.include_extended && (profile.extended_marks ?? 0) > 0;
 
-  if (!hasDistribution && !hasMcq && !hasExtended) return '';
+  if (!hasMcq && !hasExtended && !profile.calculator_policy) return '';
 
   return `
 EXAM STRUCTURE REQUIREMENTS:
-${hasMcq ? `- MCQ questions: ${profile.mcq_count} (position: ${profile.mcq_position || 'start'})` : '- No MCQ questions required'}
-${hasDistribution ? `- Mark distribution: ${JSON.stringify(profile.mark_distribution)} (e.g. {"2": 3, "4": 2} means 3 questions worth 2 marks and 2 questions worth 4 marks)` : ''}
-${hasExtended ? `- Include extended response: yes (${profile.extended_marks} marks, placed at end)` : ''}
-- Difficulty order: ${profile.difficulty_progression || 'ascending'}
+${hasMcq ? `- MCQ questions: ${profile.mcq_count}` : '- No MCQ questions required'}
+${hasExtended ? `- Include an extended response question worth ${profile.extended_marks} marks at the end` : ''}
 - Calculator: ${profile.calculator_policy || 'allowed'}
 
-Generate questions that EXACTLY match this distribution.
-Order questions by difficulty as specified.
-${hasMcq ? `MCQ questions must appear ${profile.mcq_position || 'at the start'} in the question list.` : ''}
+Choose appropriate per-question mark values yourself, matching what a real exam in this subject
+and level would use. Order questions from easiest to hardest.
 `;
 }

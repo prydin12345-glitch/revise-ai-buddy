@@ -1137,19 +1137,36 @@ CRITICAL JSON RULES:
     return parts.length > 0 ? `\n## MEDIA INSTRUCTIONS\n${parts.join('\n')}` : '';
   })();
 
-  // ── MARK DISTRIBUTION INSTRUCTION ─────────────────────────────────────────
-  const markDistributionInstruction = (() => {
-    if (!markDistribution || Object.keys(markDistribution).length === 0) {
-      if (desiredWrittenCount > 0) {
-        return `\n## MARK DISTRIBUTION\nDistribute marks naturally across questions. For a ${desiredWrittenCount}-question written exam, use a mix of short questions (2-4 marks) and structured questions (6-10 marks). The total marks across all questions should roughly equal ${desiredWrittenCount * 5} marks (approximate — adjust as appropriate for the subject and level).`;
-      }
-      return '';
+  // ── SUBJECT-AWARE MARK CAP ────────────────────────────────────────────────
+  // The user no longer chooses mark distribution. The AI picks per-question
+  // mark values, constrained by a subject-appropriate cap so we never get a
+  // 15-mark biology question or a 2-mark English Literature essay.
+  const markCapInstruction = (() => {
+    if (desiredWrittenCount <= 0) return '';
+    const s = (subject || '').toLowerCase();
+    const l = (educationalLevel || '').toLowerCase();
+    let cap = 12;
+    let typical = '2–8';
+    if (/biology|chemistry|physics|combined\s*science|triple\s*science|natural\s*science|\bscience\b/.test(s)) {
+      cap = 8; typical = '1–6';
+    } else if (/math|further\s*maths|statistics|mechanics|pure\s*maths|computer\s*science|computing|engineering|accounting|finance/.test(s)) {
+      cap = 10; typical = '1–8';
+    } else if (/economics|business/.test(s)) {
+      cap = 12; typical = '2–10';
+    } else if (/history|geography|psychology|sociology|politics|government|religious|philosophy|law/.test(s)) {
+      cap = (l.includes('a-level') || l.includes('ib') || l.includes('ap')) ? 20 : 16;
+      typical = '3–12';
+    } else if (/english|literature|language|french|spanish|german|mandarin|latin|drama|theatre|media|film|art/.test(s)) {
+      cap = 30; typical = '4–25';
     }
-    const dist = Object.entries(markDistribution)
-      .filter(([, count]) => (count as number) > 0)
-      .map(([marks, count]) => `${count} question${(count as number) > 1 ? 's' : ''} worth ${marks} marks`)
-      .join(', ');
-    return dist ? `\n## MARK DISTRIBUTION\nGenerate questions with this exact mark distribution: ${dist}.\nTotal written questions: ${desiredWrittenCount}.` : '';
+    const extendedNote = (includeExtended && extendedResponseMarks > 0)
+      ? ` The single extended-response question at the end is exempt from this cap and is worth exactly ${extendedResponseMarks} marks.`
+      : '';
+    return `\n## MARK VALUES
+Pick a sensible mark value for each written question based on what a real ${educationalLevel || 'exam'} paper in ${subject} would use.
+Typical per-question marks for this subject: ${typical}.
+Hard rule: no individual written question may exceed ${cap} marks.${extendedNote}
+Vary mark values across the paper — do not give every question the same mark value.`;
   })();
 
   const suppressionNotice = suppressDiagrams ? `
@@ -1503,7 +1520,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     mcqRulesBlock,
     writtenRulesBlock,
     mediaInstruction,
-    markDistributionInstruction,
+    markCapInstruction,
     suppressionNotice,
     nodalAnalysisInstruction,
     sourceBlock,
