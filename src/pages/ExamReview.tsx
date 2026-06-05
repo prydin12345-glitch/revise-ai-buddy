@@ -567,62 +567,67 @@ const ExamReview = () => {
 
 
         {/* Main Panel */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-6 sm:space-y-8">
-            {questions.map((question, qIdx) => {
+        <div className="flex-1 overflow-y-auto scroll-themed">
+          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+            {!scoresHidden && visibleQuestions.length === 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] py-10 text-center text-sm text-muted-foreground">
+                No questions match this filter.
+              </div>
+            )}
+            {visibleQuestions.map((question, qIdx) => {
               const answer = answers[question.id];
               const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
               const parentNum = subPartMatch?.[1] || question.question_number;
               const subPart = subPartMatch?.[2] || '';
               const isSubPart = !!subPart;
-              const prevQ = qIdx > 0 ? questions[qIdx - 1] : null;
+              const prevQ = qIdx > 0 ? visibleQuestions[qIdx - 1] : null;
               const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
               const showParentHeader = isSubPart && parentNum !== prevParent;
               const isMcq = question.question_type === 'mcq' || (question.options && Array.isArray(question.options) && question.options.length > 0);
 
+              const s = scoresHidden ? null : questionStatus(answer, question.marks);
+              const tone =
+                s === 'correct' ? 'text-success' :
+                s === 'lost'    ? 'text-danger'  :
+                s === 'partial' ? 'text-warning' : 'text-muted-foreground';
+              const cardBorder =
+                s === 'correct' ? 'border-l-success' :
+                s === 'lost'    ? 'border-l-danger'  :
+                s === 'partial' ? 'border-l-warning' : 'border-l-border';
+              const pen =
+                s === 'correct' ? <PenTick  className="w-6 h-6 text-success" /> :
+                s === 'lost'    ? <PenCross className="w-6 h-6 text-danger" /> :
+                s === 'partial' ? <PenHalf  className="w-6 h-6 text-warning" /> : null;
+
               return (
                 <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
                   {showParentHeader && (
-                    <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
+                    <h2 className="font-serif text-xl font-bold mb-4 mt-2 text-foreground">Question {parentNum}</h2>
                   )}
                 <Card 
                   ref={(el) => questionRefs.current[question.id] = el}
-                  className={`p-4 sm:p-6 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}
+                  className={`p-4 sm:p-6 bg-[hsl(var(--surface-panel))] border-l-4 ${cardBorder}`}
                 >
-                  {/* Question header */}
-                  <div className="flex items-start gap-2 sm:gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {isSubPart ? (
-                        <span className="text-lg font-semibold shrink-0">({subPart})</span>
-                      ) : (
-                        <Badge variant="outline" className="shrink-0 font-bold">Q{question.question_number}</Badge>
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground shrink-0">
-                        ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
+                  {/* Marked-paper question header */}
+                  <div className="flex items-start gap-3 sm:gap-4 mb-4">
+                    {/* Left margin: serif Q number + pen mark */}
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5 w-10 sm:w-12">
+                      <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-none">
+                        {isSubPart ? `(${subPart})` : `Q${question.question_number}`}
                       </span>
-                      {/* Status badge - Correct/Incorrect/Partial */}
-                      {!scoresHidden && answer && (
-                        answer.is_correct ? (
-                          <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
-                            <CheckCircle className="w-3 h-3" />
-                            Correct
-                          </Badge>
-                        ) : answer.score > 0 ? (
-                          <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            Partial
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
-                            <XCircle className="w-3 h-3" />
-                            Incorrect
-                          </Badge>
-                        )
-                      )}
+                      {pen}
                     </div>
-                    <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-                      {/* Help button: AI explain for self-study, feedback thread for tutor-assigned */}
-                      {isTutorAssigned ? (
+
+                    {/* Center: marks */}
+                    <div className="flex-1 min-w-0 pt-1">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
+                      </span>
+                    </div>
+
+                    {/* Right margin: teacher score + help button */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isTutorAssigned && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -635,11 +640,11 @@ const ExamReview = () => {
                           <MessageCircle className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">Ask for Help</span>
                         </Button>
-                      ) : null}
+                      )}
                       {!scoresHidden && answer && (
-                        <Badge className={getStatusColor(answer)}>
+                        <span className={`font-serif font-bold text-base sm:text-lg ${tone}`}>
                           {Math.round(answer.score)}/{question.marks}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -648,8 +653,9 @@ const ExamReview = () => {
                     content={question.question_text}
                     latex={(question as any).question_latex}
                     hasMath={(question as any).has_math}
-                    className="mb-4"
+                    className="mb-4 font-serif text-foreground"
                   />
+
 
                    {/* Chart rendering — diagram_config first, options fallback */}
                    {(() => {
