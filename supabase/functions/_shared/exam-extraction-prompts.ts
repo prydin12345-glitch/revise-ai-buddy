@@ -200,15 +200,76 @@ CRITICAL: Questions MUST scale in difficulty from 4 marks (simple retrieval) to 
   }
   
   if (subjectLower.includes('biology')) {
-    return `For ${examBoard.toUpperCase()} ${level} Biology: Write CONCISE questions. For MCQs keep options SHORT. Include structured questions and extended response. Topics: Cell biology, Genetics, Ecology, Physiology, Evolution. Marks: 1-2 (recall), 3-4 (application), 6+ (extended). Command words: State, Describe, Explain, Compare, Evaluate, Calculate.`;
+    return `For ${examBoard.toUpperCase()} ${level} Biology — APPLICATION-FIRST RUBRIC (model on OCR H420/01, AQA 7402, Edexcel 9BN0, CIE 9700, IB Biology HL):
+
+COGNITIVE MIX (HARD RULE):
+- ≤ 25% AO1 recall (State / Name / Define / Identify).
+- ≥ 50% AO2 application & data-handling (Calculate, Deduce, Use Figure X, Use the data in Table Y).
+- ≥ 25% AO3 analysis & evaluation (Evaluate, Suggest reasons for, Critique the method, Explain the evidence).
+
+MCQ RULE:
+- Every MCQ must be STIMULUS-BASED — built around a short data table, graph, micrograph description, experimental setup, or short results passage. The stem must require the student to interpret the stimulus, not recall a textbook fact.
+- BANNED: pure-definition MCQs ("What is the definition of …?", "Which term describes …?"), single-word recall ("Which is a carbohydrate?"), four-textbook-term distractor sets.
+
+DATA-HANDLING REQUIREMENT:
+- At least one third of structured (non-MCQ) questions must reference a provided data table, graph, or experimental result and ask the student to calculate, deduce, interpret, or compare values from it. Use diagram_config with type "data_table" or "bar_chart" so the data is rendered.
+
+EXPERIMENTAL RIGOUR REQUIREMENT:
+- At least two questions per paper must involve experimental methodology: identifying the independent / dependent / controlled variables, suggesting an appropriate control, justifying the number of repeats, evaluating a stated method, or commenting on validity / reliability / accuracy / precision.
+
+MATHEMATICAL PRECISION REQUIREMENT:
+- Include at least one quantitative calculation ("show that …", percentage change, rate of reaction / uptake / transpiration, magnification, surface area : volume, Hardy–Weinberg p² + 2pq + q² = 1, chi-squared interpretation against critical values, water potential ψ = ψs + ψp, Simpson's index). Specify the required number of significant figures or decimal places.
+
+PREFERRED STEMS:
+- "Figure 1 shows … Use the graph to calculate …"
+- "Table 2 shows the results of an investigation into … Suggest one reason for the trend shown."
+- "A student investigated … Evaluate the student's method."
+- "Calculate the percentage increase in rate of oxygen uptake between 20 °C and 35 °C."
+- "Explain the evidence in Figure 3 for …"
+
+MARK BANDS (caps governed centrally):
+- 1–2 marks: short application or data read-off (not bare recall).
+- 3–5 marks: multi-step calculation, structured explanation, or short evaluation.
+- 6–8 marks: extended explanation linking two concepts, or full method evaluation.
+
+Topics: Cell biology, Biological molecules, Genetics & inheritance, Ecology, Physiology, Evolution, Biochemistry. Use IUPAC chemistry notation where relevant. Keep MCQ option text short.`;
   }
   
   if (subjectLower.includes('chemistry')) {
-    return `For ${examBoard.toUpperCase()} ${level} Chemistry: Include calculations with moles, concentrations. Topics: Atomic structure, Bonding, Organic chemistry, Reactions, Equilibria. Use correct chemical notation. Include enthalpy calculations, rate equations.`;
+    return `For ${examBoard.toUpperCase()} ${level} Chemistry — APPLICATION-FIRST RUBRIC (model on OCR H432, AQA 7405, Edexcel 9CH0, CIE 9701, IB Chemistry HL):
+
+COGNITIVE MIX (HARD RULE):
+- ≤ 25% AO1 recall. ≥ 50% AO2 application & data-handling. ≥ 25% AO3 analysis & evaluation.
+
+MCQ RULE:
+- Every MCQ must be stimulus-based — built around a reaction, mechanism, spectrum, titration curve, energy profile, or numerical data. No pure-definition MCQs.
+
+REQUIRED CONTENT:
+- Include calculations with moles, concentrations, limiting reagents, percentage yield, atom economy, enthalpy (ΔH), Hess cycles, Kc / Kp, pH and Ksp, rate equations and orders, Arrhenius, and electrochemistry where appropriate to the level.
+- At least one third of structured questions must reference experimental data (titration, calorimetry, kinetics, spectra) and require calculation or interpretation.
+- Include at least one "show that …" calculation per paper, with explicit significant figures.
+- Include at least one question on experimental method (errors, controls, accuracy, percentage uncertainty, suitable apparatus).
+
+Topics: Atomic structure, Bonding, Energetics, Kinetics, Equilibria, Organic chemistry, Transition metals, Spectroscopy. Use correct chemical notation, state symbols, and SI units.`;
   }
   
   if (subjectLower.includes('physics')) {
-    return `For ${examBoard.toUpperCase()} ${level} Physics: Heavy use of calculations. Topics: Mechanics, Waves, Electricity, Fields, Particles. Use SI units. Multi-step "show that" questions. Include experimental scenarios.`;
+    return `For ${examBoard.toUpperCase()} ${level} Physics — APPLICATION-FIRST RUBRIC (model on OCR H556, AQA 7408, Edexcel 9PH0, CIE 9702, IB Physics HL):
+
+COGNITIVE MIX (HARD RULE):
+- ≤ 25% AO1 recall. ≥ 50% AO2 application & data-handling. ≥ 25% AO3 analysis & evaluation.
+
+MCQ RULE:
+- Every MCQ must be stimulus-based — built around a circuit, graph, vector diagram, ray diagram, or numerical data set. No bare definition MCQs.
+
+REQUIRED CONTENT:
+- Heavy use of multi-step calculations with SI units and significant figures.
+- At least one third of structured questions must reference a graph, table, or experimental setup and require calculation, gradient/area interpretation, or uncertainty analysis.
+- Include at least one "show that …" derivation per paper.
+- Include at least one question on experimental method: variables, controls, repeats, sources of error, percentage uncertainty, suitable apparatus and resolution.
+- Include synoptic links between topics where the level allows.
+
+Topics: Mechanics, Materials, Waves, Electricity, Fields, Particle physics, Thermal physics, Nuclear. Use SI units (ms⁻¹, ms⁻², Nm⁻¹) and standard symbols.`;
   }
   
   if (subjectLower.includes('math') || subjectLower.includes('statistics') || subjectLower.includes('stats')) {
