@@ -1193,6 +1193,41 @@ Hard rule: no individual written question may exceed ${cap} marks.${extendedNote
 Vary mark values across the paper — do not give every question the same mark value.`;
   })();
 
+  // ── SCIENCE COGNITIVE MIX RIDER ───────────────────────────────────────────
+  // Forces an Application & Analysis dominant question paper for the sciences
+  // family so we do not default to low-level recall MCQs. Mirrors the OCR
+  // H420 / AQA 7402 / Edexcel 9XX0 / IB / AP style.
+  const cognitiveMixInstruction = (() => {
+    const s = (subject || '').toLowerCase();
+    if (!/biology|chemistry|physics|combined\s*science|triple\s*science|natural\s*science|\bscience\b/.test(s)) return '';
+    const l = (educationalLevel || '').toLowerCase();
+    const isAdvanced = /a-?level|a\s*level|college_16_18|ib|ap\b|advanced\s*placement|pre-u|university|undergrad|hl\b/.test(l);
+    if (isAdvanced) {
+      return `\n## COGNITIVE MIX — ADVANCED SCIENCE (HARD RULE)
+The question set must follow this Assessment Objective mix:
+- ≤ 25% AO1 recall (State / Name / Define / Identify).
+- ≥ 50% AO2 application & data-handling (Calculate, Deduce, Use Figure X, Use the data in Table Y).
+- ≥ 25% AO3 analysis & evaluation (Evaluate, Suggest reasons for, Critique the method).
+
+Every MCQ must be STIMULUS-BASED: built around a short data table, graph, micrograph description, experimental setup, or short results passage. Bare definition MCQs are banned.
+
+At least one third of the structured (non-MCQ) questions must reference a provided data table, graph, or experimental result and require calculation or interpretation.
+
+Include at least one "show that …" or quantitative calculation (percentage change, rate, magnification, water potential, Hardy–Weinberg, chi-squared, enthalpy, uncertainty) with explicit significant figures.
+
+Include at least two questions on experimental methodology: identifying independent / dependent / controlled variables, suggesting controls, justifying repeats, evaluating a stated method, or commenting on validity, reliability, accuracy, or precision.
+
+Do NOT generate "What is the definition of …" or "Which of the following is …" followed by four textbook terms.`;
+    }
+    // GCSE / KS3 — softer, still application-led
+    return `\n## COGNITIVE MIX — SCIENCE (HARD RULE)
+Bias the question set toward application over recall:
+- ≤ 35% AO1 recall, ≥ 50% AO2 application & data-handling, ≥ 15% AO3 analysis.
+- MCQs should be built around a short data table, graph, or scenario rather than asking for a definition.
+- Include at least one calculation (rate, percentage change, magnification) per paper.
+- Include at least one question on experimental method (variables, controls, fair test).`;
+  })();
+
   const suppressionNotice = suppressDiagrams ? `
 ## ABSOLUTE RULE — NO DIAGRAM REFERENCES
 No circuit diagram will be shown. You MUST NOT write:
@@ -1545,6 +1580,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     writtenRulesBlock,
     mediaInstruction,
     markCapInstruction,
+    cognitiveMixInstruction,
     suppressionNotice,
     nodalAnalysisInstruction,
     sourceBlock,
