@@ -385,39 +385,112 @@ const ExamReview = () => {
 
   // ── Sidebar Content (shared between mobile drawer and desktop sidebar) ────
   const sidebarContent = (
-    <div className="p-4 lg:p-6 flex flex-col gap-5 h-full">
+    <div className="p-4 lg:p-6 flex flex-col gap-5 h-full bg-[hsl(var(--surface-panel))]">
+      {/* Score card (band-coloured percentage in serif) */}
+      {scoresHidden ? (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <EyeOff className="w-5 h-5 text-muted-foreground" />
+            <span className="font-semibold">Scores Hidden</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your tutor has not released scores yet. Check back later.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Your score</div>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-serif text-4xl font-bold leading-none ${pctTone}`}>{Math.round(percentage)}%</span>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Filter chips + Next mistake */}
+      {!scoresHidden && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {([
+            { key: 'all',     label: 'All',     count: counts.all,     active: 'bg-foreground text-background border-foreground' },
+            { key: 'correct', label: 'correct', count: counts.correct, active: 'bg-success text-success-foreground border-success' },
+            { key: 'lost',    label: 'lost',    count: counts.lost,    active: 'bg-danger text-danger-foreground border-danger' },
+            { key: 'partial', label: 'partial', count: counts.partial, active: 'bg-warning text-warning-foreground border-warning' },
+          ] as const).map((chip) => {
+            const active = filter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setFilter(chip.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                  active ? chip.active : 'text-muted-foreground bg-transparent border-border hover:bg-[hsl(var(--surface-hover))]'
+                }`}
+              >
+                {chip.label} <span className="font-mono opacity-80">{chip.count}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={jumpToNextMistake}
+            disabled={counts.lost + counts.partial === 0}
+            className="w-full mt-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next mistake <ArrowDown className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Where you lost marks */}
+      {!scoresHidden && lostByTopic.length > 0 && (
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
+            Where you lost marks
+          </div>
+          <div className="space-y-1.5">
+            {lostByTopic.slice(0, 4).map(([topic, v]) => {
+              const w = Math.min(100, Math.round((v.lost / Math.max(1, v.total)) * 100));
+              return (
+                <div key={topic} className="flex items-center gap-2.5">
+                  <span className="text-[11px] text-foreground/80 flex-shrink-0 min-w-[90px] max-w-[140px] truncate">{topic}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[hsl(var(--surface-hover))] overflow-hidden">
+                    <div className="h-full bg-danger rounded-full" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="text-[11px] font-mono text-danger flex-shrink-0">−{v.lost}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Question navigator grid */}
       <div>
-        <h2 className="text-xs font-semibold mb-3 text-muted-foreground tracking-wide">QUESTIONS</h2>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] mb-3 text-muted-foreground">Questions</h2>
         <div className="grid grid-cols-4 gap-2">
           {questions.map((q) => {
             const answer = answers[q.id];
-
             if (scoresHidden) {
               return (
                 <button
                   key={q.id}
                   onClick={() => scrollToQuestion(q.id)}
-                  className="aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 bg-muted text-muted-foreground"
+                  className="aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 bg-[hsl(var(--surface-hover))] text-muted-foreground"
                 >
                   {q.question_number}
                 </button>
               );
             }
-
-            const isFullyCorrect = answer && answer.score === q.marks;
-            const isPartial = answer && answer.score > 0 && answer.score < q.marks;
-
+            const s = questionStatus(answer, q.marks);
+            const cls =
+              s === 'correct' ? 'bg-success text-success-foreground' :
+              s === 'partial' ? 'bg-warning text-warning-foreground' :
+                                'bg-danger text-danger-foreground';
             return (
               <button
                 key={q.id}
                 onClick={() => scrollToQuestion(q.id)}
-                className={`aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all hover:scale-105 ${
-                  isFullyCorrect
-                    ? 'bg-green-500 text-white'
-                    : isPartial
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-destructive text-destructive-foreground'
-                }`}
+                className={`aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 ${cls}`}
                 title={answer ? `Score: ${Math.round(answer.score)}/${q.marks}` : 'Not answered'}
               >
                 {q.question_number}
@@ -427,65 +500,15 @@ const ExamReview = () => {
         </div>
       </div>
 
-      {scoresHidden ? (
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <EyeOff className="w-5 h-5 text-muted-foreground" />
-            <span className="font-semibold">Scores Hidden</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Your tutor has not released scores yet. Check back later.
-          </p>
-        </Card>
-      ) : (
-        <>
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-primary" />
-              <span className="font-semibold">Your Score</span>
-            </div>
-            <div className="text-3xl font-bold text-primary">
-              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
-            </div>
-            <div className="text-lg font-semibold text-muted-foreground">
-              {percentage.toFixed(1)}%
-            </div>
-          </Card>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Correct</span>
-              </div>
-              <span className="font-semibold">{correctCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-500" />
-                <span>Partial</span>
-              </div>
-              <span className="font-semibold">{partialCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-destructive" />
-                <span>Incorrect</span>
-              </div>
-              <span className="font-semibold">{incorrectCount}</span>
-            </div>
-          </div>
-        </>
-      )}
-
       {submission && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-4 border-t">
-          <Clock className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-3 mt-auto border-t border-border">
+          <Clock className="w-3.5 h-3.5" />
           <span>Time: {formatTime(submission.time_taken_seconds)}</span>
         </div>
       )}
     </div>
   );
+
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
