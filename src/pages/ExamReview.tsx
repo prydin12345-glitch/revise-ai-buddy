@@ -122,6 +122,33 @@ function getOptionLabel(index: number): string {
   return String.fromCharCode(65 + index);
 }
 
+// ── Marked-paper helpers ────────────────────────────────────────────────────
+type ReviewStatus = 'correct' | 'partial' | 'lost';
+function questionStatus(answer: Answer | undefined, marks: number): ReviewStatus {
+  if (!answer) return 'lost';
+  if (answer.score >= marks) return 'correct';
+  if (answer.score === 0) return 'lost';
+  return 'partial';
+}
+type FilterKey = 'all' | 'correct' | 'lost' | 'partial';
+
+const PenTick = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 13.5 9 19l11-13" />
+  </svg>
+);
+const PenCross = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5l14 14M19 5 5 19" />
+  </svg>
+);
+const PenHalf = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 19 19 5" />
+    <path d="M5 13l4 4" />
+  </svg>
+);
+
 // ── AI Explain Inline Component ─────────────────────────────────────────────
 function AIExplainPanel({ question, answer }: { question: Question; answer?: Answer }) {
   const [open, setOpen] = useState(false);
