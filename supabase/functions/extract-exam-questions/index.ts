@@ -1580,6 +1580,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     writtenRulesBlock,
     mediaInstruction,
     markCapInstruction,
+    cognitiveMixInstruction,
     suppressionNotice,
     nodalAnalysisInstruction,
     sourceBlock,
