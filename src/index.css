@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap');
 @import './styles/mathquill-custom.css';
 
 @tailwind base;
@@ -32,10 +33,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 38% 11%;
 
-    /* Primary */
-    --primary: 217 92% 52%;
+    /* Primary — Examly blue */
+    --primary: 231 91% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 92% 92%;
+    --primary-light: 231 91% 95%;
 
     /* Secondary */
     --secondary: 216 30% 95%;
@@ -54,34 +55,34 @@ All colors MUST be HSL.
     --destructive-foreground: 0 0% 100%;
 
     /* Danger - High visibility for overdue/critical */
-    --danger: 351 70% 53%;
+    --danger: 351 72% 50%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 80% 95%;
     --danger-border: 0 70% 50%;
 
     /* Border and input */
-    --border: 216 25% 88%;
-    --input: 216 25% 88%;
-    --ring: 217 92% 52%;
+    --border: 216 24% 89%;
+    --input: 216 24% 89%;
+    --ring: 231 91% 65%;
 
-    /* Custom surfaces */
-    --surface-panel: 216 33% 97%;
-    --surface-panel-2: 216 30% 93%;
+    /* Custom surfaces — unified panel used for chat AND review paper */
+    --surface-panel: 0 0% 100%;
+    --surface-panel-2: 216 38% 97%;
     --surface-hover: 216 30% 91%;
 
     /* Border radius */
     --radius: 0.75rem;
 
     /* Status colors */
-    --success: 158 60% 38%;
+    --success: 152 55% 38%;
     --success-foreground: 0 0% 100%;
-    --success-light: 158 76% 92%;
-    --success-border: 158 60% 45%;
-    
-    --warning: 38 92% 44%;
+    --success-light: 152 60% 92%;
+    --success-border: 152 55% 45%;
+
+    --warning: 38 80% 42%;
     --warning-foreground: 39 100% 15%;
     --warning-light: 38 95% 88%;
-    --warning-border: 38 92% 50%;
+    --warning-border: 38 80% 50%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
@@ -113,6 +114,10 @@ All colors MUST be HSL.
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* AI tutor brand gradient (blue → violet) */
+    --tutor-grad-from: 231 91% 65%;
+    --tutor-grad-to: 258 90% 66%;
   }
 
   .dark {
@@ -125,9 +130,9 @@ All colors MUST be HSL.
     --popover: 220 33% 11%;
     --popover-foreground: 216 40% 95%;
 
-    --primary: 217 92% 58%;
+    --primary: 231 91% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 92% 25%;
+    --primary-light: 231 91% 25%;
 
     --secondary: 220 33% 12%;
     --secondary-foreground: 216 40% 95%;
@@ -143,30 +148,30 @@ All colors MUST be HSL.
     --destructive-muted: 0 65% 18%;
     --destructive-border: 0 62% 40%;
 
-    --border: 220 24% 16%;
-    --input: 220 24% 16%;
-    --ring: 217 92% 58%;
+    --border: 224 18% 20%;
+    --input: 224 18% 20%;
+    --ring: 231 91% 65%;
 
-    /* Custom surfaces */
-    --surface-panel: 220 35% 8%;
-    --surface-panel-2: 220 32% 12%;
-    --surface-hover: 220 30% 15%;
+    /* Custom surfaces — unified panel used for chat AND review paper */
+    --surface-panel: 224 22% 10%;
+    --surface-panel-2: 225 20% 13%;
+    --surface-hover: 226 21% 17%;
 
     /* Danger */
-    --danger: 351 95% 71%;
+    --danger: 351 88% 68%;
     --danger-foreground: 0 0% 100%;
     --danger-muted: 0 60% 15%;
     --danger-border: 351 80% 50%;
 
-    --success: 158 64% 52%;
+    --success: 152 58% 52%;
     --success-foreground: 0 0% 100%;
-    --success-light: 158 64% 22%;
-    --success-border: 158 64% 45%;
-    
-    --warning: 43 96% 56%;
+    --success-light: 152 58% 22%;
+    --success-border: 152 58% 45%;
+
+    --warning: 38 92% 60%;
     --warning-foreground: 38 100% 12%;
-    --warning-light: 43 96% 18%;
-    --warning-border: 43 96% 50%;
+    --warning-light: 38 92% 18%;
+    --warning-border: 38 92% 50%;
     
     --info: 262 83% 58%;
     --info-foreground: 0 0% 100%;
@@ -191,6 +196,35 @@ All colors MUST be HSL.
 
     --shadow-soft: 0 4px 20px -2px hsl(210 85% 60% / 0.2);
     --shadow-card: 0 2px 8px -1px hsl(0 0% 0% / 0.2);
+
+    /* AI tutor brand gradient (blue → violet) */
+    --tutor-grad-from: 231 91% 65%;
+    --tutor-grad-to: 258 90% 66%;
+  }
+}
+
+@layer utilities {
+  /* AI tutor gradient — avatar, primary send button, "Discuss with AI tutor" */
+  .bg-tutor-gradient {
+    background-image: linear-gradient(135deg, hsl(var(--tutor-grad-from)), hsl(var(--tutor-grad-to)));
+  }
+
+  /* Themed scrollbar — apply to chat list + review panel scroll areas */
+  .scroll-themed {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.30) transparent;
+  }
+  .scroll-themed::-webkit-scrollbar { width: 9px; height: 9px; }
+  .scroll-themed::-webkit-scrollbar-track { background: transparent; }
+  .scroll-themed::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.28);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .scroll-themed::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.45);
+    background-clip: content-box;
   }
 }
 

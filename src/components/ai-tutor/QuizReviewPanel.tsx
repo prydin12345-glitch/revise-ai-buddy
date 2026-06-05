@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, MinusCircle, ChevronRight, Loader2, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback, type KeyboardEvent } from 'react';
+import { Loader2, MessageSquare, ChevronDown, Sparkles, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/hooks/useSession';
 
@@ -24,19 +24,46 @@ interface QuizReviewPanelProps {
   setTitle: string;
   onQuestionClick: (question: QuizQuestionResult) => void;
   activeQuestionId?: string | null;
+  metaLine?: string;
 }
+
+type FilterKey = 'all' | 'correct' | 'lost' | 'partial';
+
+const PenTick = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 13.5 9 19l11-13" />
+  </svg>
+);
+const PenCross = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5l14 14M19 5 5 19" />
+  </svg>
+);
+const PenHalf = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 19 19 5" />
+    <path d="M5 13l4 4" />
+  </svg>
+);
+
+const status = (q: QuizQuestionResult): 'correct' | 'partial' | 'lost' =>
+  q.score >= q.totalMarks ? 'correct' : q.score === 0 ? 'lost' : 'partial';
 
 export const QuizReviewPanel = ({
   setId,
   setTitle,
   onQuestionClick,
   activeQuestionId,
+  metaLine,
 }: QuizReviewPanelProps) => {
   const [questions, setQuestions] = useState<QuizQuestionResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'wrong' | 'correct'>('all');
-  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const session = useSession();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -82,12 +109,12 @@ export const QuizReviewPanel = ({
                 questionNumberSort: numSort,
                 questionText: q.question_text ?? '',
                 studentAnswer: a.answer_text ?? '',
-                correctAnswer: q.correct_answer ?? '',
+                correctAnswer: q.correct_answer ?? q.worked_solution ?? '',
                 workedSolution: q.worked_solution ?? null,
                 score: awarded,
                 totalMarks: total,
-                isCorrect: a.is_correct === true,
-                isPartial: a.is_correct !== true && awarded > 0,
+                isCorrect: a.is_correct === true || awarded >= total,
+                isPartial: a.is_correct !== true && awarded > 0 && awarded < total,
                 feedback: a.feedback,
                 subtopic: q.subtopic,
               };
@@ -104,206 +131,280 @@ export const QuizReviewPanel = ({
     load();
   }, [setId, session?.user?.id]);
 
-  const totalScore = questions.reduce((sum, q) => sum + q.score, 0);
-  const totalMarks = questions.reduce((sum, q) => sum + q.totalMarks, 0);
+  const totalScore = questions.reduce((s, q) => s + q.score, 0);
+  const totalMarks = questions.reduce((s, q) => s + q.totalMarks, 0);
   const pct = totalMarks > 0 ? Math.round((totalScore / totalMarks) * 100) : 0;
-  const pctColor = pct >= 70 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-500';
-  const wrongCount = questions.filter(q => !q.isCorrect && !q.isPartial).length;
-  const correctCount = questions.filter(q => q.isCorrect).length;
-  const partialCount = questions.filter(q => q.isPartial).length;
+  const pctTone = pct >= 75 ? 'text-success' : pct >= 50 ? 'text-warning' : 'text-danger';
 
-  const filtered = questions.filter(q => {
-    if (filter === 'wrong') return !q.isCorrect;
-    if (filter === 'correct') return q.isCorrect;
-    return true;
-  });
+  const counts = useMemo(() => {
+    const c = { all: questions.length, correct: 0, lost: 0, partial: 0 };
+    questions.forEach((q) => c[status(q)]++);
+    return c;
+  }, [questions]);
+
+  const filtered = useMemo(
+    () => (filter === 'all' ? questions : questions.filter((q) => status(q) === filter)),
+    [questions, filter],
+  );
+
+  const lostByTopic = useMemo(() => {
+    const m = new Map<string, { lost: number; total: number }>();
+    questions.forEach((q) => {
+      const t = q.subtopic ?? 'Uncategorised';
+      const e = m.get(t) ?? { lost: 0, total: 0 };
+      e.total += q.totalMarks;
+      e.lost += Math.max(0, q.totalMarks - q.score);
+      m.set(t, e);
+    });
+    return Array.from(m.entries())
+      .filter(([, v]) => v.lost > 0)
+      .sort((a, b) => b[1].lost - a[1].lost);
+  }, [questions]);
+
+  const scrollToRow = useCallback((id: string) => {
+    const el = rowRefs.current[id];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  const jumpToNextMistake = useCallback(() => {
+    const next = questions.find((q) => status(q) !== 'correct');
+    if (!next) return;
+    setFilter('all');
+    setExpandedId(next.id);
+    setFocusedIdx(questions.indexOf(next));
+    requestAnimationFrame(() => scrollToRow(next.id));
+  }, [questions, scrollToRow]);
+
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = Math.min(filtered.length - 1, Math.max(0, focusedIdx + 1));
+      setFocusedIdx(next);
+      scrollToRow(filtered[next].id);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = Math.max(0, focusedIdx - 1);
+      setFocusedIdx(next);
+      scrollToRow(filtered[next].id);
+    } else if (e.key === 'Enter' && focusedIdx >= 0 && filtered[focusedIdx]) {
+      e.preventDefault();
+      const id = filtered[focusedIdx].id;
+      setExpandedId((cur) => (cur === id ? null : id));
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-[hsl(var(--surface-panel))]">
         <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <style>{`
-        @keyframes expandDown {
-          from { opacity: 0; transform: translateY(-4px); max-height: 0; }
-          to   { opacity: 1; transform: translateY(0);    max-height: 600px; }
-        }
-      `}</style>
-      <div className="px-4 py-3 border-b border-border bg-muted/30">
-        <div className="flex items-start justify-between gap-3 mb-2">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={onKey}
+      className="flex flex-col h-full bg-[hsl(var(--surface-panel))] focus:outline-none"
+    >
+      <div className="sticky top-0 z-20 px-5 pt-4 pb-3 bg-[hsl(var(--surface-panel))] border-b border-border">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-semibold text-foreground truncate">{setTitle}</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {questions.length} questions · Tap any to expand
+            <h3 className="font-serif font-bold text-lg leading-tight text-foreground truncate">
+              {setTitle}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {metaLine ? `${metaLine} · ` : ''}{questions.length} questions
             </p>
           </div>
           <div className="text-right flex-shrink-0">
-            <div className={`text-xl font-bold ${pctColor}`}>{pct}%</div>
-            <div className="text-[10px] text-muted-foreground">{totalScore}/{totalMarks} marks</div>
+            <div className={`font-serif text-3xl font-bold leading-none ${pctTone}`}>{pct}%</div>
+            <div className="text-[11px] font-mono text-muted-foreground mt-1">{totalScore}/{totalMarks}</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {[
-            { label: `${correctCount} correct`, value: 'correct' as const, color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
-            { label: `${wrongCount} wrong`, value: 'wrong' as const, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
-          ].map(chip => (
-            <button
-              key={chip.value}
-              onClick={() => setFilter(filter === chip.value ? 'all' : chip.value)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-                filter === chip.value
-                  ? chip.color
-                  : 'text-muted-foreground bg-muted/40 border-border hover:border-border/80'
-              }`}
-            >
-              {chip.label}
-            </button>
-          ))}
-          {partialCount > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-amber-600 bg-amber-500/10 border border-amber-500/20">
-              {partialCount} partial
-            </span>
-          )}
+
+        <div className="flex items-center gap-1.5 flex-wrap mt-3">
+          {([
+            { key: 'all',     label: 'All',     count: counts.all,     active: 'bg-foreground text-background border-foreground' },
+            { key: 'correct', label: 'correct', count: counts.correct, active: 'bg-success text-success-foreground border-success' },
+            { key: 'lost',    label: 'lost',    count: counts.lost,    active: 'bg-danger text-danger-foreground border-danger' },
+            { key: 'partial', label: 'partial', count: counts.partial, active: 'bg-warning text-warning-foreground border-warning' },
+          ] as const).map((chip) => {
+            const active = filter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setFilter(chip.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                  active
+                    ? chip.active
+                    : 'text-muted-foreground bg-transparent border-border hover:bg-[hsl(var(--surface-hover))]'
+                }`}
+              >
+                {chip.label} <span className="font-mono opacity-80">{chip.count}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={jumpToNextMistake}
+            disabled={counts.lost + counts.partial === 0}
+            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next mistake <ArrowDown className="w-3 h-3" />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden min-h-0">
-        <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background via-background/80 to-transparent z-10 pointer-events-none" />
-        <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-muted/30 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50 [&::-webkit-scrollbar-thumb:active]:bg-muted-foreground/70">
+      {lostByTopic.length > 0 && (
+        <div className="px-5 py-3 border-b border-border bg-[hsl(var(--surface-panel-2))]">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
+            Where you lost marks
+          </div>
+          <div className="space-y-1.5">
+            {lostByTopic.slice(0, 4).map(([topic, v]) => {
+              const w = Math.min(100, Math.round((v.lost / Math.max(1, v.total)) * 100));
+              return (
+                <div key={topic} className="flex items-center gap-2.5">
+                  <span className="text-[11px] text-foreground/80 flex-shrink-0 min-w-[110px] max-w-[160px] truncate">{topic}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[hsl(var(--surface-hover))] overflow-hidden">
+                    <div className="h-full bg-danger rounded-full" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="text-[11px] font-mono text-danger flex-shrink-0">−{v.lost}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
+      <div className="flex-1 overflow-y-auto scroll-themed">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full p-6">
             <p className="text-[12px] text-muted-foreground">No questions match this filter</p>
           </div>
         ) : (
-          filtered.map(q => {
-            const isActive = activeQuestionId === q.id;
-            const isExpanded = expandedQuestionId === q.id;
-            const statusIcon = q.isCorrect
-              ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-              : q.isPartial
-                ? <MinusCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
-            const statusBg = q.isCorrect
-              ? 'border-l-emerald-500'
-              : q.isPartial
-                ? 'border-l-amber-500'
-                : 'border-l-red-500';
+          filtered.map((q, idx) => {
+            const s = status(q);
+            const isExpanded = expandedId === q.id;
+            const isActive = activeQuestionId === q.id || focusedIdx === idx;
+            const tone =
+              s === 'correct' ? 'text-success' : s === 'lost' ? 'text-danger' : 'text-warning';
+            const insetBorder =
+              s === 'correct' ? 'border-l-success' : s === 'lost' ? 'border-l-danger' : 'border-l-warning';
+            const pen =
+              s === 'correct' ? <PenTick  className="w-6 h-6 text-success" /> :
+              s === 'lost'    ? <PenCross className="w-6 h-6 text-danger" /> :
+                                <PenHalf  className="w-6 h-6 text-warning" />;
 
             return (
-              <div key={q.id}>
+              <div
+                key={q.id}
+                ref={(el) => (rowRefs.current[q.id] = el)}
+                className={`border-b border-border transition-colors ${
+                  isActive ? 'bg-primary/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--primary))]' : ''
+                }`}
+              >
                 <button
-                  onClick={() => setExpandedQuestionId(isExpanded ? null : q.id)}
-                  className={`w-full text-left px-4 py-3.5 border-b border-border border-l-2 ${statusBg} hover:bg-muted/40 transition-all duration-150 group ${
-                    isActive || isExpanded ? 'bg-muted/50' : ''
-                  }`}
+                  onClick={() => {
+                    setExpandedId(isExpanded ? null : q.id);
+                    setFocusedIdx(idx);
+                  }}
+                  className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-[hsl(var(--surface-hover))]/40 transition-colors"
                 >
-                  <div className="flex items-start gap-2.5">
-                    {statusIcon}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-[11px] font-semibold text-foreground">
-                          Q{q.questionNumber}
-                          {q.subtopic && <span className="text-muted-foreground font-normal"> · {q.subtopic}</span>}
-                        </span>
-                        <span className="text-[11px] font-mono text-muted-foreground flex-shrink-0">
-                          {q.score}/{q.totalMarks}
-                        </span>
-                      </div>
-                      <p className={`text-[12px] text-foreground/80 leading-snug ${isExpanded ? '' : 'line-clamp-2'}`}>
-                        {q.questionText}
-                      </p>
-                      {!isExpanded && !q.isCorrect && q.studentAnswer && (
-                        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
-                          Your answer: <span className="text-foreground/70">{q.studentAnswer}</span>
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight
-                      className={`w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground flex-shrink-0 mt-0.5 transition-transform ${
-                        isExpanded ? 'rotate-90' : ''
-                      }`}
+                  <div className="flex flex-col items-center gap-1.5 w-9 flex-shrink-0 pt-0.5">
+                    <span className="font-serif font-bold text-[15px] text-foreground leading-none">
+                      Q{q.questionNumber}
+                    </span>
+                    {pen}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    {q.subtopic && (
+                      <span className="inline-block px-2 py-0.5 mb-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-[hsl(var(--surface-panel-2))] text-muted-foreground border border-border">
+                        {q.subtopic}
+                      </span>
+                    )}
+                    <p className="font-serif text-[14px] leading-snug text-foreground line-clamp-2">
+                      {q.questionText}
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-2 flex-shrink-0 pt-0.5">
+                    <span className={`font-serif font-bold text-[15px] ${tone}`}>
+                      {q.score}/{q.totalMarks}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-muted-foreground transition-transform mt-0.5 ${isExpanded ? 'rotate-180' : ''}`}
                     />
                   </div>
                 </button>
 
-                {isExpanded && (
-                  <div
-                    className="border-b border-border bg-muted/20 px-4 py-3 space-y-3 overflow-hidden"
-                    style={{ animation: 'expandDown 0.2s ease-out' }}
-                  >
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                        Your answer
+                <div
+                  className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                    isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="px-5 pb-5 pt-1 pl-[3.75rem] space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                            Your response
+                          </div>
+                          <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${tone}`}>
+                            <span className="font-serif">{q.score}/{q.totalMarks} marks</span>
+                            <span className="w-3.5 h-3.5">
+                              {s === 'correct' ? <PenTick className="w-3.5 h-3.5" /> :
+                               s === 'lost'    ? <PenCross className="w-3.5 h-3.5" /> :
+                                                 <PenHalf  className="w-3.5 h-3.5" />}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`bg-[hsl(var(--surface-panel-2))] border-l-2 ${insetBorder} rounded-r-md px-3 py-2 text-[13px] text-foreground whitespace-pre-wrap leading-snug`}>
+                          {q.studentAnswer || <span className="italic text-muted-foreground">No answer recorded</span>}
+                        </div>
                       </div>
-                      <div className="text-[12px] text-foreground whitespace-pre-wrap leading-snug">
-                        {q.studentAnswer || (
-                          <span className="italic text-muted-foreground">No answer recorded</span>
-                        )}
-                      </div>
+
+                      {s !== 'correct' && (
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-success mb-1.5">
+                            Mark scheme
+                          </div>
+                          <div className="bg-success/10 border border-success/20 rounded-md px-3 py-2 text-[13px] text-foreground whitespace-pre-wrap leading-snug">
+                            {q.correctAnswer || <span className="italic text-muted-foreground">See mark scheme</span>}
+                          </div>
+                        </div>
+                      )}
+
+                      {q.feedback && (
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
+                            Examiner's note
+                          </div>
+                          <div className="border border-dashed border-border rounded-md px-3 py-2 text-[13px] text-foreground/85 leading-snug flex items-start gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                            <span>{q.feedback}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => onQuestionClick(q)}
+                        className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-tutor-gradient text-primary-foreground text-[12px] font-semibold shadow-sm hover:opacity-95 transition-opacity"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Discuss with AI tutor
+                      </button>
                     </div>
-
-                    {!q.isCorrect && (
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 mb-1">
-                          Correct answer
-                        </div>
-                        <div className="text-[12px] text-foreground whitespace-pre-wrap leading-snug">
-                          {q.correctAnswer || (
-                            <span className="italic text-muted-foreground">See mark scheme</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {!q.isCorrect && q.workedSolution && (
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                          Worked solution
-                        </div>
-                        <div className="text-[12px] text-foreground/80 whitespace-pre-wrap leading-snug">
-                          {q.workedSolution}
-                        </div>
-                      </div>
-                    )}
-
-                    {q.feedback && (
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                          Feedback
-                        </div>
-                        <div className="text-[12px] text-foreground/80 leading-snug">{q.feedback}</div>
-                      </div>
-                    )}
-
-                    <div className="text-[11px] font-mono text-muted-foreground">
-                      {q.score}/{q.totalMarks} marks
-                      {q.isCorrect ? ' ✓' : q.isPartial ? ' (partial)' : ' ✗'}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        onQuestionClick(q);
-                        setExpandedQuestionId(null);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-[12px] font-semibold text-primary transition-all duration-150"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      Discuss with AI tutor
-                    </button>
                   </div>
-                )}
+                </div>
               </div>
             );
           })
         )}
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background via-background/80 to-transparent z-10 pointer-events-none" />
       </div>
     </div>
   );
