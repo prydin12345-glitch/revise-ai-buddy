@@ -911,13 +911,14 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [input, loading, messages, session, selectedExamId, selectedSetId, completedExams, completedQuizzes, streamAiResponse]);
 
   const handleExamSelect = useCallback((item: ExamPickerItem) => {
-    setSelectedExamId(item.id);
+    // Use actual exam.id for both AI context lookups and review panel queries.
+    // (item.id is the submission_id; item.examId is the exam_id.)
+    const examIdForLookup = item.examId || item.id;
+    setSelectedExamId(examIdForLookup);
     setSelectedTitle(item.title);
 
-    // Open split view using actual exam.id for question lookups
-    const ctxId = item.examId || item.id;
     setSplitViewMode('exam');
-    setSplitViewContextId(ctxId);
+    setSplitViewContextId(examIdForLookup);
     setSplitViewTotalScore(item.score);
     setSplitViewTotalMarks(item.totalMarks);
     setSplitViewOpen(true);
@@ -926,8 +927,8 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     try {
       localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
         mode: 'exam',
-        submissionId: item.id,
-        contextId: ctxId,
+        submissionId: examIdForLookup,
+        contextId: examIdForLookup,
         title: item.title,
         totalScore: item.score,
         totalMarks: item.totalMarks,
@@ -955,7 +956,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     ]);
 
     setTimeout(() => {
-      streamAiResponse(followUp, [], item.id, null);
+      streamAiResponse(followUp, [], examIdForLookup, null);
     }, 350);
   }, [streamAiResponse]);
 
