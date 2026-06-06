@@ -376,7 +376,38 @@ RULES:
 - The offer must be the FINAL sentence of your response, nothing after it
 - Only offer once per topic — if the student already declined, do not offer again`;
 
-    let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS +
+    const DIAGRAM_INSTRUCTIONS = `
+
+DIAGRAM RENDERING:
+When a student asks to see a diagram, visual, image, or asks you to show them
+something visually, you MAY include a diagram code block in your response.
+
+Use this exact fenced format:
+\`\`\`diagram
+{"type":"plant_cell"}
+\`\`\`
+
+Available diagram types — only use these exact strings:
+Biology: animal_cell, plant_cell, bacterial_cell, neuron, heart, dna_helix,
+         mitosis, punnett_square, food_web, food_chain, ecological_pyramid,
+         enzyme_substrate
+Physics: ray_diagram, transverse_wave, longitudinal_wave, standing_wave,
+         magnetic_field, bar_magnet, solenoid, nuclear_decay, alpha_decay,
+         beta_decay, electromagnetic_spectrum
+Chemistry: titration, reflux, electrolysis, dot_cross, chromatography
+Economics: supply_demand, ppf, lorenz_curve, break_even
+Maths: probability_tree, venn_diagram, two_way_table, sample_space
+
+Rules:
+- Only include a diagram block when it genuinely helps explain the concept
+- Only use types from the list above — never invent new ones
+- Place the diagram block AFTER your short text explanation, not before
+- Maximum one diagram per response
+- If no type matches the concept, describe it in text — do not output a diagram block
+- Never include a diagram block for non-visual concepts`;
+
+
+    let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS + DIAGRAM_INSTRUCTIONS +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
       (selectedSetContext ? '\n\n' + selectedSetContext : '');
 
@@ -424,7 +455,27 @@ Keep each question block to 4 lines maximum. No introduction. No conclusion. Sta
       lowerMessage.includes('detailed explanation') ||
       lowerMessage.includes('in detail');
 
-    const maxTokens = isDetailedAnswerRequest ? 800 : 250;
+    const isVisualRequest =
+      lowerMessage.includes('show me') ||
+      lowerMessage.includes('can i see') ||
+      (lowerMessage.includes('what does') && lowerMessage.includes('look like')) ||
+      lowerMessage.includes('draw') ||
+      lowerMessage.includes('diagram') ||
+      lowerMessage.includes('image') ||
+      lowerMessage.includes('picture') ||
+      lowerMessage.includes('visuali') ||
+      lowerMessage.includes('illustrat');
+
+    const maxTokens = isDetailedAnswerRequest ? 800 : isVisualRequest ? 400 : 250;
+
+    if (isVisualRequest) {
+      fullSystemPrompt += `
+
+VISUAL REQUEST — OVERRIDE:
+The student wants a visual explanation. If a matching diagram type exists in the
+DIAGRAM RENDERING list above, include the diagram code block in your response.
+After the diagram, briefly explain what to notice in it — one or two sentences only.`;
+    }
 
     if (isDetailedAnswerRequest) {
       fullSystemPrompt += `
