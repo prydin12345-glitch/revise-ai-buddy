@@ -553,9 +553,18 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setSessionId(s.id);
     }
 
-    // Restore review context if this was a review session
+    // Restore review context if this was a review session.
+    // Older sessions may have stored a submission_id instead of exam_id —
+    // try to resolve to the real exam_id so downstream queries work.
+    let resolvedExamId: string | null = null;
     if (s.selected_exam_id) {
-      setSelectedExamId(s.selected_exam_id);
+      const { data: sub } = await supabase
+        .from('exam_submissions')
+        .select('exam_id')
+        .eq('id', s.selected_exam_id)
+        .maybeSingle();
+      resolvedExamId = sub?.exam_id ?? s.selected_exam_id;
+      setSelectedExamId(resolvedExamId);
       setSelectedSetId(null);
       setSelectedTitle(s.selected_title ?? s.title ?? 'Exam review');
     } else if (s.selected_set_id) {
@@ -568,12 +577,10 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setSelectedTitle(null);
     }
 
-    
-
     // Offer to reopen the split view for review sessions
-    if (s.selected_exam_id || s.selected_set_id) {
-      const mode: 'exam' | 'quiz' = s.selected_exam_id ? 'exam' : 'quiz';
-      const submissionId = (s.selected_exam_id ?? s.selected_set_id) as string;
+    if (resolvedExamId || s.selected_set_id) {
+      const mode: 'exam' | 'quiz' = resolvedExamId ? 'exam' : 'quiz';
+      const submissionId = (resolvedExamId ?? s.selected_set_id) as string;
       const title = s.selected_title ?? s.title ?? 'Review session';
       setTimeout(() => {
         setMessages(prev => [...prev, {
