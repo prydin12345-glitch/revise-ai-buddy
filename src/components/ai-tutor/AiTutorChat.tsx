@@ -553,9 +553,18 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setSessionId(s.id);
     }
 
-    // Restore review context if this was a review session
+    // Restore review context if this was a review session.
+    // Older sessions may have stored a submission_id instead of exam_id —
+    // try to resolve to the real exam_id so downstream queries work.
+    let resolvedExamId: string | null = null;
     if (s.selected_exam_id) {
-      setSelectedExamId(s.selected_exam_id);
+      const { data: sub } = await supabase
+        .from('exam_submissions')
+        .select('exam_id')
+        .eq('id', s.selected_exam_id)
+        .maybeSingle();
+      resolvedExamId = sub?.exam_id ?? s.selected_exam_id;
+      setSelectedExamId(resolvedExamId);
       setSelectedSetId(null);
       setSelectedTitle(s.selected_title ?? s.title ?? 'Exam review');
     } else if (s.selected_set_id) {
@@ -568,12 +577,10 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
       setSelectedTitle(null);
     }
 
-    
-
     // Offer to reopen the split view for review sessions
-    if (s.selected_exam_id || s.selected_set_id) {
-      const mode: 'exam' | 'quiz' = s.selected_exam_id ? 'exam' : 'quiz';
-      const submissionId = (s.selected_exam_id ?? s.selected_set_id) as string;
+    if (resolvedExamId || s.selected_set_id) {
+      const mode: 'exam' | 'quiz' = resolvedExamId ? 'exam' : 'quiz';
+      const submissionId = (resolvedExamId ?? s.selected_set_id) as string;
       const title = s.selected_title ?? s.title ?? 'Review session';
       setTimeout(() => {
         setMessages(prev => [...prev, {
@@ -911,13 +918,14 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
   }, [input, loading, messages, session, selectedExamId, selectedSetId, completedExams, completedQuizzes, streamAiResponse]);
 
   const handleExamSelect = useCallback((item: ExamPickerItem) => {
-    setSelectedExamId(item.id);
+    // Use actual exam.id for both AI context lookups and review panel queries.
+    // (item.id is the submission_id; item.examId is the exam_id.)
+    const examIdForLookup = item.examId || item.id;
+    setSelectedExamId(examIdForLookup);
     setSelectedTitle(item.title);
 
-    // Open split view using actual exam.id for question lookups
-    const ctxId = item.examId || item.id;
     setSplitViewMode('exam');
-    setSplitViewContextId(ctxId);
+    setSplitViewContextId(examIdForLookup);
     setSplitViewTotalScore(item.score);
     setSplitViewTotalMarks(item.totalMarks);
     setSplitViewOpen(true);
@@ -926,8 +934,8 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     try {
       localStorage.setItem(LAST_REVIEW_KEY, JSON.stringify({
         mode: 'exam',
-        submissionId: item.id,
-        contextId: ctxId,
+        submissionId: examIdForLookup,
+        contextId: examIdForLookup,
         title: item.title,
         totalScore: item.score,
         totalMarks: item.totalMarks,
@@ -955,7 +963,7 @@ export const AiTutorChat = ({ open, onOpenChange, onUnreadChange }: AiTutorChatP
     ]);
 
     setTimeout(() => {
-      streamAiResponse(followUp, [], item.id, null);
+      streamAiResponse(followUp, [], examIdForLookup, null);
     }, 350);
   }, [streamAiResponse]);
 
