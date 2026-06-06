@@ -9,6 +9,36 @@ import { QuizPickerCard, type QuizPickerItem } from './QuizPickerCard';
 import { SplitReviewView } from './SplitReviewView';
 import { FollowUpQuestionCard, type FollowUpQuestion } from './FollowUpQuestionCard';
 import { SessionSummaryCard, type SessionSummary } from './SessionSummaryCard';
+import { DiagramInChat } from './DiagramInChat';
+import { parseDiagramPayload } from './diagram-lookup';
+
+// Hide partial ```diagram blocks while still streaming — they look broken until
+// the closing fence arrives.
+const cleanStreamingContent = (content: string, isStreaming: boolean): string => {
+  if (!isStreaming) return content;
+  return content.replace(/```diagram[\s\S]*?(?:```|$)/g, (match) =>
+    match.endsWith('```') ? match : ''
+  );
+};
+
+// Custom ReactMarkdown renderers — intercepts ```diagram fenced blocks and
+// renders the matching existing diagram component inline in the bubble.
+const markdownComponents = {
+  code({ inline, className, children, ...props }: any) {
+    const lang = /language-(\w+)/.exec(className || '')?.[1];
+    if (!inline && lang === 'diagram') {
+      const raw = String(children).replace(/\n$/, '');
+      const signal = parseDiagramPayload(raw);
+      if (signal) return <DiagramInChat signal={signal} />;
+      return null; // unknown / unparseable — suppress raw JSON
+    }
+    return (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  },
+};
 
 interface Message {
   id: string;
@@ -336,7 +366,9 @@ const ChatBody = ({
                         </span>
                       ) : (
                         <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-background/60 prose-pre:text-foreground prose-a:text-primary text-foreground">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown components={markdownComponents}>
+                            {cleanStreamingContent(msg.content, msg.streaming ?? false)}
+                          </ReactMarkdown>
                         </div>
                       )}
                       {msg.streaming && msg.content && (
