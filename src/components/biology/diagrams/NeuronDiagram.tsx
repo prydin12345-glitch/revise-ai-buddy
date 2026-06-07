@@ -22,11 +22,12 @@ export const neuronMeta: DiagramMeta = {
 const NeuronDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
+  letterLabels,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
-  const labels = neuronMeta.labelData;
+  const labels = applyLetterLabels(neuronMeta.labelData, letterLabels);
   const cy = 190; // axon centre Y
 
   // Dendrite paths (branching from cell body)
