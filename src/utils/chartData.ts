@@ -16,10 +16,24 @@ const CHART_TYPES = new Set([
   'histogram',
   'boxplot',
   'boxplot_comparison',
+  'line_chart',
 ]);
 
 export const isChartDataPayload = (data: any): boolean => {
   return !!data && typeof data === 'object' && !Array.isArray(data) && CHART_TYPES.has(data?.type);
+};
+
+/**
+ * True when a question carries a structured data_table diagram_config —
+ * used by the exam pages to strip duplicate markdown pipe-tables from
+ * question_text before rendering the themed DataTableChart.
+ */
+export const hasDataTableConfig = (question: any): boolean => {
+  const dc = question?.diagram_config;
+  if (dc && typeof dc === 'object' && dc.type === 'data_table') return true;
+  const opts = question?.options;
+  if (opts && typeof opts === 'object' && !Array.isArray(opts) && opts.type === 'data_table') return true;
+  return false;
 };
 
 export const getChartData = (question: any): any => {
