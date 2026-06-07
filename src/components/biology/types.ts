@@ -14,11 +14,25 @@ export interface DiagramLabelData {
 
 export interface DiagramProps {
   showLabels?: boolean;
-  labelMode?: 'visible' | 'hidden';
+  labelMode?: 'visible' | 'hidden' | 'anonymous';
+  /** When set, overrides each label's displayName by index (e.g. ["W","X","Y","Z"]).
+   *  Used for "which of the labelled regions" MCQs so anatomical names aren't given away. */
+  letterLabels?: string[];
   revealedLabels?: Set<string>;
   onLabelClick?: (id: string) => void;
   scale?: number;
 }
+
+/** Replace each label's displayName with the matching entry from letterLabels (by index). */
+export const applyLetterLabels = <T extends { displayName: string }>(
+  labels: T[],
+  letterLabels?: string[],
+): T[] => {
+  if (!letterLabels || letterLabels.length === 0) return labels;
+  return labels.map((l, i) =>
+    letterLabels[i] !== undefined ? { ...l, displayName: letterLabels[i] } : l,
+  );
+};
 
 export interface DiagramMeta {
   diagramKey: string;
