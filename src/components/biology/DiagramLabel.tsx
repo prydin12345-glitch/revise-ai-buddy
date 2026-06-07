@@ -3,7 +3,7 @@ import { DIAGRAM_STYLE, type DiagramLabelData } from './types';
 
 interface DiagramLabelProps {
   label: DiagramLabelData;
-  mode: 'visible' | 'hidden';
+  mode: 'visible' | 'hidden' | 'anonymous';
   revealed?: boolean;
   onClick?: () => void;
   /** Draw a leader line from label to anchor point */
