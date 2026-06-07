@@ -57,6 +57,8 @@ import {
   isFrequencyPolygonQuestion,
   ClimateChart,
   isClimateChartQuestion,
+  LineChart,
+  isLineChartQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -66,7 +68,8 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
-import { getChartData } from "@/utils/chartData";
+import { getChartData, hasDataTableConfig } from "@/utils/chartData";
+import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
