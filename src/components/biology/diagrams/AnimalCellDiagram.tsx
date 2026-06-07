@@ -23,11 +23,12 @@ export const animalCellMeta: DiagramMeta = {
 const AnimalCellDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
+  letterLabels,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
-  const labels = animalCellMeta.labelData;
+  const labels = applyLetterLabels(animalCellMeta.labelData, letterLabels);
 
   return (
     <DiagramShell maxWidth={500 * scale}>
