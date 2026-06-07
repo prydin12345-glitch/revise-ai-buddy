@@ -237,7 +237,9 @@ const ExamPreview = () => {
 
                     {/* Circuit diagram panel */}
                     {(() => {
-                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? '');
+                    {/* Circuit diagram panel — pass exam.subject_id so biology guard fires */}
+                    {(() => {
+                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? exam?.subject_id ?? '');
                       if (!circuitConfig) return null;
                       return <CircuitFigurePanel config={circuitConfig} />;
                     })()}
