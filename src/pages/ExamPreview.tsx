@@ -14,6 +14,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
+import { LineChart, isLineChartQuestion } from "@/components/graph/LineChart";
 import {
   BarChart, isBarChartQuestion,
   PieChart, isPieChartQuestion,
@@ -21,7 +22,9 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
-import { getChartData } from "@/utils/chartData";
+import { getChartData, hasDataTableConfig } from "@/utils/chartData";
+import { removeTableFromContent } from "@/components/InteractiveExamTable";
+import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
