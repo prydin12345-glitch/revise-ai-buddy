@@ -318,6 +318,32 @@ For enzyme inhibitor questions:
 For neuron / heart / DNA / mitosis structure questions:
 { "type": "neuron" } | { "type": "heart" } | { "type": "dna_helix" } | { "type": "mitosis" }
 
+LABELLED-REGION MCQs — CRITICAL:
+If the question text refers to "the labelled regions", "labelled W, X, Y, Z",
+"which letter A to D", "the region marked X", or any similar phrasing where
+letters/markers stand in for real anatomical names, you MUST set:
+  "labelMode": "anonymous",
+  "letterLabels": ["W", "X", "Y", "Z"]   // use the EXACT letters in the question
+Example for a brain MCQ that references W/X/Y/Z:
+  { "type": "brain", "labelMode": "anonymous", "letterLabels": ["W","X","Y","Z"], "showLabels": true }
+Without this the diagram shows real names ("Cerebellum", "Cerebrum"...) and
+gives the answer away.
+
+MULTI-DIAGRAM MCQs — "which of the following diagrams A to D shows ...":
+When the question asks the student to pick which of four DIAGRAMS (not regions)
+is correct, emit a multi_option config instead of a single diagram:
+  {
+    "type": "multi_option",
+    "diagrams": [
+      { "label": "A", "type": "neuron" },
+      { "label": "B", "type": "neuron" },
+      { "label": "C", "type": "neuron" },
+      { "label": "D", "type": "neuron" }
+    ]
+  }
+Each entry uses the same biology diagram types listed above. Vary the
+contents meaningfully so A/B/C/D are visually distinct.
+
 CRITICAL RULES:
 - Only include diagram_config when the question has a visual element
   (draw, label, sketch, complete the diagram, identify on the diagram).
