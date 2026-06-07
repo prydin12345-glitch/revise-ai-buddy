@@ -1829,6 +1829,9 @@ const ExamInProgress = () => {
                         {isClimateChartQuestion(chartData) && (
                           <ClimateChart chartData={chartData} className="mb-6" />
                         )}
+                        {isLineChartQuestion(chartData) && (
+                          <LineChart chartData={chartData} className="mb-6" />
+                        )}
                       </>
                     );
                   })()}
