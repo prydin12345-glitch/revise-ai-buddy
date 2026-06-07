@@ -24,11 +24,12 @@ export const heartMeta: DiagramMeta = {
 const HeartDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
+  letterLabels,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
-  const labels = heartMeta.labelData;
+  const labels = applyLetterLabels(heartMeta.labelData, letterLabels);
 
   return (
     <DiagramShell maxWidth={500 * scale}>
