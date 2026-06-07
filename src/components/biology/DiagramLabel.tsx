@@ -24,7 +24,7 @@ const DiagramLabel: React.FC<DiagramLabelProps> = ({
   const textWidth = displayName.length * 6.5 + 12;
   const boxH = 18;
 
-  if (mode === 'visible') {
+  if (mode === 'visible' || mode === 'anonymous') {
     return (
       <g>
         {showLeader && anchorX !== undefined && anchorY !== undefined && (
