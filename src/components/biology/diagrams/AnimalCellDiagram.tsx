@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DiagramProps, DiagramLabelData, DiagramMeta } from '../types';
+import { applyLetterLabels } from '../types';
 import DiagramShell from '../DiagramShell';
 import DiagramLabel from '../DiagramLabel';
 
