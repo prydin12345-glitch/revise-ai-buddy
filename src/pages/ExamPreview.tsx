@@ -235,8 +235,6 @@ const ExamPreview = () => {
                       return <MechanicsFigurePanel config={diagConfig} />;
                     })()}
 
-                    {/* Circuit diagram panel */}
-                    {(() => {
                     {/* Circuit diagram panel — pass exam.subject_id so biology guard fires */}
                     {(() => {
                       const circuitConfig = getCircuitConfig(q, (q as any).subject ?? exam?.subject_id ?? '');
