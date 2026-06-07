@@ -24,11 +24,12 @@ export const plantCellMeta: DiagramMeta = {
 const PlantCellDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
+  letterLabels,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
-  const labels = plantCellMeta.labelData;
+  const labels = applyLetterLabels(plantCellMeta.labelData, letterLabels);
 
   return (
     <DiagramShell maxWidth={500 * scale}>
