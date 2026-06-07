@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DiagramProps, DiagramMeta } from '../types';
+import { applyLetterLabels } from '../types';
 import DiagramShell from '../DiagramShell';
 import DiagramLabel from '../DiagramLabel';
 
@@ -26,11 +27,12 @@ export const bacterialCellMeta: DiagramMeta = {
 const BacterialCellDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
+  letterLabels,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
-  const labels = bacterialCellMeta.labelData;
+  const labels = applyLetterLabels(bacterialCellMeta.labelData, letterLabels);
 
   return (
     <DiagramShell maxWidth={500 * scale}>

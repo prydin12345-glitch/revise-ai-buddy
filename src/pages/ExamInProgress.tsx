@@ -57,6 +57,8 @@ import {
   isFrequencyPolygonQuestion,
   ClimateChart,
   isClimateChartQuestion,
+  LineChart,
+  isLineChartQuestion,
   type GraphPoint,
   type GraphInterpretationConfig,
   type GraphPlottingConfig,
@@ -66,7 +68,8 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
-import { getChartData } from "@/utils/chartData";
+import { getChartData, hasDataTableConfig } from "@/utils/chartData";
+import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
@@ -1686,12 +1689,20 @@ const ExamInProgress = () => {
                     />
                   ) : (
                     <MathRenderer 
-                      content={stripInlineMCQOptions(question.question_text, question.question_type)}
+                      content={hasDataTableConfig(question)
+                        ? removeTableFromContent(stripInlineMCQOptions(question.question_text, question.question_type))
+                        : stripInlineMCQOptions(question.question_text, question.question_type)}
                       latex={(question as any).question_latex}
                       hasMath={(question as any).has_math}
                       className="mb-4 sm:mb-6 text-base sm:text-lg"
                     />
                   )}
+
+                  {/* Multi-diagram MCQ options (A/B/C/D) */}
+                  {(question as any).diagram_config?.type === 'multi_option' &&
+                    Array.isArray((question as any).diagram_config.diagrams) && (
+                      <MultiDiagramOptionPanel diagrams={(question as any).diagram_config.diagrams} />
+                    )}
 
                   {/* Mechanics diagram panel */}
                   {(() => {
@@ -1817,6 +1828,9 @@ const ExamInProgress = () => {
                         )}
                         {isClimateChartQuestion(chartData) && (
                           <ClimateChart chartData={chartData} className="mb-6" />
+                        )}
+                        {isLineChartQuestion(chartData) && (
+                          <LineChart chartData={chartData} className="mb-6" />
                         )}
                       </>
                     );

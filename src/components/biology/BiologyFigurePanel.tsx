@@ -15,7 +15,8 @@ const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
   isExam = false,
 }) => {
   const [enlarged, setEnlarged] = useState(false);
-  if (isExam) return null;
+  // Note: previously hid biology figures in exam mode — removed so figures
+  // behave consistently with other subjects' FigurePanels.
 
   return (
     <>

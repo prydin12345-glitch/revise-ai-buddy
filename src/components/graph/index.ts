@@ -19,3 +19,4 @@ export * from './PieChart';
 export * from './CumulativeFrequencyChart';
 export * from './FrequencyPolygonChart';
 export * from './ClimateChart';
+export * from './LineChart';

@@ -14,6 +14,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
+import { LineChart, isLineChartQuestion } from "@/components/graph/LineChart";
 import {
   BarChart, isBarChartQuestion,
   PieChart, isPieChartQuestion,
@@ -21,7 +22,9 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
-import { getChartData } from "@/utils/chartData";
+import { getChartData, hasDataTableConfig } from "@/utils/chartData";
+import { removeTableFromContent } from "@/components/InteractiveExamTable";
+import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
@@ -176,11 +179,17 @@ const ExamPreview = () => {
                     </div>
 
                     <MathRenderer 
-                      content={q.question_text}
+                      content={hasDataTableConfig(q) ? removeTableFromContent(q.question_text ?? '') : q.question_text}
                       latex={q.question_latex}
                       hasMath={q.has_math}
                       className="mb-4"
                     />
+
+                    {/* Multi-diagram MCQ options (A/B/C/D) */}
+                    {(q as any).diagram_config?.type === 'multi_option' &&
+                      Array.isArray((q as any).diagram_config.diagrams) && (
+                        <MultiDiagramOptionPanel diagrams={(q as any).diagram_config.diagrams} />
+                      )}
 
                     {(() => {
                       const chartData = getChartData(q);
@@ -211,6 +220,9 @@ const ExamPreview = () => {
                           {isClimateChartQuestion(chartData) && (
                             <ClimateChart chartData={chartData as any} className="mb-4" />
                           )}
+                          {isLineChartQuestion(chartData) && (
+                            <LineChart chartData={chartData as any} className="mb-4" />
+                          )}
                         </>
                       );
                     })()}
@@ -223,9 +235,9 @@ const ExamPreview = () => {
                       return <MechanicsFigurePanel config={diagConfig} />;
                     })()}
 
-                    {/* Circuit diagram panel */}
+                    {/* Circuit diagram panel — pass exam.subject_id so biology guard fires */}
                     {(() => {
-                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? '');
+                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? exam?.subject_id ?? '');
                       if (!circuitConfig) return null;
                       return <CircuitFigurePanel config={circuitConfig} />;
                     })()}

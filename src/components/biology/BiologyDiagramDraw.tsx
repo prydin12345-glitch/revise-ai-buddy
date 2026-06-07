@@ -25,6 +25,7 @@ const BiologyDiagramDraw: React.FC<{ config: BiologyDiagramConfig }> = ({ config
     const props: DiagramProps = {
       showLabels: config.showLabels,
       labelMode: config.labelMode,
+      letterLabels: config.letterLabels,
       revealedLabels: config.revealedLabels,
       onLabelClick: config.onLabelClick,
       scale: config.scale,
