@@ -179,11 +179,17 @@ const ExamPreview = () => {
                     </div>
 
                     <MathRenderer 
-                      content={q.question_text}
+                      content={hasDataTableConfig(q) ? removeTableFromContent(q.question_text ?? '') : q.question_text}
                       latex={q.question_latex}
                       hasMath={q.has_math}
                       className="mb-4"
                     />
+
+                    {/* Multi-diagram MCQ options (A/B/C/D) */}
+                    {(q as any).diagram_config?.type === 'multi_option' &&
+                      Array.isArray((q as any).diagram_config.diagrams) && (
+                        <MultiDiagramOptionPanel diagrams={(q as any).diagram_config.diagrams} />
+                      )}
 
                     {(() => {
                       const chartData = getChartData(q);
@@ -213,6 +219,9 @@ const ExamPreview = () => {
                           )}
                           {isClimateChartQuestion(chartData) && (
                             <ClimateChart chartData={chartData as any} className="mb-4" />
+                          )}
+                          {isLineChartQuestion(chartData) && (
+                            <LineChart chartData={chartData as any} className="mb-4" />
                           )}
                         </>
                       );
