@@ -70,6 +70,7 @@ import {
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { getChartData, hasDataTableConfig } from "@/utils/chartData";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
+import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
@@ -1718,8 +1719,12 @@ const ExamInProgress = () => {
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
 
+                  {/* Combined Figure + Data tab switcher when both exist */}
+                  <FigureChartTabs question={question} isExam={true} />
+
                   {/* Biology diagram panel */}
                   {(() => {
+                    if (hasFigureAndChart(question)) return null;
                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
                     if (!bioConfig) return null;
                     return <BiologyFigurePanel config={bioConfig} isExam={true} />;
@@ -1801,6 +1806,7 @@ const ExamInProgress = () => {
 
                   {/* Chart rendering — reads from diagram_config first, falls back to options */}
                   {(() => {
+                    if (hasFigureAndChart(question)) return null;
                     const chartData = getChartData(question);
                     if (!chartData) return null;
                     return (

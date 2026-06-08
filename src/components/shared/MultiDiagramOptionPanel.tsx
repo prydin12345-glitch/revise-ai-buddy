@@ -29,7 +29,7 @@ export const MultiDiagramOptionPanel: React.FC<MultiDiagramOptionPanelProps> = (
     <div className={`grid grid-cols-2 ${cols} gap-3 my-4 ${className}`}>
       {diagrams.map((d, i) => {
         const { label, ...rest } = d;
-        const config = { ...rest, scale: 0.6 } as BiologyDiagramConfig;
+        const config = { showLabels: false, ...rest, scale: 0.6 } as BiologyDiagramConfig;
         return (
           <div
             key={`${label}-${i}`}

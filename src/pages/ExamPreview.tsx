@@ -25,6 +25,7 @@ import {
 import { getChartData, hasDataTableConfig } from "@/utils/chartData";
 import { removeTableFromContent } from "@/components/InteractiveExamTable";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
+import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
@@ -191,7 +192,11 @@ const ExamPreview = () => {
                         <MultiDiagramOptionPanel diagrams={(q as any).diagram_config.diagrams} />
                       )}
 
+                    {/* Combined Figure + Data tab switcher when both exist */}
+                    <FigureChartTabs question={q} isExam={false} />
+
                     {(() => {
+                      if (hasFigureAndChart(q)) return null;
                       const chartData = getChartData(q);
                       if (!chartData) return null;
                       return (
@@ -244,6 +249,7 @@ const ExamPreview = () => {
 
                     {/* Biology diagram panel */}
                     {(() => {
+                      if (hasFigureAndChart(q)) return null;
                       const bioConfig = detectBiologyDiagram(q.question_text, (q as any).subject);
                       if (!bioConfig) return null;
                       return <BiologyFigurePanel config={bioConfig} />;
