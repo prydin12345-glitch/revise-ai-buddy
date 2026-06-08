@@ -1806,6 +1806,7 @@ const ExamInProgress = () => {
 
                   {/* Chart rendering — reads from diagram_config first, falls back to options */}
                   {(() => {
+                    if (hasFigureAndChart(question)) return null;
                     const chartData = getChartData(question);
                     if (!chartData) return null;
                     return (
