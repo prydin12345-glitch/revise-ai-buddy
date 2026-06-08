@@ -23,12 +23,16 @@ const NeuronDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
   letterLabels,
+  variant,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
 }) => {
   const labels = applyLetterLabels(neuronMeta.labelData, letterLabels);
   const cy = 190; // axon centre Y
+  const variantLabel = variant
+    ? `${variant.charAt(0).toUpperCase()}${variant.slice(1)} neurone`
+    : null;
 
   // Dendrite paths (branching from cell body)
   const dendrites = [
