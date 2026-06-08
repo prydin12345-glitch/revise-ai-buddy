@@ -1,7 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import BiologyFigurePanel from '@/components/biology/BiologyFigurePanel';
-import { detectBiologyDiagram } from '@/utils/biologyDiagramDetect';
+import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
 import {
   BoxPlotChart, isBoxPlotQuestion,
   HistogramChart, isHistogramQuestion,
