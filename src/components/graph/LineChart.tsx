@@ -82,22 +82,28 @@ export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
           {caption}
         </figcaption>
       )}
-      <div className="w-full rounded-lg border border-border bg-card p-3" style={{ height: 320 }}>
+      <div className="w-full rounded-lg border border-border bg-card p-3" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsLineChart data={merged} margin={{ top: 12, right: 24, left: 12, bottom: 28 }}>
+          <RechartsLineChart
+            data={merged}
+            margin={{ top: 12, right: isMulti ? 140 : 24, left: 16, bottom: 48 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="x"
               type="number"
               domain={domainX ?? ['auto', 'auto']}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-              label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -10, fill: 'hsl(var(--foreground))', fontSize: 12 } : undefined}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -36, fill: 'hsl(var(--foreground))', fontSize: 11 } : undefined}
             />
             <YAxis
               type="number"
               domain={domainY ?? ['auto', 'auto']}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-              label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: 'hsl(var(--foreground))', fontSize: 12 } : undefined}
+              width={48}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: 16, fill: 'hsl(var(--foreground))', fontSize: 11 } : undefined}
             />
             <Tooltip
               contentStyle={{
@@ -108,7 +114,16 @@ export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
               }}
             />
             {datasets.length > 1 && (
-              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              <Legend
+                layout={isMulti ? 'vertical' : 'horizontal'}
+                align={isMulti ? 'right' : 'center'}
+                verticalAlign={isMulti ? 'middle' : 'bottom'}
+                wrapperStyle={{
+                  fontSize: 11,
+                  paddingLeft: isMulti ? 12 : 0,
+                  paddingTop: isMulti ? 0 : 8,
+                }}
+              />
             )}
             {datasets.map((ds, i) => (
               <Line
