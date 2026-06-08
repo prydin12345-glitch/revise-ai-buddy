@@ -25,6 +25,7 @@ import {
 import { getChartData, hasDataTableConfig } from "@/utils/chartData";
 import { removeTableFromContent } from "@/components/InteractiveExamTable";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
+import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
