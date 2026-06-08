@@ -70,6 +70,7 @@ import {
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { getChartData, hasDataTableConfig } from "@/utils/chartData";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
+import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
