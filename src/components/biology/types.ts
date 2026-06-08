@@ -18,6 +18,8 @@ export interface DiagramProps {
   /** When set, overrides each label's displayName by index (e.g. ["W","X","Y","Z"]).
    *  Used for "which of the labelled regions" MCQs so anatomical names aren't given away. */
   letterLabels?: string[];
+  /** Neuron variant — sensory/motor/relay/bipolar — used by multi-option MCQs. */
+  variant?: 'sensory' | 'motor' | 'relay' | 'bipolar' | string;
   revealedLabels?: Set<string>;
   onLabelClick?: (id: string) => void;
   scale?: number;
