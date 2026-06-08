@@ -192,7 +192,11 @@ const ExamPreview = () => {
                         <MultiDiagramOptionPanel diagrams={(q as any).diagram_config.diagrams} />
                       )}
 
+                    {/* Combined Figure + Data tab switcher when both exist */}
+                    <FigureChartTabs question={q} isExam={false} />
+
                     {(() => {
+                      if (hasFigureAndChart(q)) return null;
                       const chartData = getChartData(q);
                       if (!chartData) return null;
                       return (
