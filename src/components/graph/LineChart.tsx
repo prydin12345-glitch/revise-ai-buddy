@@ -57,6 +57,8 @@ interface LineChartProps {
 
 export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
   const { datasets, xLabel, yLabel, caption, domainX, domainY } = chartData;
+  const isMulti = datasets.length > 3;
+  const chartHeight = isMulti ? 400 : 320;
 
   // Merge all x values across datasets into a single sorted axis.
   const merged = useMemo(() => {
