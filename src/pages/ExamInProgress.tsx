@@ -1719,8 +1719,12 @@ const ExamInProgress = () => {
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
 
+                  {/* Combined Figure + Data tab switcher when both exist */}
+                  <FigureChartTabs question={question} isExam={true} />
+
                   {/* Biology diagram panel */}
                   {(() => {
+                    if (hasFigureAndChart(question)) return null;
                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
                     if (!bioConfig) return null;
                     return <BiologyFigurePanel config={bioConfig} isExam={true} />;
