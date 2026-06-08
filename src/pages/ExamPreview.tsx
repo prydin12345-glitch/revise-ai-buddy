@@ -249,6 +249,7 @@ const ExamPreview = () => {
 
                     {/* Biology diagram panel */}
                     {(() => {
+                      if (hasFigureAndChart(q)) return null;
                       const bioConfig = detectBiologyDiagram(q.question_text, (q as any).subject);
                       if (!bioConfig) return null;
                       return <BiologyFigurePanel config={bioConfig} />;
