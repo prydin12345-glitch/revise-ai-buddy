@@ -1092,10 +1092,50 @@ Each mark allocation must be shown in brackets e.g. (2 marks)
 Sub-parts within a question must build on each other in difficulty` : '';
 
   // ── BLOCK 6: SOURCE MATERIAL (only when PDF is provided) ──────────────────
+  // Two-phase prompt: use the paper as a STYLE reference only, not as a copy
+  // source. Strict anti-copy rules + truncated to 8 000 chars so the model has
+  // less verbatim material to mirror.
   const sourceBlock = pdfContent ? `
-## SOURCE MATERIAL
-Use the following as context and inspiration. Do not copy questions verbatim — write entirely new questions inspired by this content:
-${pdfContent.slice(0, 40000)}` : '';
+## EXAM PAPER STYLE ANALYSIS
+
+You have been given an exam paper to analyse for style and topic coverage.
+Your job is to write ENTIRELY NEW, ORIGINAL questions that match the style and
+difficulty of this paper — NOT to copy, reproduce, or closely paraphrase any
+question from it.
+
+STRICT ANTI-COPY RULES:
+1. Every question you write must be a completely new scenario the student has
+   not seen in this paper. Use different organisms, different experiments,
+   different numbers, different real-world contexts.
+2. Never reuse the same opening sentence, named person, or scenario as any
+   question in the paper.
+3. Never reference any figure, insert, table, photograph, or resource sheet
+   from the paper. All information the student needs must be embedded directly
+   in the question text (or rendered via chart_data / diagramConfig).
+4. If you catch yourself writing something similar to a paper question, stop
+   and choose a completely different angle on the same topic.
+5. The student does NOT have access to the original paper. Every question must
+   be fully self-contained.
+
+WHAT TO EXTRACT FROM THE PAPER (style signals only, never wording):
+- Which topics and subtopics are tested
+- Which mark tariffs are used (e.g. 1-mark recall vs 6-mark extended response)
+- Which command words are used (Describe, Explain, Evaluate, Calculate, etc.)
+- The cognitive demand and difficulty level
+- The types of data students are expected to handle (graphs, tables, diagrams)
+
+USE THESE STYLE SIGNALS to write questions that:
+- Cover the same topics with entirely new contexts and scenarios
+- Match the same mark tariffs and command-verb distribution
+- Provide equivalent data in fresh tables / graphs that you generate yourself
+- Test the same skills at the same difficulty level
+
+PAPER STYLE REFERENCE (first section only — DO NOT COPY):
+${pdfContent.slice(0, 8000)}
+
+IMPORTANT: The above is style reference only. Generate completely new questions.
+Every scenario, every number, every named entity, every context must be original.
+` : '';
 
   // ── BLOCK 7: TOPIC TAGS ───────────────────────────────────────────────────
   const topicTagBlock = topicTagVocabulary && topicTagVocabulary.length > 0 ? `
