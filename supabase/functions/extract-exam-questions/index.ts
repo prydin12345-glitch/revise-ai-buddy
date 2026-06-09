@@ -1654,10 +1654,25 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
   const chartDataBlock = `${alwaysIncludeCharts}${geographyCharts}${statsCharts}`;
 
 
+  // ── DIFFICULTY CALIBRATION (ported from generate-practice-questions) ──────
+  // Exams have no flat difficulty column — derive from qualification level.
+  // A-Level / IB / AP / university → 'hard'; GCSE → 'medium'; else 'medium'.
+  const lvl = (educationalLevel || '').toLowerCase();
+  const examDifficulty = /a-?level|a\s*level|ib\b|ap\b|advanced\s*placement|pre-u|university|undergrad|hl\b|college_16_18/.test(lvl)
+    ? 'hard'
+    : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
+      ? 'medium'
+      : 'medium';
+  const difficultyBlock = buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
+  const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
     subjectRulesBlock,
+    difficultyBlock,
+    EXAM_QUALITY_RULES,
+    subjectSpecificBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
