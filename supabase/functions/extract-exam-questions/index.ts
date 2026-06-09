@@ -1731,7 +1731,7 @@ async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt:
       model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       max_tokens: 32000,
-      temperature: hasResourcePack ? 0.1 : 0.3,
+      temperature: hasResourcePack ? 0.1 : 0.8,
       response_format: { type: 'json_object' },
     }),
   });
