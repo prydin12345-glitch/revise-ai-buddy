@@ -812,13 +812,16 @@ export type Database = {
           extraction_status: string | null
           file_processed_at: string | null
           file_url: string | null
+          generation_method: string | null
           grade_released: boolean | null
           id: string
           is_template: boolean | null
           qualification_level: string | null
+          questions_filtered_count: number | null
           resource_pack_id: string | null
           show_feedback_per_question: boolean | null
           shuffle_questions: boolean | null
+          source_pdf_name: string | null
           specification_file_url: string | null
           status: Database["public"]["Enums"]["exam_status"]
           subject_confidence: number | null
@@ -843,13 +846,16 @@ export type Database = {
           extraction_status?: string | null
           file_processed_at?: string | null
           file_url?: string | null
+          generation_method?: string | null
           grade_released?: boolean | null
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          questions_filtered_count?: number | null
           resource_pack_id?: string | null
           show_feedback_per_question?: boolean | null
           shuffle_questions?: boolean | null
+          source_pdf_name?: string | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_confidence?: number | null
@@ -874,13 +880,16 @@ export type Database = {
           extraction_status?: string | null
           file_processed_at?: string | null
           file_url?: string | null
+          generation_method?: string | null
           grade_released?: boolean | null
           id?: string
           is_template?: boolean | null
           qualification_level?: string | null
+          questions_filtered_count?: number | null
           resource_pack_id?: string | null
           show_feedback_per_question?: boolean | null
           shuffle_questions?: boolean | null
+          source_pdf_name?: string | null
           specification_file_url?: string | null
           status?: Database["public"]["Enums"]["exam_status"]
           subject_confidence?: number | null
