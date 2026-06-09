@@ -255,6 +255,44 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
+  // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
+  // Drop questions that reference an external paper insert / resource booklet /
+  // separate sheet — the student has no access to that material.
+  const beforeInsertFilter = questions.length;
+  questions = questions.filter((q: any) => {
+    if (referencesExternalInsert(q.question_text ?? '')) {
+      console.log(`[Insert filter] Removed Q${q.question_number}: references external insert/resource`);
+      return false;
+    }
+    return true;
+  });
+  const insertFilteredCount = beforeInsertFilter - questions.length;
+
+  // ── SIMILARITY DEDUPE AGAINST SOURCE PDF ────────────────────────────────
+  // Remove any generated question that contains a 15-word phrase appearing
+  // verbatim in the source PDF — these are near-copies, not inspired questions.
+  const beforeSimilarity = questions.length;
+  if (pdfText && pdfText.length >= 100) {
+    const sourceNorm = pdfText.toLowerCase().replace(/\s+/g, ' ');
+    questions = questions.filter((q: any) => {
+      const qText = String(q.question_text || '').toLowerCase().replace(/\s+/g, ' ');
+      const qWords = qText.split(' ').filter(Boolean);
+      if (qWords.length < 16) return true;
+      for (let i = 0; i + 15 <= qWords.length; i++) {
+        const phrase = qWords.slice(i, i + 15).join(' ');
+        if (phrase.length > 60 && sourceNorm.includes(phrase)) {
+          console.log(`[Similarity filter] Removed Q${q.question_number}: 15-word phrase matches source PDF`);
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+  const similarityFilteredCount = beforeSimilarity - questions.length;
+  const totalFilteredCount = insertFilteredCount + similarityFilteredCount;
+
+
+
   questions = questions.map((question: any) => {
     const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig, question.chart_data ?? question.options);
     if (!hasBrokenRef) {
