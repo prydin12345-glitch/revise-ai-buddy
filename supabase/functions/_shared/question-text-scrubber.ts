@@ -84,6 +84,33 @@ const BROKEN_TABLE_CHART_PHRASES: RegExp[] = [
   /using the frequency polygon/i,
 ];
 
+// Patterns that indicate the question references an EXTERNAL paper insert,
+// resource booklet, separate sheet, or figure the student cannot access on
+// the platform. Questions matching any of these should be removed entirely
+// rather than scrubbed — there is no recovery without the missing resource.
+const INSERT_REFERENCE_PATTERNS: RegExp[] = [
+  /\bon the insert\b/i,
+  /\bthe insert\b/i,
+  /\binsert sheet\b/i,
+  /\bresource booklet\b/i,
+  /\bresource sheet\b/i,
+  /\bfig\.?\s*\d+\.\d+\s*on\b/i,
+  /\bfigure\s*\d+\.\d+\s*on\b/i,
+  /\bsee\s+(the\s+|the\s+attached\s+|attached\s+)?insert\b/i,
+  /\brefer\s+to\s+(the\s+)?insert\b/i,
+  /\bas shown in the insert\b/i,
+  /\bon the separate sheet\b/i,
+  /\bon page \d+ of the insert\b/i,
+  /\bthe photograph\s+(shown|provided|given)\b/i,
+  /\bthe (source|stimulus)\s+(material|sheet)\b/i,
+  /\bin\s+(source|extract)\s+\d+\b/i,
+];
+
+export const referencesExternalInsert = (questionText: string): boolean => {
+  const text = questionText || '';
+  return INSERT_REFERENCE_PATTERNS.some(p => p.test(text));
+};
+
 const testPattern = (pattern: RegExp, value: string): boolean => {
   const isolatedPattern = new RegExp(pattern.source, pattern.flags);
   return isolatedPattern.test(value);
