@@ -878,6 +878,171 @@ function getBoardMarkSchemeStyle(board: string): string {
 }
 
 // ── Simplified Prompt Builder ────────────────────────────────────────────────
+// ── EXAM QUALITY RULES (mark-allocation, command-word binding, coverage) ──
+const EXAM_QUALITY_RULES = `
+## EXAM QUALITY STANDARDS
+
+MARK ALLOCATION INTEGRITY:
+- A question worth 5+ marks MUST require 5+ distinct marking points.
+- Never attach 4+ marks to a question answerable in one sentence.
+- "Describe" questions: max 2 marks unless they require quantitative data.
+- "Explain" questions: 2-4 marks based on mechanistic depth required.
+- "Evaluate" / "Discuss" questions: minimum 3 marks.
+
+COMMAND WORD BINDING (correct_answer MUST match the verb):
+- "Calculate" → numerical answer with working shown, units essential.
+- "Determine" → derived from given data with reasoning shown.
+- "Explain" → must reference a named mechanism, molecule, structure, or process.
+- "Evaluate" / "Discuss" → balanced two-sided response required.
+- "Suggest" → open-ended; any reasonable answer is acceptable.
+- "Describe" → observable features only; no explanation required.
+- An "Explain" question whose mark scheme is a bare fact is INVALID.
+
+SPECIFICATION COVERAGE:
+- No two questions in the same exam may test the same subtopic.
+- For exams with 15+ questions, cover at least 6 different subtopics.
+- Include at least one calculation question per 5 questions.
+- Include at least one data-interpretation question per 5 questions.
+
+SCENARIO VARIETY:
+- No two questions may use the same organism, experiment, or named context.
+- Vary contexts across laboratory, clinical/medical, ecological, industrial.
+- Sciences: vary between molecular, cellular, organism, and ecosystem scales.
+
+MARK SCHEME QUALITY:
+- Every correct_answer must contain SPECIFIC marking points, not vague text.
+- Use M1/M2 (method) and A1 (accuracy) labels for calculation questions.
+- Include "allow" and "reject" guidance for common misconceptions.
+- For 3+ mark questions, list at least 3 distinct acceptable points.
+`;
+
+// ── DIFFICULTY CALIBRATION FOR EXAM GENERATION ───────────────────────────
+// Ported from generate-practice-questions with biology + chemistry supplements
+// added (previously only physics + maths existed).
+function buildExamDifficultyInstructions(
+  difficulty: string,
+  subject: string,
+  tier: string,
+): string {
+  const _tierLower = (tier || '').toLowerCase();
+  const isBiology = /biology|life.?science|anatomy|physiology/i.test(subject);
+  const isPhysics = /physics/i.test(subject);
+  const isChemistry = /\bchemistry\b|\bchem\b/i.test(subject);
+  const _isMaths = /math|statistic/i.test(subject);
+
+  const HARD_GENERIC = `
+## DIFFICULTY LEVEL: HARD — A-LEVEL EXAMINATION STANDARD
+
+MANDATORY STRUCTURAL RULES:
+1. Multi-part questions with (a)(i), (a)(ii), (b)(i) structure for every written question.
+2. Sub-parts must build on each other — the answer to (a) is needed for (b).
+3. Embed in an unfamiliar real-world scenario — not the standard textbook example.
+4. Total marks per question: 5 to 8 marks across the sub-parts.
+5. At least one sub-part must use "Hence", "Show that", or "Suggest".
+6. At least one sub-part must require a written explanation, not just a number.
+
+FORBIDDEN PATTERNS — never generate these at hard difficulty:
+- Single substitution into one formula.
+- "State the definition of X" as a standalone question.
+- "Write the equation for X" as a standalone question.
+- Any question answerable by pattern-matching a textbook example.
+- Questions with a scenario identical to a classic exam question.
+
+MARK TARIFF GUIDE:
+- 1 mark: single factual statement.
+- 2 marks: two-step reasoning, or calculation plus unit.
+- 3 marks: multi-step calculation or explanation with evidence.
+- 4 marks: complex calculation plus interpretation.
+- 5-6 marks: extended response requiring strategy, calculation, and evaluation.
+
+REQUIRED QUESTION PATTERNS — use as models:
+Good: Unfamiliar organism / experimental setup + multi-step reasoning + evaluation.
+Good: "Show that" sub-part + "Hence calculate" sub-part + "Suggest why" sub-part.
+Good: Data interpretation + calculation from data + evaluation of method.
+Bad: "Calculate the half-life given T and lambda."
+Bad: "State two functions of the mitochondria."
+Bad: "Describe the structure of DNA."
+`.trim();
+
+  const HARD_BIOLOGY = isBiology ? `
+
+## BIOLOGY-SPECIFIC HARD RULES
+- Experimental design questions must name the independent variable, the
+  dependent variable, and at least one controlled variable.
+- Data analysis questions must require calculating a value (rate, percentage
+  change, ratio) — not just reading a number from a graph.
+- "Explain" questions must require linking structure to function at the
+  molecular or cellular level.
+- Genetics questions must involve at least a dihybrid cross or sex-linkage.
+- Ecology questions must involve quantitative data (population sizes, energy flow).
+- Biochemistry questions must reference specific enzymes, substrates, or pathways.
+- Evaluation questions must require assessment of validity or reliability.
+- Never ask students simply to "describe" a biological process — always "explain"
+  with reference to named molecules, structures, or mechanisms.
+- Include at least one mathematical skill per exam: magnification, rate of
+  reaction, chi-squared, or Hardy-Weinberg.
+
+BIOLOGY HARD EXAMPLE:
+"A researcher investigated the effect of competitive inhibitors on the enzyme
+lactase. At pH 7 and 37 C, the researcher measured the rate of lactose
+hydrolysis at different substrate concentrations, both with and without a fixed
+concentration of a competitive inhibitor.
+(a)(i) Explain why increasing substrate concentration reduces the effect of the
+       competitive inhibitor on the rate of reaction. [3]
+(a)(ii) The researcher found that at very high substrate concentrations the
+       rate with inhibitor equalled the rate without inhibitor. Explain this
+       observation with reference to enzyme active sites. [2]
+(b) Suggest one reason why this enzyme assay might not accurately represent
+    conditions in the human small intestine. [1]"
+
+BIOLOGY NEVER DO:
+- "Describe the process of transcription" [recall only].
+- "State two differences between plant and animal cells" [recall only].
+- "What is meant by the term osmosis" [recall only].
+`.trim() : '';
+
+  const HARD_CHEMISTRY = isChemistry ? `
+
+## CHEMISTRY-SPECIFIC HARD RULES
+- Calculations must require multi-step working (moles -> volume -> concentration).
+- Organic chemistry questions must involve mechanism understanding.
+- Equilibrium questions must involve Kc or Kp calculations.
+- Electrochemistry questions must involve E-cell calculations.
+- Spectroscopy questions must require interpretation of data.
+- Never ask "draw the structure of" without also asking to explain a property.
+`.trim() : '';
+
+  const HARD_PHYSICS = isPhysics ? `
+
+## PHYSICS-SPECIFIC HARD RULES
+- Every calculation question must require a unit conversion.
+- Nuclear physics questions must embed in a medical or energy context.
+- Optics questions must require image distance AND magnification AND description.
+- Wave questions must combine a calculation with a sketch sub-part.
+- Mechanics questions must resolve components or use energy methods.
+`.trim() : '';
+
+  switch ((difficulty || '').toLowerCase()) {
+    case 'hard':
+      return [HARD_GENERIC, HARD_BIOLOGY, HARD_CHEMISTRY, HARD_PHYSICS].filter(Boolean).join('\n\n');
+    case 'medium':
+      return `
+## DIFFICULTY LEVEL: MEDIUM
+2-4 mark questions. Multi-step calculations or explanations.
+Require formula rearrangement or unit conversion.
+Mix of recall and application questions.
+`.trim();
+    case 'easy':
+      return `
+## DIFFICULTY LEVEL: EASY
+1-2 mark questions. Single concept. Recall and basic application.
+Command words: State, Name, Give, Identify.
+`.trim();
+    default:
+      return '';
+  }
+}
+
 function buildPrompt(params: {
   subject: string;
   topics: string[];
