@@ -4,9 +4,10 @@ import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
-import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
+import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
