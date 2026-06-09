@@ -4,9 +4,10 @@ import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
-import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
+import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
+import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -253,6 +254,44 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
+  // Drop questions that reference an external paper insert / resource booklet /
+  // separate sheet — the student has no access to that material.
+  const beforeInsertFilter = questions.length;
+  questions = questions.filter((q: any) => {
+    if (referencesExternalInsert(q.question_text ?? '')) {
+      console.log(`[Insert filter] Removed Q${q.question_number}: references external insert/resource`);
+      return false;
+    }
+    return true;
+  });
+  const insertFilteredCount = beforeInsertFilter - questions.length;
+
+  // ── SIMILARITY DEDUPE AGAINST SOURCE PDF ────────────────────────────────
+  // Remove any generated question that contains a 15-word phrase appearing
+  // verbatim in the source PDF — these are near-copies, not inspired questions.
+  const beforeSimilarity = questions.length;
+  if (pdfText && pdfText.length >= 100) {
+    const sourceNorm = pdfText.toLowerCase().replace(/\s+/g, ' ');
+    questions = questions.filter((q: any) => {
+      const qText = String(q.question_text || '').toLowerCase().replace(/\s+/g, ' ');
+      const qWords = qText.split(' ').filter(Boolean);
+      if (qWords.length < 16) return true;
+      for (let i = 0; i + 15 <= qWords.length; i++) {
+        const phrase = qWords.slice(i, i + 15).join(' ');
+        if (phrase.length > 60 && sourceNorm.includes(phrase)) {
+          console.log(`[Similarity filter] Removed Q${q.question_number}: 15-word phrase matches source PDF`);
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+  const similarityFilteredCount = beforeSimilarity - questions.length;
+  const totalFilteredCount = insertFilteredCount + similarityFilteredCount;
+
+
 
   questions = questions.map((question: any) => {
     const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig, question.chart_data ?? question.options);
@@ -717,13 +756,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     })));
   }
 
-  // Final update
+  // Final update — includes provenance for auditing PDF vs topic-based exams.
+  const sourcePdfName = exam.file_url ? String(exam.file_url).split('/').pop() ?? null : null;
   await supabase.from('exams').update({
     extraction_status: 'completed',
     total_questions_extracted: questions.length,
     extraction_error: null,
     detected_subject: parsedData.detected_subject,
     subject_confidence: parsedData.subject_confidence,
+    generation_method: pdfText && pdfText.length >= 100 ? 'pdf_inspired' : 'topic_based',
+    source_pdf_name: sourcePdfName,
+    questions_filtered_count: totalFilteredCount,
   }).eq('id', draftId);
   // Log AI usage
   await logAIUsage(supabase, {
@@ -835,6 +878,171 @@ function getBoardMarkSchemeStyle(board: string): string {
 }
 
 // ── Simplified Prompt Builder ────────────────────────────────────────────────
+// ── EXAM QUALITY RULES (mark-allocation, command-word binding, coverage) ──
+const EXAM_QUALITY_RULES = `
+## EXAM QUALITY STANDARDS
+
+MARK ALLOCATION INTEGRITY:
+- A question worth 5+ marks MUST require 5+ distinct marking points.
+- Never attach 4+ marks to a question answerable in one sentence.
+- "Describe" questions: max 2 marks unless they require quantitative data.
+- "Explain" questions: 2-4 marks based on mechanistic depth required.
+- "Evaluate" / "Discuss" questions: minimum 3 marks.
+
+COMMAND WORD BINDING (correct_answer MUST match the verb):
+- "Calculate" → numerical answer with working shown, units essential.
+- "Determine" → derived from given data with reasoning shown.
+- "Explain" → must reference a named mechanism, molecule, structure, or process.
+- "Evaluate" / "Discuss" → balanced two-sided response required.
+- "Suggest" → open-ended; any reasonable answer is acceptable.
+- "Describe" → observable features only; no explanation required.
+- An "Explain" question whose mark scheme is a bare fact is INVALID.
+
+SPECIFICATION COVERAGE:
+- No two questions in the same exam may test the same subtopic.
+- For exams with 15+ questions, cover at least 6 different subtopics.
+- Include at least one calculation question per 5 questions.
+- Include at least one data-interpretation question per 5 questions.
+
+SCENARIO VARIETY:
+- No two questions may use the same organism, experiment, or named context.
+- Vary contexts across laboratory, clinical/medical, ecological, industrial.
+- Sciences: vary between molecular, cellular, organism, and ecosystem scales.
+
+MARK SCHEME QUALITY:
+- Every correct_answer must contain SPECIFIC marking points, not vague text.
+- Use M1/M2 (method) and A1 (accuracy) labels for calculation questions.
+- Include "allow" and "reject" guidance for common misconceptions.
+- For 3+ mark questions, list at least 3 distinct acceptable points.
+`;
+
+// ── DIFFICULTY CALIBRATION FOR EXAM GENERATION ───────────────────────────
+// Ported from generate-practice-questions with biology + chemistry supplements
+// added (previously only physics + maths existed).
+function buildExamDifficultyInstructions(
+  difficulty: string,
+  subject: string,
+  tier: string,
+): string {
+  const _tierLower = (tier || '').toLowerCase();
+  const isBiology = /biology|life.?science|anatomy|physiology/i.test(subject);
+  const isPhysics = /physics/i.test(subject);
+  const isChemistry = /\bchemistry\b|\bchem\b/i.test(subject);
+  const _isMaths = /math|statistic/i.test(subject);
+
+  const HARD_GENERIC = `
+## DIFFICULTY LEVEL: HARD — A-LEVEL EXAMINATION STANDARD
+
+MANDATORY STRUCTURAL RULES:
+1. Multi-part questions with (a)(i), (a)(ii), (b)(i) structure for every written question.
+2. Sub-parts must build on each other — the answer to (a) is needed for (b).
+3. Embed in an unfamiliar real-world scenario — not the standard textbook example.
+4. Total marks per question: 5 to 8 marks across the sub-parts.
+5. At least one sub-part must use "Hence", "Show that", or "Suggest".
+6. At least one sub-part must require a written explanation, not just a number.
+
+FORBIDDEN PATTERNS — never generate these at hard difficulty:
+- Single substitution into one formula.
+- "State the definition of X" as a standalone question.
+- "Write the equation for X" as a standalone question.
+- Any question answerable by pattern-matching a textbook example.
+- Questions with a scenario identical to a classic exam question.
+
+MARK TARIFF GUIDE:
+- 1 mark: single factual statement.
+- 2 marks: two-step reasoning, or calculation plus unit.
+- 3 marks: multi-step calculation or explanation with evidence.
+- 4 marks: complex calculation plus interpretation.
+- 5-6 marks: extended response requiring strategy, calculation, and evaluation.
+
+REQUIRED QUESTION PATTERNS — use as models:
+Good: Unfamiliar organism / experimental setup + multi-step reasoning + evaluation.
+Good: "Show that" sub-part + "Hence calculate" sub-part + "Suggest why" sub-part.
+Good: Data interpretation + calculation from data + evaluation of method.
+Bad: "Calculate the half-life given T and lambda."
+Bad: "State two functions of the mitochondria."
+Bad: "Describe the structure of DNA."
+`.trim();
+
+  const HARD_BIOLOGY = isBiology ? `
+
+## BIOLOGY-SPECIFIC HARD RULES
+- Experimental design questions must name the independent variable, the
+  dependent variable, and at least one controlled variable.
+- Data analysis questions must require calculating a value (rate, percentage
+  change, ratio) — not just reading a number from a graph.
+- "Explain" questions must require linking structure to function at the
+  molecular or cellular level.
+- Genetics questions must involve at least a dihybrid cross or sex-linkage.
+- Ecology questions must involve quantitative data (population sizes, energy flow).
+- Biochemistry questions must reference specific enzymes, substrates, or pathways.
+- Evaluation questions must require assessment of validity or reliability.
+- Never ask students simply to "describe" a biological process — always "explain"
+  with reference to named molecules, structures, or mechanisms.
+- Include at least one mathematical skill per exam: magnification, rate of
+  reaction, chi-squared, or Hardy-Weinberg.
+
+BIOLOGY HARD EXAMPLE:
+"A researcher investigated the effect of competitive inhibitors on the enzyme
+lactase. At pH 7 and 37 C, the researcher measured the rate of lactose
+hydrolysis at different substrate concentrations, both with and without a fixed
+concentration of a competitive inhibitor.
+(a)(i) Explain why increasing substrate concentration reduces the effect of the
+       competitive inhibitor on the rate of reaction. [3]
+(a)(ii) The researcher found that at very high substrate concentrations the
+       rate with inhibitor equalled the rate without inhibitor. Explain this
+       observation with reference to enzyme active sites. [2]
+(b) Suggest one reason why this enzyme assay might not accurately represent
+    conditions in the human small intestine. [1]"
+
+BIOLOGY NEVER DO:
+- "Describe the process of transcription" [recall only].
+- "State two differences between plant and animal cells" [recall only].
+- "What is meant by the term osmosis" [recall only].
+`.trim() : '';
+
+  const HARD_CHEMISTRY = isChemistry ? `
+
+## CHEMISTRY-SPECIFIC HARD RULES
+- Calculations must require multi-step working (moles -> volume -> concentration).
+- Organic chemistry questions must involve mechanism understanding.
+- Equilibrium questions must involve Kc or Kp calculations.
+- Electrochemistry questions must involve E-cell calculations.
+- Spectroscopy questions must require interpretation of data.
+- Never ask "draw the structure of" without also asking to explain a property.
+`.trim() : '';
+
+  const HARD_PHYSICS = isPhysics ? `
+
+## PHYSICS-SPECIFIC HARD RULES
+- Every calculation question must require a unit conversion.
+- Nuclear physics questions must embed in a medical or energy context.
+- Optics questions must require image distance AND magnification AND description.
+- Wave questions must combine a calculation with a sketch sub-part.
+- Mechanics questions must resolve components or use energy methods.
+`.trim() : '';
+
+  switch ((difficulty || '').toLowerCase()) {
+    case 'hard':
+      return [HARD_GENERIC, HARD_BIOLOGY, HARD_CHEMISTRY, HARD_PHYSICS].filter(Boolean).join('\n\n');
+    case 'medium':
+      return `
+## DIFFICULTY LEVEL: MEDIUM
+2-4 mark questions. Multi-step calculations or explanations.
+Require formula rearrangement or unit conversion.
+Mix of recall and application questions.
+`.trim();
+    case 'easy':
+      return `
+## DIFFICULTY LEVEL: EASY
+1-2 mark questions. Single concept. Recall and basic application.
+Command words: State, Name, Give, Identify.
+`.trim();
+    default:
+      return '';
+  }
+}
+
 function buildPrompt(params: {
   subject: string;
   topics: string[];
@@ -1049,10 +1257,50 @@ Each mark allocation must be shown in brackets e.g. (2 marks)
 Sub-parts within a question must build on each other in difficulty` : '';
 
   // ── BLOCK 6: SOURCE MATERIAL (only when PDF is provided) ──────────────────
+  // Two-phase prompt: use the paper as a STYLE reference only, not as a copy
+  // source. Strict anti-copy rules + truncated to 8 000 chars so the model has
+  // less verbatim material to mirror.
   const sourceBlock = pdfContent ? `
-## SOURCE MATERIAL
-Use the following as context and inspiration. Do not copy questions verbatim — write entirely new questions inspired by this content:
-${pdfContent.slice(0, 40000)}` : '';
+## EXAM PAPER STYLE ANALYSIS
+
+You have been given an exam paper to analyse for style and topic coverage.
+Your job is to write ENTIRELY NEW, ORIGINAL questions that match the style and
+difficulty of this paper — NOT to copy, reproduce, or closely paraphrase any
+question from it.
+
+STRICT ANTI-COPY RULES:
+1. Every question you write must be a completely new scenario the student has
+   not seen in this paper. Use different organisms, different experiments,
+   different numbers, different real-world contexts.
+2. Never reuse the same opening sentence, named person, or scenario as any
+   question in the paper.
+3. Never reference any figure, insert, table, photograph, or resource sheet
+   from the paper. All information the student needs must be embedded directly
+   in the question text (or rendered via chart_data / diagramConfig).
+4. If you catch yourself writing something similar to a paper question, stop
+   and choose a completely different angle on the same topic.
+5. The student does NOT have access to the original paper. Every question must
+   be fully self-contained.
+
+WHAT TO EXTRACT FROM THE PAPER (style signals only, never wording):
+- Which topics and subtopics are tested
+- Which mark tariffs are used (e.g. 1-mark recall vs 6-mark extended response)
+- Which command words are used (Describe, Explain, Evaluate, Calculate, etc.)
+- The cognitive demand and difficulty level
+- The types of data students are expected to handle (graphs, tables, diagrams)
+
+USE THESE STYLE SIGNALS to write questions that:
+- Cover the same topics with entirely new contexts and scenarios
+- Match the same mark tariffs and command-verb distribution
+- Provide equivalent data in fresh tables / graphs that you generate yourself
+- Test the same skills at the same difficulty level
+
+PAPER STYLE REFERENCE (first section only — DO NOT COPY):
+${pdfContent.slice(0, 8000)}
+
+IMPORTANT: The above is style reference only. Generate completely new questions.
+Every scenario, every number, every named entity, every context must be original.
+` : '';
 
   // ── BLOCK 7: TOPIC TAGS ───────────────────────────────────────────────────
   const topicTagBlock = topicTagVocabulary && topicTagVocabulary.length > 0 ? `
@@ -1571,10 +1819,25 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
   const chartDataBlock = `${alwaysIncludeCharts}${geographyCharts}${statsCharts}`;
 
 
+  // ── DIFFICULTY CALIBRATION (ported from generate-practice-questions) ──────
+  // Exams have no flat difficulty column — derive from qualification level.
+  // A-Level / IB / AP / university → 'hard'; GCSE → 'medium'; else 'medium'.
+  const lvl = (educationalLevel || '').toLowerCase();
+  const examDifficulty = /a-?level|a\s*level|ib\b|ap\b|advanced\s*placement|pre-u|university|undergrad|hl\b|college_16_18/.test(lvl)
+    ? 'hard'
+    : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
+      ? 'medium'
+      : 'medium';
+  const difficultyBlock = buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
+  const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
+
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
     contextBlock,
     subjectRulesBlock,
+    difficultyBlock,
+    EXAM_QUALITY_RULES,
+    subjectSpecificBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
@@ -1633,7 +1896,7 @@ async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt:
       model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       max_tokens: 32000,
-      temperature: hasResourcePack ? 0.1 : 0.3,
+      temperature: hasResourcePack ? 0.1 : 0.8,
       response_format: { type: 'json_object' },
     }),
   });
