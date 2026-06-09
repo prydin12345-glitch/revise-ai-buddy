@@ -756,13 +756,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     })));
   }
 
-  // Final update
+  // Final update — includes provenance for auditing PDF vs topic-based exams.
+  const sourcePdfName = exam.file_url ? String(exam.file_url).split('/').pop() ?? null : null;
   await supabase.from('exams').update({
     extraction_status: 'completed',
     total_questions_extracted: questions.length,
     extraction_error: null,
     detected_subject: parsedData.detected_subject,
     subject_confidence: parsedData.subject_confidence,
+    generation_method: pdfText && pdfText.length >= 100 ? 'pdf_inspired' : 'topic_based',
+    source_pdf_name: sourcePdfName,
+    questions_filtered_count: totalFilteredCount,
   }).eq('id', draftId);
   // Log AI usage
   await logAIUsage(supabase, {
