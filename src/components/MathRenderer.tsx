@@ -192,6 +192,26 @@ const normalizeBlankFormat = (content: string): string => {
   return normalized;
 };
 
+// Convert bare subscripts/superscripts written in plain text (C_1, R_2, x^2, cm^3)
+// into inline KaTeX so they render typographically (C with a small lowered 1)
+// instead of showing literal underscores/carets. Only converts conservative
+// patterns (short base + digits or a single letter) and never touches
+// existing $...$ math segments, so prose like file_name is unaffected.
+const convertBareSubSup = (content: string): string => {
+  if (!content) return '';
+  const segments = content.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+  return segments
+    .map((seg) => {
+      if (seg.startsWith('$')) return seg; // already math — leave untouched
+      return seg
+        // Subscripts: C_1, R_2, v_x  (base ≤3 letters; sub = digits or one letter)
+        .replace(/\b([A-Za-z]{1,3})_(\d{1,3}|[A-Za-z])\b/g, (_m, base, sub) => `$${base}_{${sub}}$`)
+        // Superscripts: x^2, cm^3, 10^-4  (sup = optional minus + digits, or one letter)
+        .replace(/\b([A-Za-z]{1,4}|\d{1,4})\^(-?\d{1,3}|[A-Za-z])\b/g, (_m, base, sup) => `$${base}^{${sup}}$`);
+    })
+    .join('');
+};
+
 // Strip Markdown bold/italic emphasis the AI sometimes emits in question_text.
 // MathRenderer only handles LaTeX (not Markdown), so **bold**, *italic*, __u__, _i_
 // would otherwise render as literal asterisks/underscores.
@@ -219,7 +239,11 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   const contentWithoutMarks = removeMarksLine(safeContent);
   
   // Strip mark scheme annotations [M1, A1, B1] from student-facing display
-  const contentWithoutMarkScheme = stripMarkSchemeAnnotations(contentWithoutMarks);
+  const contentWithoutMarkSchemeRaw = stripMarkSchemeAnnotations(contentWithoutMarks);
+
+  // Typeset bare sub/superscripts (C_1 → C₁, cm^3 → cm³) before any
+  // markdown-emphasis stripping can eat the underscores.
+  const contentWithoutMarkScheme = convertBareSubSup(contentWithoutMarkSchemeRaw);
   
   // Then normalize blank formats (convert underscores to [ BLANK ])
   const contentWithNormalizedBlanks = normalizeBlankFormat(contentWithoutMarkScheme);
