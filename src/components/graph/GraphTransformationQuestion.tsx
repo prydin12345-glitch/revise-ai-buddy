@@ -144,9 +144,9 @@ export const GraphTransformationQuestion = ({
         <CardContent className="p-4">
           <div className="mb-3">
             <p className="text-sm text-muted-foreground mb-1">Given:</p>
-            <p className="font-medium">
+            <div className="font-medium">
               <MathRenderer content={originalFunction.description} />
-            </p>
+            </div>
             {originalFunction.asymptotes?.length ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {originalFunction.asymptotes.map((a, i) => (
@@ -500,9 +500,9 @@ export const GraphTransformationQuestion = ({
             </p>
             
             {/* Question prompt */}
-            <p className="text-sm">
+            <div className="text-sm">
               <MathRenderer content={part.prompt} />
-            </p>
+            </div>
           </div>
           
           {markingResult && (
