@@ -1,3 +1,4 @@
+// FILE: supabase/functions/generate-practice-questions/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.25.76";
@@ -10,6 +11,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
 import { checkGenerationRateLimit } from "../_shared/rate-limiter.ts";
 import { removeAnswerLeaks } from "../_shared/answer-leak-validator.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
@@ -95,9 +97,11 @@ async function generateQuestionsInBackground(
   try {
     console.log('Starting background generation for set:', setId);
 
+    // ── CANONICAL SUBJECT DETECTION — computed once, used everywhere ──
+    const subjectProfile = detectSubject(setData.subject_id || '');
+
     // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
-    const knownAcademicForCache = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
-    const isCustomNicheForCache = !knownAcademicForCache.some(s => (setData.subject_id || '').toLowerCase().includes(s));
+    const isCustomNicheForCache = !subjectProfile.isKnownAcademic;
 
     const cacheParams = {
       subject: setData.subject_id ?? '',
@@ -591,8 +595,7 @@ EXAMPLE QUESTION FORMATS:
     }
 
     // Specialised subject context — for non-standard academic subjects
-    const knownAcademic = ['mathematics', 'biology', 'chemistry', 'physics', 'english', 'history', 'geography', 'computer science', 'economics', 'psychology', 'business', 'sociology'];
-    const isSpecialised = !knownAcademic.some(s => (setData.subject_id || '').toLowerCase().includes(s));
+    const isSpecialised = !subjectProfile.isKnownAcademic;
     const specialisedSubjectContext = isSpecialised
       ? `\nSPECIALISED SUBJECT CONTEXT:\nThis is a specialised subject: "${setData.subject_id}". Generate questions appropriate for professional or vocational study in this area. Use domain-specific terminology and realistic practical scenarios. The student may be a practitioner, not a traditional academic student.\n`
       : '';
@@ -626,7 +629,7 @@ EXAMPLE QUESTION FORMATS:
     const hasDeltaWyeTopic = /delta.*wye|wye.*delta|delta\/wye|delta_wye|delta-star|star-delta/i.test(topicsCombined);
 
     // Detect electrical engineering subjects for special instructions
-    const isElectricalEngineering = /electric|circuit|power system|analog|digital electronics/i.test(setData.subject_id || '');
+    const isElectricalEngineering = subjectProfile.isElectricalEngineering;
 
     const diagramSuppressionNotice = hasSuppressedTopic ? `
 ## ABSOLUTE RULE — NO DIAGRAM REFERENCES
@@ -756,8 +759,9 @@ For delta vs wye comparison questions:
       subject: string,
       tierStr: string,
     ): string => {
-      const isPhysics = /physics|science/i.test(subject);
-      const isMaths = /math|statistic/i.test(subject);
+      const difficultyProfile = detectSubject(subject);
+      const isPhysics = difficultyProfile.hasPhysicsStyleDifficulty;
+      const isMaths = difficultyProfile.hasMathsStyleDifficulty;
 
       if (mode === 'increasing') {
         return `
@@ -1096,7 +1100,7 @@ ${physicsDiagramExclusion}`;
 
     // SUBJECT-AWARE GRAPHING: Add annotations and subject profile instructions for non-Math subjects
     const subjectId = (setData.subject_id || '').toLowerCase();
-    const isMathSubject = subjectId.includes('math') || subjectId.includes('maths');
+    const isMathSubject = detectSubject(subjectId).isMathsCore;
     
     let subjectGraphInstructions = '';
     if (!isMathSubject && needsGraphs) {
@@ -1620,39 +1624,8 @@ ${subjectGraphInstructions}
 ${MULTI_PART_GRAPH_INSTRUCTIONS}
 ${buildBiologyInstructions(subjectName)}
 ${buildMathsInstructions(subjectName)}
-${(() => {
-  // Inject circuit consistency instructions ONLY for genuine physics/electronics subjects.
-  const lowerSubject = subjectName.toLowerCase();
-  const lowerTopics = (setData.subtopics || []).map((t: string) => t.toLowerCase()).join(' ');
-
-  // Hard exclude biology contexts (e.g. "antibiotic resistance", "parallel evolution")
-  const isBiologyContext =
-    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
-      lowerSubject,
-    );
-  if (isBiologyContext) return '';
-
-  // Use specific unambiguous electrical terms only (removed: resistance, parallel, series, electric, physics)
-  const circuitKeywords = [
-    'circuit', 'resistor', 'emf', 'internal resistance',
-    'potential divider', 'thermistor', 'voltmeter', 'ammeter',
-    'kirchhoff', 'ohm', 'capacitor', 'inductor', 'diode',
-    'rectifier', 'transformer', 'alternating current', 'direct current',
-    'electronics', 'electrical circuit', 'electric circuit',
-  ];
-  const needsCircuitRules = circuitKeywords.some(kw => lowerSubject.includes(kw) || lowerTopics.includes(kw));
-  return needsCircuitRules ? buildCircuitInstructions() : '';
-})()}
-${(() => {
-  // Physics diagram instructions: ray, wave, magnetic field, nuclear decay, EM spectrum.
-  const lowerSubject = subjectName.toLowerCase();
-  const isBiologyContext =
-    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
-      lowerSubject,
-    );
-  const isPhysicsSubject = !isBiologyContext && /physics|physical\s*science|natural\s*science|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(lowerSubject);
-  return isPhysicsSubject ? buildPhysicsInstructions() : '';
-})()}
+${needsCircuitRules(detectSubject(subjectName), setData.subtopics || []) ? buildCircuitInstructions() : ''}
+${detectSubject(subjectName).usePhysicsDiagramInstructions ? buildPhysicsInstructions() : ''}
 ${resourcePackContext}
 
 ${NOTATION_RULES}
