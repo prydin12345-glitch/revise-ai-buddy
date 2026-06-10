@@ -737,8 +737,15 @@ const TakePracticeQuiz = () => {
           });
         }
       }
-      // 2. Load questions with numeric sorting
-      const { data: questionsData } = await supabase.from("practice_questions").select("*").eq("set_id", setId).order("question_number_int").order("question_number");
+      // 2. Load questions through the secure endpoint (strips answers for
+      // unanswered questions so they never reach the browser)
+      const { data: questionsResponse, error: questionsFetchError } = await supabase.functions.invoke('get-practice-questions', {
+        body: { setId }
+      });
+      if (questionsFetchError) {
+        console.error('Failed to load questions:', questionsFetchError);
+      }
+      const questionsData = questionsResponse?.questions ?? null;
       if (!questionsData?.length) {
         toast.error("No questions found");
         navigate("/quizzes");
@@ -1114,6 +1121,17 @@ const TakePracticeQuiz = () => {
         }
       });
 
+      // Now that this question is answered, fetch its full version (including
+      // worked_solution / rationale / correct_answer) for the review UI.
+      supabase.functions.invoke('get-practice-questions', {
+        body: { setId, questionId: currentQuestion.id }
+      }).then(({ data: fullResponse }) => {
+        const fullQuestion = fullResponse?.questions?.[0];
+        if (fullQuestion) {
+          setQuestions(prev => prev.map(q => q.id === fullQuestion.id ? { ...q, ...fullQuestion } : q));
+        }
+      }).catch((e) => console.error('Failed to fetch full question after grading:', e));
+
       // Update session state (timer, index) but NOT counts
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -1390,12 +1408,11 @@ const TakePracticeQuiz = () => {
         .eq('user_id', user.id)
         .eq('question_id', currentQuestion.id);
 
-      // Fetch the updated question
-      const { data: updatedQuestion } = await supabase
-        .from('practice_questions')
-        .select('*')
-        .eq('id', currentQuestion.id)
-        .single();
+      // Fetch the updated question through the secure endpoint
+      const { data: refreshResponse } = await supabase.functions.invoke('get-practice-questions', {
+        body: { setId, questionId: currentQuestion.id }
+      });
+      const updatedQuestion = refreshResponse?.questions?.[0] ?? null;
 
       if (updatedQuestion) {
         // Update questions list with new question
