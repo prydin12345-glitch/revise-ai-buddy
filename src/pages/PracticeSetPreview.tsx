@@ -88,12 +88,10 @@ const PracticeSetPreview = () => {
       if (setError) throw setError;
       setPracticeSet(setData);
 
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('practice_questions')
-        .select('*')
-        .eq('set_id', setId)
-        .order('question_number_int')
-        .order('question_number');
+      const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke('get-practice-questions', {
+        body: { setId }
+      });
+      const questionsData = questionsResponse?.questions ?? [];
 
       if (questionsError) throw questionsError;
       
