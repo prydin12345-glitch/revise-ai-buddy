@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { markSketch, type GraphPoint, type KeyFeatures, evaluateFormulaAtX } from "../_shared/math-engine.ts";
 import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE, MARKING_QUALITY_RULES } from "../_shared/sanitise-feedback.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,6 +30,23 @@ serve(async (req) => {
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
+
+    // ── RATE LIMITING ──────────────────────────────────────────────────
+    // Generous limits: a full exam grades one question per call, so allow
+    // 60 per 10 min and 300 per day. Uses service role to bypass RLS.
+    const rateLimitClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+    const rateCheck = await enforceRateLimit(rateLimitClient, user.id, 'grade-practice-question', {
+      dailyLimit: 300,
+      burstLimit: 60,
+      burstWindowMinutes: 10,
+    });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders);
+    }
+    // ───────────────────────────────────────────────────────────────────
 
     const { questionId, setId, answerText, normalizedAnswer, workingOut } = await req.json();
 
