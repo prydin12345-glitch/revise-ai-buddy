@@ -1370,7 +1370,13 @@ For these questions, correct_answer MUST be a JSON object in exactly this struct
   "graphType": "transformation",
   "originalFunction": {
     "description": "y = x^2 - 6x + 5",
-    "keyPoints": [ {"x": 1, "y": 0, "label": "(1, 0)"}, {"x": 5, "y": 0, "label": "(5, 0)"}, {"x": 0, "y": 5, "label": "(0, 5)"}, {"x": 3, "y": -4, "label": "min (3, -4)"} ],
+    "keyPoints": [
+      {"type": "x-intercept", "coordinates": {"x": 1, "y": 0}, "label": "(1, 0)"},
+      {"type": "x-intercept", "coordinates": {"x": 5, "y": 0}, "label": "(5, 0)"},
+      {"type": "y-intercept", "coordinates": {"x": 0, "y": 5}, "label": "(0, 5)"},
+      {"type": "minimum", "coordinates": {"x": 3, "y": -4}, "label": "min (3, -4)"}
+    ],
+    "referenceCurve": { "id": "f", "label": "y = f(x)", "data": [ {"x": -1, "y": 12}, {"x": 0, "y": 5}, {"x": 1, "y": 0}, {"x": 2, "y": -3}, {"x": 3, "y": -4}, {"x": 4, "y": -3}, {"x": 5, "y": 0}, {"x": 6, "y": 5}, {"x": 7, "y": 12} ] },
     "asymptotes": [ {"type": "vertical", "value": 2, "equation": "x = 2"} ]
   },
   "domainX": [-6, 8],
@@ -1385,6 +1391,7 @@ For these questions, correct_answer MUST be a JSON object in exactly this struct
 
 TRANSFORMATION RULES (MANDATORY):
 - If the original curve y = f(x) is SHOWN as a figure in the paper, reconstruct its keyPoints by reading the figure: roots, y-intercept, turning points, asymptotes. NEVER omit originalFunction — without it the student sees no reference curve.
+- referenceCurve.data is MANDATORY: evaluate the function at 9-20 evenly spaced x values across domainX and list the {"x","y"} points. This is the curve the student actually sees — keyPoints alone only place dots. keyPoints must use the {"type", "coordinates": {"x","y"}, "label"} structure exactly.
 - questionType per part: "sketch" (drawn on canvas, needs correctAnswer.transformedPoints listing the transformed position of every original keyPoint), "coordinates" (needs correctAnswer.coordinateAnswer {"x":..,"y":..}), "equation" / "value" / "text" (needs correctAnswer.textAnswer or numericAnswer, plus alternatives), "set" (needs correctAnswer.setAnswer).
 - asymptotes is optional — include only when the function has them, with the TRANSFORMED asymptote positions inside each sketch part's correctAnswer.transformedAsymptotes.
 - A graph question with lettered sub-parts must NEVER be flattened into one long question_text with the sub-parts inline — always use the parts[] array so each sub-part gets its own input.`;
