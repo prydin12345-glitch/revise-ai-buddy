@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { sanitiseFeedback, FEEDBACK_FORMATTING_RULE } from "../_shared/sanitise-feedback.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -15,6 +16,35 @@ serve(async (req) => {
 
   try {
     const { questionText, correctAnswer, studentAnswer, studentQuery, options } = await req.json();
+
+    // ── AUTH + RATE LIMITING ───────────────────────────────────────────
+    // Identify the caller and rate limit BEFORE spending AI money.
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const authHeaderCheck = req.headers.get('Authorization');
+    if (!authHeaderCheck) {
+      return new Response(JSON.stringify({ error: "Unauthorised" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: { user: authedUser }, error: authCheckError } =
+      await supabaseService.auth.getUser(authHeaderCheck.replace('Bearer ', ''));
+    if (authCheckError || !authedUser) {
+      return new Response(JSON.stringify({ error: "Unauthorised" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const rateCheck = await enforceRateLimit(supabaseService, authedUser.id, 'explain-answer', {
+      dailyLimit: 100,
+      burstLimit: 12,
+      burstWindowMinutes: 10,
+    });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders);
+    }
+    // ───────────────────────────────────────────────────────────────────
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
