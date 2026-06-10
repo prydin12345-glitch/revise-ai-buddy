@@ -530,6 +530,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       if (wrapper) {
         correctAnswer = JSON.stringify(wrapper);
         options = wrapper;
+        graphWrapper = wrapper; // also persist into diagram_config (was missing — caused diagram_config: null)
         console.log(`Q${q.question_number}: Built canonical graph_transformation wrapper (${wrapper.parts?.length ?? 0} parts)`);
       } else {
         console.warn(`Q${q.question_number}: graph_transformation has no parts[]`);
@@ -1359,7 +1360,34 @@ markingFormula examples:
 keyPoints: Only roots (set formula=0) and y-intercept (x=0). Never turning points.
 curveShapeRules type: positive_cubic|negative_cubic|positive_quadratic|negative_quadratic|reciprocal_positive|reciprocal_negative|exponential_growth|exponential_decay|logarithmic|positive_linear|negative_linear
 domainX: Show all roots with 1-2 unit padding. Never [-30,30] unless genuinely needed.
-totalMarks: Sum of all keyPoint marks + curveShapeRule marks.`;
+totalMarks: Sum of all keyPoint marks + curveShapeRule marks.
+
+GRAPH TRANSFORMATION QUESTIONS (question_type "graph_transformation"):
+Use this type when a question shows or defines an original function and asks the student to sketch or describe transformed versions (y = f(x) + a, y = f(x + a), y = af(x), y = f(ax), y = -f(x), y = f(-x)), completed-square sketches like y = (x - 2)^2 + 3, or when a graph question has multiple lettered sub-parts (a), (b), (c) mixing algebra with sketching.
+
+For these questions, correct_answer MUST be a JSON object in exactly this structure:
+{
+  "graphType": "transformation",
+  "originalFunction": {
+    "description": "y = x^2 - 6x + 5",
+    "keyPoints": [ {"x": 1, "y": 0, "label": "(1, 0)"}, {"x": 5, "y": 0, "label": "(5, 0)"}, {"x": 0, "y": 5, "label": "(0, 5)"}, {"x": 3, "y": -4, "label": "min (3, -4)"} ],
+    "asymptotes": [ {"type": "vertical", "value": 2, "equation": "x = 2"} ]
+  },
+  "domainX": [-6, 8],
+  "domainY": [-10, 10],
+  "parts": [
+    { "id": "a", "transformation": "completed square form", "questionType": "equation", "prompt": "Express x^2 - 6x + 5 in the form (x + a)^2 + b", "marks": 2,
+      "correctAnswer": { "textAnswer": "(x - 3)^2 - 4", "alternatives": ["(x-3)^2 - 4"] } },
+    { "id": "b", "transformation": "y = (x - 3)^2 - 4", "questionType": "sketch", "prompt": "Hence sketch the graph, marking the turning point and intercepts", "marks": 3,
+      "correctAnswer": { "transformedPoints": [ {"x": 3, "y": -4, "label": "min"}, {"x": 1, "y": 0}, {"x": 5, "y": 0}, {"x": 0, "y": 5} ] } }
+  ]
+}
+
+TRANSFORMATION RULES (MANDATORY):
+- If the original curve y = f(x) is SHOWN as a figure in the paper, reconstruct its keyPoints by reading the figure: roots, y-intercept, turning points, asymptotes. NEVER omit originalFunction — without it the student sees no reference curve.
+- questionType per part: "sketch" (drawn on canvas, needs correctAnswer.transformedPoints listing the transformed position of every original keyPoint), "coordinates" (needs correctAnswer.coordinateAnswer {"x":..,"y":..}), "equation" / "value" / "text" (needs correctAnswer.textAnswer or numericAnswer, plus alternatives), "set" (needs correctAnswer.setAnswer).
+- asymptotes is optional — include only when the function has them, with the TRANSFORMED asymptote positions inside each sketch part's correctAnswer.transformedAsymptotes.
+- A graph question with lettered sub-parts must NEVER be flattened into one long question_text with the sub-parts inline — always use the parts[] array so each sub-part gets its own input.`;
 
   // ── BLOCK 9: OUTPUT FORMAT ────────────────────────────────────────────────
   const outputBlock = `
