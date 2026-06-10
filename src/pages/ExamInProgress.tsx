@@ -1126,7 +1126,7 @@ const ExamInProgress = () => {
     } else {
       // Sub-questions like 1a, 1b
       const parent = getParentQuestionNumber(firstQ.question_number);
-      label = `Question ${parent} (${qs.length} part${qs.length !== 1 ? 's' : ''})`;
+      label = `Question ${parent}`;
     }
     
     return {
@@ -1561,15 +1561,24 @@ const ExamInProgress = () => {
             <div className="container max-w-7xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
-                const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
-                const parentNum = subPartMatch?.[1] || question.question_number;
-                const subPart = subPartMatch?.[2] || '';
+                // In a multi-part group, EVERY question gets a clean letter label (a, b, c)
+                // derived from its question_number suffix, or its position as fallback —
+                // this normalises messy extracted numbers like "1", "1(b)", "(b)".
+                const groupIsMultiPart = currentGroup.questions.length > 1 && question.question_type !== 'mcq';
+                const numberStr = String(question.question_number ?? '');
+                const letterMatch = numberStr.match(/([a-z])\)?\s*$/i);
+                const parentNum = numberStr.match(/^\d+/)?.[0]
+                  || String(currentGroup.questions[0]?.question_number ?? '').match(/^\d+/)?.[0]
+                  || numberStr;
+                const subPart = groupIsMultiPart
+                  ? (letterMatch ? letterMatch[1].toLowerCase() : String.fromCharCode(97 + qIdx))
+                  : '';
                 const isSubPart = !!subPart;
                 
-                // Check if this is the first sub-part of a new parent (show parent header)
+                // Parent header only when the group title doesn't already show it (i.e. not the first card)
                 const prevQuestion = qIdx > 0 ? currentGroup.questions[qIdx - 1] : null;
-                const prevParent = prevQuestion?.question_number.match(/^(\d+)/)?.[1];
-                const showParentHeader = isSubPart && parentNum !== prevParent;
+                const prevParent = prevQuestion ? String(prevQuestion.question_number ?? '').match(/^\d+/)?.[0] : null;
+                const showParentHeader = isSubPart && qIdx > 0 && parentNum !== prevParent;
                 
                 return (
                   <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
