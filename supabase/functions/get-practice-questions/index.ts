@@ -11,10 +11,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Rules:
 //  - Caller must be authenticated and own the practice set.
 //  - Questions the user has NOT yet answered are stripped of:
-//      worked_solution, rationale, and correct_answer
-//    EXCEPT graph-type questions, which keep correct_answer because the
-//    plotting canvas needs it for axes/domain setup (known limitation until
-//    plot-setup data is separated from answer data).
+//      worked_solution, rationale, and correct_answer.
+//    Graph-type questions receive a SANITISED correct_answer containing only
+//    rendering setup (axes, domains, labels, given curves, part prompts) with
+//    every answer field deep-stripped, so the canvas renders identically but
+//    no answers reach the browser.
 //  - Questions the user HAS answered are returned in full, so review mode
 //    and worked-solution reveal work normally.
 //
@@ -31,6 +32,68 @@ const corsHeaders = {
 
 const GRAPH_TYPES = ['graph_plotting', 'graph_interpretation', 'graph_transformation'];
 
+// Answer-bearing keys that must never reach the browser for unanswered
+// questions, wherever they appear in the correct_answer JSON structure.
+// Everything else (graphType, graphConfig axes/domains/labels/series,
+// originalFunction, part prompts, field definitions) is rendering setup.
+const ANSWER_KEYS = new Set([
+  'plottingAnswer',        // expectedPoints, expectedPath, bestFitAnswer...
+  'correctAnswer',         // interpretationFields + transformation parts
+  'correct_answer',
+  'expectedCurve',
+  'expectedPoints',
+  'expectedPath',
+  'pathAnnotations',
+  'bestFitAnswer',
+  'markingFormula',
+  'correctBearing',
+  'synonyms',
+  'acceptedFormats',
+  'transformationDescription', // describes the answer for "describe" parts
+  'transformedPoints',
+  'transformedAsymptotes',
+  'coordinateAnswer',
+  'textAnswer',
+  'numericAnswer',
+  'setAnswer',
+  'alternatives',
+  'correct_chart_data',
+]);
+
+/** Recursively delete answer-bearing keys from a parsed JSON structure. */
+function deepStripAnswerKeys(node: any): void {
+  if (Array.isArray(node)) {
+    for (const item of node) deepStripAnswerKeys(item);
+    return;
+  }
+  if (node && typeof node === 'object') {
+    for (const key of Object.keys(node)) {
+      if (ANSWER_KEYS.has(key)) {
+        delete node[key];
+      } else {
+        deepStripAnswerKeys(node[key]);
+      }
+    }
+  }
+}
+
+/**
+ * For graph questions, the canvas needs setup data (axes, domains, labels,
+ * given curves, part prompts) which historically lives inside correct_answer.
+ * Return a sanitised copy that renders identically but contains no answers.
+ */
+function sanitiseGraphCorrectAnswer(correctAnswer: any): string | null {
+  if (correctAnswer == null) return null;
+  let parsed: any = correctAnswer;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return null; } // plain text = pure answer, drop it
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const clone = JSON.parse(JSON.stringify(parsed));
+  deepStripAnswerKeys(clone);
+  return JSON.stringify(clone);
+}
+
 function stripAnswerFields(question: any, answeredIds: Set<string>): any {
   if (answeredIds.has(question.id)) {
     return question; // already answered — full data for review
@@ -38,7 +101,15 @@ function stripAnswerFields(question: any, answeredIds: Set<string>): any {
   const stripped = { ...question };
   delete stripped.worked_solution;
   delete stripped.rationale;
-  if (!GRAPH_TYPES.includes(question.question_type)) {
+  if (GRAPH_TYPES.includes(question.question_type)) {
+    // Keep rendering setup, remove every answer field.
+    const sanitised = sanitiseGraphCorrectAnswer(question.correct_answer);
+    if (sanitised) {
+      stripped.correct_answer = sanitised;
+    } else {
+      delete stripped.correct_answer;
+    }
+  } else {
     delete stripped.correct_answer;
   }
   return stripped;
