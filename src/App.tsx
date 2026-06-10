@@ -56,12 +56,6 @@ const StudentExamReview = lazyWithReload(() => import("./pages/tutor/StudentExam
 const ManualExamCreator = lazyWithReload(() => import("./pages/tutor/ManualExamCreator"));
 const ExamDashboard = lazyWithReload(() => import("./pages/tutor/ExamDashboard"));
 
-// Demo/dev pages — never in main bundle
-const GraphTest = lazyWithReload(() => import("./pages/GraphTest"));
-const MechanicsDemo = lazyWithReload(() => import("./pages/MechanicsDemo"));
-const CircuitDemo = lazyWithReload(() => import("./pages/CircuitDemo"));
-const ScienceDiagramDemo = lazyWithReload(() => import("./pages/ScienceDiagramDemo"));
-
 // TutorLayout is small, load eagerly for smooth sidebar
 import { TutorLayout } from "./components/tutor/TutorLayout";
 
@@ -96,12 +90,6 @@ const App = () => {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/onboarding" element={<Onboarding />} />
-
-              {/* Dev/demo pages — no guard */}
-              <Route path="/graph-test" element={<GraphTest />} />
-              <Route path="/mechanics-demo" element={<MechanicsDemo />} />
-              <Route path="/circuit-demo" element={<CircuitDemo />} />
-              <Route path="/science-diagrams" element={<ScienceDiagramDemo />} />
 
               {/* Protected routes — onboarding guard */}
               <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
