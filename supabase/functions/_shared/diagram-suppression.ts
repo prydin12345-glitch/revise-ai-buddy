@@ -1,3 +1,6 @@
+// FILE: supabase/functions/_shared/diagram-suppression.ts
+import { BIOLOGY_PATTERN } from "./subject-detection.ts";
+
 /**
  * Topic-based diagram suppression for circuit diagrams.
  * Edge-function-compatible copy of src/utils/diagramSuppression.ts
@@ -123,10 +126,7 @@ export const shouldSuppressDiagram = (
   const lowerSubject = (subjectName || '').toLowerCase();
 
   // Biology subjects must never show circuit diagrams
-  const isBiology =
-    /biology|life.?science|human.?biology|biolog|anatomy|physiology|biomedical|health.?science|environmental.?science|marine.?biology|ecology|genetics|microbiology/i.test(
-      lowerSubject,
-    );
+  const isBiology = BIOLOGY_PATTERN.test(lowerSubject);
   if (isBiology && (diagramType === 'circuit' || diagramType === 'circuit_diagram')) {
     return true;
   }
