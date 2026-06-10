@@ -56,15 +56,30 @@ export const GraphTransformationQuestion = ({
   const [activeSketchPart, setActiveSketchPart] = useState<string | null>(null);
 
   // Build reference curve series for display
+  // Normalise keyPoints: tolerate both {coordinates:{x,y}} (canonical) and
+  // flat {x,y} (what AI extraction commonly emits). Without this, the curve
+  // interpolation crashed silently and no reference curve rendered.
+  const normalizedKeyPoints = useMemo(() => {
+    const kps: any[] = (config.originalFunction?.keyPoints as any[]) ?? [];
+    return kps
+      .map((kp: any, i: number) => {
+        const coords = kp?.coordinates
+          ?? (typeof kp?.x === 'number' && typeof kp?.y === 'number' ? { x: kp.x, y: kp.y } : null);
+        if (!coords || !isFinite(coords.x) || !isFinite(coords.y)) return null;
+        return { id: kp.id ?? `kp-${i}`, type: kp.type ?? 'point', label: kp.label, coordinates: coords };
+      })
+      .filter(Boolean) as Array<{ id: string; type: string; label?: string; coordinates: { x: number; y: number } }>;
+  }, [config.originalFunction?.keyPoints]);
+
   const referenceSeries = useMemo(() => {
     const series: GraphSeries[] = [];
     
     // Primary: use provided reference curve
     if (config.originalFunction.referenceCurve) {
       series.push(config.originalFunction.referenceCurve);
-    } else if (config.originalFunction.keyPoints?.length >= 3) {
+    } else if (normalizedKeyPoints.length >= 3) {
       // Fallback: generate curve from key points via interpolation
-      const sortedPoints = [...config.originalFunction.keyPoints]
+      const sortedPoints = [...normalizedKeyPoints]
         .sort((a, b) => a.coordinates.x - b.coordinates.x);
       
       // Simple polynomial interpolation for smooth curve
@@ -104,7 +119,7 @@ export const GraphTransformationQuestion = ({
       series.push({
         id: 'keypoints',
         label: 'Key Points',
-        data: config.originalFunction.keyPoints.map(kp => ({
+        data: normalizedKeyPoints.map(kp => ({
           x: kp.coordinates.x,
           y: kp.coordinates.y,
           label: kp.label,
@@ -223,9 +238,9 @@ export const GraphTransformationQuestion = ({
           </div>
           
           {/* Key points legend */}
-          {originalFunction.keyPoints?.length > 0 && (
+          {normalizedKeyPoints.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {originalFunction.keyPoints.map((kp) => (
+              {normalizedKeyPoints.map((kp) => (
                 <Badge 
                   key={kp.id} 
                   variant="outline"
