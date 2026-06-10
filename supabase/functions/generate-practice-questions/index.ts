@@ -10,6 +10,8 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { checkGenerationRateLimit } from "../_shared/rate-limiter.ts";
+import { removeAnswerLeaks } from "../_shared/answer-leak-validator.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import {
@@ -4909,6 +4911,18 @@ Generate questions that are meaningfully different from all of the above.`;
     
     console.log('Questions to insert:', questionsToInsert.map(q => ({ num: q.question_number, type: q.question_type })));
 
+    // ── ANSWER LEAK SAFETY NET ─────────────────────────────────────────
+    // Programmatic final check: strips answer curves from displayed graphs,
+    // answer reveals from question text, and "(correct)" markers from MCQs.
+    const leakReport = removeAnswerLeaks(questionsToInsert);
+    if (leakReport.totalLeaksFixed > 0) {
+      console.warn(
+        `Fixed ${leakReport.totalLeaksFixed} answer leak(s) before insert:`,
+        JSON.stringify(leakReport.actions)
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────
+
     const { error: insertError } = await supabaseClient
       .from('practice_questions')
       .insert(questionsToInsert);
@@ -5035,6 +5049,31 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
+
+    // ── RATE LIMITING ──────────────────────────────────────────────────
+    // Protects against AI cost abuse: 30 generations/day, max 6 per 10 min.
+    const rateCheck = await checkGenerationRateLimit(
+      supabaseClient,
+      userId,
+      'generate-practice-questions'
+    );
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: rateCheck.message,
+          retryAfterSeconds: rateCheck.retryAfterSeconds,
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateCheck.retryAfterSeconds),
+          },
+          status: 429,
+        }
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────
 
     // Get practice set details
     const { data: setData, error: setError } = await supabaseClient
