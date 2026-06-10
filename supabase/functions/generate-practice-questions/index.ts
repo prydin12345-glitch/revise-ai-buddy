@@ -11,6 +11,7 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
 import { checkGenerationRateLimit } from "../_shared/rate-limiter.ts";
 import { removeAnswerLeaks } from "../_shared/answer-leak-validator.ts";
@@ -4883,6 +4884,17 @@ Generate questions that are meaningfully different from all of the above.`;
     });
     
     console.log('Questions to insert:', questionsToInsert.map(q => ({ num: q.question_number, type: q.question_type })));
+
+    // ── MULTI-PART ENFORCEMENT + CANVAS GUARANTEE ─────────────────────
+    // 1. If the AI flattened (a)(b)(c) sub-parts into one question, split
+    //    them into proper sub-questions deterministically.
+    // 2. Every graph-type question must carry a renderable config so the
+    //    student always gets a canvas and drawing tools.
+    const splitQuestions = splitMultiPartQuestions(questionsToInsert);
+    questionsToInsert.length = 0;
+    questionsToInsert.push(...splitQuestions);
+    ensureRenderableGraphConfigs(questionsToInsert);
+    // ───────────────────────────────────────────────────────────────────
 
     // ── ANSWER LEAK SAFETY NET ─────────────────────────────────────────
     // Programmatic final check: strips answer curves from displayed graphs,
