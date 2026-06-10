@@ -1,3 +1,5 @@
+// FILE: supabase/functions/_shared/prompt-templates.ts
+import { BIOLOGY_PATTERN, MATHS_NOTATION_PATTERN } from "./subject-detection.ts";
 /**
  * Prompt template builders for practice question generation.
  * Extracted from generate-practice-questions/index.ts for maintainability.
@@ -276,7 +278,7 @@ RULES:
 }
 export function buildBiologyInstructions(subject: string | undefined): string {
   if (!subject) return '';
-  if (!/biology|life.?science|biolog|human.?biology|marine.?biology|environmental.?science|biomedical|health.?science|anatomy|physiology/i.test(subject)) {
+  if (!BIOLOGY_PATTERN.test(subject)) {
     return '';
   }
   return `
@@ -357,7 +359,7 @@ CRITICAL RULES:
 /** Build maths diagram generation instructions (probability trees, Venn, two-way tables, sample space) */
 export function buildMathsInstructions(subject: string | undefined): string {
   if (!subject) return '';
-  if (!/mathematics|maths|math\b|statistics|stat\b|probability|further\s*maths|data\s*science|computer\s*science|computing/i.test(subject)) {
+  if (!MATHS_NOTATION_PATTERN.test(subject)) {
     return '';
   }
   return `
