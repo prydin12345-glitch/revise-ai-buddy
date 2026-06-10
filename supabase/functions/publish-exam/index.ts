@@ -189,7 +189,7 @@ serve(async (req) => {
 
     // Insert questions from drafts into exam_questions table
     const questionInserts = drafts.map((draft: any) => {
-      const mappedType = mapQuestionType(draft.question_type, draft.marks);
+      let mappedType = mapQuestionType(draft.question_type, draft.marks);
       let correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
         ? 'A' // Default to A if missing for MCQs
         : draft.correct_answer;
@@ -224,6 +224,15 @@ serve(async (req) => {
             console.log(`Question ${draft.question_number}: Built canonical graph_transformation wrapper`);
           } else {
             console.warn(`Question ${draft.question_number}: graph_transformation has no parts[] - falling back to plotting`);
+            // Actually perform the fallback (previously this only logged, and the
+            // invalid row aborted the entire exam insert batch).
+            mappedType = 'graph_plotting';
+            const plottingWrapper = buildGraphWrapper(draft, 'graph_plotting');
+            if (plottingWrapper) {
+              options = plottingWrapper;
+              diagramConfigOut = plottingWrapper;
+              correctAnswer = JSON.stringify(plottingWrapper);
+            }
           }
         } else {
           const wrapper = buildGraphWrapper(draft, mappedType);
