@@ -16,6 +16,36 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // ── ADMIN-ONLY GUARD ─────────────────────────────────────────────────
+  // This maintenance endpoint rewrites the entire question bank with
+  // service-role privileges. It must never be callable by ordinary users.
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorised" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: { user }, error: authError } =
+    await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorised" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: adminRow } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (!adminRow) {
+    console.warn(`sanitise-questions blocked: non-admin user ${user.id}`);
+    return new Response(JSON.stringify({ error: "Admin access required" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   const batchSize = 200;
   let offset = 0;
   let totalUpdated = 0;
