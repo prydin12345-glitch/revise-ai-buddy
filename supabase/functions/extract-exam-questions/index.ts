@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
@@ -36,6 +37,18 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // ── RATE LIMITING ──────────────────────────────────────────────────
+    // PDF extraction is the most expensive AI operation in the app.
+    const rateCheck = await enforceRateLimit(supabase, user.id, 'extract-exam-questions', {
+      dailyLimit: 20,
+      burstLimit: 5,
+      burstWindowMinutes: 10,
+    });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders);
+    }
+    // ───────────────────────────────────────────────────────────────────
 
     const { draftId } = await req.json();
     if (!draftId) {
