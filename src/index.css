@@ -456,3 +456,10 @@ math-field::part(selection) {
     border-radius: 10px !important;
   }
 }
+
+/* Prevent fonts substituting (c)/(r)/(tm) with the symbol glyphs.
+   Manrope's contextual ligatures turned "(c)" sub-part labels into "©". */
+html {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "dlig" 0, "calt" 0;
+}
