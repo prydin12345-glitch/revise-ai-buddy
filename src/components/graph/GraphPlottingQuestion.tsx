@@ -876,9 +876,26 @@ export function GraphPlottingQuestion({
   useEffect(() => {
     if (readOnly) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
+      // Escape: cancel in-progress placement, then clear selection, then exit tool
+      if (e.key === 'Escape') {
+        if (selectedJoinPoints.length > 0) {
+          e.preventDefault();
+          setSelectedJoinPoints([]);
+        } else if (selectedSegmentIds.length > 0) {
+          e.preventDefault();
+          onSelectedSegmentIdsChange([]);
+        } else if (currentJoinMode || eraseMode) {
+          e.preventDefault();
+          onJoinModeChange?.(null);
+          setEraseMode(false);
+        }
+        return;
+      }
+
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       if (selectedSegmentIds.length === 0) return;
       e.preventDefault();
       saveToHistory();
@@ -887,7 +904,7 @@ export function GraphPlottingQuestion({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [readOnly, selectedSegmentIds, segments, onSegmentsChange, onSelectedSegmentIdsChange, saveToHistory]);
+  }, [readOnly, selectedSegmentIds, segments, onSegmentsChange, onSelectedSegmentIdsChange, saveToHistory, selectedJoinPoints, currentJoinMode, eraseMode, onJoinModeChange]);
 
   const clearAll = useCallback(() => {
     if (readOnly) return;
@@ -2213,11 +2230,29 @@ export function GraphPlottingQuestion({
         ref={chartContainerRef}
         className="relative w-full aspect-square border rounded-lg bg-card select-none"
         style={{ 
-          touchAction: 'none',
+          touchAction: !readOnly && (currentJoinMode || eraseMode) ? 'none' : 'pan-y',
           WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
       >
+        {/* In-progress placement indicator with an escape hatch */}
+        {!readOnly && selectedJoinPoints.length > 0 && (
+          <div className="pointer-events-auto absolute left-1/2 top-2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-foreground/80 px-3 py-1 text-xs text-background shadow-md">
+            <span>
+              {currentJoinMode === 'angle'
+                ? `Placing angle (${selectedJoinPoints.length}/3) — Esc to cancel`
+                : `Placing line (${selectedJoinPoints.length}/2) — Esc to cancel`}
+            </span>
+            <button
+              type="button"
+              aria-label="Cancel placement"
+              className="rounded-full px-1 leading-none hover:opacity-70"
+              onClick={() => setSelectedJoinPoints([])}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {chartContainerSize.width > 0 && chartContainerSize.height > 0 && (
           <GraphCanvasPlot
             key={`canvas-${questionId}`}
