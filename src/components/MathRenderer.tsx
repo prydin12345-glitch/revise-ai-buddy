@@ -204,6 +204,15 @@ const convertBareSubSup = (content: string): string => {
     .map((seg) => {
       if (seg.startsWith('$')) return seg; // already math — leave untouched
       return seg
+        // Broken vector notation the AI emits with lost backslashes:
+        // "pmatrix 1 \\ -2 pmatrix" -> proper KaTeX column vector
+        .replace(/\bpmatrix\s+([^p$]{1,40}?)\s+pmatrix\b/g, (_m, body) => `$\\begin{pmatrix} ${body.trim()} \\end{pmatrix}$`)
+        // Bare \begin{pmatrix}...\end{pmatrix} without $ delimiters
+        .replace(/(?<!\$)(\\begin\{pmatrix\}[\s\S]{1,80}?\\end\{pmatrix\})(?!\$)/g, (_m, body) => `$${body}$`)
+        // Bare LaTeX commands leaked outside math mode: \frac{..}{..}, \sqrt{..}, \vec{..}
+        .replace(/(?<!\$)(\\(?:frac|sqrt|vec|overrightarrow)\{[^{}$]{1,40}\}(?:\{[^{}$]{1,40}\})?)(?!\$)/g, (_m, body) => `$${body}$`)
+        // Parenthesised-base superscripts: (x-2)^2, (x+1)^3
+        .replace(/(\([^()\s]{1,24}\))\^(-?\d{1,3}|[A-Za-z])/g, (_m, base, sup) => `$${base}^{${sup}}$`)
         // Subscripts: C_1, R_2, v_x  (base ≤3 letters; sub = digits or one letter)
         .replace(/\b([A-Za-z]{1,3})_(\d{1,3}|[A-Za-z])\b/g, (_m, base, sub) => `$${base}_{${sub}}$`)
         // Superscripts: x^2, cm^3, 10^-4  (sup = optional minus + digits, or one letter)
