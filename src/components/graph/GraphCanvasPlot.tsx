@@ -558,6 +558,37 @@ export function GraphCanvasPlot({
           Hold Ctrl (⌘ on Mac) + scroll to zoom
         </div>
       )}
+      {/* Persistent mode indicator: beginners can always see what a click
+          or drag will do on this canvas. */}
+      {!readOnly && (
+        <div className="pointer-events-none absolute bottom-2 left-2 z-20 rounded-full bg-background/85 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm border">
+          {eraseMode
+            ? '⌫ Eraser — tap an element to remove it'
+            : joinMode === 'straight'
+            ? '― Straight line — click two points'
+            : joinMode === 'curved'
+            ? '∿ Curved line — click two points, drag the middle handle to bend'
+            : joinMode === 'freeform'
+            ? '✏ Freeform — press and drag to draw'
+            : joinMode === 'angle'
+            ? '∠ Angle — click three points (end, vertex, end)'
+            : joinMode === 'best_fit'
+            ? '↗ Best fit — click two points for your line'
+            : '✋ Pan — drag to move · Ctrl+scroll to zoom · tap to plot'}
+        </div>
+      )}
+      {/* One-click way home after panning/zooming */}
+      {panZoomEnabled && (
+        <button
+          type="button"
+          onClick={resetCamera}
+          title="Reset view"
+          aria-label="Reset view"
+          className="pointer-events-auto absolute bottom-2 right-2 z-20 rounded-full bg-background/85 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm border hover:bg-background"
+        >
+          ⌖ Reset view
+        </button>
+      )}
       <GraphCanvas
         width={width}
         height={height}
