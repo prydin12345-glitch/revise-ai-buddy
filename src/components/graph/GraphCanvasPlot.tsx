@@ -272,7 +272,7 @@ export function GraphCanvasPlot({
     screenToGraph,
     zoom,
     handlers: cameraHandlers,
-    isPanning,
+    isPanning, zoomHintVisible,
     resetCamera,
   } = useGraphCamera({
     initialDomainX: effectiveDomainX,
@@ -549,6 +549,11 @@ export function GraphCanvasPlot({
         WebkitUserSelect: 'none',
       }}
     >
+      {zoomHintVisible && (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-foreground/80 px-3 py-1.5 text-xs text-background shadow-md">
+          Hold Ctrl (⌘ on Mac) + scroll to zoom
+        </div>
+      )}
       <GraphCanvas
         width={width}
         height={height}
