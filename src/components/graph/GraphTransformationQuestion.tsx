@@ -44,6 +44,34 @@ interface GraphTransformationQuestionProps {
   subjectColor?: string;
 }
 
+
+// Densify sparse curve data with Catmull-Rom interpolation so reference
+// curves render smoothly. AI-emitted referenceCurve arrays often contain
+// only 4-9 points, which previously drew as straight polyline segments.
+function densifyCurve(data: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (!Array.isArray(data) || data.length < 3 || data.length >= 40) return data;
+  const pts = [...data].sort((a, b) => a.x - b.x);
+  const out: Array<{ x: number; y: number }> = [];
+  const segments = Math.ceil(80 / (pts.length - 1));
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    for (let t = 0; t < segments; t++) {
+      const u = t / segments;
+      const u2 = u * u;
+      const u3 = u2 * u;
+      out.push({
+        x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * u + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * u2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * u3),
+        y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * u + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * u2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * u3),
+      });
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
 export const GraphTransformationQuestion = ({
   config,
   answers,
@@ -56,6 +84,11 @@ export const GraphTransformationQuestion = ({
   const [activeSketchPart, setActiveSketchPart] = useState<string | null>(null);
 
   // Build reference curve series for display
+  // Drawing mode per sketch part. Previously hard-coded to null with a
+  // no-op handler, which made Straight/Curved/Freeform/Angle dead in
+  // transformation sketches.
+  const [partJoinModes, setPartJoinModes] = useState<Record<string, "straight" | "curved" | "freeform" | "angle" | "best_fit" | null>>({});
+
   // Normalise keyPoints: tolerate both {coordinates:{x,y}} (canonical) and
   // flat {x,y} (what AI extraction commonly emits). Without this, the curve
   // interpolation crashed silently and no reference curve rendered.
@@ -71,12 +104,41 @@ export const GraphTransformationQuestion = ({
       .filter(Boolean) as Array<{ id: string; type: string; label?: string; coordinates: { x: number; y: number } }>;
   }, [config.originalFunction?.keyPoints]);
 
+  // Widen display domains so the grid always shows all relevant quadrants:
+  // include the origin with at least one negative unit on each axis, and pad
+  // one unit beyond every data point. Fixes AI-emitted domains like [0, 5]
+  // that clipped the view to the first quadrant.
+  const effectiveDomains = useMemo(() => {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    const collect = (pts?: Array<{ x: number; y: number }>) => {
+      pts?.forEach((pt) => {
+        if (pt && isFinite(pt.x) && isFinite(pt.y)) { xs.push(pt.x); ys.push(pt.y); }
+      });
+    };
+    collect(config.originalFunction?.referenceCurve?.data as any);
+    normalizedKeyPoints.forEach((kp) => { xs.push(kp.coordinates.x); ys.push(kp.coordinates.y); });
+    const cfgX = (config.domainX as [number, number]) ?? [-10, 10];
+    const cfgY = (config.domainY as [number, number]) ?? [-10, 10];
+    const xLo = xs.length ? Math.min(...xs) - 1 : cfgX[0];
+    const xHi = xs.length ? Math.max(...xs) + 1 : cfgX[1];
+    const yLo = ys.length ? Math.min(...ys) - 1 : cfgY[0];
+    const yHi = ys.length ? Math.max(...ys) + 1 : cfgY[1];
+    return {
+      domainX: [Math.floor(Math.min(cfgX[0], xLo, -1)), Math.ceil(Math.max(cfgX[1], xHi, 1))] as [number, number],
+      domainY: [Math.floor(Math.min(cfgY[0], yLo, -1)), Math.ceil(Math.max(cfgY[1], yHi, 1))] as [number, number],
+    };
+  }, [config.domainX, config.domainY, config.originalFunction?.referenceCurve, normalizedKeyPoints]);
+
   const referenceSeries = useMemo(() => {
     const series: GraphSeries[] = [];
     
-    // Primary: use provided reference curve
+    // Primary: use provided reference curve (densified for smooth rendering)
     if (config.originalFunction.referenceCurve) {
-      series.push(config.originalFunction.referenceCurve);
+      series.push({
+        ...config.originalFunction.referenceCurve,
+        data: densifyCurve(config.originalFunction.referenceCurve.data as any) as any,
+      });
     } else if (normalizedKeyPoints.length >= 3) {
       // Fallback: generate curve from key points via interpolation
       const sortedPoints = [...normalizedKeyPoints]
@@ -152,7 +214,8 @@ export const GraphTransformationQuestion = ({
 
   // Render the reference function diagram
   const renderReferenceDiagram = () => {
-    const { originalFunction, domainX, domainY } = config;
+    const { originalFunction } = config;
+    const { domainX, domainY } = effectiveDomains;
 
     return (
       <Card className="mb-6 border-2" style={{ borderColor: `${subjectColor}40` }}>
@@ -274,8 +337,8 @@ export const GraphTransformationQuestion = ({
       chartType: 'scatter',
       xLabel: config.xLabel || 'x',
       yLabel: config.yLabel || 'y',
-      domainX: config.domainX,
-      domainY: config.domainY,
+      domainX: effectiveDomains.domainX,
+      domainY: effectiveDomains.domainY,
       gridEnabled: true,
       stepX: config.sketchGridStep || 1,
       stepY: config.sketchGridStep || 1,
@@ -296,14 +359,15 @@ export const GraphTransformationQuestion = ({
     if (config.originalFunction.referenceCurve) {
       sketchReferenceSeries.push({
         ...config.originalFunction.referenceCurve,
+        data: densifyCurve(config.originalFunction.referenceCurve.data as any) as any,
         id: 'reference-original',
         label: 'y = f(x)',
         color: '#999999',
         lineStyle: 'dashed',
       });
-    } else if (config.originalFunction.keyPoints?.length >= 3) {
-      // Generate reference from key points
-      const sortedPoints = [...config.originalFunction.keyPoints]
+    } else if (normalizedKeyPoints.length >= 3) {
+      // Generate reference from key points (shape-normalised)
+      const sortedPoints = [...normalizedKeyPoints]
         .sort((a, b) => a.coordinates.x - b.coordinates.x);
       const curveData: GraphPoint[] = [];
       const xMin = sortedPoints[0].coordinates.x - 1;
@@ -345,11 +409,11 @@ export const GraphTransformationQuestion = ({
             studentPoints={partAnswer.sketchPoints || []}
             segments={partAnswer.sketchSegments || []}
             drawnPaths={partAnswer.sketchCurve || []}
-            joinMode={null}
+            joinMode={partJoinModes[part.id] ?? null}
             onPointsChange={(points) => {
               onAnswerChange(part.id, { ...partAnswer, sketchPoints: points });
             }}
-            onJoinModeChange={() => {}}
+            onJoinModeChange={(mode) => setPartJoinModes((prev) => ({ ...prev, [part.id]: mode }))}
             onSegmentsChange={(segments) => {
               onAnswerChange(part.id, { ...partAnswer, sketchSegments: segments });
             }}
@@ -503,7 +567,7 @@ export const GraphTransformationQuestion = ({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="font-mono">
+              <Badge variant="outline" className="font-mono" style={{ fontVariantLigatures: "none", fontFeatureSettings: "'liga' 0, 'calt' 0" }}>
                 ({part.id})
               </Badge>
               <span className="text-sm text-muted-foreground">[{part.marks} mark{part.marks > 1 ? 's' : ''}]</span>
@@ -533,10 +597,20 @@ export const GraphTransformationQuestion = ({
           )}
         </div>
         
-        {/* Render appropriate input based on question type */}
-        {part.questionType === 'sketch' && renderSketchPart(part)}
-        {part.questionType === 'coordinates' && renderCoordinatePart(part)}
-        {(part.questionType === 'equation' || part.questionType === 'value' || part.questionType === 'text' || part.questionType === 'set') && renderTextPart(part)}
+        {/* Render input by question type. Runtime guard: any part whose
+            prompt says sketch/draw/plot gets the canvas even if the AI
+            mis-typed it as a text part. */}
+        {(() => {
+          const wantsCanvas = /(sketch|draw|plot)/i.test(part.prompt || '');
+          const effectiveType = part.questionType === 'sketch' || wantsCanvas ? 'sketch' : part.questionType;
+          return (
+            <>
+              {effectiveType === 'sketch' && renderSketchPart(part)}
+              {effectiveType === 'coordinates' && renderCoordinatePart(part)}
+              {(effectiveType === 'equation' || effectiveType === 'value' || effectiveType === 'text' || effectiveType === 'set') && renderTextPart(part)}
+            </>
+          );
+        })()}
         
         {/* Feedback */}
         {markingResult?.feedback && (
