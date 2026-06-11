@@ -118,8 +118,8 @@ export function GraphPlottingQuestion({
   showProtractor = false,
   protractorState,
   onProtractorStateChange,
-  selectedSegmentIds = [],
-  onSelectedSegmentIdsChange,
+  selectedSegmentIds: selectedSegmentIdsProp = [],
+  onSelectedSegmentIdsChange: onSelectedSegmentIdsChangeProp,
   angleMeasurements = [],
   onAngleMeasurementsChange,
   referenceSeries = [],
@@ -128,6 +128,14 @@ export function GraphPlottingQuestion({
   bestFitLine: bestFitLineProp = null,
   onBestFitLineChange,
 }: GraphPlottingQuestionProps) {
+  // Selection works standalone: if no parent controls it (e.g. transformation
+  // sketches), fall back to internal state. Previously selection silently did
+  // nothing without the controlled props, which made select-and-delete dead.
+  const [internalSelectedSegmentIds, setInternalSelectedSegmentIds] = useState<string[]>([]);
+  const isSelectionControlled = typeof onSelectedSegmentIdsChangeProp === 'function';
+  const selectedSegmentIds = isSelectionControlled ? selectedSegmentIdsProp : internalSelectedSegmentIds;
+  const onSelectedSegmentIdsChange = isSelectionControlled ? onSelectedSegmentIdsChangeProp : setInternalSelectedSegmentIds;
+
   const chartRef = useRef<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
@@ -864,6 +872,23 @@ export function GraphPlottingQuestion({
   /**
    * Clear all points and segments.
    */
+  // Delete / Backspace removes selected elements (per drawing-tools spec)
+  useEffect(() => {
+    if (readOnly) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (selectedSegmentIds.length === 0) return;
+      e.preventDefault();
+      saveToHistory();
+      onSegmentsChange?.(segments.filter((s) => !selectedSegmentIds.includes(s.id)));
+      onSelectedSegmentIdsChange([]);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [readOnly, selectedSegmentIds, segments, onSegmentsChange, onSelectedSegmentIdsChange, saveToHistory]);
+
   const clearAll = useCallback(() => {
     if (readOnly) return;
     if (studentPoints.length === 0 && segments.length === 0 && drawnPaths.length === 0 && angleMeasurements.length === 0) return;
