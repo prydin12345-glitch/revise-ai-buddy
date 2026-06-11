@@ -281,6 +281,19 @@ export function ensureRenderableGraphConfigs(questions: any[]): void {
       }
 
       if (hasRenderableGraphConfig(q)) continue;
+
+      // Transformation questions describing the curve in prose: rebuild the
+      // reference curve from the described coordinates before giving up.
+      if (q.question_type === 'graph_transformation') {
+        const rebuilt = reconstructTransformationWrapper(q.question_text || '', Number(q.marks) || undefined);
+        if (rebuilt) {
+          console.log(`Q${q.question_number}: reconstructed transformation curve from question text (${rebuilt.originalFunction.keyPoints.length} key points)`);
+          q.diagram_config = rebuilt;
+          q.correct_answer = JSON.stringify({ ...rebuilt, modelAnswer: typeof q.correct_answer === 'string' ? q.correct_answer : '' });
+          continue;
+        }
+      }
+
       console.warn(`Q${q.question_number}: graph question had no renderable config — injecting blank canvas`);
       const fallback = {
         graphType: 'plotting',
@@ -301,5 +314,106 @@ export function ensureRenderableGraphConfigs(questions: any[]): void {
     } catch (err) {
       console.error('ensureRenderableGraphConfigs error:', err);
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROSE-TO-CURVE RECONSTRUCTION
+// ═══════════════════════════════════════════════════════════════════════════
+// When the AI emits a graph_transformation question as plain prose ("The
+// graph has a minimum point at (2, -1) and crosses the y-axis at (0, 3)...")
+// the coordinates are sitting right there in the text. Rather than shipping
+// a blank canvas under a question that says "the graph is shown below",
+// reconstruct the reference curve deterministically: parse the described
+// key points, interpolate a smooth curve through them, and build the full
+// canonical transformation wrapper.
+
+const NUM = String.raw`-?\d+(?:\.\d+)?`;
+const PAIR = String.raw`\(\s*(${NUM})\s*,\s*(${NUM})\s*\)`;
+
+export function reconstructTransformationWrapper(text: string, marks?: number): any | null {
+  try {
+    if (!text || typeof text !== 'string') return null;
+    const pts: Array<{ x: number; y: number; type: string }> = [];
+    const add = (x: number, y: number, type: string) => {
+      if (isFinite(x) && isFinite(y) && !pts.some((pt) => pt.x === x && pt.y === y)) {
+        pts.push({ x, y, type });
+      }
+    };
+
+    for (const m of text.matchAll(new RegExp(`(minimum|maximum|turning)\\s+point[^.]{0,50}?${PAIR}`, 'gi'))) {
+      add(parseFloat(m[2]), parseFloat(m[3]), m[1].toLowerCase() === 'maximum' ? 'maximum' : 'minimum');
+    }
+    for (const m of text.matchAll(new RegExp(`y[\\s-]?axis[^.]{0,40}?${PAIR}`, 'gi'))) {
+      add(parseFloat(m[1]), parseFloat(m[2]), 'y-intercept');
+    }
+    // x-axis sentences may list several pairs: "(1, 0) and (3, 0)"
+    for (const m of text.matchAll(/x[\s-]?axis[^.]*/gi)) {
+      for (const pm of m[0].matchAll(new RegExp(PAIR, 'g'))) {
+        add(parseFloat(pm[1]), parseFloat(pm[2]), 'x-intercept');
+      }
+    }
+    for (const m of text.matchAll(new RegExp(`(?:passes?\\s+through|point\\s+at)[^.]{0,40}?${PAIR}`, 'gi'))) {
+      add(parseFloat(m[1]), parseFloat(m[2]), 'point');
+    }
+
+    if (pts.length < 3) return null;
+
+    // Lagrange interpolation through the described points, sampled densely
+    const sorted = [...pts].sort((a, b) => a.x - b.x);
+    // Duplicate x values make Lagrange explode — bail out
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].x === sorted[i - 1].x) return null;
+    }
+    const xMin = sorted[0].x - 1;
+    const xMax = sorted[sorted.length - 1].x + 1;
+    const step = (xMax - xMin) / 40;
+    const data: Array<{ x: number; y: number }> = [];
+    for (let x = xMin; x <= xMax + 1e-9; x += step) {
+      let y = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        let term = sorted[i].y;
+        for (let j = 0; j < sorted.length; j++) {
+          if (i !== j) term *= (x - sorted[j].x) / (sorted[i].x - sorted[j].x);
+        }
+        y += term;
+      }
+      data.push({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+    }
+
+    // Sanity check: wild interpolation blow-ups mean the points don't
+    // describe a sensible single curve — better no curve than a wrong one.
+    const ys = data.map((pt) => pt.y);
+    if (Math.max(...ys.map(Math.abs)) > 1000) return null;
+
+    const yLo = Math.min(...ys, ...pts.map((pt) => pt.y)) - 1;
+    const yHi = Math.max(...ys, ...pts.map((pt) => pt.y)) + 1;
+
+    return {
+      graphType: 'transformation',
+      originalFunction: {
+        description: 'y = f(x)',
+        keyPoints: pts.map((pt, i) => ({
+          id: `kp-${i}`,
+          type: pt.type,
+          coordinates: { x: pt.x, y: pt.y },
+          label: `(${pt.x}, ${pt.y})`,
+        })),
+        referenceCurve: { id: 'f', label: 'y = f(x)', data },
+      },
+      domainX: [Math.floor(Math.min(xMin, -1)), Math.ceil(Math.max(xMax, 1))],
+      domainY: [Math.floor(Math.min(yLo, -1)), Math.ceil(Math.max(yHi, 1))],
+      parts: [{
+        id: 'a',
+        transformation: '',
+        questionType: 'sketch',
+        prompt: text,
+        marks: marks ?? 3,
+        correctAnswer: {},
+      }],
+    };
+  } catch (err) {
+    console.error('reconstructTransformationWrapper error:', err);
+    return null;
   }
 }
