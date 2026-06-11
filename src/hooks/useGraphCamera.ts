@@ -74,6 +74,8 @@ export function useGraphCamera({
   
   // Panning state
   const [isPanning, setIsPanning] = useState(false);
+  const [zoomHintVisible, setZoomHintVisible] = useState(false);
+  const zoomHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panStartRef = useRef<{ x: number; y: number; camera: CameraState } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   
@@ -248,7 +250,17 @@ export function useGraphCamera({
   
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!interactionEnabled) return;
-    
+
+    // Zoom only with Ctrl (Cmd on Mac) held — plain scrolling must keep
+    // scrolling the page, like Google Maps / Desmos. Pinch-trackpad zoom
+    // arrives as a wheel event with ctrlKey=true, so it still works.
+    if (!e.ctrlKey && !e.metaKey) {
+      setZoomHintVisible(true);
+      if (zoomHintTimerRef.current) clearTimeout(zoomHintTimerRef.current);
+      zoomHintTimerRef.current = setTimeout(() => setZoomHintVisible(false), 1500);
+      return; // no preventDefault — let the page scroll
+    }
+
     // Prevent page zoom - must stop propagation and prevent default
     e.preventDefault();
     e.stopPropagation();
@@ -301,12 +313,25 @@ export function useGraphCamera({
       pointerIdRef.current = e.pointerId;
       panStartRef.current = { x: e.clientX, y: e.clientY, camera: { ...camera } };
       setIsPanning(true);
-      (e.target as Element).setPointerCapture(e.pointerId);
+      // Capture on the stable container (currentTarget), NOT e.target: the
+      // target may be a transient SVG node that React unmounts on re-render
+      // (e.g. placing an angle point), which swallowed the pointerup and
+      // left the pan permanently stuck to the cursor.
+      try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch {}
     }
   }, [interactionEnabled, camera]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!interactionEnabled) return;
+
+    // Recovery: if we think we're panning but no button is held, the
+    // pointerup was lost (e.g. released outside the window) — end the pan.
+    if (pointerIdRef.current === e.pointerId && e.pointerType !== 'touch' && e.buttons === 0) {
+      pointerIdRef.current = null;
+      panStartRef.current = null;
+      setIsPanning(false);
+      return;
+    }
     
     // Update touch position
     if (e.pointerType === 'touch' && touchesRef.current.has(e.pointerId)) {
@@ -419,5 +444,6 @@ export function useGraphCamera({
       onPointerCancel: handlePointerCancel,
     },
     isPanning,
+    zoomHintVisible,
   };
 }
