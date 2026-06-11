@@ -544,7 +544,11 @@ export function GraphCanvasPlot({
       style={{ 
         width, 
         height, 
-        touchAction: 'none',
+        // Page-scroll friendly: a finger on the canvas scrolls the page
+        // normally; only an armed drawing/erase tool claims touch input.
+        // Point/segment handles set their own touchAction:none, so dragging
+        // existing elements still works in either state.
+        touchAction: !readOnly && (joinMode || eraseMode) ? 'none' : 'pan-y',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
