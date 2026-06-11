@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { reconstructTransformationWrapper } from "../_shared/question-postprocessor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -223,15 +224,25 @@ serve(async (req) => {
             correctAnswer = JSON.stringify(wrapper);
             console.log(`Question ${draft.question_number}: Built canonical graph_transformation wrapper`);
           } else {
-            console.warn(`Question ${draft.question_number}: graph_transformation has no parts[] - falling back to plotting`);
-            // Actually perform the fallback (previously this only logged, and the
-            // invalid row aborted the entire exam insert batch).
-            mappedType = 'graph_plotting';
-            const plottingWrapper = buildGraphWrapper(draft, 'graph_plotting');
-            if (plottingWrapper) {
-              options = plottingWrapper;
-              diagramConfigOut = plottingWrapper;
-              correctAnswer = JSON.stringify(plottingWrapper);
+            // First: try to rebuild the reference curve from the prose
+            // description ("minimum point at (2, -1)..." has the coordinates).
+            const rebuilt = reconstructTransformationWrapper(draft.question_text || '', Number(draft.marks) || undefined);
+            if (rebuilt) {
+              console.log(`Question ${draft.question_number}: reconstructed transformation curve from question text`);
+              options = rebuilt;
+              diagramConfigOut = rebuilt;
+              correctAnswer = JSON.stringify({ ...rebuilt, modelAnswer: draft.correct_answer || '' });
+            } else {
+              console.warn(`Question ${draft.question_number}: graph_transformation has no parts[] - falling back to plotting`);
+              // Actually perform the fallback (previously this only logged, and the
+              // invalid row aborted the entire exam insert batch).
+              mappedType = 'graph_plotting';
+              const plottingWrapper = buildGraphWrapper(draft, 'graph_plotting');
+              if (plottingWrapper) {
+                options = plottingWrapper;
+                diagramConfigOut = plottingWrapper;
+                correctAnswer = JSON.stringify(plottingWrapper);
+              }
             }
           }
         } else {
