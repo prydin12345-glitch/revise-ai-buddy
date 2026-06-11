@@ -577,7 +577,20 @@ const ExamInProgress = () => {
         return 0;
       });
 
-      setQuestions(sortedQuestions);
+      // Strip a leading "(b) " style marker from question text when it
+      // duplicates the question's own letter — the sub-part badge shows it.
+      const dedupedQuestions = sortedQuestions.map((q: any) => {
+        const letter = String(q.question_number ?? '').match(/([a-z])\)?\s*$/i)?.[1]?.toLowerCase();
+        if (letter && typeof q.question_text === 'string') {
+          const pattern = new RegExp(`^\\s*\\(${letter}\\)\\s*`, 'i');
+          if (pattern.test(q.question_text)) {
+            return { ...q, question_text: q.question_text.replace(pattern, '') };
+          }
+        }
+        return q;
+      });
+
+      setQuestions(dedupedQuestions);
       setIsTeacher(Boolean(data.isTeacher));
       console.log('[Resume Debug] isTeacher:', data.isTeacher, 'isReadOnly:', Boolean(data.isTeacher) && !treatAsStudent);
       setExistingAnswers(data.existingAnswers || []);
@@ -1090,16 +1103,30 @@ const ExamInProgress = () => {
     return questionNumber.match(/^(\d+)/)?.[1] || questionNumber;
   };
 
+  // Resolve each question's parent number sequentially: letter-only numbers
+  // like "(b)" or "(c)" belong to the most recent numeric parent. Without
+  // this they orphaned into single-question groups and rendered with the
+  // full "Q1(c)" badge instead of a small "(c)" sub-part label.
+  const resolvedParents = (() => {
+    let last = '';
+    return questions.map((q) => {
+      const m = String(q.question_number ?? '').match(/^(\d+)/);
+      if (m) { last = m[1]; return m[1]; }
+      return last || String(q.question_number ?? '');
+    });
+  })();
+
   // Smart grouping: Keep consecutive MCQs together, group sub-questions (1a, 1b) together
   const groupedQuestions = questions.reduce((acc, question, index) => {
     const prevQuestion = index > 0 ? questions[index - 1] : null;
-    const currentParent = getParentQuestionNumber(question.question_number);
-    const prevParent = prevQuestion ? getParentQuestionNumber(prevQuestion.question_number) : null;
+    const currentParent = resolvedParents[index];
+    const prevParent = prevQuestion ? resolvedParents[index - 1] : null;
     
-    // Determine if we should start a new group
+    // Determine if we should start a new group. Same-parent sub-questions
+    // stay together even when their types differ (text part + sketch part).
     const shouldStartNewGroup = 
       index === 0 || // First question
-      question.question_type !== prevQuestion?.question_type || // Type changed
+      (question.question_type === 'mcq') !== (prevQuestion?.question_type === 'mcq') || // crossing MCQ boundary
       (question.question_type === 'mcq') || // Always group MCQs separately
       (question.question_type !== 'mcq' && currentParent !== prevParent); // Different parent for non-MCQ
     
@@ -1124,8 +1151,9 @@ const ExamInProgress = () => {
     } else if (firstQ.question_type === 'mcq') {
       label = `Questions ${firstQ.question_number}-${lastQ.question_number}`;
     } else {
-      // Sub-questions like 1a, 1b
-      const parent = getParentQuestionNumber(firstQ.question_number);
+      // Sub-questions like 1a, 1b — use the resolved numeric parent
+      const firstIdx = questions.indexOf(firstQ);
+      const parent = firstIdx >= 0 ? resolvedParents[firstIdx] : getParentQuestionNumber(firstQ.question_number);
       label = `Question ${parent}`;
     }
     
