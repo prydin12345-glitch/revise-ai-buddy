@@ -120,8 +120,8 @@ export function GraphPlottingQuestion({
   onProtractorStateChange,
   selectedSegmentIds: selectedSegmentIdsProp = [],
   onSelectedSegmentIdsChange: onSelectedSegmentIdsChangeProp,
-  angleMeasurements = [],
-  onAngleMeasurementsChange,
+  angleMeasurements: angleMeasurementsProp = [],
+  onAngleMeasurementsChange: onAngleMeasurementsChangeProp,
   referenceSeries = [],
   expectedCurveSeries = [],
   questionText,
@@ -133,6 +133,10 @@ export function GraphPlottingQuestion({
   // nothing without the controlled props, which made select-and-delete dead.
   const [internalSelectedSegmentIds, setInternalSelectedSegmentIds] = useState<string[]>([]);
   const isSelectionControlled = typeof onSelectedSegmentIdsChangeProp === 'function';
+  const [internalAngleMeasurements, setInternalAngleMeasurements] = useState<any[]>([]);
+  const isAngleControlled = typeof onAngleMeasurementsChangeProp === 'function';
+  const angleMeasurements = isAngleControlled ? angleMeasurementsProp : internalAngleMeasurements;
+  const onAngleMeasurementsChange = isAngleControlled ? onAngleMeasurementsChangeProp : setInternalAngleMeasurements;
   const selectedSegmentIds = isSelectionControlled ? selectedSegmentIdsProp : internalSelectedSegmentIds;
   const onSelectedSegmentIdsChange = isSelectionControlled ? onSelectedSegmentIdsChangeProp : setInternalSelectedSegmentIds;
 
@@ -2072,15 +2076,15 @@ export function GraphPlottingQuestion({
               }}
               className="ml-auto flex-wrap"
             >
-              <ToggleGroupItem value="straight" aria-label="Straight lines" disabled={isAngleMode}>
+              <ToggleGroupItem value="straight" aria-label="Straight lines">
                 <Minus className="h-4 w-4 mr-1" />
                 Straight
               </ToggleGroupItem>
-              <ToggleGroupItem value="curved" aria-label="Curved lines" disabled={isAngleMode}>
+              <ToggleGroupItem value="curved" aria-label="Curved lines">
                 <Spline className="h-4 w-4 mr-1" />
                 Curved
               </ToggleGroupItem>
-              <ToggleGroupItem value="freeform" aria-label="Freeform drawing" disabled={isAngleMode}>
+              <ToggleGroupItem value="freeform" aria-label="Freeform drawing">
                 <Pencil className="h-4 w-4 mr-1" />
                 Freeform
               </ToggleGroupItem>
