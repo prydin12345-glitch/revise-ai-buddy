@@ -142,18 +142,30 @@ export function splitMultiPartQuestions(questions: any[]): any[] {
       // Find (a), then the first (b) AFTER it, then (c) after that, etc.
       // Sequential forward search means later references like "using your
       // answer to part (a)" inside part (c) don't break detection.
-      const markers: Array<{ letter: string; index: number }> = [];
-      let searchFrom = 0;
-      for (let li = 0; li < 8; li++) {
-        const letter = String.fromCharCode(97 + li); // a, b, c...
-        const idx = text.indexOf(`(${letter})`, searchFrom);
-        if (idx === -1) break;
-        markers.push({ letter, index: idx });
-        searchFrom = idx + 3;
+      // The sequence may start at (a) or (b) — the AI sometimes keeps part (a)
+      // implicit in the stem and only marks later parts.
+      let markers: Array<{ letter: string; index: number }> = [];
+      for (const startLi of [0, 1]) {
+        const found: Array<{ letter: string; index: number }> = [];
+        let searchFrom = 0;
+        for (let li = startLi; li < 8; li++) {
+          const letter = String.fromCharCode(97 + li); // a, b, c...
+          const idx = text.indexOf(`(${letter})`, searchFrom);
+          if (idx === -1) break;
+          found.push({ letter, index: idx });
+          searchFrom = idx + 3;
+        }
+        if (found.length >= 2) { markers = found; break; }
       }
       if (markers.length < 2) { out.push(q); continue; }
 
-      const stem = text.slice(0, markers[0].index).trim();
+      let stem = text.slice(0, markers[0].index).trim();
+      // If the sequence starts at (b), the stem usually contains the implicit
+      // part (a) task — emit it as its own sub-question.
+      if (markers[0].letter !== 'a' && /\b(sketch|draw|plot|find|express|calculate|write|state|show|solve)\b/i.test(stem) && stem.length > 40) {
+        markers.unshift({ letter: 'a', index: 0 });
+        stem = '';
+      }
       const baseNumber = String(q.question_number ?? '').match(/\d+/)?.[0] ?? String(q.question_number ?? '1');
       const totalMarks = Number(q.marks) || markers.length;
       const baseMarks = Math.max(1, Math.floor(totalMarks / markers.length));
@@ -214,10 +226,60 @@ function hasRenderableGraphConfig(q: any): boolean {
   return false;
 }
 
+/** Widen domains in a parsed graph wrapper: always include the origin with
+ *  at least one negative unit per axis, and pad one unit beyond all data.
+ *  Prevents AI-emitted domains like [0, 5] clipping the view to quadrant 1. */
+function widenWrapperDomains(wrapper: any): boolean {
+  if (!wrapper || typeof wrapper !== 'object') return false;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const collect = (pts: any) => {
+    if (!Array.isArray(pts)) return;
+    for (const pt of pts) {
+      const x = typeof pt?.x === 'number' ? pt.x : pt?.coordinates?.x;
+      const y = typeof pt?.y === 'number' ? pt.y : pt?.coordinates?.y;
+      if (isFinite(x) && isFinite(y)) { xs.push(x); ys.push(y); }
+    }
+  };
+  const cfg = wrapper.graphConfig ?? wrapper.transformationConfig ?? wrapper;
+  for (const s of cfg?.series ?? []) collect(s?.data);
+  collect(wrapper.originalFunction?.keyPoints);
+  collect(wrapper.originalFunction?.referenceCurve?.data);
+  collect(wrapper.plottingAnswer?.expectedPoints);
+
+  let changed = false;
+  for (const holder of [cfg, wrapper.plottingAnswer]) {
+    if (!holder || typeof holder !== 'object') continue;
+    for (const [key, vals] of [['domainX', xs], ['domainY', ys]] as Array<[string, number[]]>) {
+      const dom = holder[key];
+      if (!Array.isArray(dom) || dom.length !== 2) continue;
+      const dataLo = vals.length ? Math.min(...vals) - 1 : dom[0];
+      const dataHi = vals.length ? Math.max(...vals) + 1 : dom[1];
+      const lo = Math.floor(Math.min(dom[0], dataLo, -1));
+      const hi = Math.ceil(Math.max(dom[1], dataHi, 1));
+      if (lo !== dom[0] || hi !== dom[1]) { holder[key] = [lo, hi]; changed = true; }
+    }
+  }
+  return changed;
+}
+
 export function ensureRenderableGraphConfigs(questions: any[]): void {
   for (const q of questions) {
     try {
       if (!GRAPH_TYPES_FOR_CANVAS.includes(q.question_type)) continue;
+
+      // Widen domains in whichever fields carry a wrapper
+      for (const field of ['correct_answer', 'diagram_config'] as const) {
+        let val: any = q[field];
+        if (!val) continue;
+        const wasString = typeof val === 'string';
+        if (wasString) { try { val = JSON.parse(val); } catch { continue; } }
+        if (widenWrapperDomains(val)) {
+          q[field] = wasString ? JSON.stringify(val) : val;
+          console.log(`Q${q.question_number}: widened ${field} domains to include all quadrants`);
+        }
+      }
+
       if (hasRenderableGraphConfig(q)) continue;
       console.warn(`Q${q.question_number}: graph question had no renderable config — injecting blank canvas`);
       const fallback = {
