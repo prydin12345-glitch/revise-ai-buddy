@@ -282,6 +282,20 @@ export function ensureRenderableGraphConfigs(questions: any[]): void {
 
       if (hasRenderableGraphConfig(q)) continue;
 
+      // Interpretation questions must have answerable fields — with zero
+      // fields the page renders no inputs at all. Demote to short_answer
+      // so the student can still respond in text.
+      if (q.question_type === 'graph_interpretation') {
+        let parsedCa: any = q.correct_answer;
+        if (typeof parsedCa === 'string') { try { parsedCa = JSON.parse(parsedCa); } catch { parsedCa = null; } }
+        const fieldCount = Array.isArray(parsedCa?.interpretationFields) ? parsedCa.interpretationFields.length : 0;
+        if (fieldCount === 0) {
+          console.warn(`Q${q.question_number}: graph_interpretation had no fields — demoting to short_answer`);
+          q.question_type = 'short_answer';
+          continue;
+        }
+      }
+
       // Transformation questions describing the curve in prose: rebuild the
       // reference curve from the described coordinates before giving up.
       if (q.question_type === 'graph_transformation') {
