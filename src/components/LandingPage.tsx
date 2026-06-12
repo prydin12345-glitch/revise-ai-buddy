@@ -1,503 +1,568 @@
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, BarChart2, Target, Zap, Check, X, Menu } from "lucide-react";
+// FILE: src/components/LandingPage.tsx
+// Examly landing page — "the exam writes itself."
+// Signature element: a self-playing exam theatre in the hero where a real
+// question generates, a graph sketches itself, and examiner marks tick in.
+// Visual language borrowed from actual UK exam papers: serif question text,
+// marks in the right gutter, graph-paper texture, examiner-green ticks.
+
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useInView } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
-import { openCookieSettings } from "@/components/CookieConsent";
+import { motion, useInView, useReducedMotion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import {
+  PenLine, Sparkles, CheckCircle2, Upload, Users, LineChart,
+  GraduationCap, ArrowRight, Menu, X, FunctionSquare, FileText, BadgeCheck,
+} from "lucide-react";
 
-/* ──────────────────────────── helpers ──────────────────────────── */
+/* ───────────────────────── Exam theatre ─────────────────────────
+   A four-act loop: TYPE the topic → GENERATE shimmer → the QUESTION
+   writes itself → the curve SKETCHES on the grid → marks TICK in.   */
 
-const useCountUp = (target: number, duration = 2000, inView: boolean) => {
-  const [count, setCount] = useState(0);
+const TOPIC_TEXT = "A-Level Maths · Sketching quadratics";
+const QUESTION_TEXT =
+  "The curve C has equation y = x\u00b2 \u2212 6x + 5.  Sketch C, showing the coordinates of the turning point and any points where C crosses the axes.";
+
+type Act = "typing" | "generating" | "writing" | "sketching" | "marked";
+
+const useTypewriter = (text: string, active: boolean, speed = 28) => {
+  const [shown, setShown] = useState(active ? "" : text);
   useEffect(() => {
-    if (!inView) return;
-    let start = 0;
-    const inc = target / (duration / 16);
+    if (!active) { setShown(text); return; }
+    setShown("");
+    let i = 0;
     const t = setInterval(() => {
-      start += inc;
-      if (start >= target) { setCount(target); clearInterval(t); }
-      else setCount(Math.floor(start));
-    }, 16);
+      i++;
+      setShown(text.slice(0, i));
+      if (i >= text.length) clearInterval(t);
+    }, speed);
     return () => clearInterval(t);
-  }, [inView, target, duration]);
-  return count;
+  }, [text, active, speed]);
+  return shown;
 };
 
-const fmt = (n: number) => {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + "K";
-  return n.toString();
+const ExamTheatre = () => {
+  const reduced = useReducedMotion();
+  const [act, setAct] = useState<Act>(reduced ? "marked" : "typing");
+  const [cycle, setCycle] = useState(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const durations: Record<Act, number> = {
+      typing: 2300, generating: 1400, writing: 4300, sketching: 2600, marked: 3600,
+    };
+    const order: Act[] = ["typing", "generating", "writing", "sketching", "marked"];
+    const idx = order.indexOf(act);
+    const t = setTimeout(() => {
+      if (idx === order.length - 1) { setCycle((c) => c + 1); setAct("typing"); }
+      else setAct(order[idx + 1]);
+    }, durations[act]);
+    return () => clearTimeout(t);
+  }, [act, reduced]);
+
+  const typedTopic = useTypewriter(TOPIC_TEXT, !reduced && act === "typing", 45);
+  const typedQuestion = useTypewriter(QUESTION_TEXT, !reduced && act === "writing", 22);
+  const questionVisible = act !== "typing" && act !== "generating";
+  const questionText = act === "writing" ? typedQuestion : questionVisible ? QUESTION_TEXT : "";
+  const sketchOn = act === "sketching" || act === "marked";
+  const marked = act === "marked";
+
+  return (
+    <div className="relative w-full max-w-[520px] mx-auto select-none" aria-hidden="true">
+      <div className="rounded-2xl border border-border bg-card shadow-[0_24px_60px_-24px_hsl(var(--primary)/0.35)] overflow-hidden">
+        {/* Browser chrome */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-secondary/60">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/80" />
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
+          <div className="ml-3 flex-1 rounded-md bg-background/80 border border-border px-3 py-1 text-[11px] text-muted-foreground truncate">
+            examly · new practice set
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-5 space-y-4">
+          {/* Topic input */}
+          <div className="rounded-xl border border-border bg-background px-3.5 py-2.5 flex items-center gap-2.5">
+            <PenLine className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm text-foreground min-h-[1.25rem]">
+              {act === "typing" ? typedTopic : TOPIC_TEXT}
+              {act === "typing" && <span className="inline-block w-[2px] h-4 ml-px bg-primary align-middle animate-pulse" />}
+            </span>
+          </div>
+
+          {/* Generating shimmer */}
+          <AnimatePresence>
+            {act === "generating" && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="flex items-center gap-2 text-sm text-muted-foreground px-1"
+              >
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                Writing your paper…
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* The exam paper */}
+          <AnimatePresence>
+            {questionVisible && (
+              <motion.div
+                key={`paper-${cycle}`}
+                initial={reduced ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-border bg-background overflow-hidden"
+              >
+                <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
+                  <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
+                    Q2
+                  </span>
+                  <span className="text-xs text-muted-foreground pt-1 shrink-0">(3 marks)</span>
+                </div>
+                <p className="font-serif text-[13.5px] leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[4.2rem]">
+                  {questionText}
+                  {act === "writing" && <span className="inline-block w-[2px] h-4 ml-px bg-foreground/60 align-middle animate-pulse" />}
+                </p>
+
+                {/* Graph paper + self-sketching curve */}
+                <div className="mx-4 mb-3 rounded-lg border border-border overflow-hidden">
+                  <svg viewBox="0 0 300 170" className="w-full block bg-background">
+                    {Array.from({ length: 14 }).map((_, i) => (
+                      <line key={`v${i}`} x1={20 + i * 20} y1={8} x2={20 + i * 20} y2={162} stroke="hsl(var(--border))" strokeWidth="0.6" />
+                    ))}
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <line key={`h${i}`} x1={20} y1={10 + i * 20} x2={280} y2={10 + i * 20} stroke="hsl(var(--border))" strokeWidth="0.6" />
+                    ))}
+                    {/* axes: origin (60,110) · x: 20px/unit · y: 10px/unit */}
+                    <line x1={20} y1={110} x2={280} y2={110} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+                    <line x1={60} y1={8} x2={60} y2={162} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+                    {/* y = x²−6x+5: (0,5)(1,0)(3,−4)(5,0)(6,5) → px (60,60)(80,110)(120,150)(160,110)(180,60) */}
+                    <motion.path
+                      key={`curve-${cycle}`}
+                      d="M 60 60 C 73 94, 88 122, 105 140 C 113 148, 127 148, 135 140 C 152 122, 167 94, 180 60"
+                      fill="none"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      initial={{ pathLength: reduced ? 1 : 0 }}
+                      animate={{ pathLength: sketchOn ? 1 : 0 }}
+                      transition={{ duration: reduced ? 0 : 2.1, ease: "easeInOut" }}
+                    />
+                    {marked && (
+                      <g>
+                        <circle cx={80} cy={110} r={3} fill="hsl(var(--primary))" />
+                        <circle cx={160} cy={110} r={3} fill="hsl(var(--primary))" />
+                        <circle cx={120} cy={150} r={3} fill="hsl(var(--primary))" />
+                        <text x={128} y={158} fontSize="9" fill="hsl(var(--muted-foreground))">(3, −4)</text>
+                        <text x={76} y={104} fontSize="9" fill="hsl(var(--muted-foreground))">1</text>
+                        <text x={156} y={104} fontSize="9" fill="hsl(var(--muted-foreground))">5</text>
+                      </g>
+                    )}
+                  </svg>
+                </div>
+
+                {/* Examiner marking */}
+                <div className="px-4 pb-4 min-h-[2.6rem]">
+                  <AnimatePresence>
+                    {marked && (
+                      <motion.div
+                        initial={reduced ? false : { opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                        <p className="text-xs text-foreground">
+                          <span className="font-semibold text-green-700 dark:text-green-400">3/3.</span>{" "}
+                          Turning point (3, −4) correct; both intercepts labelled. Full marks.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-muted-foreground mt-3">
+        Live preview — this is what generating a set looks like.
+      </p>
+    </div>
+  );
 };
 
-const scrollToSection = (sectionId: string) => {
-  const element = document.getElementById(sectionId);
-  if (element) {
-    const navbarHeight = 64;
-    const elementTop = element.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({
-      top: elementTop - navbarHeight - 16,
-      behavior: "smooth",
-    });
-  }
-};
+/* ───────────────────────── Page data ───────────────────────── */
 
-const StatCounter = ({ stat, inView, delay }: { stat: { value: number; suffix: string; label: string; color: string }; inView: boolean; delay: number }) => {
-  const count = useCountUp(stat.value, 2000, inView);
+const STEPS = [
+  {
+    icon: PenLine,
+    title: "Tell it your topic",
+    body: "Pick your subject, level and topics — or upload a past paper and Examly reads it.",
+  },
+  {
+    icon: Sparkles,
+    title: "Your paper writes itself",
+    body: "Exam-style questions appear in seconds: MCQs, calculations, data tables, sketch graphs.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Marked like an examiner",
+    body: "Answer on screen — draw the curve, build the working — and get method marks with feedback.",
+  },
+];
+
+const FEATURES = [
+  {
+    icon: FunctionSquare,
+    title: "Draw your answer",
+    body: "Sketch curves, plot points, build circuits and measure angles on an interactive canvas — then have your drawing marked, not just your typing.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Examiner-style marking",
+    body: "Method marks and accuracy marks, with feedback that tells you what the mark scheme wanted — not just right or wrong.",
+  },
+  {
+    icon: Upload,
+    title: "Turn any past paper into practice",
+    body: "Upload a PDF and Examly extracts the questions — graphs, sub-parts and all — into an exam you can sit on screen.",
+  },
+  {
+    icon: LineChart,
+    title: "See yourself improve",
+    body: "A heatmap of your practice, scores by topic, and the gaps to revise next — so the night before the exam isn't a guess.",
+  },
+];
+
+const SUBJECTS = ["Maths", "Physics", "Chemistry", "Biology", "Economics", "Computer Science", "Business", "Psychology"];
+
+const PLANS = [
+  {
+    name: "Free",
+    price: "£0",
+    period: "",
+    blurb: "Try real generated papers",
+    features: ["Practice sets with AI marking", "Interactive graph questions", "Progress tracking"],
+    cta: "Start free",
+    highlighted: false,
+  },
+  {
+    name: "Student Pro",
+    price: "£7.99",
+    period: "/month",
+    blurb: "Unlimited exam practice",
+    features: ["Unlimited generated papers", "Past-paper upload", "Full examiner feedback", "Priority generation"],
+    cta: "Go Pro",
+    highlighted: true,
+  },
+];
+
+/* ───────────────────────── Page ───────────────────────── */
+
+const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) => {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.25 });
+  const reduced = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay }}
-      className="text-center"
+      ref={ref}
+      className={className}
+      initial={reduced ? false : { opacity: 0, y: 18 }}
+      animate={inView ? { opacity: 1, y: 0 } : undefined}
+      transition={{ duration: 0.55, delay }}
     >
-      <div className="text-3xl md:text-4xl font-bold mb-1" style={{ color: stat.color }}>
-        {fmt(count)}{stat.suffix}
-      </div>
-      <div className="text-xs text-muted-foreground tracking-wide uppercase">{stat.label}</div>
+      {children}
     </motion.div>
   );
 };
 
-/* ──────────────────────────── data ──────────────────────────── */
-
-const stats = [
-  { value: 10000, suffix: "+", label: "Questions Generated", color: "hsl(var(--primary))" },
-  { value: 94, suffix: "%", label: "Success Rate", color: "hsl(145 65% 42%)" },
-  { value: 1000000, suffix: "+", label: "Tests Created", color: "hsl(263 70% 58%)" },
-  { value: 50000, suffix: "+", label: "Active Students", color: "hsl(38 92% 50%)" },
+const NAV_LINKS: Array<[string, string]> = [
+  ["How it works", "how"],
+  ["Features", "features"],
+  ["For tutors", "tutors"],
+  ["Pricing", "pricing"],
 ];
-
-const features = [
-  { icon: Sparkles, title: "AI Question Generation", description: "Generate unlimited original questions for any subject, topic, and difficulty level. Never see the same question twice.", color: "hsl(var(--primary))" },
-  { icon: BarChart2, title: "Smart Progress Tracking", description: "See exactly which topics need work. Your weak areas are identified and targeted automatically.", color: "hsl(145 65% 42%)" },
-  { icon: Target, title: "Exam Board Accurate", description: "Questions match the style of AQA, Edexcel, OCR, IB, AP and more. Practise exactly what you'll face.", color: "hsl(263 70% 58%)" },
-  { icon: Zap, title: "Instant Feedback", description: "Every answer is marked instantly with detailed explanations. Learn from mistakes in real time.", color: "hsl(38 92% 50%)" },
-];
-
-const steps = [
-  { number: "01", title: "Set Up Your Profile", description: "Choose your subjects, exam board, and level. Takes 60 seconds.", color: "hsl(var(--primary))" },
-  { number: "02", title: "Generate Questions", description: "The AI creates original questions matched exactly to your syllabus.", color: "hsl(263 70% 58%)" },
-  { number: "03", title: "Track Your Progress", description: "See weak topics, review mistakes, and improve with every session.", color: "hsl(145 65% 42%)" },
-];
-
-const testimonials = [
-  { quote: "I went from predicted a C to getting an A* in Maths. The practice questions are exactly what comes up in the real exam.", name: "Sarah K.", role: "A-Level Student", avatar: "SK", color: "hsl(var(--primary))" },
-  { quote: "As a tutor, I use Examly to generate tailored questions for each student. It saves me hours every week.", name: "Mr. Thompson", role: "Private Tutor", avatar: "MT", color: "hsl(263 70% 58%)" },
-  { quote: "The weak topic tracking is brilliant. I could see exactly where I was losing marks and fix it before the exam.", name: "James R.", role: "GCSE Student", avatar: "JR", color: "hsl(145 65% 42%)" },
-];
-
-const plans = [
-  { name: "Free", price: "£0", period: "forever", description: "Perfect for getting started", features: ["3 practice sets per month", "1 exam generation per month", "Basic progress tracking", "All subjects"], cta: "Get Started Free", highlighted: false },
-  { name: "Pro", price: "£7.99", period: "per month", description: "For serious exam preparation", features: ["Unlimited practice sets", "10 exam generations per month", "PDF download", "Full AI grading and feedback", "Weak topic analysis", "Exam board specific questions"], cta: "Start Pro Free Trial", highlighted: true },
-];
-
-/* ──────────────────────────── component ──────────────────────────── */
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const statsRef = useRef(null);
-  const statsInView = useInView(statsRef, { once: true, amount: 0.3 });
-  // Privacy/Terms now live at /privacy and /terms — modals removed.
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Close mobile menu on scroll or outside click
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const close = () => setMobileMenuOpen(false);
-    window.addEventListener("scroll", close, { passive: true });
-    document.addEventListener("click", close);
-    return () => {
-      window.removeEventListener("scroll", close);
-      document.removeEventListener("click", close);
-    };
-  }, [mobileMenuOpen]);
+  const grid = useMemo(
+    () => ({
+      backgroundImage:
+        "linear-gradient(hsl(var(--border)/0.55) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)/0.55) 1px, transparent 1px)",
+      backgroundSize: "32px 32px",
+    }),
+    []
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* ── Navbar ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/60 border-b border-border/50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between max-w-6xl">
-          <span className="text-xl font-bold tracking-tight">Examly</span>
-          <div className="hidden md:flex items-center gap-8">
-            {["Features", "How It Works", "Pricing"].map(l => (
-              <button
-                key={l}
-                onClick={() => scrollToSection(l.toLowerCase().replace(/ /g, "-"))}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
-              >
-                {l}
+      {/* ── Nav ── */}
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <nav className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="h-[18px] w-[18px]" />
+            </span>
+            <span className="font-bold text-lg tracking-tight">Examly</span>
+          </button>
+
+          <div className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map(([label, id]) => (
+              <Button key={id} variant="ghost" size="sm"
+                onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}>
+                {label}
+              </Button>
+            ))}
+            <div className="w-px h-5 bg-border mx-2" />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/auth?mode=login")}>Log in</Button>
+            <Button size="sm" onClick={() => navigate("/auth?mode=signup")}>Start free</Button>
+          </div>
+
+          <button className="md:hidden p-2" onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </nav>
+        {mobileOpen && (
+          <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-2">
+            {NAV_LINKS.map(([label, id]) => (
+              <button key={id} className="block w-full text-left py-2 text-sm"
+                onClick={() => { document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); setMobileOpen(false); }}>
+                {label}
               </button>
             ))}
-          </div>
-          <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/auth?mode=login")}>Log In</Button>
-            <Button size="sm" onClick={() => navigate("/auth?mode=signup")}>Get Started Free</Button>
-          </div>
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden flex flex-col gap-[5px] items-center justify-center p-1 bg-transparent border-none cursor-pointer"
-            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(!mobileMenuOpen); }}
-            aria-label="Open menu"
-          >
-            {mobileMenuOpen ? (
-              <X size={22} className="text-muted-foreground" />
-            ) : (
-              <Menu size={22} className="text-muted-foreground" />
-            )}
-          </button>
-        </div>
-
-        {/* Mobile dropdown */}
-        {mobileMenuOpen && (
-          <div
-            className="md:hidden border-t border-border/30 bg-background/95 backdrop-blur-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="container mx-auto px-4 py-3 flex flex-col gap-1">
-              {["Features", "How It Works", "Pricing"].map(link => (
-                <button
-                  key={link}
-                  onClick={() => { scrollToSection(link.toLowerCase().replace(/ /g, "-")); setMobileMenuOpen(false); }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] text-left py-3 border-b border-border/20"
-                >
-                  {link}
-                </button>
-              ))}
-              <div className="flex gap-3 pt-3 pb-1">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => { navigate("/auth?mode=login"); setMobileMenuOpen(false); }}>
-                  Log In
-                </Button>
-                <Button size="sm" className="flex-1" onClick={() => { navigate("/auth?mode=signup"); setMobileMenuOpen(false); }}>
-                  Get Started
-                </Button>
-              </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate("/auth?mode=login")}>Log in</Button>
+              <Button size="sm" className="flex-1" onClick={() => navigate("/auth?mode=signup")}>Start free</Button>
             </div>
           </div>
         )}
-      </nav>
+      </header>
 
       {/* ── Hero ── */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 pt-[100px] pb-[60px] overflow-hidden">
-        {/* Gradient blobs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full opacity-20 blur-[120px]"
-            style={{ background: "hsl(var(--primary))" }}
-          />
-          <motion.div
-            animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-15 blur-[120px]"
-            style={{ background: "hsl(263 70% 58%)" }}
-          />
-        </div>
+      <section className="relative pt-28 pb-16 sm:pt-32 sm:pb-20 px-4 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={grid} />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/40 to-background" />
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border/50 bg-muted/30 mb-8">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">AI-Powered Exam Practice</span>
-          </motion.div>
+        <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-8 items-center">
+          <div className="text-center lg:text-left">
+            <Reveal>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs text-muted-foreground mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                GCSE · A-Level · BTEC
+              </div>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
+                Past-paper practice
+                <br />
+                that <span className="text-primary">writes itself.</span>
+              </h1>
+            </Reveal>
+            <Reveal delay={0.16}>
+              <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0">
+                Tell Examly your topic. It writes an exam-style paper in seconds — graphs you
+                sketch by hand, working it marks like an examiner, feedback that tells you why.
+              </p>
+            </Reveal>
+            <Reveal delay={0.24}>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                <Button size="lg" className="text-base px-7" onClick={() => navigate("/auth?mode=signup")}>
+                  Generate your first paper
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button size="lg" variant="outline" className="text-base"
+                  onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}>
+                  See how it works
+                </Button>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">Free to start · No card needed</p>
+            </Reveal>
+          </div>
 
-          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }}
-            className="text-5xl sm:text-6xl md:text-7xl font-bold leading-[1.1] mb-6 tracking-tight">
-            Ace Your Exams With{" "}
-            <span className="text-primary">AI&#8209;Generated</span>{" "}
-            Practice
-          </motion.h1>
-
-          <motion.p initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Generate unlimited exam questions tailored to your subject, exam board, and level. Never run out of practice material again.
-          </motion.p>
-
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.45 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base px-8">
-              Start For Free <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate("/auth?mode=login")} className="text-base px-8">
-              Log In
-            </Button>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 1 }}
-            className="mt-16 text-muted-foreground/40 text-2xl animate-bounce">
-            ↓
-          </motion.div>
+          <Reveal delay={0.2}>
+            <ExamTheatre />
+          </Reveal>
         </div>
       </section>
 
-      {/* ── Stats ── */}
-      <section ref={statsRef} className="py-10 px-4 border-y border-border/30">
-        <div className="container mx-auto max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-10">
-          {stats.map((s, i) => (
-            <StatCounter key={i} stat={s} inView={statsInView} delay={i * 0.15} />
+      {/* ── Subject strip ── */}
+      <section className="border-y border-border bg-card/60 py-4">
+        <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          {SUBJECTS.map((s) => (
+            <span key={s} className="text-sm text-muted-foreground whitespace-nowrap">{s}</span>
           ))}
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section id="features" className="py-[70px] px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-10">
-            <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Features</span>
-            <h2 className="text-3xl md:text-4xl font-bold">Everything you need to excel</h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {features.map((f, i) => {
-              const Icon = f.icon;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="relative rounded-xl border border-border/50 bg-card/50 p-8 hover:border-primary/30 transition-colors group"
-                >
-                  <div className="absolute top-0 left-8 right-8 h-px" style={{ background: `linear-gradient(90deg, transparent, ${f.color}40, transparent)` }} />
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                    style={{ background: `${f.color}18` }}
-                  >
-                    <Icon size={22} style={{ color: f.color }} strokeWidth={1.8} />
+      {/* ── How it works ── */}
+      <section id="how" className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <Reveal className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">From topic to marked paper</h2>
+            <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+              The whole loop takes under a minute. It's the sequence playing above.
+            </p>
+          </Reveal>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {STEPS.map((step, i) => (
+              <Reveal key={step.title} delay={i * 0.1}>
+                <div className="relative h-full rounded-2xl border border-border bg-card p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <step.icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Step {i + 1}</span>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How It Works ── */}
-      <section id="how-it-works" className="py-[70px] px-4 bg-muted/10">
-        <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-10">
-            <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">How It Works</span>
-            <h2 className="text-3xl md:text-4xl font-bold">Up and running in minutes</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-10">
-            {steps.map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: i * 0.15 }}
-                className="text-center"
-              >
-                <div className="text-4xl font-bold mb-4" style={{ color: s.color }}>{s.number}</div>
-                <h3 className="text-lg font-semibold mb-2">{s.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{s.description}</p>
-              </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Testimonials ── */}
-      <section id="testimonials" className="py-[70px] px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-10">
-            <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Testimonials</span>
-            <h2 className="text-3xl md:text-4xl font-bold">Students who used Examly</h2>
+      {/* ── Features ── */}
+      <section id="features" className="py-20 px-4 bg-secondary/40 border-y border-border">
+        <div className="max-w-6xl mx-auto">
+          <Reveal className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Not flashcards. Real exam questions.</h2>
+            <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
+              Examly generates the question types that actually appear on your paper — and lets you answer them the way you would in the hall.
+            </p>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 gap-6">
+            {FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.08}>
+                <div className="h-full rounded-2xl border border-border bg-card p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
+                    <f.icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.body}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="rounded-xl border border-border/50 bg-card/50 p-8 flex flex-col"
-              >
-                <span className="text-4xl font-serif mb-2" style={{ color: t.color }}>"</span>
-                <p className="text-muted-foreground text-sm leading-relaxed flex-1">{t.quote}</p>
-                <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border/30">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-primary-foreground" style={{ background: t.color }}>
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">{t.role}</div>
+        </div>
+      </section>
+
+      {/* ── Tutors ── */}
+      <section id="tutors" className="py-20 px-4">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+          <Reveal>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs text-muted-foreground mb-5">
+              <Users className="h-3.5 w-3.5" />
+              For tutors
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Set a paper for your class in the time it takes to take the register.
+            </h2>
+            <p className="mt-4 text-muted-foreground leading-relaxed">
+              Upload last year's paper or generate a fresh one, assign it to your class, and watch
+              results come in — marked, with the method marks broken down per student. Your Sunday
+              evenings are yours again.
+            </p>
+            <Button className="mt-6" size="lg" onClick={() => navigate("/auth?mode=signup")}>
+              Create your first class
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Reveal>
+          <Reveal delay={0.12}>
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              {[
+                { icon: FileText, label: "Mock Paper 2 — Algebra & Graphs", meta: "Assigned · due Friday" },
+                { icon: BadgeCheck, label: "Amara K.", meta: "24/30 · strong on transformations" },
+                { icon: BadgeCheck, label: "Josh P.", meta: "19/30 · revisit completing the square" },
+                { icon: LineChart, label: "Class average", meta: "71% · up 9% since September" },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3">
+                  <row.icon className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{row.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{row.meta}</p>
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── Pricing ── */}
-      <section id="pricing" className="py-[70px] px-4 bg-muted/10">
-        <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-10">
-            <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Pricing</span>
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Simple, honest pricing</h2>
-            <p className="text-muted-foreground">Start free. Upgrade when you're ready.</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {plans.map((plan, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.5, delay: i * 0.15 }}
-                className={`relative rounded-xl border p-8 ${plan.highlighted ? "border-primary/50 bg-primary/5" : "border-border/50 bg-card/50"}`}
-              >
-                {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
-                <div className="mb-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">/{plan.period}</span>
+      <section id="pricing" className="py-20 px-4 bg-secondary/40 border-y border-border">
+        <div className="max-w-4xl mx-auto">
+          <Reveal className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Less than one hour of tutoring</h2>
+            <p className="mt-3 text-muted-foreground">Start free. Upgrade when you're hooked.</p>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            {PLANS.map((plan, i) => (
+              <Reveal key={plan.name} delay={i * 0.1}>
+                <div className={`relative h-full rounded-2xl border p-6 flex flex-col ${plan.highlighted ? "border-primary bg-card shadow-[0_12px_40px_-12px_hsl(var(--primary)/0.4)]" : "border-border bg-card"}`}>
+                  {plan.highlighted && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground">
+                      Most popular
+                    </span>
+                  )}
+                  <h3 className="font-semibold text-lg">{plan.name}</h3>
+                  <p className="text-sm text-muted-foreground">{plan.blurb}</p>
+                  <p className="mt-4 mb-5">
+                    <span className="text-4xl font-extrabold tracking-tight">{plan.price}</span>
+                    <span className="text-muted-foreground text-sm">{plan.period}</span>
+                  </p>
+                  <ul className="space-y-2.5 mb-6 flex-1">
+                    {plan.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        {feat}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button variant={plan.highlighted ? "default" : "outline"} className="w-full"
+                    onClick={() => navigate("/auth?mode=signup")}>
+                    {plan.cta}
+                  </Button>
                 </div>
-                <p className="text-muted-foreground text-sm mb-6">{plan.description}</p>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f, fi) => (
-                    <li key={fi} className="flex items-start gap-2 text-sm">
-                      <Check size={14} className="text-primary mt-0.5 shrink-0" strokeWidth={2.5} />
-                      <span className="text-muted-foreground">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.highlighted ? "default" : "outline"}
-                  onClick={() => navigate("/auth?mode=signup")}
-                >
-                  {plan.cta}
-                </Button>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="py-[70px] px-4">
-        <div className="container mx-auto max-w-3xl text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="w-12 h-[2px] bg-gradient-to-r from-primary to-[hsl(263_70%_58%)] rounded-full mx-auto mb-6" />
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to start practising?</h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Join thousands of students already using Examly to prepare smarter, not harder.
-            </p>
-            <Button size="lg" onClick={() => navigate("/auth?mode=signup")} className="text-base px-8">
-              Get Started For Free <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <p className="text-xs text-muted-foreground/60 mt-4">
-              No credit card required · Free forever plan available
-            </p>
-          </motion.div>
-        </div>
+      <section className="py-24 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={grid} />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-transparent via-background/40 to-background" />
+        <Reveal className="relative max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Your next paper is 60 seconds away.
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Generate it, sit it, get it marked — before your kettle boils.
+          </p>
+          <Button size="lg" className="mt-8 text-base px-8" onClick={() => navigate("/auth?mode=signup")}>
+            Generate your first paper
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </Reveal>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border/30 py-10 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-4 gap-10 mb-8">
-            <div>
-              <span className="text-lg font-bold tracking-tight block mb-3">Examly</span>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                AI-powered exam practice for students and tutors worldwide.
-              </p>
-            </div>
-            {/* Product */}
-            <div>
-              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Product</h4>
-              <ul className="space-y-2">
-                {[
-                  { label: "Features", action: () => scrollToSection("features") },
-                  { label: "How It Works", action: () => scrollToSection("how-it-works") },
-                  { label: "Pricing", action: () => scrollToSection("pricing") },
-                ].map(l => (
-                  <li key={l.label}>
-                    <button onClick={l.action} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
-                      {l.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Subjects */}
-            <div>
-              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Subjects</h4>
-              <ul className="space-y-2">
-                {["Mathematics", "Sciences", "English", "Humanities"].map(s => (
-                  <li key={s}>
-                    <button onClick={() => navigate(`/auth?mode=signup&subject=${s.toLowerCase()}`)} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left">
-                      {s}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Company */}
-            <div>
-              <h4 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Company</h4>
-              <ul className="space-y-2">
-                <li>
-                  <button onClick={() => scrollToSection("how-it-works")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    About
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => navigate("/pricing")} className="text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    Pricing
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border/20 pt-6 mb-4">
-            <p className="text-[11px] text-muted-foreground/40 max-w-2xl mx-auto leading-relaxed text-center">
-              Examly is an independent practice platform. Not affiliated with AQA, OCR, Pearson Edexcel, Cambridge Assessment, the College Board, or the IBO.
-            </p>
-          </div>
-          <div className="border-t border-border/30 pt-4 flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              © {new Date().getFullYear()} Examly. All rights reserved.
+      <footer className="border-t border-border py-10 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="h-4 w-4" />
             </span>
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={() => navigate("/privacy")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Privacy Policy
-              </button>
-              <button
-                onClick={() => navigate("/terms")}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Terms of Service
-              </button>
-              <button
-                onClick={() => openCookieSettings()}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit] p-0 whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                Cookie settings
-              </button>
-            </div>
+            <span className="font-semibold">Examly</span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Examly. Built for students who'd rather practise than panic.
+          </p>
         </div>
       </footer>
-
     </div>
   );
 };
