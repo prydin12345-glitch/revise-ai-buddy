@@ -13,6 +13,9 @@ import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
+import { detectDiagramTopics, buildDiagramSuppressionNotice, buildPhasorInstructions, buildNodalAnalysisInstruction, buildDeltaWyeInstructions } from "../_shared/electrical-instructions.ts";
+import { buildDifficultyInstructions } from "../_shared/difficulty-instructions.ts";
+import { NOTATION_RULES, SKETCH_TYPE_RULE, NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS } from "../_shared/generation-rules.ts";
 import { checkGenerationRateLimit } from "../_shared/rate-limiter.ts";
 import { removeAnswerLeaks } from "../_shared/answer-leak-validator.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences } from "../_shared/question-text-scrubber.ts";
@@ -601,109 +604,17 @@ EXAMPLE QUESTION FORMATS:
       ? `\nSPECIALISED SUBJECT CONTEXT:\nThis is a specialised subject: "${setData.subject_id}". Generate questions appropriate for professional or vocational study in this area. Use domain-specific terminology and realistic practical scenarios. The student may be a practitioner, not a traditional academic student.\n`
       : '';
 
-    // ── DIAGRAM SUPPRESSION — prevent timeouts on theoretical topics ──
-    const SUPPRESS_DIAGRAM_TOPICS = [
-      'thevenin', 'norton', 'superposition', 'blondel', 'reciprocity', 'maximum power transfer', 'millman', 'tellegen', 'compensation',
-      'three-phase', 'three phase', 'star-delta', 'star to star',
-      'unbalanced load', 'unconnected neutral', 'neutral point', 'sequence component', 'positive sequence', 'negative sequence', 'zero sequence',
-      'phasor analysis', 'phasor theory', 'argand', 'polar form', 'rectangular form', 'complex notation', 'j notation', 'sinusoidal', 'phase angle', 'power factor angle',
-      'power factor', 'reactive power', 'apparent power', 'real power', 'active power', 'power triangle', 'power measurement', 'power calculation',
-      'kvar', 'kva ', 'power correction', 'pfc capacitor', 'blondel theorem',
-      'transformer', 'nameplate', 'turns ratio', 'voltage ratio', 'tap changer', 'tap-changer', 'cooling method', 'impedance voltage', 'transformer impedance',
-      'mesh analysis', 'nodal analysis', 'mesh current', 'node voltage', 'determinant', 'matrix method', 'cramer', 'gaussian', 'simultaneous equation',
-      'impedance triangle', 'admittance', 'susceptance', 'conductance', 'complex impedance', 'r + jx', 'z = ', 'rlc theory',
-      'angular frequency', 'resonant frequency',
-      'bandwidth', 'quality factor', 'q factor', 'frequency response', 'bode',
-    ];
-    const ALWAYS_DIAGRAM_TOPICS = [
-      'series circuit', 'parallel circuit', 'potential divider', 'voltage divider', 'wheatstone bridge', 'kirchhoff',
-      'current divider', 'rc circuit', 'rl circuit', 'lc circuit', 'rlc circuit', 'ac circuit',
-      'capacitor circuit', 'inductor circuit',
-      'series-parallel', 'ladder network', 'bridge circuit',
-      'phasor diagram', 'phasor_diagram',
-      'delta vs wye', 'wye vs delta', 'delta/wye comparison', 'delta_wye_comparison',
-    ];
-    const topicsCombined = ((setData.subtopics || []).join(' ') + ' ' + (setData.notes || '')).toLowerCase();
-    const hasDiagramTopic = ALWAYS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
-    const hasSuppressedTopic = !hasDiagramTopic && SUPPRESS_DIAGRAM_TOPICS.some(t => topicsCombined.includes(t));
-    const hasPhasorTopic = topicsCombined.includes('phasor diagram') || topicsCombined.includes('phasor_diagram');
-    const hasDeltaWyeTopic = /delta.*wye|wye.*delta|delta\/wye|delta_wye|delta-star|star-delta/i.test(topicsCombined);
+    // ── DIAGRAM SUPPRESSION — see _shared/electrical-instructions.ts ──
+    const { hasDiagramTopic, hasSuppressedTopic, hasPhasorTopic, hasDeltaWyeTopic } =
+      detectDiagramTopics(setData.subtopics || [], setData.notes || '');
 
     // Detect electrical engineering subjects for special instructions
     const isElectricalEngineering = subjectProfile.isElectricalEngineering;
 
-    const diagramSuppressionNotice = hasSuppressedTopic ? `
-## ABSOLUTE RULE — NO DIAGRAM REFERENCES
-No circuit diagram will be shown. You MUST NOT write:
-- "in the circuit shown below"
-- "consider the circuit below"
-- "refer to the circuit"
-- "as shown in the figure"
-- "from the network below"
-- ANY phrase suggesting a diagram will be visible
-
-THIS IS NON-NEGOTIABLE. Questions saying "circuit below" with no circuit will be automatically deleted from the exam.
-
-FOR SUPERPOSITION / THEVENIN / NORTON / NODAL / MESH QUESTIONS:
-You MUST describe the complete circuit topology in the question text.
-Include: component values, connection topology, source types and values.
-
-CORRECT example for superposition:
-"A circuit contains a 10 V voltage source, a 2 A current source, and three resistors: R1 = 6Ω connected in series with the voltage source, R2 = 4Ω connected between the junction of R1 and the current source, and R3 = 3Ω connected from that junction to ground. The 2A current source is connected in parallel with R3. Using the Superposition Theorem, determine the current through R2."
-
-WRONG example (will be deleted):
-"Using the Superposition Theorem, determine the current through the 4Ω resistor in the circuit below."
-
-If you cannot describe the circuit topology in text alone for a given theorem question then generate a DIFFERENT question type instead — for example a power calculation or impedance calculation that does not require a circuit diagram.
-` : '';
-
-    const phasorDiagramInstructions = hasPhasorTopic ? `
-## PHASOR DIAGRAM GENERATION
-For questions involving phasor diagrams:
-- Set question_type to "short_answer" NOT "graph_plotting"
-- The student reads the phasor diagram and answers analytically
-- Generate a diagramConfig with type "phasor_diagram"
-- Include every phasor mentioned in the question
-- angleDeg follows standard convention: positive = anticlockwise from positive real axis
-- magnitude is the RMS or peak value given in the question
-- Use blue (#3b82f6) for voltage phasors, red (#ef4444) for current phasors, green (#22c55e) for impedance phasors
-Example for V = 100 at 30 degrees and I = 5 at -15 degrees:
-{
-  "type": "phasor_diagram",
-  "title": "Phasor diagram",
-  "phasors": [
-    {"magnitude": 100, "angleDeg": 30, "label": "V", "colour": "#3b82f6"},
-    {"magnitude": 5, "angleDeg": -15, "label": "I", "colour": "#ef4444"}
-  ]
-}
-The question should then ask the student to:
-- Calculate the phase difference between V and I
-- State which phasor leads and by how much
-- Calculate apparent power S = VI*
-- NOT ask them to "draw" or "represent" the phasors — the diagram is shown to them
-` : '';
-
-    const nodalAnalysisInstruction = isElectricalEngineering ? `
-## NODAL/MESH ANALYSIS QUESTIONS
-For nodal or mesh analysis questions without diagrams:
-The question MUST specify:
-1. How many nodes exist and their labels (V1, V2, Va etc)
-2. Which components connect between which nodes
-3. All component values (resistance, impedance, source voltages)
-4. Which node is the reference (ground)
-Minimum information required for a solvable nodal analysis question:
-"A circuit has nodes V1 and V2 with ground as reference. Between V1 and ground: 10 ohm resistor. Between V2 and ground: 5 ohm resistor. Between V1 and V2: 4 ohm resistor. A 20V source connects from ground to V1. Using nodal analysis, find V1 and V2."
-Never write a nodal analysis question that only says "use the network shown" — all topology must be in the text.
-` : '';
-
-    const deltaWyeDiagramInstructions = hasDeltaWyeTopic ? `
-## DELTA VS WYE COMPARISON DIAGRAM
-For delta vs wye comparison questions:
-- Set diagramConfig: { "type": "delta_wye_comparison" }
-- No other fields are needed — the diagram is static
-- Use the diagram as a reference comparison, not as something the student must draw
-` : '';
-
+    const diagramSuppressionNotice = buildDiagramSuppressionNotice(hasSuppressedTopic);
+    const phasorDiagramInstructions = buildPhasorInstructions(hasPhasorTopic);
+    const nodalAnalysisInstruction = buildNodalAnalysisInstruction(isElectricalEngineering);
+    const deltaWyeDiagramInstructions = buildDeltaWyeInstructions(hasDeltaWyeTopic);
     if (hasSuppressedTopic) {
       console.log('Diagram suppression active — theoretical topics detected in:', setData.subtopics);
     }
@@ -753,167 +664,7 @@ For delta vs wye comparison questions:
       setData.subject_id || '', setData.exam_board || '', setData.educational_tier || '', curriculumRegion
     );
 
-    // Build AI prompt (ASCII-only, JSON-safe)
-    const buildDifficultyInstructions = (
-      level: string,
-      mode: string,
-      subject: string,
-      tierStr: string,
-    ): string => {
-      const difficultyProfile = detectSubject(subject);
-      const isPhysics = difficultyProfile.hasPhysicsStyleDifficulty;
-      const isMaths = difficultyProfile.hasMathsStyleDifficulty;
-
-      if (mode === 'increasing') {
-        return `
-DIFFICULTY PROGRESSION RULE:
-Generate questions that increase in difficulty across the set.
-First third: accessible single-step questions testing recall and basic application.
-Middle third: multi-step questions requiring formula manipulation and unit conversion.
-Final third: challenging questions requiring synthesis of multiple concepts,
-unfamiliar contexts, or extended mathematical reasoning.
-        `.trim();
-      }
-
-      if (mode === 'mixed') {
-        return `
-DIFFICULTY MIX RULE:
-Generate a balanced spread — approximately one third easy, one third medium,
-one third hard. Vary the question types, mark tariffs, and cognitive demand
-across the set. Do not cluster all hard questions at the end.
-        `.trim();
-      }
-
-      const EASY = `
-DIFFICULTY LEVEL: EASY
-Target: accessible recall and single-step application.
-- Questions test one concept at a time.
-- Maximum 2 marks per question.
-- Data is given directly in the question — no extraction required.
-- One formula is applied with no rearrangement needed.
-- Numbers are clean and simple.
-- Command words: State, Name, Give, Identify, Write down.
-BAD EXAMPLE (do not generate): "Explain the difference between nuclear fission and fusion and calculate the energy released."
-GOOD EXAMPLE: "State what is meant by the decay constant of a radioactive isotope." [1 mark]
-      `.trim();
-
-      const MEDIUM = `
-DIFFICULTY LEVEL: MEDIUM
-Target: multi-step calculations and conceptual understanding.
-- Questions require two or three logical steps.
-- 2-4 marks per question.
-- May require rearranging a formula or converting units.
-- Data may need to be extracted from a description.
-- Command words: Calculate, Determine, Explain, Describe, Show that.
-BAD EXAMPLE (do not generate): "What is radioactive decay?"
-GOOD EXAMPLE: "A radioactive sample has a decay constant of 2.4 x 10^-4 s^-1. Calculate the half-life of the sample in hours." [3 marks]
-      `.trim();
-
-      const HARD_GENERIC = `
-DIFFICULTY LEVEL: HARD
-Target: A-Level examination standard. Unfamiliar contexts, multi-part structure,
-synthesis of multiple concepts.
-
-MANDATORY STRUCTURAL RULES FOR HARD QUESTIONS:
-1. Every question must have at least two sub-parts labelled (a)(i), (a)(ii), (b)(i) etc.
-2. Sub-parts must build on each other — the answer to (a) is needed for (b).
-3. Embed the question in an unfamiliar real-world scenario or application.
-4. The scenario must not be the standard textbook example for that topic.
-5. Total marks per question: 5 to 8 marks distributed across sub-parts.
-6. At least one sub-part must use the command word "Hence" or "Show that" or "Suggest".
-7. At least one sub-part must require a written explanation not just a number.
-
-MARK TARIFF GUIDE:
-- 1 mark: single factual statement or one arithmetic step
-- 2 marks: two-step calculation or statement plus explanation
-- 3 marks: multi-step calculation or explanation with evidence
-- 4 marks: complex calculation plus interpretation or evaluation
-- 5 marks: extended response requiring strategy, calculation, and evaluation
-
-FORBIDDEN QUESTION PATTERNS (never generate these at hard difficulty):
-- "Calculate the half-life given N and lambda" — single substitution
-- "Write the nuclear equation for alpha decay of X" — recall only
-- "State the decay constant" — definition recall
-- "Calculate the activity" by simple A = lambda*N substitution
-- Any question answerable by substituting directly into one formula
-
-REQUIRED QUESTION PATTERNS (use these as models):
-Good example 1 — unfamiliar application:
-"An archaeologist uses carbon-14 dating to estimate the age of a wooden artefact.
-The artefact contains 0.375 times as much carbon-14 as living wood.
-The half-life of carbon-14 is 5740 years.
-(a)(i) Calculate the decay constant of carbon-14 in yr^-1. [1]
-(a)(ii) Hence calculate the age of the artefact. [3]
-(b) Suggest one reason why carbon dating would be unreliable for an artefact
-less than 200 years old. [1]"
-
-Good example 2 — multi-concept synthesis:
-"A nuclear power station uses uranium-235 as fuel. Each fission event releases
-3.2 x 10^-11 J of energy. The station has a thermal efficiency of 35%.
-(a) Calculate the number of fission events per second needed to produce
-an electrical output of 1.2 GW. [3]
-(b) Estimate the mass of uranium-235 consumed per day.
-Molar mass of U-235 = 235 g mol^-1. [3]
-(c) Suggest two environmental advantages of nuclear power compared with
-fossil fuels for generating electricity at this scale. [2]"
-
-Good example 3 — show that plus hence:
-"A sample of iodine-131 is used in cancer treatment.
-Half-life of I-131 = 8.0 days. Initial activity = 800 MBq.
-(a) Show that the decay constant of I-131 is approximately 1.0 x 10^-6 s^-1. [2]
-(b) Hence calculate the activity of the sample after 24 days. [2]
-(c) The safe threshold for discharge is 100 MBq. Determine the minimum number
-of complete days the patient must remain in isolation before their activity
-falls below the threshold. [3]"
-      `.trim();
-
-      const HARD_PHYSICS_SUPPLEMENT = isPhysics ? `
-
-ADDITIONAL RULES FOR HARD PHYSICS QUESTIONS:
-
-For nuclear physics:
-- Never ask just "write the nuclear equation" as a standalone question.
-- Always embed it as sub-part (b) of a larger multi-part question.
-- Include at least one "show that" sub-part to guide students through a proof.
-- Use real isotopes with real half-lives — Ra-226, I-131, Co-60, U-238, Pu-238.
-
-For optics:
-- Give object distance and focal length in a real optical instrument context
-  (camera, microscope, projector, corrective lens).
-- Ask for image distance, nature of image, AND magnification as linked sub-parts.
-- Include one sub-part requiring a description of the image properties.
-
-For electromagnetism:
-- Always include a sketch sub-part alongside a calculation sub-part.
-
-For radioactive decay:
-- Use the "show that" format for intermediate values so students can continue
-  even if they drop a mark on one step.
-- Include a comparison or evaluation sub-part.
-- Include contextual data (RTG power output, cancer treatment dose, archaeological dating)
-  rather than abstract numbers.
-
-For waves:
-- Combine a calculation with a sketch and an explanation in the same question.
-- Use real measurement scenarios: ripple tanks, oscilloscopes, interference fringes.
-      `.trim() : '';
-
-      const HARD_MATHS_SUPPLEMENT = isMaths ? `
-
-ADDITIONAL RULES FOR HARD MATHS QUESTIONS:
-- Probability questions must use non-standard distributions or conditional probability.
-- Statistics questions must require interpretation of results not just calculation.
-- Mechanics questions must have multiple forces or require resolving components.
-- Include at least one proof or "show that" sub-part per question.
-      `.trim() : '';
-
-      switch ((level || '').toLowerCase()) {
-        case 'easy': return EASY;
-        case 'medium': return MEDIUM;
-        case 'hard': return [HARD_GENERIC, HARD_PHYSICS_SUPPLEMENT, HARD_MATHS_SUPPLEMENT].filter(Boolean).join('\n\n');
-        default: return MEDIUM;
-      }
-    };
+    // Difficulty builder lives in _shared/difficulty-instructions.ts
 
     const difficultyInstructions = buildDifficultyInstructions(
       setData.difficulty_level ?? 'medium',
@@ -986,77 +737,8 @@ graph_plotting is ONLY for:
 - Any question where the student plots (x, y) coordinate points on a grid
 `;
 
-    const NOTATION_RULES = `
-CRITICAL NOTATION RULES — FOLLOW THESE EXACTLY:
-
-These rules override any other formatting instructions.
-Never use LaTeX dollar signs, backslash commands, or raw caret/underscore notation.
-Always use Unicode characters directly in question text and answers.
-
-REQUIRED FORMATS:
-Half-life: T½ (never T1/2 or T_{1/2})
-Initial values: A₀ N₀ v₀ x₀ u₀ I₀ Q₀ (never A_0 or A_{0} or $A_0$)
-Particles: e⁻ e⁺ β⁻ β⁺ α γ νₑ ν̄ₑ (never e^- or \\beta^- or $e^-$)
-Nuclear symbols: ²³⁸₉₄Pu ¹⁴₆C ⁴₂He (never ^238_94Pu or $_{94}^{238}Pu$)
-Decay arrow: → (never \\rightarrow or ->)
-Powers of ten: × 10⁻¹⁰ × 10⁶ (never × 10^{-10} or 10^-10 or $10^{-10}$)
-Units: s⁻¹ m⁻² yr⁻¹ cm³ m² (never s^{-1} or s^-1 or $s^{-1}$)
-Constants: Nₐ kB (never N_A or k_B or $N_A$)
-Metastable: ⁹⁹ᵐTc (never ^99m_43Tc or 99mTc)
-Fractions: write as 1/f = 1/u + 1/v (never \\frac{1}{f})
-
-UNICODE SUPERSCRIPTS: ⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻
-UNICODE SUBSCRIPTS: ₀₁₂₃₄₅₆₇₈₉
-
-WRONG: "The half-life of ^238Pu is 87.7 years and λ = 2.5 × 10^-10 s^-1"
-RIGHT: "The half-life of ²³⁸Pu is 87.7 years and λ = 2.5 × 10⁻¹⁰ s⁻¹"
-
-WRONG: "N_A = 6.02 × 10^23 mol^-1"
-RIGHT: "Nₐ = 6.02 × 10²³ mol⁻¹"
-
-WRONG: "^14_6C → ? + e^- + v_e"
-RIGHT: "¹⁴₆C → ? + e⁻ + νₑ"
-`;
-
-    const SKETCH_TYPE_RULE = `
-QUALITATIVE SKETCH QUESTIONS — use question_type = "short_answer" NOT "graph_plotting":
-graph_plotting is ONLY for questions where the student must plot specific (x,y) coordinate
-points on a grid. Examples where graph_plotting is CORRECT:
-- "Plot the following data on a graph: [table of values]"
-- "Draw the curve y = x² for -3 ≤ x ≤ 3"
-- "Plot velocity against time using the data in the table"
-
-short_answer is CORRECT for qualitative sketch questions where the student draws the general
-shape of a curve without specific numeric coordinates. Examples:
-- "Sketch a graph to show how N varies with t for radioactive decay"
-- "Sketch the velocity-time graph for a ball thrown upward"
-- "Sketch the graph of activity against time showing the concept of half-life"
-- "Draw a sketch graph showing how pressure varies with volume"
-These qualitative sketches MUST use question_type = "short_answer" and MUST NOT include
-a diagram_config with pre-drawn graph data.
-`;
-
-    const NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS = `
-NUCLEAR EQUATION COMPLETION QUESTIONS:
-For questions asking students to complete a nuclear equation, use this format:
-
-question_type: "nuclear_equation_completion"
-question_text must contain the partial equation with ? marking the blank.
-Example: "Complete the nuclear equation for the beta-plus decay of carbon-11:  11/6 C -> ? + b+ + neutrino"
-
-correct_answer must contain the missing nucleus in the format: "MassNumber Symbol AtomicNumber"
-Example: "11 B 5" (boron-11, atomic number 5)
-
-worked_solution must show the conservation calculation:
-"Mass number: 11 = 11 + 0  Atomic number: 6 = 5 + 1  Missing nucleus: 11/5 B"
-
-Use this question_type for any question containing:
-- "Complete the equation"
-- "Complete the nuclear equation"
-- "Fill in the missing nucleus"
-- "What is the missing particle"
-with a nuclear decay equation that has a blank or ?
-`;
+    // NOTATION_RULES / SKETCH_TYPE_RULE / NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS
+    // are imported from _shared/generation-rules.ts
 
     let visualQuestionInstructions = '';
     if (needsGraphs && needsTables) {
