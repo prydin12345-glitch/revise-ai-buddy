@@ -1,9 +1,13 @@
 // FILE: src/components/wizard/ExamPaperCover.tsx
-// The review step rendered as the front cover of a real exam paper.
+// The review step rendered as an Examly practice-paper front cover.
 // Pure presentation: it receives already-computed display values from
 // CreateExam and shows them in exam-paper styling. Each editable section
 // has a pencil that jumps back to the relevant wizard step (and returns
 // here on save) via the wizard's useReviewEdit() context.
+//
+// IMPORTANT (legal): the masthead is ALWAYS "Examly", never the exam board.
+// The board is shown only as "Modelled on the <board> style" so the cover
+// can never be mistaken for an official paper from AQA / Edexcel / OCR.
 
 import { motion } from "framer-motion";
 import { Pencil } from "lucide-react";
@@ -17,17 +21,18 @@ interface ExamPaperCoverProps {
   levelLabel: string;
   totalQuestions: number;
   timerLabel: string;
-  topicSummary: string;
+  topics: string[];
+  structureLabel: string;
   notes: string;
   includeMCQ: boolean;
 }
 
-const EditButton = ({ onClick, label }: { onClick: () => void; label: string }) => (
+const EditButton = ({ onClick, label, step }: { onClick: () => void; label: string; step: number }) => (
   <button
     type="button"
     onClick={onClick}
     aria-label={`Edit ${label}`}
-    className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-foreground"
+    className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-foreground z-10"
   >
     <Pencil className="h-3 w-3" />
     Edit
@@ -36,9 +41,10 @@ const EditButton = ({ onClick, label }: { onClick: () => void; label: string }) 
 
 export function ExamPaperCover({
   examName, subjectId, subjectColor, boardLabel, levelLabel,
-  totalQuestions, timerLabel, topicSummary, notes, includeMCQ,
+  totalQuestions, timerLabel, topics, structureLabel, notes, includeMCQ,
 }: ExamPaperCoverProps) {
   const { editStep } = useReviewEdit();
+  const hasBoard = boardLabel && boardLabel !== "Generic style";
 
   return (
     <motion.div
@@ -47,46 +53,56 @@ export function ExamPaperCover({
       transition={{ duration: 0.4 }}
       className="mx-auto max-w-xl"
     >
-      {/* The paper — A4-ish aspect (1:√2) so it reads as a real exam cover */}
+      {/* The paper — A4 aspect (1:√2) so it reads as a real exam cover */}
       <div
-        className="relative rounded-sm border border-border bg-card shadow-[0_18px_50px_-20px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col"
-        style={{ minHeight: "min(820px, 90vh)", aspectRatio: "1 / 1.414" }}
+        className="relative rounded-sm border border-border bg-card shadow-[0_18px_50px_-20px_rgba(0,0,0,0.35)] flex flex-col"
+        style={{ aspectRatio: "1 / 1.414" }}
       >
         {/* Coloured spine down the left edge — the subject colour */}
-        <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: subjectColor }} />
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-sm" style={{ backgroundColor: subjectColor }} />
 
-        <div className="p-8 sm:p-10 flex-1 flex flex-col">
-          {/* Board + level header row, exam-paper style */}
-          <div className="group relative flex items-start justify-between gap-4 pb-5 border-b-2 border-foreground/80">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {boardLabel}
-              </p>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mt-0.5">
-                {levelLabel}
-              </p>
+        <div className="px-8 sm:px-12 py-9 flex-1 flex flex-col overflow-y-auto">
+          {/* Masthead — Examly is the publisher, never the board */}
+          <div className="group relative flex items-start justify-between gap-4 pb-4 border-b-2 border-foreground/80">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[13px] font-bold text-white" style={{ backgroundColor: subjectColor }}>
+                E
+              </span>
+              <span className="text-sm font-bold tracking-tight">Examly</span>
             </div>
             <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Examly
+              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Practice paper
               </p>
             </div>
-            <EditButton onClick={() => editStep(2)} label="board and level" />
           </div>
 
-          {/* Title block — centred in the upper portion of the page */}
-          <div className="group relative text-center py-10 sm:py-14">
+          {/* Board alignment line — clearly "modelled on", not the board's own */}
+          <div className="group relative flex items-center justify-between gap-3 py-3 border-b border-border">
+            <p className="text-[11px] text-muted-foreground">
+              {hasBoard
+                ? <>Modelled on the <span className="font-semibold text-foreground">{boardLabel}</span> style</>
+                : <>Generic exam style</>}
+              {levelLabel && levelLabel !== "Not set" && (
+                <> · <span className="font-medium text-foreground/80">{levelLabel}</span></>
+              )}
+            </p>
+            <EditButton onClick={() => editStep(2)} label="board and level" step={2} />
+          </div>
+
+          {/* Title block */}
+          <div className="group relative text-center py-10">
             <p className="font-serif text-sm text-muted-foreground mb-2">
               {subjectId || "Subject"}
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
               {examName || "Untitled exam"}
             </h2>
-            <EditButton onClick={() => editStep(0)} label="name and subject" />
+            <EditButton onClick={() => editStep(0)} label="name and subject" step={0} />
           </div>
 
-          {/* Instructions panel — the "Materials / Instructions" box every paper has */}
-          <div className="group relative rounded-sm border border-border bg-background/60 p-5 mt-2">
+          {/* Information for candidates */}
+          <div className="group relative rounded-sm border border-border bg-background/60 p-5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
               Information for candidates
             </p>
@@ -97,31 +113,52 @@ export function ExamPaperCover({
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Structure</dt>
-                <dd className="font-medium text-right">{topicSummary}{includeMCQ ? " · incl. MCQ section" : ""}</dd>
+                <dd className="font-medium text-right">{structureLabel}{includeMCQ ? " · incl. MCQ section" : ""}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Time allowed</dt>
                 <dd className="font-medium text-right">{timerLabel}</dd>
               </div>
             </dl>
-            <EditButton onClick={() => editStep(1)} label="structure" />
+            <EditButton onClick={() => editStep(1)} label="structure" step={1} />
           </div>
 
-          {/* Notes, shown as an examiner's note if present */}
+          {/* Topics covered — every name shown as a chip */}
+          {topics.length > 0 && (
+            <div className="group relative mt-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
+                Topics covered ({topics.length})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {topics.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full border px-2.5 py-1 text-xs font-medium"
+                    style={{ borderColor: subjectColor + "55", color: subjectColor, backgroundColor: subjectColor + "10" }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <EditButton onClick={() => editStep(0)} label="topics" step={0} />
+            </div>
+          )}
+
+          {/* Notes as an examiner's note */}
           {notes.trim() && (
-            <div className="group relative rounded-sm border-l-2 border-border pl-4 py-1 mt-6">
+            <div className="group relative border-l-2 pl-4 py-1 mt-5" style={{ borderColor: subjectColor + "66" }}>
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 Custom instructions
               </p>
               <p className="font-serif text-sm text-foreground/80 italic leading-relaxed">
                 "{notes.trim()}"
               </p>
-              <EditButton onClick={() => editStep(0)} label="notes" />
+              <EditButton onClick={() => editStep(0)} label="notes" step={0} />
             </div>
           )}
 
-          {/* Footer line, like the bottom of a real cover */}
-          <p className="mt-auto text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground pt-6">
+          {/* Footer */}
+          <p className="mt-auto text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground pt-8">
             Do not turn over until told to do so
           </p>
         </div>
