@@ -47,12 +47,15 @@ export function ExamPaperCover({
       transition={{ duration: 0.4 }}
       className="mx-auto max-w-xl"
     >
-      {/* The paper */}
-      <div className="relative rounded-sm border border-border bg-card shadow-[0_18px_50px_-20px_rgba(0,0,0,0.35)] overflow-hidden">
+      {/* The paper — A4-ish aspect (1:√2) so it reads as a real exam cover */}
+      <div
+        className="relative rounded-sm border border-border bg-card shadow-[0_18px_50px_-20px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col"
+        style={{ minHeight: "min(820px, 90vh)", aspectRatio: "1 / 1.414" }}
+      >
         {/* Coloured spine down the left edge — the subject colour */}
         <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: subjectColor }} />
 
-        <div className="p-8 sm:p-10 space-y-7">
+        <div className="p-8 sm:p-10 flex-1 flex flex-col">
           {/* Board + level header row, exam-paper style */}
           <div className="group relative flex items-start justify-between gap-4 pb-5 border-b-2 border-foreground/80">
             <div>
@@ -68,11 +71,11 @@ export function ExamPaperCover({
                 Examly
               </p>
             </div>
-            <EditButton onClick={() => editStep(3)} label="board and level" />
+            <EditButton onClick={() => editStep(2)} label="board and level" />
           </div>
 
-          {/* Title block */}
-          <div className="group relative text-center py-2">
+          {/* Title block — centred in the upper portion of the page */}
+          <div className="group relative text-center py-10 sm:py-14">
             <p className="font-serif text-sm text-muted-foreground mb-2">
               {subjectId || "Subject"}
             </p>
@@ -83,7 +86,7 @@ export function ExamPaperCover({
           </div>
 
           {/* Instructions panel — the "Materials / Instructions" box every paper has */}
-          <div className="group relative rounded-sm border border-border bg-background/60 p-5">
+          <div className="group relative rounded-sm border border-border bg-background/60 p-5 mt-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
               Information for candidates
             </p>
@@ -101,24 +104,24 @@ export function ExamPaperCover({
                 <dd className="font-medium text-right">{timerLabel}</dd>
               </div>
             </dl>
-            <EditButton onClick={() => editStep(2)} label="structure" />
+            <EditButton onClick={() => editStep(1)} label="structure" />
           </div>
 
           {/* Notes, shown as an examiner's note if present */}
           {notes.trim() && (
-            <div className="group relative rounded-sm border-l-2 border-border pl-4 py-1">
+            <div className="group relative rounded-sm border-l-2 border-border pl-4 py-1 mt-6">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 Custom instructions
               </p>
               <p className="font-serif text-sm text-foreground/80 italic leading-relaxed">
                 "{notes.trim()}"
               </p>
-              <EditButton onClick={() => editStep(1)} label="notes" />
+              <EditButton onClick={() => editStep(0)} label="notes" />
             </div>
           )}
 
           {/* Footer line, like the bottom of a real cover */}
-          <p className="text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground pt-2">
+          <p className="mt-auto text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground pt-6">
             Do not turn over until told to do so
           </p>
         </div>
