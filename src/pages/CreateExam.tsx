@@ -13,6 +13,7 @@ import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriang
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
+import { SubtopicSelector } from "@/components/practice/SubtopicSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { StepWizard, useReviewEdit, type WizardStep } from "@/components/wizard/StepWizard";
 import { ExamPaperCover } from "@/components/wizard/ExamPaperCover";
@@ -110,6 +111,9 @@ export default function CreateExam() {
   const [profileMaxQuestions, setProfileMaxQuestions] = useState<number | null>(null);
   const [profileTopics, setProfileTopics] = useState<string[]>([]);
   const [activeProfileTopics, setActiveProfileTopics] = useState<string[]>([]);
+  // Manual subtopic selection for students WITHOUT a saved profile.
+  const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
+  const [useAIInterpretation, setUseAIInterpretation] = useState(true);
   const [profileEducationalTier, setProfileEducationalTier] = useState<string | null>(null);
   const [profileTimeLimit, setProfileTimeLimit] = useState<number | null>(null);
   const [sessionTimeLimitOverride, setSessionTimeLimitOverride] = useState<number | null>(null);
@@ -435,6 +439,9 @@ export default function CreateExam() {
       if (notes) formData.append('notes', notes);
       if (activeProfileTopics.length > 0) {
         formData.append('curriculumTopics', JSON.stringify(activeProfileTopics));
+      } else if (selectedSubtopics.length > 0) {
+        // No profile chosen — use the student's manually selected topics.
+        formData.append('curriculumTopics', JSON.stringify(selectedSubtopics));
       }
       if (selectedProfile) {
         const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
@@ -756,6 +763,23 @@ export default function CreateExam() {
                         />
                       );
                     })()}
+
+                    {/* Manual topic selection — for students who haven't made
+                        an exam profile yet. Hidden once a profile is active
+                        (the badge above handles topics in that case). */}
+                    {subjectId && !selectedProfile && (
+                      <div className="rounded-lg border border-border bg-card/40 p-4">
+                        <SubtopicSelector
+                          subject={subjectId}
+                          selectedSubtopics={selectedSubtopics}
+                          onSubtopicsChange={setSelectedSubtopics}
+                          educationalTier={effectiveEducationalTier}
+                          examBoard={effectiveExamBoard}
+                          useAIInterpretation={useAIInterpretation}
+                          onAIInterpretationChange={setUseAIInterpretation}
+                        />
+                      </div>
+                    )}
 
                     {/* Divider before source-material section */}
                     <div className="pt-2 border-t border-border" />
@@ -1213,11 +1237,12 @@ export default function CreateExam() {
                     levelLabel={effectiveEducationalTier ? (LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier) : "Not set"}
                     totalQuestions={totalQuestions}
                     timerLabel={timerEnabled ? `${duration} minutes` : "No time limit"}
-                    topicSummary={
+                    topics={
                       selectedProfile && activeProfileTopics.length > 0
-                        ? `${activeProfileTopics.length} topics`
-                        : useOriginal ? "Original structure" : "Custom structure"
+                        ? activeProfileTopics
+                        : selectedSubtopics
                     }
+                    structureLabel={useOriginal ? "Original structure" : "Custom structure"}
                     notes={notes}
                     includeMCQ={includeMCQ}
                   />
