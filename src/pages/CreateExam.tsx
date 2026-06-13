@@ -238,6 +238,22 @@ export default function CreateExam() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsLoading, preferences]);
 
+  // Turn an educational-tier value into a human label. Known ids use the
+  // display map; unknown profile codes like "college_16_18" are humanised
+  // (strip a leading qualifier word, turn an age span like 16_18 into
+  // "16–18 years", and title-case the rest) so students never see raw codes.
+  const formatLevelLabel = (tier: string | null | undefined): string => {
+    if (!tier) return "Not set";
+    if (LEVEL_DISPLAY_NAMES[tier]) return LEVEL_DISPLAY_NAMES[tier];
+    const ageSpan = tier.match(/(\d{1,2})[_-](\d{1,2})/);
+    if (ageSpan) return `${ageSpan[1]}\u2013${ageSpan[2]} years`;
+    return tier
+      .replace(/^(college|school|level\d*)[_-]/i, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (ch) => ch.toUpperCase())
+      .trim() || tier;
+  };
+
   const effectiveExamBoard = examBoard || preferences?.preferred_exam_board || "";
   const effectiveEducationalTier =
     educationalTier === 'other'
@@ -693,7 +709,7 @@ export default function CreateExam() {
                 content: (
                   <div className="space-y-6">
                     {/* Row 1: Exam Name & Subject — aligned in the same row with matching labels */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                       <div className="flex flex-col">
                         <Label htmlFor="exam-name" className="mb-2 block h-5">Exam name</Label>
                         <Input
@@ -1234,7 +1250,7 @@ export default function CreateExam() {
                     subjectId={subjectId}
                     subjectColor={subjectColor}
                     boardLabel={effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Generic style"}
-                    levelLabel={effectiveEducationalTier ? (LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier) : "Not set"}
+                    levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
                     timerLabel={timerEnabled ? `${duration} minutes` : "No time limit"}
                     topics={
@@ -1242,7 +1258,17 @@ export default function CreateExam() {
                         ? activeProfileTopics
                         : selectedSubtopics
                     }
-                    structureLabel={useOriginal ? "Original structure" : "Custom structure"}
+                    structureLabel={
+                      useOriginal
+                        ? "Original paper structure"
+                        : [
+                            `${totalQuestions} questions`,
+                            oneMarkCount > 0 ? `${oneMarkCount}\u00d71-mark` : null,
+                            twoMarkCount > 0 ? `${twoMarkCount}\u00d72-mark` : null,
+                            fourMarkCount > 0 ? `${fourMarkCount}\u00d74-mark` : null,
+                            extendedCount > 0 ? `${extendedCount} extended` : null,
+                          ].filter(Boolean).join(" \u00b7 ")
+                    }
                     notes={notes}
                     includeMCQ={includeMCQ}
                   />
