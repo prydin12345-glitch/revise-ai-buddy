@@ -13,6 +13,7 @@ import { Upload, FileText, Clock, SlidersHorizontal, Info, Sparkles, AlertTriang
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SubtopicSelector } from "@/components/practice/SubtopicSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
 import { StepWizard, useReviewEdit, type WizardStep } from "@/components/wizard/StepWizard";
@@ -261,6 +262,13 @@ export default function CreateExam() {
       : educationalTier || preferences?.preferred_educational_level || "";
 
   const hasLockedProfileStructure = !!selectedProfile && selectedProfile !== 'all_topics';
+  // Per-exam structure unlock. The saved profile is never modified; this only
+  // frees the structure controls for THIS exam after an explicit confirmation.
+  const [structureUnlocked, setStructureUnlocked] = useState(false);
+  const [showUnlockConfirm, setShowUnlockConfirm] = useState(false);
+  // Re-lock automatically if the user switches profile.
+  useEffect(() => { setStructureUnlocked(false); }, [selectedProfile]);
+  const structureLocked = hasLockedProfileStructure && !structureUnlocked;
   const resolvedProfileMcqCount = profileMcqCount ?? 0;
   const resolvedProfileWrittenCount = profileWrittenCount ?? 0;
   const resolvedProfileMcqOptionsCount = profileMcqOptionsCount ?? 4;
@@ -472,8 +480,10 @@ export default function CreateExam() {
 
       const draftId = uploadData.draftId;
 
-      // Save format — include profile structure if a profile is active
-      const hasProfileStructure = selectedProfile && selectedProfile !== 'all_topics';
+      // Save format — include profile structure if a profile is active AND the
+      // user hasn't unlocked the structure for this exam. When unlocked, fall
+      // through to the custom branch so their edits actually take effect.
+      const hasProfileStructure = selectedProfile && selectedProfile !== 'all_topics' && !structureUnlocked;
       
       
       let format: any;
@@ -901,14 +911,39 @@ export default function CreateExam() {
                 content: (
                   <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
                     {/* Format Selection */}
-                                    <div className={`mb-6 ${hasLockedProfileStructure ? 'opacity-70' : ''}`}>
+                                    <div className={`mb-6 ${structureLocked ? 'opacity-70' : ''}`}>
                                       <div className="flex items-center gap-2 mb-4">
                                         <FileText className="h-5 w-5 text-primary" />
                                         <h2 className="text-lg font-semibold">Format Selection</h2>
                                         {selectedProfile && (
-                                          <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
-                                            Locked by Profile
-                                          </Badge>
+                                          structureLocked ? (
+                                            <div className="ml-auto flex items-center gap-2">
+                                              <Badge variant="outline" className="text-[10px]" style={{ borderColor: subjectColor, color: subjectColor }}>
+                                                Locked by Profile
+                                              </Badge>
+                                              <button
+                                                type="button"
+                                                onClick={() => setShowUnlockConfirm(true)}
+                                                className="text-[11px] font-medium underline-offset-2 hover:underline"
+                                                style={{ color: subjectColor }}
+                                              >
+                                                Unlock
+                                              </button>
+                                            </div>
+                                          ) : hasLockedProfileStructure ? (
+                                            <div className="ml-auto flex items-center gap-2">
+                                              <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600 dark:text-amber-400">
+                                                Unlocked for this exam
+                                              </Badge>
+                                              <button
+                                                type="button"
+                                                onClick={() => setStructureUnlocked(false)}
+                                                className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                                              >
+                                                Re-lock
+                                              </button>
+                                            </div>
+                                          ) : null
                                         )}
                                       </div>
                                       <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
@@ -940,12 +975,12 @@ export default function CreateExam() {
                                         <Switch
                                           checked={useOriginal}
                                           onCheckedChange={setUseOriginal}
-                                          disabled={hasLockedProfileStructure}
+                                          disabled={structureLocked}
                                         />
                                       </div>
                   
                                       {/* Custom Exam Structure Panel — only when no profile is active */}
-                                      {!useOriginal && !hasLockedProfileStructure && (
+                                      {!useOriginal && !structureLocked && (
                                         <div className="mt-4 p-5 bg-background rounded-lg border border-border space-y-5">
                                           <div className="flex items-center gap-2 mb-2">
                                             <SlidersHorizontal className="h-4 w-4 text-primary" />
@@ -1252,25 +1287,16 @@ export default function CreateExam() {
                     boardLabel={effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Generic style"}
                     levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
-                    timerLabel={timerEnabled ? `${duration} minutes` : "No time limit"}
+                    timerEnabled={timerEnabled}
+                    durationMinutes={duration}
                     topics={
                       selectedProfile && activeProfileTopics.length > 0
                         ? activeProfileTopics
                         : selectedSubtopics
                     }
-                    structureLabel={
-                      useOriginal
-                        ? "Original paper structure"
-                        : [
-                            `${totalQuestions} questions`,
-                            oneMarkCount > 0 ? `${oneMarkCount}\u00d71-mark` : null,
-                            twoMarkCount > 0 ? `${twoMarkCount}\u00d72-mark` : null,
-                            fourMarkCount > 0 ? `${fourMarkCount}\u00d74-mark` : null,
-                            extendedCount > 0 ? `${extendedCount} extended` : null,
-                          ].filter(Boolean).join(" \u00b7 ")
-                    }
-                    notes={notes}
+                    useOriginalStructure={useOriginal}
                     includeMCQ={includeMCQ}
+                    notes={notes}
                   />
                 ),
               },
@@ -1374,6 +1400,38 @@ export default function CreateExam() {
       )}
 
       {/* Smart Profile Prompt Modal */}
+      {/* Per-exam structure unlock confirmation */}
+      <AlertDialog open={showUnlockConfirm} onOpenChange={setShowUnlockConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit the structure for this exam only?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're about to change the question structure for this one exam. Your saved exam
+              profile won't be touched — these changes apply to this paper only. To change the
+              profile itself, head to the Subjects page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // Seed the editable fields from the profile so the user starts
+                // from its structure, not blank defaults. Then free the controls.
+                if (profileMcqCount != null || profileWrittenCount != null) {
+                  setIncludeMCQ((profileMcqCount ?? 0) > 0);
+                }
+                setUseOriginal(false);
+                setStructureUnlocked(true);
+                setShowUnlockConfirm(false);
+              }}
+              style={{ backgroundColor: subjectColor }}
+            >
+              Unlock for this exam
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CurriculumPromptModal
         open={showProfilePrompt}
         onOpenChange={setShowProfilePrompt}
