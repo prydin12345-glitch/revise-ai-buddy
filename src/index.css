@@ -463,3 +463,7 @@ html {
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "dlig" 0, "calt" 0;
 }
+
+/* Hide horizontal scrollbar on the wizard step rail while keeping it scrollable */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
