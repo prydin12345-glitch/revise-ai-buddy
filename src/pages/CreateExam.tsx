@@ -655,16 +655,16 @@ export default function CreateExam() {
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background">
-        <div className="max-w-7xl mx-auto p-6">
-          {/* Header */}
-          <div className="mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
-            <h1 className="text-3xl font-bold">Create Mock Exam</h1>
-            <p className="text-muted-foreground mt-1 text-sm">Build your paper step by step.</p>
+        <div className="mx-auto p-4 sm:p-6">
+          {/* Slim page title — the wizard renders the per-step header below */}
+          <div className="max-w-4xl mx-auto mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold">Create Mock Exam</h1>
           </div>
 
           <StepWizard
+            maxWidth="max-w-4xl"
             accentColor={subjectColor}
-            reviewIndex={3}
+            reviewIndex={4}
             finishDisabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
             finalLabel={generating ? (
               <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />Generating...</>
@@ -688,7 +688,9 @@ export default function CreateExam() {
                     {/* Row 1: Exam Name & Subject */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                   <div>
+                                    <Label htmlFor="exam-name" className="mb-2 block">Exam name</Label>
                                     <Input
+                                      id="exam-name"
                                       placeholder="Enter exam name..."
                                       value={examName}
                                       onChange={(e) => {
@@ -759,7 +761,15 @@ export default function CreateExam() {
                                     );
                                   })()}
                                 </div>
-
+                  </div>
+                ),
+              },
+              {
+                id: "source",
+                title: "Source material",
+                subtitle: "Optional — notes, resources and a reference paper to guide generation.",
+                content: (
+                  <div className="space-y-6">
                                 {/* Row 2: Notes (Full Width) */}
                                 <div className="space-y-2">
                                   <Label>Notes (Optional)</Label>
@@ -826,7 +836,7 @@ export default function CreateExam() {
                                 )}
 
                                 {/* Row 3: Import Reference Assessment */}
-                                <div className="grid lg:grid-cols-2 gap-4">
+                                <div>
                                   <div className="relative">
                                     <input
                                       id="exam-file"
