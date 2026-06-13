@@ -29,6 +29,8 @@ interface StepWizardProps {
   onFinish: () => void;
   finishDisabled?: boolean;
   accentColor?: string;
+  /** Column width — the PAGE owns this, not the wizard. Default keeps prior behaviour. */
+  maxWidth?: string;
   /** Optional callback when the active step changes (for analytics etc). */
   onStepChange?: (index: number) => void;
 }
@@ -40,6 +42,7 @@ export function StepWizard({
   onFinish,
   finishDisabled,
   accentColor = "hsl(var(--primary))",
+  maxWidth = "max-w-3xl",
   onStepChange,
 }: StepWizardProps) {
   const reduced = useReducedMotion();
@@ -96,9 +99,9 @@ export function StepWizard({
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={cn(maxWidth, "mx-auto")}>
       {/* Progress rail */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 mb-8 px-2" role="list">
+      <div className="flex items-center justify-start sm:justify-center gap-2 sm:gap-3 mb-8 px-1 overflow-x-auto no-scrollbar" role="list">
         {steps.map((s, i) => {
           const done = i < active;
           const current = i === active;
@@ -113,6 +116,7 @@ export function StepWizard({
                   i <= active ? "cursor-pointer" : "cursor-default"
                 )}
                 aria-current={current ? "step" : undefined}
+                aria-label={`Step ${i + 1}: ${s.title}`}
               >
                 <span
                   className={cn(
@@ -149,8 +153,9 @@ export function StepWizard({
         )}
       </div>
 
-      {/* Animated step body */}
-      <div className="relative overflow-hidden">
+      {/* Animated step body. overflow-x-clip contains the horizontal slide
+          without trimming focus rings, tooltips or popovers vertically. */}
+      <div className="relative overflow-x-clip px-1 py-1">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={steps[active].id}
@@ -165,9 +170,13 @@ export function StepWizard({
                 the page renders its review content with edit buttons that call
                 window-level callback set here. Simplicity: we pass through a
                 data attribute the review reads. */}
-            <ReviewEditContext.Provider value={{ editStep, isReview }}>
-              {steps[active].content}
-            </ReviewEditContext.Provider>
+            {isReview ? (
+              <ReviewEditContext.Provider value={{ editStep, isReview: true }}>
+                {steps[active].content}
+              </ReviewEditContext.Provider>
+            ) : (
+              steps[active].content
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -177,6 +186,7 @@ export function StepWizard({
         {error && (
           <motion.p
             initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            role="alert"
             className="mt-4 text-center text-sm text-destructive font-medium"
           >
             {error}
