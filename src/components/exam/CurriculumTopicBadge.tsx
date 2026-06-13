@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, X, ChevronDown, ChevronUp, AlertTriangle, Shuffle, Settings2, Info, Clock } from "lucide-react";
+import { X, AlertTriangle, Shuffle, Settings2, Info, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -90,71 +88,45 @@ export const CurriculumTopicBadge = ({
 
   return (
     <div
-      className="col-span-full rounded-xl border-2 transition-all"
-      style={{ borderColor: subjectColor + "40", backgroundColor: subjectColor + "06" }}
+      className="col-span-full rounded-xl border overflow-hidden"
+      style={{ borderColor: subjectColor + "33", backgroundColor: subjectColor + "06" }}
     >
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        {/* Header Row */}
-        <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
-          <Badge
-            className="gap-1.5 text-xs font-semibold shrink-0"
-            style={{ backgroundColor: subjectColor, color: "white" }}
-          >
-            {profileName}
-          </Badge>
+      {/* Header: profile · topic count · session · remove (calm single row) */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: subjectColor + "1A" }}>
+        <Badge
+          className="text-xs font-semibold shrink-0"
+          style={{ backgroundColor: subjectColor, color: "white" }}
+        >
+          {profileName}
+        </Badge>
+        <span className="text-sm text-muted-foreground">
+          {activeTopics.length} of {topics.length} topic{topics.length !== 1 ? "s" : ""} active
+        </span>
 
-          {/* Topic count with tooltip preview */}
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <CollapsibleTrigger asChild>
-                  <button
-                    className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 shrink-0"
-                    style={{ color: subjectColor }}
-                  >
-                    {isOpen ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    {activeTopics.length} topic{activeTopics.length !== 1 ? "s" : ""}
-                    {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                </CollapsibleTrigger>
-              </TooltipTrigger>
-              {!isOpen && (
-                <TooltipContent side="bottom" className="max-w-xs p-3">
-                  <p className="text-xs font-semibold mb-1.5">Topics in this profile:</p>
-                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                    {activeTopics.map((t) => (
-                      <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-muted">{t}</span>
-                    ))}
-                  </div>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Session Overrides Popover */}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Session overrides — quiet icon button + popover (logic unchanged) */}
           <Popover open={showSessionPopover} onOpenChange={setShowSessionPopover}>
             <PopoverTrigger asChild>
               <button
-                className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80 shrink-0 px-2 py-1 rounded-md border"
-                style={{ 
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors hover:bg-muted/50"
+                style={{
                   borderColor: hasSessionOverrides ? subjectColor + "60" : 'hsl(var(--border))',
                   color: hasSessionOverrides ? subjectColor : 'hsl(var(--muted-foreground))',
-                  backgroundColor: hasSessionOverrides ? subjectColor + "08" : 'transparent',
                 }}
               >
-                <Settings2 className="h-3 w-3" />
-                Session
+                <Settings2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Session</span>
+                {hasSessionOverrides && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subjectColor }} />}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-4 space-y-4" align="start">
+            <PopoverContent className="w-72 p-4 space-y-4" align="end">
               <div>
-                <p className="text-xs font-semibold mb-1">Session Overrides</p>
+                <p className="text-xs font-semibold mb-1">Session overrides</p>
                 <p className="text-[10px] text-muted-foreground">
                   Changes here apply to this session only. Your saved profile is unchanged.
                 </p>
               </div>
 
-              {/* Question Count Override */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Questions</Label>
@@ -175,11 +147,10 @@ export const CurriculumTopicBadge = ({
                 />
               </div>
 
-              {/* Time Limit Override */}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3 w-3 text-muted-foreground" />
-                  <Label className="text-xs">Time Limit (minutes)</Label>
+                  <Label className="text-xs">Time limit (minutes)</Label>
                 </div>
                 <Input
                   type="number"
@@ -199,7 +170,6 @@ export const CurriculumTopicBadge = ({
                 />
               </div>
 
-              {/* Tight time warning */}
               {effectiveTimeLimit && activeTopics.length > 0 && effectiveTimeLimit < activeTopics.length * 3 && (
                 <div className="flex items-start gap-1.5 text-[10px] text-amber-600 dark:text-amber-400">
                   <Info className="h-3 w-3 shrink-0 mt-0.5" />
@@ -222,80 +192,59 @@ export const CurriculumTopicBadge = ({
                     setShowSessionPopover(false);
                   }}
                 >
-                  Reset to Profile Defaults
+                  Reset to profile defaults
                 </Button>
               )}
             </PopoverContent>
           </Popover>
 
-          {questionLimit && (
-            <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
-              max {questionLimit}Q
-            </span>
-          )}
-
-          <span className="text-[10px] text-muted-foreground ml-auto sm:ml-0">
-            AI selects from your curated topics
-          </span>
-
           <button
-            className="text-xs text-destructive/70 hover:text-destructive hover:underline ml-2 shrink-0"
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors shrink-0"
             onClick={onRemoveProfile}
           >
             Remove
           </button>
         </div>
+      </div>
 
-        {/* Collapsible Topic List */}
-        <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-3">
-            {/* Dynamic note */}
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Shuffle className="h-3 w-3" />
-              AI will randomly select from these {activeTopics.length} topic{activeTopics.length !== 1 ? "s" : ""} to fit
-              your {effectiveQuestionCount}-question limit.
-            </div>
+      {/* Body: a calm helper line + all topics visible as toggle chips */}
+      <div className="px-4 py-3.5 space-y-3">
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Shuffle className="h-3 w-3 shrink-0" />
+          The AI picks from these {activeTopics.length} topic{activeTopics.length !== 1 ? "s" : ""} to fill your {effectiveQuestionCount}-question paper. Tap a topic to exclude it.
+        </div>
 
-            {/* Topic Chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {topics.map((topic) => {
-                const isActive = !deselectedTopics.has(topic);
-                return (
-                  <button
-                    key={topic}
-                    onClick={() => toggleTopic(topic)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                      isActive
-                        ? "border-transparent text-white"
-                        : "border-border bg-muted/50 text-muted-foreground line-through opacity-60"
-                    }`}
-                    style={isActive ? { backgroundColor: subjectColor + "CC" } : undefined}
-                  >
-                    {topic}
-                    {isActive && <X className="h-3 w-3 opacity-60 hover:opacity-100" />}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="flex flex-wrap gap-1.5">
+          {topics.map((topic) => {
+            const isActive = !deselectedTopics.has(topic);
+            return (
+              <button
+                key={topic}
+                onClick={() => toggleTopic(topic)}
+                title={isActive ? "Tap to exclude" : "Tap to include"}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  isActive
+                    ? "border-transparent text-white"
+                    : "border-border bg-muted/40 text-muted-foreground line-through opacity-60"
+                }`}
+                style={isActive ? { backgroundColor: subjectColor } : undefined}
+              >
+                {topic}
+                {isActive && <X className="h-3 w-3 opacity-50" />}
+              </button>
+            );
+          })}
+        </div>
 
-            {/* Warning if only 1 topic left */}
-            {activeTopics.length <= 1 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                  You must have at least one topic selected to generate an exam.
-                </p>
-              </div>
-            )}
-
-            {hasSessionOverrides && (
-              <p className="text-[10px] text-muted-foreground/60 italic">
-                Session overrides active — your saved profile is unchanged.
-              </p>
-            )}
+        {activeTopics.length <= 1 && (
+          <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              Keep at least one topic active to generate an exam.
+            </p>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        )}
+      </div>
     </div>
   );
 };
