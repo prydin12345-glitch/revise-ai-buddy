@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
@@ -48,6 +48,8 @@ export const CurriculumTopicBadge = ({
   const [sessionQuestionOverride, setSessionQuestionOverride] = useState<number | null>(null);
   const [sessionTimeOverride, setSessionTimeOverride] = useState<number | null>(null);
   const [showSessionPopover, setShowSessionPopover] = useState(false);
+  // Show the "session only" reminder once per edit episode, not on every tick.
+  const sessionToastShownRef = useRef(false);
 
   const activeTopics = topics.filter((t) => !deselectedTopics.has(t));
   const hasSessionOverrides = deselectedTopics.size > 0 || sessionQuestionOverride !== null || sessionTimeOverride !== null;
@@ -67,20 +69,23 @@ export const CurriculumTopicBadge = ({
     });
   };
 
+  // One quiet reminder per editing episode (reset when the popover reopens).
+  const noteSessionEdit = () => {
+    if (sessionToastShownRef.current) return;
+    sessionToastShownRef.current = true;
+    toast("Adjusted for this exam only — your saved profile is unchanged.", { duration: 3000 });
+  };
+
   const handleSessionQuestionChange = (value: number) => {
     setSessionQuestionOverride(value);
     onSessionQuestionCountChange?.(value);
-    toast("Settings adjusted for this session. Your permanent profile remains unchanged.", {
-      duration: 3000,
-    });
+    noteSessionEdit();
   };
 
   const handleSessionTimeChange = (value: number) => {
     setSessionTimeOverride(value);
     onSessionTimeLimitChange?.(value);
-    toast("Settings adjusted for this session. Your permanent profile remains unchanged.", {
-      duration: 3000,
-    });
+    noteSessionEdit();
   };
 
   const effectiveQuestionCount = sessionQuestionOverride ?? questionCount;
@@ -105,7 +110,7 @@ export const CurriculumTopicBadge = ({
 
         <div className="ml-auto flex items-center gap-2">
           {/* Session overrides — quiet icon button + popover (logic unchanged) */}
-          <Popover open={showSessionPopover} onOpenChange={setShowSessionPopover}>
+          <Popover open={showSessionPopover} onOpenChange={(open) => { setShowSessionPopover(open); if (open) sessionToastShownRef.current = false; }}>
             <PopoverTrigger asChild>
               <button
                 className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors hover:bg-muted/50"
