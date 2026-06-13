@@ -115,6 +115,12 @@ export function ExamPaperCover({
                 <dt className="text-muted-foreground">Structure</dt>
                 <dd className="font-medium text-right">{structureLabel}{includeMCQ ? " · incl. MCQ section" : ""}</dd>
               </div>
+              {topics.length > 0 && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground shrink-0">Topics ({topics.length})</dt>
+                  <dd className="font-medium text-right">{topics.join(", ")}</dd>
+                </div>
+              )}
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Time allowed</dt>
                 <dd className="font-medium text-right">{timerLabel}</dd>
@@ -122,27 +128,6 @@ export function ExamPaperCover({
             </dl>
             <EditButton onClick={() => editStep(1)} label="structure" step={1} />
           </div>
-
-          {/* Topics covered — every name shown as a chip */}
-          {topics.length > 0 && (
-            <div className="group relative mt-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
-                Topics covered ({topics.length})
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {topics.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-full border px-2.5 py-1 text-xs font-medium"
-                    style={{ borderColor: subjectColor + "55", color: subjectColor, backgroundColor: subjectColor + "10" }}
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-              <EditButton onClick={() => editStep(0)} label="topics" step={0} />
-            </div>
-          )}
 
           {/* Notes as an examiner's note */}
           {notes.trim() && (
