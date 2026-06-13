@@ -68,7 +68,7 @@ export function ExamPaperCover({
                 Examly
               </p>
             </div>
-            <EditButton onClick={() => editStep(2)} label="board and level" />
+            <EditButton onClick={() => editStep(3)} label="board and level" />
           </div>
 
           {/* Title block */}
@@ -101,7 +101,7 @@ export function ExamPaperCover({
                 <dd className="font-medium text-right">{timerLabel}</dd>
               </div>
             </dl>
-            <EditButton onClick={() => editStep(1)} label="structure" />
+            <EditButton onClick={() => editStep(2)} label="structure" />
           </div>
 
           {/* Notes, shown as an examiner's note if present */}
@@ -113,7 +113,7 @@ export function ExamPaperCover({
               <p className="font-serif text-sm text-foreground/80 italic leading-relaxed">
                 "{notes.trim()}"
               </p>
-              <EditButton onClick={() => editStep(0)} label="notes" />
+              <EditButton onClick={() => editStep(1)} label="notes" />
             </div>
           )}
 
