@@ -14,6 +14,8 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SubjectSelector } from "@/components/dashboard/SubjectSelector";
 import { GenerationLoadingScreen } from "@/components/exam/GenerationLoadingScreen";
+import { StepWizard, useReviewEdit, type WizardStep } from "@/components/wizard/StepWizard";
+import { ExamPaperCover } from "@/components/wizard/ExamPaperCover";
 import { GenerationCompleteModal } from "@/components/exam/GenerationCompleteModal";
 import { NotesInput } from "@/components/ui/notes-input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
@@ -655,644 +657,589 @@ export default function CreateExam() {
       <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
+          <div className="mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
             <h1 className="text-3xl font-bold">Create Mock Exam</h1>
-            <Button
-              onClick={handleGenerate}
-              disabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
-              size="lg"
-              className="px-8 button-glow"
-            >
-              {generating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Generate
-                </>
-              )}
-            </Button>
+            <p className="text-muted-foreground mt-1 text-sm">Build your paper step by step.</p>
           </div>
 
-          <div className="space-y-6">
-            {/* Row 1: Exam Name & Subject */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div>
-                <Input
-                  placeholder="Enter exam name..."
-                  value={examName}
-                  onChange={(e) => {
-                    setExamName(e.target.value);
-                    nameValidator.checkName(e.target.value);
-                    if (e.target.value.trim()) {
-                      setExamNameError(false);
-                    }
-                  }}
-                  className={`h-12 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
-                />
-                {examNameError && (
-                  <p className="text-sm text-destructive mt-1">Exam name is required</p>
-                )}
-                {nameValidator.isDuplicate && (
-                  <div className="mt-2 space-y-1.5">
-                    <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {nameValidator.suggestions.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => {
-                            setExamName(s);
-                            nameValidator.checkName(s);
-                          }}
-                          className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <SubjectSelector
-                value={subjectId}
-                color={subjectColor}
-                onValueChange={handleSubjectChange}
-                onColorChange={setSubjectColor}
-                showLabel={false}
-              />
-
-              {/* Selected Profile / Curriculum Badge */}
-              {selectedProfile && profileTopics.length > 0 && (() => {
-                const profile = selectedProfile === 'all_topics'
-                  ? null
-                  : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
-                return (
-                  <CurriculumTopicBadge
-                    profileName={profile?.profile_name || 'All Saved Topics'}
-                    topics={profileTopics}
-                    questionCount={totalQuestions}
-                    questionLimit={profileMaxQuestions}
-                    subjectColor={subjectColor}
-                    onRemoveProfile={clearProfile}
-                    onActiveTopicsChange={setActiveProfileTopics}
-                    profileEducationalTier={profileEducationalTier}
-                    profileTimeLimit={profileTimeLimit}
-                    onSessionQuestionCountChange={(count) => setTotalQuestions(count)}
-                    onSessionTimeLimitChange={(mins) => {
-                      setSessionTimeLimitOverride(mins);
-                      if (mins != null) {
-                        setTimerEnabled(true);
-                        setDuration(mins);
-                      }
-                    }}
-                  />
-                );
-              })()}
-            </div>
-
-            {/* Row 2: Notes (Full Width) */}
-            <div className="space-y-2">
-              <Label>Notes (Optional)</Label>
-              <NotesInput
-                value={notes}
-                onChange={setNotes}
-                placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
-              />
-            </div>
-
-            {/* Resource Mode Selector */}
-            <ResourceModeSelector 
-              value={resourceMode} 
-              onChange={(mode) => {
-                setResourceMode(mode);
-                if (mode === 'none') setResourcePack(null);
-              }}
-              subjectColor={subjectColor}
-            />
-
-            {/* Resource Pack Uploader (when upload mode selected) */}
-            {resourceMode === 'uploaded' && (
-              <ResourcePackUploader
-                subjectId={subjectId}
-                subjectColor={subjectColor}
-                currentPack={resourcePack}
-                onPackReady={(pack) => setResourcePack(pack)}
-                onPackCleared={() => setResourcePack(null)}
-              />
+          <StepWizard
+            accentColor={subjectColor}
+            reviewIndex={3}
+            finishDisabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
+            finalLabel={generating ? (
+              <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />Generating...</>
+            ) : (
+              <><Sparkles className="h-5 w-5 mr-2" />Generate exam</>
             )}
+            onFinish={handleGenerate}
+            steps={[
+              {
+                id: "basics",
+                title: "Basics",
+                subtitle: "Name your exam and pick a subject.",
+                validate: () => {
+                  if (!examName.trim()) return "Please enter an exam name.";
+                  if (nameValidator.isDuplicate) return "That name is already taken — pick another.";
+                  if (!subjectId) return "Please select a subject.";
+                  return null;
+                },
+                content: (
+                  <div className="space-y-6">
+                    {/* Row 1: Exam Name & Subject */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  <div>
+                                    <Input
+                                      placeholder="Enter exam name..."
+                                      value={examName}
+                                      onChange={(e) => {
+                                        setExamName(e.target.value);
+                                        nameValidator.checkName(e.target.value);
+                                        if (e.target.value.trim()) {
+                                          setExamNameError(false);
+                                        }
+                                      }}
+                                      className={`h-12 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                                    />
+                                    {examNameError && (
+                                      <p className="text-sm text-destructive mt-1">Exam name is required</p>
+                                    )}
+                                    {nameValidator.isDuplicate && (
+                                      <div className="mt-2 space-y-1.5">
+                                        <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {nameValidator.suggestions.map((s) => (
+                                            <button
+                                              key={s}
+                                              onClick={() => {
+                                                setExamName(s);
+                                                nameValidator.checkName(s);
+                                              }}
+                                              className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                                            >
+                                              {s}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <SubjectSelector
+                                    value={subjectId}
+                                    color={subjectColor}
+                                    onValueChange={handleSubjectChange}
+                                    onColorChange={setSubjectColor}
+                                    showLabel={false}
+                                  />
 
-            {/* AI Resource Generator (when AI mode selected) */}
-            {resourceMode === 'ai_generated' && (
-              <AIResourceGenerator
-                subjectId={subjectId}
-                subjectColor={subjectColor}
-                educationalTier={effectiveEducationalTier}
-                subtopics={[]}
-                onPackReady={(pack) => setResourcePack(pack)}
-              />
-            )}
+                                  {/* Selected Profile / Curriculum Badge */}
+                                  {selectedProfile && profileTopics.length > 0 && (() => {
+                                    const profile = selectedProfile === 'all_topics'
+                                      ? null
+                                      : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                                    return (
+                                      <CurriculumTopicBadge
+                                        profileName={profile?.profile_name || 'All Saved Topics'}
+                                        topics={profileTopics}
+                                        questionCount={totalQuestions}
+                                        questionLimit={profileMaxQuestions}
+                                        subjectColor={subjectColor}
+                                        onRemoveProfile={clearProfile}
+                                        onActiveTopicsChange={setActiveProfileTopics}
+                                        profileEducationalTier={profileEducationalTier}
+                                        profileTimeLimit={profileTimeLimit}
+                                        onSessionQuestionCountChange={(count) => setTotalQuestions(count)}
+                                        onSessionTimeLimitChange={(mins) => {
+                                          setSessionTimeLimitOverride(mins);
+                                          if (mins != null) {
+                                            setTimerEnabled(true);
+                                            setDuration(mins);
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })()}
+                                </div>
 
-            {/* Resource Pack Preview */}
-            {resourcePack && (
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-sm">Resource Pack Preview</h4>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => {
-                      setResourcePack(null);
-                      setResourceMode('none');
-                    }}
-                  >
-                    Clear
-                  </Button>
-                </div>
-                <ResourcePackPreview
-                  pack={resourcePack}
-                  subjectColor={subjectColor}
-                />
-              </Card>
-            )}
+                                {/* Row 2: Notes (Full Width) */}
+                                <div className="space-y-2">
+                                  <Label>Notes (Optional)</Label>
+                                  <NotesInput
+                                    value={notes}
+                                    onChange={setNotes}
+                                    placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
+                                  />
+                                </div>
 
-            {/* Row 3: Import Reference Assessment */}
-            <div className="grid lg:grid-cols-2 gap-4">
-              <div className="relative">
-                <input
-                  id="exam-file"
-                  type="file"
-                  accept=".pdf,.docx,.doc"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                {!file ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                    onClick={() => document.getElementById('exam-file')?.click()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Import Reference Assessment
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md h-12">
-                    <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm font-medium truncate flex-1">{file.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                      onClick={() => setFile(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                                {/* Resource Mode Selector */}
+                                <ResourceModeSelector 
+                                  value={resourceMode} 
+                                  onChange={(mode) => {
+                                    setResourceMode(mode);
+                                    if (mode === 'none') setResourcePack(null);
+                                  }}
+                                  subjectColor={subjectColor}
+                                />
+
+                                {/* Resource Pack Uploader (when upload mode selected) */}
+                                {resourceMode === 'uploaded' && (
+                                  <ResourcePackUploader
+                                    subjectId={subjectId}
+                                    subjectColor={subjectColor}
+                                    currentPack={resourcePack}
+                                    onPackReady={(pack) => setResourcePack(pack)}
+                                    onPackCleared={() => setResourcePack(null)}
+                                  />
+                                )}
+
+                                {/* AI Resource Generator (when AI mode selected) */}
+                                {resourceMode === 'ai_generated' && (
+                                  <AIResourceGenerator
+                                    subjectId={subjectId}
+                                    subjectColor={subjectColor}
+                                    educationalTier={effectiveEducationalTier}
+                                    subtopics={[]}
+                                    onPackReady={(pack) => setResourcePack(pack)}
+                                  />
+                                )}
+
+                                {/* Resource Pack Preview */}
+                                {resourcePack && (
+                                  <Card className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="font-medium text-sm">Resource Pack Preview</h4>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => {
+                                          setResourcePack(null);
+                                          setResourceMode('none');
+                                        }}
+                                      >
+                                        Clear
+                                      </Button>
+                                    </div>
+                                    <ResourcePackPreview
+                                      pack={resourcePack}
+                                      subjectColor={subjectColor}
+                                    />
+                                  </Card>
+                                )}
+
+                                {/* Row 3: Import Reference Assessment */}
+                                <div className="grid lg:grid-cols-2 gap-4">
+                                  <div className="relative">
+                                    <input
+                                      id="exam-file"
+                                      type="file"
+                                      accept=".pdf,.docx,.doc"
+                                      onChange={handleFileChange}
+                                      className="hidden"
+                                    />
+                                    {!file ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
+                                        onClick={() => document.getElementById('exam-file')?.click()}
+                                      >
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Import Reference Assessment
+                                      </Button>
+                                    ) : (
+                                      <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md h-12">
+                                        <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                        <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                          onClick={() => setFile(null)}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-1">Optional — upload a past paper to guide AI generation</p>
+                                  </div>
+                                </div>
+
+            
                   </div>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">Optional — upload a past paper to guide AI generation</p>
-              </div>
-            </div>
-
-            {/* Row 5: Combined Settings Container & Configuration Summary */}
-            <div className="grid lg:grid-cols-[1fr_380px] gap-6">
-              {/* Left: Format, Difficulty, Timer */}
-              <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
-                {/* Format Selection */}
-                <div className={`mb-6 ${hasLockedProfileStructure ? 'opacity-70' : ''}`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Format Selection</h2>
-                    {selectedProfile && (
-                      <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
-                        Locked by Profile
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
-                    <div className="flex-1">
-                      <Label className="text-base font-medium">Use Original Structure</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm text-muted-foreground">
-                          AI generates new questions matching the original format
-                        </p>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button">
-                                <Info className="h-4 w-4 text-muted-foreground" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm bg-popover border-border">
-                              <p className="font-medium mb-2">✨ Full AI Generation Mode</p>
-                              <ul className="text-xs space-y-1.5 list-disc list-inside">
-                                <li><strong>Preserves:</strong> Question count, types, marks, topic flow</li>
-                                <li><strong>Regenerates:</strong> ALL question text with different wording</li>
-                                <li><strong>Changes:</strong> Examples, numerical values, scenarios</li>
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={useOriginal}
-                      onCheckedChange={setUseOriginal}
-                      disabled={hasLockedProfileStructure}
-                    />
-                  </div>
+                ),
+              },
+              {
+                id: "structure",
+                title: "Structure",
+                subtitle: "Shape the paper: format, question mix and resources.",
+                content: (
+                  <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
+                    {/* Format Selection */}
+                                    <div className={`mb-6 ${hasLockedProfileStructure ? 'opacity-70' : ''}`}>
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <FileText className="h-5 w-5 text-primary" />
+                                        <h2 className="text-lg font-semibold">Format Selection</h2>
+                                        {selectedProfile && (
+                                          <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
+                                            Locked by Profile
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
+                                        <div className="flex-1">
+                                          <Label className="text-base font-medium">Use Original Structure</Label>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-sm text-muted-foreground">
+                                              AI generates new questions matching the original format
+                                            </p>
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <button type="button">
+                                                    <Info className="h-4 w-4 text-muted-foreground" />
+                                                  </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-sm bg-popover border-border">
+                                                  <p className="font-medium mb-2">✨ Full AI Generation Mode</p>
+                                                  <ul className="text-xs space-y-1.5 list-disc list-inside">
+                                                    <li><strong>Preserves:</strong> Question count, types, marks, topic flow</li>
+                                                    <li><strong>Regenerates:</strong> ALL question text with different wording</li>
+                                                    <li><strong>Changes:</strong> Examples, numerical values, scenarios</li>
+                                                  </ul>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          </div>
+                                        </div>
+                                        <Switch
+                                          checked={useOriginal}
+                                          onCheckedChange={setUseOriginal}
+                                          disabled={hasLockedProfileStructure}
+                                        />
+                                      </div>
                   
-                  {/* Custom Exam Structure Panel — only when no profile is active */}
-                  {!useOriginal && !hasLockedProfileStructure && (
-                    <div className="mt-4 p-5 bg-background rounded-lg border border-border space-y-5">
-                      <div className="flex items-center gap-2 mb-2">
-                        <SlidersHorizontal className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Custom Exam Structure</h3>
-                      </div>
+                                      {/* Custom Exam Structure Panel — only when no profile is active */}
+                                      {!useOriginal && !hasLockedProfileStructure && (
+                                        <div className="mt-4 p-5 bg-background rounded-lg border border-border space-y-5">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <SlidersHorizontal className="h-4 w-4 text-primary" />
+                                            <h3 className="font-semibold">Custom Exam Structure</h3>
+                                          </div>
                       
-                      {/* Total Questions */}
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Total Number of Questions</Label>
-                        <Input
-                          type="number"
-                          value={totalQuestions}
-                          onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 0)}
-                          min="1"
-                          className="h-10 bg-card"
-                        />
-                      </div>
+                                          {/* Total Questions */}
+                                          <div>
+                                            <Label className="text-sm font-medium mb-2 block">Total Number of Questions</Label>
+                                            <Input
+                                              type="number"
+                                              value={totalQuestions}
+                                              onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 0)}
+                                              min="1"
+                                              className="h-10 bg-card"
+                                            />
+                                          </div>
 
-                      {/* Question Distribution */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium block">Question Distribution</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">1-Mark Questions</Label>
-                            <Input
-                              type="number"
-                              value={oneMarkCount}
-                              onChange={(e) => setOneMarkCount(parseInt(e.target.value) || 0)}
-                              min="0"
-                              className="h-9 bg-card text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">2-Mark Questions</Label>
-                            <Input
-                              type="number"
-                              value={twoMarkCount}
-                              onChange={(e) => setTwoMarkCount(parseInt(e.target.value) || 0)}
-                              min="0"
-                              className="h-9 bg-card text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">4-Mark Questions</Label>
-                            <Input
-                              type="number"
-                              value={fourMarkCount}
-                              onChange={(e) => setFourMarkCount(parseInt(e.target.value) || 0)}
-                              min="0"
-                              className="h-9 bg-card text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1 block">Extended (6-10 marks)</Label>
-                            <Input
-                              type="number"
-                              value={extendedCount}
-                              onChange={(e) => setExtendedCount(parseInt(e.target.value) || 0)}
-                              min="0"
-                              className="h-9 bg-card text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
+                                          {/* Question Distribution */}
+                                          <div className="space-y-3">
+                                            <Label className="text-sm font-medium block">Question Distribution</Label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                              <div>
+                                                <Label className="text-xs text-muted-foreground mb-1 block">1-Mark Questions</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={oneMarkCount}
+                                                  onChange={(e) => setOneMarkCount(parseInt(e.target.value) || 0)}
+                                                  min="0"
+                                                  className="h-9 bg-card text-sm"
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs text-muted-foreground mb-1 block">2-Mark Questions</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={twoMarkCount}
+                                                  onChange={(e) => setTwoMarkCount(parseInt(e.target.value) || 0)}
+                                                  min="0"
+                                                  className="h-9 bg-card text-sm"
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs text-muted-foreground mb-1 block">4-Mark Questions</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={fourMarkCount}
+                                                  onChange={(e) => setFourMarkCount(parseInt(e.target.value) || 0)}
+                                                  min="0"
+                                                  className="h-9 bg-card text-sm"
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs text-muted-foreground mb-1 block">Extended (6-10 marks)</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={extendedCount}
+                                                  onChange={(e) => setExtendedCount(parseInt(e.target.value) || 0)}
+                                                  min="0"
+                                                  className="h-9 bg-card text-sm"
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
 
-                      {/* Topic Weighting */}
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Topic Weighting (Optional)</Label>
-                        <Textarea
-                          placeholder="e.g., Mechanics 40%, Electricity 30%, Waves 30%"
-                          value={topicWeighting}
-                          onChange={(e) => setTopicWeighting(e.target.value)}
-                          className="min-h-[70px] bg-card border-border resize-none text-sm"
-                        />
-                      </div>
+                                          {/* Topic Weighting */}
+                                          <div>
+                                            <Label className="text-sm font-medium mb-2 block">Topic Weighting (Optional)</Label>
+                                            <Textarea
+                                              placeholder="e.g., Mechanics 40%, Electricity 30%, Waves 30%"
+                                              value={topicWeighting}
+                                              onChange={(e) => setTopicWeighting(e.target.value)}
+                                              className="min-h-[70px] bg-card border-border resize-none text-sm"
+                                            />
+                                          </div>
 
-                      {/* MCQ toggle — kept since it changes question type structure */}
-                      <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
-                        <Label className="text-sm cursor-pointer">Include Multiple-Choice Section</Label>
-                        <Switch
-                          checked={includeMCQ}
-                          onCheckedChange={setIncludeMCQ}
-                        />
-                      </div>
-                    </div>
-                  )}
+                                          {/* MCQ toggle — kept since it changes question type structure */}
+                                          <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                                            <Label className="text-sm cursor-pointer">Include Multiple-Choice Section</Label>
+                                            <Switch
+                                              checked={includeMCQ}
+                                              onCheckedChange={setIncludeMCQ}
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
 
-                  {/* Profile Structure Summary — shown when profile is active */}
-                  {hasLockedProfileStructure && selectedProfile && (() => {
-                    const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
-                    if (!profile) return null;
-                    const summaryRows = [
-                      {
-                        label: 'Written questions',
-                        value: profile.written_question_count
-                          ? `${profile.written_question_count} questions`
-                          : 'AI decides',
-                      },
-                      {
-                        label: 'MCQ questions',
-                        value: (profile.mcq_count ?? 0) > 0
-                          ? `${profile.mcq_count} questions`
-                          : 'None',
-                      },
-                      {
-                        label: 'Question structure',
-                        value: profile.question_structure === 'sub_questions'
-                          ? 'Sub-parts (1a, 1b, 1c...)'
-                          : profile.question_structure === 'mixed'
-                          ? 'Mixed (some standalone, some sub-parts)'
-                          : 'Standalone (Q1, Q2, Q3...)',
-                      },
-                      {
-                        label: 'Difficulty',
-                        value: profile.difficulty_progression === 'descending'
-                          ? 'Hard → Easy'
-                          : profile.difficulty_progression === 'mixed'
-                          ? 'Mixed'
-                          : 'Easy → Hard',
-                      },
-                      {
-                        label: 'Calculator',
-                        value: profile.calculator_policy === 'not_allowed'
-                          ? 'Not permitted'
-                          : profile.calculator_policy === 'mixed'
-                          ? 'Mixed paper'
-                          : 'Permitted',
-                      },
-                      ...(profile.include_extended ? [{
-                        label: 'Extended response',
-                        value: `${profile.extended_marks ?? 0} mark question at end`,
-                      }] : []),
-                      ...(profile.mark_distribution && Object.keys(profile.mark_distribution).length > 0 ? [{
-                        label: 'Mark distribution',
-                        value: Object.entries(profile.mark_distribution)
-                          .filter(([, count]) => (count as number) > 0)
-                          .map(([marks, count]) => `${count}×${marks}mk`)
-                          .join(', ') || 'AI decides',
-                      }] : []),
-                    ];
-                    return (
-                      <div className="mt-4 p-4 bg-background rounded-lg border border-border">
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">
-                          Structure defined by profile
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          {summaryRows.map((row) => (
-                            <div key={row.label} className="flex justify-between text-xs py-1 border-b border-border last:border-0">
-                              <span className="text-muted-foreground">{row.label}</span>
-                              <span className="text-foreground font-medium">{row.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/stats?tab=my-subjects')}
-                          className="mt-3 text-[11px] text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
-                        >
-                          Edit profile in My Subjects →
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </div>
+                                      {/* Profile Structure Summary — shown when profile is active */}
+                                      {hasLockedProfileStructure && selectedProfile && (() => {
+                                        const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                                        if (!profile) return null;
+                                        const summaryRows = [
+                                          {
+                                            label: 'Written questions',
+                                            value: profile.written_question_count
+                                              ? `${profile.written_question_count} questions`
+                                              : 'AI decides',
+                                          },
+                                          {
+                                            label: 'MCQ questions',
+                                            value: (profile.mcq_count ?? 0) > 0
+                                              ? `${profile.mcq_count} questions`
+                                              : 'None',
+                                          },
+                                          {
+                                            label: 'Question structure',
+                                            value: profile.question_structure === 'sub_questions'
+                                              ? 'Sub-parts (1a, 1b, 1c...)'
+                                              : profile.question_structure === 'mixed'
+                                              ? 'Mixed (some standalone, some sub-parts)'
+                                              : 'Standalone (Q1, Q2, Q3...)',
+                                          },
+                                          {
+                                            label: 'Difficulty',
+                                            value: profile.difficulty_progression === 'descending'
+                                              ? 'Hard → Easy'
+                                              : profile.difficulty_progression === 'mixed'
+                                              ? 'Mixed'
+                                              : 'Easy → Hard',
+                                          },
+                                          {
+                                            label: 'Calculator',
+                                            value: profile.calculator_policy === 'not_allowed'
+                                              ? 'Not permitted'
+                                              : profile.calculator_policy === 'mixed'
+                                              ? 'Mixed paper'
+                                              : 'Permitted',
+                                          },
+                                          ...(profile.include_extended ? [{
+                                            label: 'Extended response',
+                                            value: `${profile.extended_marks ?? 0} mark question at end`,
+                                          }] : []),
+                                          ...(profile.mark_distribution && Object.keys(profile.mark_distribution).length > 0 ? [{
+                                            label: 'Mark distribution',
+                                            value: Object.entries(profile.mark_distribution)
+                                              .filter(([, count]) => (count as number) > 0)
+                                              .map(([marks, count]) => `${count}×${marks}mk`)
+                                              .join(', ') || 'AI decides',
+                                          }] : []),
+                                        ];
+                                        return (
+                                          <div className="mt-4 p-4 bg-background rounded-lg border border-border">
+                                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">
+                                              Structure defined by profile
+                                            </p>
+                                            <div className="flex flex-col gap-2">
+                                              {summaryRows.map((row) => (
+                                                <div key={row.label} className="flex justify-between text-xs py-1 border-b border-border last:border-0">
+                                                  <span className="text-muted-foreground">{row.label}</span>
+                                                  <span className="text-foreground font-medium">{row.value}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => navigate('/stats?tab=my-subjects')}
+                                              className="mt-3 text-[11px] text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
+                                            >
+                                              Edit profile in My Subjects →
+                                            </button>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
 
-                {/* Educational Level */}
-                <div className={`mb-6 ${selectedProfile && profileEducationalTier ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <SlidersHorizontal className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Educational Level</h2>
-                    {selectedProfile && profileEducationalTier && (
-                      <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
-                        Set by Profile
-                      </Badge>
-                    )}
-                  </div>
-                  <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
-                    <SelectTrigger className="h-12 bg-background border-border">
-                      <SelectValue placeholder="Select educational level..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
-                        <SelectItem key={level.id} value={level.id}>
-                          {level.label}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="other">Other (Custom)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {educationalTier === 'other' && (
-                    <div className="mt-3">
-                      <Input
-                        placeholder='e.g., "German Abitur", "CBSE India", "SAT Prep"'
-                        value={customTier}
-                        onChange={(e) => setCustomTier(e.target.value)}
-                        className="h-11 bg-background border-border"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Timer Setup */}
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Clock className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Timer Set up</h2>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
-                      <div className="flex-1">
-                        <Label className="text-base font-medium">Enable Timer</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-sm text-muted-foreground">
-                            Add a Time Limit to the exam
-                          </p>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button type="button">
-                                  <Info className="h-4 w-4 text-muted-foreground" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-popover border-border">
-                                <p className="max-w-xs">Students will see a countdown timer and must submit before time runs out.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={timerEnabled}
-                        onCheckedChange={setTimerEnabled}
-                      />
-                    </div>
-
-                    {timerEnabled && (
-                      <div className="pt-2">
-                        <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
-                        <Input
-                          type="number"
-                          value={duration || ''}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '') {
-                              setDuration(0);
-                            } else {
-                              setDuration(parseInt(value) || 0);
-                            }
-                            if (parseInt(value) > 0) {
-                              setDurationError(false);
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const value = e.target.value.trim();
-                            if (value) {
-                              // Strip leading zeros and update
-                              const parsed = parseInt(value);
-                              if (!isNaN(parsed)) {
-                                setDuration(parsed);
-                              }
-                            }
-                          }}
-                          min="1"
-                          placeholder="Enter duration in minutes"
-                          className={`h-11 bg-background ${durationError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                        />
-                        {durationError && (
-                          <p className="text-sm text-destructive mt-1">Please enter a valid duration</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Card>
-
-              {/* Right: Configuration Summary */}
-              <Card className="p-6 bg-card/50 h-fit transition-colors" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
-                <h3 className="text-lg font-semibold mb-6">Configuration Summary</h3>
                 
-                <div className="space-y-4">
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Name and Subject</p>
-                    <p className="font-medium">
-                      {examName || 'Math Test 1'} {subjectId && <span style={{ color: subjectColor }}>{subjectId}</span>}
-                    </p>
-                  </div>
+                  </Card>
+                ),
+              },
+              {
+                id: "settings",
+                title: "Settings",
+                subtitle: "Level and timing.",
+                validate: () => {
+                  if (!effectiveEducationalTier) return "Please select an educational level.";
+                  if (educationalTier === 'other' && !customTier.trim()) return "Please specify your educational level.";
+                  if (timerEnabled && (!duration || duration <= 0)) return "Please enter a valid timer duration.";
+                  return null;
+                },
+                content: (
+                  <Card className="p-6 bg-card/50" style={{ borderColor: selectedProfile ? subjectColor + '60' : undefined, borderWidth: selectedProfile ? '2px' : undefined }}>
+                    {/* Educational Level */}
+                                    <div className={`mb-6 ${selectedProfile && profileEducationalTier ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <SlidersHorizontal className="h-5 w-5 text-primary" />
+                                        <h2 className="text-lg font-semibold">Educational Level</h2>
+                                        {selectedProfile && profileEducationalTier && (
+                                          <Badge variant="outline" className="text-[10px] ml-auto" style={{ borderColor: subjectColor, color: subjectColor }}>
+                                            Set by Profile
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <Select value={educationalTier || preferences?.preferred_educational_level || ""} onValueChange={setEducationalTier}>
+                                        <SelectTrigger className="h-12 bg-background border-border">
+                                          <SelectValue placeholder="Select educational level..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-popover border-border">
+                                          {getLevelsForBoard(examBoard || preferences?.preferred_exam_board).map((level) => (
+                                            <SelectItem key={level.id} value={level.id}>
+                                              {level.label}
+                                            </SelectItem>
+                                          ))}
+                                          <SelectItem value="other">Other (Custom)</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                  
+                                      {educationalTier === 'other' && (
+                                        <div className="mt-3">
+                                          <Input
+                                            placeholder='e.g., "German Abitur", "CBSE India", "SAT Prep"'
+                                            value={customTier}
+                                            onChange={(e) => setCustomTier(e.target.value)}
+                                            className="h-11 bg-background border-border"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
 
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Uploaded Exam</p>
-                    <p className="font-medium text-muted-foreground">
-                      {file ? file.name : 'No file uploaded'}
-                    </p>
-                  </div>
+                                    {/* Timer Setup */}
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-4">
+                                        <Clock className="h-5 w-5 text-primary" />
+                                        <h2 className="text-lg font-semibold">Timer Set up</h2>
+                                      </div>
+                                      <div className="space-y-4">
+                                        <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border">
+                                          <div className="flex-1">
+                                            <Label className="text-base font-medium">Enable Timer</Label>
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <p className="text-sm text-muted-foreground">
+                                                Add a Time Limit to the exam
+                                              </p>
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <button type="button">
+                                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                                    </button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent className="bg-popover border-border">
+                                                    <p className="max-w-xs">Students will see a countdown timer and must submit before time runs out.</p>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            </div>
+                                          </div>
+                                          <Switch
+                                            checked={timerEnabled}
+                                            onCheckedChange={setTimerEnabled}
+                                          />
+                                        </div>
 
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Resource Pack</p>
-                    <p className="font-medium">
-                      {resourcePack 
-                        ? `${resourcePack.title} (${resourcePack.items.length} sources)`
-                        : resourceMode === 'none' 
-                          ? 'Standalone questions' 
-                          : 'Not configured'}
-                    </p>
-                  </div>
-
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Exam Structure</p>
-                    <p className="font-medium">
-                      {hasLockedProfileStructure ? (
-                        <span className="text-sm">
-                          {resolvedProfileMcqCount > 0 && resolvedProfileWrittenCount === 0
-                            ? `MCQ-only: ${resolvedProfileMcqCount} questions`
-                            : resolvedProfileMcqCount === 0
-                              ? `Written-only: ${resolvedProfileWrittenCount} questions`
-                              : `${resolvedProfileMcqCount} MCQ + ${resolvedProfileWrittenCount} written`}
-                          {resolvedProfileMcqCount > 0 && (
-                            <><br/>MCQ options: {resolvedProfileMcqOptionsCount === 3 ? 'A–C (3)' : 'A–D (4)'}</>
-                          )}
-                          {(profileIncludeGraphs || profileIncludeTables) && (
-                            <><br/>Extras: {[profileIncludeGraphs ? 'Graphs' : null, profileIncludeTables ? 'Tables' : null].filter(Boolean).join(' + ')}</>
-                          )}
-                        </span>
-                      ) : useOriginal ? (
-                        "As per original"
-                      ) : (
-                        <span className="text-sm">
-                          Custom: {totalQuestions} questions<br/>
-                          {oneMarkCount > 0 && `${oneMarkCount} × 1-mark, `}
-                          {twoMarkCount > 0 && `${twoMarkCount} × 2-mark, `}
-                          {fourMarkCount > 0 && `${fourMarkCount} × 4-mark, `}
-                          {extendedCount > 0 && `${extendedCount} × extended`}
-                          {topicWeighting && <><br/>Topics: {topicWeighting}</>}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Exam Board</p>
-                    <p className="font-medium">
-                      {examBoard || preferences?.preferred_exam_board
-                        ? getBoardDisplayName(examBoard || preferences?.preferred_exam_board || "")
-                        : "Not selected"}
-                    </p>
-                  </div>
-
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Educational Level</p>
-                    <p className="font-medium">
-                      {(educationalTier || preferences?.preferred_educational_level)
-                        ? (educationalTier === 'other'
-                            ? (customTier || 'Not specified')
-                            : LEVEL_DISPLAY_NAMES[educationalTier || preferences?.preferred_educational_level || ""] || (educationalTier || preferences?.preferred_educational_level))
-                        : 'Not selected'}
-                    </p>
-                  </div>
-
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-sm text-muted-foreground mb-1">Time limit</p>
-                    <p className="font-medium">
-                      {timerEnabled ? `${duration} minutes` : 'No time limit'}
-                    </p>
-                  </div>
-
-                  {/* Generation Estimate */}
-                  {!useOriginal && (
-                    <div className="p-3 rounded-lg border-2" style={{ borderColor: subjectColor + '40', backgroundColor: subjectColor + '08' }}>
-                      <p className="text-xs font-semibold mb-1" style={{ color: subjectColor }}>Generation Estimate</p>
-                      <p className="text-sm font-medium">
-                        {totalQuestions} Parent Questions
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Estimated {(oneMarkCount * 1) + (twoMarkCount * 2) + (fourMarkCount * 4) + (extendedCount * 8)} marks total
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Sub-parts (a, b, c) are generated automatically and don't count toward the question limit
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </div>
-          </div>
+                                        {timerEnabled && (
+                                          <div className="pt-2">
+                                            <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
+                                            <Input
+                                              type="number"
+                                              value={duration || ''}
+                                              onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (value === '') {
+                                                  setDuration(0);
+                                                } else {
+                                                  setDuration(parseInt(value) || 0);
+                                                }
+                                                if (parseInt(value) > 0) {
+                                                  setDurationError(false);
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                const value = e.target.value.trim();
+                                                if (value) {
+                                                  // Strip leading zeros and update
+                                                  const parsed = parseInt(value);
+                                                  if (!isNaN(parsed)) {
+                                                    setDuration(parsed);
+                                                  }
+                                                }
+                                              }}
+                                              min="1"
+                                              placeholder="Enter duration in minutes"
+                                              className={`h-11 bg-background ${durationError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                                            />
+                                            {durationError && (
+                                              <p className="text-sm text-destructive mt-1">Please enter a valid duration</p>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+              
+                  </Card>
+                ),
+              },
+              {
+                id: "review",
+                title: "Review",
+                subtitle: "Check the front cover, then generate.",
+                content: (
+                  <ExamPaperCover
+                    examName={examName}
+                    subjectId={subjectId}
+                    subjectColor={subjectColor}
+                    boardLabel={effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Generic style"}
+                    levelLabel={effectiveEducationalTier ? (LEVEL_DISPLAY_NAMES[effectiveEducationalTier] ?? effectiveEducationalTier) : "Not set"}
+                    totalQuestions={totalQuestions}
+                    timerLabel={timerEnabled ? `${duration} minutes` : "No time limit"}
+                    topicSummary={
+                      selectedProfile && activeProfileTopics.length > 0
+                        ? `${activeProfileTopics.length} topics`
+                        : useOriginal ? "Original structure" : "Custom structure"
+                    }
+                    notes={notes}
+                    includeMCQ={includeMCQ}
+                  />
+                ),
+              },
+            ] as WizardStep[]}
+          />
         </div>
       </div>
-
       {/* Loading Screen */}
       {generating && (
         <GenerationLoadingScreen
