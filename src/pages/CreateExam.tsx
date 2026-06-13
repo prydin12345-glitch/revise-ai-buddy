@@ -664,7 +664,7 @@ export default function CreateExam() {
           <StepWizard
             maxWidth="max-w-4xl"
             accentColor={subjectColor}
-            reviewIndex={4}
+            reviewIndex={3}
             finishDisabled={generating || !subjectId || !educationalTier || nameValidator.isDuplicate}
             finalLabel={generating ? (
               <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />Generating...</>
@@ -675,8 +675,8 @@ export default function CreateExam() {
             steps={[
               {
                 id: "basics",
-                title: "Basics",
-                subtitle: "Name your exam and pick a subject.",
+                title: "Basics & source",
+                subtitle: "Name your exam, pick a subject, and add any source material.",
                 validate: () => {
                   if (!examName.trim()) return "Please enter an exam name.";
                   if (nameValidator.isDuplicate) return "That name is already taken — pick another.";
@@ -685,195 +685,172 @@ export default function CreateExam() {
                 },
                 content: (
                   <div className="space-y-6">
-                    {/* Row 1: Exam Name & Subject */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                  <div>
-                                    <Label htmlFor="exam-name" className="mb-2 block">Exam name</Label>
-                                    <Input
-                                      id="exam-name"
-                                      placeholder="Enter exam name..."
-                                      value={examName}
-                                      onChange={(e) => {
-                                        setExamName(e.target.value);
-                                        nameValidator.checkName(e.target.value);
-                                        if (e.target.value.trim()) {
-                                          setExamNameError(false);
-                                        }
-                                      }}
-                                      className={`h-12 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
-                                    />
-                                    {examNameError && (
-                                      <p className="text-sm text-destructive mt-1">Exam name is required</p>
-                                    )}
-                                    {nameValidator.isDuplicate && (
-                                      <div className="mt-2 space-y-1.5">
-                                        <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
-                                        <div className="flex flex-wrap gap-2">
-                                          {nameValidator.suggestions.map((s) => (
-                                            <button
-                                              key={s}
-                                              onClick={() => {
-                                                setExamName(s);
-                                                nameValidator.checkName(s);
-                                              }}
-                                              className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
-                                            >
-                                              {s}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <SubjectSelector
-                                    value={subjectId}
-                                    color={subjectColor}
-                                    onValueChange={handleSubjectChange}
-                                    onColorChange={setSubjectColor}
-                                    showLabel={false}
-                                  />
+                    {/* Row 1: Exam Name & Subject — aligned in the same row with matching labels */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                      <div className="flex flex-col">
+                        <Label htmlFor="exam-name" className="mb-2 block h-5">Exam name</Label>
+                        <Input
+                          id="exam-name"
+                          placeholder="Enter exam name..."
+                          value={examName}
+                          onChange={(e) => {
+                            setExamName(e.target.value);
+                            nameValidator.checkName(e.target.value);
+                            if (e.target.value.trim()) setExamNameError(false);
+                          }}
+                          className={`h-10 text-base bg-card ${examNameError || nameValidator.isDuplicate ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                        />
+                        {examNameError && (
+                          <p className="text-sm text-destructive mt-1">Exam name is required</p>
+                        )}
+                        {nameValidator.isDuplicate && (
+                          <div className="mt-2 space-y-1.5">
+                            <p className="text-sm text-destructive">An exam with this name already exists. Please choose a unique name.</p>
+                            <div className="flex flex-wrap gap-2">
+                              {nameValidator.suggestions.map((s) => (
+                                <button
+                                  key={s}
+                                  onClick={() => { setExamName(s); nameValidator.checkName(s); }}
+                                  className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <Label className="mb-2 block h-5">Subject</Label>
+                        <SubjectSelector
+                          value={subjectId}
+                          color={subjectColor}
+                          onValueChange={handleSubjectChange}
+                          onColorChange={setSubjectColor}
+                          showLabel={false}
+                        />
+                      </div>
+                    </div>
 
-                                  {/* Selected Profile / Curriculum Badge */}
-                                  {selectedProfile && profileTopics.length > 0 && (() => {
-                                    const profile = selectedProfile === 'all_topics'
-                                      ? null
-                                      : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
-                                    return (
-                                      <CurriculumTopicBadge
-                                        profileName={profile?.profile_name || 'All Saved Topics'}
-                                        topics={profileTopics}
-                                        questionCount={totalQuestions}
-                                        questionLimit={profileMaxQuestions}
-                                        subjectColor={subjectColor}
-                                        onRemoveProfile={clearProfile}
-                                        onActiveTopicsChange={setActiveProfileTopics}
-                                        profileEducationalTier={profileEducationalTier}
-                                        profileTimeLimit={profileTimeLimit}
-                                        onSessionQuestionCountChange={(count) => setTotalQuestions(count)}
-                                        onSessionTimeLimitChange={(mins) => {
-                                          setSessionTimeLimitOverride(mins);
-                                          if (mins != null) {
-                                            setTimerEnabled(true);
-                                            setDuration(mins);
-                                          }
-                                        }}
-                                      />
-                                    );
-                                  })()}
-                                </div>
-                  </div>
-                ),
-              },
-              {
-                id: "source",
-                title: "Source material",
-                subtitle: "Optional — notes, resources and a reference paper to guide generation.",
-                content: (
-                  <div className="space-y-6">
-                                {/* Row 2: Notes (Full Width) */}
-                                <div className="space-y-2">
-                                  <Label>Notes (Optional)</Label>
-                                  <NotesInput
-                                    value={notes}
-                                    onChange={setNotes}
-                                    placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
-                                  />
-                                </div>
+                    {/* Selected Profile / Curriculum Badge — full width below the row */}
+                    {selectedProfile && profileTopics.length > 0 && (() => {
+                      const profile = selectedProfile === 'all_topics'
+                        ? null
+                        : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
+                      return (
+                        <CurriculumTopicBadge
+                          profileName={profile?.profile_name || 'All Saved Topics'}
+                          topics={profileTopics}
+                          questionCount={totalQuestions}
+                          questionLimit={profileMaxQuestions}
+                          subjectColor={subjectColor}
+                          onRemoveProfile={clearProfile}
+                          onActiveTopicsChange={setActiveProfileTopics}
+                          profileEducationalTier={profileEducationalTier}
+                          profileTimeLimit={profileTimeLimit}
+                          onSessionQuestionCountChange={(count) => setTotalQuestions(count)}
+                          onSessionTimeLimitChange={(mins) => {
+                            setSessionTimeLimitOverride(mins);
+                            if (mins != null) { setTimerEnabled(true); setDuration(mins); }
+                          }}
+                        />
+                      );
+                    })()}
 
-                                {/* Resource Mode Selector */}
-                                <ResourceModeSelector 
-                                  value={resourceMode} 
-                                  onChange={(mode) => {
-                                    setResourceMode(mode);
-                                    if (mode === 'none') setResourcePack(null);
-                                  }}
-                                  subjectColor={subjectColor}
-                                />
+                    {/* Divider before source-material section */}
+                    <div className="pt-2 border-t border-border" />
 
-                                {/* Resource Pack Uploader (when upload mode selected) */}
-                                {resourceMode === 'uploaded' && (
-                                  <ResourcePackUploader
-                                    subjectId={subjectId}
-                                    subjectColor={subjectColor}
-                                    currentPack={resourcePack}
-                                    onPackReady={(pack) => setResourcePack(pack)}
-                                    onPackCleared={() => setResourcePack(null)}
-                                  />
-                                )}
+                    {/* Notes */}
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <NotesInput
+                        value={notes}
+                        onChange={setNotes}
+                        placeholder="Add custom instructions e.g. 'Make it extra hard' or 'Focus on word problems'..."
+                      />
+                    </div>
 
-                                {/* AI Resource Generator (when AI mode selected) */}
-                                {resourceMode === 'ai_generated' && (
-                                  <AIResourceGenerator
-                                    subjectId={subjectId}
-                                    subjectColor={subjectColor}
-                                    educationalTier={effectiveEducationalTier}
-                                    subtopics={[]}
-                                    onPackReady={(pack) => setResourcePack(pack)}
-                                  />
-                                )}
+                    {/* Resource Mode Selector */}
+                    <ResourceModeSelector
+                      value={resourceMode}
+                      onChange={(mode) => {
+                        setResourceMode(mode);
+                        if (mode === 'none') setResourcePack(null);
+                      }}
+                      subjectColor={subjectColor}
+                    />
 
-                                {/* Resource Pack Preview */}
-                                {resourcePack && (
-                                  <Card className="p-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <h4 className="font-medium text-sm">Resource Pack Preview</h4>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        onClick={() => {
-                                          setResourcePack(null);
-                                          setResourceMode('none');
-                                        }}
-                                      >
-                                        Clear
-                                      </Button>
-                                    </div>
-                                    <ResourcePackPreview
-                                      pack={resourcePack}
-                                      subjectColor={subjectColor}
-                                    />
-                                  </Card>
-                                )}
+                    {resourceMode === 'uploaded' && (
+                      <ResourcePackUploader
+                        subjectId={subjectId}
+                        subjectColor={subjectColor}
+                        currentPack={resourcePack}
+                        onPackReady={(pack) => setResourcePack(pack)}
+                        onPackCleared={() => setResourcePack(null)}
+                      />
+                    )}
 
-                                {/* Row 3: Import Reference Assessment */}
-                                <div>
-                                  <div className="relative">
-                                    <input
-                                      id="exam-file"
-                                      type="file"
-                                      accept=".pdf,.docx,.doc"
-                                      onChange={handleFileChange}
-                                      className="hidden"
-                                    />
-                                    {!file ? (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
-                                        onClick={() => document.getElementById('exam-file')?.click()}
-                                      >
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Import Reference Assessment
-                                      </Button>
-                                    ) : (
-                                      <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md h-12">
-                                        <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                                        <span className="text-sm font-medium truncate flex-1">{file.name}</span>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                                          onClick={() => setFile(null)}
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                    <p className="text-xs text-muted-foreground mt-1">Optional — upload a past paper to guide AI generation</p>
-                                  </div>
-                                </div>
+                    {resourceMode === 'ai_generated' && (
+                      <AIResourceGenerator
+                        subjectId={subjectId}
+                        subjectColor={subjectColor}
+                        educationalTier={effectiveEducationalTier}
+                        subtopics={[]}
+                        onPackReady={(pack) => setResourcePack(pack)}
+                      />
+                    )}
 
-            
+                    {resourcePack && (
+                      <Card className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-sm">Resource Pack Preview</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setResourcePack(null); setResourceMode('none'); }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                        <ResourcePackPreview pack={resourcePack} subjectColor={subjectColor} />
+                      </Card>
+                    )}
+
+                    {/* Import Reference Assessment */}
+                    <div className="relative">
+                      <input
+                        id="exam-file"
+                        type="file"
+                        accept=".pdf,.docx,.doc"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      {!file ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full h-12 justify-start bg-card border-border hover:bg-accent"
+                          onClick={() => document.getElementById('exam-file')?.click()}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Import Reference Assessment
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-md h-12">
+                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                            onClick={() => setFile(null)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">Optional — upload a past paper to guide AI generation</p>
+                    </div>
                   </div>
                 ),
               },
