@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, useEffect } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { DelayedFallback } from "@/components/DelayedFallback";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import { lazyWithReload } from "@/lib/lazy-with-reload";
@@ -61,7 +62,7 @@ import { TutorLayout } from "./components/tutor/TutorLayout";
 
 const queryClient = new QueryClient();
 
-const PageLoader = () => <PageSkeleton />;
+const PageLoader = () => <DelayedFallback />;
 
 const App = () => {
   // Restore theme preference on initial load (before React hydrates)
