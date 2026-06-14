@@ -45,6 +45,8 @@ interface UseGraphCameraReturn {
   };
   /** Whether currently panning */
   isPanning: boolean;
+  /** Whether the "pinch/scroll to zoom" hint is currently visible */
+  zoomHintVisible: boolean;
 }
 
 /**
