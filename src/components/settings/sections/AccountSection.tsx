@@ -35,7 +35,7 @@ async function resolveAvatarUrl(path: string | null): Promise<string | null> {
 }
 
 export const AccountSection = () => {
-  const navigate = useNavigate();
+  
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
