@@ -200,18 +200,6 @@ export const PrivacySection = () => {
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <Label htmlFor="save-history">Save Revision History</Label>
-              <p className="text-sm text-muted-foreground">Keep track of your past revision sessions</p>
-            </div>
-            <Switch
-              id="save-history"
-              checked={preferences?.save_revision_history}
-              onCheckedChange={(checked) => updatePreference({ save_revision_history: checked })}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
               <Label htmlFor="confirm-resolve">Confirm before resolving feedback</Label>
               <p className="text-sm text-muted-foreground">Show confirmation when marking help threads as resolved</p>
             </div>
@@ -220,30 +208,6 @@ export const PrivacySection = () => {
               checked={preferences?.confirm_resolve_feedback !== false}
               onCheckedChange={(checked) => updatePreference({ confirm_resolve_feedback: checked })}
             />
-          </div>
-
-          <div className="pt-4">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  Clear Activity Logs
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete all your activity logs. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Delete Logs
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
 
           <div className="pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border/60">
@@ -341,48 +305,7 @@ export const PrivacySection = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-          <CardDescription>Enhance your account security</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label>Two-Factor Authentication</Label>
-              <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-            </div>
-            <Button variant="outline" size="sm" disabled className="w-full sm:w-auto">
-              Coming Soon
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Sessions</CardTitle>
-          <CardDescription>Manage your active login sessions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">Current Device</p>
-                <p className="text-sm text-muted-foreground">Last active: Now</p>
-              </div>
-              <Button variant="ghost" size="sm" disabled className="w-full sm:w-auto">
-                This Device
-              </Button>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-              Log Out All Other Sessions
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Danger zone — Delete Account */}
       <Card className="border-destructive/40">
