@@ -64,6 +64,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Per-user feedback-style preference (concise vs detailed)
+    const { data: prefsRow } = await supabase
+      .from('user_preferences')
+      .select('ai_feedback_detail')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const feedbackDetail = (prefsRow?.ai_feedback_detail as 'concise' | 'detailed' | undefined) ?? 'detailed';
+    const detailInstruction = feedbackDetail === 'concise'
+      ? '\n\nFEEDBACK STYLE OVERRIDE (user preference: concise):\nKeep replies to one or two sentences. State the key point only. No elaboration, no examples unless asked.'
+      : '\n\nFEEDBACK STYLE OVERRIDE (user preference: detailed):\nProvide thorough reasoning with a brief example where it aids understanding, while still respecting any explicit word limits above.';
+
+
+
     const [
       recentSets,
       recentExams,
