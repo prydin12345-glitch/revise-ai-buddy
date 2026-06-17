@@ -1,25 +1,31 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { User, Palette, Shield, Brain, Link2, Settings as SettingsIcon } from "lucide-react";
+import { User, Palette, Shield, Brain, Settings as SettingsIcon } from "lucide-react";
 import { AccountSection } from "@/components/settings/sections/AccountSection";
 import { PersonalizationSection } from "@/components/settings/sections/PersonalizationSection";
 import { PrivacySection } from "@/components/settings/sections/PrivacySection";
 import { AIUsageSection } from "@/components/settings/sections/AIUsageSection";
-import { IntegrationsSection } from "@/components/settings/sections/IntegrationsSection";
 import { AdvancedSection } from "@/components/settings/sections/AdvancedSection";
 
+const VALID_TABS = ["account", "personalization", "privacy", "ai", "advanced"] as const;
+
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("account");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab = (VALID_TABS as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as string)
+    : "account";
+
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab }, { replace: false });
+  };
 
   const tabs = [
     { id: "account", label: "Account", icon: User },
     { id: "personalization", label: "Personalization", icon: Palette },
     { id: "privacy", label: "Privacy & Security", icon: Shield },
     { id: "ai", label: "AI Usage", icon: Brain },
-    { id: "integrations", label: "Integrations", icon: Link2 },
     { id: "advanced", label: "Advanced", icon: SettingsIcon },
   ];
 
@@ -27,7 +33,6 @@ const Settings = () => {
     <DashboardLayout>
       <div className="min-h-screen bg-background">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Header + Tabs (single sticky block) */}
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
             <div className="container max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-0">
               <div className="flex flex-col gap-1 mb-4 sm:mb-5">
@@ -39,7 +44,6 @@ const Settings = () => {
                 </p>
               </div>
 
-              {/* Horizontally scrollable tab strip on mobile */}
               <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-none">
                 <TabsList className="w-max sm:w-full justify-start h-auto bg-transparent border-0 p-0 px-4 sm:px-0 gap-1 flex-nowrap">
                   {tabs.map((tab) => {
@@ -60,7 +64,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Content */}
           <div className="container max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
             <TabsContent value="account" className="mt-0 focus-visible:outline-none">
               <AccountSection />
@@ -73,9 +76,6 @@ const Settings = () => {
             </TabsContent>
             <TabsContent value="ai" className="mt-0 focus-visible:outline-none">
               <AIUsageSection />
-            </TabsContent>
-            <TabsContent value="integrations" className="mt-0 focus-visible:outline-none">
-              <IntegrationsSection />
             </TabsContent>
             <TabsContent value="advanced" className="mt-0 focus-visible:outline-none">
               <AdvancedSection />
