@@ -22,17 +22,8 @@ import {
   Cookie,
 } from "lucide-react";
 import { openCookieSettings } from "@/components/CookieConsent";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+// (AlertDialog imports removed — Clear Activity Logs was decorative and is gone)
+
 
 const CONFIRM_PHRASE = "delete my account";
 
