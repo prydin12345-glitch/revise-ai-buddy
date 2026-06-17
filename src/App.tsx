@@ -7,6 +7,7 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 import { DelayedFallback } from "@/components/DelayedFallback";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { CookieConsent } from "@/components/CookieConsent";
+import { PreferencesApplier } from "@/components/PreferencesApplier";
 import { lazyWithReload } from "@/lib/lazy-with-reload";
 
 // Only eagerly load the landing page + auth (first paint)
