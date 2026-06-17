@@ -82,6 +82,7 @@ const App = () => {
       <TooltipProvider>
         <Sonner />
         <BrowserRouter>
+          <PreferencesApplier />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes — no guard */}
