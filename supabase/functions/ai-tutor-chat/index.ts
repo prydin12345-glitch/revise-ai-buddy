@@ -420,7 +420,7 @@ Rules:
 - Never include a diagram block for non-visual concepts`;
 
 
-    let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS + DIAGRAM_INSTRUCTIONS +
+    let fullSystemPrompt = systemPrompt + FOLLOWUP_INSTRUCTIONS + DIAGRAM_INSTRUCTIONS + detailInstruction +
       (selectedExamContext ? '\n\n' + selectedExamContext : '') +
       (selectedSetContext ? '\n\n' + selectedSetContext : '');
 
