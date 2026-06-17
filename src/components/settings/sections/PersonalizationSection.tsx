@@ -1,32 +1,11 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { Loader2, Globe, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
-
-
-const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-];
-
-const timezones = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'America/New_York', label: 'Eastern Time (US)' },
-  { value: 'America/Chicago', label: 'Central Time (US)' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-  { value: 'Europe/London', label: 'London' },
-  { value: 'Europe/Paris', label: 'Paris' },
-  { value: 'Asia/Tokyo', label: 'Tokyo' },
-];
 
 export const curriculumRegions = [
   { value: 'GB', code: 'gb', abbr: 'UK' },
@@ -64,7 +43,6 @@ export const PersonalizationSection = () => {
 
   return (
     <div className="space-y-6">
-      {/* Profile Completeness Indicator */}
       {completionPct < 100 && (
         <div className="flex items-center gap-3 rounded-lg bg-muted/50 border border-border p-3.5">
           <div className="flex-1">
@@ -82,7 +60,7 @@ export const PersonalizationSection = () => {
           </span>
         </div>
       )}
-      {/* Curriculum Region — visual flag grid */}
+
       <Card className="border-primary/20">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -127,7 +105,6 @@ export const PersonalizationSection = () => {
         </CardContent>
       </Card>
 
-      {/* Exam Board & Level */}
       <Card className="border-primary/20">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -139,7 +116,6 @@ export const PersonalizationSection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Preferred Exam Board — filtered by region */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Preferred Exam Board
@@ -169,7 +145,6 @@ export const PersonalizationSection = () => {
             </Select>
           </div>
 
-          {/* Current Level — filtered by board */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Current Level
@@ -190,7 +165,6 @@ export const PersonalizationSection = () => {
             </Select>
           </div>
 
-          {/* Preview of what AI will use */}
           {preferences?.preferred_exam_board && preferences?.preferred_educational_level && (
             <div className="p-3 rounded-md bg-primary/5 border-l-3 border-primary text-sm text-muted-foreground">
               ✓ Your exams will be generated in{' '}
@@ -209,134 +183,17 @@ export const PersonalizationSection = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Language & Region</CardTitle>
-          <CardDescription>Customize your language and timezone preferences</CardDescription>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>
+            Theme is controlled by the toggle in the top navigation bar.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="language">Language</Label>
-            <Select
-              value={preferences?.language}
-              onValueChange={(value) => updatePreference({ language: value })}
-            >
-              <SelectTrigger id="language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Timezone</Label>
-            <Select
-              value={preferences?.timezone}
-              onValueChange={(value) => updatePreference({ timezone: value })}
-            >
-              <SelectTrigger id="timezone">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {timezones.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Theme</CardTitle>
-          <CardDescription>Customize the appearance of the app</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="theme">Theme Mode</Label>
-            <Select
-              value={preferences?.theme_mode}
-              onValueChange={(value: 'light' | 'dark' | 'system') => updatePreference({ theme_mode: value })}
-            >
-              <SelectTrigger id="theme">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="accent">Accent Color</Label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                id="accent"
-                value={preferences?.accent_color}
-                onChange={(e) => updatePreference({ accent_color: e.target.value })}
-                className="h-10 w-14 sm:w-20 rounded border border-border cursor-pointer shrink-0 bg-transparent"
-              />
-              <Input
-                value={preferences?.accent_color}
-                onChange={(e) => updatePreference({ accent_color: e.target.value })}
-                className="flex-1 font-mono text-sm"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>Manage how you receive notifications</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label htmlFor="email-notif">Email Notifications</Label>
-              <p className="text-sm text-muted-foreground">Receive updates via email</p>
-            </div>
-            <Switch
-              id="email-notif"
-              checked={preferences?.email_notifications}
-              onCheckedChange={(checked) => updatePreference({ email_notifications: checked })}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label htmlFor="push-notif">Push Notifications</Label>
-              <p className="text-sm text-muted-foreground">Receive push notifications</p>
-            </div>
-            <Switch
-              id="push-notif"
-              checked={preferences?.push_notifications}
-              onCheckedChange={(checked) => updatePreference({ push_notifications: checked })}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label htmlFor="inapp-notif">In-App Notifications</Label>
-              <p className="text-sm text-muted-foreground">Show notifications within the app</p>
-            </div>
-            <Switch
-              id="inapp-notif"
-              checked={preferences?.in_app_notifications}
-              onCheckedChange={(checked) => updatePreference({ in_app_notifications: checked })}
-            />
-          </div>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Accessibility options like font size and high-contrast mode are in the{" "}
+            <a href="/settings?tab=advanced" className="text-primary underline">Advanced</a>{" "}
+            tab.
+          </p>
         </CardContent>
       </Card>
     </div>
