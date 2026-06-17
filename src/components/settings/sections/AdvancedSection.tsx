@@ -1,10 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export const AdvancedSection = () => {
   const { preferences, loading, updatePreference } = useUserPreferences();
@@ -19,26 +18,6 @@ export const AdvancedSection = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Beta Features</CardTitle>
-          <CardDescription>Try experimental features before official release</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label htmlFor="beta-features">Enable Beta Features</Label>
-              <p className="text-sm text-muted-foreground">Access new features early (may be unstable)</p>
-            </div>
-            <Switch
-              id="beta-features"
-              checked={preferences?.beta_features_enabled}
-              onCheckedChange={(checked) => updatePreference({ beta_features_enabled: checked })}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Accessibility</CardTitle>
@@ -56,10 +35,11 @@ export const AdvancedSection = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="small">Small</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="medium">Medium (default)</SelectItem>
                 <SelectItem value="large">Large</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">Scales the entire app's base font size.</p>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4">
@@ -73,27 +53,6 @@ export const AdvancedSection = () => {
               onCheckedChange={(checked) => updatePreference({ high_contrast_mode: checked })}
             />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Feedback</CardTitle>
-          <CardDescription>Help us improve the app</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-between" asChild>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-              Report a Bug
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </Button>
-          <Button variant="outline" className="w-full justify-between" asChild>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-              Suggest a Feature
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </Button>
         </CardContent>
       </Card>
     </div>

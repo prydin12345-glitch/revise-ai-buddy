@@ -1,11 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAIUsageStats } from "@/hooks/useAIUsageStats";
 import { Loader2, Brain, Zap, TrendingUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+
 
 export const AIUsageSection = () => {
   const { preferences, loading: prefsLoading, updatePreference } = useUserPreferences();
@@ -27,19 +27,8 @@ export const AIUsageSection = () => {
           <CardDescription>Configure how AI assists you with studying</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="ai-suggestions">Enable AI Suggestions</Label>
-              <p className="text-sm text-muted-foreground">Get smart revision recommendations</p>
-            </div>
-            <Switch
-              id="ai-suggestions"
-              checked={preferences?.enable_ai_suggestions}
-              onCheckedChange={(checked) => updatePreference({ enable_ai_suggestions: checked })}
-            />
-          </div>
+          <div className="space-y-3">
 
-          <div className="space-y-3 pt-4">
             <Label>Feedback Detail Level</Label>
             <RadioGroup
               value={preferences?.ai_feedback_detail}
