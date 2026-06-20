@@ -2,10 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { Loader2, Globe, GraduationCap } from "lucide-react";
+import { Loader2, Globe, GraduationCap, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
-import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
+import { getLevelsForBoard } from "@/lib/board-level-mapping";
+import { ExamBoardList } from "@/components/settings/ExamBoardList";
 
 export const curriculumRegions = [
   { value: 'GB', code: 'gb', abbr: 'UK' },
