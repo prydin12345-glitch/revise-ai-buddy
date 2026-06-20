@@ -35,8 +35,7 @@ export const PersonalizationSection = () => {
 
   const profileFields = [
     { key: 'curriculum_region' as const, label: 'Region' },
-    { key: 'preferred_exam_board' as const, label: 'Exam Board' },
-    { key: 'preferred_educational_level' as const, label: 'Level' },
+    { key: 'preferred_educational_level' as const, label: 'Default Level' },
   ];
   const completedFields = profileFields.filter(f => preferences?.[f.key]);
   const completionPct = Math.round((completedFields.length / profileFields.length) * 100);
