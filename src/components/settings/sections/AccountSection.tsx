@@ -259,195 +259,197 @@ export const AccountSection = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <SettingsTabHeader
+        icon={User}
+        title="Account"
+        description="Your profile, name, and sign-in details"
+      />
+
       {profileIncomplete && (
         <Alert className="border-amber-500/50 bg-amber-500/10">
           <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-200">
+          <AlertDescription className="text-foreground text-[13px]">
             Complete your profile by entering your first and last name to generate your Student ID.
           </AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your personal details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Avatar uploader */}
-          <div className="flex items-center gap-4 mb-2">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : firstName || lastName ? (
-                  <span className="text-lg font-bold text-primary">{getInitials()}</span>
-                ) : (
-                  <User className="h-6 w-6 text-primary" />
-                )}
-              </div>
-              <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow-sm hover:bg-primary/90">
-                {avatarUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 text-primary-foreground animate-spin" />
-                ) : (
-                  <Camera className="w-3.5 h-3.5 text-primary-foreground" />
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={avatarUploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleAvatarUpload(file);
-                  }}
-                />
-              </label>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Profile photo</p>
-              <p className="text-xs text-muted-foreground">JPG or PNG, max 2MB</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">
-                First Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Enter your first name"
-                className={!firstName.trim() && profileIncomplete ? "border-amber-500/50" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lastName">
-                Last Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Enter your last name"
-                className={!lastName.trim() && profileIncomplete ? "border-amber-500/50" : ""}
-              />
-            </div>
-          </div>
-
-          {hasChanges && (
-            <Button
-              onClick={handleSaveProfile}
-              disabled={saving || !firstName.trim() || !lastName.trim()}
-              className="w-full sm:w-auto"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Save Changes
-            </Button>
-          )}
-
-          <div className="space-y-2 pt-2">
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              disabled
-              className="bg-muted"
-            />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Email address changes are not currently supported in-app. To change your email,
-              export your data from the{" "}
-              <a href="/settings?tab=privacy" className="text-primary underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                Privacy &amp; Data
-              </a>
-              {" "}tab, delete your account, and create a new one with your new email address.
-            </p>
-          </div>
-
-          {primaryRole === "student" && (
-            <div className="space-y-2 pt-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="studentCode">Student ID</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs max-w-[200px]">
-                        This ID is used by tutors to identify you. It's generated from your name initials.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              {studentCode && !studentCode.startsWith('XX') ? (
-                <>
-                  <div className="flex gap-2">
-                    <Input
-                      id="studentCode"
-                      value={studentCode}
-                      disabled
-                      className="bg-muted font-mono tracking-wider"
-                    />
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleCopyStudentCode}
-                          >
-                            {copied ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Copy to clipboard</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Your student ID is generated from your name and cannot be changed.
-                  </p>
-                </>
+      <SettingsCard
+        icon={User}
+        title="Profile Information"
+        description="Update your personal details"
+      >
+        {/* Avatar uploader */}
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : firstName || lastName ? (
+                <span className="text-lg font-bold text-primary">{getInitials()}</span>
               ) : (
-                <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 bg-muted/30">
-                  <p className="text-sm text-muted-foreground text-center">
-                    {profileIncomplete
-                      ? "Enter your first and last name above to generate your Student ID"
-                      : "Saving your profile to generate your Student ID..."}
-                  </p>
-                </div>
+                <User className="h-6 w-6 text-primary" />
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow-sm hover:bg-primary/90">
+              {avatarUploading ? (
+                <Loader2 className="w-3.5 h-3.5 text-primary-foreground animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-primary-foreground" />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={avatarUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleAvatarUpload(file);
+                }}
+              />
+            </label>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold text-foreground">Profile photo</p>
+            <p className="text-[12px] text-muted-foreground">JPG or PNG, max 2MB</p>
+          </div>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Password</CardTitle>
-          <CardDescription>Manage your account password</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handlePasswordReset} disabled={saving} variant="outline" className="w-full sm:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName" className="text-[13px] font-medium">
+              First Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Enter your first name"
+              className={!firstName.trim() && profileIncomplete ? "border-amber-500/50" : ""}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lastName" className="text-[13px] font-medium">
+              Last Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Enter your last name"
+              className={!lastName.trim() && profileIncomplete ? "border-amber-500/50" : ""}
+            />
+          </div>
+        </div>
+
+        {hasChanges && (
+          <Button
+            onClick={handleSaveProfile}
+            disabled={saving || !firstName.trim() || !lastName.trim()}
+            className="w-full sm:w-auto"
+          >
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            Send Password Reset Email
+            Save Changes
           </Button>
-        </CardContent>
-      </Card>
+        )}
+
+        <div className="space-y-2 border-t border-border/40 pt-4">
+          <Label htmlFor="email" className="text-[13px] font-medium">Email Address</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            disabled
+            className="bg-muted"
+          />
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            Email address changes are not currently supported in-app. To change your email,
+            export your data from the{" "}
+            <a href="/settings?tab=privacy" className="text-primary underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              Privacy &amp; Data
+            </a>
+            {" "}tab, delete your account, and create a new one with your new email address.
+          </p>
+        </div>
+
+        {primaryRole === "student" && (
+          <div className="space-y-2 border-t border-border/40 pt-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="studentCode" className="text-[13px] font-medium">Student ID</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-[200px]">
+                      This ID is used by tutors to identify you. It's generated from your name initials.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {studentCode && !studentCode.startsWith('XX') ? (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    id="studentCode"
+                    value={studentCode}
+                    disabled
+                    className="bg-muted font-mono tracking-wider"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleCopyStudentCode}
+                        >
+                          {copied ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Copy to clipboard</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <p className="text-[12px] text-muted-foreground">
+                  Your student ID is generated from your name and cannot be changed.
+                </p>
+              </>
+            ) : (
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 bg-muted/30">
+                <p className="text-[13px] text-muted-foreground text-center">
+                  {profileIncomplete
+                    ? "Enter your first and last name above to generate your Student ID"
+                    : "Saving your profile to generate your Student ID..."}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </SettingsCard>
+
+      <SettingsCard
+        icon={KeyRound}
+        title="Password"
+        description="Manage your account password"
+      >
+        <Button onClick={handlePasswordReset} disabled={saving} variant="outline" className="w-full sm:w-auto">
+          {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+          Send Password Reset Email
+        </Button>
+      </SettingsCard>
     </div>
   );
 };
