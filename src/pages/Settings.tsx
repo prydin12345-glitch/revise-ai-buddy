@@ -34,7 +34,7 @@ const Settings = () => {
       <div className="min-h-screen bg-background">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-            <div className="container max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-0">
+            <div className="container max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-4">
               <div className="flex flex-col gap-1 mb-4 sm:mb-5">
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
                   Settings
@@ -44,22 +44,25 @@ const Settings = () => {
                 </p>
               </div>
 
-              <div className="-mx-4 sm:mx-0 overflow-x-auto scrollbar-none">
-                <TabsList className="w-max sm:w-full justify-start h-auto bg-transparent border-0 p-0 px-4 sm:px-0 gap-1 flex-nowrap">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <TabsTrigger
-                        key={tab.id}
-                        value={tab.id}
-                        className="shrink-0 gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-none border-b-2 border-transparent text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                      >
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span>{tab.label}</span>
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
+              <div className="relative">
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden z-10" />
+                <div className="-mx-1 overflow-x-auto scrollbar-none">
+                  <TabsList className="w-max sm:w-full flex gap-1 bg-muted/40 p-1 rounded-xl h-auto">
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <TabsTrigger
+                          key={tab.id}
+                          value={tab.id}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-all text-muted-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-foreground hover:text-foreground"
+                        >
+                          <Icon className="w-3.5 h-3.5 shrink-0" />
+                          <span>{tab.label}</span>
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                </div>
               </div>
             </div>
           </div>
