@@ -103,7 +103,25 @@ export const AddSubjectModal = ({
       setShowCustom(false);
       setConfirmed(false);
       setSelectedColour(getNextAvailableColour(existingColours));
-      setExamBoard(preferences?.preferred_exam_board || "");
+      // Seed exam board from the most common board among existing subjects,
+      // falling back to empty. The global preferred_exam_board is no longer
+      // used as a seed since the per-subject list is the source of truth.
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setExamBoard(""); return; }
+        const { data: existing } = await supabase
+          .from('user_subjects')
+          .select('exam_board')
+          .eq('user_id', user.id)
+          .not('exam_board', 'is', null);
+        const counts: Record<string, number> = {};
+        existing?.forEach((s: { exam_board: string | null }) => {
+          const b = s.exam_board?.trim();
+          if (b) counts[b] = (counts[b] ?? 0) + 1;
+        });
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+        setExamBoard(top);
+      })();
     }
   }, [open, existingColours]);
 
