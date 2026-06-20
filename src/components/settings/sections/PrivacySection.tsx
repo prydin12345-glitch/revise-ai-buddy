@@ -15,14 +15,17 @@ import {
   Check,
   Trash2,
   AlertTriangle,
-  ShieldCheck,
   CheckCircle2,
   XCircle,
   LogOut,
   Cookie,
+  Shield,
+  Settings2,
+  FileText,
 } from "lucide-react";
 import { openCookieSettings } from "@/components/CookieConsent";
-// (AlertDialog imports removed — Clear Activity Logs was decorative and is gone)
+import { SettingsTabHeader } from "@/components/settings/SettingsTabHeader";
+import { SettingsCard } from "@/components/settings/SettingsCard";
 
 
 const CONFIRM_PHRASE = "delete my account";
@@ -175,7 +178,7 @@ export const PrivacySection = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {deletionStatus && (
         <DeletionStatusOverlay
           status={deletionStatus}
@@ -183,212 +186,200 @@ export const PrivacySection = () => {
           onGoToLogin={() => navigate("/auth")}
         />
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>Privacy Controls</CardTitle>
-          <CardDescription>Manage your data and privacy preferences</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label htmlFor="confirm-resolve">Confirm before resolving feedback</Label>
-              <p className="text-sm text-muted-foreground">Show confirmation when marking help threads as resolved</p>
-            </div>
-            <Switch
-              id="confirm-resolve"
-              checked={preferences?.confirm_resolve_feedback !== false}
-              onCheckedChange={(checked) => updatePreference({ confirm_resolve_feedback: checked })}
-            />
-          </div>
 
-          <div className="pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border/60">
-            <div className="flex-1 min-w-0">
-              <Label>Cookie preferences</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Review or change which cookies Examly may store on this device.
+      <SettingsTabHeader
+        icon={Shield}
+        title="Privacy & Security"
+        description="Your data, account, and privacy controls"
+      />
+
+      <SettingsCard
+        icon={Settings2}
+        title="Preferences"
+        description="Privacy and cookie behaviour"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label htmlFor="confirm-resolve" className="text-[13px] font-medium">Confirm before resolving feedback</Label>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Show confirmation when marking help threads as resolved</p>
+          </div>
+          <Switch
+            id="confirm-resolve"
+            checked={preferences?.confirm_resolve_feedback !== false}
+            onCheckedChange={(checked) => updatePreference({ confirm_resolve_feedback: checked })}
+          />
+        </div>
+
+        <div className="border-t border-border/40 pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label className="text-[13px] font-medium">Cookie preferences</Label>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              Review or change which cookies Examly may store on this device.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openCookieSettings()}
+            className="gap-2 shrink-0 w-full sm:w-auto"
+          >
+            <Cookie className="w-4 h-4" />
+            Manage cookies
+          </Button>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        icon={Download}
+        title="Data Export"
+        description="Download your data under UK GDPR Article 20"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label className="text-[13px] font-medium">Download your data</Label>
+            <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">
+              Export a copy of all personal data Examly holds about your account —
+              profile, exam results, practice history and subjects — as a JSON file.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportData}
+            disabled={exportLoading}
+            className="gap-2 shrink-0 w-full sm:w-auto"
+          >
+            {exportDone ? (
+              <>
+                <Check className="w-4 h-4 text-primary shrink-0" />
+                Downloaded
+              </>
+            ) : exportLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Preparing…
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Export data
+              </>
+            )}
+          </Button>
+        </div>
+
+        <div className="rounded-xl bg-muted/40 p-4 space-y-2 border-t border-border/40 pt-4">
+          <p className="text-[13px] font-medium">Your rights under UK GDPR</p>
+          <ul className="space-y-1.5">
+            {[
+              "Right to access — download all your data at any time",
+              "Right to erasure — delete your account and all associated data",
+              "Right to portability — your data is exported in a machine-readable format",
+              "Right to rectification — update your profile and subjects in Settings",
+            ].map((right) => (
+              <li key={right} className="flex items-start gap-2 text-[12px] text-muted-foreground">
+                <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <span>{right}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        icon={Trash2}
+        title="Delete Account"
+        description="Permanently delete your account and all associated data. This cannot be undone."
+        destructive
+      >
+        {!showDeleteConfirm ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete my account
+          </Button>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-[13px] text-foreground">
+                This will permanently delete your account, exam results,
+                practice history, progress data and profile information.{" "}
+                <span className="font-semibold">This cannot be undone.</span>
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openCookieSettings()}
-              className="gap-2 shrink-0 w-full sm:w-auto"
-            >
-              <Cookie className="w-4 h-4" />
-              Manage cookies
-            </Button>
-          </div>
 
-          <div className="pt-2">
-            <Button variant="ghost" size="sm" className="gap-2" asChild>
-              <a href="/privacy" target="_blank">
-                Privacy Policy
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Your Data — UK GDPR */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            Your Data
-          </CardTitle>
-          <CardDescription>
-            Manage your personal data in accordance with UK GDPR
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label>Download your data</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Export a copy of all personal data Examly holds about your
-                account — profile, exam results, practice history and subjects —
-                as a JSON file. This is your right under UK GDPR Article 20.
-              </p>
+            <div className="space-y-2">
+              <Label htmlFor="delete-confirm" className="text-[13px] font-medium">
+                Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span> to confirm:
+              </Label>
+              <Input
+                id="delete-confirm"
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value)}
+                placeholder={CONFIRM_PHRASE}
+                autoFocus
+                className={
+                  deleteInput.trim().toLowerCase() === CONFIRM_PHRASE
+                    ? "border-destructive"
+                    : ""
+                }
+              />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportData}
-              disabled={exportLoading}
-              className="gap-2 shrink-0 w-full sm:w-auto"
-            >
-              {exportDone ? (
-                <>
-                  <Check className="w-4 h-4 text-primary shrink-0" />
-                  Downloaded
-                </>
-              ) : exportLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Preparing…
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  Export data
-                </>
-              )}
-            </Button>
-          </div>
 
-          <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
-            <p className="text-sm font-medium">Your rights under UK GDPR</p>
-            <ul className="space-y-1.5">
-              {[
-                "Right to access — download all your data at any time",
-                "Right to erasure — delete your account and all associated data",
-                "Right to portability — your data is exported in a machine-readable format",
-                "Right to rectification — update your profile and subjects in Settings",
-              ].map((right) => (
-                <li key={right} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <span>{right}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
-
-
-
-      {/* Danger zone — Delete Account */}
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertTriangle className="w-5 h-5" />
-            Delete Account
-          </CardTitle>
-          <CardDescription>
-            Permanently delete your Examly account and all associated data.
-            This includes your exam history, practice results, progress data
-            and profile. If you are a tutor your classes will be deactivated.
-            This action cannot be undone.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!showDeleteConfirm ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete my account
-            </Button>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-foreground">
-                  This will permanently delete your account, exam results,
-                  practice history, progress data and profile information.{" "}
-                  <span className="font-semibold">This cannot be undone.</span>
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="delete-confirm" className="text-sm">
-                  Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span> to confirm:
-                </Label>
-                <Input
-                  id="delete-confirm"
-                  value={deleteInput}
-                  onChange={(e) => setDeleteInput(e.target.value)}
-                  placeholder={CONFIRM_PHRASE}
-                  autoFocus
-                  className={
-                    deleteInput.trim().toLowerCase() === CONFIRM_PHRASE
-                      ? "border-destructive"
-                      : ""
-                  }
-                />
-              </div>
-
-              <div className="flex flex-col-reverse sm:flex-row gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDeleteInput("");
-                  }}
-                  disabled={deleteLoading}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDeleteAccount}
-                  disabled={
-                    deleteLoading ||
-                    deleteInput.trim().toLowerCase() !== CONFIRM_PHRASE
-                  }
-                  className="flex-1 gap-2"
-                >
-                  {deleteLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Deleting…
-                    </>
-                  ) : (
-                    "Permanently delete"
-                  )}
-                </Button>
-              </div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteInput("");
+                }}
+                disabled={deleteLoading}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleteLoading ||
+                  deleteInput.trim().toLowerCase() !== CONFIRM_PHRASE
+                }
+                className="flex-1 gap-2"
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Permanently delete"
+                )}
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </SettingsCard>
+
+      <SettingsCard
+        icon={FileText}
+        title="Legal"
+        description="Policies and terms"
+      >
+        <Button variant="ghost" size="sm" className="gap-2" asChild>
+          <a href="/privacy" target="_blank">
+            Privacy Policy
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </Button>
+      </SettingsCard>
     </div>
   );
 };
