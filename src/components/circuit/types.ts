@@ -6,6 +6,8 @@ export interface CircuitNode {
   row: number;
 }
 
+// NOTE: keep this union in sync with supabase/functions/_shared/circuit-validation.ts
+// (ALL_CIRCUIT_COMPONENTS) and the switch in symbols.tsx. All three must agree.
 export type CircuitComponentType =
   | 'battery'
   | 'resistor'
