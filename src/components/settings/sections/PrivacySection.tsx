@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  LogOut,
   Cookie,
   Shield,
   Settings2,
