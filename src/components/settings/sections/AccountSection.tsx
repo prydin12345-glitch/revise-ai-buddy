@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 // removed unused useNavigate after Subscription card was deleted
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Loader2, Copy, Check, AlertCircle, User, Camera } from "lucide-react";
+import { Loader2, Copy, Check, AlertCircle, User, Camera, KeyRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SettingsTabHeader } from "@/components/settings/SettingsTabHeader";
+import { SettingsCard } from "@/components/settings/SettingsCard";
 
 type UserProfile = {
   first_name: string | null;
