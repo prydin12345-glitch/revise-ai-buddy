@@ -6,6 +6,7 @@ import { logAIUsage } from "../_shared/usage-logger.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
+import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -306,8 +307,34 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
 
 
+  // ── CIRCUIT CONFIG VALIDATION ─────────────────────────────────────────────
+  // The AI proposes circuit diagramConfigs; this disposes. Anything that would
+  // render as a dropped wire or a red "?" box is repaired, and an unsalvageable
+  // circuit (broken loop, missing nodes) has its diagram removed so the question
+  // degrades to text rather than showing a broken figure to a student.
   questions = questions.map((question: any) => {
-    const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', question.diagramConfig, question.chart_data ?? question.options);
+    const cfg = question.diagramConfig ?? question.diagram_config;
+    if (!cfg || (cfg.type && cfg.type !== 'circuit')) return question;
+    const result = validateCircuitConfig(cfg);
+    if (result.reasons.length > 0) {
+      console.warn(`Q${question.question_number} circuit: ${result.reasons.join('; ')}`);
+    }
+    if (!result.ok || result.config === null) {
+      // Unrenderable — drop the diagram and flag the text as possibly referencing it.
+      const scrubbed = scrubBrokenDiagramReferences(question.question_text || '');
+      return {
+        ...question,
+        diagramConfig: null,
+        diagram_config: null,
+        question_text: scrubbed,
+        needs_review: true,
+        extraction_confidence: Math.min(question.extraction_confidence ?? 1, 0.3),
+      };
+    }
+    return { ...question, diagramConfig: result.config, diagram_config: result.config };
+  });
+
+  questions = questions.map((question: any) => {
     if (!hasBrokenRef) {
       return question;
     }
@@ -1576,9 +1603,7 @@ Never write a nodal analysis question that only says "use the network shown" —
 When generating circuit diagram questions, include a diagramConfig field in the question.
 
 ### Supported component types — use ONLY these exact strings:
-DC: "battery", "resistor", "variable_resistor", "thermistor", "lamp", "voltmeter", "ammeter", "switch_open", "switch_closed", "diode", "motor", "fuse"
-AC: "ac_source", "inductor", "capacitor", "impedance", "current_source"
-Universal: "wire", "ground", "open_terminal"
+${buildComponentListForPrompt()}
 
 ### When to use AC components:
 - AC circuit / alternating current → use "ac_source" not "battery"
@@ -1614,8 +1639,8 @@ Universal: "wire", "ground", "open_terminal"
 - Every node referenced in wires must exist in nodes array
 - Labels must match the values given in the question
 - Use "wire" for connections with no component
-- Add ammeter when current is being calculated
-- Add voltmeter in parallel (new branch) when voltage is being measured
+- Add ammeter IN SERIES (in the main line) when current is being calculated
+- Add voltmeter IN PARALLEL across the component, as its own branch with two extra nodes — NEVER place a voltmeter in series in the main loop (that is physically wrong and will render incorrectly)
 - Set diagramConfig: null for phasor diagram questions (these cannot be rendered as circuits)
 
 ### Multi-loop circuit examples
