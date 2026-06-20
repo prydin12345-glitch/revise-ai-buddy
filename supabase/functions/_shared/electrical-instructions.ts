@@ -120,3 +120,44 @@ For delta vs wye comparison questions:
 - Use the diagram as a reference comparison, not as something the student must draw
 ` : '';
 }
+
+// ── CIRCUIT DIAGRAM GENERATION (practice flow parity with exams) ──
+// Gives the practice generator the same circuit-drawing schema the exam
+// extractor has, so electrical practice questions can carry real circuit
+// diagrams instead of being prose-only. Built from the shared component list
+// so the prompt can never advertise a component the renderer can't draw.
+import { buildComponentListForPrompt } from "./circuit-validation.ts";
+
+export function buildCircuitInstructions(needsCircuit: boolean, suppressed: boolean): string {
+  if (!needsCircuit || suppressed) return '';
+  return `
+## CIRCUIT DIAGRAM GENERATION
+When a question naturally involves a circuit you can fully specify, attach a diagramConfig.
+
+### Supported component types — use ONLY these exact strings:
+${buildComponentListForPrompt()}
+
+### Schema:
+{
+  "type": "circuit",
+  "gridSpacing": 80,
+  "nodes": [{"id":"TL","col":0,"row":0},{"id":"TR","col":3,"row":0},{"id":"BR","col":3,"row":2},{"id":"BL","col":0,"row":2}],
+  "wires": [
+    {"from":"BL","to":"TL","component":"battery","label":"6V"},
+    {"from":"TL","to":"TR","component":"resistor","label":"R1 = 4Ω"},
+    {"from":"TR","to":"BR","component":"ammeter","label":"A"},
+    {"from":"BR","to":"BL","component":"wire"}
+  ],
+  "junctions": [],
+  "showLabels": true
+}
+
+### Rules:
+- Every circuit must form a closed loop. Minimum 4 nodes, minimum 4 wires.
+- Every node referenced in a wire must exist in the nodes array.
+- Use "wire" for plain connections. Labels must match the question's values.
+- Ammeters go IN SERIES (main line); voltmeters go IN PARALLEL as their own branch with two extra nodes — never a voltmeter in series.
+- For parallel branches, list the split/merge nodes in the junctions array.
+- If you cannot fully specify the topology, set diagramConfig: null and describe the circuit in words instead of writing "the circuit below".
+`;
+}
