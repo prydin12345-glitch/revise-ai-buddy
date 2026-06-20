@@ -13,7 +13,8 @@ import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
-import { detectDiagramTopics, buildDiagramSuppressionNotice, buildPhasorInstructions, buildNodalAnalysisInstruction, buildDeltaWyeInstructions } from "../_shared/electrical-instructions.ts";
+import { detectDiagramTopics, buildDiagramSuppressionNotice, buildPhasorInstructions, buildNodalAnalysisInstruction, buildDeltaWyeInstructions, buildCircuitInstructions } from "../_shared/electrical-instructions.ts";
+import { validateCircuitConfig } from "../_shared/circuit-validation.ts";
 import { buildDifficultyInstructions } from "../_shared/difficulty-instructions.ts";
 import { NOTATION_RULES, SKETCH_TYPE_RULE, NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS } from "../_shared/generation-rules.ts";
 import { checkGenerationRateLimit } from "../_shared/rate-limiter.ts";
@@ -615,6 +616,7 @@ EXAMPLE QUESTION FORMATS:
     const phasorDiagramInstructions = buildPhasorInstructions(hasPhasorTopic);
     const nodalAnalysisInstruction = buildNodalAnalysisInstruction(isElectricalEngineering);
     const deltaWyeDiagramInstructions = buildDeltaWyeInstructions(hasDeltaWyeTopic);
+    const circuitInstructions = buildCircuitInstructions(isElectricalEngineering || hasDiagramTopic, hasSuppressedTopic);
     if (hasSuppressedTopic) {
       console.log('Diagram suppression active — theoretical topics detected in:', setData.subtopics);
     }
@@ -1267,6 +1269,7 @@ ${diagramSuppressionNotice}
 ${phasorDiagramInstructions}
 ${deltaWyeDiagramInstructions}
 ${nodalAnalysisInstruction}
+${circuitInstructions}
 ${countInstruction}
 ${mcqFormatInstruction}
 
@@ -2514,6 +2517,27 @@ Generate questions that are meaningfully different from all of the above.`;
       }
     }
 
+
+    // Circuit config validation (parity with the exam extractor): repair or
+    // drop unrenderable circuits before they reach a student.
+    for (const q of questions) {
+      const cfg = q.diagramConfig ?? q.diagram_config;
+      if (!cfg || (cfg.type && cfg.type !== 'circuit')) continue;
+      const result = validateCircuitConfig(cfg);
+      if (result.reasons.length > 0) {
+        console.warn(`Q${q.question_number} circuit: ${result.reasons.join('; ')}`);
+      }
+      if (!result.ok || result.config === null) {
+        q.question_text = scrubBrokenDiagramReferences(q.question_text || '');
+        q.diagramConfig = null;
+        q.diagram_config = null;
+        q.needs_review = true;
+        q.extraction_confidence = Math.min(q.extraction_confidence ?? 1, 0.3);
+      } else {
+        q.diagramConfig = result.config;
+        q.diagram_config = result.config;
+      }
+    }
 
     for (const q of questions) {
       const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
