@@ -15,14 +15,16 @@ import {
   Check,
   Trash2,
   AlertTriangle,
-  ShieldCheck,
   CheckCircle2,
   XCircle,
-  LogOut,
   Cookie,
+  Shield,
+  Settings2,
+  FileText,
 } from "lucide-react";
 import { openCookieSettings } from "@/components/CookieConsent";
-// (AlertDialog imports removed — Clear Activity Logs was decorative and is gone)
+import { SettingsTabHeader } from "@/components/settings/SettingsTabHeader";
+import { SettingsCard } from "@/components/settings/SettingsCard";
 
 
 const CONFIRM_PHRASE = "delete my account";
