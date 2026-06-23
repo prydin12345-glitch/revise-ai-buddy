@@ -111,7 +111,7 @@ export const ExamCard = ({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className={`group flex flex-col ${isArchived ? "opacity-60" : ""}`}>
+      <div className={`group flex flex-col w-full max-w-[260px] sm:max-w-none mx-auto ${isArchived ? "opacity-60" : ""}`}>
         {/* ===== Paper face ===== */}
         <button
           type="button"
