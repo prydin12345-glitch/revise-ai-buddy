@@ -23,18 +23,13 @@ export default function MobileDashboard(props: DashboardData) {
 
   return (
     <div className="flex flex-col gap-6 pt-1 overflow-x-hidden max-w-full">
-      {/* header: greeting + bell on top, icon+number stats below */}
+      {/* header: greeting + stats (notification bell lives in the top bar) */}
       <header className="flex flex-col gap-[15px] px-[18px]">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold text-muted-foreground">{greeting()},</div>
-            <div className="text-[23px] font-extrabold leading-tight tracking-tight">{firstName} 👋</div>
-          </div>
-          <button className="relative grid h-[42px] w-[42px] flex-none place-items-center rounded-[13px] border border-border bg-panel text-muted-foreground">
-            <Bell className="h-[19px] w-[19px]" />
-            <span className="absolute right-[11px] top-2.5 h-[7px] w-[7px] rounded-full border-2 border-panel bg-danger" />
-          </button>
+        <div>
+          <div className="text-[13px] font-semibold text-muted-foreground">{greeting()},</div>
+          <div className="text-[23px] font-extrabold leading-tight tracking-tight">{firstName} 👋</div>
         </div>
+
 
         <div className="flex items-center gap-4">
           {profileStats.map((s) => {
