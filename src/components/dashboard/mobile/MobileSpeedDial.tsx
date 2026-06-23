@@ -24,11 +24,22 @@ interface Opt {
 export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
-  // Evenly spaced across a 130px radius arc: 90°, 135°, 180°
+  // Three options evenly spaced on a quarter arc (90°, 135°, 180°) at radius 150px.
+  // Equal 45° angular separation → equal chord distance (~115px) between adjacent buttons.
+  const RADIUS = 150;
+  const toXY = (deg: number) => {
+    const rad = (deg * Math.PI) / 180;
+    return { dx: Math.round(-Math.sin(rad - Math.PI / 2) * RADIUS), dy: Math.round(-Math.cos(rad - Math.PI / 2) * RADIUS) };
+  };
+  // Compact form: angle measured counter-clockwise from +x axis in screen space (y flipped).
+  const polar = (deg: number) => {
+    const rad = (deg * Math.PI) / 180;
+    return { dx: Math.round(Math.cos(rad) * RADIUS) * -1, dy: Math.round(Math.sin(rad) * RADIUS) * -1 };
+  };
   const opts: Opt[] = [
-    { key: "exam", dx: 0, dy: -130, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
-    { key: "quiz", dx: -92, dy: -92, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai", dx: -130, dy: 0, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
+    { key: "exam", ...polar(90),  className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
+    { key: "quiz", ...polar(135), className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
+    { key: "ai",   ...polar(180), className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
