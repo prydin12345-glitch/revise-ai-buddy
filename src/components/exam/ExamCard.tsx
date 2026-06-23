@@ -1,21 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Play, 
-  Eye, 
-  Edit2, 
-  Trash2, 
-  Star, 
+import {
+  Play,
+  Eye,
+  Edit2,
+  Trash2,
+  Star,
   Download,
-  Clock,
-  Calendar,
-  BookOpen,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
@@ -26,7 +19,7 @@ interface ExamProgress {
   percentComplete: number;
   timeRemaining: string;
   lastAccessed: string;
-  examState: 'not-started' | 'in-progress' | 'completed';
+  examState: "not-started" | "in-progress" | "completed";
 }
 
 interface Exam {
@@ -54,39 +47,38 @@ interface ExamCardProps {
   isArchived?: boolean;
 }
 
-// Format progress to integer percentage
 const formatProgress = (value: number): string => `${Math.round(value)}%`;
 
-export const ExamCard = ({ 
-  exam, 
-  progress, 
-  subjectColor, 
-  onEdit, 
-  onDelete, 
+export const ExamCard = ({
+  exam,
+  progress,
+  subjectColor,
+  onEdit,
+  onDelete,
   onToggleFavourite,
   onDownloadPDF,
   isFavourite,
-  isArchived = false
+  isArchived = false,
 }: ExamCardProps) => {
   const navigate = useNavigate();
 
   const getButtonConfig = () => {
     switch (progress.examState) {
-      case 'completed':
+      case "completed":
         return {
-          label: 'Review',
+          label: "Review",
           icon: Eye,
           action: () => navigate(`/exam/${exam.id}/review`),
         };
-      case 'in-progress':
+      case "in-progress":
         return {
-          label: 'Continue',
+          label: "Continue",
           icon: ChevronRight,
           action: () => navigate(`/exam/${exam.id}/in-progress?mode=student`),
         };
       default:
         return {
-          label: 'Start',
+          label: "Start",
           icon: Play,
           action: () => navigate(`/exam/${exam.id}/preview`),
         };
@@ -96,201 +88,257 @@ export const ExamCard = ({
   const buttonConfig = getButtonConfig();
   const ButtonIcon = buttonConfig.icon;
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
-  };
+
+  const boardLabel = exam.exam_board ? getBoardDisplayName(exam.exam_board) : null;
+  const levelLabel = exam.qualification_level
+    ? LEVEL_DISPLAY_NAMES[exam.qualification_level] ?? exam.qualification_level
+    : null;
+  const topicLabel = exam.exam_topics[0]?.topic_name;
+  const extraTopics = Math.max(0, exam.exam_topics.length - 1);
+
+  const statusRibbon =
+    progress.examState === "completed"
+      ? { label: "Completed", className: "bg-success/15 text-success border-success/30" }
+      : progress.examState === "in-progress"
+      ? { label: "In progress", className: "bg-amber-500/15 text-amber-600 border-amber-500/30" }
+      : null;
 
   return (
     <TooltipProvider delayDuration={200}>
-      <Card 
-        className={`group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col ${
-          isArchived ? 'opacity-60' : ''
-        }`}
-        style={{
-          borderLeft: `3px solid ${subjectColor}`,
-        }}
-      >
-        <CardContent className="p-0 flex flex-col flex-1">
-          {/* ========== HEADER SECTION ========== */}
-          <div className="p-6 pb-5 flex-1">
-            {/* Title Row - Title first, subject second */}
-            <div className="flex-1 min-w-0 mb-5">
-              {/* Main Title (largest) */}
-              <h3 className="font-semibold text-lg leading-tight text-foreground mb-1.5">
-                {exam.title}
-              </h3>
-              {/* Subject (smaller, secondary) */}
-              <p className="text-sm text-muted-foreground">{exam.subject_id}</p>
+      <div className={`group flex flex-col ${isArchived ? "opacity-60" : ""}`}>
+        {/* ===== Paper face ===== */}
+        <button
+          type="button"
+          onClick={() => {
+            if (exam.status === "published" && !isArchived) buttonConfig.action();
+          }}
+          className="relative block w-full rounded-md border border-border bg-card text-left overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ aspectRatio: "1 / 1.414" }}
+          aria-label={`${exam.title} — ${buttonConfig.label}`}
+        >
+          {/* Subject-colour spine */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1.5"
+            style={{ backgroundColor: subjectColor }}
+          />
 
-              {/* Board & Level tags */}
-              {(exam.exam_board || exam.qualification_level) && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {exam.exam_board && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-semibold bg-primary/10 text-primary border-primary/30">
-                      {getBoardDisplayName(exam.exam_board)}
-                    </Badge>
-                  )}
-                  {exam.qualification_level && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted text-muted-foreground border-border">
-                      {LEVEL_DISPLAY_NAMES[exam.qualification_level] ?? exam.qualification_level}
-                    </Badge>
-                  )}
-                </div>
-              )}
-              
-              {/* Progress indicator - wider bar with percentage on same row */}
-              <div className="flex items-center gap-3 mt-4">
-                <Progress 
-                  value={progress.percentComplete} 
-                  className="h-1.5 flex-1 bg-muted"
-                  indicatorColor={progress.examState === 'completed' ? 'hsl(var(--success))' : subjectColor}
-                />
-                <span className="text-xs text-muted-foreground font-medium shrink-0">
-                  {formatProgress(progress.percentComplete)}
+          {/* Status ribbon */}
+          {statusRibbon && (
+            <span
+              className={`absolute top-2.5 right-2.5 z-10 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${statusRibbon.className}`}
+            >
+              {statusRibbon.label}
+            </span>
+          )}
+
+          <div className="flex h-full flex-col px-4 pt-4 pb-3 pl-5">
+            {/* Masthead */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white"
+                  style={{ backgroundColor: subjectColor }}
+                >
+                  E
                 </span>
+                <span className="text-[10px] font-bold tracking-tight">Examly</span>
+              </div>
+              <p className="text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
+                Practice paper
+              </p>
+            </div>
+
+            {/* Title block */}
+            <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+              <p className="text-[9px] font-semibold text-muted-foreground line-clamp-1">
+                {boardLabel ? `Modelled on ${boardLabel}` : "Generic exam style"}
+                {levelLabel ? ` · ${levelLabel}` : ""}
+              </p>
+              <h3
+                className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2"
+              >
+                {exam.subject_id || "Subject"}
+              </h3>
+              <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-2">
+                {exam.title || "Untitled exam"}
+              </p>
+            </div>
+
+            {/* Questions / Time strip */}
+            <div className="mt-2 flex items-stretch rounded-md border border-border overflow-hidden text-[10px]">
+              <div className="flex-1 px-2 py-1.5">
+                <p className="text-muted-foreground text-[9px]">Questions</p>
+                <p className="font-semibold leading-tight">
+                  {progress.totalQuestions || "—"}
+                </p>
+              </div>
+              <div className="w-px bg-border" />
+              <div className="flex-1 px-2 py-1.5">
+                <p className="text-muted-foreground text-[9px]">Time</p>
+                <p className="font-semibold leading-tight">
+                  {progress.timeRemaining && progress.timeRemaining !== "No timer"
+                    ? progress.timeRemaining
+                    : "None"}
+                </p>
               </div>
             </div>
 
-            {/* ========== METADATA SECTION ========== */}
-            <div className="space-y-3 text-sm text-muted-foreground mt-5">
-              {/* Topic */}
-              {exam.exam_topics.length > 0 && (
-                <div className="flex items-center gap-2.5">
-                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{exam.exam_topics[0].topic_name}</span>
-                </div>
-              )}
-              
-              {/* Created date */}
-              <div className="flex items-center gap-2.5">
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
-                <span>Created: {formatDate(exam.created_at)}</span>
+            {/* Topics */}
+            {topicLabel && (
+              <div className="mt-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
+                  Topics
+                </p>
+                <p className="text-[11px] text-foreground/85 leading-snug line-clamp-2 mt-0.5">
+                  {topicLabel}
+                  {extraTopics > 0 ? ` +${extraTopics} more` : ""}
+                </p>
               </div>
+            )}
 
-              {/* Last accessed */}
-              {progress.lastAccessed && progress.lastAccessed !== 'Never' && (
-                <div className="flex items-center gap-2.5">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Last accessed: {progress.lastAccessed}</span>
-                </div>
-              )}
+            <div className="flex-1" />
 
-              {/* Time remaining (if timer active) */}
-              {progress.timeRemaining && progress.timeRemaining !== 'No timer' && progress.timeRemaining !== 'Completed' && (
-                <div className="flex items-center gap-2.5">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Time remaining: {progress.timeRemaining}</span>
-                </div>
-              )}
+            {/* Bottom: progress bar with % overlay */}
+            <div className="mt-2">
+              <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-1">
+                <span className="uppercase tracking-wider">Progress</span>
+                <span className="font-semibold">{formatProgress(progress.percentComplete)}</span>
+              </div>
+              <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, progress.percentComplete))}%`,
+                    backgroundColor:
+                      progress.examState === "completed"
+                        ? "hsl(var(--success))"
+                        : subjectColor,
+                  }}
+                />
+              </div>
             </div>
           </div>
+        </button>
 
-          {/* ========== DIVIDER ========== */}
-          <Separator />
+        {/* ===== Action row (outside paper) ===== */}
+        <div className="mt-2 flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavourite(exam.id);
+                  }}
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  disabled={isArchived}
+                >
+                  <Star
+                    className={`w-3.5 h-3.5 ${
+                      isFavourite ? "fill-yellow-400 text-yellow-400" : ""
+                    }`}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isFavourite ? "Remove from favourites" : "Add to favourites"}</p>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* ========== ACTION ROW ========== */}
-          <div className="px-6 py-4 flex items-center justify-between">
-            {/* Left: Secondary Actions (icon-only, subtle) */}
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    onClick={(e) => { e.stopPropagation(); onToggleFavourite(exam.id); }}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    disabled={isArchived}
-                  >
-                    <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isFavourite ? 'Remove from favourites' : 'Add to favourites'}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {onDownloadPDF && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); onDownloadPDF(exam); }}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      disabled={isArchived}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Download PDF</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    onClick={(e) => { e.stopPropagation(); onEdit(exam); }}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    disabled={isArchived}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Edit exam</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    onClick={(e) => { e.stopPropagation(); onDelete(exam); }}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    disabled={isArchived}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete exam</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* Right: Primary Action - Circular Icon Button */}
-            {exam.status === 'published' && !isArchived && (
+            {onDownloadPDF && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="icon"
-                    className="h-10 w-10 rounded-full"
+                    variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      buttonConfig.action();
+                      onDownloadPDF(exam);
                     }}
-                    aria-label={buttonConfig.label}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    disabled={isArchived}
                   >
-                    <ButtonIcon className="w-5 h-5" />
+                    <Download className="w-3.5 h-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{buttonConfig.label}</p>
+                  <p>Download PDF</p>
                 </TooltipContent>
               </Tooltip>
             )}
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(exam);
+                  }}
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  disabled={isArchived}
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit exam</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(exam);
+                  }}
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  disabled={isArchived}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete exam</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </CardContent>
-      </Card>
+
+          {exam.status === "published" && !isArchived && (
+            <Button
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                buttonConfig.action();
+              }}
+              className="h-7 rounded-full px-3 text-xs gap-1"
+            >
+              <ButtonIcon className="w-3.5 h-3.5" />
+              {buttonConfig.label}
+            </Button>
+          )}
+        </div>
+
+        {/* Meta line */}
+        <p className="mt-1 px-1 text-[10px] text-muted-foreground line-clamp-1">
+          Created {formatDate(exam.created_at)}
+          {progress.lastAccessed && progress.lastAccessed !== "Never"
+            ? ` · last opened ${progress.lastAccessed}`
+            : ""}
+        </p>
+      </div>
     </TooltipProvider>
   );
 };
