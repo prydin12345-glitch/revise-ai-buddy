@@ -767,33 +767,73 @@ const MyExams = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
-            {sortedExams.map((exam) => {
-              const progress = examProgress.get(exam.id) || {
-                questionsCompleted: 0,
-                totalQuestions: 0,
-                percentComplete: 0,
-                timeRemaining: "No timer",
-                lastAccessed: "Never",
-                examState: 'not-started' as const,
-              };
-              
-              return (
-                <ExamCard 
-                  key={exam.id} 
-                  exam={exam}
-                  progress={progress}
-                  subjectColor={getSubjectColor(exam.subject_id)}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onToggleFavourite={handleToggleFavourite}
-                  onDownloadPDF={handleDownloadPDF}
-                  isFavourite={favouriteExamIds.includes(exam.id)}
-                  isArchived={activeTab === 'archive'}
-                />
-              );
-            })}
-          </div>
+          (() => {
+            const groups = new Map<string, typeof sortedExams>();
+            sortedExams.forEach((exam) => {
+              const key = exam.subject_id || "Other";
+              if (!groups.has(key)) groups.set(key, [] as typeof sortedExams);
+              groups.get(key)!.push(exam);
+            });
+
+            return (
+              <div className="space-y-10">
+                {Array.from(groups.entries()).map(([subjectName, examsInGroup]) => {
+                  const subjectColor = getSubjectColor(subjectName);
+                  return (
+                    <section key={subjectName} aria-label={subjectName}>
+                      <div className="flex items-center gap-2.5 mb-3 px-1">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: subjectColor }}
+                          aria-hidden
+                        />
+                        <h2 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                          {subjectName}
+                        </h2>
+                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                          {examsInGroup.length}
+                        </span>
+                      </div>
+
+                      <div className="relative -mx-4 sm:-mx-6">
+                        <div className="flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth [scrollbar-width:thin]">
+                          {examsInGroup.map((exam) => {
+                            const progress = examProgress.get(exam.id) || {
+                              questionsCompleted: 0,
+                              totalQuestions: 0,
+                              percentComplete: 0,
+                              timeRemaining: "No timer",
+                              lastAccessed: "Never",
+                              examState: 'not-started' as const,
+                            };
+
+                            return (
+                              <div
+                                key={exam.id}
+                                className="snap-start shrink-0 w-[180px] sm:w-[200px] md:w-[220px]"
+                              >
+                                <ExamCard
+                                  exam={exam}
+                                  progress={progress}
+                                  subjectColor={subjectColor}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  onToggleFavourite={handleToggleFavourite}
+                                  onDownloadPDF={handleDownloadPDF}
+                                  isFavourite={favouriteExamIds.includes(exam.id)}
+                                  isArchived={activeTab === 'archive'}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            );
+          })()
         )}
       </div>
 
