@@ -24,22 +24,13 @@ interface Opt {
 export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
-  // Three options evenly spaced on a quarter arc (90°, 135°, 180°) at radius 150px.
-  // Equal 45° angular separation → equal chord distance (~115px) between adjacent buttons.
-  const RADIUS = 150;
-  const toXY = (deg: number) => {
-    const rad = (deg * Math.PI) / 180;
-    return { dx: Math.round(-Math.sin(rad - Math.PI / 2) * RADIUS), dy: Math.round(-Math.cos(rad - Math.PI / 2) * RADIUS) };
-  };
-  // Compact form: angle measured counter-clockwise from +x axis in screen space (y flipped).
-  const polar = (deg: number) => {
-    const rad = (deg * Math.PI) / 180;
-    return { dx: Math.round(Math.cos(rad) * RADIUS) * -1, dy: Math.round(Math.sin(rad) * RADIUS) * -1 };
-  };
+  // Three options evenly spaced on a quarter arc at radius 150px.
+  // Angular separation is a uniform 45° (90°, 135°, 180°), giving equal ~115px gaps
+  // between adjacent buttons and plenty of room for the labels.
   const opts: Opt[] = [
-    { key: "exam", ...polar(90),  className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
-    { key: "quiz", ...polar(135), className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai",   ...polar(180), className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
+    { key: "exam", dx: 0,    dy: -150, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
+    { key: "quiz", dx: -106, dy: -106, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
+    { key: "ai",   dx: -150, dy: 0,    className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
