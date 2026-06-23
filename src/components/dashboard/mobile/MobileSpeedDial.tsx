@@ -24,11 +24,13 @@ interface Opt {
 export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, aiUnreadCount }: MobileSpeedDialProps) {
   const [open, setOpen] = useState(false);
 
-  // Evenly spaced across a 130px radius arc: 90°, 135°, 180°
+  // Three options evenly spaced on a quarter arc at radius 150px.
+  // Angular separation is a uniform 45° (90°, 135°, 180°), giving equal ~115px gaps
+  // between adjacent buttons and plenty of room for the labels.
   const opts: Opt[] = [
-    { key: "exam", dx: 0, dy: -130, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
-    { key: "quiz", dx: -92, dy: -92, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
-    { key: "ai", dx: -130, dy: 0, className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
+    { key: "exam", dx: 0,    dy: -150, className: "bg-primary", icon: FileText, label: "Create Exam", action: onCreateExam },
+    { key: "quiz", dx: -106, dy: -106, className: "bg-success", icon: ListChecks, label: "Practice Quiz", action: onCreateQuiz },
+    { key: "ai",   dx: -150, dy: 0,    className: "bg-[linear-gradient(135deg,#7c5cff,#a78bfa)]", icon: Sparkles, label: "Ask AI", action: onAskAI, badge: aiUnreadCount },
   ];
 
   const fire = (o: Opt) => { setOpen(false); o.action?.(); };
