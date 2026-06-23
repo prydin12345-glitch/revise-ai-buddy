@@ -4,7 +4,6 @@
 //
 // This renders ONLY the dashboard body (header + classes + activity/stats).
 // Put it inside your existing mobile shell, or wrap with <MobileShell> (see README).
-import { Bell } from "lucide-react";
 import ClassCarousel from "./ClassCarousel";
 import MobileActivityStats from "./MobileActivityStats";
 import type { DashboardData } from "../types";
