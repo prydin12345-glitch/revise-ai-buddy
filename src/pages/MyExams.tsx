@@ -810,17 +810,12 @@ const MyExams = () => {
                             return (
                               <div
                                 key={exam.id}
-                                className="snap-start shrink-0 w-[180px] sm:w-[200px] md:w-[220px]"
+                                className="snap-start shrink-0 w-[210px] sm:w-[230px] md:w-[240px]"
                               >
                                 <ExamCard
                                   exam={exam}
                                   progress={progress}
                                   subjectColor={subjectColor}
-                                  onEdit={handleEdit}
-                                  onDelete={handleDelete}
-                                  onToggleFavourite={handleToggleFavourite}
-                                  onDownloadPDF={handleDownloadPDF}
-                                  isFavourite={favouriteExamIds.includes(exam.id)}
                                   isArchived={activeTab === 'archive'}
                                 />
                               </div>

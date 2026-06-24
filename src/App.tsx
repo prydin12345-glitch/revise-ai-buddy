@@ -29,6 +29,7 @@ const ReviewQuestions = lazyWithReload(() => import("./pages/ReviewQuestions"));
 const RedirectToReview = lazyWithReload(() => import("./pages/RedirectToReview"));
 const ExamInProgress = lazyWithReload(() => import("./pages/ExamInProgress"));
 const ExamPreview = lazyWithReload(() => import("./pages/ExamPreview"));
+const ExamCover = lazyWithReload(() => import("./pages/ExamCover"));
 const ExamReview = lazyWithReload(() => import("./pages/ExamReview"));
 const Stats = lazyWithReload(() => import("./pages/Stats"));
 const MySubjects = lazyWithReload(() => import("./pages/MySubjects"));
@@ -115,6 +116,7 @@ const App = () => {
               <Route path="/upload/:draftId/timer" element={<OnboardingGuard><TimerSetup /></OnboardingGuard>} />
               <Route path="/upload/:draftId/preview" element={<OnboardingGuard><RedirectToReview /></OnboardingGuard>} />
               <Route path="/exam/:examId/preview" element={<OnboardingGuard><ExamPreview /></OnboardingGuard>} />
+              <Route path="/exam/:examId/cover" element={<OnboardingGuard><ExamCover /></OnboardingGuard>} />
               <Route path="/exam/:examId/live" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
               <Route path="/exam/:examId/in-progress" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
               <Route path="/exam/:examId/review" element={<OnboardingGuard><ExamReview /></OnboardingGuard>} />
