@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Grid3x3, List, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
+import { Plus, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
 import { PracticeSetCard } from "@/components/practice/PracticeSetCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,6 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 interface PracticeSet {
   id: string;
@@ -57,7 +55,6 @@ const MyQuizzes = () => {
   const { subjects } = useUserSubjects();
   const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterBoard, setFilterBoard] = useState('all');
@@ -68,12 +65,7 @@ const MyQuizzes = () => {
   const [progressMap, setProgressMap] = useState<Record<string, PracticeSetProgress>>({});
   const [recoveredCount, setRecoveredCount] = useState(0);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+
 
   // Debounce search
   useEffect(() => {
@@ -224,16 +216,6 @@ const MyQuizzes = () => {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setPracticeSets((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
 
   const getSubjectColor = (subjectId: string) => {
     const subject = subjects.find(s => s.subject_name === subjectId);
@@ -407,33 +389,12 @@ const MyQuizzes = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* View Mode Toggles */}
-              <div className="flex gap-1">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                >
-                  <Grid3x3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setViewMode('list')}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Practice Sets Grid/List */}
+
+        {/* Practice Sets grouped by subject */}
         {sortedSets.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-2xl font-semibold mb-2">No practice quizzes found</h3>
@@ -444,24 +405,56 @@ const MyQuizzes = () => {
             </Button>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sortedSets.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
-                {sortedSets.map(set => (
-                  <PracticeSetCard
-                    key={set.id}
-                    set={set}
-                    progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
-                    subjectColor={getSubjectColor(set.subject_id)}
-                    onDelete={handleDelete}
-                    onToggleFavourite={handleToggleFavourite}
-                    isFavourite={favourites.has(set.id)}
-                    isRecovered={recoveredCount > 0 && new Date(set.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000}
-                  />
-                ))}
+          (() => {
+            const groups = new Map<string, typeof sortedSets>();
+            sortedSets.forEach((set) => {
+              const key = set.subject_id || "Other";
+              if (!groups.has(key)) groups.set(key, [] as typeof sortedSets);
+              groups.get(key)!.push(set);
+            });
+
+            return (
+              <div className="space-y-10">
+                {Array.from(groups.entries()).map(([subjectName, setsInGroup]) => {
+                  const subjectColor = getSubjectColor(subjectName);
+                  return (
+                    <section key={subjectName} aria-label={subjectName}>
+                      <div className="flex items-center gap-2.5 mb-3 px-1">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: subjectColor }}
+                          aria-hidden
+                        />
+                        <h2 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                          {subjectName}
+                        </h2>
+                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                          {setsInGroup.length}
+                        </span>
+                      </div>
+
+                      <div className="relative -mx-4 sm:-mx-6">
+                        <div className="flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth [scrollbar-width:thin]">
+                          {setsInGroup.map((set) => (
+                            <div
+                              key={set.id}
+                              className="snap-start shrink-0 w-[210px] sm:w-[230px] md:w-[240px]"
+                            >
+                              <PracticeSetCard
+                                set={set}
+                                progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
+                                subjectColor={subjectColor}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
-            </SortableContext>
-          </DndContext>
+            );
+          })()
         )}
       </div>
     </DashboardLayout>

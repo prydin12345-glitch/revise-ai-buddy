@@ -37,6 +37,7 @@ const CreatePracticeQuestions = lazyWithReload(() => import("./pages/CreatePract
 const MyQuizzes = lazyWithReload(() => import("./pages/MyQuizzes"));
 const PracticeSetPreview = lazyWithReload(() => import("./pages/PracticeSetPreview"));
 const TakePracticeQuiz = lazyWithReload(() => import("./pages/TakePracticeQuiz"));
+const QuizCover = lazyWithReload(() => import("./pages/QuizCover"));
 const Settings = lazyWithReload(() => import("./pages/Settings"));
 const AdminVerifications = lazyWithReload(() => import("./pages/AdminVerifications"));
 const MyClasses = lazyWithReload(() => import("./pages/MyClasses"));
@@ -107,6 +108,7 @@ const App = () => {
               <Route path="/quizzes" element={<OnboardingGuard><MyQuizzes /></OnboardingGuard>} />
               <Route path="/practice-questions/:setId/preview" element={<OnboardingGuard><PracticeSetPreview /></OnboardingGuard>} />
               <Route path="/practice-questions/:setId/take" element={<OnboardingGuard><TakePracticeQuiz /></OnboardingGuard>} />
+              <Route path="/quizzes/:setId/cover" element={<OnboardingGuard><QuizCover /></OnboardingGuard>} />
               <Route path="/upload" element={<OnboardingGuard><CreateExam /></OnboardingGuard>} />
               
               <Route path="/upload/:draftId/analyze" element={<OnboardingGuard><AnalyzeExam /></OnboardingGuard>} />
