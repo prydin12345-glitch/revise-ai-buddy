@@ -81,6 +81,7 @@ interface SubjectProgress {
 }
 
 const MyClasses = () => {
+  const { getSubjectColor } = useUserSubjects();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
