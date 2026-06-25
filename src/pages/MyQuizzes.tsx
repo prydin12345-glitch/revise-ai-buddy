@@ -387,9 +387,12 @@ const MyQuizzes = () => {
                       {option.label}
                     </DropdownMenuItem>
                   ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
+
 
         {/* Practice Sets grouped by subject */}
         {sortedSets.length === 0 ? (
