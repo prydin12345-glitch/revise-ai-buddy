@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Grid3x3, List, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
+import { Plus, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
 import { PracticeSetCard } from "@/components/practice/PracticeSetCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,6 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 interface PracticeSet {
   id: string;
