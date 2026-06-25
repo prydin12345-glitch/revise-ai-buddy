@@ -521,9 +521,10 @@ const QuizCover = () => {
         <StudentPDFDownloadModal
           open={pdfOpen}
           onOpenChange={setPdfOpen}
-          onConfirmDownload={handlePDFDownload}
           contentType="practice"
+          contentId={set.id}
           contentTitle={set.set_name}
+          onDownload={handlePDFDownload}
         />
       </TooltipProvider>
     </DashboardLayout>
