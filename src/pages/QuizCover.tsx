@@ -266,7 +266,7 @@ const QuizCover = () => {
 
   const handlePDFDownload = async () => {
     if (!set) return;
-    await generateStudentPDF({ contentType: "practice_set", contentId: set.id });
+    await generateStudentPDF({ contentType: "practice", contentId: set.id });
   };
 
   if (loading || !set) {
@@ -522,7 +522,7 @@ const QuizCover = () => {
           open={pdfOpen}
           onOpenChange={setPdfOpen}
           onConfirmDownload={handlePDFDownload}
-          contentType="practice_set"
+          contentType="practice"
           contentTitle={set.set_name}
         />
       </TooltipProvider>
