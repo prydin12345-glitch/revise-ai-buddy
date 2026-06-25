@@ -55,7 +55,6 @@ const MyQuizzes = () => {
   const { subjects } = useUserSubjects();
   const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterBoard, setFilterBoard] = useState('all');
@@ -66,12 +65,7 @@ const MyQuizzes = () => {
   const [progressMap, setProgressMap] = useState<Record<string, PracticeSetProgress>>({});
   const [recoveredCount, setRecoveredCount] = useState(0);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+
 
   // Debounce search
   useEffect(() => {
