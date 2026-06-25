@@ -1,7 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { BookOpen, Users, Calendar, ChevronRight, Bell } from "lucide-react";
-import { format } from "date-fns";
+import { BookOpen } from "lucide-react";
 
 interface ClassCardProps {
   group: {
@@ -14,103 +11,118 @@ interface ClassCardProps {
   tutorName?: string;
   assignmentCount: number;
   announcementCount: number;
+  subjectColor: string;
+  completedCount?: number;
   onClick: () => void;
 }
 
-const subjectColors: Record<string, string> = {
-  mathematics: "45 74% 66%",
-  maths: "45 74% 66%",
-  science: "174 30% 48%",
-  physics: "200 60% 50%",
-  chemistry: "280 50% 55%",
-  biology: "142 40% 45%",
-  languages: "12 66% 64%",
-  english: "350 60% 55%",
-  humanities: "214 35% 35%",
-  history: "25 60% 50%",
-  geography: "170 50% 45%",
-  arts: "262 83% 58%",
-  "computer science": "220 70% 55%",
-  default: "217 91% 60%",
-};
-
-const getSubjectColor = (subjectName?: string): string => {
-  if (!subjectName) return subjectColors.default;
-  const key = subjectName.toLowerCase();
-  return subjectColors[key] || subjectColors.default;
-};
-
-export const ClassCard = ({ group, tutorName, assignmentCount, announcementCount, onClick }: ClassCardProps) => {
-  const primarySubject = group.subjects_covered?.[0];
-  const subjectColor = getSubjectColor(primarySubject?.name);
+/**
+ * Portrait A4 "class paper" card matching ExamCard / PracticeSetCard vocabulary.
+ * Metadata (joined date, badges) lives on the class detail view, not the face.
+ */
+export const ClassCard = ({
+  group,
+  tutorName,
+  assignmentCount,
+  announcementCount,
+  subjectColor,
+  completedCount = 0,
+  onClick,
+}: ClassCardProps) => {
+  const primarySubject = group.subjects_covered?.[0]?.name;
+  const extraSubjects = Math.max(0, (group.subjects_covered?.length ?? 0) - 1);
+  const percent =
+    assignmentCount > 0
+      ? Math.min(100, Math.round((completedCount / assignmentCount) * 100))
+      : 0;
 
   return (
-    <Card 
-      className="group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden border-border min-w-[260px] w-[260px] flex-shrink-0"
-      onClick={onClick}
-    >
-      <div 
-        className="h-1.5 w-full"
-        style={{ backgroundColor: `hsl(${subjectColor})` }}
-      />
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div 
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: `hsl(${subjectColor} / 0.15)` }}
-          >
-            <BookOpen className="w-5 h-5" style={{ color: `hsl(${subjectColor})` }} />
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+    <div className="group w-full">
+      <button
+        type="button"
+        onClick={onClick}
+        className="relative block w-full rounded-md border border-border bg-card text-left overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ aspectRatio: "1 / 1.414" }}
+        aria-label={`Open ${group.name}`}
+      >
+        {/* Subject-colour spine */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1.5"
+          style={{ backgroundColor: subjectColor }}
+        />
 
-        <h3 className="font-semibold text-base text-foreground mb-0.5 line-clamp-1 group-hover:text-primary transition-colors">
-          {group.name}
-        </h3>
-        
-        {tutorName && (
-          <p className="text-sm text-muted-foreground mb-2">
-            by {tutorName}
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-1 mb-3">
-          {group.subjects_covered?.slice(0, 2).map((subject, idx) => (
-            <Badge 
-              key={idx} 
-              variant="secondary"
-              className="text-xs font-medium"
-              style={{ 
-                backgroundColor: `hsl(${getSubjectColor(subject.name)} / 0.12)`,
-                color: `hsl(${getSubjectColor(subject.name)})`
-              }}
-            >
-              {subject.name}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" />
-              {assignmentCount} tasks
-            </span>
+        <div className="flex h-full flex-col px-4 pt-4 pb-3 pl-5">
+          {/* Masthead */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded text-white"
+                style={{ backgroundColor: subjectColor }}
+              >
+                <BookOpen className="h-2.5 w-2.5" />
+              </span>
+              <span className="text-[10px] font-bold tracking-tight">Class</span>
+            </div>
             {announcementCount > 0 && (
-              <span className="flex items-center gap-1 text-primary">
-                <Bell className="w-3.5 h-3.5" />
-                {announcementCount}
+              <span
+                className="inline-flex items-center justify-center rounded-full px-1.5 h-4 text-[9px] font-semibold text-white"
+                style={{ backgroundColor: subjectColor }}
+                aria-label={`${announcementCount} new announcements`}
+              >
+                {announcementCount} new
               </span>
             )}
           </div>
-          {group.joined_at && (
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {format(new Date(group.joined_at), "MMM d")}
-            </span>
-          )}
+
+          {/* Title block */}
+          <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground line-clamp-1">
+              {primarySubject || "Class"}
+              {extraSubjects > 0 ? ` +${extraSubjects}` : ""}
+            </p>
+            <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
+              {group.name}
+            </h3>
+            {tutorName && (
+              <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-1">
+                with {tutorName}
+              </p>
+            )}
+          </div>
+
+          {/* Assignments strip */}
+          <div className="mt-2 flex items-stretch rounded-md border border-border overflow-hidden text-[10px]">
+            <div className="flex-1 px-2 py-1.5">
+              <p className="text-muted-foreground text-[9px]">Tasks</p>
+              <p className="font-semibold leading-tight">{assignmentCount || "—"}</p>
+            </div>
+            <div className="w-px bg-border" />
+            <div className="flex-1 px-2 py-1.5">
+              <p className="text-muted-foreground text-[9px]">Done</p>
+              <p className="font-semibold leading-tight">{completedCount}</p>
+            </div>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Bottom progress */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-1">
+              <span className="uppercase tracking-wider">Progress</span>
+              <span className="font-semibold">{percent}%</span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${percent}%`,
+                  backgroundColor: subjectColor,
+                }}
+              />
+            </div>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </button>
+    </div>
   );
 };
