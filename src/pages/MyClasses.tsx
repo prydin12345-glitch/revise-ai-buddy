@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Search, BookOpen, Megaphone, ClipboardList } from "lucide-react";
+import { Plus, Search, BookOpen, Megaphone, ClipboardList, Users, Calendar, TrendingUp } from "lucide-react";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { MonthFilter } from "@/components/classes/MonthFilter";
 import { ClassCard } from "@/components/classes/ClassCard";
@@ -16,6 +16,7 @@ import { ClassDetailView } from "@/components/classes/ClassDetailView";
 import { AnnouncementItem } from "@/components/classes/AnnouncementItem";
 import { AssignmentRow } from "@/components/classes/AssignmentRow";
 import { ProgressItem } from "@/components/classes/ProgressItem";
+import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { format, isSameMonth, isSameYear } from "date-fns";
 
 interface StudentGroup {
