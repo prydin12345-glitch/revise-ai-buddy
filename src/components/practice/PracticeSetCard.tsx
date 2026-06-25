@@ -1,24 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Play, 
-  Eye, 
-  Trash2, 
-  Star, 
-  Download,
-  Clock,
-  Calendar,
-  BookOpen,
-  ChevronRight,
-  FileText
-} from "lucide-react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
@@ -46,294 +26,125 @@ interface PracticeSetCardProps {
   set: PracticeSet;
   progress: PracticeSetProgress;
   subjectColor: string;
-  onDelete: (setId: string) => void;
-  onToggleFavourite: (setId: string) => void;
-  isFavourite: boolean;
-  isRecovered?: boolean;
-  onDownloadPDF?: (setId: string) => void;
 }
 
-// Format progress to integer percentage
 const formatProgress = (value: number): string => `${Math.round(value)}%`;
 
-const formatTimeSpent = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-};
-
-const formatDate = (dateStr: string | undefined | null) => {
-  if (!dateStr) return null;
-  
-  const date = new Date(dateStr);
-  // Check for invalid date or epoch (01/01/1970)
-  if (isNaN(date.getTime()) || date.getTime() < 86400000) {
-    return null;
-  }
-  
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-};
-
-export const PracticeSetCard = ({ 
-  set, 
-  progress, 
-  subjectColor, 
-  onDelete, 
-  onToggleFavourite, 
-  isFavourite,
-  isRecovered = false,
-  onDownloadPDF
-}: PracticeSetCardProps) => {
+export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCardProps) => {
   const navigate = useNavigate();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
-    id: set.id 
-  });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const percentComplete =
+    set.question_count > 0
+      ? (progress.questions_attempted / set.question_count) * 100
+      : 0;
+  const isCompleted = !!progress.completed_at;
 
-  const percentComplete = set.question_count > 0 
-    ? (progress.questions_attempted / set.question_count) * 100 
-    : 0;
-  const isCompleted = !!progress.completed_at && formatDate(progress.completed_at);
-  const estimatedTime = set.question_count * 2; // 2 minutes per question
-
-  const getButtonConfig = () => {
-    if (isCompleted) {
-      return {
-        label: 'Review',
-        icon: Eye,
-        action: () => navigate(`/practice-questions/${set.id}/preview`),
-      };
-    }
-    if (progress.questions_attempted > 0) {
-      return {
-        label: 'Continue',
-        icon: ChevronRight,
-        action: () => navigate(`/practice-questions/${set.id}/take`),
-      };
-    }
-    return {
-      label: 'Start',
-      icon: Play,
-      action: () => navigate(`/practice-questions/${set.id}/take`),
-    };
-  };
-
-  const buttonConfig = getButtonConfig();
-  const ButtonIcon = buttonConfig.icon;
+  const boardLabel = set.exam_board ? getBoardDisplayName(set.exam_board) : null;
+  const levelLabel = set.educational_tier
+    ? LEVEL_DISPLAY_NAMES[set.educational_tier] ?? set.educational_tier
+    : null;
+  const topicLabel = set.subtopics?.[0];
+  const extraTopics = Math.max(0, (set.subtopics?.length ?? 0) - 1);
+  const difficulty = set.difficulty_level || set.difficulty_mode || "Medium";
+  const estimatedTime = set.question_count * 2;
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card 
-        className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg min-h-[280px] flex flex-col"
-        style={{
-          borderLeft: `3px solid ${subjectColor}`,
-        }}
+    <div className="group w-full">
+      <button
+        type="button"
+        onClick={() => navigate(`/quizzes/${set.id}/cover`)}
+        className="relative block w-full rounded-md border border-border bg-card text-left overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ aspectRatio: "1 / 1.414" }}
+        aria-label={`Open ${set.set_name}`}
       >
-        <CardContent className="p-0 flex flex-col flex-1">
-          {/* ========== HEADER SECTION - Drag handle ========== */}
-          <div className="p-6 pb-5 flex-1 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-            {/* Title Row */}
-            <div className="flex-1 min-w-0 mb-5">
-              {/* Main Title */}
-              <h3 className="font-semibold text-lg leading-tight text-foreground mb-1.5">
-                {set.set_name}
-              </h3>
-              {/* Subject */}
-              <p className="text-sm text-muted-foreground">{set.subject_id}</p>
+        {/* Subject-colour spine */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1.5"
+          style={{ backgroundColor: subjectColor }}
+        />
 
-              {/* Board & Level tags */}
-              {(set.exam_board || set.educational_tier) && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {set.exam_board && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-semibold bg-primary/10 text-primary border-primary/30">
-                      {getBoardDisplayName(set.exam_board)}
-                    </Badge>
-                  )}
-                  {set.educational_tier && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted text-muted-foreground border-border">
-                      {LEVEL_DISPLAY_NAMES[set.educational_tier] ?? set.educational_tier}
-                    </Badge>
-                  )}
-                </div>
-              )}
-              
-              {/* Progress indicator */}
-              <div className="flex items-center gap-3 mt-4">
-                <Progress 
-                  value={percentComplete} 
-                  className="h-1.5 flex-1 bg-muted"
-                  indicatorColor={isCompleted ? 'hsl(var(--success))' : subjectColor}
-                />
-                <span className="text-xs text-muted-foreground font-medium shrink-0">
-                  {formatProgress(percentComplete)}
-                </span>
-              </div>
+        <div className="flex h-full flex-col px-4 pt-4 pb-3 pl-5">
+          {/* Masthead */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white"
+                style={{ backgroundColor: subjectColor }}
+              >
+                E
+              </span>
+              <span className="text-[10px] font-bold tracking-tight">Examly</span>
             </div>
+            <p className="text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
+              Practice quiz
+            </p>
+          </div>
 
-            {/* ========== METADATA SECTION ========== */}
-            <div className="space-y-3 text-sm text-muted-foreground mt-5">
-              {/* Questions count */}
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-3.5 h-3.5 shrink-0" />
-                <span>{set.question_count} questions</span>
-              </div>
+          {/* Title block */}
+          <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+            <p className="text-[9px] font-semibold text-muted-foreground line-clamp-1">
+              {boardLabel ? `Modelled on ${boardLabel}` : "Generic quiz style"}
+              {levelLabel ? ` · ${levelLabel}` : ""}
+            </p>
+            <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
+              {set.subject_id || "Subject"}
+            </h3>
+            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-2">
+              {set.set_name || "Untitled quiz"}
+            </p>
+          </div>
 
-              {/* Estimated time */}
-              <div className="flex items-center gap-2.5">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>~{estimatedTime} min</span>
-              </div>
-
-              {/* Difficulty */}
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                <span>Difficulty: <span className="capitalize">{set.difficulty_level || set.difficulty_mode || 'Medium'}</span></span>
-              </div>
-
-              {/* Time spent (if any) */}
-              {progress.time_spent_seconds > 0 && (
-                <div className="flex items-center gap-2.5">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Time spent: {formatTimeSpent(progress.time_spent_seconds)}</span>
-                </div>
-              )}
-
-              {/* Created date */}
-              <div className="flex items-center gap-2.5">
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
-                <span>Created: {formatDate(set.created_at) || 'Unknown'}</span>
-              </div>
-
-              {/* Completion status */}
-              {isCompleted ? (
-                <div className="flex items-center gap-2.5 text-green-600 dark:text-green-400 font-medium">
-                  <span>✓ Completed {formatDate(progress.completed_at)}</span>
-                </div>
-              ) : progress.questions_attempted > 0 ? (
-                <div className="flex items-center gap-2.5">
-                  <span>{progress.questions_attempted} / {set.question_count} answered</span>
-                </div>
-              ) : null}
+          {/* Questions / Time strip */}
+          <div className="mt-2 flex items-stretch rounded-md border border-border overflow-hidden text-[10px]">
+            <div className="flex-1 px-2 py-1.5">
+              <p className="text-muted-foreground text-[9px]">Questions</p>
+              <p className="font-semibold leading-tight">{set.question_count || "—"}</p>
+            </div>
+            <div className="w-px bg-border" />
+            <div className="flex-1 px-2 py-1.5">
+              <p className="text-muted-foreground text-[9px]">Est. time</p>
+              <p className="font-semibold leading-tight">~{estimatedTime}m</p>
+            </div>
+            <div className="w-px bg-border" />
+            <div className="flex-1 px-2 py-1.5">
+              <p className="text-muted-foreground text-[9px]">Difficulty</p>
+              <p className="font-semibold leading-tight capitalize truncate">{difficulty}</p>
             </div>
           </div>
 
-          {/* ========== DIVIDER ========== */}
-          <Separator />
-
-          {/* ========== ACTION ROW ========== */}
-          <div className="px-6 py-4 flex items-center justify-between">
-            {/* Left: Secondary Actions */}
-            <div className="flex items-center gap-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); onToggleFavourite(set.id); }}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      <Star className={`w-4 h-4 ${isFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isFavourite ? 'Remove from favourites' : 'Add to favourites'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); navigate(`/practice-questions/${set.id}/preview`); }}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Preview questions</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {onDownloadPDF && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={(e) => { e.stopPropagation(); onDownloadPDF(set.id); }}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Download PDF</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); onDelete(set.id); }}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete set</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          {/* Subtopics */}
+          {topicLabel && (
+            <div className="mt-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
+                Subtopics
+              </p>
+              <p className="text-[11px] text-foreground/85 leading-snug line-clamp-2 mt-0.5">
+                {topicLabel}
+                {extraTopics > 0 ? ` +${extraTopics} more` : ""}
+              </p>
             </div>
+          )}
 
-            {/* Right: Primary Action - Circular Icon Button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    className="h-10 w-10 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      buttonConfig.action();
-                    }}
-                    aria-label={buttonConfig.label}
-                  >
-                    <ButtonIcon className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{buttonConfig.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div className="flex-1" />
+
+          {/* Bottom: progress bar with % overlay */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-1">
+              <span className="uppercase tracking-wider">Progress</span>
+              <span className="font-semibold">{formatProgress(percentComplete)}</span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.max(0, Math.min(100, percentComplete))}%`,
+                  backgroundColor: isCompleted ? "hsl(var(--success))" : subjectColor,
+                }}
+              />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </button>
     </div>
   );
 };
