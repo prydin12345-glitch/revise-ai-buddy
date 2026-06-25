@@ -387,35 +387,11 @@ const MyQuizzes = () => {
                       {option.label}
                     </DropdownMenuItem>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* View Mode Toggles */}
-              <div className="flex gap-1">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                >
-                  <Grid3x3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setViewMode('list')}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Practice Sets Grid/List */}
+        {/* Practice Sets grouped by subject */}
         {sortedSets.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-2xl font-semibold mb-2">No practice quizzes found</h3>
@@ -426,24 +402,56 @@ const MyQuizzes = () => {
             </Button>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sortedSets.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
-                {sortedSets.map(set => (
-                  <PracticeSetCard
-                    key={set.id}
-                    set={set}
-                    progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
-                    subjectColor={getSubjectColor(set.subject_id)}
-                    onDelete={handleDelete}
-                    onToggleFavourite={handleToggleFavourite}
-                    isFavourite={favourites.has(set.id)}
-                    isRecovered={recoveredCount > 0 && new Date(set.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000}
-                  />
-                ))}
+          (() => {
+            const groups = new Map<string, typeof sortedSets>();
+            sortedSets.forEach((set) => {
+              const key = set.subject_id || "Other";
+              if (!groups.has(key)) groups.set(key, [] as typeof sortedSets);
+              groups.get(key)!.push(set);
+            });
+
+            return (
+              <div className="space-y-10">
+                {Array.from(groups.entries()).map(([subjectName, setsInGroup]) => {
+                  const subjectColor = getSubjectColor(subjectName);
+                  return (
+                    <section key={subjectName} aria-label={subjectName}>
+                      <div className="flex items-center gap-2.5 mb-3 px-1">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: subjectColor }}
+                          aria-hidden
+                        />
+                        <h2 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                          {subjectName}
+                        </h2>
+                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                          {setsInGroup.length}
+                        </span>
+                      </div>
+
+                      <div className="relative -mx-4 sm:-mx-6">
+                        <div className="flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth [scrollbar-width:thin]">
+                          {setsInGroup.map((set) => (
+                            <div
+                              key={set.id}
+                              className="snap-start shrink-0 w-[210px] sm:w-[230px] md:w-[240px]"
+                            >
+                              <PracticeSetCard
+                                set={set}
+                                progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
+                                subjectColor={subjectColor}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
-            </SortableContext>
-          </DndContext>
+            );
+          })()
         )}
       </div>
     </DashboardLayout>
