@@ -1,94 +1,104 @@
+# My Classes — Visual & Layout Redesign Plan
 
-## Goal
+## Current problems (audit)
 
-Make the exam cards on `My Exams` cleaner, and turn the card click into a "front cover" summary page (modelled on the wizard's `ExamPaperCover`) where all per-exam actions live. No business logic changes.
+**Visual language drifts from the rest of the app**
+- Exams and Quizzes pages use a *portrait "paper" card* grouped by subject in horizontal snap rows. Classes uses square 260px cards with a colored top bar — a different vocabulary that breaks flow.
+- Cards expose secondary metadata (joined date, "tasks", bell count, badges) on the card face. Exams/Quizzes pages deliberately moved metadata off the face onto a Cover page. Classes still feels noisy by comparison.
+- Settings/Dashboard use `SettingsTabHeader` / `PageHeader` patterns with icon + title + sub-line. `MyClasses` only renders a bare `text-2xl` H1 — no icon, no description.
+- No `SettingsCard`/elevated-surface treatment on the right-hand panels; the page reads "flat list on flat bg".
+
+**Layout issues per breakpoint**
+
+Laptop (≥1024px)
+- Outer wrapper is `p-6` with no `max-width` — content stretches edge-to-edge on wide screens while Dashboard caps at a comfortable container width.
+- 2/3 + 1/3 split for Assignments + Progress is fine, but the horizontal class scroller above it spans full width creating visual imbalance (long row, then narrow column underneath).
+- Search input sits inline-left with the tab strip; on wide screens it leaves a large dead zone between search and tabs.
+
+iPad (≈768–1024px)
+- The two-panel grid collapses to single column at `lg:` only, so on iPad portrait everything stacks; the horizontal class scroller becomes the dominant element while the Progress panel falls all the way to the bottom.
+- Tab strip wraps awkwardly under the search box (sm:flex-row triggers at 640px but tabs can overflow at 768–820px).
+- Month dropdown + Plus button compete with the H1 in the same row with no breathing room.
+
+Mobile (<640px)
+- `p-6` gives 24px gutters — Dashboard mobile uses 16px. Content feels cramped.
+- Class cards are fixed `min-w-[260px]` — too wide; one full card barely fits, second one peeks weirdly.
+- The round `+` join button is only 36px (`w-9 h-9`); below recommended 44px tap target.
+- Search bar is full-width then tabs scroll horizontally with no fade affordance.
+- Empty states use a huge 64px icon + py-16 — eats most of the viewport.
+- Sticky header from `DashboardLayout` already provides a notification bell; the page H1 isn't sticky and the Month dropdown scrolls away with content.
+
+**Component-level issues**
+- `ClassCard` uses ad-hoc `subjectColors` map instead of the shared `subject-colours.ts` palette used by Exams/Quizzes.
+- `AssignmentRow` and `ProgressItem` styling don't share the row vocabulary of `dashboard/row-item-design-standards` (1px dividers, 8px subject dot, `bg-muted` progress track).
+- `ClassDetailView` has its own back/leave header that doesn't match the new ExamCover/QuizCover two-column "paper + side panel" pattern.
 
 ---
 
-## 1. `src/components/exam/ExamCard.tsx` — slim it down
+## Proposed redesign
 
-- **Remove** the orange/green status ribbon (the "In progress" pill in the top-right of the paper). The progress bar + % already communicate state.
-- **Remove** the bottom meta line ("Created 20 Jun 2026 · last opened …").
-- **Remove** the whole action row under the paper (Favourite / Download / Edit / Delete / Start-Continue-Review). Those move to the new cover page.
-- **Card click** → always navigate to `/exam/${exam.id}/cover` (no more branching to preview/in-progress/review from the card itself). Keep the "published & not archived" guard.
-- Drop the now-unused props (`onEdit`, `onDelete`, `onToggleFavourite`, `onDownloadPDF`, `isFavourite`) from the component signature, and stop passing them from `MyExams.tsx`.
-- Keep: spine, masthead, title block, Questions/Time strip, topics, progress bar with %.
+### 1. Page chrome (shared shell)
+- Wrap content in a `PageContainer` with `max-w-7xl mx-auto` + responsive padding (`px-4 sm:px-6 lg:px-8`).
+- Replace bare H1 with a `PageHeader`: `Users` icon chip + title "My Classes" + sub-line "Classes you've joined, assignments from your tutors, and announcements".
+- Move `+ Join a Class` into the header as a primary pill button (icon + label on ≥sm, icon-only at 44×44 on mobile).
+- Move `MonthFilter` from the header into the *Upcoming Assignments* panel header where it actually scopes data — it currently looks global but only filters one section.
 
-Result: the card is a pure "paper face" tile — no chrome below it.
+### 2. Tab strip
+- Adopt the pill-style `TabsList` used in Settings, with a right-edge gradient fade on mobile to signal more tabs.
+- Drop the inline search beside the tabs; surface a search field *inside* the My Classes tab (it only filters classes), aligned right under the tab strip on its own row.
 
-## 2. `src/pages/MyExams.tsx` — mobile resize + simpler card usage
+### 3. Class cards → "Subject paper" cards
+- Replace `ClassCard` with the same A4 portrait card vocabulary used by `ExamCard`/`PracticeSetCard`:
+  - 1 : 1.414 portrait paper face.
+  - Subject color stripe at top (mapped via shared `subject-colours.ts`).
+  - Center: class name (serif display), tutor name below as small caps.
+  - Bottom of paper: tiny pill row with `{n} tasks` and `{n} new` (announcement) dot — no joined-date, no badges.
+  - Actions row *under* the paper: Open, Announcements bell (with count), Leave (kebab menu).
+- Group cards by subject (primary subject of class) into horizontal snap-x rows, identical to Exams/Quizzes: subject header (colored dot + name + count) followed by a scroller, card widths 210–240px responsive.
+- Clicking a card routes to `/my-classes/:id` (own URL) instead of toggling local state, mirroring the ExamCover / QuizCover pattern. This also fixes mobile back-button behaviour.
 
-- In the subject-row scroller (lines ~798-829), update card widths so mobile no longer cramps:
-  - `w-[200px] sm:w-[220px] md:w-[240px] lg:w-[240px]` (slightly wider on phone since there's no action row competing for space, and the card itself owns less content now).
-- Update the `<ExamCard …/>` call to drop the removed props.
-- Edit / Delete / Favourite / Download dialogs and handlers stay on this page — they're now triggered from the cover page (which navigates back here and we re-use the same handlers via a small refactor: see §3).
+### 4. Class detail view → "Cover" layout
+- Refactor `ClassDetailView` into a two-column layout matching `ExamCover`/`QuizCover`:
+  - Left (≥lg): a large "class cover" card (subject color masthead, class name in serif, tutor name, subjects badges, joined date).
+  - Right: stacked `SettingsCard` panels — *Tutor*, *Upcoming Assignments*, *Recent Announcements*, *Feedback*, *Progress*, *Leave class* (destructive style at bottom).
+- Below `md`, single column with cover on top, panels stacked.
 
-## 3. New page: `src/pages/ExamCover.tsx` + route
+### 5. Right-side Progress + Upcoming panels (when staying on hub)
+- Wrap each in a `SettingsCard`-style surface with icon chip header (Calendar for Upcoming, TrendingUp for Progress).
+- Replace `AssignmentRow`/`ProgressItem` styling with the dashboard row standard: 1px divider, 8px subject dot, `bg-muted` progress track, right-aligned secondary text.
+- On iPad portrait, change `lg:grid-cols-3` to `md:grid-cols-3` so the two-panel layout activates earlier; clamp the Progress column to a min/max width so it doesn't shrink too narrow.
 
-New route in `src/App.tsx`:
-```
-<Route path="/exam/:examId/cover" element={<OnboardingGuard><ExamCover /></OnboardingGuard>} />
-```
+### 6. Empty states
+- Compress: 40px icon + `py-10`, single-line title, two-line body, primary CTA. Reuse Lucide icons already imported.
 
-Layout (uses `DashboardLayout` for consistency):
+### 7. Responsive specifics
+- Mobile (<640px): outer padding `px-4`, single column, tap targets ≥44px, snap-x card rows of 200px cards, subject headers stay sticky-left during horizontal scroll.
+- iPad (640–1023px): 2-column for class card groups stacked vertically; Assignments + Progress side-by-side at `md:`.
+- Laptop (≥1024px): `max-w-7xl` container, 2/3 + 1/3 panel split, 5 cards visible per scroller.
 
-```text
-┌─ Back to My Exams ─────────────────────────────────────┐
-│                                                        │
-│  ┌──────────────────────────┐   ┌────────────────────┐ │
-│  │                          │   │ Status chip        │ │
-│  │   BIG PAPER COVER        │   │ Progress 42%       │ │
-│  │   (reuses styling from   │   │ ──────────────     │ │
-│  │   wizard/ExamPaperCover, │   │ Created 20 Jun 26  │ │
-│  │   read-only — no pencil  │   │ Last opened today  │ │
-│  │   edit buttons)          │   │ Questions · Time   │ │
-│  │                          │   │ Board · Level      │ │
-│  │                          │   │                    │ │
-│  │                          │   │ [★ Favourite]      │ │
-│  │                          │   │ [⬇ Download PDF]   │ │
-│  │                          │   │ [✎ Edit]           │ │
-│  │                          │   │ [🗑 Delete]         │ │
-│  │                          │   │                    │ │
-│  │                          │   │       ( → )        │ │
-│  │                          │   │  circular Continue │ │
-│  └──────────────────────────┘   └────────────────────┘ │
-└────────────────────────────────────────────────────────┘
-```
+### 8. Tokens & consistency
+- Replace local `subjectColors` map in `ClassCard` with `getSubjectColor()` from `src/lib/subject-colours.ts`.
+- Use semantic tokens only — no hard-coded hex; respect light theme rules from project memory.
+- Reuse `SettingsCard`, `PageHeader`, `MyWorkTabBar` (or equivalent pill tabs) so the page visually rhymes with Settings/Dashboard/Exams/Quizzes.
 
-Behaviour:
-- **Back button** (top-left, `ChevronLeft` + "My Exams") → `navigate(-1)` with fallback to `/my-exams`.
-- **Paper cover** on left: render a read-only variant of the `ExamPaperCover` look (don't import the wizard component directly because it depends on `useReviewEdit` and shows pencil buttons; instead extract the visual JSX into a new shared `src/components/exam/ExamPaperCoverStatic.tsx` and have both the wizard and this page consume it — the wizard wraps it with the pencil overlays). On mobile, paper stacks above the side panel and uses `max-w-sm mx-auto`.
-- **Side panel** on right (desktop ≥ md): vertical stack of actions and meta. On mobile it sits below the paper and the action buttons become a horizontal row of icon buttons with the circular Continue button right-aligned.
-- **Continue/Start/Review button**: circular `h-14 w-14 rounded-full` with only the arrow icon (`ChevronRight` for continue/start, `Eye` for review) — no text label visible; aria-label carries the verb. Routes:
-  - `not-started` → `/exam/${id}/preview`
-  - `in-progress` → `/exam/${id}/in-progress?mode=student`
-  - `completed` → `/exam/${id}/review`
-- **Edit / Delete / Favourite / Download**: open the same dialogs/handlers that already exist in `MyExams.tsx`. To avoid duplicating that logic, extract the four handlers + their dialog JSX (`editDialogOpen`, `deleteDialogOpen`, PDF modal, favourite toggle) into a small shared hook `src/hooks/useExamActions.ts` that both `MyExams.tsx` and `ExamCover.tsx` consume. The hook returns `{ openEdit, openDelete, toggleFavourite, openDownload, dialogs }` where `dialogs` is a JSX fragment to render once at the page root.
+---
 
-Data the page needs (loaded in a single `useEffect` from supabase):
-- Exam row (`exams` table) — title, subject_id, created_at, exam_board, qualification_level, status, exam_topics.
-- Progress (same shape `MyExams` builds for `examProgress`) — reuse the existing progress-derivation helper; if it's inline in `MyExams.tsx`, lift it to `src/lib/exam-progress.ts` and import from both.
-- Favourite state.
+## Files to touch
 
-No changes to exam generation, AI, or any other rendering.
+- `src/pages/MyClasses.tsx` — restructure header, tabs, container, subject-grouped scrollers, route to detail page.
+- `src/components/classes/ClassCard.tsx` — rewrite as portrait paper card; strip metadata; actions below; shared subject colors.
+- `src/components/classes/ClassDetailView.tsx` — refactor to two-column cover + side panels using `SettingsCard`.
+- `src/components/classes/AssignmentRow.tsx`, `ProgressItem.tsx` — restyle to dashboard row standard.
+- `src/App.tsx` — add `/my-classes/:groupId` route for the new detail page (or repurpose existing state-based detail).
+- Optionally extract a new `ClassPaperCoverStatic.tsx` for the cover face, mirroring `ExamPaperCoverStatic` / `QuizPaperCoverStatic`.
 
-## 4. Shared extraction summary
+## Out of scope
+- Data model, queries, real-time subscriptions, leave/join logic — no changes.
+- Tutor-side `ClassCard` (`src/components/tutor/ClassCard.tsx`).
+- Announcement/Feedback content components beyond container styling.
 
-New / touched files:
-- **new** `src/components/exam/ExamPaperCoverStatic.tsx` — pure visual paper cover (no editing affordances). Used by wizard + new page.
-- **new** `src/pages/ExamCover.tsx` — the cover/summary page.
-- **new** `src/hooks/useExamActions.ts` — favourite/edit/delete/PDF handlers + dialog JSX.
-- **new** `src/lib/exam-progress.ts` — lifted progress helper (only if currently inline in `MyExams.tsx`).
-- **edit** `src/components/exam/ExamCard.tsx` — strip ribbon, meta, action row; click → `/exam/:id/cover`.
-- **edit** `src/pages/MyExams.tsx` — widen mobile card widths, drop removed props, consume the shared hook so existing edit/delete/etc still work.
-- **edit** `src/components/wizard/ExamPaperCover.tsx` — internally render `ExamPaperCoverStatic` and overlay the pencil edit buttons (no visual change for the wizard).
-- **edit** `src/App.tsx` — add the `/exam/:examId/cover` route.
-
-## Non-goals
-
-- No changes to exam generation, AI tutor, diagram renderers, or the in-progress / review pages themselves.
-- No change to data model or any supabase queries beyond reading the same exam row on the new page.
-
-## Open question
-
-Currently the card click only fires when `exam.status === "published" && !isArchived`. Should the new cover page also be reachable for **draft** and **archived** exams (read-only, with Continue button hidden)? I'd suggest yes for archived (so users can still download/restore from there) and no for drafts (they belong in the wizard) — confirm if you'd prefer different.
+## Acceptance
+- Visual language matches Exams + Quizzes (portrait cards, subject-grouped horizontal scrollers, cover-page detail).
+- Page chrome matches Settings/Dashboard (`PageHeader`, `SettingsCard`).
+- Layout holds at 390 / 820 / 1366 widths without overflow, awkward gaps, or tap targets <44px on mobile.
+- All colors come from shared subject palette + semantic tokens.
