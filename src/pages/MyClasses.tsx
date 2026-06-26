@@ -397,6 +397,18 @@ const MyClasses = () => {
     });
   }, [assignments, submissions]);
 
+  // Group classes by primary subject for subject-grouped scrollers
+  const groupedClasses = useMemo(() => {
+    const map = new Map<string, StudentGroup[]>();
+    filteredGroups.forEach((g) => {
+      const key = g.subjects_covered?.[0]?.name || "Other";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(g);
+    });
+    return Array.from(map.entries());
+  }, [filteredGroups]);
+
+
   if (loading) {
     return (
       <DashboardLayout>
