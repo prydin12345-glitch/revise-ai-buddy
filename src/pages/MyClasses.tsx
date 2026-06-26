@@ -478,11 +478,6 @@ const MyClasses = () => {
     }).length;
 
 
-  const getCompletedCountForGroup = (groupId: string) =>
-    getAssignmentsForGroup(groupId).filter((a) => {
-      const sub = submissions.get(a.exam_id);
-      return sub && (sub.status === "submitted" || sub.status === "graded");
-    }).length;
 
   return (
     <DashboardLayout>
