@@ -90,11 +90,12 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
               {levelLabel ? ` · ${levelLabel}` : ""}
             </p>
             <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
-              {set.subject_id || "Subject"}
-            </h3>
-            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-2">
               {set.set_name || "Untitled quiz"}
+            </h3>
+            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-1">
+              {set.subject_id || "Subject"}
             </p>
+
           </div>
 
           {/* Questions / Time strip */}
