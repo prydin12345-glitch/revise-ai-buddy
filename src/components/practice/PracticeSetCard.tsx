@@ -116,18 +116,29 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
             </div>
           </div>
 
-          {/* Subtopics */}
-          {topicLabel && (
+          {/* Subtopics — up to 5, stacked vertically */}
+          {visibleTopics.length > 0 && (
             <div className="mt-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
                 Subtopics
               </p>
-              <p className="text-[11px] text-foreground/85 leading-snug line-clamp-2 mt-0.5">
-                {topicLabel}
-                {extraTopics > 0 ? ` +${extraTopics} more` : ""}
-              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {visibleTopics.map((topic, i) => {
+                  const isLast = i === visibleTopics.length - 1;
+                  const suffix = isLast && hiddenTopicsCount > 0 ? ` +${hiddenTopicsCount} more` : "";
+                  return (
+                    <li
+                      key={`${topic}-${i}`}
+                      className="text-[11px] text-foreground/85 leading-snug truncate"
+                    >
+                      {topic}{suffix}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
+
 
           <div className="flex-1" />
 
