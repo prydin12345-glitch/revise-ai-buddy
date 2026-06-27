@@ -58,11 +58,12 @@ export function QuizPaperCoverStatic({
             {levelLabel && levelLabel !== "Not set" ? ` · ${levelLabel}` : ""}
           </p>
           <h2 className="font-serif text-2xl sm:text-4xl font-bold tracking-tight leading-none mt-2">
-            {subjectId || "Subject"}
+            {setName || "Untitled quiz"}
           </h2>
           <p className="font-serif text-base sm:text-lg text-foreground/80 mt-1.5">
-            {setName || "Untitled quiz"}
+            {subjectId || "Subject"}
           </p>
+
         </div>
 
         {/* Stat bar */}
