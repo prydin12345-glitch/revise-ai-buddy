@@ -43,8 +43,11 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
   const levelLabel = set.educational_tier
     ? LEVEL_DISPLAY_NAMES[set.educational_tier] ?? set.educational_tier
     : null;
-  const topicLabel = set.subtopics?.[0];
-  const extraTopics = Math.max(0, (set.subtopics?.length ?? 0) - 1);
+  const allTopics = (set.subtopics ?? []).filter(Boolean);
+  const MAX_TOPICS = 5;
+  const visibleTopics = allTopics.slice(0, MAX_TOPICS);
+  const hiddenTopicsCount = Math.max(0, allTopics.length - MAX_TOPICS);
+
   const difficulty = set.difficulty_level || set.difficulty_mode || "Medium";
   const estimatedTime = set.question_count * 2;
 
