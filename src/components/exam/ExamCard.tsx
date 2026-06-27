@@ -85,10 +85,9 @@ export const ExamCard = ({
             </p>
           </div>
 
-          {/* Title block */}
-          <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
           {/* Title block — exam name is the prominent line */}
           <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+
             <p className="text-[9px] font-semibold text-muted-foreground line-clamp-1">
               {boardLabel ? `Modelled on ${boardLabel}` : "Generic exam style"}
               {levelLabel ? ` · ${levelLabel}` : ""}
