@@ -100,18 +100,30 @@ export function QuizPaperCoverStatic({
           </ul>
         </div>
 
-        {/* Subtopics */}
-        {subtopics.length > 0 && (
-          <div className="mt-5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-foreground mb-2">
-              Subtopics covered
-            </p>
-            <p className="text-sm text-foreground/90 leading-relaxed">
-              This quiz draws on {subtopics.length} subtopic{subtopics.length === 1 ? "" : "s"}:{" "}
-              {subtopics.join(", ")}.
-            </p>
-          </div>
-        )}
+        {/* Subtopics — up to 5, stacked vertically */}
+        {subtopics.length > 0 && (() => {
+          const MAX_TOPICS = 5;
+          const visible = subtopics.slice(0, MAX_TOPICS);
+          const hidden = Math.max(0, subtopics.length - MAX_TOPICS);
+          return (
+            <div className="mt-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground mb-2">
+                Subtopics covered
+              </p>
+              <ul className="space-y-1 text-sm text-foreground/90 leading-relaxed list-disc pl-5">
+                {visible.map((t, i) => {
+                  const isLast = i === visible.length - 1;
+                  return (
+                    <li key={`${t}-${i}`}>
+                      {t}{isLast && hidden > 0 ? ` +${hidden} more` : ""}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })()}
+
 
         <p className="mt-auto text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground pt-8">
           Do not begin until you are ready
