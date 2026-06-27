@@ -45,8 +45,11 @@ export const ExamCard = ({
   const levelLabel = exam.qualification_level
     ? LEVEL_DISPLAY_NAMES[exam.qualification_level] ?? exam.qualification_level
     : null;
-  const topicLabel = exam.exam_topics[0]?.topic_name;
-  const extraTopics = Math.max(0, exam.exam_topics.length - 1);
+  const allTopics = exam.exam_topics.map((t) => t.topic_name).filter(Boolean);
+  const MAX_TOPICS = 5;
+  const visibleTopics = allTopics.slice(0, MAX_TOPICS);
+  const hiddenTopicsCount = Math.max(0, allTopics.length - MAX_TOPICS);
+
 
   return (
     <div className={`group w-full ${isArchived ? "opacity-60" : ""}`}>
