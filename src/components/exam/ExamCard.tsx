@@ -87,15 +87,17 @@ export const ExamCard = ({
 
           {/* Title block */}
           <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+          {/* Title block — exam name is the prominent line */}
+          <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
             <p className="text-[9px] font-semibold text-muted-foreground line-clamp-1">
               {boardLabel ? `Modelled on ${boardLabel}` : "Generic exam style"}
               {levelLabel ? ` · ${levelLabel}` : ""}
             </p>
             <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
-              {exam.subject_id || "Subject"}
-            </h3>
-            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-2">
               {exam.title || "Untitled exam"}
+            </h3>
+            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-1">
+              {exam.subject_id || "Subject"}
             </p>
           </div>
 
@@ -118,18 +120,29 @@ export const ExamCard = ({
             </div>
           </div>
 
-          {/* Topics */}
-          {topicLabel && (
+          {/* Topics — up to 5, stacked vertically */}
+          {visibleTopics.length > 0 && (
             <div className="mt-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
                 Topics
               </p>
-              <p className="text-[11px] text-foreground/85 leading-snug line-clamp-2 mt-0.5">
-                {topicLabel}
-                {extraTopics > 0 ? ` +${extraTopics} more` : ""}
-              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {visibleTopics.map((topic, i) => {
+                  const isLast = i === visibleTopics.length - 1;
+                  const suffix = isLast && hiddenTopicsCount > 0 ? ` +${hiddenTopicsCount} more` : "";
+                  return (
+                    <li
+                      key={`${topic}-${i}`}
+                      className="text-[11px] text-foreground/85 leading-snug truncate"
+                    >
+                      {topic}{suffix}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
+
 
           <div className="flex-1" />
 
