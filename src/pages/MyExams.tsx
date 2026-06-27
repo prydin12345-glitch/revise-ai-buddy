@@ -796,7 +796,11 @@ const MyExams = () => {
                       </div>
 
                       <div className="relative -mx-4 sm:-mx-6">
-                        <div className="flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth [scrollbar-width:thin]">
+                        <div
+                          className="subject-scrollbar flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth"
+                          style={{ ['--scrollbar-thumb' as any]: subjectColor }}
+                        >
+
                           {examsInGroup.map((exam) => {
                             const progress = examProgress.get(exam.id) || {
                               questionsCompleted: 0,

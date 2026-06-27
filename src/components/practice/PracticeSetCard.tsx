@@ -43,8 +43,11 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
   const levelLabel = set.educational_tier
     ? LEVEL_DISPLAY_NAMES[set.educational_tier] ?? set.educational_tier
     : null;
-  const topicLabel = set.subtopics?.[0];
-  const extraTopics = Math.max(0, (set.subtopics?.length ?? 0) - 1);
+  const allTopics = (set.subtopics ?? []).filter(Boolean);
+  const MAX_TOPICS = 5;
+  const visibleTopics = allTopics.slice(0, MAX_TOPICS);
+  const hiddenTopicsCount = Math.max(0, allTopics.length - MAX_TOPICS);
+
   const difficulty = set.difficulty_level || set.difficulty_mode || "Medium";
   const estimatedTime = set.question_count * 2;
 
@@ -87,11 +90,12 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
               {levelLabel ? ` · ${levelLabel}` : ""}
             </p>
             <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
-              {set.subject_id || "Subject"}
-            </h3>
-            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-2">
               {set.set_name || "Untitled quiz"}
+            </h3>
+            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-1">
+              {set.subject_id || "Subject"}
             </p>
+
           </div>
 
           {/* Questions / Time strip */}
@@ -112,18 +116,29 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
             </div>
           </div>
 
-          {/* Subtopics */}
-          {topicLabel && (
+          {/* Subtopics — up to 5, stacked vertically */}
+          {visibleTopics.length > 0 && (
             <div className="mt-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
                 Subtopics
               </p>
-              <p className="text-[11px] text-foreground/85 leading-snug line-clamp-2 mt-0.5">
-                {topicLabel}
-                {extraTopics > 0 ? ` +${extraTopics} more` : ""}
-              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {visibleTopics.map((topic, i) => {
+                  const isLast = i === visibleTopics.length - 1;
+                  const suffix = isLast && hiddenTopicsCount > 0 ? ` +${hiddenTopicsCount} more` : "";
+                  return (
+                    <li
+                      key={`${topic}-${i}`}
+                      className="text-[11px] text-foreground/85 leading-snug truncate"
+                    >
+                      {topic}{suffix}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
+
 
           <div className="flex-1" />
 
