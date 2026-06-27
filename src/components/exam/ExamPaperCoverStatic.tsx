@@ -108,18 +108,30 @@ export function ExamPaperCoverStatic({
           </ul>
         </div>
 
-        {/* Topics */}
-        {topics.length > 0 && (
-          <div className="mt-5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-foreground mb-2">
-              Topics covered
-            </p>
-            <p className="text-sm text-foreground/90 leading-relaxed">
-              This paper draws on {topics.length} topic{topics.length === 1 ? "" : "s"}:{" "}
-              {topics.join(", ")}.
-            </p>
-          </div>
-        )}
+        {/* Topics — up to 5, stacked vertically */}
+        {topics.length > 0 && (() => {
+          const MAX_TOPICS = 5;
+          const visible = topics.slice(0, MAX_TOPICS);
+          const hidden = Math.max(0, topics.length - MAX_TOPICS);
+          return (
+            <div className="mt-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground mb-2">
+                Topics covered
+              </p>
+              <ul className="space-y-1 text-sm text-foreground/90 leading-relaxed list-disc pl-5">
+                {visible.map((t, i) => {
+                  const isLast = i === visible.length - 1;
+                  return (
+                    <li key={`${t}-${i}`}>
+                      {t}{isLast && hidden > 0 ? ` +${hidden} more` : ""}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })()}
+
 
         {/* Notes */}
         {notes.trim() && (
