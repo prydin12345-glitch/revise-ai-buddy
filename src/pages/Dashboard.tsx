@@ -16,17 +16,20 @@ const Dashboard = () => {
   const { primaryRole, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
-    // Set up auth state listener
+    // Listen for explicit sign-out only. Supabase fires many events
+    // (INITIAL_SESSION, TOKEN_REFRESHED, USER_UPDATED) and treating any
+    // falsy session as a logout can bounce the user back to /auth during
+    // a momentary refresh race right after login.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
-        if (!session) {
+        if (event === "SIGNED_OUT") {
           navigate("/auth?mode=login");
         }
       }
     );
 
-    // Check for existing session
+    // Initial session check — only redirect if truly no session.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) {
