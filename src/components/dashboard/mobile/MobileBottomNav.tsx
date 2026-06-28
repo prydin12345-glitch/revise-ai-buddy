@@ -8,6 +8,7 @@ const ROUTE_FOR_TAB: Record<TabKey, string> = {
   home: "/dashboard",
   exams: "/my-exams",
   quizzes: "/quizzes",
+  subjects: "/my-subjects",
   classes: "/my-classes",
   profile: "/settings",
 };
@@ -15,6 +16,7 @@ const ROUTE_FOR_TAB: Record<TabKey, string> = {
 function activeTabFor(pathname: string): TabKey {
   if (pathname.startsWith("/my-exams") || pathname.startsWith("/exam")) return "exams";
   if (pathname.startsWith("/quizzes") || pathname.startsWith("/practice")) return "quizzes";
+  if (pathname.startsWith("/my-subjects")) return "subjects";
   if (pathname.startsWith("/my-classes")) return "classes";
   if (pathname.startsWith("/settings")) return "profile";
   return "home";

@@ -1,12 +1,13 @@
 // src/components/dashboard/mobile/MobileTabBar.tsx
-import { LayoutGrid, FileText, ListChecks, Users, User, type LucideIcon } from "lucide-react";
+import { LayoutGrid, FileText, ListChecks, Users, User, BookOpen, type LucideIcon } from "lucide-react";
 
-export type TabKey = "home" | "exams" | "quizzes" | "classes" | "profile";
+export type TabKey = "home" | "exams" | "quizzes" | "subjects" | "classes" | "profile";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "home", label: "Home", icon: LayoutGrid },
   { key: "exams", label: "Exams", icon: FileText },
   { key: "quizzes", label: "Quizzes", icon: ListChecks },
+  { key: "subjects", label: "Subjects", icon: BookOpen },
   { key: "classes", label: "Classes", icon: Users },
   { key: "profile", label: "Profile", icon: User },
 ];
