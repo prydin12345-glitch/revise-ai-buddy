@@ -33,6 +33,7 @@ const ExamCover = lazyWithReload(() => import("./pages/ExamCover"));
 const ExamReview = lazyWithReload(() => import("./pages/ExamReview"));
 const Stats = lazyWithReload(() => import("./pages/Stats"));
 const MySubjects = lazyWithReload(() => import("./pages/MySubjects"));
+const SubjectDetail = lazyWithReload(() => import("./pages/SubjectDetail"));
 const CreatePracticeQuestions = lazyWithReload(() => import("./pages/CreatePracticeQuestions"));
 const MyQuizzes = lazyWithReload(() => import("./pages/MyQuizzes"));
 const PracticeSetPreview = lazyWithReload(() => import("./pages/PracticeSetPreview"));
@@ -100,6 +101,7 @@ const App = () => {
               <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
               <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
               <Route path="/my-subjects" element={<OnboardingGuard><MySubjects /></OnboardingGuard>} />
+              <Route path="/my-subjects/:subjectName" element={<OnboardingGuard><SubjectDetail /></OnboardingGuard>} />
               <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
               <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
               <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
