@@ -1,6 +1,6 @@
 /**
  * Shared subtopic dictionary and fuzzy matching utilities.
- * Used by SubtopicSelector, MySubjectsPanel, and ExamProfileModal.
+ * Used by SubtopicSelector and ExamProfileModal.
  */
 
 export const SUBTOPIC_DICTIONARY: Record<string, string[]> = {

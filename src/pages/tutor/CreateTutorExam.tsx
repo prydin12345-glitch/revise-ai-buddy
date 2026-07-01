@@ -277,6 +277,7 @@ export default function CreateTutorExam() {
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (notes) formData.append('notes', notes);
       if (resourcePack) formData.append('resourcePackId', resourcePack.id);
+      if (selectedProfile) formData.append('profileId', selectedProfile);
 
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-exam', {
         body: formData,

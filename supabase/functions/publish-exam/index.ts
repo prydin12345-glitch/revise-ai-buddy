@@ -291,6 +291,9 @@ serve(async (req) => {
         parent_question_number: draft.parent_question_number,
         root_question_number: draft.root_question_number,
         is_verified: true,
+        // Denormalise the parent exam's profile onto every question row so
+        // profile-scoped topic analytics can query without a join.
+        profile_id: (exam as any).profile_id ?? null,
       };
     });
 

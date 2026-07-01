@@ -45,6 +45,7 @@ serve(async (req) => {
     const educationalTier = formData.get('educationalTier') as string | null;
     const specFile = formData.get('specFile') as File | null;
     const resourcePackId = formData.get('resourcePackId') as string | null;
+    const profileId = (formData.get('profileId') as string | null) || null;
     const curriculumTopicsRaw = formData.get('curriculumTopics') as string | null;
     const structureMode = formData.get('structureMode') as string | null;
     const profileQuestionCount = formData.get('profileQuestionCount') as string | null;
@@ -139,6 +140,7 @@ serve(async (req) => {
         status: 'draft',
         file_url: filePath,
         resource_pack_id: resourcePackId || null,
+        profile_id: profileId,
       })
       .select()
       .single();
