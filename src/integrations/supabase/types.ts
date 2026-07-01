@@ -557,6 +557,7 @@ export type Database = {
           options: Json | null
           original_page_number: number | null
           parent_question_number: string | null
+          profile_id: string | null
           question_latex: string | null
           question_number: string
           question_text: string
@@ -594,6 +595,7 @@ export type Database = {
           options?: Json | null
           original_page_number?: number | null
           parent_question_number?: string | null
+          profile_id?: string | null
           question_latex?: string | null
           question_number: string
           question_text: string
@@ -631,6 +633,7 @@ export type Database = {
           options?: Json | null
           original_page_number?: number | null
           parent_question_number?: string | null
+          profile_id?: string | null
           question_latex?: string | null
           question_number?: string
           question_text?: string
@@ -647,6 +650,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_questions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "subject_exam_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -816,6 +826,7 @@ export type Database = {
           grade_released: boolean | null
           id: string
           is_template: boolean | null
+          profile_id: string | null
           qualification_level: string | null
           questions_filtered_count: number | null
           resource_pack_id: string | null
@@ -850,6 +861,7 @@ export type Database = {
           grade_released?: boolean | null
           id?: string
           is_template?: boolean | null
+          profile_id?: string | null
           qualification_level?: string | null
           questions_filtered_count?: number | null
           resource_pack_id?: string | null
@@ -884,6 +896,7 @@ export type Database = {
           grade_released?: boolean | null
           id?: string
           is_template?: boolean | null
+          profile_id?: string | null
           qualification_level?: string | null
           questions_filtered_count?: number | null
           resource_pack_id?: string | null
@@ -904,6 +917,13 @@ export type Database = {
           visibility?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "exams_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "subject_exam_profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "exams_resource_pack_id_fkey"
             columns: ["resource_pack_id"]
@@ -1234,6 +1254,7 @@ export type Database = {
           include_tables: boolean | null
           mcq_count: number | null
           notes: string | null
+          profile_id: string | null
           question_count: number
           question_format: string | null
           resource_mode: string | null
@@ -1262,6 +1283,7 @@ export type Database = {
           include_tables?: boolean | null
           mcq_count?: number | null
           notes?: string | null
+          profile_id?: string | null
           question_count: number
           question_format?: string | null
           resource_mode?: string | null
@@ -1290,6 +1312,7 @@ export type Database = {
           include_tables?: boolean | null
           mcq_count?: number | null
           notes?: string | null
+          profile_id?: string | null
           question_count?: number
           question_format?: string | null
           resource_mode?: string | null
@@ -1305,6 +1328,13 @@ export type Database = {
           written_count?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "practice_question_sets_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "subject_exam_profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "practice_question_sets_resource_pack_id_fkey"
             columns: ["resource_pack_id"]
@@ -1325,6 +1355,7 @@ export type Database = {
           id: string
           marks: number
           options: Json | null
+          profile_id: string | null
           question_latex: string | null
           question_number: string
           question_number_int: number | null
@@ -1347,6 +1378,7 @@ export type Database = {
           id?: string
           marks: number
           options?: Json | null
+          profile_id?: string | null
           question_latex?: string | null
           question_number: string
           question_number_int?: number | null
@@ -1369,6 +1401,7 @@ export type Database = {
           id?: string
           marks?: number
           options?: Json | null
+          profile_id?: string | null
           question_latex?: string | null
           question_number?: string
           question_number_int?: number | null
@@ -1382,6 +1415,13 @@ export type Database = {
           worked_solution?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "practice_questions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "subject_exam_profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "practice_questions_set_id_fkey"
             columns: ["set_id"]

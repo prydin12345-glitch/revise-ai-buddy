@@ -193,6 +193,7 @@ async function generateQuestionsInBackground(
         const questionsToInsert = shuffledWithOptions.map((q: any, i: number) => ({
           ...q,
           set_id: setId,
+          profile_id: (setData as any).profile_id ?? null,
         }));
 
         await supabaseClient.from('practice_questions').delete().eq('set_id', setId);
@@ -4586,6 +4587,9 @@ Generate questions that are meaningfully different from all of the above.`;
           }
           return baseDiagram;
         })(),
+        // Denormalise parent set's profile onto every question so profile-scoped
+        // topic analytics can query practice_questions without a join.
+        profile_id: (setData as any).profile_id ?? null,
       };
     });
     

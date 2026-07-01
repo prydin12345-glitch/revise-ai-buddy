@@ -125,6 +125,7 @@ export default function UploadExam() {
       if (tier) formData.append('educationalTier', tier);
       if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
       if (selectedProfile) {
+        formData.append('profileId', selectedProfile.id);
         formData.append('structureMode', followReference ? 'reference' : 'profile');
         formData.append('profileQuestionCount', String(selectedProfile.question_count));
         formData.append('profileMcqCount', String(selectedProfileMcqCount ?? 0));

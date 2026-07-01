@@ -470,6 +470,12 @@ export default function CreateExam() {
       if (selectedProfile) {
         const profile = getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
         formData.append('profileName', profile?.profile_name || 'All Saved Topics');
+        // Stamp real profile UUID so exam + questions can be traced back to
+        // their originating exam profile. 'all_topics' is a UI sentinel, not
+        // a real profile.
+        if (selectedProfile !== 'all_topics') {
+          formData.append('profileId', selectedProfile);
+        }
       }
 
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-exam', {
@@ -1136,7 +1142,7 @@ export default function CreateExam() {
                                             </div>
                                             <button
                                               type="button"
-                                              onClick={() => navigate('/stats?tab=my-subjects')}
+                                              onClick={() => navigate('/my-subjects')}
                                               className="mt-3 text-[11px] text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
                                             >
                                               Edit profile in My Subjects →

@@ -398,6 +398,12 @@ const CreatePracticeQuestions = () => {
           question_format: questionFormat,
           mcq_count: effectiveMcqCount,
           written_count: effectiveWrittenCount,
+          // Link back to the exam profile (if a real profile was picked —
+          // 'all_topics' is a UI sentinel, not a real profile row).
+          profile_id:
+            selectedProfileId && selectedProfileId !== 'all_topics'
+              ? selectedProfileId
+              : null,
         } as any)
         .select()
         .single();
