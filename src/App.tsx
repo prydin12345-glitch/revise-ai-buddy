@@ -103,6 +103,7 @@ const App = () => {
               <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
               <Route path="/my-subjects" element={<OnboardingGuard><MySubjects /></OnboardingGuard>} />
               <Route path="/my-subjects/:subjectName" element={<OnboardingGuard><SubjectDetail /></OnboardingGuard>} />
+              <Route path="/my-subjects/:subjectName/:profileId" element={<OnboardingGuard><ProfileDetail /></OnboardingGuard>} />
               <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
               <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
               <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
