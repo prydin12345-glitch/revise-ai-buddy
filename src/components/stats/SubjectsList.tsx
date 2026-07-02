@@ -1,16 +1,15 @@
 import { useState, useMemo } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, BookOpen, Search } from "lucide-react";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { AddSubjectModal } from "./AddSubjectModal";
-import { SubjectRow } from "./SubjectRow";
+import { SubjectCard } from "@/components/subjects/SubjectCard";
 
 export const SubjectsList = () => {
   const { subjects, isLoading: subjectsLoading, refetch: refetchSubjects } = useUserSubjects();
-  const { getTopicsForSubject, getProfilesForSubject, loading: profilesLoading } = useSubjectProfiles();
+  const { getProfilesForSubject, loading: profilesLoading } = useSubjectProfiles();
 
   const [addOpen, setAddOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -32,21 +31,19 @@ export const SubjectsList = () => {
   if (subjects.length === 0) {
     return (
       <>
-        <Card className="border-dashed border-2 border-border/50">
-          <div className="text-center text-muted-foreground py-16 px-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-primary" />
-            </div>
-            <p className="text-lg font-semibold text-foreground mb-2">No Subjects Yet</p>
-            <p className="text-sm max-w-sm mx-auto mb-4">
-              Add subjects to start managing your curriculum.
-            </p>
-            <Button onClick={() => setAddOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Add Subject
-            </Button>
+        <div className="rounded-2xl border-2 border-dashed border-border/60 py-16 px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-primary" />
           </div>
-        </Card>
+          <h2 className="text-lg font-semibold text-foreground mb-2">No subjects yet</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Add your subjects to start generating practice questions and tracking your progress topic by topic.
+          </p>
+          <Button onClick={() => setAddOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add your first subject
+          </Button>
+        </div>
         <AddSubjectModal
           open={addOpen}
           onOpenChange={setAddOpen}
@@ -59,11 +56,10 @@ export const SubjectsList = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-4">
-      {/* Header row: search + add */}
+    <div className="w-full space-y-5">
       <div className="flex items-center gap-2">
         {subjects.length > 6 && (
-          <div className="relative flex-1">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={query}
@@ -76,26 +72,26 @@ export const SubjectsList = () => {
         <div className="ml-auto">
           <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5">
             <Plus className="h-4 w-4" />
-            Add Subject
+            Add subject
           </Button>
         </div>
       </div>
 
-      <Card className="overflow-hidden divide-y divide-border/60">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((subject) => (
-          <SubjectRow
+          <SubjectCard
             key={subject.id}
             subject={subject}
             profileCount={getProfilesForSubject(subject.subject_name).length}
-            topicCount={getTopicsForSubject(subject.subject_name).length}
           />
         ))}
-        {filtered.length === 0 && (
-          <div className="py-10 text-center text-sm text-muted-foreground">
-            No subjects match "{query}"
-          </div>
-        )}
-      </Card>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          No subjects match "{query}"
+        </div>
+      )}
 
       <AddSubjectModal
         open={addOpen}
