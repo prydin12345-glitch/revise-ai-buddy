@@ -155,16 +155,7 @@ export const ExamProfileModal = ({
     );
   };
 
-  const filteredTopics = useMemo(() => {
-    const unselected = allTopics.filter((t) => !selectedTopics.includes(t));
-    if (!topicSearch.trim()) return unselected.slice(0, 40);
-    return unselected.filter((t) => fuzzyMatch(topicSearch, t));
-  }, [allTopics, selectedTopics, topicSearch]);
-
-  const isCustom =
-    topicSearch.trim() &&
-    !allTopics.some((t) => t.toLowerCase() === topicSearch.trim().toLowerCase()) &&
-    !selectedTopics.some((t) => t.toLowerCase() === topicSearch.trim().toLowerCase());
+  // filtering handled inside InlineTopicPicker
 
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0) return;
