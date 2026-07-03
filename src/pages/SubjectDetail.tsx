@@ -240,9 +240,9 @@ const SubjectDetail = () => {
               <button
                 onClick={() =>
                   navigate(
-                    `/create-practice-questions?subject=${encodeURIComponent(
+                    `/create-practice-questions?source=weak_topics&subject=${encodeURIComponent(
                       subject.subject_name
-                    )}&topic=${encodeURIComponent(weakestTopic.topic)}`
+                    )}&subtopic=${encodeURIComponent(weakestTopic.topic)}`
                   )
                 }
                 className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 text-white text-[12px] font-semibold hover:bg-amber-500/90 transition-colors whitespace-nowrap"
