@@ -147,16 +147,27 @@ const CreatePracticeQuestions = () => {
   const effectiveLevelOptions = getLevelsForBoard(effectiveExamBoard || null);
 
   // Pre-fill from weak topics navigation
-  const prefillSubtopic = searchParams.get("subtopic");
+  // Deep-link contract from subject pages: ?subject= &subtopic= (legacy &topic=
+  // accepted too) &profileId= — any combination prefills the form.
+  const prefillSubtopic = searchParams.get("subtopic") ?? searchParams.get("topic");
   const prefillSource = searchParams.get("source");
   const prefillSubject = searchParams.get("subject");
+  const prefillProfileId = searchParams.get("profileId");
 
   useEffect(() => {
-    if (prefillSource !== "weak_topics") return;
+    if (!prefillSubject && !prefillSubtopic && !prefillProfileId) return;
 
     // Step 1: Set subject if provided
     if (prefillSubject && !subjectId) {
       handleSubjectChange(prefillSubject);
+    }
+
+    // Step 1b: preselect a profile if the link carried one
+    if (prefillProfileId && subjectId) {
+      const match = getProfilesForSubject(subjectId).find((pr) => pr.id === prefillProfileId);
+      if (match && selectedProfileId !== prefillProfileId) {
+        handleSelectProfile(prefillProfileId);
+      }
     }
 
     // Step 2: Set subtopic after a tick so subject loads first
@@ -175,7 +186,7 @@ const CreatePracticeQuestions = () => {
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillSubtopic, prefillSource, prefillSubject]);
+  }, [prefillSubtopic, prefillSource, prefillSubject, prefillProfileId, subjectId, selectedProfileId]);
 
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
