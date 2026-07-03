@@ -6,20 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { X, Check, Plus, ChevronsUpDown, Clock } from "lucide-react";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+import { Check, ChevronsUpDown, Clock } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { fuzzyMatch, getLocalSubtopics } from "@/lib/subtopic-dictionary";
+import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
+import { TimeWheelPicker } from "./TimeWheelPicker";
+import { InlineTopicPicker } from "./InlineTopicPicker";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
 import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
