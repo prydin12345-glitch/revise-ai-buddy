@@ -139,7 +139,7 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
             onClick={() =>
               !unstarted &&
               navigate(
-                `/create-practice-questions?subject=${encodeURIComponent(subjectName)}&topic=${encodeURIComponent(topic)}&profileId=${profileId}`
+                `/create-practice-questions?subject=${encodeURIComponent(subjectName)}&subtopic=${encodeURIComponent(topic)}&profileId=${profileId}`
               )
             }
             className={`group text-left rounded-xl border p-3.5 transition-all duration-150 ${bg} ${unstarted ? "cursor-default" : "hover:shadow-sm"}`}
