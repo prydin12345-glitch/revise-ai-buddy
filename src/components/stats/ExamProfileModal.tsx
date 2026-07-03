@@ -228,9 +228,7 @@ export const ExamProfileModal = ({
               <DialogTitle className="text-lg">
                 {initialData ? "Edit" : "Create"} Exam Profile
               </DialogTitle>
-              <DialogDescription className="text-xs">
-                {subjectName} — select topics for this profile
-              </DialogDescription>
+              <DialogDescription className="text-xs">{subjectName}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
