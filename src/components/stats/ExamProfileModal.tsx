@@ -401,113 +401,47 @@ export const ExamProfileModal = ({
             </div>
           </div>
 
-          {/* Time Limit */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Time Limit (minutes)
-              </Label>
+          {/* Time Limit — scroll wheel */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" style={{ color: subjectColor }} />
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Time Limit
+                </Label>
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}
+              </span>
             </div>
-            <Input
-              type="number"
-              min={0}
-              placeholder="e.g. 60 (leave blank for no limit)"
+            <TimeWheelPicker
               value={timeLimitMinutes}
-              onChange={(e) => setTimeLimitMinutes(e.target.value)}
-              className="h-10"
+              onChange={setTimeLimitMinutes}
+              subjectColor={subjectColor}
             />
           </div>
 
           {/* Topic Selection */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Topics ({selectedTopics.length} selected)
-            </Label>
-
-            {selectedTopics.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {selectedTopics.map((topic) => (
-                  <Badge
-                    key={topic}
-                    className="cursor-pointer gap-1 rounded-full px-3 py-1 text-xs transition-colors hover:opacity-80"
-                    style={{
-                      backgroundColor: subjectColor + "20",
-                      color: subjectColor,
-                      borderColor: subjectColor + "40",
-                    }}
-                    onClick={() => toggleTopic(topic)}
-                  >
-                    {topic}
-                    <X className="h-3 w-3" />
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            <Popover open={topicPopoverOpen} onOpenChange={setTopicPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  className="w-full justify-between h-9 text-sm font-normal"
-                >
-                  <span className="text-muted-foreground">Search & add topics...</span>
-                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command shouldFilter={false}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && topicSearch.trim()) {
-                      e.preventDefault();
-                      // If there's an exact match in filtered, select it; otherwise add as custom
-                      const exactMatch = filteredTopics.find(
-                        (t) => t.toLowerCase() === topicSearch.trim().toLowerCase()
-                      );
-                      if (exactMatch) {
-                        toggleTopic(exactMatch);
-                      } else if (isCustom) {
-                        toggleTopic(topicSearch.trim());
-                      } else if (filteredTopics.length > 0) {
-                        toggleTopic(filteredTopics[0]);
-                      }
-                      setTopicSearch("");
-                    }
-                  }}
-                >
-                  <CommandInput
-                    placeholder="Type to search..."
-                    value={topicSearch}
-                    onValueChange={setTopicSearch}
-                  />
-                  {filteredTopics.length === 0 && !isCustom && (
-                    <CommandEmpty>No topics found.</CommandEmpty>
-                  )}
-                  <CommandGroup className="max-h-52 overflow-y-auto">
-                    {isCustom && (
-                      <CommandItem
-                        onSelect={() => {
-                          toggleTopic(topicSearch.trim());
-                          setTopicSearch("");
-                        }}
-                        className="gap-2"
-                      >
-                        <Plus className="h-3.5 w-3.5 text-primary" />
-                        Add "{topicSearch.trim()}"
-                      </CommandItem>
-                    )}
-                    {filteredTopics.map((topic) => (
-                      <CommandItem key={topic} value={topic} onSelect={() => toggleTopic(topic)}>
-                        <Check className="mr-2 h-3.5 w-3.5 opacity-0" />
-                        {topic}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Topics
+              </Label>
+              <span
+                className="text-[11px] font-semibold tabular-nums"
+                style={{ color: selectedTopics.length ? subjectColor : undefined }}
+              >
+                {selectedTopics.length} selected
+              </span>
+            </div>
+            <InlineTopicPicker
+              allTopics={allTopics}
+              selectedTopics={selectedTopics}
+              onToggle={toggleTopic}
+              subjectColor={subjectColor}
+            />
           </div>
+
 
           {/* Question Structure */}
           <div className="space-y-2">
