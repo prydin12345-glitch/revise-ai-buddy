@@ -66,9 +66,9 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
             key={topic}
             onClick={() =>
               navigate(
-                `/create-practice-questions?subject=${encodeURIComponent(
+                `/create-practice-questions?source=weak_topics&subject=${encodeURIComponent(
                   subjectName
-                )}&topic=${encodeURIComponent(topic)}`
+                )}&subtopic=${encodeURIComponent(topic)}`
               )
             }
             className={`group text-left rounded-xl border p-3.5 hover:shadow-sm transition-all duration-150 ${bg}`}
