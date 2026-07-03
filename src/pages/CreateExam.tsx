@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,6 +348,27 @@ export default function CreateExam() {
     }
     setShowProfilePrompt(false);
   };
+
+  // Deep-link support from the subject pages:
+  // /upload?subject=X&profileId=Y preselects the subject and profile.
+  const [deepLinkParams] = useSearchParams();
+  const deepLinkAppliedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkAppliedRef.current) return;
+    const urlSubject = deepLinkParams.get("subject");
+    const urlProfileId = deepLinkParams.get("profileId");
+    if (!urlSubject) { deepLinkAppliedRef.current = true; return; }
+    if (!subjectId) { handleSubjectChange(urlSubject); return; }
+    if (subjectId !== urlSubject) return;
+    if (urlProfileId) {
+      const match = getProfilesForSubject(subjectId).find((p) => p.id === urlProfileId);
+      if (!match) return; // profiles may still be loading — retry next render
+      handleSelectProfile(urlProfileId);
+      setShowProfilePrompt(false); // the link already chose; don't prompt
+    }
+    deepLinkAppliedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkParams, subjectId, getProfilesForSubject]);
 
   const handlePracticeAll = (topics: string[]) => {
     setSelectedProfile('all_topics');
