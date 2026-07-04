@@ -7,6 +7,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts"
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
+import { validateMapFigure, buildMapFigurePrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -51,7 +52,7 @@ serve(async (req) => {
     }
     // ───────────────────────────────────────────────────────────────────
 
-    const { draftId } = await req.json();
+    const { draftId, includeInsert } = await req.json();
     if (!draftId) {
       return new Response(JSON.stringify({ error: 'Draft ID required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -63,7 +64,7 @@ serve(async (req) => {
     await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
 
     EdgeRuntime.waitUntil(
-      processExamExtraction(draftId, user.id, supabase, lovableApiKey)
+      processExamExtraction(draftId, user.id, supabase, lovableApiKey, includeInsert !== false)
         .catch(async (error) => {
           console.error('Background processing error:', error);
           await supabase.from('exams').update({ 
@@ -84,7 +85,7 @@ serve(async (req) => {
   }
 });
 
-async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string) {
+async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string, includeInsert: boolean = true) {
   console.log('Starting background extraction for:', draftId);
 
   const { data: exam, error: examError } = await supabase
@@ -95,6 +96,54 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     .single();
 
   if (examError || !exam) throw new Error('Exam not found');
+
+  // ── INSERT FIGURE (Option A: figure first, questions written against it) ──
+  // For insert-capable subjects, generate + validate a map figure BEFORE the
+  // questions, so the question prompt can reference the figure's REAL data.
+  const INSERT_CAPABLE = /geograph|history|environment|earth science/i;
+  let insertFigure: any = null;
+  let insertPromptBlock = '';
+  if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
+    try {
+      const figPrompt = buildMapFigurePrompt(
+        `${exam.subject_id} exam at ${exam.qualification_level || 'GCSE/A-Level'} level` +
+        (exam.notes ? `. Focus: ${String(exam.notes).slice(0, 200)}` : '')
+      );
+      const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: figPrompt + '\nReturn ONLY the JSON object.' }],
+          temperature: 0.4,
+        }),
+      });
+      if (figResp.ok) {
+        const figData = await figResp.json();
+        const raw = figData.choices?.[0]?.message?.content || '';
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const validation = validateMapFigure(JSON.parse(jsonMatch[0]));
+          if (validation.rejectedPoints.length > 0) {
+            console.log('Insert figure: rejected points —', validation.rejectedPoints.map((r: any) => `${r.name} (${r.reason})`).join('; '));
+          }
+          if (validation.ok && validation.figure) {
+            insertFigure = { ...validation.figure, figureNumber: '1' };
+            await supabase.from('exams').update({ insert_figures: [insertFigure] }).eq('id', draftId);
+            const pointSummary = insertFigure.points
+              .map((pt: any) => `${pt.name} (${pt.category})`)
+              .join(', ');
+            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. All other questions must NOT mention any figure.\n`;
+            console.log('Insert figure generated:', insertFigure.points.length, 'points');
+          } else {
+            console.warn('Insert figure failed validation — exam proceeds without insert:', validation.reasons.join('; '));
+          }
+        }
+      }
+    } catch (figErr) {
+      console.warn('Insert figure generation failed — exam proceeds without insert:', figErr);
+    }
+  }
 
   const examBoard = exam.exam_board || 'generic';
   const qualificationLevel = exam.qualification_level || 'not specified';
@@ -1906,6 +1955,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const userPrompt = [
+    insertPromptBlock,
     contextBlock,
     subjectRulesBlock,
     difficultyBlock,
