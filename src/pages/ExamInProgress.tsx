@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { InsertPanel } from "@/components/insert/InsertPanel";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -200,6 +201,8 @@ const ExamInProgress = () => {
   const [examSubject, setExamSubject] = useState<string>('');
   const examSubjectRef = useRef<string>(''); // Ref to avoid stale closures
   const [examName, setExamName] = useState<string>('');
+  const [insertFigures, setInsertFigures] = useState<any[]>([]);
+  const [examView, setExamView] = useState<'questions' | 'insert'>('questions');
   const [subjectColor, setSubjectColor] = useState<string>('#3B82F6');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
@@ -464,13 +467,14 @@ const ExamInProgress = () => {
       // Fetch exam metadata to get subject, name, and resource pack
       const { data: examData } = await supabase
         .from('exams')
-        .select('subject_id, title, resource_pack_id')
+        .select('subject_id, title, resource_pack_id, insert_figures')
         .eq('id', examId)
         .single();
       
       if (examData) {
         setExamSubject(examData.subject_id || '');
         setExamName(examData.title || 'Exam in Progress');
+        setInsertFigures(Array.isArray((examData as any).insert_figures) ? (examData as any).insert_figures : []);
         
         // Fetch subject color from user_subjects table
         const { data: { user } } = await supabase.auth.getUser();
@@ -1579,13 +1583,40 @@ const ExamInProgress = () => {
             <h2 className="text-base sm:text-lg font-semibold flex-1 text-center lg:text-left">
               {currentGroup.parent}
             </h2>
+            {insertFigures.length > 0 && (
+              <div className="flex items-center rounded-lg border border-border p-0.5 shrink-0 mr-2" role="tablist" aria-label="Exam view">
+                <button
+                  role="tab"
+                  aria-selected={examView === 'questions'}
+                  onClick={() => setExamView('questions')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${examView === 'questions' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Questions
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={examView === 'insert'}
+                  onClick={() => setExamView('insert')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${examView === 'insert' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Insert
+                </button>
+              </div>
+            )}
             <span className="text-sm text-muted-foreground shrink-0">
               {currentPage + 1} / {questionGroups.length}
             </span>
           </div>
 
+          {/* Insert view — figures the questions reference */}
+          {examView === 'insert' && (
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
+              <InsertPanel figures={insertFigures} />
+            </div>
+          )}
+
           {/* Questions Container */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className={`flex-1 overflow-y-auto scrollbar-hide ${examView === 'insert' ? 'hidden' : ''}`}>
             <div className="container max-w-7xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
