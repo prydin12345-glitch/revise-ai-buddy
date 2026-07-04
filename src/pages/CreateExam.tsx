@@ -165,6 +165,10 @@ export default function CreateExam() {
   const [topicWeighting, setTopicWeighting] = useState("");
   const [includeDiagrams, setIncludeDiagrams] = useState(true);
   const [includeMCQ, setIncludeMCQ] = useState(false);
+  // Resource insert (figures the questions reference) — offered for subjects
+  // whose real papers carry one; defaults on when capable.
+  const [includeInsert, setIncludeInsert] = useState(true);
+  const subjectSupportsInsert = /geograph|history|environment|earth science/i.test(subjectId || "");
   const [includeGraphs, setIncludeGraphs] = useState(true);
   
   // Timer settings
@@ -572,7 +576,7 @@ export default function CreateExam() {
       // Start extraction (returns immediately)
       const { error: extractError } = await supabase.functions.invoke(
         'extract-exam-questions',
-        { body: { draftId } }
+        { body: { draftId, includeInsert: subjectSupportsInsert && includeInsert } }
       );
 
       if (extractError) throw extractError;
@@ -1092,6 +1096,21 @@ export default function CreateExam() {
                                               onCheckedChange={setIncludeMCQ}
                                             />
                                           </div>
+
+                                          {subjectSupportsInsert && (
+                                            <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border">
+                                              <div>
+                                                <Label className="text-sm cursor-pointer">Include resource insert</Label>
+                                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                  A figure booklet (e.g. a data map) that some questions will reference — like real {subjectId} papers.
+                                                </p>
+                                              </div>
+                                              <Switch
+                                                checked={includeInsert}
+                                                onCheckedChange={setIncludeInsert}
+                                              />
+                                            </div>
+                                          )}
                                         </div>
                                       )}
 
