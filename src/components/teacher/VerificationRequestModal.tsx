@@ -35,30 +35,12 @@ export const VerificationRequestModal = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create or find school
-      let schoolId: string;
-      const { data: existingSchool } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("name", schoolName)
-        .maybeSingle();
+      // Create or find school via SECURITY DEFINER RPC — clients cannot list all schools directly.
+      const { data: schoolId, error: schoolError } = await supabase
+        .rpc("ensure_school", { p_name: schoolName, p_domain: schoolDomain || null });
 
-      if (existingSchool) {
-        schoolId = existingSchool.id;
-      } else {
-        const { data: newSchool, error: schoolError } = await supabase
-          .from("schools")
-          .insert([{ 
-            name: schoolName, 
-            domain: schoolDomain || null,
-            is_active: true 
-          }])
-          .select()
-          .single();
-
-        if (schoolError) throw schoolError;
-        schoolId = newSchool.id;
-      }
+      if (schoolError) throw schoolError;
+      if (!schoolId) throw new Error("Could not create or find school");
 
       // Create verification request
       const { error: verificationError } = await supabase
