@@ -166,7 +166,8 @@ export default function CreateTutorExam() {
 
     // Smart prompt: check if user has topics/profiles for this subject
     const topics = getTopicsForSubject(newSubject);
-    if (topics.length > 1) {
+    const profiles = getProfilesForSubject(newSubject);
+    if (profiles.length > 0 || topics.length > 1) {
       setShowProfilePrompt(true);
     }
   };
