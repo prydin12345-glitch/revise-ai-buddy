@@ -137,12 +137,14 @@ export const CurriculumPromptModal = ({
                       </Badge>
                     </button>
                   ))}
-                  <button
-                    onClick={() => setShowProfiles(false)}
-                    className="text-xs text-muted-foreground hover:text-foreground w-full text-center pt-1"
-                  >
-                    ← Back
-                  </button>
+                  {hasTopics && (
+                    <button
+                      onClick={() => setShowProfiles(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground w-full text-center pt-1"
+                    >
+                      ← Back
+                    </button>
+                  )}
                 </div>
               )}
             </>
