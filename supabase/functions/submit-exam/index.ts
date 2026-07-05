@@ -53,11 +53,18 @@ serve(async (req) => {
     // Fetch exam metadata to check subject and grade release settings
     const { data: examData } = await supabase
       .from('exams')
-      .select('subject_id, title, assigned_by, grade_released')
+      .select('subject_id, title, assigned_by, grade_released, user_id')
       .eq('id', examId)
       .single();
-    
-    const isMathExam = examData?.subject_id?.toLowerCase().includes('math') || false;
+
+    if (!examData) {
+      return new Response(JSON.stringify({ error: 'Exam not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const isMathExam = examData.subject_id?.toLowerCase().includes('math') || false;
 
     // Fetch assignment details for deadline and grade release settings
     const { data: assignment } = await supabase
@@ -65,6 +72,59 @@ serve(async (req) => {
       .select('deadline, is_grades_released, assigned_by')
       .eq('exam_id', examId)
       .maybeSingle();
+
+    // ── ACCESS CONTROL ──────────────────────────────────────────────
+    // A student may only submit an exam that is actually assigned to them
+    // (directly, via a group they belong to, or if they are the exam owner).
+    // Without this check any authenticated user who obtains an exam UUID could
+    // call submit-exam with empty answers and read back the correct answers
+    // via AI grading feedback.
+    let hasAccess = examData.user_id === user.id;
+
+    if (!hasAccess) {
+      const { data: directAssignment } = await supabase
+        .from('exam_assignments')
+        .select('id')
+        .eq('exam_id', examId)
+        .eq('is_active', true)
+        .in('assignment_type', ['individual', 'student'])
+        .eq('target_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      hasAccess = Boolean(directAssignment);
+    }
+
+    if (!hasAccess) {
+      const { data: groupAssignments } = await supabase
+        .from('exam_assignments')
+        .select('target_id')
+        .eq('exam_id', examId)
+        .eq('is_active', true)
+        .eq('assignment_type', 'group');
+      const groupIds = (groupAssignments ?? [])
+        .map((a: { target_id: string | null }) => a.target_id)
+        .filter((id): id is string => Boolean(id));
+      if (groupIds.length > 0) {
+        const { data: membership } = await supabase
+          .from('group_members')
+          .select('id')
+          .eq('student_id', user.id)
+          .eq('is_active', true)
+          .in('group_id', groupIds)
+          .limit(1)
+          .maybeSingle();
+        hasAccess = Boolean(membership);
+      }
+    }
+
+    if (!hasAccess) {
+      console.warn('submit-exam access denied', { examId, userId: user.id });
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // ────────────────────────────────────────────────────────────────
 
     // Check if submission is late
     const now = new Date();
