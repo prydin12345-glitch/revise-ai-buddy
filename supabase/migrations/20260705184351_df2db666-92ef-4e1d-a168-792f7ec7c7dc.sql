@@ -1,0 +1,22 @@
+
+REVOKE EXECUTE ON FUNCTION public.create_deadline_change_notifications(uuid, text, timestamptz) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.create_group_announcement_notifications(uuid, text, text, text, jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.create_notification(uuid, text, text, text, text, jsonb, uuid, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.create_student_notification(uuid, text, text, text, jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.generate_student_code(text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_user_roles(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user_signup() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_teacher_verification_change() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_group_tutor(uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.notify_student_on_feedback_response() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.notify_students_on_exam_release() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.notify_students_on_grades_release() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.notify_tutor_on_feedback_created() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.notify_tutor_on_feedback_resolved() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_revision_task_modified() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.user_owns_exam(uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.validate_invite_code(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.ensure_school(text, text) FROM PUBLIC;

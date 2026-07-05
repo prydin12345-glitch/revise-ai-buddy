@@ -3014,6 +3014,10 @@ export type Database = {
         }
         Returns: string
       }
+      ensure_school: {
+        Args: { p_domain?: string; p_name: string }
+        Returns: string
+      }
       generate_student_code: {
         Args: { p_first_name: string; p_last_name: string }
         Returns: string
@@ -3047,9 +3051,15 @@ export type Database = {
       validate_invite_code: {
         Args: { p_code: string }
         Returns: {
+          capacity: number
+          description: string
           group_id: string
           group_name: string
+          member_count: number
+          settings: Json
+          subjects_covered: Json
           tutor_display_name: string
+          tutor_id: string
         }[]
       }
     }

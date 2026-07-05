@@ -62,14 +62,13 @@ export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModal
 
       const code = inviteCode.trim().toUpperCase();
 
-      const { data: group, error: groupError } = await supabase
-        .from("student_groups")
-        .select("id, name, description, settings, subjects_covered, capacity, tutor_id, is_active")
-        .eq("invite_code", code)
-        .eq("is_active", true)
-        .maybeSingle();
+      // Use SECURITY DEFINER RPC so we only see the class that matches the invite code,
+      // not every active class in the system.
+      const { data: rows, error: rpcError } = await supabase
+        .rpc("validate_invite_code", { p_code: code });
 
-      if (groupError) throw groupError;
+      if (rpcError) throw rpcError;
+      const group = Array.isArray(rows) ? rows[0] : null;
       if (!group) {
         toast.error("Invalid invite code");
         return;
@@ -79,7 +78,7 @@ export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModal
       const { data: existingMembership } = await supabase
         .from("group_members")
         .select("id")
-        .eq("group_id", group.id)
+        .eq("group_id", group.group_id)
         .eq("student_id", user.id)
         .maybeSingle();
 
@@ -88,39 +87,23 @@ export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModal
         return;
       }
 
-      // Member count
-      const { count } = await supabase
-        .from("group_members")
-        .select("*", { count: "exact", head: true })
-        .eq("group_id", group.id)
-        .eq("is_active", true);
-
-      // Tutor name
-      const { data: tutorProfile } = await supabase
-        .from("user_profiles")
-        .select("display_name, first_name, last_name")
-        .eq("id", group.tutor_id)
-        .maybeSingle();
-
-      const tutorName =
-        tutorProfile?.display_name ||
-        [tutorProfile?.first_name, tutorProfile?.last_name].filter(Boolean).join(" ") ||
-        "Your tutor";
-
       const settings = (group.settings as any) || {};
-      const subjectName = settings.subject_name || group.subjects_covered?.[0] || "";
+      const subjectsCovered = Array.isArray(group.subjects_covered)
+        ? (group.subjects_covered as string[])
+        : [];
+      const subjectName = settings.subject_name || subjectsCovered[0] || "";
 
       setPreview({
-        id: group.id,
-        name: group.name,
+        id: group.group_id,
+        name: group.group_name,
         description: group.description,
         subjectName,
         subjectColor: getSubjectColor(subjectName, settings.subject_color),
         level: settings.educational_level || null,
         examBoard: settings.exam_board || null,
-        memberCount: count || 0,
+        memberCount: Number(group.member_count) || 0,
         capacity: group.capacity,
-        tutorName,
+        tutorName: group.tutor_display_name || "Your tutor",
       });
     } catch (error: any) {
       console.error("Error looking up class:", error);
