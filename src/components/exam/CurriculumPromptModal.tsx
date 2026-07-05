@@ -39,8 +39,11 @@ export const CurriculumPromptModal = ({
   onSelectProfile,
   onStandardMode,
 }: CurriculumPromptModalProps) => {
-  const [showProfiles, setShowProfiles] = useState(false);
   const topicCount = masterTopics.length;
+  const hasTopics = topicCount > 0;
+  // If the user has no master topics, jump straight to the profile list —
+  // the "Practice All Saved Topics" primary action would do nothing.
+  const [showProfiles, setShowProfiles] = useState(!hasTopics);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,7 +51,7 @@ export const CurriculumPromptModal = ({
         <DialogHeader>
           <DialogTitle className="text-lg">Use Your Custom Curriculum?</DialogTitle>
           <DialogDescription>
-            You have saved topics for{" "}
+            {hasTopics ? "You have saved topics for " : "You have saved exam profiles for "}
             <span className="font-semibold" style={{ color: subjectColor }}>
               {subjectName}
             </span>
@@ -57,35 +60,37 @@ export const CurriculumPromptModal = ({
         </DialogHeader>
 
         <div className="space-y-3 py-3">
-          {/* Primary: Practice All Saved Topics */}
-          <button
-            onClick={() => onPracticeAll(masterTopics.map((t) => t.topic))}
-            className="w-full text-left p-4 rounded-xl border-2 transition-all hover:shadow-md"
-            style={{ borderColor: subjectColor, backgroundColor: subjectColor + "08" }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: subjectColor + "20" }}
-              >
-                <BookOpen className="h-5 w-5" style={{ color: subjectColor }} />
+          {/* Primary: Practice All Saved Topics — only when master topics exist */}
+          {hasTopics && (
+            <button
+              onClick={() => onPracticeAll(masterTopics.map((t) => t.topic))}
+              className="w-full text-left p-4 rounded-xl border-2 transition-all hover:shadow-md"
+              style={{ borderColor: subjectColor, backgroundColor: subjectColor + "08" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: subjectColor + "20" }}
+                >
+                  <BookOpen className="h-5 w-5" style={{ color: subjectColor }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: subjectColor }}>
+                    Practice All Saved Topics
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Use all {topicCount} sub-topics from your manual curriculum.
+                  </p>
+                </div>
+                <Badge
+                  className="shrink-0 text-[10px] font-semibold"
+                  style={{ backgroundColor: subjectColor, color: "white" }}
+                >
+                  {topicCount} Topics
+                </Badge>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm" style={{ color: subjectColor }}>
-                  Practice All Saved Topics
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Use all {topicCount} sub-topics from your manual curriculum.
-                </p>
-              </div>
-              <Badge
-                className="shrink-0 text-[10px] font-semibold"
-                style={{ backgroundColor: subjectColor, color: "white" }}
-              >
-                {topicCount} Topics
-              </Badge>
-            </div>
-          </button>
+            </button>
+          )}
 
           {/* Secondary: Use Exam Profile */}
           {profiles.length > 0 && (
@@ -132,12 +137,14 @@ export const CurriculumPromptModal = ({
                       </Badge>
                     </button>
                   ))}
-                  <button
-                    onClick={() => setShowProfiles(false)}
-                    className="text-xs text-muted-foreground hover:text-foreground w-full text-center pt-1"
-                  >
-                    ← Back
-                  </button>
+                  {hasTopics && (
+                    <button
+                      onClick={() => setShowProfiles(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground w-full text-center pt-1"
+                    >
+                      ← Back
+                    </button>
+                  )}
                 </div>
               )}
             </>

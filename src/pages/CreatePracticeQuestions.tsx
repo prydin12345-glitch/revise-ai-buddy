@@ -201,9 +201,10 @@ const CreatePracticeQuestions = () => {
       setExamBoard(subjectBoard);
     }
     
-    // Check if user has topics for smart prompt
+    // Check if user has topics/profiles for smart prompt
     const topics = getTopicsForSubject(value);
-    if (topics.length > 1) {
+    const profiles = getProfilesForSubject(value);
+    if (profiles.length > 0 || topics.length > 1) {
       setShowProfilePrompt(true);
     }
   };

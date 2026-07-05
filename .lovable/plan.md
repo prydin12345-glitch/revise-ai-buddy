@@ -1,115 +1,57 @@
-## Goal
+## What's actually happening
 
-Take the current dense "My Subjects" panel (one giant card per subject with topics, profiles, colour picker, board picker, mastery breakdown all inline) and split it into a **two-level Uplearn-style experience**:
+Your Geography subject is fine. Both profiles are saved correctly on the account (`GP1` and `GP2`, both under `subject_name = "Geography"`), and they are linked to the subject by name — not by any preset id. So there is no clash between a "preset Geography" and your Geography.
 
-1. **Index page** — clean, scannable list of subjects. Name + average score + a couple of glanceable stats. Nothing else.
-2. **Detail page** — opens when a subject is clicked. This is where exam profiles, topics, board, colour and edits live.
+The real bug is in the exam-creation screens. When you pick a subject, the code decides whether to open the "Use your custom curriculum?" picker with this check:
 
-Works identically on mobile, iPad and desktop.
-
----
-
-## Level 1 — Subjects index (`/my-subjects`)
-
-Replace `MySubjectsPanel` with a minimalist, Uplearn-inspired list.
-
-Layout:
-```text
-┌─────────────────────────────────────────────────┐
-│  My Subjects                       [+ Add]      │
-│  Pick a subject to manage profiles & topics     │
-├─────────────────────────────────────────────────┤
-│ ● Mathematics            72%   ████████░░  ›   │
-│ ● Biology                64%   ██████░░░░  ›   │
-│ ● Physics                —     ░░░░░░░░░░  ›   │
-└─────────────────────────────────────────────────┘
+```ts
+const topics = getTopicsForSubject(newSubject);
+if (topics.length > 1) setShowProfilePrompt(true);
 ```
 
-Per row (one component, `SubjectRow`):
-- Coloured dot (subject colour)
-- Subject name (bold)
-- Average score % (from `useTopicPerformance` aggregated, or `—` if untested)
-- Thin progress bar in the subject colour
-- Tiny meta line under the name: "X profiles · Y topics" (single muted line, ~11px)
-- Chevron right
-- Entire row is a clickable `Link` to `/my-subjects/:subjectName`
+It only opens the picker when the subject has more than one manually-added master topic. For Geography you have **0 master topics** but **2 exam profiles**, so the picker never opens and the exam form falls back to the default flow — which is why it looks like the profiles were ignored.
 
-Rules:
-- One row per subject, full width, 1px divider between rows (matches the row-item design memory).
-- No inline editing, no colour picker, no profile chips on this screen.
-- Search box at top once there are >6 subjects.
-- Empty state stays as it is today.
-- Desktop: same single-column list, max-w-3xl, centered. iPad/mobile: identical (just full width). This guarantees consistency across breakpoints.
+The same check exists in three places:
 
-Header on the page becomes a real `PageHeader` with title + subtitle + "Add subject" button on the right.
+- `src/pages/CreateExam.tsx` (`handleSubjectChange`)
+- `src/pages/CreatePracticeQuestions.tsx` (`handleSubjectChange`)
+- `src/pages/tutor/CreateTutorExam.tsx` (`handleSubjectChange`)
 
-## Level 2 — Subject detail page (`/my-subjects/:subjectName`)
+The picker component (`CurriculumPromptModal`) already accepts `profiles` and knows how to render them — the modal itself is fine.
 
-New route + page (`src/pages/SubjectDetail.tsx`) wrapped in `DashboardLayout`. This is where everything currently crammed into `SubjectCard` moves to, but laid out as a proper page with sections.
+## The fix
 
-Structure:
+**1. Open the picker whenever the subject has saved profiles, not just when it has master topics.**
 
-```text
-← Back to subjects
+In each of the three files above, change the trigger inside `handleSubjectChange` to:
 
-● Mathematics                                [⋯ menu: rename colour, set board, delete]
-Average score 72%  ·  12 topics  ·  3 profiles
-[ Edexcel · A Level ]
-
-──────────── Exam profiles ────────────              [+ New profile]
-┌───────────────────────────────────────────────┐
-│ Paper 1 Pure              25 Qs · 90 min  ✎ 🗑│
-│ Paper 2 Stats             20 Qs · 75 min  ✎ 🗑│
-│ Quick recap               10 Qs              ✎ 🗑│
-└───────────────────────────────────────────────┘
-
-──────────── Topics ──────────────────────────────
-[chips + add topic input — same TopicSearchInput as today]
-
-──────────── Mastery breakdown ───────────────────
-Strong 5 · Developing 4 · Weak 2 · Untested 1
-(reuse existing bar/legend from SubjectCard)
+```ts
+const topics = getTopicsForSubject(newSubject);
+const profiles = getProfilesForSubject(newSubject);
+if (profiles.length > 0 || topics.length > 1) {
+  setShowProfilePrompt(true);
+}
 ```
 
-Behaviour:
-- Profile rows reuse `ExamProfileModal` for create/edit (already wired in `MySubjectsPanel`).
-- Colour, board and rename live in a single header "⋯" popover (reuses `ColourSwatchPicker`, board `Select`, `saveOrUpdateSubject`, `ColourConflictModal`).
-- Topics section keeps `TopicSearchInput` + `SuggestedTopicsModal` flow.
-- Average score and mastery counts come from `useTopicPerformance(subjectName)`.
-- 404 / not-found if `:subjectName` doesn't match a row in `user_subjects`.
+This makes the picker appear as soon as you pick a subject that has any saved exam profile (like your Geography), so `GP1` and `GP2` become selectable.
 
-## Routing
+**2. Small polish to `CurriculumPromptModal`** so it still reads well when the user has profiles but no master topics (the "Practice All Saved Topics" section should be hidden when `masterTopics.length === 0`, leaving only the profile list and a "Start from scratch" option). No behaviour change beyond hiding an option that would do nothing.
 
-Add to `src/App.tsx`:
-- `/my-subjects/:subjectName` → lazy `SubjectDetail` page.
+**3. Verify no other regressions.**
 
-`MobileBottomNav` already maps `/my-subjects` paths to the "subjects" tab, so the detail page will keep the tab highlighted automatically.
+- Confirm the deep-link path (`/create-exam?subject=Geography&profileId=…`) still auto-selects a profile — it already uses `getProfilesForSubject` directly and does not depend on the trigger, so it is unaffected.
+- Confirm `UploadExam.tsx` — it renders its own profile list inline via `getProfilesForSubject` and does not use the prompt trigger, so it already works and will not be touched.
 
-## Files
+## Files changed
 
-New:
-- `src/pages/SubjectDetail.tsx`
-- `src/components/stats/SubjectsList.tsx` (the level-1 list container)
-- `src/components/stats/SubjectRow.tsx` (single row)
-- `src/components/stats/SubjectHeaderActions.tsx` (the ⋯ popover with colour/board/rename)
-- `src/components/stats/SubjectProfilesSection.tsx` (profile list + add/edit/delete)
-- `src/components/stats/SubjectTopicsSection.tsx` (topic chips + add)
+- `src/pages/CreateExam.tsx` — widen the prompt trigger
+- `src/pages/CreatePracticeQuestions.tsx` — widen the prompt trigger
+- `src/pages/tutor/CreateTutorExam.tsx` — widen the prompt trigger
+- `src/components/exam/CurriculumPromptModal.tsx` — hide the "Practice All Saved Topics" block when there are no master topics
 
-Edited:
-- `src/pages/MySubjects.tsx` — render `SubjectsList` instead of `MySubjectsPanel`. Header simplified.
-- `src/components/stats/MySubjectsPanel.tsx` — kept only if still used by stats; if not, deleted in a follow-up.
-- `src/App.tsx` — new lazy route.
+## What is *not* the cause (so we don't chase it)
 
-Out of scope:
-- No DB schema changes.
-- No changes to `useUserSubjects` / `useSubjectProfiles` hooks (already expose everything needed).
-- No changes to `ExamProfileModal` internals.
-- No bottom-nav changes (already done).
+- There is no "preset Geography vs custom Geography" clash. Profiles are keyed by `subject_name` (case-insensitive), and your row in `user_subjects` and both `subject_exam_profiles` rows all use `"Geography"`.
+- RLS and the data itself are fine — I read both profiles back from the database against your user id.
 
-## Technical notes
-
-- Average score per subject: aggregate `getPerformance(topic)` across all topics for that subject inside a small `useSubjectAverage(subjectName)` helper (or compute inline in `SubjectRow`). If no graded attempts, render `—` and an empty bar.
-- `:subjectName` in the URL is `encodeURIComponent(subject_name)`; resolve back via case-insensitive match (same pattern hooks already use).
-- Keep all styling on semantic tokens; subject colour comes from the DB and is applied as an inline `style` only for the dot and progress bar fill.
-- Animations: simple `framer-motion` row stagger on the index, no heavy entrances.
-- Responsive: list rows reflow naturally; detail page uses `max-w-4xl mx-auto` with stacked sections on mobile and the same single column on desktop (Uplearn-style — no multi-column dashboards).
+After the change, choosing Geography on the Create Exam screen will immediately show the picker with `GP1` and `GP2`, and selecting one will apply its topics, question count, timing and structure to the exam as designed.
