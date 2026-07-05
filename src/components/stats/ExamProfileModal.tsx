@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Check, ChevronsUpDown, Clock } from "lucide-react";
+import { Check, ChevronsUpDown, Clock, User, ListChecks, BookOpen, Settings2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -209,95 +209,112 @@ export const ExamProfileModal = ({
     { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
+  const SectionCard = ({ icon: Icon, title, hint, children }: { icon: any; title: string; hint?: string; children: React.ReactNode }) => (
+    <section className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: subjectColor + "1A", color: subjectColor }}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
+      </div>
+      {children}
+    </section>
+  );
+
+  const canSave = !!profileName.trim() && selectedTopics.length > 0;
+  const summaryParts = [
+    `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
+    selectedTopics.length ? `${selectedTopics.length} topic${selectedTopics.length === 1 ? "" : "s"}` : null,
+    timeLimitMinutes ? `${timeLimitMinutes} min` : "no time limit",
+  ].filter(Boolean).join(" · ");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-card/95 border-border/50">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border/60">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="w-2 h-8 rounded-full" style={{ backgroundColor: subjectColor }} />
             <div>
               <DialogTitle className="text-lg">
                 {initialData ? "Edit" : "Create"} Exam Profile
               </DialogTitle>
-              <DialogDescription className="text-xs">{subjectName}</DialogDescription>
+              <DialogDescription className="text-xs">
+                {subjectName} — a reusable recipe for generating exams
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {/* Profile Name */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Profile Name
-            </Label>
-            <Input
-              placeholder="e.g. Paper 1, Paper 2, Unit Test 3"
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-              className="h-10"
-            />
-          </div>
-
-          {/* Educational Level — Universal */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Educational Level
-            </Label>
-            <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  className="w-full justify-between h-10 text-sm font-normal"
-                >
-                  <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
-                    {educationalTier
-                      ? (educationalTier === "other"
-                          ? "Other — specify below"
-                          : ALL_LEVELS.find(l => l.id === educationalTier)?.label || educationalTier)
-                      : "Select level (optional)..."}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
-                {EDUCATIONAL_LEVELS.map((group) => (
-                  <div key={group.group}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
-                      {group.group}
-                    </p>
-                    {group.levels.map((level) => {
-                      const alias = userRegion ? level.aliases[userRegion] : null;
-                      return (
-                        <button
-                          key={level.id}
-                          type="button"
-                          onClick={() => {
-                            setEducationalTier(level.id);
-                            if (level.id !== "other") setCustomTier("");
-                            setLevelPopoverOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                            educationalTier === level.id
-                              ? "bg-primary/10 text-primary font-medium"
-                              : "hover:bg-muted text-foreground"
-                          }`}
-                        >
-                          <div className="text-[13px]">{level.label}</div>
-                          {alias && (
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              {userRegion}: {alias}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </PopoverContent>
-            </Popover>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* ── Basics ── */}
+          <SectionCard icon={User} title="Basics">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-name" className="text-xs text-muted-foreground">Profile name</Label>
+                <Input
+                  id="profile-name"
+                  placeholder="e.g. Paper 1, Unit Test 3"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Educational level (optional)</Label>
+                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm font-normal">
+                      <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
+                        {educationalTier
+                          ? (educationalTier === "other"
+                              ? "Other — specify below"
+                              : ALL_LEVELS.find(l => l.id === educationalTier)?.label || educationalTier)
+                          : "Select level..."}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
+                    {EDUCATIONAL_LEVELS.map((group) => (
+                      <div key={group.group}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
+                          {group.group}
+                        </p>
+                        {group.levels.map((level) => {
+                          const alias = userRegion ? level.aliases[userRegion] : null;
+                          return (
+                            <button
+                              key={level.id}
+                              type="button"
+                              onClick={() => {
+                                setEducationalTier(level.id);
+                                if (level.id !== "other") setCustomTier("");
+                                setLevelPopoverOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                                educationalTier === level.id
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "hover:bg-muted text-foreground"
+                              }`}
+                            >
+                              <div className="text-[13px]">{level.label}</div>
+                              {alias && (
+                                <div className="text-[11px] text-muted-foreground mt-0.5">
+                                  {userRegion}: {alias}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
             {educationalTier === "other" && (
-              <div className="mt-2 space-y-1">
+              <div className="space-y-1">
                 <Input
                   value={customTier}
                   onChange={(e) => setCustomTier(e.target.value)}
@@ -309,250 +326,200 @@ export const ExamProfileModal = ({
                 </p>
               </div>
             )}
-          </div>
+          </SectionCard>
 
-          {/* Separate Written + MCQ Counts */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Written questions */}
+          {/* ── Questions ── */}
+          <SectionCard icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Written
-                  </Label>
-                  <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>
-                    {writtenCount}
-                  </span>
+                  <Label className="text-xs text-muted-foreground">Written</Label>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{writtenCount}</span>
                 </div>
                 <Slider
-                  min={0}
-                  max={20}
-                  step={1}
+                  min={0} max={20} step={1}
                   value={[writtenCount]}
                   onValueChange={(v) => {
                     const newVal = v[0];
-                    // Ensure at least one type has questions
                     if (newVal === 0 && mcqCount === 0) return;
                     setWrittenCount(newVal);
                   }}
-                  style={{
-                    "--slider-track": "hsl(var(--muted))",
-                    "--slider-range": subjectColor,
-                  } as React.CSSProperties}
+                  style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties}
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>0 (none)</span>
-                  <span>20 max</span>
-                </div>
                 {writtenCount >= 15 && (
-                  <p className="text-[11px] text-orange-400">
-                    ⚠ {writtenCount} written questions may reduce quality
-                  </p>
+                  <p className="text-[11px] text-orange-400">⚠ {writtenCount} written questions may reduce quality</p>
                 )}
               </div>
-
-              {/* MCQ questions */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    MCQ
-                  </Label>
-                  <span className="text-sm font-bold tabular-nums text-emerald-500">
-                    {mcqCount}
-                  </span>
+                  <Label className="text-xs text-muted-foreground">Multiple choice</Label>
+                  <span className="text-sm font-bold tabular-nums text-emerald-500">{mcqCount}</span>
                 </div>
                 <Slider
-                  min={0}
-                  max={30}
-                  step={1}
+                  min={0} max={30} step={1}
                   value={[mcqCount]}
                   onValueChange={(v) => {
                     const newVal = v[0];
-                    // Ensure at least one type has questions
                     if (newVal === 0 && writtenCount === 0) return;
                     setMcqCount(newVal);
                   }}
-                  style={{
-                    "--slider-track": "hsl(var(--muted))",
-                    "--slider-range": "hsl(160 84% 39%)",
-                  } as React.CSSProperties}
+                  style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": "hsl(160 84% 39%)" } as React.CSSProperties}
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>0 (none)</span>
-                  <span>30 max</span>
-                </div>
                 {mcqCount >= 25 && (
-                  <p className="text-[11px] text-orange-400">
-                    ⚠ {mcqCount} MCQ — consider splitting into two sessions
-                  </p>
+                  <p className="text-[11px] text-orange-400">⚠ {mcqCount} MCQ — consider splitting into two sessions</p>
                 )}
               </div>
             </div>
 
-            {/* Total summary */}
-            <div className="flex items-center justify-between rounded-md border border-border/40 bg-muted/30 px-3 py-2">
-              <span className="text-xs text-muted-foreground">Total questions in exam</span>
-              <span className="text-sm font-bold text-foreground tabular-nums">
-                {totalQuestionCount}
-                <span className="text-[11px] text-muted-foreground font-normal ml-1.5">
-                  ({mcqCount > 0 ? `${mcqCount} MCQ + ` : ""}{writtenCount} written)
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {/* Time Limit — scroll wheel */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" style={{ color: subjectColor }} />
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Time Limit
-                </Label>
-              </div>
-              <span className="text-[11px] text-muted-foreground">
-                {timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}
-              </span>
-            </div>
-            <TimeWheelPicker
-              value={timeLimitMinutes}
-              onChange={setTimeLimitMinutes}
-              subjectColor={subjectColor}
-            />
-          </div>
-
-          {/* Topic Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Topics
+            {/* Structure */}
+            <div className="pt-1 space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {isMcqOnlyProfile ? "Answer options" : "How should written questions be organised?"}
               </Label>
-              <span
-                className="text-[11px] font-semibold tabular-nums"
-                style={{ color: selectedTopics.length ? subjectColor : undefined }}
-              >
-                {selectedTopics.length} selected
-              </span>
+              {isMcqOnlyProfile ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MCQ_STRUCTURE_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setMcqOptionsCount(option.id)}
+                        className={`rounded-lg border p-3 text-left transition-all ${
+                          mcqOptionsCount === option.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 bg-card/60 hover:bg-card"
+                        }`}
+                      >
+                        <div className="text-xs font-semibold text-foreground">{option.label}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium">Include graph-based questions</p>
+                        <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
+                      </div>
+                      <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium">Include table/data questions</p>
+                        <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
+                      </div>
+                      <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {STRUCTURE_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setQuestionStructure(option.id)}
+                        className={`rounded-lg border p-2.5 text-left transition-all ${
+                          questionStructure === option.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 bg-card/60 hover:bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <span>{option.icon}</span>
+                          {option.label}
+                          {questionStructure === option.id && <Check className="h-3 w-3 text-primary ml-auto" />}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1">{option.example}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Multi-part configuration — restored: was saved but had no UI */}
+                  {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
+                    <div className="rounded-lg border border-border/40 bg-muted/30 p-3 grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">Parent questions</Label>
+                          <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
+                        </div>
+                        <Slider min={1} max={10} step={1} value={[parentQuestionCount]}
+                          onValueChange={(v) => setParentQuestionCount(v[0])}
+                          style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">Max parts each (a, b, c…)</Label>
+                          <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
+                        </div>
+                        <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
+                          onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
+                          style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+          </SectionCard>
+
+          {/* ── Topics ── */}
+          <SectionCard
+            icon={BookOpen}
+            title="Topics"
+            hint={selectedTopics.length ? `${selectedTopics.length} selected` : "pick at least one"}
+          >
             <InlineTopicPicker
               allTopics={allTopics}
               selectedTopics={selectedTopics}
               onToggle={toggleTopic}
               subjectColor={subjectColor}
             />
-          </div>
+          </SectionCard>
 
+          {/* ── Timing ── */}
+          <SectionCard icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
+            <TimeWheelPicker
+              value={timeLimitMinutes}
+              onChange={setTimeLimitMinutes}
+              subjectColor={subjectColor}
+            />
+          </SectionCard>
 
-          {/* Question Structure */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {isMcqOnlyProfile ? "MCQ Structure" : "Question Structure"}
-            </Label>
-            <p className="text-[11px] text-muted-foreground">
-              {isMcqOnlyProfile
-                ? "For MCQ-only profiles, choose the answer-option pattern and visual content preferences."
-                : "How should written questions be organised?"}
-            </p>
-
-            {isMcqOnlyProfile ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {MCQ_STRUCTURE_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setMcqOptionsCount(option.id)}
-                      className={`rounded-lg border p-3 text-left transition-all ${
-                        mcqOptionsCount === option.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-card/60 hover:bg-card"
-                      }`}
-                    >
-                      <div className="text-xs font-semibold text-foreground">{option.label}</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
-                      <div className="text-[10px] text-muted-foreground/80 mt-1">{option.detail}</div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium">Include graph-based questions</p>
-                      <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
-                    </div>
-                    <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium">Include table/data questions</p>
-                      <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
-                    </div>
-                    <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col gap-2">
-                  {STRUCTURE_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setQuestionStructure(option.id)}
-                      className={`rounded-lg border p-3 text-left transition-all ${
-                        questionStructure === option.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-card/60 hover:bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-lg">{option.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                            {option.label}
-                            <span className="text-[10px] text-muted-foreground font-normal rounded bg-muted px-1.5 py-0.5">
-                              {option.example}
-                            </span>
-                          </div>
-                          
-                        </div>
-                        {questionStructure === option.id && (
-                          <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
-                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-              </>
-            )}
-          </div>
-
-          {/* Advanced Settings */}
-          <ExamProfileAdvanced
-            settings={advanced}
-            onChange={setAdvanced}
-            questionLimit={writtenCount}
-            subjectColor={subjectColor}
-            curriculumRegion={preferences?.curriculum_region}
-          />
+          {/* ── Advanced ── */}
+          <SectionCard icon={Settings2} title="Advanced" hint="optional">
+            <ExamProfileAdvanced
+              settings={advanced}
+              onChange={setAdvanced}
+              questionLimit={writtenCount}
+              subjectColor={subjectColor}
+              curriculumRegion={preferences?.curriculum_region}
+            />
+          </SectionCard>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!profileName.trim() || selectedTopics.length === 0}
-            style={{ backgroundColor: subjectColor, opacity: 1 }}
-            className="text-white hover:opacity-90 disabled:cursor-not-allowed disabled:saturate-50"
-          >
-            {initialData ? "Update" : "Create"} Profile
-          </Button>
+        {/* ── Sticky footer with live summary + disabled reason ── */}
+        <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card sm:justify-between gap-3">
+          <div className="text-left self-center min-w-0">
+            <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : "Pick at least one topic") + " to continue"}
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!canSave}
+              style={{ backgroundColor: subjectColor, opacity: 1 }}
+              className="text-white hover:opacity-90 disabled:cursor-not-allowed disabled:saturate-50"
+            >
+              {initialData ? "Update" : "Create"} Profile
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
