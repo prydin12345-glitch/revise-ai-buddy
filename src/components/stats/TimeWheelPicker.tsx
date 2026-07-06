@@ -1,97 +1,105 @@
-import { useEffect, useRef } from "react";
+// FILE: src/components/stats/TimeWheelPicker.tsx
+// iPhone-timer-style vertical scroll wheel for the exam time limit.
+// Scroll-snap centres a value; the centred value is selected live.
+// Props unchanged from the previous picker: value "" = no limit.
+
+import { useRef, useEffect, useMemo, useCallback } from "react";
 
 interface TimeWheelPickerProps {
-  value: string; // stringified minutes or "" for none
-  onChange: (v: string) => void;
+  value: string;
+  onChange: (value: string) => void;
   subjectColor: string;
 }
 
-const PRESETS: { value: string; label: string }[] = [
-  { value: "", label: "None" },
-  { value: "15", label: "15" },
-  { value: "30", label: "30" },
-  { value: "45", label: "45" },
-  { value: "60", label: "60" },
-  { value: "75", label: "75" },
-  { value: "90", label: "90" },
-  { value: "105", label: "105" },
-  { value: "120", label: "120" },
-  { value: "150", label: "150" },
-  { value: "180", label: "180" },
-];
+const ITEM_H = 36;
 
-export const TimeWheelPicker = ({ value, onChange, subjectColor }: TimeWheelPickerProps) => {
+export function TimeWheelPicker({ value, onChange, subjectColor }: TimeWheelPickerProps) {
+  const options = useMemo(() => {
+    const mins: Array<number | null> = [null];
+    for (let m = 5; m <= 240; m += 5) mins.push(m);
+    return mins;
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isPreset = PRESETS.some((p) => p.value === value);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppress = useRef(false);
 
-  // Scroll active preset into view when value changes externally
+  const indexOfValue = useCallback(
+    (v: string) => {
+      const n = v ? parseInt(v) : null;
+      const i = options.findIndex((o) => o === n);
+      return i === -1 ? 0 : i;
+    },
+    [options]
+  );
+
+  // Position the wheel when the external value changes (e.g. editing a profile)
   useEffect(() => {
-    const el = scrollRef.current?.querySelector<HTMLButtonElement>(`[data-val="${value}"]`);
-    if (el && scrollRef.current) {
-      const container = scrollRef.current;
-      const target = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
-      container.scrollTo({ left: target, behavior: "smooth" });
+    const el = scrollRef.current;
+    if (!el) return;
+    const target = indexOfValue(value) * ITEM_H;
+    if (Math.abs(el.scrollTop - target) > 2) {
+      suppress.current = true;
+      el.scrollTo({ top: target });
+      setTimeout(() => { suppress.current = false; }, 80);
     }
-  }, [value]);
+  }, [value, indexOfValue]);
+
+  const handleScroll = () => {
+    if (suppress.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const idx = Math.max(0, Math.min(options.length - 1, Math.round(el.scrollTop / ITEM_H)));
+      const opt = options[idx];
+      onChange(opt === null ? "" : String(opt));
+    }, 90);
+  };
 
   return (
-    <div className="space-y-2">
+    <div className="relative h-[148px] rounded-xl border border-border/60 bg-background overflow-hidden select-none">
+      {/* Centre selection band */}
+      <div
+        className="pointer-events-none absolute left-2 right-2 top-1/2 -translate-y-1/2 rounded-lg border"
+        style={{ height: ITEM_H, borderColor: subjectColor + "66", backgroundColor: subjectColor + "0D" }}
+      />
+      {/* Edge fades */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-background to-transparent z-10" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent z-10" />
+
       <div
         ref={scrollRef}
-        className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin"
-        style={{ scrollbarWidth: "thin" }}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar"
+        style={{ paddingTop: (148 - ITEM_H) / 2, paddingBottom: (148 - ITEM_H) / 2 }}
+        role="listbox"
+        aria-label="Time limit"
       >
-        {PRESETS.map((p) => {
-          const active = value === p.value;
+        {options.map((opt) => {
+          const isActive = (opt === null && !value) || (opt !== null && value === String(opt));
           return (
             <button
-              key={p.value || "none"}
+              key={opt ?? "none"}
               type="button"
-              data-val={p.value}
-              onClick={() => onChange(p.value)}
-              className={`snap-center shrink-0 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-center ${
-                active
-                  ? "scale-105 shadow-lg text-white font-bold"
-                  : "bg-card/60 border-border/50 text-muted-foreground hover:text-foreground hover:bg-card"
-              }`}
+              role="option"
+              aria-selected={isActive}
+              onClick={() => {
+                const el = scrollRef.current;
+                el?.scrollTo({ top: indexOfValue(opt === null ? "" : String(opt)) * ITEM_H, behavior: "smooth" });
+                onChange(opt === null ? "" : String(opt));
+              }}
+              className="w-full snap-center flex items-center justify-center text-sm transition-colors"
               style={{
-                width: p.value === "" ? 68 : 64,
-                height: 68,
-                backgroundColor: active ? subjectColor : undefined,
-                borderColor: active ? subjectColor : undefined,
+                height: ITEM_H,
+                color: isActive ? subjectColor : "hsl(var(--muted-foreground))",
+                fontWeight: isActive ? 700 : 400,
               }}
             >
-              <span className={`tabular-nums leading-none ${active ? "text-xl" : "text-lg"}`}>
-                {p.label}
-              </span>
-              {p.value !== "" && (
-                <span className={`text-[9.5px] uppercase tracking-wider mt-1 ${active ? "opacity-80" : ""}`}>
-                  min
-                </span>
-              )}
+              {opt === null ? "No limit" : `${opt} min`}
             </button>
           );
         })}
       </div>
-
-      {!isPreset && value !== "" && (
-        <p className="text-[11px] text-muted-foreground">
-          Custom: <span className="font-semibold text-foreground">{value} min</span>
-        </p>
-      )}
-
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground shrink-0">Or set custom:</span>
-        <input
-          type="number"
-          min={0}
-          placeholder="minutes"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-24 rounded-md border border-border/60 bg-background px-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-offset-0"
-          style={{ boxShadow: "none" }}
-        />
-      </div>
     </div>
   );
-};
+}
