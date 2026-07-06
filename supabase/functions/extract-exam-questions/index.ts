@@ -1402,15 +1402,19 @@ WHAT TO EXTRACT FROM THE PAPER (style signals only, never wording):
 - Which command words are used (Describe, Explain, Evaluate, Calculate, etc.)
 - The cognitive demand and difficulty level
 - The types of data students are expected to handle (graphs, tables, diagrams)
+- The NUMBERING STRUCTURE: whether questions have sub-parts in any notation (1(a)/(b), 5.1/5.2, 1.1/1.2) and roughly how many parts per question
 
 USE THESE STYLE SIGNALS to write questions that:
 - Cover the same topics with entirely new contexts and scenarios
 - Match the same mark tariffs and command-verb distribution
 - Provide equivalent data in fresh tables / graphs that you generate yourself
 - Test the same skills at the same difficulty level
+- REPRODUCE the same multi-part hierarchy: if the original groups parts under parents, your questions MUST too (canonical 1(a) form)
 
 PAPER STYLE REFERENCE (first section only — DO NOT COPY):
-${pdfContent.slice(0, 8000)}
+${pdfContent.slice(0, 6000)}
+[... middle of paper ...]
+${pdfContent.length > 8000 ? pdfContent.slice(8000, 14000) : ''}
 
 IMPORTANT: The above is style reference only. Generate completely new questions.
 Every scenario, every number, every named entity, every context must be original.
