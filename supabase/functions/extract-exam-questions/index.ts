@@ -19,6 +19,174 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type OriginalStructurePart = {
+  original: string;
+  canonical: string;
+  parent: string;
+  partIndex: number;
+  marks: number | null;
+};
+
+type OriginalQuestionStructure = {
+  notation: 'numeric_decimal' | 'lettered' | 'mixed';
+  parts: OriginalStructurePart[];
+  parentCount: number;
+  totalPartCount: number;
+  blueprint: string;
+};
+
+const PART_LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+function canonicalPart(parent: string, partIndex: number): string {
+  return `${parent}(${PART_LETTERS[Math.max(0, partIndex - 1)] || partIndex})`;
+}
+
+function normaliseParentNumber(raw: string): string {
+  const parsed = parseInt(raw.replace(/^0+/, '') || '0', 10);
+  return String(parsed || raw);
+}
+
+function extractMarksNear(text: string, fromIndex: number): number | null {
+  const window = text.slice(fromIndex, fromIndex + 260);
+  const match = window.match(/\[\s*(\d{1,2})\s*marks?\s*\]/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function buildStructureBlueprint(parts: OriginalStructurePart[], notation: OriginalQuestionStructure['notation']): OriginalQuestionStructure {
+  const byParent = new Map<string, OriginalStructurePart[]>();
+  for (const part of parts) {
+    if (!byParent.has(part.parent)) byParent.set(part.parent, []);
+    byParent.get(part.parent)!.push(part);
+  }
+
+  const sortedParents = [...byParent.keys()].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const lines = sortedParents.map((parent) => {
+    const parentParts = byParent.get(parent)!.sort((a, b) => a.partIndex - b.partIndex);
+    const canonical = parentParts.map((p) => p.canonical).join(', ');
+    const original = parentParts.map((p) => p.original).join(', ');
+    const marks = parentParts.map((p) => p.marks ?? '?').join(', ');
+    return `Parent ${parent}: ${parentParts.length} parts (${canonical}); source numbering: ${original}; marks: ${marks}`;
+  });
+
+  return {
+    notation,
+    parts,
+    parentCount: sortedParents.length,
+    totalPartCount: parts.length,
+    blueprint: lines.join('\n'),
+  };
+}
+
+function detectOriginalQuestionStructure(pdfText: string): OriginalQuestionStructure | null {
+  if (!pdfText || pdfText.length < 100) return null;
+  const parts: OriginalStructurePart[] = [];
+  const seen = new Set<string>();
+
+  // AQA/OCR-style numeric sub-parts can be extracted as "0 5 . 2", "05.2", or "5.2".
+  const numericRegex = /(?:^|[^\d])(?:0\s*)?([1-9]\d?)\s*\.\s*([1-9]\d?)(?!\s*\d)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
+  let match: RegExpExecArray | null;
+  while ((match = numericRegex.exec(pdfText)) !== null) {
+    const parent = normaliseParentNumber(match[1]);
+    const partIndex = parseInt(match[2], 10);
+    if (partIndex < 1 || partIndex > 8) continue;
+    const key = `${parent}.${partIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push({
+      original: `${parent}.${partIndex}`,
+      canonical: canonicalPart(parent, partIndex),
+      parent,
+      partIndex,
+      marks: extractMarksNear(pdfText, match.index),
+    });
+  }
+
+  // Conventional 1(a), 1 (a), Q1a style as a fallback for other boards.
+  const letterRegex = /(?:^|[^\w])(?:Q(?:uestion)?\s*)?([1-9]\d?)\s*(?:\(([a-h])\)|([a-h])\b)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
+  while ((match = letterRegex.exec(pdfText)) !== null) {
+    const parent = normaliseParentNumber(match[1]);
+    const letter = (match[2] || match[3] || '').toLowerCase();
+    const partIndex = PART_LETTERS.indexOf(letter) + 1;
+    if (partIndex < 1) continue;
+    const key = `${parent}.${partIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push({
+      original: `${parent}(${letter})`,
+      canonical: canonicalPart(parent, partIndex),
+      parent,
+      partIndex,
+      marks: extractMarksNear(pdfText, match.index),
+    });
+  }
+
+  const grouped = new Map<string, OriginalStructurePart[]>();
+  for (const part of parts) {
+    if (!grouped.has(part.parent)) grouped.set(part.parent, []);
+    grouped.get(part.parent)!.push(part);
+  }
+
+  const credibleParts = [...grouped.values()]
+    .filter((group) => group.length >= 2)
+    .flat()
+    .sort((a, b) => parseInt(a.parent, 10) - parseInt(b.parent, 10) || a.partIndex - b.partIndex);
+
+  if (credibleParts.length < 2) return null;
+  const hasNumeric = credibleParts.some((p) => /^\d+\.\d+$/.test(p.original));
+  const hasLettered = credibleParts.some((p) => /\([a-h]\)$/.test(p.original));
+  return buildStructureBlueprint(credibleParts, hasNumeric && hasLettered ? 'mixed' : hasNumeric ? 'numeric_decimal' : 'lettered');
+}
+
+function buildOriginalStructurePromptBlock(structure: OriginalQuestionStructure | null): string {
+  if (!structure) return '';
+  return `## DETECTED ORIGINAL QUESTION STRUCTURE — HARD FORMAT REQUIREMENT
+The uploaded paper uses multi-part parent questions. Mirror this hierarchy.
+
+Detected source structure:
+${structure.blueprint}
+
+Rules:
+- Generate ${structure.parentCount} parent questions and ${structure.totalPartCount} separate part rows unless a later explicit count/profile overrides this.
+- Numeric source notation such as 5.1 / 5.2 is NOT a decimal value; it means parent question 5, part 1 / part 2.
+- Return the app's canonical notation only: 1(a), 1(b), 2(a), 2(b), etc.
+- Set parent_question_number to the parent number, and root_question_number to the same parent number for every part.
+- Do not flatten these parts into standalone questions.`;
+}
+
+function repairFlatQuestionsToOriginalStructure(questions: any[], structure: OriginalQuestionStructure | null): any[] {
+  if (!structure || !questions.length) return questions;
+  const hasParents = questions.some((q) => q.parent_question_number || /\(\s*[a-z]\s*\)|\.\d+/.test(String(q.question_number || '')));
+  if (hasParents) {
+    return questions.map((q) => {
+      const numeric = String(q.question_number || '').match(/^(\d+)\.(\d+)$/);
+      if (!numeric) return q;
+      const parent = normaliseParentNumber(numeric[1]);
+      const partIndex = parseInt(numeric[2], 10);
+      return {
+        ...q,
+        question_number: canonicalPart(parent, partIndex),
+        parent_question_number: q.parent_question_number || parent,
+        root_question_number: q.root_question_number || parent,
+      };
+    });
+  }
+
+  const orderedParts = structure.parts.slice().sort((a, b) => parseInt(a.parent, 10) - parseInt(b.parent, 10) || a.partIndex - b.partIndex);
+  if (questions.length < Math.min(2, orderedParts.length)) return questions;
+
+  console.log(`[format] repaired flat output into canonical sub-parts: ${questions.length} rows using detected ${orderedParts.length}-part blueprint`);
+  return questions.map((q, index) => {
+    const part = orderedParts[index] || orderedParts[orderedParts.length - 1];
+    return {
+      ...q,
+      question_number: part.canonical,
+      parent_question_number: part.parent,
+      root_question_number: part.parent,
+      marks: q.marks || part.marks || 1,
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
