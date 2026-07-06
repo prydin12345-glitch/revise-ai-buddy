@@ -458,7 +458,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     desiredWrittenCount: desiredWrittenCount ?? 0,
     // 'original' when the user asked to mirror the uploaded paper and made no
     // explicit structure choice — resolves the standalone-default contradiction.
-    questionStructure: (formatData?.question_structure === 'hierarchical'
+    questionStructure: (formatData?.question_structure === 'original'
+        || formatData?.question_structure === 'hierarchical'
+        || detectedOriginalStructure
         || (formatData?.use_original_structure !== false && (formatData?.question_structure ?? 'standalone') === 'standalone'))
       ? 'original'
       : (formatData?.question_structure ?? 'standalone'),
@@ -484,6 +486,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     isElectricalEngineering,
     hasDeltaWyeTopic,
     insertPromptBlock,
+    originalStructurePromptBlock: buildOriginalStructurePromptBlock(detectedOriginalStructure),
   });
 
   let extractionPrompt = extractionPrompt_raw;
