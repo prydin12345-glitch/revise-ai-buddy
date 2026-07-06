@@ -396,6 +396,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   });
 
   questions = questions.map((question: any) => {
+    const hasDiagram = !!(question.diagramConfig || question.diagram_config);
+    const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', hasDiagram ? question.diagramConfig || question.diagram_config : null);
     if (!hasBrokenRef) {
       return question;
     }
