@@ -33,6 +33,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { InsertPanel } from "@/components/insert/InsertPanel";
 
 interface Question {
   id: string;
