@@ -360,7 +360,6 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const subjectLower = (exam.subject_id || '').toLowerCase();
   const isCustomNicheForValidation = !COMMON_SUBJECTS.some(s => subjectLower.includes(s));
   console.log('Is custom niche subject:', isCustomNicheForValidation, '| Subject:', exam.subject_id);
-  const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
 
   // Fetch user's curriculum_region for stealth framework
   let curriculumRegion: string | null = null;
@@ -399,17 +398,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     hasResourcePack = packResult.hasResourcePack;
   }
 
-  // Download and extract PDF text (optional reference file)
-  const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
-  if (!exam.file_url) {
-    console.log('No reference file found; generating from selected profile/topics and settings');
-  }
-  const useFallbackMode = pdfText.length < 100;
-
   // Determine desired PARENT question count and MCQ/written split
-  // exam_format is a one-to-one relation — PostgREST returns an object (not array)
-  const rawFormat = exam.exam_format;
-  const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
