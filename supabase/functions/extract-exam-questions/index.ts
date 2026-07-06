@@ -1525,13 +1525,17 @@ CRITICAL JSON RULES:
 - parent_question_number is null for standalone questions and MCQs
 - root_question_number equals question_number for standalone questions and MCQs
 - options must be null for written questions, never an empty array
-${(questionStructure === 'sub_questions' || questionStructure === 'mixed') ? `
-SUB-PART FORMAT (MANDATORY for this paper's structure):
+
+SUB-PART FORMAT:
 A parent question's parts are emitted as SEPARATE question objects sharing a parent:
   {"question_number": "1(a)", "parent_question_number": "1", "root_question_number": "1", ...}
   {"question_number": "1(b)", "parent_question_number": "1", "root_question_number": "1", ...}
 Parts of one parent share a scenario/figure and escalate in demand: (a) lowest marks, final part highest.
-${questionStructure === 'sub_questions' ? 'EVERY written question in this paper MUST belong to a parent — standalone written questions like a bare "1", "2", "3" are a FORMAT ERROR and will be rejected.' : 'Mix genuine multi-part parents with standalone questions as specified above.'}` : ''}`;
+${questionStructure === 'sub_questions'
+  ? 'EVERY written question in this paper MUST belong to a parent — standalone written questions like a bare "1", "2", "3" are a FORMAT ERROR and will be rejected.'
+  : questionStructure === 'mixed'
+  ? 'Mix genuine multi-part parents with standalone questions as specified above.'
+  : 'Use this format whenever the reference paper (or the subject\'s real exam convention) uses multi-part questions — reproduce that structure faithfully. Otherwise emit standalone questions.'}`;
 
   // ── MEDIA INSTRUCTIONS (based on include_graphs/tables/diagrams) ────────
   const mediaInstruction = (() => {
