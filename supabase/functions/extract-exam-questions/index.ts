@@ -600,8 +600,49 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     return { ...question, diagramConfig: result.config, diagram_config: result.config };
   });
 
+  // ── FIGURE-REFERENCE GATE (Phase 3) ──────────────────────────────────────
+  // Deterministic enforcement of the figure/question contract:
+  //  1. A question may only reference figures that actually exist in the insert.
+  //  2. Calculation demands may only target data_table figures — categorical
+  //     maps (colour bands) cannot support precise arithmetic. This was the
+  //     "unanswerable Q2(b)" class of failure.
+  const CALC_DEMAND_RE = /\bcalculat|difference between|to the nearest|percentage|per\s?cent\b|\bmean\b|\bmedian\b|\bsum of\b|how many (more|fewer|times)|times (greater|higher|larger)/i;
+  const figByNum = new Map(insertFigures.map((f: any) => [String(f.figureNumber), f]));
+  const beforeFigGate = questions.length;
+  questions = questions.filter((q: any) => {
+    const text = String(q.question_text || '');
+    const refs = [...text.matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
+    if (refs.length === 0) return true;
+    for (const n of refs) {
+      const fig = figByNum.get(n);
+      if (!fig) {
+        console.warn(`[figgate] Q${q.question_number} references Figure ${n}, which does not exist in the insert — dropped`);
+        return false;
+      }
+      if (fig.type === 'map_points' && CALC_DEMAND_RE.test(text)) {
+        console.warn(`[figgate] Q${q.question_number} demands calculation from categorical map Figure ${n} — dropped (maps carry bands, not raw values)`);
+        return false;
+      }
+    }
+    return true;
+  });
+  if (beforeFigGate !== questions.length) {
+    console.log(`[figgate] removed ${beforeFigGate - questions.length} figure-contract violations`);
+  }
+
+  // Legitimate insert-figure references must NOT be treated as broken diagram
+  // references — that scrubber predates the insert system (it fired on valid
+  // Figure 1 questions in production audits).
+  const referencesValidInsertFigure = (text: string): boolean => {
+    const refs = [...String(text || '').matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
+    return refs.length > 0 && refs.every((n) => figByNum.has(n));
+  };
+
   questions = questions.map((question: any) => {
     const hasDiagram = !!(question.diagramConfig || question.diagram_config);
+    if (referencesValidInsertFigure(question.question_text || '')) {
+      return question; // valid insert reference — not a broken diagram ref
+    }
     const hasBrokenRef = hasBrokenDiagramReference(question.question_text || '', hasDiagram ? question.diagramConfig || question.diagram_config : null);
     if (!hasBrokenRef) {
       return question;
