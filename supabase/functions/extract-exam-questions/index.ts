@@ -513,6 +513,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
+  questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
+
   // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
   // Drop questions that reference an external paper insert / resource booklet /
   // separate sheet — the student has no access to that material.
