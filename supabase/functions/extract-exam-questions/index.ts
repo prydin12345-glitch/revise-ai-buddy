@@ -83,7 +83,7 @@ function detectOriginalQuestionStructure(pdfText: string): OriginalQuestionStruc
   const seen = new Set<string>();
 
   // AQA/OCR-style numeric sub-parts can be extracted as "0 5 . 2", "05.2", or "5.2".
-  const numericRegex = /(?:^|[^\d])(?:0\s*)?([1-9]\d?)\s*\.\s*([1-9]\d?)(?!\s*\d)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
+  const numericRegex = /(?:^|[^\dA-Za-z])(?:0\s*)?([1-9]\d?)\s*\.\s*([1-9]\d?)(?!\s*\d)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
   let match: RegExpExecArray | null;
   while ((match = numericRegex.exec(pdfText)) !== null) {
     const parent = normaliseParentNumber(match[1]);
