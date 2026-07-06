@@ -1200,6 +1200,7 @@ function buildPrompt(params: {
     suppressDiagrams = false,
     isElectricalEngineering = false,
     hasDeltaWyeTopic = false,
+    insertPromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
