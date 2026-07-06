@@ -1171,6 +1171,7 @@ function buildPrompt(params: {
   suppressDiagrams?: boolean;
   isElectricalEngineering?: boolean;
   hasDeltaWyeTopic?: boolean;
+  insertPromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
