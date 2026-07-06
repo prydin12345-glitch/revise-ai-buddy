@@ -278,9 +278,10 @@ const ExamReview = () => {
 
       const { data: exam } = await supabase
         .from('exams')
-        .select('grade_released, assigned_by')
+        .select('grade_released, assigned_by, insert_figures')
         .eq('id', examId)
         .single();
+      setInsertFigures(Array.isArray((exam as any)?.insert_figures) ? (exam as any).insert_figures : []);
 
       const isAssignedExam = assignment || exam?.assigned_by;
       const gradesReleased = assignment?.is_grades_released || exam?.grade_released;
