@@ -126,9 +126,23 @@ function detectOriginalQuestionStructure(pdfText: string): OriginalQuestionStruc
     grouped.get(part.parent)!.push(part);
   }
 
-  const credibleParts = [...grouped.values()]
-    .filter((group) => group.length >= 2)
-    .flat()
+  const credibleParts = [...grouped.entries()]
+    .filter(([, group]) => group.length >= 2)
+    .flatMap(([parent, group]) => {
+      const byIndex = new Map(group.map((part) => [part.partIndex, part]));
+      const maxPartIndex = Math.max(...group.map((part) => part.partIndex));
+      const filled: OriginalStructurePart[] = [];
+      for (let partIndex = 1; partIndex <= maxPartIndex; partIndex++) {
+        filled.push(byIndex.get(partIndex) ?? {
+          original: `${parent}.${partIndex}`,
+          canonical: canonicalPart(parent, partIndex),
+          parent,
+          partIndex,
+          marks: null,
+        });
+      }
+      return filled;
+    })
     .sort((a, b) => parseInt(a.parent, 10) - parseInt(b.parent, 10) || a.partIndex - b.partIndex);
 
   if (credibleParts.length < 2) return null;
