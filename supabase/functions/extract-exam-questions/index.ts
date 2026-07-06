@@ -7,7 +7,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts"
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
-import { validateMapFigure, buildMapFigurePrompt } from "../_shared/insert-figures.ts";
+import { validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -298,55 +298,57 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // For insert-capable subjects, generate + validate a map figure BEFORE the
   // questions, so the question prompt can reference the figure's REAL data.
   const INSERT_CAPABLE = /geograph|history|environment|earth science/i;
-  let insertFigure: any = null;
+  let insertFigures: any[] = [];
   let insertPromptBlock = '';
-  console.log(`[insert] includeInsert=${includeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);
-  if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
+  console.log(`[insert] includeInsert=${includeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);  if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
     try {
-      const figPrompt = buildMapFigurePrompt(
+      const topicsForFigures: string[] = (Array.isArray(bodyTopics) && bodyTopics.length > 0)
+        ? bodyTopics
+        : ((exam.exam_specifications || []) as any[]).map((s: any) => s.topic_name || s).filter(Boolean);
+      const figPrompt = buildInsertFiguresPrompt(
         `${exam.subject_id} exam at ${exam.qualification_level || 'GCSE/A-Level'} level` +
-        (exam.notes ? `. Focus: ${String(exam.notes).slice(0, 200)}` : '')
+        (exam.notes ? `. Focus: ${String(exam.notes).slice(0, 200)}` : ''),
+        topicsForFigures
       );
       const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: figPrompt + '\nReturn ONLY the JSON object.' }],
+          messages: [{ role: 'user', content: figPrompt }],
           temperature: 0.4,
         }),
       });
-      if (!figResp.ok) console.error('[insert] AI figure call failed:', figResp.status);
+      if (!figResp.ok) console.error('[insert] AI figures call failed:', figResp.status);
       if (figResp.ok) {
         const figData = await figResp.json();
         const raw = figData.choices?.[0]?.message?.content || '';
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
-          const validation = validateMapFigure(JSON.parse(jsonMatch[0]));
-          if (validation.rejectedPoints.length > 0) {
-            console.log('Insert figure: rejected points —', validation.rejectedPoints.map((r: any) => `${r.name} (${r.reason})`).join('; '));
-          }
-          if (validation.ok && validation.figure) {
-            insertFigure = { ...validation.figure, figureNumber: '1' };
-            const { error: figSaveErr } = await supabase.from('exams').update({ insert_figures: [insertFigure] }).eq('id', draftId);
+          const { figures, rejected } = validateInsertFigures(JSON.parse(jsonMatch[0]));
+          if (rejected.length) console.warn('[insert] rejected figures:', rejected.join(' | '));
+          if (figures.length > 0) {
+            const { error: figSaveErr } = await supabase.from('exams').update({ insert_figures: figures }).eq('id', draftId);
             if (figSaveErr) {
-              // Column missing (migration not applied?) or write failure — do NOT
-              // let questions reference a figure that isn't saved.
               console.error('[insert] FIGURE SAVE FAILED (is the insert_figures migration applied?):', figSaveErr.message);
-              insertFigure = null;
-            }
-            if (insertFigure) {
-            const pointSummary = insertFigure.points
-              .map((pt: any) => `${pt.name} (${pt.category})`)
-              .join(', ');
-            const hierarchyRule = useOriginalStructure && detectedOriginalStructure
-              ? 'Place any Figure 1 questions inside the detected parent/sub-part hierarchy; do NOT create a small standalone Figure-only paper.'
-              : 'Write 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons).';
-            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\n${hierarchyRule} Do NOT invent data that is not in the figure. The map labels every point with its place name, so identification questions (\\"identify the city with...\\") are answerable. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
-            console.log('[insert] figure generated:', insertFigure.points.length, 'points');
+            } else {
+              insertFigures = figures;
+              const figLines = figures.map((f: any) => {
+                if (f.type === 'map_points') {
+                  const pts = f.points.map((pt: any) => `${pt.name} (${pt.category}${typeof pt.value === 'number' ? `, ${pt.value}` : ''})`).join(', ');
+                  return `Figure ${f.figureNumber}: "${f.title}" — UK map (labelled points): ${pts}. Categories: ${f.categories.map((ct: any) => ct.label).join(', ')}. Supports pattern/distribution/identification questions ONLY — its data is categorical, so NO precise calculations from this figure.`;
+                }
+                const sample = f.rows.slice(0, 3).map((r: any[]) => r.join(' / ')).join('; ');
+                return `Figure ${f.figureNumber}: "${f.title}" — data table, columns [${f.columns.join(', ')}], ${f.rows.length} rows of RAW numeric values (e.g. ${sample}). Supports calculation and precise comparison questions.`;
+              }).join('\n');
+              const hierarchyRule = useOriginalStructure && detectedOriginalStructure
+                ? 'Place figure questions inside the detected parent/sub-part hierarchy; do NOT create a small standalone figure-only paper.'
+                : 'Spread figure questions through the paper following its structure.';
+              insertPromptBlock = `\n## INSERT FIGURES AVAILABLE (${figures.length})\n${figLines}\nRULES:\n- Each figure must be referenced by AT LEAST 1 and AT MOST 3 questions — never stretch one figure across the whole paper.\n- Match question type to figure type: calculations ONLY against data tables (raw numbers); pattern/distribution against maps.\n- Every figure question must instruct: "Support your answer with data from Figure N."\n- ${hierarchyRule}\n- Do NOT invent data not present in a figure. All other questions must NOT mention any figure.\n`;
+              console.log('[insert] figures generated:', figures.map((f: any) => `${f.figureNumber}:${f.type}`).join(', '));
             }
           } else {
-            console.warn('[insert] figure failed validation — exam proceeds without insert:', validation.reasons.join('; '));
+            console.warn('[insert] no figures survived validation — exam proceeds without insert');
           }
         }
       }
