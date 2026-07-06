@@ -6,7 +6,7 @@
 // COASTAL_BUFFER_DEG tolerance (~5km) absorbs estuary/port towns that sit a
 // hair offshore at this resolution (Liverpool, Dover — found in the PoC).
 
-export interface MapFigurePoint { name: string; lat: number; lng: number; category: string; }
+export interface MapFigurePoint { name: string; lat: number; lng: number; category: string; value?: number; }
 export interface MapFigureCategory { id: string; label: string; color: string; }
 export interface MapFigureData {
   figureNumber?: string;      // e.g. "2" -> rendered as "Figure 2"
@@ -87,7 +87,10 @@ export function validateMapFigure(raw: any): MapFigureValidation {
     if (!isOnUkLand(p.lng, p.lat)) {
       rejectedPoints.push({ name, reason: "not on UK land (incl. 5km coastal buffer)" }); continue;
     }
-    clean.push({ name, lat: p.lat, lng: p.lng, category: p.category });
+    const point: MapFigurePoint = { name, lat: p.lat, lng: p.lng, category: p.category };
+    // Optional quantitative value -> proportional circle size on the map.
+    if (typeof p.value === "number" && isFinite(p.value) && p.value >= 0) point.value = p.value;
+    clean.push(point);
   }
 
   if (rejectedPoints.length > 0) reasons.push(`${rejectedPoints.length} point(s) rejected`);
@@ -118,11 +121,12 @@ geographic data — you only supply points). Output JSON:
   "type": "map_points", "region": "uk",
   "title": "<figure title, exam register>",
   "categories": [{"id":"<snake_case>","label":"<Key label>","color":"<hex>"}],   // 3-5 categories
-  "points": [{"name":"<nearby town>","lat":<num>,"lng":<num>,"category":"<id>"}] // 12-25 points
+  "points": [{"name":"<nearby town>","lat":<num>,"lng":<num>,"category":"<id>","value":<num, optional>}] // 12-25 points
 }
 Rules:
 - Real UK locations with accurate lat/lng, spread across England, Wales and Scotland.
 - Every point's category must be one of your declared category ids.
 - The spatial pattern MUST be describable (e.g. a clear north-west/south-east gradient) so exam questions can reference it.
+- OPTIONAL: when the data is quantitative (population, rainfall mm, visitor numbers), give every point a numeric "value" — it renders as PROPORTIONAL CIRCLES (bigger circle = bigger value), like a real proportional-symbol map. Use values with a describable range (e.g. 40 to 900), and either all points have a value or none do.
 - Context: ${subjectContext}`;
 }
