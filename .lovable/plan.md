@@ -1,57 +1,63 @@
-## What's actually happening
+## What I found
 
-Your Geography subject is fine. Both profiles are saved correctly on the account (`GP1` and `GP2`, both under `subject_name = "Geography"`), and they are linked to the subject by name — not by any preset id. So there is no clash between a "preset Geography" and your Geography.
+This does not look like the AI “lacking authority” to convert `5.1 / 5.2` into `5(a) / 5(b)`.
 
-The real bug is in the exam-creation screens. When you pick a subject, the code decides whether to open the "Use your custom curriculum?" picker with this check:
+The more likely causes are:
 
-```ts
-const topics = getTopicsForSubject(newSubject);
-if (topics.length > 1) setShowProfilePrompt(true);
-```
+1. **The saved format is contradictory**
+   - `use_original_structure = true`, but `question_structure = standalone` is still being saved.
+   - Even though the extractor has some compensation for this, the database still tells later steps/defaults that the exam is standalone.
 
-It only opens the picker when the subject has more than one manually-added master topic. For Geography you have **0 master topics** but **2 exam profiles**, so the picker never opens and the exam form falls back to the default flow — which is why it looks like the profiles were ignored.
+2. **The uploaded AQA PDF uses numeric sub-part notation**
+   - The attached PDF clearly uses grouped parts like:
+     - `0 1 . 1`, `0 1 . 2`, `0 1 . 3`, `0 1 . 4`
+     - `0 2 . 1`, `0 2 . 2`, etc.
+   - These should be treated as parent Question 1 with parts `(a)-(d)`, parent Question 2 with parts `(a)-(d)`, etc.
 
-The same check exists in three places:
+3. **The generated insert prompt is hijacking the structure**
+   - For recent exam `1G`, the extractor generated a Figure 1 insert and then strongly asked the AI to write `2-3` Figure 1 questions.
+   - The saved output became exactly a small standalone set about the generated rainfall figure, not a mirrored AQA paper structure.
 
-- `src/pages/CreateExam.tsx` (`handleSubjectChange`)
-- `src/pages/CreatePracticeQuestions.tsx` (`handleSubjectChange`)
-- `src/pages/tutor/CreateTutorExam.tsx` (`handleSubjectChange`)
+4. **There is no hard post-generation validation**
+   - The prompt asks for original hierarchy, but if the AI returns flat questions, the app currently accepts them.
+   - That is why repeated attempts can keep producing standalone questions.
 
-The picker component (`CurriculumPromptModal`) already accepts `profiles` and knows how to render them — the modal itself is fine.
+## Plan to fix it
 
-## The fix
+1. **Fix format saving**
+   - Update `save-exam-format` so when no profile is selected and `useOriginal` is true, it saves a structure value that means “mirror original paper”, not `standalone`.
+   - Keep profile-locked/custom formats unchanged.
 
-**1. Open the picker whenever the subject has saved profiles, not just when it has master topics.**
+2. **Add deterministic PDF structure detection**
+   - In `extract-exam-questions`, parse the extracted PDF text before prompting.
+   - Detect patterns like:
+     - `0 1 . 1`, `01.1`, `1.1`, `5.2`
+     - `1(a)`, `1 b`, `(i)/(ii)` where applicable
+   - Convert detected numeric structures into canonical app numbering:
+     - `0 1 . 1` → `1(a)`
+     - `0 1 . 2` → `1(b)`
+     - `0 2 . 1` → `2(a)`
 
-In each of the three files above, change the trigger inside `handleSubjectChange` to:
+3. **Pass a concrete structure blueprint to the AI**
+   - Add a prompt block like:
+     - Parent 1 has 4 parts: `1(a)-1(d)`, marks `4,6,6,20`
+     - Parent 2 has 4 parts: `2(a)-2(d)`, marks `4,6,6,20`
+   - This removes ambiguity around whether `5.1` is a decimal or a sub-question.
 
-```ts
-const topics = getTopicsForSubject(newSubject);
-const profiles = getProfilesForSubject(newSubject);
-if (profiles.length > 0 || topics.length > 1) {
-  setShowProfilePrompt(true);
-}
-```
+4. **Stop insert generation from overriding original structure**
+   - When `use_original_structure = true`, generated insert guidance should support the detected structure rather than demand a small standalone Figure 1 set.
+   - Figure questions can still exist, but they must sit inside the detected parent/part hierarchy.
 
-This makes the picker appear as soon as you pick a subject that has any saved exam profile (like your Geography), so `GP1` and `GP2` become selectable.
+5. **Add a validation/repair pass**
+   - If original structure was detected and the AI returns only standalone questions, repair or reject that output before saving.
+   - At minimum, renumber matching ordered outputs into canonical sub-parts and set:
+     - `parent_question_number`
+     - `root_question_number`
+   - Log a clear line such as:
+     - `[format] detected original structure: 5 parents, 20 parts`
+     - `[format] repaired flat output into canonical sub-parts`
 
-**2. Small polish to `CurriculumPromptModal`** so it still reads well when the user has profiles but no master topics (the "Practice All Saved Topics" section should be hidden when `masterTopics.length === 0`, leaving only the profile list and a "Start from scratch" option). No behaviour change beyond hiding an option that would do nothing.
-
-**3. Verify no other regressions.**
-
-- Confirm the deep-link path (`/create-exam?subject=Geography&profileId=…`) still auto-selects a profile — it already uses `getProfilesForSubject` directly and does not depend on the trigger, so it is unaffected.
-- Confirm `UploadExam.tsx` — it renders its own profile list inline via `getProfilesForSubject` and does not use the prompt trigger, so it already works and will not be touched.
-
-## Files changed
-
-- `src/pages/CreateExam.tsx` — widen the prompt trigger
-- `src/pages/CreatePracticeQuestions.tsx` — widen the prompt trigger
-- `src/pages/tutor/CreateTutorExam.tsx` — widen the prompt trigger
-- `src/components/exam/CurriculumPromptModal.tsx` — hide the "Practice All Saved Topics" block when there are no master topics
-
-## What is *not* the cause (so we don't chase it)
-
-- There is no "preset Geography vs custom Geography" clash. Profiles are keyed by `subject_name` (case-insensitive), and your row in `user_subjects` and both `subject_exam_profiles` rows all use `"Geography"`.
-- RLS and the data itself are fine — I read both profiles back from the database against your user id.
-
-After the change, choosing Geography on the Create Exam screen will immediately show the picker with `GP1` and `GP2`, and selecting one will apply its topics, question count, timing and structure to the exam as designed.
+6. **Deploy and verify**
+   - Deploy the extraction and format functions.
+   - Run a fresh upload/extraction against this same June 2020 AQA Geography PDF.
+   - Confirm the saved rows contain values like `1(a)` / `1(b)` and non-null `parent_question_number`.
