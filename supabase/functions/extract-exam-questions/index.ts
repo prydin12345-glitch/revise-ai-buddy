@@ -43,8 +43,8 @@ serve(async (req) => {
     // ── RATE LIMITING ──────────────────────────────────────────────────
     // PDF extraction is the most expensive AI operation in the app.
     const rateCheck = await enforceRateLimit(supabase, user.id, 'extract-exam-questions', {
-      dailyLimit: 20,
-      burstLimit: 5,
+      dailyLimit: 50,
+      burstLimit: 15,
       burstWindowMinutes: 10,
     });
     if (!rateCheck.allowed) {
