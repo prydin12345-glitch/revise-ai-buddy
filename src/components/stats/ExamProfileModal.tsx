@@ -14,10 +14,58 @@ import {
 } from "@/components/ui/popover";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import { TimeWheelPicker } from "./TimeWheelPicker";
-import { InlineTopicPicker } from "./InlineTopicPicker";
+import { TopicPickerDialog } from "./TopicPickerDialog";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
 import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+
+
+// Module-level so its identity is stable across renders — defining this inside
+// the component re-created the element type on every keystroke, remounting the
+// subtree and dropping input focus after one character.
+const SectionCard = ({ icon: Icon, title, hint, accent, children }: { icon: any; title: string; hint?: string; accent: string; children: React.ReactNode }) => (
+  <section className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+    <div className="flex items-center gap-2">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: accent + "1A", color: accent }}>
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
+    </div>
+    {children}
+  </section>
+);
+
+// 1. Humanise tier ids so users never see raw codes like "level3_a_level".
+const humaniseTier = (tier: string): string => {
+  const age = tier.match(/(\d{1,2})[_-](\d{1,2})/);
+  if (age) return `${age[1]}\u2013${age[2]} years`;
+  return tier
+    .replace(/^(level\d*|college|school)[_-]/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
+    .trim() || tier;
+};
+
+
+// Structure choices with a miniature exam-paper preview each.
+const STRUCTURE_PREVIEWS = [
+  {
+    id: "standalone",
+    label: "Standalone",
+    preview: ["Q1  Explain how erosion shapes\u2026", "Q2  Calculate the gradient of\u2026", "Q3  Describe the process of\u2026"],
+  },
+  {
+    id: "sub_questions",
+    label: "Sub-parts",
+    preview: ["Q1 (a) State the definition of\u2026", "     (b) Explain why this occurs\u2026", "     (c) Evaluate the impact of\u2026"],
+  },
+  {
+    id: "mixed",
+    label: "Mixed",
+    preview: ["Q1  Explain how erosion shapes\u2026", "Q2 (a) State the definition of\u2026", "     (b) Evaluate the impact of\u2026"],
+  },
+];
 
 export interface QuestionStructureSettings {
   questionStructure: string;
@@ -98,6 +146,22 @@ export const ExamProfileModal = ({
   const [mcqOptionsCount, setMcqOptionsCount] = useState(4);
   const [includeGraphs, setIncludeGraphs] = useState(false);
   const [includeTables, setIncludeTables] = useState(false);
+
+  // Structure sync (single source of truth): with sub-parts, the written
+  // count IS parents × parts — the slider locks and derives. With mixed,
+  // parents are a subset of the written questions.
+  const structureLocksWritten = !isMcqOnlyProfile && questionStructure === "sub_questions";
+  useEffect(() => {
+    if (structureLocksWritten) {
+      const derived = Math.min(20, parentQuestionCount * maxPartsPerQuestion);
+      if (writtenCount !== derived) setWrittenCount(derived);
+    }
+  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion]);
+  useEffect(() => {
+    if (!isMcqOnlyProfile && questionStructure === "mixed" && parentQuestionCount > writtenCount) {
+      setParentQuestionCount(Math.max(1, writtenCount));
+    }
+  }, [questionStructure, writtenCount]);
 
   const totalQuestionCount = writtenCount + mcqCount;
   const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
@@ -209,19 +273,6 @@ export const ExamProfileModal = ({
     { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
-  const SectionCard = ({ icon: Icon, title, hint, children }: { icon: any; title: string; hint?: string; children: React.ReactNode }) => (
-    <section className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: subjectColor + "1A", color: subjectColor }}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
-      </div>
-      {children}
-    </section>
-  );
-
   const canSave = !!profileName.trim() && selectedTopics.length > 0;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
@@ -246,9 +297,9 @@ export const ExamProfileModal = ({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties}>
           {/* ── Basics ── */}
-          <SectionCard icon={User} title="Basics">
+          <SectionCard accent={subjectColor} icon={User} title="Basics">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="profile-name" className="text-xs text-muted-foreground">Profile name</Label>
@@ -268,14 +319,14 @@ export const ExamProfileModal = ({
                       <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
                         {educationalTier
                           ? (educationalTier === "other"
-                              ? "Other — specify below"
-                              : ALL_LEVELS.find(l => l.id === educationalTier)?.label || educationalTier)
+                              ? "Other qualification"
+                              : ALL_LEVELS.find(l => l.id === educationalTier)?.label || humaniseTier(educationalTier))
                           : "Select level..."}
                       </span>
                       <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties} align="start">
                     {EDUCATIONAL_LEVELS.map((group) => (
                       <div key={group.group}>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
@@ -329,7 +380,7 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {/* ── Questions ── */}
-          <SectionCard icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
+          <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -339,6 +390,7 @@ export const ExamProfileModal = ({
                 <Slider
                   min={0} max={20} step={1}
                   value={[writtenCount]}
+                  disabled={structureLocksWritten}
                   onValueChange={(v) => {
                     const newVal = v[0];
                     if (newVal === 0 && mcqCount === 0) return;
@@ -346,6 +398,11 @@ export const ExamProfileModal = ({
                   }}
                   style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties}
                 />
+                {structureLocksWritten && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Set by your structure: {parentQuestionCount} question{parentQuestionCount === 1 ? "" : "s"} \u00d7 {maxPartsPerQuestion} parts = {writtenCount} written parts
+                  </p>
+                )}
                 {writtenCount >= 15 && (
                   <p className="text-[11px] text-orange-400">⚠ {writtenCount} written questions may reduce quality</p>
                 )}
@@ -371,115 +428,133 @@ export const ExamProfileModal = ({
               </div>
             </div>
 
-            {/* Structure */}
-            <div className="pt-1 space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                {isMcqOnlyProfile ? "Answer options" : "How should written questions be organised?"}
-              </Label>
-              {isMcqOnlyProfile ? (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MCQ_STRUCTURE_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setMcqOptionsCount(option.id)}
-                        className={`rounded-lg border p-3 text-left transition-all ${
-                          mcqOptionsCount === option.id
-                            ? "border-primary bg-primary/10"
-                            : "border-border/50 bg-card/60 hover:bg-card"
-                        }`}
-                      >
-                        <div className="text-xs font-semibold text-foreground">{option.label}</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium">Include graph-based questions</p>
-                        <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
-                      </div>
-                      <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
+          </SectionCard>
+
+          {/* ── Structure ── */}
+          <SectionCard accent={subjectColor} icon={ListChecks} title={isMcqOnlyProfile ? "Answer options" : "Structure"} hint={isMcqOnlyProfile ? undefined : "how written questions are organised"}>
+            {isMcqOnlyProfile ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {MCQ_STRUCTURE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setMcqOptionsCount(option.id)}
+                      className={`rounded-lg border p-3 text-left transition-all ${
+                        mcqOptionsCount === option.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border/50 bg-card/60 hover:bg-card"
+                      }`}
+                    >
+                      <div className="text-xs font-semibold text-foreground">{option.label}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">Include graph-based questions</p>
+                      <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium">Include table/data questions</p>
-                        <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
-                      </div>
-                      <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
-                    </div>
+                    <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {STRUCTURE_OPTIONS.map((option) => (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">Include table/data questions</p>
+                      <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
+                    </div>
+                    <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {STRUCTURE_PREVIEWS.map((option) => {
+                    const active = questionStructure === option.id;
+                    return (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => setQuestionStructure(option.id)}
-                        className={`rounded-lg border p-2.5 text-left transition-all ${
-                          questionStructure === option.id
-                            ? "border-primary bg-primary/10"
-                            : "border-border/50 bg-card/60 hover:bg-card"
+                        className={`group rounded-xl border-2 p-3.5 text-left transition-all duration-200 hover:scale-[1.03] ${
+                          active ? "scale-[1.03] shadow-lg" : "border-border/50 bg-card/60 hover:shadow-md"
                         }`}
+                        style={active ? { borderColor: subjectColor, backgroundColor: subjectColor + "0D" } : undefined}
                       >
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <span>{option.icon}</span>
-                          {option.label}
-                          {questionStructure === option.id && <Check className="h-3 w-3 text-primary ml-auto" />}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-foreground">{option.label}</span>
+                          {active && (
+                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full" style={{ backgroundColor: subjectColor }}>
+                              <Check className="h-2.5 w-2.5 text-white" />
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{option.example}</div>
+                        {/* Mini exam-paper preview */}
+                        <div className="rounded-md border border-border/60 bg-background px-2.5 py-2 space-y-1">
+                          {option.preview.map((line, i) => (
+                            <p key={i} className="text-[10px] leading-snug font-serif text-foreground/75 truncate">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
+                </div>
 
-                  {/* Multi-part configuration — restored: was saved but had no UI */}
-                  {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
-                    <div className="rounded-lg border border-border/40 bg-muted/30 p-3 grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">Parent questions</Label>
-                          <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
-                        </div>
-                        <Slider min={1} max={10} step={1} value={[parentQuestionCount]}
-                          onValueChange={(v) => setParentQuestionCount(v[0])}
-                          style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
+                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
+                    <p className="text-[11px] text-muted-foreground">
+                      {questionStructure === "sub_questions"
+                        ? `${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"}, each with up to ${maxPartsPerQuestion} parts \u2014 ${parentQuestionCount * maxPartsPerQuestion} written parts in total.`
+                        : `${parentQuestionCount} of your ${writtenCount} written questions will have sub-parts; the other ${Math.max(0, writtenCount - parentQuestionCount)} are standalone.`}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] text-muted-foreground">Questions with parts</Label>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
                       </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">Max parts each (a, b, c…)</Label>
-                          <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
-                        </div>
-                        <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
-                          onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
-                          style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
-                      </div>
+                      <Slider min={1} max={10} step={1} value={[parentQuestionCount]}
+                        onValueChange={(v) => setParentQuestionCount(v[0])}
+                        style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] text-muted-foreground">Parts per question (a, b, c\u2026)</Label>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
+                      </div>
+                      <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
+                        onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
+                        style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
+                    </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </SectionCard>
 
           {/* ── Topics ── */}
           <SectionCard
+            accent={subjectColor}
             icon={BookOpen}
             title="Topics"
             hint={selectedTopics.length ? `${selectedTopics.length} selected` : "pick at least one"}
           >
-            <InlineTopicPicker
+            <TopicPickerDialog
               allTopics={allTopics}
               selectedTopics={selectedTopics}
-              onToggle={toggleTopic}
+              onChange={setSelectedTopics}
               subjectColor={subjectColor}
+              subjectName={subjectName}
             />
           </SectionCard>
 
           {/* ── Timing ── */}
-          <SectionCard icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
+          <SectionCard accent={subjectColor} icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
             <TimeWheelPicker
               value={timeLimitMinutes}
               onChange={setTimeLimitMinutes}
@@ -488,7 +563,7 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {/* ── Advanced ── */}
-          <SectionCard icon={Settings2} title="Advanced" hint="optional">
+          <SectionCard accent={subjectColor} icon={Settings2} title="Advanced" hint="optional">
             <ExamProfileAdvanced
               settings={advanced}
               onChange={setAdvanced}
