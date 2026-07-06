@@ -280,7 +280,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     topics: topicsList,
     desiredMcqCount: desiredMcqCount ?? 0,
     desiredWrittenCount: desiredWrittenCount ?? 0,
-    questionStructure: formatData?.question_structure ?? 'standalone',
+    // 'original' when the user asked to mirror the uploaded paper and made no
+    // explicit structure choice — resolves the standalone-default contradiction.
+    questionStructure: (formatData?.use_original_structure !== false && (formatData?.question_structure ?? 'standalone') === 'standalone')
+      ? 'original'
+      : (formatData?.question_structure ?? 'standalone'),
     parentQuestionCount: formatData?.parent_question_count ?? 4,
     maxPartsPerQuestion: formatData?.max_parts_per_question ?? 3,
     educationalLevel: qualificationLevel,
@@ -1152,7 +1156,7 @@ function buildPrompt(params: {
   topics: string[];
   desiredMcqCount: number;
   desiredWrittenCount: number;
-  questionStructure: 'standalone' | 'sub_questions' | 'mixed';
+  questionStructure: 'standalone' | 'sub_questions' | 'mixed' | 'original';
   parentQuestionCount?: number;
   maxPartsPerQuestion?: number;
   educationalLevel: string;
@@ -1208,6 +1212,7 @@ function buildPrompt(params: {
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
   const isMcqOnly = desiredMcqCount > 0 && desiredWrittenCount === 0;
+  const noCountsRequested = !desiredWrittenCount && !desiredMcqCount;
   const isWrittenOnly = desiredWrittenCount > 0 && desiredMcqCount === 0;
   const isMixed = desiredMcqCount > 0 && desiredWrittenCount > 0;
 
@@ -1265,6 +1270,9 @@ Questions must match the style and difficulty of ${examBoard || curriculumRegion
 
   // ── BLOCK 3: QUESTION COUNT AND TYPES ─────────────────────────────────────
   let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n`;
+  if (noCountsRequested) {
+    questionCountBlock += `No explicit count was configured: match the reference paper's question count. If that is unclear, generate 6-9 parent questions — NEVER fewer than 6.\n`;
+  }
 
   if (isMcqOnly) {
     questionCountBlock += `Generate exactly ${desiredMcqCount} multiple choice questions.
@@ -1303,7 +1311,9 @@ Rules:
       questionCountBlock += `\nThe final question must be an extended response question worth ${extendedResponseMarks} marks.`;
     }
   } else if (isMixed) {
-    const writtenStyle = questionStructure === 'sub_questions'
+    const writtenStyle = questionStructure === 'original'
+      ? "mirroring the reference paper's structure (reproduce its multi-part questions as parts)"
+      : questionStructure === 'sub_questions'
       ? 'using sub-part structure with 2-4 parts per parent question'
       : questionStructure === 'mixed'
         ? 'a mix of standalone and sub-part questions'
@@ -1535,6 +1545,8 @@ ${questionStructure === 'sub_questions'
   ? 'EVERY written question in this paper MUST belong to a parent — standalone written questions like a bare "1", "2", "3" are a FORMAT ERROR and will be rejected.'
   : questionStructure === 'mixed'
   ? 'Mix genuine multi-part parents with standalone questions as specified above.'
+  : questionStructure === 'original'
+  ? 'MIRROR THE REFERENCE PAPER: wherever the original uses multi-part questions (1(a), 1(b)...), you MUST reproduce that hierarchy with this format — flattening the original\'s parts into standalone questions is a FORMAT ERROR.'
   : 'Use this format whenever the reference paper (or the subject\'s real exam convention) uses multi-part questions — reproduce that structure faithfully. Otherwise emit standalone questions.'}`;
 
   // ── MEDIA INSTRUCTIONS (based on include_graphs/tables/diagrams) ────────
