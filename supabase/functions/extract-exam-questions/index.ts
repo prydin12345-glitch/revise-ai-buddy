@@ -103,6 +103,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const INSERT_CAPABLE = /geograph|history|environment|earth science/i;
   let insertFigure: any = null;
   let insertPromptBlock = '';
+  console.log(`[insert] includeInsert=${includeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);
   if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
     try {
       const figPrompt = buildMapFigurePrompt(
@@ -118,6 +119,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           temperature: 0.4,
         }),
       });
+      if (!figResp.ok) console.error('[insert] AI figure call failed:', figResp.status);
       if (figResp.ok) {
         const figData = await figResp.json();
         const raw = figData.choices?.[0]?.message?.content || '';
@@ -129,19 +131,27 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           }
           if (validation.ok && validation.figure) {
             insertFigure = { ...validation.figure, figureNumber: '1' };
-            await supabase.from('exams').update({ insert_figures: [insertFigure] }).eq('id', draftId);
+            const { error: figSaveErr } = await supabase.from('exams').update({ insert_figures: [insertFigure] }).eq('id', draftId);
+            if (figSaveErr) {
+              // Column missing (migration not applied?) or write failure — do NOT
+              // let questions reference a figure that isn't saved.
+              console.error('[insert] FIGURE SAVE FAILED (is the insert_figures migration applied?):', figSaveErr.message);
+              insertFigure = null;
+            }
+            if (insertFigure) {
             const pointSummary = insertFigure.points
               .map((pt: any) => `${pt.name} (${pt.category})`)
               .join(', ');
             insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. All other questions must NOT mention any figure.\n`;
-            console.log('Insert figure generated:', insertFigure.points.length, 'points');
+            console.log('[insert] figure generated:', insertFigure.points.length, 'points');
+            }
           } else {
-            console.warn('Insert figure failed validation — exam proceeds without insert:', validation.reasons.join('; '));
+            console.warn('[insert] figure failed validation — exam proceeds without insert:', validation.reasons.join('; '));
           }
         }
       }
     } catch (figErr) {
-      console.warn('Insert figure generation failed — exam proceeds without insert:', figErr);
+      console.warn('[insert] figure generation failed — exam proceeds without insert:', figErr);
     }
   }
 
@@ -352,6 +362,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     });
   }
   const similarityFilteredCount = beforeSimilarity - questions.length;
+  console.log(`[count] after filters: ${questions.length} questions (insert-filter removed ${insertFilteredCount}, similarity removed ${similarityFilteredCount})`);
   const totalFilteredCount = insertFilteredCount + similarityFilteredCount;
 
 
@@ -1248,7 +1259,7 @@ Use appropriate academic terminology for ${educationalLevel} level.
 Questions must match the style and difficulty of ${examBoard || curriculumRegion} examinations.`;
 
   // ── BLOCK 3: QUESTION COUNT AND TYPES ─────────────────────────────────────
-  let questionCountBlock = `\n## WHAT TO GENERATE\n`;
+  let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n`;
 
   if (isMcqOnly) {
     questionCountBlock += `Generate exactly ${desiredMcqCount} multiple choice questions.
@@ -1950,7 +1961,17 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
       ? 'medium'
       : 'medium';
-  const difficultyBlock = buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
+  let difficultyBlock = buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
+  // A-level calibration: match the register and demand of real board papers,
+  // not generic quiz questions.
+  if (/a[-_ ]?level|level ?3|16[-_]?18/i.test(String(educationalLevel || ''))) {
+    difficultyBlock += `\n## A-LEVEL CALIBRATION
+Match genuine AQA/Edexcel/OCR A-level standard:
+- Use board command verbs matched to marks: 1-2 marks = state/identify; 3-4 = explain/analyse with developed points; 6+ = assess/evaluate/"to what extent", expecting a supported judgement.
+- Include at least one extended-response question (9+ marks) requiring a structured argument with a conclusion, unless the requested structure forbids it.
+- Data/figure questions should demand manipulation or interpretation (calculate a change, compare distributions, suggest reasons), not just reading a value.
+- Avoid GCSE-level recall phrasing; every question should require application, analysis or evaluation appropriate to 16-18 study.`;
+  }
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
