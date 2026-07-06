@@ -234,6 +234,7 @@ const ExamReview = () => {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const [scoresHidden, setScoresHidden] = useState(false);
+  const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [isTutorAssigned, setIsTutorAssigned] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
