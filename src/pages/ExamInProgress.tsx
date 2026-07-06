@@ -467,7 +467,7 @@ const ExamInProgress = () => {
       // Fetch exam metadata to get subject, name, and resource pack
       const { data: examData } = await supabase
         .from('exams')
-        .select('subject_id, title, resource_pack_id')
+        .select('subject_id, title, resource_pack_id, insert_figures')
         .eq('id', examId)
         .single();
       
