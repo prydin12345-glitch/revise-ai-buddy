@@ -39,6 +39,29 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
               <MapFigure title={fig.title} points={fig.points} categories={fig.categories} showPointLabels />
             </div>
           )}
+          {fig.type === "data_table" && (
+            <div className="rounded-xl border border-border bg-card p-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    {fig.columns.map((col: string) => (
+                      <th key={col} className="text-left font-semibold px-3 py-2">{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fig.rows.map((row: any[], ri: number) => (
+                    <tr key={ri} className={ri % 2 ? "bg-muted/30" : ""}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} className={`px-3 py-1.5 ${typeof cell === "number" ? "tabular-nums text-right" : ""}`}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {fig.unitsNote && <p className="text-[11px] text-muted-foreground mt-2 px-1">{fig.unitsNote}</p>}
+            </div>
+          )}
         </section>
       ))}
     </div>
