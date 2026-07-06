@@ -28,6 +28,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { InsertPanel } from "@/components/insert/InsertPanel";
 import { DrawDiagramQuestion, detectDrawQuestion, isDrawingAnswer, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
