@@ -14,6 +14,8 @@ export interface MapPoint {
   lat: number;
   lng: number;
   category: string;
+  /** Optional quantitative value — rendered as a proportional circle */
+  value?: number;
 }
 
 export interface MapCategory {
@@ -79,7 +81,14 @@ export function MapFigure({
     return Math.abs(y0 - y1);
   }, []);
 
-  const keyHeight = 34 + categories.length * 15;
+  // Proportional symbols: sqrt scaling (area ∝ value), radius 4–12px.
+  const values = points.map((p) => p.value).filter((v): v is number => typeof v === "number");
+  const proportional = values.length === points.length && points.length > 0;
+  const maxV = proportional ? Math.max(...values, 1) : 1;
+  const radiusFor = (p: MapPoint) =>
+    proportional ? 4 + 8 * Math.sqrt((p.value as number) / maxV) : 6;
+
+  const keyHeight = 34 + categories.length * 15 + (proportional ? 16 : 0);
 
   return (
     <svg
@@ -101,7 +110,7 @@ export function MapFigure({
         const cat = catMap[p.category];
         return (
           <g key={`${p.name}-${i}`}>
-            <circle cx={x} cy={y} r={6} fill={cat?.color ?? "hsl(var(--primary))"} stroke="hsl(var(--foreground))" strokeWidth={0.9} />
+            <circle cx={x} cy={y} r={radiusFor(p)} fill={cat?.color ?? "hsl(var(--primary))"} fillOpacity={proportional ? 0.8 : 1} stroke="hsl(var(--foreground))" strokeWidth={0.9} />
             {showPointLabels && (
               <text x={x + 9} y={y + 3.5} fontSize={9} fill="hsl(var(--muted-foreground))">{p.name}</text>
             )}
@@ -121,6 +130,11 @@ export function MapFigure({
       {/* Key */}
       <rect x={W - 164} y={42} width={150} height={keyHeight} fill="hsl(var(--background))" stroke="hsl(var(--border))" rx={4} />
       <text x={W - 156} y={59} fontSize={11} fontWeight={700} fill="hsl(var(--foreground))">Key</text>
+      {proportional && (
+        <text x={W - 156} y={59 + categories.length * 15 + 14} fontSize={8.5} fill="hsl(var(--muted-foreground))">
+          Circle size ∝ value
+        </text>
+      )}
       {categories.map((c, i) => (
         <g key={c.id}>
           <circle cx={W - 148} cy={73 + i * 15} r={5.5} fill={c.color} stroke="hsl(var(--foreground))" strokeWidth={0.8} />
