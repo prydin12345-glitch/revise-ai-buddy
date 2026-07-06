@@ -302,6 +302,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     suppressDiagrams,
     isElectricalEngineering,
     hasDeltaWyeTopic,
+    insertPromptBlock,
   });
 
   let extractionPrompt = extractionPrompt_raw;
