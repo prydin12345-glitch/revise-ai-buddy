@@ -235,7 +235,7 @@ serve(async (req) => {
     // ───────────────────────────────────────────────────────────────────
 
     console.log('[version] extract v3 — original-mode + deep style sampling');
-    const { draftId, includeInsert } = await req.json();
+    const { draftId, includeInsert, curriculumTopics: bodyTopics } = await req.json();
     if (!draftId) {
       return new Response(JSON.stringify({ error: 'Draft ID required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -247,7 +247,7 @@ serve(async (req) => {
     await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
 
     EdgeRuntime.waitUntil(
-      processExamExtraction(draftId, user.id, supabase, lovableApiKey, includeInsert !== false)
+      processExamExtraction(draftId, user.id, supabase, lovableApiKey, includeInsert !== false, Array.isArray(bodyTopics) ? bodyTopics : null)
         .catch(async (error) => {
           console.error('Background processing error:', error);
           await supabase.from('exams').update({ 
@@ -268,7 +268,7 @@ serve(async (req) => {
   }
 });
 
-async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string, includeInsert: boolean = true) {
+async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string, includeInsert: boolean = true, bodyTopics: string[] | null = null) {
   console.log('Starting background extraction for:', draftId);
 
   const { data: exam, error: examError } = await supabase
@@ -357,7 +357,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   const examBoard = exam.exam_board || 'generic';
   const qualificationLevel = exam.qualification_level || 'not specified';
-  const specTopics = exam.exam_specifications || [];
+  let specTopics = exam.exam_specifications || [];
+  if (specTopics.length === 0 && bodyTopics && bodyTopics.length > 0) {
+    specTopics = bodyTopics;
+    console.log('[topics] using', bodyTopics.length, 'user-confirmed derived topics as scope');
+  }
 
   // Determine if this is a custom/niche subject (not a common academic subject)
   const COMMON_SUBJECTS = [
