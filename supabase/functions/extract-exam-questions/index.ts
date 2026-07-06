@@ -142,7 +142,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             const pointSummary = insertFigure.points
               .map((pt: any) => `${pt.name} (${pt.category})`)
               .join(', ');
-            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
+            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. The map labels every point with its place name, so identification questions (\\"identify the city with...\\") are answerable. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
             console.log('[insert] figure generated:', insertFigure.points.length, 'points');
             }
           } else {
@@ -1537,6 +1537,7 @@ CRITICAL JSON RULES:
 - options must be null for written questions, never an empty array
 
 SUB-PART FORMAT:
+Multi-part questions in ANY notation count as parts — 1(a)/(b), 1.1/1.2, 5.1/5.2, Q1a, (i)/(ii) are ALL multi-part. Normalise them to the 1(a) canonical form below.
 A parent question's parts are emitted as SEPARATE question objects sharing a parent:
   {"question_number": "1(a)", "parent_question_number": "1", "root_question_number": "1", ...}
   {"question_number": "1(b)", "parent_question_number": "1", "root_question_number": "1", ...}
@@ -1546,7 +1547,7 @@ ${questionStructure === 'sub_questions'
   : questionStructure === 'mixed'
   ? 'Mix genuine multi-part parents with standalone questions as specified above.'
   : questionStructure === 'original'
-  ? 'MIRROR THE REFERENCE PAPER: wherever the original uses multi-part questions (1(a), 1(b)...), you MUST reproduce that hierarchy with this format — flattening the original\'s parts into standalone questions is a FORMAT ERROR.'
+  ? 'MIRROR THE REFERENCE PAPER: wherever the original uses multi-part questions in ANY notation (1(a), 5.1/5.2, 1.1/1.2, Q1a...), you MUST reproduce that hierarchy using the canonical 1(a) format — flattening the original\'s parts into standalone questions is a FORMAT ERROR. Also MATCH the original\'s parent-question count.'
   : 'Use this format whenever the reference paper (or the subject\'s real exam convention) uses multi-part questions — reproduce that structure faithfully. Otherwise emit standalone questions.'}`;
 
   // ── MEDIA INSTRUCTIONS (based on include_graphs/tables/diagrams) ────────
