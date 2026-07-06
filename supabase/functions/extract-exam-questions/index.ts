@@ -289,7 +289,6 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   if (!exam.file_url) {
     console.log('No reference file found; generating from selected profile/topics and settings');
   }
-  const useFallbackMode = pdfText.length < 100;
   const detectedOriginalStructure = useOriginalStructure ? detectOriginalQuestionStructure(pdfText) : null;
   if (detectedOriginalStructure) {
     console.log(`[format] detected original structure: ${detectedOriginalStructure.parentCount} parents, ${detectedOriginalStructure.totalPartCount} parts (${detectedOriginalStructure.notation})`);
