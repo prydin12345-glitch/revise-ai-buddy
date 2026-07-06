@@ -572,6 +572,11 @@ const ExamReview = () => {
         {/* Main Panel */}
         <div className="flex-1 overflow-y-auto scroll-themed">
           <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+            {insertFigures.length > 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel))]">
+                <InsertPanel figures={insertFigures} />
+              </div>
+            )}
             {!scoresHidden && visibleQuestions.length === 0 && (
               <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] py-10 text-center text-sm text-muted-foreground">
                 No questions match this filter.
