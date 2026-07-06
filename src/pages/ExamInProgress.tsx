@@ -1597,9 +1597,12 @@ const ExamInProgress = () => {
                   role="tab"
                   aria-selected={examView === 'insert'}
                   onClick={() => setExamView('insert')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${examView === 'insert' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1 ${examView === 'insert' ? 'bg-primary text-primary-foreground' : 'text-primary hover:text-primary/80 ring-1 ring-primary/40'}`}
                 >
                   Insert
+                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${examView === 'insert' ? 'bg-primary-foreground/20' : 'bg-primary/15'}`}>
+                    {insertFigures.length}
+                  </span>
                 </button>
               </div>
             )}
