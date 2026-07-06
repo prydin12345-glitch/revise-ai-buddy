@@ -1141,14 +1141,6 @@ export default function CreateExam() {
                                               : 'Standalone (Q1, Q2, Q3...)',
                                           },
                                           {
-                                            label: 'Difficulty',
-                                            value: profile.difficulty_progression === 'descending'
-                                              ? 'Hard → Easy'
-                                              : profile.difficulty_progression === 'mixed'
-                                              ? 'Mixed'
-                                              : 'Easy → Hard',
-                                          },
-                                          {
                                             label: 'Calculator',
                                             value: profile.calculator_policy === 'not_allowed'
                                               ? 'Not permitted'
