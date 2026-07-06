@@ -142,7 +142,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             const pointSummary = insertFigure.points
               .map((pt: any) => `${pt.name} (${pt.category})`)
               .join(', ');
-            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. All other questions must NOT mention any figure.\n`;
+            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
             console.log('[insert] figure generated:', insertFigure.points.length, 'points');
             }
           } else {
@@ -1330,11 +1330,9 @@ ALL ${desiredMcqCount} MCQ questions MUST appear before any written question.${e
     }
   }
 
-  if (difficultyProgression === 'ascending') {
-    questionCountBlock += `\nOrder questions from easiest to hardest.`;
-  } else if (difficultyProgression === 'descending') {
-    questionCountBlock += `\nOrder questions from hardest to easiest.`;
-  }
+  // Question difficulty is set by the educational level alone; ordering just
+  // follows real board-paper convention (demand builds through the paper).
+  questionCountBlock += `\nOrder questions as a real board paper does: shorter, lower-mark items first, building to extended responses.`;
 
   // ── BLOCK 4: MCQ RULES (only injected when there are MCQ questions) ────────
   const mcqRulesBlock = (isMcqOnly || isMixed) ? `
@@ -1526,7 +1524,14 @@ CRITICAL JSON RULES:
 - For written: correct_answer is the model answer or key marking points
 - parent_question_number is null for standalone questions and MCQs
 - root_question_number equals question_number for standalone questions and MCQs
-- options must be null for written questions, never an empty array`;
+- options must be null for written questions, never an empty array
+${(questionStructure === 'sub_questions' || questionStructure === 'mixed') ? `
+SUB-PART FORMAT (MANDATORY for this paper's structure):
+A parent question's parts are emitted as SEPARATE question objects sharing a parent:
+  {"question_number": "1(a)", "parent_question_number": "1", "root_question_number": "1", ...}
+  {"question_number": "1(b)", "parent_question_number": "1", "root_question_number": "1", ...}
+Parts of one parent share a scenario/figure and escalate in demand: (a) lowest marks, final part highest.
+${questionStructure === 'sub_questions' ? 'EVERY written question in this paper MUST belong to a parent — standalone written questions like a bare "1", "2", "3" are a FORMAT ERROR and will be rejected.' : 'Mix genuine multi-part parents with standalone questions as specified above.'}` : ''}`;
 
   // ── MEDIA INSTRUCTIONS (based on include_graphs/tables/diagrams) ────────
   const mediaInstruction = (() => {
@@ -1975,7 +1980,11 @@ Match genuine AQA/Edexcel/OCR A-level standard:
 - Use board command verbs matched to marks: 1-2 marks = state/identify; 3-4 = explain/analyse with developed points; 6+ = assess/evaluate/"to what extent", expecting a supported judgement.
 - Include at least one extended-response question (9+ marks) requiring a structured argument with a conclusion, unless the requested structure forbids it.
 - Data/figure questions should demand manipulation or interpretation (calculate a change, compare distributions, suggest reasons), not just reading a value.
-- Avoid GCSE-level recall phrasing; every question should require application, analysis or evaluation appropriate to 16-18 study.`;
+- Avoid GCSE-level recall phrasing; every question should require application, analysis or evaluation appropriate to 16-18 study.
+- QUANTIFICATION: every figure/data question must end with "Support your answer with data from the figure." — full marks must require citing specific values, not general description.
+- SYNOPTIC LINKS: include at least one question bridging two topics from the topic list (e.g. linking global systems to hazards), as real A-level papers do.
+- AO3 DENSITY: several questions should use "Assess", "Examine", "Discuss" or "To what extent" and demand a balanced argument with a supported conclusion — not only the final question.
+- CASE STUDIES: evaluation questions should say "with reference to an example/case study you have studied."`;
   }
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
