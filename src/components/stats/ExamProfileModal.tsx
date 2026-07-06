@@ -147,6 +147,9 @@ export const ExamProfileModal = ({
   const [includeGraphs, setIncludeGraphs] = useState(false);
   const [includeTables, setIncludeTables] = useState(false);
 
+  const totalQuestionCount = writtenCount + mcqCount;
+  const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
+
   // Structure sync (single source of truth): with sub-parts, the written
   // count IS parents × parts — the slider locks and derives. With mixed,
   // parents are a subset of the written questions.
@@ -162,9 +165,6 @@ export const ExamProfileModal = ({
       setParentQuestionCount(Math.max(1, writtenCount));
     }
   }, [questionStructure, writtenCount]);
-
-  const totalQuestionCount = writtenCount + mcqCount;
-  const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
 
   useEffect(() => {
     if (open) {

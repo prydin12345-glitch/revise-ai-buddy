@@ -57,7 +57,7 @@ export function TopicPickerDialog({ allTopics, selectedTopics, onChange, subject
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("user_custom_topics").upsert(
+          await (supabase.from as any)("user_custom_topics").upsert(
             customs.map((topic) => ({ user_id: user.id, subject_name: subjectName, topic })),
             { onConflict: "user_id,subject_name,topic", ignoreDuplicates: true }
           );
