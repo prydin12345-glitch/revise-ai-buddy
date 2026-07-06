@@ -825,6 +825,7 @@ export type Database = {
           generation_method: string | null
           grade_released: boolean | null
           id: string
+          insert_figures: Json | null
           is_template: boolean | null
           profile_id: string | null
           qualification_level: string | null
@@ -860,6 +861,7 @@ export type Database = {
           generation_method?: string | null
           grade_released?: boolean | null
           id?: string
+          insert_figures?: Json | null
           is_template?: boolean | null
           profile_id?: string | null
           qualification_level?: string | null
@@ -895,6 +897,7 @@ export type Database = {
           generation_method?: string | null
           grade_released?: boolean | null
           id?: string
+          insert_figures?: Json | null
           is_template?: boolean | null
           profile_id?: string | null
           qualification_level?: string | null
@@ -2573,6 +2576,27 @@ export type Database = {
           topic_tag?: string | null
           tutor_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_custom_topics: {
+        Row: {
+          created_at: string
+          subject_name: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          subject_name: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          subject_name?: string
+          topic?: string
+          user_id?: string
         }
         Relationships: []
       }
