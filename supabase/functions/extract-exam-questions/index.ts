@@ -52,6 +52,7 @@ serve(async (req) => {
     }
     // ───────────────────────────────────────────────────────────────────
 
+    console.log('[version] extract v3 — original-mode + deep style sampling');
     const { draftId, includeInsert } = await req.json();
     if (!draftId) {
       return new Response(JSON.stringify({ error: 'Draft ID required' }), {
@@ -282,7 +283,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     desiredWrittenCount: desiredWrittenCount ?? 0,
     // 'original' when the user asked to mirror the uploaded paper and made no
     // explicit structure choice — resolves the standalone-default contradiction.
-    questionStructure: (formatData?.use_original_structure !== false && (formatData?.question_structure ?? 'standalone') === 'standalone')
+    questionStructure: (formatData?.question_structure === 'hierarchical'
+        || (formatData?.use_original_structure !== false && (formatData?.question_structure ?? 'standalone') === 'standalone'))
       ? 'original'
       : (formatData?.question_structure ?? 'standalone'),
     parentQuestionCount: formatData?.parent_question_count ?? 4,
