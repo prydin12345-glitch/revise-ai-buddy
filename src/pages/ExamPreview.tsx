@@ -151,8 +151,16 @@ const ExamPreview = () => {
           </Card>
         </div>
 
+        {/* Resource insert (figures the questions reference) */}
+        {Array.isArray((exam as any).insert_figures) && (exam as any).insert_figures.length > 0 && (
+          <div className="mb-6 rounded-xl border border-border bg-card">
+            <InsertPanel figures={(exam as any).insert_figures} />
+          </div>
+        )}
+
         {/* Questions (Read-only) */}
         <div className="space-y-8">
+
           {questions.map((q, qIdx) => {
             const subPartMatch = q.question_number.match(/^(\d+)([a-z].*)?$/i);
             const parentNum = subPartMatch?.[1] || q.question_number;
