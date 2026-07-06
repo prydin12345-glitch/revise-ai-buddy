@@ -1359,6 +1359,7 @@ function buildPrompt(params: {
   isElectricalEngineering?: boolean;
   hasDeltaWyeTopic?: boolean;
   insertPromptBlock?: string;
+  originalStructurePromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -1388,6 +1389,7 @@ function buildPrompt(params: {
     isElectricalEngineering = false,
     hasDeltaWyeTopic = false,
     insertPromptBlock = '',
+    originalStructurePromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -2197,6 +2199,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     difficultyBlock,
     EXAM_QUALITY_RULES,
     subjectSpecificBlock,
+    originalStructurePromptBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
