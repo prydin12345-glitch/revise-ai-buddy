@@ -266,6 +266,21 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   if (examError || !exam) throw new Error('Exam not found');
 
+  const rawFormat = exam.exam_format;
+  const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
+  const useOriginalStructure = formatData?.use_original_structure ?? true;
+
+  // Download and extract PDF text early so original structure can guide inserts and prompting.
+  const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
+  if (!exam.file_url) {
+    console.log('No reference file found; generating from selected profile/topics and settings');
+  }
+  const useFallbackMode = pdfText.length < 100;
+  const detectedOriginalStructure = useOriginalStructure ? detectOriginalQuestionStructure(pdfText) : null;
+  if (detectedOriginalStructure) {
+    console.log(`[format] detected original structure: ${detectedOriginalStructure.parentCount} parents, ${detectedOriginalStructure.totalPartCount} parts (${detectedOriginalStructure.notation})`);
+  }
+
   // ── INSERT FIGURE (Option A: figure first, questions written against it) ──
   // For insert-capable subjects, generate + validate a map figure BEFORE the
   // questions, so the question prompt can reference the figure's REAL data.
