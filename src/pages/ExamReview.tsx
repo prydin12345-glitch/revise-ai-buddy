@@ -28,6 +28,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
+import { InsertPanel } from "@/components/insert/InsertPanel";
 import { DrawDiagramQuestion, detectDrawQuestion, isDrawingAnswer, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
@@ -233,6 +234,7 @@ const ExamReview = () => {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const [scoresHidden, setScoresHidden] = useState(false);
+  const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [isTutorAssigned, setIsTutorAssigned] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -276,9 +278,10 @@ const ExamReview = () => {
 
       const { data: exam } = await supabase
         .from('exams')
-        .select('grade_released, assigned_by')
+        .select('grade_released, assigned_by, insert_figures')
         .eq('id', examId)
         .single();
+      setInsertFigures(Array.isArray((exam as any)?.insert_figures) ? (exam as any).insert_figures : []);
 
       const isAssignedExam = assignment || exam?.assigned_by;
       const gradesReleased = assignment?.is_grades_released || exam?.grade_released;
@@ -569,6 +572,11 @@ const ExamReview = () => {
         {/* Main Panel */}
         <div className="flex-1 overflow-y-auto scroll-themed">
           <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+            {insertFigures.length > 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel))]">
+                <InsertPanel figures={insertFigures} />
+              </div>
+            )}
             {!scoresHidden && visibleQuestions.length === 0 && (
               <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] py-10 text-center text-sm text-muted-foreground">
                 No questions match this filter.
