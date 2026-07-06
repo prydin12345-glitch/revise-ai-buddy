@@ -130,3 +130,85 @@ Rules:
 - OPTIONAL: when the data is quantitative (population, rainfall mm, visitor numbers), give every point a numeric "value" — it renders as PROPORTIONAL CIRCLES (bigger circle = bigger value), like a real proportional-symbol map. Use values with a describable range (e.g. 40 to 900), and either all points have a value or none do.
 - Context: ${subjectContext}`;
 }
+
+
+// ── Phase 2: data-table figures + multi-figure generation ──────────────────
+export interface TableFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "data_table";
+  columns: string[];              // e.g. ["City", "Rainfall (mm)", "Population"]
+  rows: Array<Array<string | number>>;
+  unitsNote?: string;             // e.g. "All values are annual totals"
+}
+
+export function validateTableFigure(raw: any): { ok: boolean; figure: TableFigureData | null; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!raw || raw.type !== "data_table") return { ok: false, figure: null, reasons: ["not a data_table"] };
+  const columns = Array.isArray(raw.columns) ? raw.columns.filter((x: any) => typeof x === "string" && x.trim()) : [];
+  if (columns.length < 2) return { ok: false, figure: null, reasons: ["fewer than 2 columns"] };
+  const rows: Array<Array<string | number>> = [];
+  for (const r of Array.isArray(raw.rows) ? raw.rows : []) {
+    if (!Array.isArray(r) || r.length !== columns.length) { reasons.push("row width mismatch dropped"); continue; }
+    if (!r.every((cell: any) => typeof cell === "string" || (typeof cell === "number" && isFinite(cell)))) { reasons.push("bad cell dropped"); continue; }
+    rows.push(r);
+  }
+  if (rows.length < 3) return { ok: false, figure: null, reasons: [...reasons, `only ${rows.length} valid rows (min 3)`] };
+  // A data table must contain real numbers somewhere — it exists to support calculation.
+  const hasNumbers = rows.some((r) => r.some((cell) => typeof cell === "number"));
+  if (!hasNumbers) return { ok: false, figure: null, reasons: [...reasons, "no numeric cells — table figures must carry raw numbers"] };
+  return {
+    ok: true,
+    figure: {
+      figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+      title: typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Untitled table",
+      type: "data_table", columns, rows: rows.slice(0, 15),
+      unitsNote: typeof raw.unitsNote === "string" ? raw.unitsNote : undefined,
+    },
+    reasons,
+  };
+}
+
+/** Validate a mixed array of figures; keeps valid ones, renumbers 1..n. */
+export function validateInsertFigures(raw: any): { figures: any[]; rejected: string[] } {
+  const figures: any[] = [];
+  const rejected: string[] = [];
+  for (const f of Array.isArray(raw) ? raw : []) {
+    if (f?.type === "map_points") {
+      const v = validateMapFigure(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`map "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "data_table") {
+      const v = validateTableFigure(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`table "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else {
+      rejected.push(`unknown figure type "${f?.type}"`);
+    }
+  }
+  figures.forEach((f, i) => { f.figureNumber = String(i + 1); });
+  return { figures: figures.slice(0, 3), rejected };
+}
+
+/** Phase-2 prompt: 1-3 figures, type matched to question need, per-topic. */
+export function buildInsertFiguresPrompt(subjectContext: string, topics: string[]): string {
+  const topicLine = topics.length ? `The paper's topic scope: ${topics.slice(0, 6).join("; ")}.` : "";
+  return `
+## INSERT FIGURES (1-3, TYPE-MATCHED)
+Generate the DATA for 1 to 3 insert figures. Output a JSON ARRAY of figure objects. Two types are available:
+
+1) UK point map (distribution/pattern questions):
+${buildMapFigurePrompt(subjectContext).split("Rules:")[1] ? "" : ""}{"type":"map_points","region":"uk","title":"...","categories":[{"id":"...","label":"...","color":"#hex"}],"points":[{"name":"<town>","lat":<num>,"lng":<num>,"category":"<id>","value":<num optional>}]}
+   - Real UK locations, accurate lat/lng, describable spatial pattern. Optional "value" renders proportional circles.
+
+2) Data table (calculation/comparison questions — MUST carry raw numbers):
+{"type":"data_table","title":"...","columns":["Place","<Measure> (units)"],"rows":[["London",615],["Fort William",2184]],"unitsNote":"..."}
+   - 4-10 rows, exact numeric values so students can calculate differences, percentages, means.
+
+RULES:
+- ${topicLine}
+- Each figure must serve a DIFFERENT topic/question cluster — never one figure for everything.
+- If any question will require calculation, a data_table with raw numbers MUST exist for it; category-band maps cannot support precise calculation.
+- Context: ${subjectContext}
+Return ONLY the JSON array.`;
+}
