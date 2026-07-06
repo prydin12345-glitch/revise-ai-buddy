@@ -36,7 +36,7 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
           </div>
           {fig.type === "map_points" && (
             <div className="rounded-xl border border-border bg-card p-3">
-              <MapFigure title={fig.title} points={fig.points} categories={fig.categories} />
+              <MapFigure title={fig.title} points={fig.points} categories={fig.categories} showPointLabels />
             </div>
           )}
         </section>
