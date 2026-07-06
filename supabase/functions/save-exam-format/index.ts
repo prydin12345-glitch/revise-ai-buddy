@@ -59,10 +59,13 @@ serve(async (req) => {
 
     // Unpack profileMetadata for top-level columns
     const profileMeta = format.profileMetadata || {};
+    const useOriginalStructure = format.useOriginal === true;
+    const questionStructure = profileMeta.questionStructure
+      ?? (useOriginalStructure && !format.profileMetadata ? 'original' : 'standalone');
 
     const formatPayload: any = {
       exam_id: draftId,
-      use_original_structure: format.useOriginal || false,
+      use_original_structure: useOriginalStructure,
       difficulty_calibration: format.difficulty || 'exam_board_standard',
       mcq_count: format.mcq?.count || null,
       mcq_marks_each: format.mcq?.marksEach || null,
@@ -72,7 +75,7 @@ serve(async (req) => {
       long_form_marks_each: format.longForm?.marksEach || null,
       profile_metadata: profileMeta,
       // Top-level columns from profile metadata — source of truth for edge functions
-      question_structure: profileMeta.questionStructure ?? 'standalone',
+      question_structure: questionStructure,
       difficulty_progression: profileMeta.difficultyProgression ?? 'ascending',
       calculator_policy: profileMeta.calculatorPolicy ?? 'allowed',
       include_extended: profileMeta.includeExtended ?? false,

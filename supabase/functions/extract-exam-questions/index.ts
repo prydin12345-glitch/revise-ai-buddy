@@ -19,6 +19,188 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type OriginalStructurePart = {
+  original: string;
+  canonical: string;
+  parent: string;
+  partIndex: number;
+  marks: number | null;
+};
+
+type OriginalQuestionStructure = {
+  notation: 'numeric_decimal' | 'lettered' | 'mixed';
+  parts: OriginalStructurePart[];
+  parentCount: number;
+  totalPartCount: number;
+  blueprint: string;
+};
+
+const PART_LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+function canonicalPart(parent: string, partIndex: number): string {
+  return `${parent}(${PART_LETTERS[Math.max(0, partIndex - 1)] || partIndex})`;
+}
+
+function normaliseParentNumber(raw: string): string {
+  const parsed = parseInt(raw.replace(/^0+/, '') || '0', 10);
+  return String(parsed || raw);
+}
+
+function extractMarksNear(text: string, fromIndex: number): number | null {
+  const window = text.slice(fromIndex, fromIndex + 260);
+  const match = window.match(/\[\s*(\d{1,2})\s*marks?\s*\]/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function buildStructureBlueprint(parts: OriginalStructurePart[], notation: OriginalQuestionStructure['notation']): OriginalQuestionStructure {
+  const byParent = new Map<string, OriginalStructurePart[]>();
+  for (const part of parts) {
+    if (!byParent.has(part.parent)) byParent.set(part.parent, []);
+    byParent.get(part.parent)!.push(part);
+  }
+
+  const sortedParents = [...byParent.keys()].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const lines = sortedParents.map((parent) => {
+    const parentParts = byParent.get(parent)!.sort((a, b) => a.partIndex - b.partIndex);
+    const canonical = parentParts.map((p) => p.canonical).join(', ');
+    const original = parentParts.map((p) => p.original).join(', ');
+    const marks = parentParts.map((p) => p.marks ?? '?').join(', ');
+    return `Parent ${parent}: ${parentParts.length} parts (${canonical}); source numbering: ${original}; marks: ${marks}`;
+  });
+
+  return {
+    notation,
+    parts,
+    parentCount: sortedParents.length,
+    totalPartCount: parts.length,
+    blueprint: lines.join('\n'),
+  };
+}
+
+function detectOriginalQuestionStructure(pdfText: string): OriginalQuestionStructure | null {
+  if (!pdfText || pdfText.length < 100) return null;
+  const parts: OriginalStructurePart[] = [];
+  const seen = new Set<string>();
+
+  // AQA/OCR-style numeric sub-parts can be extracted as "0 5 . 2", "05.2", or "5.2".
+  const numericRegex = /(?:^|[^\dA-Za-z])(?:0\s*)?([1-9]\d?)\s*\.\s*([1-9]\d?)(?!\s*\d)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
+  let match: RegExpExecArray | null;
+  while ((match = numericRegex.exec(pdfText)) !== null) {
+    const parent = normaliseParentNumber(match[1]);
+    const partIndex = parseInt(match[2], 10);
+    if (partIndex < 1 || partIndex > 8) continue;
+    const key = `${parent}.${partIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push({
+      original: `${parent}.${partIndex}`,
+      canonical: canonicalPart(parent, partIndex),
+      parent,
+      partIndex,
+      marks: extractMarksNear(pdfText, match.index),
+    });
+  }
+
+  // Conventional 1(a), 1 (a), Q1a style as a fallback for other boards.
+  const letterRegex = /(?:^|[^\w])(?:Q(?:uestion)?\s*)?([1-9]\d?)\s*(?:\(([a-h])\)|([a-h])\b)(?=[\s\S]{0,220}\[\s*\d{1,2}\s*marks?\s*\])/gi;
+  while ((match = letterRegex.exec(pdfText)) !== null) {
+    const parent = normaliseParentNumber(match[1]);
+    const letter = (match[2] || match[3] || '').toLowerCase();
+    const partIndex = PART_LETTERS.indexOf(letter) + 1;
+    if (partIndex < 1) continue;
+    const key = `${parent}.${partIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push({
+      original: `${parent}(${letter})`,
+      canonical: canonicalPart(parent, partIndex),
+      parent,
+      partIndex,
+      marks: extractMarksNear(pdfText, match.index),
+    });
+  }
+
+  const grouped = new Map<string, OriginalStructurePart[]>();
+  for (const part of parts) {
+    if (!grouped.has(part.parent)) grouped.set(part.parent, []);
+    grouped.get(part.parent)!.push(part);
+  }
+
+  const credibleParts = [...grouped.entries()]
+    .filter(([, group]) => group.length >= 2)
+    .flatMap(([parent, group]) => {
+      const byIndex = new Map(group.map((part) => [part.partIndex, part]));
+      const maxPartIndex = Math.max(...group.map((part) => part.partIndex));
+      const filled: OriginalStructurePart[] = [];
+      for (let partIndex = 1; partIndex <= maxPartIndex; partIndex++) {
+        filled.push(byIndex.get(partIndex) ?? {
+          original: `${parent}.${partIndex}`,
+          canonical: canonicalPart(parent, partIndex),
+          parent,
+          partIndex,
+          marks: null,
+        });
+      }
+      return filled;
+    })
+    .sort((a, b) => parseInt(a.parent, 10) - parseInt(b.parent, 10) || a.partIndex - b.partIndex);
+
+  if (credibleParts.length < 2) return null;
+  const hasNumeric = credibleParts.some((p) => /^\d+\.\d+$/.test(p.original));
+  const hasLettered = credibleParts.some((p) => /\([a-h]\)$/.test(p.original));
+  return buildStructureBlueprint(credibleParts, hasNumeric && hasLettered ? 'mixed' : hasNumeric ? 'numeric_decimal' : 'lettered');
+}
+
+function buildOriginalStructurePromptBlock(structure: OriginalQuestionStructure | null): string {
+  if (!structure) return '';
+  return `## DETECTED ORIGINAL QUESTION STRUCTURE — HARD FORMAT REQUIREMENT
+The uploaded paper uses multi-part parent questions. Mirror this hierarchy.
+
+Detected source structure:
+${structure.blueprint}
+
+Rules:
+- Generate ${structure.parentCount} parent questions and ${structure.totalPartCount} separate part rows unless a later explicit count/profile overrides this.
+- Numeric source notation such as 5.1 / 5.2 is NOT a decimal value; it means parent question 5, part 1 / part 2.
+- Return the app's canonical notation only: 1(a), 1(b), 2(a), 2(b), etc.
+- Set parent_question_number to the parent number, and root_question_number to the same parent number for every part.
+- Do not flatten these parts into standalone questions.`;
+}
+
+function repairFlatQuestionsToOriginalStructure(questions: any[], structure: OriginalQuestionStructure | null): any[] {
+  if (!structure || !questions.length) return questions;
+  const hasParents = questions.some((q) => q.parent_question_number || /\(\s*[a-z]\s*\)|\.\d+/.test(String(q.question_number || '')));
+  if (hasParents) {
+    return questions.map((q) => {
+      const numeric = String(q.question_number || '').match(/^(\d+)\.(\d+)$/);
+      if (!numeric) return q;
+      const parent = normaliseParentNumber(numeric[1]);
+      const partIndex = parseInt(numeric[2], 10);
+      return {
+        ...q,
+        question_number: canonicalPart(parent, partIndex),
+        parent_question_number: q.parent_question_number || parent,
+        root_question_number: q.root_question_number || parent,
+      };
+    });
+  }
+
+  const orderedParts = structure.parts.slice().sort((a, b) => parseInt(a.parent, 10) - parseInt(b.parent, 10) || a.partIndex - b.partIndex);
+  if (questions.length < Math.min(2, orderedParts.length)) return questions;
+
+  console.log(`[format] repaired flat output into canonical sub-parts: ${questions.length} rows using detected ${orderedParts.length}-part blueprint`);
+  return questions.map((q, index) => {
+    const part = orderedParts[index] || orderedParts[orderedParts.length - 1];
+    return {
+      ...q,
+      question_number: part.canonical,
+      parent_question_number: part.parent,
+      root_question_number: part.parent,
+      marks: q.marks || part.marks || 1,
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -98,6 +280,20 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   if (examError || !exam) throw new Error('Exam not found');
 
+  const rawFormat = exam.exam_format;
+  const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
+  const useOriginalStructure = formatData?.use_original_structure ?? true;
+
+  // Download and extract PDF text early so original structure can guide inserts and prompting.
+  const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
+  if (!exam.file_url) {
+    console.log('No reference file found; generating from selected profile/topics and settings');
+  }
+  const detectedOriginalStructure = useOriginalStructure ? detectOriginalQuestionStructure(pdfText) : null;
+  if (detectedOriginalStructure) {
+    console.log(`[format] detected original structure: ${detectedOriginalStructure.parentCount} parents, ${detectedOriginalStructure.totalPartCount} parts (${detectedOriginalStructure.notation})`);
+  }
+
   // ── INSERT FIGURE (Option A: figure first, questions written against it) ──
   // For insert-capable subjects, generate + validate a map figure BEFORE the
   // questions, so the question prompt can reference the figure's REAL data.
@@ -143,7 +339,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
             const pointSummary = insertFigure.points
               .map((pt: any) => `${pt.name} (${pt.category})`)
               .join(', ');
-            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\nWrite 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons). Do NOT invent data that is not in the figure. The map labels every point with its place name, so identification questions (\\"identify the city with...\\") are answerable. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
+            const hierarchyRule = useOriginalStructure && detectedOriginalStructure
+              ? 'Place any Figure 1 questions inside the detected parent/sub-part hierarchy; do NOT create a small standalone Figure-only paper.'
+              : 'Write 2-3 of the questions so they explicitly reference "Figure 1" and ask about the REAL spatial pattern in this data (e.g. describing the distribution, comparing regions, suggesting reasons).';
+            insertPromptBlock = `\n## INSERT FIGURE AVAILABLE\nThe exam has a resource insert containing Figure 1: "${insertFigure.title}" — a UK map with these data points: ${pointSummary}. Categories: ${insertFigure.categories.map((ct: any) => ct.label).join(', ')}.\n${hierarchyRule} Do NOT invent data that is not in the figure. The map labels every point with its place name, so identification questions (\\"identify the city with...\\") are answerable. Figure questions must require specific data use (\\"Support your answer with data from Figure 1\\") and at least one must demand comparison or manipulation of values, not just description. All other questions must NOT mention any figure.\n`;
             console.log('[insert] figure generated:', insertFigure.points.length, 'points');
             }
           } else {
@@ -174,7 +373,6 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const subjectLower = (exam.subject_id || '').toLowerCase();
   const isCustomNicheForValidation = !COMMON_SUBJECTS.some(s => subjectLower.includes(s));
   console.log('Is custom niche subject:', isCustomNicheForValidation, '| Subject:', exam.subject_id);
-  const useOriginalStructure = exam.exam_format?.[0]?.use_original_structure ?? true;
 
   // Fetch user's curriculum_region for stealth framework
   let curriculumRegion: string | null = null;
@@ -213,17 +411,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     hasResourcePack = packResult.hasResourcePack;
   }
 
-  // Download and extract PDF text (optional reference file)
-  const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
-  if (!exam.file_url) {
-    console.log('No reference file found; generating from selected profile/topics and settings');
-  }
-  const useFallbackMode = pdfText.length < 100;
-
   // Determine desired PARENT question count and MCQ/written split
-  // exam_format is a one-to-one relation — PostgREST returns an object (not array)
-  const rawFormat = exam.exam_format;
-  const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
   let desiredQuestionCount: number | null = null;
   let desiredMcqCount: number | null = null;
   let desiredWrittenCount: number | null = null;
@@ -283,7 +471,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     desiredWrittenCount: desiredWrittenCount ?? 0,
     // 'original' when the user asked to mirror the uploaded paper and made no
     // explicit structure choice — resolves the standalone-default contradiction.
-    questionStructure: (formatData?.question_structure === 'hierarchical'
+    questionStructure: (formatData?.question_structure === 'original'
+        || formatData?.question_structure === 'hierarchical'
+        || detectedOriginalStructure
         || (formatData?.use_original_structure !== false && (formatData?.question_structure ?? 'standalone') === 'standalone'))
       ? 'original'
       : (formatData?.question_structure ?? 'standalone'),
@@ -309,6 +499,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     isElectricalEngineering,
     hasDeltaWyeTopic,
     insertPromptBlock,
+    originalStructurePromptBlock: buildOriginalStructurePromptBlock(detectedOriginalStructure),
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -334,6 +525,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let questions = parsedData.questions.sort((a: any, b: any) => 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
+
+  questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
 
   // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
   // Drop questions that reference an external paper insert / resource booklet /
@@ -1181,6 +1374,7 @@ function buildPrompt(params: {
   isElectricalEngineering?: boolean;
   hasDeltaWyeTopic?: boolean;
   insertPromptBlock?: string;
+  originalStructurePromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -1210,6 +1404,7 @@ function buildPrompt(params: {
     isElectricalEngineering = false,
     hasDeltaWyeTopic = false,
     insertPromptBlock = '',
+    originalStructurePromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -2019,6 +2214,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     difficultyBlock,
     EXAM_QUALITY_RULES,
     subjectSpecificBlock,
+    originalStructurePromptBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
