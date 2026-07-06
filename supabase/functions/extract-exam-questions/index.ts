@@ -302,6 +302,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     suppressDiagrams,
     isElectricalEngineering,
     hasDeltaWyeTopic,
+    insertPromptBlock,
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -1171,6 +1172,7 @@ function buildPrompt(params: {
   suppressDiagrams?: boolean;
   isElectricalEngineering?: boolean;
   hasDeltaWyeTopic?: boolean;
+  insertPromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -1199,6 +1201,7 @@ function buildPrompt(params: {
     suppressDiagrams = false,
     isElectricalEngineering = false,
     hasDeltaWyeTopic = false,
+    insertPromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
