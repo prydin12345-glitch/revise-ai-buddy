@@ -124,13 +124,19 @@ export default {
             opacity: "1",
           },
         },
+        "indeterminate-bar": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-in-bottom": "slide-in-bottom 0.3s ease-out",
+        "indeterminate-bar": "indeterminate-bar 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite",
       },
     },
   },
+
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
