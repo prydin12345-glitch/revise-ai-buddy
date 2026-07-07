@@ -140,10 +140,9 @@ export default {
         "indeterminate-bar": "indeterminate-bar 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite",
         "shimmer": "shimmer 1.8s ease-in-out infinite",
       },
-
-      },
     },
   },
+
 
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
