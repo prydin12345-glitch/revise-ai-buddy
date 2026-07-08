@@ -1,92 +1,154 @@
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ChevronRight, ArrowLeft } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Palette, Shield, Brain, Settings as SettingsIcon } from "lucide-react";
+import {
+  SettingsSidebar,
+  SETTINGS_GROUPS,
+  SETTINGS_META,
+  type SettingsTabId,
+} from "@/components/settings/SettingsSidebar";
 import { AccountSection } from "@/components/settings/sections/AccountSection";
 import { PersonalizationSection } from "@/components/settings/sections/PersonalizationSection";
 import { PrivacySection } from "@/components/settings/sections/PrivacySection";
 import { AIUsageSection } from "@/components/settings/sections/AIUsageSection";
 import { AdvancedSection } from "@/components/settings/sections/AdvancedSection";
 
-const VALID_TABS = ["account", "personalization", "privacy", "ai", "advanced"] as const;
+const VALID_TABS: SettingsTabId[] = [
+  "account",
+  "personalization",
+  "advanced",
+  "privacy",
+  "ai",
+];
+
+const useIsLg = () => {
+  const [isLg, setIsLg] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const on = () => setIsLg(mql.matches);
+    mql.addEventListener("change", on);
+    return () => mql.removeEventListener("change", on);
+  }, []);
+  return isLg;
+};
+
+const renderSection = (tab: SettingsTabId) => {
+  switch (tab) {
+    case "account":
+      return <AccountSection />;
+    case "personalization":
+      return <PersonalizationSection />;
+    case "advanced":
+      return <AdvancedSection />;
+    case "privacy":
+      return <PrivacySection />;
+    case "ai":
+      return <AIUsageSection />;
+  }
+};
 
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab = (VALID_TABS as readonly string[]).includes(tabParam ?? "")
-    ? (tabParam as string)
-    : "account";
+  const isLg = useIsLg();
 
-  const setActiveTab = (tab: string) => {
-    setSearchParams({ tab }, { replace: false });
-  };
+  const tabParam = searchParams.get("tab") as SettingsTabId | null;
+  const activeTab: SettingsTabId | null = VALID_TABS.includes(tabParam as SettingsTabId)
+    ? (tabParam as SettingsTabId)
+    : null;
 
-  const tabs = [
-    { id: "account", label: "Account", icon: User },
-    { id: "personalization", label: "Personalization", icon: Palette },
-    { id: "privacy", label: "Privacy & Security", icon: Shield },
-    { id: "ai", label: "AI Usage", icon: Brain },
-    { id: "advanced", label: "Advanced", icon: SettingsIcon },
-  ];
+  // Desktop always shows a section (default account); mobile shows index if no tab.
+  const effectiveTab: SettingsTabId | null = isLg ? activeTab ?? "account" : activeTab;
+
+  const setTab = (id: SettingsTabId) => setSearchParams({ tab: id }, { replace: false });
+  const clearTab = () => setSearchParams({}, { replace: false });
 
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-            <div className="container max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-4">
-              <div className="flex flex-col gap-1 mb-4 sm:mb-5">
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                  Settings
-                </h1>
-                <p className="hidden sm:block text-sm text-muted-foreground">
-                  Manage your account, preferences, and integrations
-                </p>
+        {isLg ? (
+          // ─── Desktop: sidebar + focused content pane ─────────────────────
+          <div className="mx-auto max-w-5xl px-6 flex gap-6">
+            <SettingsSidebar
+              active={effectiveTab ?? "account"}
+              onSelect={setTab}
+            />
+            <main className="flex-1 min-w-0 py-8">
+              <div className="max-w-2xl">
+                <SectionHeader tab={effectiveTab ?? "account"} />
+                <div className="mt-8">{renderSection(effectiveTab ?? "account")}</div>
               </div>
-
-              <div className="relative">
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden z-10" />
-                <div className="-mx-1 overflow-x-auto scrollbar-none">
-                  <TabsList className="w-max sm:w-full flex gap-1 bg-muted/40 p-1 rounded-xl h-auto">
-                    {tabs.map((tab) => {
-                      const Icon = tab.icon;
-                      return (
-                        <TabsTrigger
-                          key={tab.id}
-                          value={tab.id}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-all text-muted-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-foreground hover:text-foreground"
-                        >
-                          <Icon className="w-3.5 h-3.5 shrink-0" />
-                          <span>{tab.label}</span>
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
+            </main>
+          </div>
+        ) : effectiveTab ? (
+          // ─── Mobile: drilled-down section ────────────────────────────────
+          <main className="px-4 pt-4 pb-16">
+            <button
+              type="button"
+              onClick={clearTab}
+              className="inline-flex items-center gap-1.5 -ml-1 mb-4 text-sm text-muted-foreground hover:text-foreground min-h-[44px]"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Settings
+            </button>
+            <SectionHeader tab={effectiveTab} />
+            <div className="mt-6">{renderSection(effectiveTab)}</div>
+          </main>
+        ) : (
+          // ─── Mobile: index / drill-down menu ─────────────────────────────
+          <main className="px-4 pt-6 pb-16">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground mb-6">
+              Settings
+            </h1>
+            <div className="space-y-6">
+              {SETTINGS_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="px-1 mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <div className="rounded-xl border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setTab(item.id)}
+                        className="w-full flex items-center justify-between px-4 py-4 text-left min-h-[56px] hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            {item.label}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {SETTINGS_META[item.id].description}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-3" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
-
-          <div className="container max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            <TabsContent value="account" className="mt-0 focus-visible:outline-none">
-              <AccountSection />
-            </TabsContent>
-            <TabsContent value="personalization" className="mt-0 focus-visible:outline-none">
-              <PersonalizationSection />
-            </TabsContent>
-            <TabsContent value="privacy" className="mt-0 focus-visible:outline-none">
-              <PrivacySection />
-            </TabsContent>
-            <TabsContent value="ai" className="mt-0 focus-visible:outline-none">
-              <AIUsageSection />
-            </TabsContent>
-            <TabsContent value="advanced" className="mt-0 focus-visible:outline-none">
-              <AdvancedSection />
-            </TabsContent>
-          </div>
-        </Tabs>
+          </main>
+        )}
       </div>
     </DashboardLayout>
+  );
+};
+
+const SectionHeader = ({ tab }: { tab: SettingsTabId }) => {
+  const meta = SETTINGS_META[tab];
+  return (
+    <header>
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">
+        {meta.title}
+      </h2>
+      <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
+    </header>
   );
 };
 
