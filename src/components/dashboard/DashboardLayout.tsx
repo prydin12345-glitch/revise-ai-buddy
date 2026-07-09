@@ -359,24 +359,23 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
         </header>
 
-        {/* Page content — extra bottom padding on mobile to clear the tab bar */}
-        <main className={cn(
-          "p-4 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto",
-          isSettingsRoute ? "pb-8" : "pb-24",
-        )}>{children}</main>
+        {/* Page content — always reserve room for the mobile bottom tab bar */}
+        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
 
-      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes).
-          Suppressed on Settings for a calm configuration surface. */}
-      {primaryRole !== 'tutor' && !isSettingsRoute && (
+      {/* Mobile bottom tab bar stays visible on Settings for navigation.
+          The Create speed-dial FAB is suppressed there to keep Settings calm. */}
+      {primaryRole !== 'tutor' && (
         <>
           <MobileBottomNav />
-          <MobileSpeedDial
-            onCreateExam={() => navigate('/upload')}
-            onCreateQuiz={() => navigate('/create-practice-questions')}
-            onAskAI={() => setAiChatOpen(true)}
-            aiUnreadCount={aiUnread}
-          />
+          {!isSettingsRoute && (
+            <MobileSpeedDial
+              onCreateExam={() => navigate('/upload')}
+              onCreateQuiz={() => navigate('/create-practice-questions')}
+              onAskAI={() => setAiChatOpen(true)}
+              aiUnreadCount={aiUnread}
+            />
+          )}
         </>
       )}
 
