@@ -168,6 +168,10 @@ export default function CreateExam() {
   // Resource insert (figures the questions reference) — offered for subjects
   // whose real papers carry one; defaults on when capable.
   const [includeInsert, setIncludeInsert] = useState(true);
+  const [derivedTopicsOpen, setDerivedTopicsOpen] = useState(false);
+  const [derivedTopics, setDerivedTopics] = useState<string[]>([]);
+  const [derivedTopicInput, setDerivedTopicInput] = useState("");
+  const deriveResolveRef = useRef<((topics: string[] | null) => void) | null>(null);
   const subjectSupportsInsert = /geograph|history|environment|earth science/i.test(subjectId || "");
   const [includeGraphs, setIncludeGraphs] = useState(true);
   
@@ -512,6 +516,25 @@ export default function CreateExam() {
 
       const draftId = uploadData.draftId;
 
+      // Scopeless upload: derive topics from the paper, user confirms scope.
+      let confirmedTopics: string[] | null = null;
+      if (!selectedProfile && selectedSubtopics.length === 0) {
+        try {
+          const { data: derived } = await supabase.functions.invoke('derive-exam-topics', { body: { draftId } });
+          if (derived?.topics?.length) {
+            confirmedTopics = await new Promise<string[] | null>((resolve) => {
+              deriveResolveRef.current = resolve;
+              setDerivedTopics(derived.topics);
+              setDerivedTopicsOpen(true);
+            });
+          } else {
+            console.warn('[derive] no topics returned', derived);
+          }
+        } catch (e) {
+          console.warn('Topic derivation failed — generating without scope:', e);
+        }
+      }
+
       // Save format — include profile structure if a profile is active AND the
       // user hasn't unlocked the structure for this exam. When unlocked, fall
       // through to the custom branch so their edits actually take effect.
@@ -577,7 +600,7 @@ export default function CreateExam() {
       // Start extraction (returns immediately)
       const { error: extractError } = await supabase.functions.invoke(
         'extract-exam-questions',
-        { body: { draftId, includeInsert: subjectSupportsInsert && includeInsert } }
+        { body: { draftId, includeInsert: subjectSupportsInsert && includeInsert, curriculumTopics: confirmedTopics ?? undefined } }
       );
 
       if (extractError) throw extractError;
@@ -1488,6 +1511,44 @@ export default function CreateExam() {
           setShowProfilePrompt(false);
         }}
       />
+      <AlertDialog open={derivedTopicsOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>We detected these topics from your paper</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questions will stay within this scope — remove any that don't belong, or add your own.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-wrap gap-1.5 py-1">
+            {derivedTopics.map((t) => (
+              <span key={t} className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs text-primary">
+                {t}
+                <button type="button" aria-label={`Remove ${t}`} onClick={() => setDerivedTopics(derivedTopics.filter((x) => x !== t))}>×</button>
+              </span>
+            ))}
+            {derivedTopics.length === 0 && (
+              <p className="text-xs text-muted-foreground">No topics — generation will be unscoped.</p>
+            )}
+          </div>
+          <Input
+            value={derivedTopicInput}
+            onChange={(e) => setDerivedTopicInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && derivedTopicInput.trim()) {
+                e.preventDefault();
+                if (!derivedTopics.includes(derivedTopicInput.trim())) setDerivedTopics([...derivedTopics, derivedTopicInput.trim()]);
+                setDerivedTopicInput('');
+              }
+            }}
+            placeholder="Add a topic and press Enter"
+            className="h-9 text-sm"
+          />
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => { setDerivedTopicsOpen(false); deriveResolveRef.current?.(null); deriveResolveRef.current = null; }}>Skip</Button>
+            <Button onClick={() => { setDerivedTopicsOpen(false); deriveResolveRef.current?.(derivedTopics.length ? derivedTopics : null); deriveResolveRef.current = null; }}>Use these topics</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
