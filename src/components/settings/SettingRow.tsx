@@ -43,7 +43,7 @@ export function SettingRow({
           {label}
         </Label>
         {description && (
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          <p className="text-[13px] text-muted-foreground mt-0.5 leading-snug">
             {description}
           </p>
         )}
@@ -51,7 +51,7 @@ export function SettingRow({
       <div className="min-w-0">
         <div className="min-h-[48px] flex items-center w-full">{children}</div>
         {hint && (
-          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{hint}</p>
+          <p className="text-[13px] text-muted-foreground mt-2 leading-snug">{hint}</p>
         )}
       </div>
     </div>
