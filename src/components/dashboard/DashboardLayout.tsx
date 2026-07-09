@@ -358,11 +358,15 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — extra bottom padding on mobile to clear the tab bar */}
-        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto">{children}</main>
+        <main className={cn(
+          "p-4 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto",
+          isSettingsRoute ? "pb-8" : "pb-24",
+        )}>{children}</main>
       </div>
 
-      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes) */}
-      {primaryRole !== 'tutor' && (
+      {/* Mobile bottom tab bar (students, < md) + Create speed-dial FAB (all sizes).
+          Suppressed on Settings for a calm configuration surface. */}
+      {primaryRole !== 'tutor' && !isSettingsRoute && (
         <>
           <MobileBottomNav />
           <MobileSpeedDial
@@ -374,8 +378,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </>
       )}
 
-      {/* Tablet / tutor nav drawer FAB (md–lg only after edit) */}
-      <MobileNavFAB />
+      {/* Tablet / tutor nav drawer FAB (md–lg only after edit) — hidden on Settings */}
+      {!isSettingsRoute && <MobileNavFAB />}
 
       {/* AI Tutor Chat — appears on every authenticated page */}
       <AiTutorChat
