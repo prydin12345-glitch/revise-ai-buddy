@@ -31,14 +31,14 @@ export const SettingsCard = ({
       {(title || description) && (
         <header
           className={cn(
-            "px-5 pt-5 pb-4 border-b",
-            destructive ? "border-destructive/20" : "border-border/40",
+            "px-4 pt-4 pb-2 border-b",
+            destructive ? "border-destructive/20" : "border-border/30",
           )}
         >
           {title && (
             <h3
               className={cn(
-                "text-sm font-semibold tracking-tight",
+                "text-[15px] font-semibold tracking-tight",
                 destructive ? "text-destructive" : "text-foreground",
               )}
             >
@@ -46,13 +46,13 @@ export const SettingsCard = ({
             </h3>
           )}
           {description && (
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-[13px] text-muted-foreground mt-0.5 leading-snug">
               {description}
             </p>
           )}
         </header>
       )}
-      <div className="px-5 divide-y divide-border/40">{children}</div>
+      <div className="px-4 divide-y divide-border/40">{children}</div>
     </section>
   );
 };

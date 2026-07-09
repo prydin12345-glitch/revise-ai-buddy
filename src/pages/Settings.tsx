@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import {
   SettingsSidebar,
@@ -86,30 +86,33 @@ const Settings = () => {
           </div>
         ) : effectiveTab ? (
           // ─── Mobile: drilled-down section ────────────────────────────────
-          <main className="px-4 pt-4 pb-16">
-            <button
-              type="button"
-              onClick={clearTab}
-              className="inline-flex items-center gap-1.5 -ml-1 mb-4 text-sm text-muted-foreground hover:text-foreground min-h-[44px]"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Settings
-            </button>
-            <SectionHeader tab={effectiveTab} />
-            <div className="mt-6">{renderSection(effectiveTab)}</div>
-          </main>
+          <>
+            <header className="sticky top-0 z-10 flex items-center gap-1 h-12 px-2 bg-background/85 backdrop-blur-md border-b border-border/40">
+              <button
+                type="button"
+                onClick={clearTab}
+                aria-label="Back to Settings"
+                className="w-11 h-11 -ml-1 inline-flex items-center justify-center rounded-full text-foreground hover:bg-muted/50 active:bg-muted/70"
+              >
+                <ChevronLeft className="w-6 h-6" strokeWidth={2.25} />
+              </button>
+              <h1 className="text-[17px] font-semibold tracking-tight text-foreground truncate">
+                {SETTINGS_META[effectiveTab].title}
+              </h1>
+            </header>
+            <main className="px-4 pt-4 pb-16">
+              <div className="space-y-4">{renderSection(effectiveTab)}</div>
+            </main>
+          </>
         ) : (
           // ─── Mobile: index / drill-down menu ─────────────────────────────
           <main className="px-4 pt-6 pb-16">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground mb-6">
+            <h1 className="text-[22px] font-semibold tracking-tight text-foreground mb-5">
               Settings
             </h1>
-            <div className="space-y-6">
+            <div className="space-y-5">
               {SETTINGS_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <p className="px-1 mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {group.label}
-                  </p>
                   <div className="rounded-xl border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
                     {group.items.map((item) => (
                       <button
@@ -119,10 +122,10 @@ const Settings = () => {
                         className="w-full flex items-center justify-between px-4 py-4 text-left min-h-[56px] hover:bg-muted/40 transition-colors"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">
+                          <p className="text-[15px] font-medium text-foreground">
                             {item.label}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          <p className="text-[13px] text-muted-foreground mt-0.5 truncate leading-snug">
                             {SETTINGS_META[item.id].description}
                           </p>
                         </div>
