@@ -202,6 +202,104 @@ function repairFlatQuestionsToOriginalStructure(questions: any[], structure: Ori
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION ARCHITECTURE DETECTOR
+// ═══════════════════════════════════════════════════════════════════════════
+// Detect the uploaded paper's real section layout (Section A / B / C, per-
+// section mark patterns, and "answer ONE" option gates). Board-agnostic —
+// works from the paper's own text so we can mirror any real exam's shape
+// instead of baking in a specific board's matrix.
+type DetectedSection = {
+  label: string;              // "A", "B", "One", etc.
+  heading: string;            // full heading as seen ("Section A", "Part 1")
+  markPattern: number[];      // per-question marks in section order
+  totalMarks: number | null;  // "[60 marks]" total if the paper prints one
+  optionGate: boolean;        // "answer ONE question" / choose N of M
+  optionChooseCount: number | null; // "answer ONE" -> 1, "answer TWO" -> 2
+  optionOfCount: number | null;     // "…of the following THREE" -> 3
+};
+type PaperSectionBlueprint = {
+  sections: DetectedSection[];
+  totalMarks: number | null;
+};
+
+function detectPaperSections(pdfText: string): PaperSectionBlueprint | null {
+  if (!pdfText || pdfText.length < 200) return null;
+  const text = pdfText.replace(/\r/g, '');
+  // Match "Section A", "Section B", "Part 1", "Part 2" — case-insensitive,
+  // requires at least two occurrences to be considered structured.
+  const headingRe = /\b(Section|Part)\s+([A-E]|[1-5]|One|Two|Three|Four|Five)\b[^\n]{0,120}/gi;
+  const headings: Array<{ idx: number; label: string; heading: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = headingRe.exec(text)) !== null) {
+    headings.push({ idx: m.index, label: m[2], heading: m[0].trim().slice(0, 120) });
+  }
+  // Dedupe consecutive duplicates (headings can repeat as running headers).
+  const uniq: typeof headings = [];
+  for (const h of headings) {
+    if (!uniq.some((u) => u.label.toLowerCase() === h.label.toLowerCase() && Math.abs(u.idx - h.idx) < 400)) {
+      uniq.push(h);
+    }
+  }
+  if (uniq.length < 2) return null;
+
+  const totalPaperMarks = (() => {
+    const t = text.match(/total(?:\s+for\s+this\s+paper)?\s*(?:is|:)?\s*\[?\s*(\d{2,3})\s*marks?\s*\]?/i);
+    return t ? parseInt(t[1], 10) : null;
+  })();
+
+  const sections: DetectedSection[] = [];
+  for (let i = 0; i < uniq.length; i++) {
+    const start = uniq[i].idx;
+    const end = i + 1 < uniq.length ? uniq[i + 1].idx : Math.min(text.length, start + 12000);
+    const body = text.slice(start, end);
+    const markPattern = [...body.matchAll(/\[\s*(\d{1,2})\s*marks?\s*\]/gi)]
+      .map((mm) => parseInt(mm[1], 10))
+      .filter((n) => n > 0 && n <= 50);
+    const totalMatch = body.match(/total(?:\s+for\s+(?:this\s+)?section)?\s*(?:is|:)?\s*\[?\s*(\d{1,3})\s*marks?\s*\]?/i);
+    const optionMatch = body.match(/answer\s+(one|two|three|1|2|3)\s+question/i);
+    const ofMatch = body.match(/of\s+the\s+following\s+(two|three|four|2|3|4)/i);
+    const wordToNum: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5 };
+    sections.push({
+      label: uniq[i].label,
+      heading: uniq[i].heading,
+      markPattern,
+      totalMarks: totalMatch ? parseInt(totalMatch[1], 10) : null,
+      optionGate: !!optionMatch,
+      optionChooseCount: optionMatch ? wordToNum[optionMatch[1].toLowerCase()] ?? null : null,
+      optionOfCount: ofMatch ? wordToNum[ofMatch[1].toLowerCase()] ?? null : null,
+    });
+  }
+  // Require at least one section to carry actual mark tokens — otherwise
+  // we've matched running headers with no real content.
+  if (!sections.some((s) => s.markPattern.length >= 1)) return null;
+  return { sections, totalMarks: totalPaperMarks };
+}
+
+function buildSectionBlueprintPromptBlock(bp: PaperSectionBlueprint | null): string {
+  if (!bp || bp.sections.length < 2) return '';
+  const lines = bp.sections.map((s) => {
+    const marks = s.markPattern.length ? s.markPattern.join(', ') : '(no explicit marks detected)';
+    const opt = s.optionGate
+      ? ` — OPTION GATE: candidates answer ${s.optionChooseCount ?? 1}${s.optionOfCount ? ` of ${s.optionOfCount}` : ''} option(s); generate exactly ${s.optionChooseCount ?? 1} option question(s), not all of them`
+      : '';
+    const total = s.totalMarks ? ` (section total ${s.totalMarks} marks)` : '';
+    return `- Section ${s.label}: ${s.markPattern.length} question(s), marks pattern [${marks}]${total}${opt}`;
+  });
+  return `## DETECTED PAPER SECTION ARCHITECTURE — HARD REQUIREMENT
+The uploaded reference paper is divided into sections. Mirror this architecture exactly — same section count, same per-section mark pattern${bp.totalMarks ? `, same overall total (${bp.totalMarks} marks)` : ''}. Preface each section in your output with a section heading question (question_type "section_header" or an explicit "Section X" prefix on the first question of that section).
+
+${lines.join('\n')}
+
+Rules:
+- Reproduce the section count and per-section question count precisely.
+- Match the mark pattern within each section as closely as possible.
+- Where a section has an option gate ("answer ONE of the following"), generate ONLY the number of option questions candidates actually answer — never all of them.
+- If a per-question mark tariff is listed above, use it for the corresponding question in that section.
+- This blueprint overrides the generic Section A/B split below when the two conflict.`;
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
