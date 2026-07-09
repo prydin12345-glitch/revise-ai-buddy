@@ -202,6 +202,104 @@ function repairFlatQuestionsToOriginalStructure(questions: any[], structure: Ori
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION ARCHITECTURE DETECTOR
+// ═══════════════════════════════════════════════════════════════════════════
+// Detect the uploaded paper's real section layout (Section A / B / C, per-
+// section mark patterns, and "answer ONE" option gates). Board-agnostic —
+// works from the paper's own text so we can mirror any real exam's shape
+// instead of baking in a specific board's matrix.
+type DetectedSection = {
+  label: string;              // "A", "B", "One", etc.
+  heading: string;            // full heading as seen ("Section A", "Part 1")
+  markPattern: number[];      // per-question marks in section order
+  totalMarks: number | null;  // "[60 marks]" total if the paper prints one
+  optionGate: boolean;        // "answer ONE question" / choose N of M
+  optionChooseCount: number | null; // "answer ONE" -> 1, "answer TWO" -> 2
+  optionOfCount: number | null;     // "…of the following THREE" -> 3
+};
+type PaperSectionBlueprint = {
+  sections: DetectedSection[];
+  totalMarks: number | null;
+};
+
+function detectPaperSections(pdfText: string): PaperSectionBlueprint | null {
+  if (!pdfText || pdfText.length < 200) return null;
+  const text = pdfText.replace(/\r/g, '');
+  // Match "Section A", "Section B", "Part 1", "Part 2" — case-insensitive,
+  // requires at least two occurrences to be considered structured.
+  const headingRe = /\b(Section|Part)\s+([A-E]|[1-5]|One|Two|Three|Four|Five)\b[^\n]{0,120}/gi;
+  const headings: Array<{ idx: number; label: string; heading: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = headingRe.exec(text)) !== null) {
+    headings.push({ idx: m.index, label: m[2], heading: m[0].trim().slice(0, 120) });
+  }
+  // Dedupe consecutive duplicates (headings can repeat as running headers).
+  const uniq: typeof headings = [];
+  for (const h of headings) {
+    if (!uniq.some((u) => u.label.toLowerCase() === h.label.toLowerCase() && Math.abs(u.idx - h.idx) < 400)) {
+      uniq.push(h);
+    }
+  }
+  if (uniq.length < 2) return null;
+
+  const totalPaperMarks = (() => {
+    const t = text.match(/total(?:\s+for\s+this\s+paper)?\s*(?:is|:)?\s*\[?\s*(\d{2,3})\s*marks?\s*\]?/i);
+    return t ? parseInt(t[1], 10) : null;
+  })();
+
+  const sections: DetectedSection[] = [];
+  for (let i = 0; i < uniq.length; i++) {
+    const start = uniq[i].idx;
+    const end = i + 1 < uniq.length ? uniq[i + 1].idx : Math.min(text.length, start + 12000);
+    const body = text.slice(start, end);
+    const markPattern = [...body.matchAll(/\[\s*(\d{1,2})\s*marks?\s*\]/gi)]
+      .map((mm) => parseInt(mm[1], 10))
+      .filter((n) => n > 0 && n <= 50);
+    const totalMatch = body.match(/total(?:\s+for\s+(?:this\s+)?section)?\s*(?:is|:)?\s*\[?\s*(\d{1,3})\s*marks?\s*\]?/i);
+    const optionMatch = body.match(/answer\s+(one|two|three|1|2|3)\s+question/i);
+    const ofMatch = body.match(/of\s+the\s+following\s+(two|three|four|2|3|4)/i);
+    const wordToNum: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5 };
+    sections.push({
+      label: uniq[i].label,
+      heading: uniq[i].heading,
+      markPattern,
+      totalMarks: totalMatch ? parseInt(totalMatch[1], 10) : null,
+      optionGate: !!optionMatch,
+      optionChooseCount: optionMatch ? wordToNum[optionMatch[1].toLowerCase()] ?? null : null,
+      optionOfCount: ofMatch ? wordToNum[ofMatch[1].toLowerCase()] ?? null : null,
+    });
+  }
+  // Require at least one section to carry actual mark tokens — otherwise
+  // we've matched running headers with no real content.
+  if (!sections.some((s) => s.markPattern.length >= 1)) return null;
+  return { sections, totalMarks: totalPaperMarks };
+}
+
+function buildSectionBlueprintPromptBlock(bp: PaperSectionBlueprint | null): string {
+  if (!bp || bp.sections.length < 2) return '';
+  const lines = bp.sections.map((s) => {
+    const marks = s.markPattern.length ? s.markPattern.join(', ') : '(no explicit marks detected)';
+    const opt = s.optionGate
+      ? ` — OPTION GATE: candidates answer ${s.optionChooseCount ?? 1}${s.optionOfCount ? ` of ${s.optionOfCount}` : ''} option(s); generate exactly ${s.optionChooseCount ?? 1} option question(s), not all of them`
+      : '';
+    const total = s.totalMarks ? ` (section total ${s.totalMarks} marks)` : '';
+    return `- Section ${s.label}: ${s.markPattern.length} question(s), marks pattern [${marks}]${total}${opt}`;
+  });
+  return `## DETECTED PAPER SECTION ARCHITECTURE — HARD REQUIREMENT
+The uploaded reference paper is divided into sections. Mirror this architecture exactly — same section count, same per-section mark pattern${bp.totalMarks ? `, same overall total (${bp.totalMarks} marks)` : ''}. Preface each section in your output with a section heading question (question_type "section_header" or an explicit "Section X" prefix on the first question of that section).
+
+${lines.join('\n')}
+
+Rules:
+- Reproduce the section count and per-section question count precisely.
+- Match the mark pattern within each section as closely as possible.
+- Where a section has an option gate ("answer ONE of the following"), generate ONLY the number of option questions candidates actually answer — never all of them.
+- If a per-question mark tariff is listed above, use it for the corresponding question in that section.
+- This blueprint overrides the generic Section A/B split below when the two conflict.`;
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -507,6 +605,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     hasDeltaWyeTopic,
     insertPromptBlock,
     originalStructurePromptBlock: buildOriginalStructurePromptBlock(detectedOriginalStructure),
+    sectionBlueprintPromptBlock: (() => {
+      const bp = detectPaperSections(pdfText || '');
+      if (bp) console.log(`[sections] detected ${bp.sections.length} sections from reference paper: ${bp.sections.map((s) => `${s.label}(${s.markPattern.length}q${s.optionGate ? ',opt' : ''})`).join(' ')}`);
+      return buildSectionBlueprintPromptBlock(bp);
+    })(),
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -682,26 +785,36 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
 
   // ── NUMBERING NORMALISER (post-gates) ────────────────────────────────────
-  // Gates drop questions, and models sometimes emit gappy letters (a,b,e) or
-  // skipped parents (no Q6). Renumber deterministically: units (standalone
-  // questions or parent groups) sequential from 1 in order of appearance;
-  // sub-parts alphabetical from (a) without gaps.
+  // Gates drop questions, and models sometimes emit gappy letters (a,b,e),
+  // skipped parents (no Q6), or empty parens (a question labelled just "3(").
+  // Renumber deterministically: units (standalone questions or parent groups)
+  // sequential from 1 in order of appearance; sub-parts alphabetical from (a)
+  // without gaps. Group by the ROOT number (extracted from question_number
+  // when parent_question_number is missing) so gappy sub-letters collapse.
   {
-    const unitKeys: string[] = [];
-    const unitMap = new Map<string, any[]>();
+    const rootOf = (q: any): string => {
+      const src = q.parent_question_number ?? q.root_question_number ?? q.question_number ?? '';
+      return String(src).match(/\d+/)?.[0] || '0';
+    };
+    const looksLikeSubPart = (q: any): boolean => {
+      if (q.parent_question_number) return true;
+      const qn = String(q.question_number || '');
+      return /\([a-z]\)|\.[0-9]+|[a-z]\)?$/i.test(qn.replace(/^\d+/, ''));
+    };
+    const rootOrder: string[] = [];
+    const rootMap = new Map<string, any[]>();
     for (const q of questions) {
-      const rawKey = String(q.parent_question_number || q.root_question_number || q.question_number || '');
-      const numKey = (rawKey.match(/\d+/) || ['0'])[0] + (q.parent_question_number ? '' : `#${q.question_number}`);
-      const key = q.parent_question_number ? `p${(String(q.parent_question_number).match(/\d+/) || ['0'])[0]}` : `s${numKey}`;
-      if (!unitMap.has(key)) { unitMap.set(key, []); unitKeys.push(key); }
-      unitMap.get(key)!.push(q);
+      const r = rootOf(q);
+      if (!rootMap.has(r)) { rootMap.set(r, []); rootOrder.push(r); }
+      rootMap.get(r)!.push(q);
     }
     let renumbered = 0;
-    unitKeys.forEach((key, ui) => {
+    rootOrder.forEach((r, ui) => {
       const num = String(ui + 1);
-      const unit = unitMap.get(key)!;
-      if (key.startsWith('p') || unit.length > 1) {
-        unit.forEach((q: any, pi: number) => {
+      const group = rootMap.get(r)!;
+      const isParent = group.length > 1 || group.some(looksLikeSubPart);
+      if (isParent) {
+        group.forEach((q: any, pi: number) => {
           const newQn = `${num}(${String.fromCharCode(97 + pi)})`;
           if (q.question_number !== newQn) renumbered++;
           q.question_number = newQn;
@@ -709,14 +822,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           q.root_question_number = num;
         });
       } else {
-        const q = unit[0];
+        const q = group[0];
         if (q.question_number !== num) renumbered++;
         q.question_number = num;
         q.parent_question_number = null;
         q.root_question_number = num;
       }
     });
-    if (renumbered > 0) console.log(`[renumber] normalised ${renumbered} question numbers (gapless letters + sequential parents)`);
+    console.log(`[renumber] normalised ${renumbered}/${questions.length} question numbers across ${rootOrder.length} units (gapless letters + sequential parents)`);
   }
 
   // Legitimate insert-figure references must NOT be treated as broken diagram
@@ -1511,6 +1624,7 @@ function buildPrompt(params: {
   hasDeltaWyeTopic?: boolean;
   insertPromptBlock?: string;
   originalStructurePromptBlock?: string;
+  sectionBlueprintPromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -1541,6 +1655,7 @@ function buildPrompt(params: {
     hasDeltaWyeTopic = false,
     insertPromptBlock = '',
     originalStructurePromptBlock = '',
+    sectionBlueprintPromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -1602,7 +1717,7 @@ Use appropriate academic terminology for ${educationalLevel} level.
 Questions must match the style and difficulty of ${examBoard || curriculumRegion} examinations.`;
 
   // ── BLOCK 3: QUESTION COUNT AND TYPES ─────────────────────────────────────
-  let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n`;
+  let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n${sectionBlueprintPromptBlock ? 'When a DETECTED PAPER SECTION ARCHITECTURE block is present above, it takes precedence over the generic Section A / Section B split below — mirror the detected sections instead.\n' : ''}`;
   if (noCountsRequested) {
     questionCountBlock += `No explicit count was configured: match the reference paper's question count. If that is unclear, generate 6-9 parent questions — NEVER fewer than 6.\n`;
   }
@@ -2353,6 +2468,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     EXAM_QUALITY_RULES,
     subjectSpecificBlock,
     originalStructurePromptBlock,
+    sectionBlueprintPromptBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
