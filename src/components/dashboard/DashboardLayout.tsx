@@ -17,6 +17,7 @@ import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { useTheme } from "@/hooks/useTheme";
 import { AiTutorChat } from "@/components/ai-tutor/AiTutorChat";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiUnread, setAiUnread] = useState(0);
   const { theme, toggleTheme } = useTheme();
+  const isSettingsRoute = location.pathname.startsWith("/settings");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
