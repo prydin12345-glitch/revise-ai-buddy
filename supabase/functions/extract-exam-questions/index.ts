@@ -1624,6 +1624,7 @@ function buildPrompt(params: {
   hasDeltaWyeTopic?: boolean;
   insertPromptBlock?: string;
   originalStructurePromptBlock?: string;
+  sectionBlueprintPromptBlock?: string;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
