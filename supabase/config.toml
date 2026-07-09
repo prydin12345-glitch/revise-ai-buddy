@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.ai-tutor-chat]
 verify_jwt = false
+
+[functions.derive-exam-topics]
+verify_jwt = true
