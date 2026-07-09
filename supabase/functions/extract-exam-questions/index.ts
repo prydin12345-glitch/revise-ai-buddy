@@ -2468,6 +2468,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     EXAM_QUALITY_RULES,
     subjectSpecificBlock,
     originalStructurePromptBlock,
+    sectionBlueprintPromptBlock,
     questionCountBlock,
     mcqRulesBlock,
     writtenRulesBlock,
