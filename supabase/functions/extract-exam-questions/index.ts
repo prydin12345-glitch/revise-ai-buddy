@@ -1717,7 +1717,7 @@ Use appropriate academic terminology for ${educationalLevel} level.
 Questions must match the style and difficulty of ${examBoard || curriculumRegion} examinations.`;
 
   // ── BLOCK 3: QUESTION COUNT AND TYPES ─────────────────────────────────────
-  let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n`;
+  let questionCountBlock = `\n## WHAT TO GENERATE\nCOUNT IS A HARD REQUIREMENT: deliver the full number of questions requested below. If a question idea is weak or invalid, replace it — never return fewer.\n${sectionBlueprintPromptBlock ? 'When a DETECTED PAPER SECTION ARCHITECTURE block is present above, it takes precedence over the generic Section A / Section B split below — mirror the detected sections instead.\n' : ''}`;
   if (noCountsRequested) {
     questionCountBlock += `No explicit count was configured: match the reference paper's question count. If that is unclear, generate 6-9 parent questions — NEVER fewer than 6.\n`;
   }
