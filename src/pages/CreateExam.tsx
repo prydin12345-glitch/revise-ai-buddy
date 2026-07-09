@@ -1367,7 +1367,7 @@ export default function CreateExam() {
         </div>
       </div>
       {/* Loading Screen */}
-      {generating && (
+      {generating && !derivedTopicsOpen && (
         <GenerationLoadingScreen
           message={currentMessage}
           subjectColor={subjectColor}
