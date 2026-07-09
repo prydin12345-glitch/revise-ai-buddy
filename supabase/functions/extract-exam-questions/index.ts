@@ -345,7 +345,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
               const hierarchyRule = useOriginalStructure && detectedOriginalStructure
                 ? 'Place figure questions inside the detected parent/sub-part hierarchy; do NOT create a small standalone figure-only paper.'
                 : 'Spread figure questions through the paper following its structure.';
-              insertPromptBlock = `\n## INSERT FIGURES AVAILABLE (${figures.length})\n${figLines}\nRULES:\n- Each figure must be referenced by AT LEAST 1 and AT MOST 3 questions — never stretch one figure across the whole paper.\n- Match question type to figure type: calculations ONLY against data tables (raw numbers); pattern/distribution against maps.\n- Every figure question must instruct: "Support your answer with data from Figure N."\n- ${hierarchyRule}\n- Do NOT invent data not present in a figure. All other questions must NOT mention any figure.\n`;
+              insertPromptBlock = `\n## INSERT FIGURES AVAILABLE (${figures.length})\n${figLines}\nRULES:\n- Each figure must be referenced by AT LEAST 1 and AT MOST 3 questions — never stretch one figure across the whole paper.\n- Match question type to figure type: calculations ONLY against data tables (raw numbers); pattern/distribution against maps.\n- Every figure question must instruct: "Support your answer with data from Figure N."\n- ${hierarchyRule}\n- Only name places/entities that appear VERBATIM in the figure's data — never ask about a row that is not in the table.\n- Do NOT invent data not present in a figure. All other questions must NOT mention any figure.\n`;
               console.log('[insert] figures generated:', figures.map((f: any) => `${f.figureNumber}:${f.type}`).join(', '));
             }
           } else {
@@ -627,6 +627,25 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         console.warn(`[figgate] Q${q.question_number} references Figure ${n}, which does not exist in the insert — dropped`);
         return false;
       }
+      if (fig.type === 'data_table') {
+        // Entity-match: any places named in a compare/for pattern must exist
+        // in the table (the Edinburgh-vs-Glasgow desync class of failure).
+        const tableWords = new Set(
+          fig.rows.flat().filter((cell: any) => typeof cell === 'string')
+            .flatMap((cell: string) => cell.split(/[^A-Za-z]+/)).filter(Boolean)
+            .map((w: string) => w.toLowerCase())
+        );
+        const pairs = [...text.matchAll(/(?:for|between)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+and\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/g)];
+        for (const m of pairs) {
+          for (const name of [m[1], m[2]]) {
+            const missing = name.split(/\s+/).some((w) => !tableWords.has(w.toLowerCase()));
+            if (missing) {
+              console.warn(`[figgate] Q${q.question_number} names "${name}" which is not in table Figure ${n} — dropped (entity mismatch)`);
+              return false;
+            }
+          }
+        }
+      }
       if (fig.type === 'map_points' && CALC_DEMAND_RE.test(text)) {
         console.warn(`[figgate] Q${q.question_number} demands calculation from categorical map Figure ${n} — dropped (maps carry bands, not raw values)`);
         return false;
@@ -660,6 +679,44 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
     const totalMarks = questions.reduce((s: number, q: any) => s + (Number(q.marks) || 0), 0);
     console.log(`[markcap] paper totals: ${questions.length} questions, ${totalMarks} marks`);
+  }
+
+  // ── NUMBERING NORMALISER (post-gates) ────────────────────────────────────
+  // Gates drop questions, and models sometimes emit gappy letters (a,b,e) or
+  // skipped parents (no Q6). Renumber deterministically: units (standalone
+  // questions or parent groups) sequential from 1 in order of appearance;
+  // sub-parts alphabetical from (a) without gaps.
+  {
+    const unitKeys: string[] = [];
+    const unitMap = new Map<string, any[]>();
+    for (const q of questions) {
+      const rawKey = String(q.parent_question_number || q.root_question_number || q.question_number || '');
+      const numKey = (rawKey.match(/\d+/) || ['0'])[0] + (q.parent_question_number ? '' : `#${q.question_number}`);
+      const key = q.parent_question_number ? `p${(String(q.parent_question_number).match(/\d+/) || ['0'])[0]}` : `s${numKey}`;
+      if (!unitMap.has(key)) { unitMap.set(key, []); unitKeys.push(key); }
+      unitMap.get(key)!.push(q);
+    }
+    let renumbered = 0;
+    unitKeys.forEach((key, ui) => {
+      const num = String(ui + 1);
+      const unit = unitMap.get(key)!;
+      if (key.startsWith('p') || unit.length > 1) {
+        unit.forEach((q: any, pi: number) => {
+          const newQn = `${num}(${String.fromCharCode(97 + pi)})`;
+          if (q.question_number !== newQn) renumbered++;
+          q.question_number = newQn;
+          q.parent_question_number = num;
+          q.root_question_number = num;
+        });
+      } else {
+        const q = unit[0];
+        if (q.question_number !== num) renumbered++;
+        q.question_number = num;
+        q.parent_question_number = null;
+        q.root_question_number = num;
+      }
+    });
+    if (renumbered > 0) console.log(`[renumber] normalised ${renumbered} question numbers (gapless letters + sequential parents)`);
   }
 
   // Legitimate insert-figure references must NOT be treated as broken diagram
