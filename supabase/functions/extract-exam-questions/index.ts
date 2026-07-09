@@ -605,6 +605,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     hasDeltaWyeTopic,
     insertPromptBlock,
     originalStructurePromptBlock: buildOriginalStructurePromptBlock(detectedOriginalStructure),
+    sectionBlueprintPromptBlock: (() => {
+      const bp = detectPaperSections(pdfText || '');
+      if (bp) console.log(`[sections] detected ${bp.sections.length} sections from reference paper: ${bp.sections.map((s) => `${s.label}(${s.markPattern.length}q${s.optionGate ? ',opt' : ''})`).join(' ')}`);
+      return buildSectionBlueprintPromptBlock(bp);
+    })(),
   });
 
   let extractionPrompt = extractionPrompt_raw;
