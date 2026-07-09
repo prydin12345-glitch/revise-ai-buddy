@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
@@ -612,7 +613,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   questions = questions.filter((q: any) => {
     const text = String(q.question_text || '');
     const refs = [...text.matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
-    if (refs.length === 0) return true;
+    const PHANTOM_RE = /shown in the (image|photograph|photo|diagram|figure)|in the (image|photograph|photo) (above|below|provided)/i;
+    if (refs.length === 0) {
+      if (PHANTOM_RE.test(text)) {
+        console.warn(`[figgate] Q${q.question_number} references an image/diagram that was never generated — dropped (phantom asset)`);
+        return false;
+      }
+      return true;
+    }
     for (const n of refs) {
       const fig = figByNum.get(n);
       if (!fig) {
@@ -628,6 +636,30 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   });
   if (beforeFigGate !== questions.length) {
     console.log(`[figgate] removed ${beforeFigGate - questions.length} figure-contract violations`);
+  }
+
+  // ── MARK-CAP GATE (Phase 4) ──────────────────────────────────────────────
+  {
+    const isEssay = (q: any) => (Number(q.marks) || 0) >= 15;
+    const isExtended = (q: any) => (Number(q.marks) || 0) >= 9 && (Number(q.marks) || 0) < 15;
+    const essays = questions.filter(isEssay).sort((a: any, b: any) => (Number(b.marks) || 0) - (Number(a.marks) || 0));
+    if (essays.length > 1) {
+      const keep = essays[0];
+      questions = questions.filter((q: any) => !isEssay(q) || q === keep);
+      console.log(`[markcap] ${essays.length} essays (15+ marks) — kept Q${keep.question_number} (${keep.marks} marks), dropped ${essays.length - 1}`);
+    }
+    let extSeen = 0;
+    const beforeExt = questions.length;
+    questions = questions.filter((q: any) => {
+      if (!isExtended(q)) return true;
+      extSeen++;
+      return extSeen <= 3;
+    });
+    if (questions.length !== beforeExt) {
+      console.log(`[markcap] capped extended responses (9-14 marks) at 3 — dropped ${beforeExt - questions.length}`);
+    }
+    const totalMarks = questions.reduce((s: number, q: any) => s + (Number(q.marks) || 0), 0);
+    console.log(`[markcap] paper totals: ${questions.length} questions, ${totalMarks} marks`);
   }
 
   // Legitimate insert-figure references must NOT be treated as broken diagram
@@ -2249,7 +2281,9 @@ Match genuine AQA/Edexcel/OCR A-level standard:
 - QUANTIFICATION: every figure/data question must end with "Support your answer with data from the figure." — full marks must require citing specific values, not general description.
 - SYNOPTIC LINKS: include at least one question bridging two topics from the topic list (e.g. linking global systems to hazards), as real A-level papers do.
 - AO3 DENSITY: several questions should use "Assess", "Examine", "Discuss" or "To what extent" and demand a balanced argument with a supported conclusion — not only the final question.
-- CASE STUDIES: evaluation questions should say "with reference to an example/case study you have studied."`;
+- CASE STUDIES: evaluation questions should say "with reference to an example/case study you have studied."
+- PAPER ARCHITECTURE (hard constraint): AT MOST ONE 15-20 mark essay and AT MOST TWO 9-mark extended responses per paper; most questions carry 1-6 marks; total around 60 marks unless the requested count demands more.
+- MODULE ISOLATION: draw questions from AT MOST 3 curriculum modules of the topic scope; NEVER mix physical-geography modules (cycles, hazards, coasts, glaciation) with human-geography modules (global systems, changing places, urban) in one paper — pick one component and stay in it.`;
   }
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
