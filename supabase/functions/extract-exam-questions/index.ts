@@ -1655,6 +1655,7 @@ function buildPrompt(params: {
     hasDeltaWyeTopic = false,
     insertPromptBlock = '',
     originalStructurePromptBlock = '',
+    sectionBlueprintPromptBlock = '',
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
