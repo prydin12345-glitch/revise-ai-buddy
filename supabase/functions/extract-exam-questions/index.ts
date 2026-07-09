@@ -682,26 +682,36 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
 
   // ── NUMBERING NORMALISER (post-gates) ────────────────────────────────────
-  // Gates drop questions, and models sometimes emit gappy letters (a,b,e) or
-  // skipped parents (no Q6). Renumber deterministically: units (standalone
-  // questions or parent groups) sequential from 1 in order of appearance;
-  // sub-parts alphabetical from (a) without gaps.
+  // Gates drop questions, and models sometimes emit gappy letters (a,b,e),
+  // skipped parents (no Q6), or empty parens (a question labelled just "3(").
+  // Renumber deterministically: units (standalone questions or parent groups)
+  // sequential from 1 in order of appearance; sub-parts alphabetical from (a)
+  // without gaps. Group by the ROOT number (extracted from question_number
+  // when parent_question_number is missing) so gappy sub-letters collapse.
   {
-    const unitKeys: string[] = [];
-    const unitMap = new Map<string, any[]>();
+    const rootOf = (q: any): string => {
+      const src = q.parent_question_number ?? q.root_question_number ?? q.question_number ?? '';
+      return String(src).match(/\d+/)?.[0] || '0';
+    };
+    const looksLikeSubPart = (q: any): boolean => {
+      if (q.parent_question_number) return true;
+      const qn = String(q.question_number || '');
+      return /\([a-z]\)|\.[0-9]+|[a-z]\)?$/i.test(qn.replace(/^\d+/, ''));
+    };
+    const rootOrder: string[] = [];
+    const rootMap = new Map<string, any[]>();
     for (const q of questions) {
-      const rawKey = String(q.parent_question_number || q.root_question_number || q.question_number || '');
-      const numKey = (rawKey.match(/\d+/) || ['0'])[0] + (q.parent_question_number ? '' : `#${q.question_number}`);
-      const key = q.parent_question_number ? `p${(String(q.parent_question_number).match(/\d+/) || ['0'])[0]}` : `s${numKey}`;
-      if (!unitMap.has(key)) { unitMap.set(key, []); unitKeys.push(key); }
-      unitMap.get(key)!.push(q);
+      const r = rootOf(q);
+      if (!rootMap.has(r)) { rootMap.set(r, []); rootOrder.push(r); }
+      rootMap.get(r)!.push(q);
     }
     let renumbered = 0;
-    unitKeys.forEach((key, ui) => {
+    rootOrder.forEach((r, ui) => {
       const num = String(ui + 1);
-      const unit = unitMap.get(key)!;
-      if (key.startsWith('p') || unit.length > 1) {
-        unit.forEach((q: any, pi: number) => {
+      const group = rootMap.get(r)!;
+      const isParent = group.length > 1 || group.some(looksLikeSubPart);
+      if (isParent) {
+        group.forEach((q: any, pi: number) => {
           const newQn = `${num}(${String.fromCharCode(97 + pi)})`;
           if (q.question_number !== newQn) renumbered++;
           q.question_number = newQn;
@@ -709,14 +719,14 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
           q.root_question_number = num;
         });
       } else {
-        const q = unit[0];
+        const q = group[0];
         if (q.question_number !== num) renumbered++;
         q.question_number = num;
         q.parent_question_number = null;
         q.root_question_number = num;
       }
     });
-    if (renumbered > 0) console.log(`[renumber] normalised ${renumbered} question numbers (gapless letters + sequential parents)`);
+    console.log(`[renumber] normalised ${renumbered}/${questions.length} question numbers across ${rootOrder.length} units (gapless letters + sequential parents)`);
   }
 
   // Legitimate insert-figure references must NOT be treated as broken diagram
