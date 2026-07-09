@@ -1419,11 +1419,16 @@ const ExamInProgress = () => {
                               <ChevronDown className="h-3 w-3 text-muted-foreground transition-transform" />
                             </CollapsibleTrigger>
                             <CollapsibleContent className="pl-4 space-y-0.5 mt-0.5">
-                              {subQuestions.map(q => {
+                              {subQuestions.map((q, subIdx) => {
                                 const answerData = userAnswers[q.id];
                                 const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
                                 const isFlagged = flaggedQuestions.has(q.id);
-                                const subLabel = q.question_number.replace(/^\d+/, '');
+                                // Extract sub-label robustly: prefer any letter inside parens,
+                                // fall back to alphabetical position when the tail is empty or "(".
+                                const rawTail = q.question_number.replace(/^\d+/, '').trim();
+                                const letterMatch = rawTail.match(/[a-z]/i);
+                                const letter = letterMatch ? letterMatch[0].toLowerCase() : String.fromCharCode(97 + subIdx);
+                                const subLabel = `(${letter})`;
                                 
                                 return (
                                   <button
