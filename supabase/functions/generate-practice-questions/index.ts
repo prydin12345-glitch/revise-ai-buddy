@@ -14,6 +14,7 @@ import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
 import { detectDiagramTopics, buildDiagramSuppressionNotice, buildPhasorInstructions, buildNodalAnalysisInstruction, buildDeltaWyeInstructions, buildCircuitInstructions } from "../_shared/electrical-instructions.ts";
+import { validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { validateCircuitConfig } from "../_shared/circuit-validation.ts";
 import { buildDifficultyInstructions } from "../_shared/difficulty-instructions.ts";
 import { NOTATION_RULES, SKETCH_TYPE_RULE, NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS } from "../_shared/generation-rules.ts";
@@ -237,6 +238,76 @@ async function generateQuestionsInBackground(
         total_questions_generated: 0,
       })
       .eq('id', setId);
+
+    // ── INSERT FIGURES FOR PRACTICE (Option A: figure first) ────────────────
+    // Same engine as exams: shared prompt + validation gates. Figures are
+    // generated before questions so the question prompt references REAL data.
+    const PRACTICE_INSERT_CAPABLE = /geograph|history|environment|earth science/i;
+    const PRACTICE_AI_KEY = Deno.env.get('LOVABLE_API_KEY') ?? '';
+    let practiceInsertFigures: any[] = [];
+    let practiceFigBlock = '';
+    {
+      const practiceSubject = String((setData as any).subject_name || (setData as any).subject || '');
+      const practiceTopics: string[] = [
+        ...(Array.isArray((setData as any).subtopics) ? (setData as any).subtopics : []),
+        ...(Array.isArray((setData as any).selected_subtopics) ? (setData as any).selected_subtopics : []),
+        ...((setData as any).subtopic ? [String((setData as any).subtopic)] : []),
+      ].filter(Boolean);
+      console.log(`[insert] practice subject="${practiceSubject}" capable=${PRACTICE_INSERT_CAPABLE.test(practiceSubject)} topics=${practiceTopics.length}`);
+      if (PRACTICE_INSERT_CAPABLE.test(practiceSubject)) {
+        try {
+          const figPrompt = buildInsertFiguresPrompt(
+            `${practiceSubject} practice questions at ${(setData as any).educational_tier || 'GCSE/A-Level'} level`,
+            practiceTopics
+          );
+          const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${PRACTICE_AI_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [{ role: 'user', content: figPrompt }],
+              temperature: 0.4,
+            }),
+          });
+          if (figResp.ok) {
+            const figData = await figResp.json();
+            const raw = figData.choices?.[0]?.message?.content || '';
+            const jsonMatch = raw.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              const { figures, rejected } = validateInsertFigures(JSON.parse(jsonMatch[0]));
+              if (rejected.length) console.warn('[insert] rejected figures:', rejected.join(' | '));
+              if (figures.length > 0) {
+                const { error: figSaveErr } = await supabaseClient
+                  .from('practice_question_sets')
+                  .update({ insert_figures: figures })
+                  .eq('id', setId);
+                if (figSaveErr) {
+                  console.error('[insert] FIGURE SAVE FAILED (is the practice insert_figures migration applied?):', figSaveErr.message);
+                } else {
+                  practiceInsertFigures = figures;
+                  const figLines = figures.map((f: any) => {
+                    if (f.type === 'map_points') {
+                      const pts = f.points.map((pt: any) => `${pt.name} (${pt.category}${typeof pt.value === 'number' ? `, ${pt.value}` : ''})`).join(', ');
+                      return `Figure ${f.figureNumber}: "${f.title}" — UK map (labelled points): ${pts}. Categories: ${f.categories.map((ct: any) => ct.label).join(', ')}. Pattern/distribution/identification questions ONLY — categorical data, NO precise calculations.`;
+                    }
+                    const sample = f.rows.slice(0, 3).map((r: any[]) => r.join(' / ')).join('; ');
+                    return `Figure ${f.figureNumber}: "${f.title}" — data table, columns [${f.columns.join(', ')}], ${f.rows.length} rows of RAW numeric values (e.g. ${sample}). Supports calculation and precise comparison.`;
+                  }).join('\n');
+                  practiceFigBlock = `\n## INSERT FIGURES AVAILABLE (${figures.length})\n${figLines}\nRULES:\n- 1 to 3 of the questions must explicitly reference each figure ("Using Figure N, ...") and instruct "Support your answer with data from Figure N."\n- Calculations ONLY against data tables; pattern/distribution against maps.\n- Only name places/entities that appear VERBATIM in a figure's data.\n- Do NOT invent data not present in a figure. All other questions must NOT mention any figure.\n`;
+                  console.log('[insert] practice figures generated:', figures.map((f: any) => `${f.figureNumber}:${f.type}`).join(', '));
+                }
+              } else {
+                console.warn('[insert] no figures survived validation — practice proceeds without insert');
+              }
+            }
+          } else {
+            console.error('[insert] AI figures call failed:', figResp.status);
+          }
+        } catch (figErr) {
+          console.warn('[insert] figure generation failed — practice proceeds without insert:', figErr);
+        }
+      }
+    }
 
     // Download spec file if available
     let specContent = '';
@@ -1261,7 +1332,7 @@ Do not include any options arrays.
       ? `Generate between ${countMin} and ${countMax} practice questions — aim for approximately ${effectiveQuestionCount}. Choose the exact number that best fits topic coverage; do not pad with repetitive questions, and do not cut short before key concepts are covered.`
       : `Generate ${effectiveQuestionCount} practice questions.`;
 
-    let prompt = `${subjectLockInstruction}
+    let prompt = `${practiceFigBlock}${subjectLockInstruction}
 ${regionalPersona}
 ${generationContextPrompt}
 ${regionSubjectInstructions ? `\n${regionSubjectInstructions}\n` : ''}
@@ -2878,6 +2949,54 @@ Generate questions that are meaningfully different from all of the above.`;
     }
 
     // Validate and transform questions
+    // ── FIGURE-REFERENCE GATE (same battery as exams) ───────────────────────
+    {
+      const CALC_DEMAND_RE = /\bcalculat|difference between|to the nearest|percentage|per\s?cent\b|\bmean\b|\bmedian\b|\bsum of\b|how many (more|fewer|times)|times (greater|higher|larger)/i;
+      const PHANTOM_RE = /shown in the (image|photograph|photo|diagram|figure)|in the (image|photograph|photo) (above|below|provided)/i;
+      const figByNum = new Map(practiceInsertFigures.map((f: any) => [String(f.figureNumber), f]));
+      const beforeGate = questions.length;
+      questions = questions.filter((q: any) => {
+        const text = String(q.question_text || '');
+        const refs = [...text.matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
+        if (refs.length === 0) {
+          if (PHANTOM_RE.test(text)) {
+            console.warn(`[figgate] Q${q.question_number} references an image that was never generated — dropped (phantom asset)`);
+            return false;
+          }
+          return true;
+        }
+        for (const n of refs) {
+          const fig = figByNum.get(n);
+          if (!fig) {
+            console.warn(`[figgate] Q${q.question_number} references Figure ${n}, which does not exist — dropped`);
+            return false;
+          }
+          if (fig.type === 'data_table') {
+            const tableWords = new Set(
+              fig.rows.flat().filter((cell: any) => typeof cell === 'string')
+                .flatMap((cell: string) => cell.split(/[^A-Za-z]+/)).filter(Boolean)
+                .map((w: string) => w.toLowerCase())
+            );
+            const pairs = [...text.matchAll(/(?:for|between)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+and\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/g)];
+            for (const m of pairs) {
+              for (const name of [m[1], m[2]]) {
+                if (name.split(/\s+/).some((w) => !tableWords.has(w.toLowerCase()))) {
+                  console.warn(`[figgate] Q${q.question_number} names "${name}" not in table Figure ${n} — dropped (entity mismatch)`);
+                  return false;
+                }
+              }
+            }
+          }
+          if (fig.type === 'map_points' && CALC_DEMAND_RE.test(text)) {
+            console.warn(`[figgate] Q${q.question_number} demands calculation from categorical map Figure ${n} — dropped`);
+            return false;
+          }
+        }
+        return true;
+      });
+      if (beforeGate !== questions.length) console.log(`[figgate] removed ${beforeGate - questions.length} figure-contract violations`);
+    }
+
     const questionsToInsert = questions.map((q: any, idx: number) => {
       
       const questionTextRaw = q.question_text || '';
