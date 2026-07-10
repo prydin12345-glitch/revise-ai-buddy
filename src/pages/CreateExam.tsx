@@ -554,6 +554,7 @@ export default function CreateExam() {
           // Pass advanced profile metadata
           profileMetadata: {
             studiedTexts: (getProfilesForSubject(subjectId).find((pr: any) => pr.id === selectedProfile) as any)?.studied_texts ?? null,
+            paperBlueprint: (getProfilesForSubject(subjectId).find((pr: any) => pr.id === selectedProfile) as any)?.paper_blueprint ?? null,
             questionStructure: profileQuestionStructure,
             parentQuestionCount: profileParentQuestionCount,
             maxPartsPerQuestion: profileMaxPartsPerQuestion,
