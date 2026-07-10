@@ -1661,6 +1661,8 @@ function buildPrompt(params: {
     insertPromptBlock = '',
     originalStructurePromptBlock = '',
     sectionBlueprintPromptBlock = '',
+    studiedTexts = [],
+    paperBlueprint = null,
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
