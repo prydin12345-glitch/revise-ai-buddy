@@ -67,6 +67,17 @@ const STRUCTURE_PREVIEWS = [
   },
 ];
 
+const STUDIED_TEXT_ROLES = [
+  { id: "shakespeare", label: "Shakespeare play" },
+  { id: "pre1900_prose", label: "Pre-1900 prose" },
+  { id: "pre1900_poetry", label: "Pre-1900 poetry" },
+  { id: "modern_prose", label: "Modern prose" },
+  { id: "modern_drama", label: "Modern drama" },
+  { id: "poetry_anthology", label: "Poetry anthology" },
+  { id: "history_unit", label: "History unit / period study" },
+  { id: "other", label: "Other studied content" },
+];
+
 export interface QuestionStructureSettings {
   questionStructure: string;
   parentQuestionCount: number;
@@ -129,6 +140,10 @@ export const ExamProfileModal = ({
   const userRegion = detectRegionKey(preferences?.curriculum_region);
   const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
+  const isTextBasedSubject = /english|literature|history|religio/i.test(subjectName || "");
+  const [studiedTexts, setStudiedTexts] = useState<Array<{ role: string; title: string }>>([]);
+  const [newTextRole, setNewTextRole] = useState("shakespeare");
+  const [newTextTitle, setNewTextTitle] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [writtenCount, setWrittenCount] = useState(10);
   const [mcqCount, setMcqCount] = useState(0);
@@ -170,6 +185,7 @@ export const ExamProfileModal = ({
     if (open) {
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
+      setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
@@ -232,7 +248,7 @@ export const ExamProfileModal = ({
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    const advancedWithMcq = { ...advanced, mcqCount };
+    const advancedWithMcq = { ...advanced, mcqCount, studiedTexts: isTextBasedSubject ? studiedTexts : undefined };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
@@ -573,6 +589,57 @@ export const ExamProfileModal = ({
               subjectName={subjectName}
             />
           </SectionCard>
+
+          {/* ── Studied texts (text-based subjects) ── */}
+          {isTextBasedSubject && (
+            <SectionCard accent={subjectColor} icon={BookOpen} title="Studied texts" hint={studiedTexts.length ? `${studiedTexts.length} added` : "e.g. Othello, An Inspector Calls"}>
+              <p className="text-[11px] text-muted-foreground -mt-1">
+                The exact texts/units you study — questions will target these. Public-domain texts get real passage questions; in-copyright texts get essay questions.
+              </p>
+              <div className="space-y-1.5">
+                {studiedTexts.map((t, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 w-28">
+                      {STUDIED_TEXT_ROLES.find((r) => r.id === t.role)?.label ?? t.role}
+                    </span>
+                    <span className="text-xs flex-1 truncate">{t.title}</span>
+                    <button type="button" aria-label={`Remove ${t.title}`} onClick={() => setStudiedTexts(studiedTexts.filter((_, j) => j !== i))}>
+                      <span className="text-muted-foreground hover:text-destructive text-sm">×</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={newTextRole}
+                  onChange={(e) => setNewTextRole(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-xs w-40 shrink-0"
+                >
+                  {STUDIED_TEXT_ROLES.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+                <Input
+                  value={newTextTitle}
+                  onChange={(e) => setNewTextTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTextTitle.trim()) {
+                      e.preventDefault();
+                      setStudiedTexts([...studiedTexts, { role: newTextRole, title: newTextTitle.trim() }]);
+                      setNewTextTitle("");
+                    }
+                  }}
+                  placeholder="Title, e.g. Othello"
+                  className="h-9 text-xs"
+                />
+                <Button type="button" size="sm" variant="outline" className="shrink-0"
+                  disabled={!newTextTitle.trim()}
+                  onClick={() => { setStudiedTexts([...studiedTexts, { role: newTextRole, title: newTextTitle.trim() }]); setNewTextTitle(""); }}>
+                  Add
+                </Button>
+              </div>
+            </SectionCard>
+          )}
 
           {/* ── Timing ── */}
           <SectionCard accent={subjectColor} icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
