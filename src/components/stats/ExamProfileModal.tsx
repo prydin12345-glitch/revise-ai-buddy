@@ -280,7 +280,8 @@ export const ExamProfileModal = ({
     { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
-  const canSave = !!profileName.trim() && selectedTopics.length > 0;
+  const canSave = !!profileName.trim() && selectedTopics.length > 0 && !!finalTier;
+  const missingLevel = !finalTier;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
     selectedTopics.length ? `${selectedTopics.length} topic${selectedTopics.length === 1 ? "" : "s"}` : null,
